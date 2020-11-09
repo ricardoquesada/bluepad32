@@ -38,6 +38,43 @@ See: [Supported gamepads][gamepads]
 
 [gamepads]: https://gitlab.com/ricardoquesada/bluepad32/blob/master/docs/supported_gamepads.md
 
+## How to compile it
+
+1. Install ESP-IDF
+
+Install the ESP32 toolchain. Use version **4.0.1**. Might work on newer ones, but not tested.
+
+* https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/
+
+2. Clone repo
+
+```
+$ git clone https://gitlab.com/ricardoquesada/bluepad32.git
+$ cd bluepad32
+$ git submodule update --init
+```
+
+3. Integrate BTStack into ESP32
+
+```
+$ cd ${BLUEPAD32}/external/btstack/ports/esp32
+$ ./integrate_btstack.py
+```
+
+4. Compile Bluepad32
+
+```
+$ cd ${BLUEPAD32}/src
+$ make -j
+```
+
+5. Flash it
+
+```
+$ cd ${BLUEPAD32}/src
+$ make flash monitor
+```
+
 ## Support
 
 - [Discord][discord]
