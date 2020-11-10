@@ -505,7 +505,7 @@ static void handle_event_button() {
 struct uni_platform* uni_platform_c64_create(void) {
   static struct uni_platform plat;
 
-  plat.name = "ESP32-C64";
+  plat.name = "Unijoysticle for the C64";
   plat.init = c64_init;
   plat.on_init_complete = c64_on_init_complete;
   plat.on_port_assign_changed = c64_on_port_assign_changed;

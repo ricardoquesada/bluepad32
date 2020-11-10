@@ -19,6 +19,9 @@ xcschememanagement.plist
 xcuserdata/
 DerivedData/
 
+# VSCode
+.vscode/
+
 # Android Studio
 .gradle/
 .idea/

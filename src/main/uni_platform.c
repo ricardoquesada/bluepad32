@@ -24,6 +24,7 @@ limitations under the License.
 
 void uni_platform_init(int argc, const char** argv) {
   // Only one for the moment. Each vendor must create its own.
+  // These UNI_PLATFORM_ defines are defined in the Makefile and CMakeLists.txt
 
 #ifdef UNI_PLATFORM_C64
   g_platform = uni_platform_c64_create();

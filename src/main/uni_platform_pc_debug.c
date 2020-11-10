@@ -78,7 +78,7 @@ void pc_debug_on_port_assign_changed(uni_joystick_port_t port) {
 struct uni_platform* uni_platform_pc_debug_create(void) {
   static struct uni_platform plat;
 
-  plat.name = "PC-DEBUG";
+  plat.name = "PC Debug";
   plat.init = pc_debug_init;
   plat.on_init_complete = pc_debug_on_init_complete;
   plat.on_port_assign_changed = pc_debug_on_port_assign_changed;
