@@ -17,10 +17,14 @@ limitations under the License.
 ****************************************************************************/
 
 #include <stddef.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 #include "btstack_port_esp32.h"
 #include "btstack_run_loop.h"
 #include "hci_dump.h"
+
+#include "uni_debug.h"
 
 extern int btstack_main(int argc, const char* argv[]);
 
@@ -35,6 +39,8 @@ int app_main(void) {
 
   // Enter run loop (forever)
   btstack_run_loop_execute();
+
+  logi("Running in Core %d\n", xPortGetCoreID());
 
   return 0;
 }

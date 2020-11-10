@@ -78,8 +78,8 @@ static int process_request(const uint8_t command_buf[], int command_len,
 
 #define SPI_BUFFER_LEN SPI_MAX_DMA_LEN
 static void spi_main_loop(void* arg) {
-  WORD_ALIGNED_ATTR uint8_t response_buf[SPI_BUFFER_LEN + 1] = "";
-  WORD_ALIGNED_ATTR uint8_t command_buf[SPI_BUFFER_LEN + 1] = "";
+  WORD_ALIGNED_ATTR uint8_t response_buf[SPI_BUFFER_LEN + 1];
+  WORD_ALIGNED_ATTR uint8_t command_buf[SPI_BUFFER_LEN + 1];
 
   while (1) {
     memset(command_buf, 0, SPI_BUFFER_LEN);
@@ -98,7 +98,9 @@ static void spi_post_setup_cb(spi_slave_transaction_t* trans) {
   xSemaphoreGiveFromISR(_ready_semaphore, NULL);
 
   // Create SPI main loop thread
-  xTaskCreate(spi_main_loop, "spi_main_loop", 8192, NULL, 10, NULL);
+  // Bluetooth code runs in Core 0.
+  // In order to not interfere with it, this one should run in the other Core.
+  xTaskCreatePinnedToCore(spi_main_loop, "spi_main_loop", 8192, NULL, 1, NULL, 1);
 }
 
 static void IRAM_ATTR isr_handler_on_chip_select(void* arg) {
