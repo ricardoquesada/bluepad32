@@ -29,7 +29,7 @@ int btstack_main(int argc, const char** argv) {
   UNUSED(argv);
 
   // Honoring with BT copyright + adding own message to avoid confusion
-  printf("Unijoysticle 2 (C) 2016-2020 Ricardo Quesada and contributors.\n");
+  printf("Bluepad32 (C) 2016-2020 Ricardo Quesada and contributors.\n");
   printf("Bluetooth stack: Copyright (C) 2017 BlueKitchen GmbH.\n");
   printf("Firmware version: v1.2.0-beta\n");
 #if UNIJOYSTICLE_SINGLE_PORT

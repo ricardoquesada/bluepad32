@@ -268,7 +268,7 @@ static void packet_handler(uint8_t packet_type, uint16_t channel,
       switch (event) {
         case BTSTACK_EVENT_STATE:
           if (btstack_event_state_get_state(packet) == HCI_STATE_WORKING) {
-            uni_platform_on_init_complete();
+            g_platform->on_init_complete();
             bt_ready = 1;
             logi("Btstack ready!\n");
             list_link_keys();
@@ -837,7 +837,7 @@ static void list_link_keys(void) {
     loge("Link key iterator not implemented\n");
     return;
   }
-  uint8_t delete_keys = uni_platform_is_button_pressed();
+  uint8_t delete_keys = g_platform->is_button_pressed();
   if (delete_keys)
     printf("Deleting stored link keys:\n");
   else

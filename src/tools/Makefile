@@ -8,8 +8,10 @@ COMMON += btstack_audio_portaudio.c btstack_chipset_zephyr.c rijndael.c
 
 include ${BTSTACK_ROOT}/example/Makefile.inc
 
+CFLAGS += -DUNI_PLATFORM_PC_DEBUG
+
 CC=clang
-CFLAGS  += -g -std=c99 -Wall -Wmissing-prototypes -Wstrict-prototypes -Wshadow -Wunused-parameter -Wredundant-decls -Wsign-compare
+CFLAGS += -g -std=c99 -Wall -Wmissing-prototypes -Wstrict-prototypes -Wshadow -Wunused-parameter -Wredundant-decls -Wsign-compare
 # CFLAGS += -Werror
 # CFLAGS += -pedantic
 
@@ -69,7 +71,7 @@ unijoysticle: ${CORE_OBJ} ${COMMON_OBJ} ${CLASSIC_OBJ} ${SDP_CLIENT} btstack_rin
 	../main/uni_hid_parser_ds3.o ../main/uni_hid_parser_ds4.o ../main/uni_hid_parser_8bitdo.o ../main/uni_hid_parser_generic.o \
 	../main/uni_hid_parser_wii.o ../main/uni_hid_parser_switch.o \
 	../main/uni_circular_buffer.o \
-	uni_platform_pc.o
+	../main/uni_platform.o ../main/uni_platform_pc_debug.o
 	${CC} $^ ${CFLAGS} ${LDFLAGS} -o $@
 
 ble_host:  ${CORE_OBJ} ${COMMON_OBJ} ${CLASSIC_OBJ} ${SDP_CLIENT} btstack_ring_buffer.o btstack_hid_parser.o \

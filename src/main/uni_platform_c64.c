@@ -16,18 +16,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
-// ESP32 version
+// C64 - ESP32 version
+#include "uni_platform_c64.h"
 
-#include "driver/gpio.h"
-#include "esp_timer.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/event_groups.h"
-#include "freertos/queue.h"
-#include "math.h"
+#include <driver/gpio.h>
+#include <esp_timer.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/event_groups.h>
+#include <freertos/queue.h>
+#include <math.h>
+
 #include "uni_config.h"
 #include "uni_debug.h"
 #include "uni_hid_device.h"
-#include "uni_platform.h"
 
 // --- Consts
 
@@ -160,7 +161,7 @@ static void auto_fire_loop(void* arg);
     _a < _b ? _a : _b;      \
   })
 
-void uni_platform_init(int argc, const char** argv) {
+static void c64_init(int argc, const char** argv) {
   UNUSED(argc);
   UNUSED(argv);
   gpio_config_t io_conf;
@@ -235,21 +236,21 @@ void uni_platform_init(int argc, const char** argv) {
 }
 
 // Events
-void uni_platform_on_init_complete() {
+static void c64_on_init_complete(void) {
   // Turn Off LEDs
   gpio_set_level(GPIO_LED_J1, 0);
   gpio_set_level(GPIO_LED_J2, 0);
 }
 
-void uni_platform_on_port_assign_changed(uni_joystick_port_t port) {
+static void c64_on_port_assign_changed(uni_joystick_port_t port) {
   bool port_status_a = ((port & JOYSTICK_PORT_A) != 0);
   bool port_status_b = ((port & JOYSTICK_PORT_B) != 0);
   gpio_set_level(GPIO_LED_J1, port_status_a);
   gpio_set_level(GPIO_LED_J2, port_status_b);
 }
 
-void uni_platform_on_mouse_data(int32_t delta_x, int32_t delta_y,
-                                uint16_t buttons) {
+static void c64_on_mouse_data(int32_t delta_x, int32_t delta_y,
+                              uint16_t buttons) {
   static uint16_t prev_buttons = 0;
   logd("mouse: x=%d, y=%d, buttons=0x%4x\n", delta_x, delta_y, buttons);
 
@@ -270,7 +271,7 @@ void uni_platform_on_mouse_data(int32_t delta_x, int32_t delta_y,
   }
 }
 
-void uni_platform_on_joy_a_data(uni_joystick_t* joy) {
+static void c64_on_joy_a_data(uni_joystick_t* joy) {
   joy_update_port(joy, JOY_A_PORTS);
   g_autofire_a_enabled = joy->auto_fire;
   if (g_autofire_a_enabled) {
@@ -278,14 +279,14 @@ void uni_platform_on_joy_a_data(uni_joystick_t* joy) {
   }
 }
 
-void uni_platform_on_joy_b_data(uni_joystick_t* joy) {
+static void c64_on_joy_b_data(uni_joystick_t* joy) {
   joy_update_port(joy, JOY_B_PORTS);
   g_autofire_b_enabled = joy->auto_fire;
   if (g_autofire_b_enabled) {
     xEventGroupSetBits(g_auto_fire_group, EVENT_BIT_AUTOFIRE);
   }
 }
-uint8_t uni_platform_is_button_pressed() {
+static uint8_t c64_is_button_pressed(void) {
   // Hi-released, Low-pressed
   return !gpio_get_level(GPIO_PUSH_BUTTON);
 }
@@ -499,4 +500,19 @@ static void handle_event_button() {
   logi("handle_event_button: %d -> %d\n", enabled, !enabled);
   enabled = !enabled;
   uni_hid_device_on_emu_mode_change();
+}
+
+struct uni_platform* uni_platform_c64_create(void) {
+  static struct uni_platform plat;
+
+  plat.name = "ESP32-C64";
+  plat.init = c64_init;
+  plat.on_init_complete = c64_on_init_complete;
+  plat.on_port_assign_changed = c64_on_port_assign_changed;
+  plat.on_joy_a_data = c64_on_joy_a_data;
+  plat.on_joy_b_data = c64_on_joy_b_data;
+  plat.on_mouse_data = c64_on_mouse_data;
+  plat.is_button_pressed = c64_is_button_pressed;
+
+  return &plat;
 }

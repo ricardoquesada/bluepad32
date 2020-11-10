@@ -16,14 +16,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
-// Stub version
+// Debug version
 
 #include <stdio.h>
 #include <string.h>
 
 #include "uni_debug.h"
 #include "uni_hid_device.h"
-#include "uni_platform.h"
+#include "uni_platform_pc_debug.h"
 
 static int g_enhanced_mode = 0;
 static int g_delete_keys = 0;
@@ -40,7 +40,7 @@ static void print_joystick(int joy_port, uni_joystick_t* joy) {
   }
 }
 
-void uni_platform_init(int argc, const char** argv) {
+static void pc_debug_init(int argc, const char** argv) {
   for (int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "--enhanced") == 0 || strcmp(argv[i], "-e") == 0) {
       g_enhanced_mode = 1;
@@ -53,18 +53,18 @@ void uni_platform_init(int argc, const char** argv) {
   }
 }
 
-void uni_platform_on_joy_a_data(uni_joystick_t* joy) { print_joystick(0, joy); }
-void uni_platform_on_joy_b_data(uni_joystick_t* joy) { print_joystick(1, joy); }
-void uni_platform_on_mouse_data(int32_t delta_x, int32_t delta_y,
+static void pc_debug_on_joy_a_data(uni_joystick_t* joy) { print_joystick(0, joy); }
+static void pc_debug_on_joy_b_data(uni_joystick_t* joy) { print_joystick(1, joy); }
+static void pc_debug_on_mouse_data(int32_t delta_x, int32_t delta_y,
                                 uint16_t buttons) {
   printf("mouse: x=%d, y=%d, buttons=0x%4x\n", delta_x, delta_y, buttons);
 }
 
-uint8_t uni_platform_is_button_pressed() { return g_delete_keys; }
+static uint8_t pc_debug_is_button_pressed() { return g_delete_keys; }
 
 // Events.
-void uni_platform_on_init_complete(void) {}
-void uni_platform_on_port_assign_changed(uni_joystick_port_t port) {
+void pc_debug_on_init_complete(void) {}
+void pc_debug_on_port_assign_changed(uni_joystick_port_t port) {
   uint8_t port_status_a = ((port & JOYSTICK_PORT_A) != 0);
   uint8_t port_status_b = ((port & JOYSTICK_PORT_B) != 0);
   printf("LED A = %d, LED B = %d\n", port_status_a, port_status_b);
@@ -73,4 +73,19 @@ void uni_platform_on_port_assign_changed(uni_joystick_port_t port) {
   if (g_enhanced_mode && port != (JOYSTICK_PORT_A | JOYSTICK_PORT_B)) {
     uni_hid_device_on_emu_mode_change();
   }
+}
+
+struct uni_platform* uni_platform_pc_debug_create(void) {
+  static struct uni_platform plat;
+
+  plat.name = "PC-DEBUG";
+  plat.init = pc_debug_init;
+  plat.on_init_complete = pc_debug_on_init_complete;
+  plat.on_port_assign_changed = pc_debug_on_port_assign_changed;
+  plat.on_joy_a_data = pc_debug_on_joy_a_data;
+  plat.on_joy_b_data = pc_debug_on_joy_b_data;
+  plat.on_mouse_data = pc_debug_on_mouse_data;
+  plat.is_button_pressed = pc_debug_is_button_pressed;
+
+  return &plat;
 }

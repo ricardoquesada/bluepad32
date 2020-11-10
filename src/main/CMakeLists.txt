@@ -1,3 +1,6 @@
+# Define which platform
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUNI_PLATFORM_C64")
+
 set(COMPONENT_SRCS "uni_bluetooth.c"
                    "uni_circular_buffer.c"
                    "uni_gamepad.c"
@@ -5,8 +8,8 @@ set(COMPONENT_SRCS "uni_bluetooth.c"
                    "uni_hid_parser.c"
                    "uni_hid_parser_8bitdo.c"
                    "uni_hid_parser_android.c"
-                   "uni_hid_parser_ds4.c"
                    "uni_hid_parser_ds3.c"
+                   "uni_hid_parser_ds4.c"
                    "uni_hid_parser_generic.c"
                    "uni_hid_parser_icade.c"
                    "uni_hid_parser_nimbus.c"
@@ -17,7 +20,10 @@ set(COMPONENT_SRCS "uni_bluetooth.c"
                    "uni_hid_parser_xboxone.c"
                    "uni_main.c"
                    "uni_main_esp32.c"
-                   "uni_platform_esp32_c64.c")
+                   "uni_platform.c"
+                   "uni_platform_c64.c"
+                   "uni_platform_pc_debug.c"
+                   )
 set(COMPONENT_ADD_INCLUDEDIRS ".")
 
 register_component()
