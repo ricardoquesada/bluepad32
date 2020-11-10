@@ -19,6 +19,7 @@ limitations under the License.
 #include "uni_platform.h"
 
 #include "uni_debug.h"
+#include "uni_platform_airlift.h"
 #include "uni_platform_c64.h"
 #include "uni_platform_pc_debug.h"
 
@@ -30,6 +31,8 @@ void uni_platform_init(int argc, const char** argv) {
   g_platform = uni_platform_c64_create();
 #elif defined(UNI_PLATFORM_PC_DEBUG)
   g_platform = uni_platform_pc_debug_create();
+#elif defined(UNI_PLATFORM_AIRLIFT)
+  g_platform = uni_platform_airlift_create();
 #else
 #error "Platform not defined"
 #endif

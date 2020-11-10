@@ -42,6 +42,7 @@ limitations under the License.
 #include "uni_config.h"
 #include "uni_debug.h"
 #include "uni_hid_device.h"
+#include "uni_joystick.h"
 
 // SPI et al pins
 #define GPIO_MOSI GPIO_NUM_14
@@ -54,6 +55,7 @@ limitations under the License.
 const char FIRMWARE_VERSION[] = "Bluepad32 for Adafruit AirLift v0.1";
 
 static SemaphoreHandle_t _ready_semaphore = NULL;
+static uni_joystick_t _gamepad0;
 
 static int spi_transfer(uint8_t out[], uint8_t in[], size_t len) {
   spi_slave_transaction_t slvTrans;
@@ -73,6 +75,34 @@ static int spi_transfer(uint8_t out[], uint8_t in[], size_t len) {
   gpio_set_level(GPIO_READY, 1);
 
   return (slvTrans.trans_len / 8);
+}
+
+static int request_get_fw_version(const uint8_t command[], uint8_t response[])
+{
+  response[2] = 1; // number of parameters
+  response[3] = sizeof(FIRMWARE_VERSION); // parameter 1 length
+
+  memcpy(&response[4], FIRMWARE_VERSION, sizeof(FIRMWARE_VERSION));
+
+  return 5 + sizeof(FIRMWARE_VERSION);
+}
+
+static int request_connected_gamepads(const uint8_t command[], uint8_t response[])
+{
+  response[2] = 1; // number of parameters
+  response[3] = 1; // parameter 1 length
+  response[4] = 1; // FIXME: hardcoded one connected gamepad
+
+  return 6;
+}
+
+static int request_gamepad_data(const uint8_t command[], uint8_t response[])
+{
+  response[2] = 1; // number of parameters
+  response[3] = sizeof(_gamepad0); // parameter 1 lenght
+  memcpy(&response[4], &_gamepad0, sizeof(_gamepad0));
+
+  return 5 + sizeof(_gamepad0);
 }
 
 typedef int (*CommandHandlerType)(const uint8_t command[], uint8_t response[]);
@@ -152,17 +182,14 @@ const CommandHandlerType commandHandlers[] = {
   NULL, // setAnalogWrite,
   NULL, // setDigitalRead,
   NULL, // setAnalogRead,
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+
+  // 0x60 -> 0x6f: Bluepad32 own extensions
+  request_connected_gamepads, // request_connected_gamepads
+  request_gamepad_data, // request_gamepad_data
+  NULL, // request_set_gamepad_rumble
+  NULL, // request_set_gamepad_led_color
 };
-
-static int request_get_fw_version(const uint8_t command[], uint8_t response[])
-{
-  response[2] = 1; // number of parameters
-  response[3] = sizeof(FIRMWARE_VERSION); // parameter 1 length
-
-  memcpy(&response[4], FIRMWARE_VERSION, sizeof(FIRMWARE_VERSION));
-
-  return 11;
-}
 
 static int process_request(const uint8_t command_buf[], int command_len,
                            uint8_t out[]) {
