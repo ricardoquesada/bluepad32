@@ -16,17 +16,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
-// Adafruit Matrix Portal has two ICs:
-// - ESP32
-// - ATSAMD51J19
-// By default the ESP32 is used only for WiFi, and it is connected to the SAMD51
-// using SPI.
-// In our case, we replace the existing ESP32 firmware with Bluepad32, and we
-// use the same SPI channel so that the SAMD51 can request: "give me the gamepad
-// data"
+// Adafruit AirLift is supposed to work with
+// - ESP32 as a co-procesor
+// - And the main processor (usually an ARM or AVR)
+// The ESP32 is a SPI-slave witch should handle a pre-defined set of requests.
+// Instead of implementing all of these pre-defined requests, we add our own
+// gamepad-related requests.
 
-// Adafruit Matrix Portal driver
-#include "uni_platform_matrix_portal.h"
+// This firmware should work on all Adafruit "AirLift" family like:
+// - AirLift
+// - Matrix Portal
+// - PyPortal
+
+#include "uni_platform_airlift.h"
 
 #include <driver/gpio.h>
 #include <driver/spi_slave.h>
@@ -49,6 +51,8 @@ limitations under the License.
 #define GPIO_READY GPIO_NUM_33
 #define DMA_CHANNEL 1
 
+const char FIRMWARE_VERSION[] = "Bluepad32 for Adafruit AirLift v0.1";
+
 static SemaphoreHandle_t _ready_semaphore = NULL;
 
 static int spi_transfer(uint8_t out[], uint8_t in[], size_t len) {
@@ -69,6 +73,95 @@ static int spi_transfer(uint8_t out[], uint8_t in[], size_t len) {
   gpio_set_level(GPIO_READY, 1);
 
   return (slvTrans.trans_len / 8);
+}
+
+typedef int (*CommandHandlerType)(const uint8_t command[], uint8_t response[]);
+const CommandHandlerType commandHandlers[] = {
+  // 0x00 -> 0x0f
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+
+  // 0x10 -> 0x1f
+  NULL, // setNet
+  NULL, // setPassPhrase,
+  NULL, // setKey,
+  NULL,
+  NULL, // setIPconfig,
+  NULL, // setDNSconfig,
+  NULL, // setHostname,
+  NULL, // setPowerMode,
+  NULL, // setApNet,
+  NULL, // setApPassPhrase,
+  NULL, // setDebug,
+  NULL, // getTemperature,
+  NULL, NULL, NULL, NULL,
+
+  // 0x20 -> 0x2f
+  NULL, // getConnStatus,
+  NULL, // getIPaddr,
+  NULL, // getMACaddr,
+  NULL, // getCurrSSID,
+  NULL, // getCurrBSSID,
+  NULL, // getCurrRSSI,
+  NULL, // getCurrEnct,
+  NULL, // scanNetworks,
+  NULL, // startServerTcp,
+  NULL, // getStateTcp,
+  NULL, // dataSentTcp,
+  NULL, // availDataTcp,
+  NULL, // getDataTcp,
+  NULL, // startClientTcp,
+  NULL, // stopClientTcp,
+  NULL, // getClientStateTcp,
+
+  // 0x30 -> 0x3f
+  NULL, // disconnect,
+  NULL,
+  NULL, // getIdxRSSI,
+  NULL, // getIdxEnct,
+  NULL, // reqHostByName,
+  NULL, // getHostByName,
+  NULL, // startScanNetworks,
+  request_get_fw_version, // getFwVersion,
+  NULL,
+  NULL, // sendUDPdata,
+  NULL, // getRemoteData,
+  NULL, // getTime,
+  NULL, // getIdxBSSID,
+  NULL, // getIdxChannel,
+  NULL, // ping,
+  NULL, // getSocket,
+
+  // 0x40 -> 0x4f
+  NULL, // setClientCert,
+  NULL, // setCertKey,
+  NULL, NULL,
+  NULL, // sendDataTcp,
+  NULL, // getDataBufTcp,
+  NULL, // insertDataBuf,
+  NULL, NULL, NULL,
+  NULL, // wpa2EntSetIdentity,
+  NULL, // wpa2EntSetUsername,
+  NULL, // wpa2EntSetPassword,
+  NULL, // wpa2EntSetCACert,
+  NULL, // wpa2EntSetCertKey,
+  NULL, // wpa2EntEnable,
+
+  // 0x50 -> 0x5f
+  NULL, // setPinMode,
+  NULL, // setDigitalWrite,
+  NULL, // setAnalogWrite,
+  NULL, // setDigitalRead,
+  NULL, // setAnalogRead,
+};
+
+static int request_get_fw_version(const uint8_t command[], uint8_t response[])
+{
+  response[2] = 1; // number of parameters
+  response[3] = sizeof(FIRMWARE_VERSION); // parameter 1 length
+
+  memcpy(&response[4], FIRMWARE_VERSION, sizeof(FIRMWARE_VERSION));
+
+  return 11;
 }
 
 static int process_request(const uint8_t command_buf[], int command_len,
@@ -107,12 +200,12 @@ static void IRAM_ATTR isr_handler_on_chip_select(void* arg) {
   gpio_set_level(GPIO_READY, 1);
 }
 
-static void matrix_portal_init(int argc, const char** argv) {
+static void airlift_init(int argc, const char** argv) {
   UNUSED(argc);
   UNUSED(argv);
 
-  // SPI Initialization taken from Nina-fw, the ESP32 firmware used in Adafruit
-  // Matrix Portal:
+  // SPI Initialization taken from Nina-fw; the firmware used in Adafruit
+  // AirLift products:
   // https://github.com/adafruit/nina-fw/blob/master/arduino/libraries/SPIS/src/SPIS.cpp
 
   // The Arduino-like API was converted to ESP32 API calls.
@@ -154,30 +247,30 @@ static void matrix_portal_init(int argc, const char** argv) {
 }
 
 // Events
-static void matrix_portal_on_init_complete(void) {}
+static void airlift_on_init_complete(void) {}
 
-static void matrix_portal_on_port_assign_changed(uni_joystick_port_t port) {}
+static void airlift_on_port_assign_changed(uni_joystick_port_t port) {}
 
-static void matrix_portal_on_mouse_data(int32_t delta_x, int32_t delta_y,
+static void airlift_on_mouse_data(int32_t delta_x, int32_t delta_y,
                                         uint16_t buttons) {}
 
-static void matrix_portal_on_joy_a_data(uni_joystick_t* joy) {}
+static void airlift_on_joy_a_data(uni_joystick_t* joy) {}
 
-static void matrix_portal_on_joy_b_data(uni_joystick_t* joy) {}
+static void airlift_on_joy_b_data(uni_joystick_t* joy) {}
 
-static uint8_t matrix_portal_is_button_pressed(void) { return 0; }
+static uint8_t airlift_is_button_pressed(void) { return 0; }
 
-struct uni_platform* uni_platform_matrix_portal_create(void) {
+struct uni_platform* uni_platform_airlift_create(void) {
   static struct uni_platform plat;
 
-  plat.name = "Adafruit Matrix Portal";
-  plat.init = matrix_portal_init;
-  plat.on_init_complete = matrix_portal_on_init_complete;
-  plat.on_port_assign_changed = matrix_portal_on_port_assign_changed;
-  plat.on_joy_a_data = matrix_portal_on_joy_a_data;
-  plat.on_joy_b_data = matrix_portal_on_joy_b_data;
-  plat.on_mouse_data = matrix_portal_on_mouse_data;
-  plat.is_button_pressed = matrix_portal_is_button_pressed;
+  plat.name = "Adafruit AirLift";
+  plat.init = airlift_init;
+  plat.on_init_complete = airlift_on_init_complete;
+  plat.on_port_assign_changed = airlift_on_port_assign_changed;
+  plat.on_joy_a_data = airlift_on_joy_a_data;
+  plat.on_joy_b_data = airlift_on_joy_b_data;
+  plat.on_mouse_data = airlift_on_mouse_data;
+  plat.is_button_pressed = airlift_is_button_pressed;
 
   return &plat;
 }
