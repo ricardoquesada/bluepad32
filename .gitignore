@@ -1,0 +1,43 @@
+.pioenvs
+.clang_complete
+.gcc-flags.json
+
+# Ignore vim swaps
+*.swp
+*.swo
+
+# Xcode
+*.mode*v*
+*.pbxuser
+*.xcbkptlist
+*.xcworkspacedata
+*.xcuserstate
+*.xccheckout
+xcschememanagement.plist
+.DS_Store
+._.*
+xcuserdata/
+DerivedData/
+
+# Android Studio
+.gradle/
+.idea/
+
+# Qt-es
+/.qmake.cache
+/.qmake.stash
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.qbs.user.*
+*.moc
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+*.autosave
+
+# Object files
+*.o
+
+# Vagrant stuff
+.vagrant
