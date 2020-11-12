@@ -231,6 +231,7 @@ static void spi_main_loop(void* arg) {
   WORD_ALIGNED_ATTR uint8_t command_buf[SPI_BUFFER_LEN + 1];
 
   while (1) {
+    logi("************  while main loop\n");
     memset(command_buf, 0, SPI_BUFFER_LEN);
     int command_len = spi_transfer(NULL, command_buf, SPI_BUFFER_LEN);
 
@@ -244,6 +245,8 @@ static void spi_main_loop(void* arg) {
 
 // Called after a transaction is queued and ready for pickup by master.
 static void spi_post_setup_cb(spi_slave_transaction_t* trans) {
+  UNUSED(trans);
+  logi("************  spi_post_setup_cb\n");
   xSemaphoreGiveFromISR(_ready_semaphore, NULL);
 
   // Create SPI main loop thread
@@ -260,7 +263,12 @@ static void IRAM_ATTR isr_handler_on_chip_select(void* arg) {
 static void airlift_init(int argc, const char** argv) {
   UNUSED(argc);
   UNUSED(argv);
+  logi("********** airlift_init()\n");
+}
 
+// Events
+static void airlift_on_init_complete(void) {
+  logi("************  airlift_on_init_complete()\n");
   // SPI Initialization taken from Nina-fw; the firmware used in Adafruit
   // AirLift products:
   // https://github.com/adafruit/nina-fw/blob/master/arduino/libraries/SPIS/src/SPIS.cpp
@@ -300,11 +308,23 @@ static void airlift_init(int argc, const char** argv) {
   gpio_set_pull_mode(GPIO_SCLK, GPIO_PULLDOWN_ONLY);
   gpio_set_pull_mode(GPIO_CS, GPIO_PULLUP_ONLY);
 
-  spi_slave_initialize(VSPI_HOST, &buscfg, &slvcfg, DMA_CHANNEL);
-}
+  esp_err_t ret = spi_slave_initialize(VSPI_HOST, &buscfg, &slvcfg, DMA_CHANNEL);
+  logi("spi_slave_initialize = %d\n", ret);
+  assert(ret==ESP_OK);
 
-// Events
-static void airlift_on_init_complete(void) {}
+  // Manually put the ESP32 in upload mode so that the ESP32 UART is connected
+  // with the main MCU UART.
+  // digitalWrite(ESP32_GPIO0, LOW);
+//  gpio_set_level(GPIO_NUM_0, 0);
+
+  // digitalWrite(ESP32_RESETN, LOW);
+//  gpio_set_level(GPIO_NUM_19, 0);
+  // delay(100);
+//  vTaskDelay(100 / portTICK_PERIOD_MS);
+
+  // digitalWrite(ESP32_RESETN, HIGH);
+//  gpio_set_level(GPIO_NUM_19, 1);
+}
 
 static void airlift_on_port_assign_changed(uni_joystick_port_t port) {}
 
