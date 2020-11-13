@@ -45,25 +45,6 @@ static const int GPIO_LED_J2 = GPIO_NUM_13;
 static const int GPIO_PUSH_BUTTON = GPIO_NUM_10;
 
 enum {
-#if UNI_ENABLE_COMPACT_V1
-  // Same GPIOs as Wemos D1 mini (used in Unijoysticle v0.4)
-  GPIO_JOY_A_UP = GPIO_NUM_26,     // D0
-  GPIO_JOY_A_DOWN = GPIO_NUM_22,   // D1
-  GPIO_JOY_A_LEFT = GPIO_NUM_21,   // D2
-  GPIO_JOY_A_RIGHT = GPIO_NUM_17,  // D3
-  GPIO_JOY_A_FIRE = GPIO_NUM_16,   // D4
-
-  GPIO_JOY_B_UP = GPIO_NUM_18,    // D5
-  GPIO_JOY_B_DOWN = GPIO_NUM_19,  // D6
-  GPIO_JOY_B_LEFT = GPIO_NUM_23,  // D7
-  GPIO_JOY_B_RIGHT = GPIO_NUM_5,  // D8
-  // GPIO_NUM_3 is assigned to the UART. And although it is possible to
-  // rewire the GPIOs for the UART in software, the devkits expects that GPIOS 1
-  // and 3
-  // are assigned to UART 0. And I cannot use it.
-  // Using GPIO 27 instead, which is the one that is closer to GPIO 3.
-  GPIO_JOY_B_FIRE = GPIO_NUM_27,  // RX
-#else
   GPIO_JOY_A_UP = GPIO_NUM_26,
   GPIO_JOY_A_DOWN = GPIO_NUM_18,
   GPIO_JOY_A_LEFT = GPIO_NUM_19,
@@ -83,7 +64,6 @@ enum {
   GPIO_JOY_B_LEFT = GPIO_NUM_32,
   GPIO_JOY_B_RIGHT = GPIO_NUM_17,
   GPIO_JOY_B_FIRE = GPIO_NUM_12,
-#endif  // UNI_ENABLE_COMPACT_V1
 };
 
 // GPIO_NUM_12 (input) used as input for Pot in esp32.
@@ -97,6 +77,15 @@ enum {
   // Autofire Group
   EVENT_BIT_AUTOFIRE = (1 << 0),
 };
+
+// C64 "instance"
+typedef struct c64_instance_s {
+  uint8_t state;
+  uint8_t mode;
+  uint8_t firmware_hi;
+  uint8_t firmware_lo;
+  uint8_t controller_type;
+} c64_instance_t;
 
 static const gpio_num_t JOY_A_PORTS[] = {
     GPIO_JOY_A_UP,   GPIO_JOY_A_DOWN,  GPIO_JOY_A_LEFT, GPIO_JOY_A_RIGHT,
@@ -124,6 +113,8 @@ static uint8_t g_autofire_a_enabled = 0;
 static uint8_t g_autofire_b_enabled = 0;
 
 // --- Code
+
+static c64_instance_t* get_c64_instance(uni_hid_device_t* d);
 
 // Interrupt handlers
 static void handle_event_mouse();
@@ -515,4 +506,11 @@ struct uni_platform* uni_platform_c64_create(void) {
   plat.is_button_pressed = c64_is_button_pressed;
 
   return &plat;
+}
+
+//
+// Helpers
+//
+static c64_instance_t* get_c64_instance(uni_hid_device_t* d) {
+  return (c64_instance_t*)&d->platform_data[0];
 }

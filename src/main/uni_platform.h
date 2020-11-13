@@ -22,6 +22,7 @@ limitations under the License.
 #include <stdint.h>
 
 #include "uni_joystick.h"
+#include "uni_hid_device.h"
 
 // uni_platform must be defined for each new platform that is implemented.
 // It contains callbacks and other init functions that each "platform" must
@@ -37,6 +38,8 @@ struct uni_platform {
 
   // events
   void (*on_init_complete)(void);
+  void (*on_device_connected)(uni_hid_device_t* d);
+  void (*on_device_disconnected)(uni_hid_device_t* d);
   void (*on_port_assign_changed)(uni_joystick_port_t port);
   void (*on_joy_a_data)(uni_joystick_t* joy);
   void (*on_joy_b_data)(uni_joystick_t* joy);
