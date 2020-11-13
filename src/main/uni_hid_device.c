@@ -23,6 +23,7 @@ limitations under the License.
 #include "uni_circular_buffer.h"
 #include "uni_config.h"
 #include "uni_debug.h"
+#include "uni_gamepad.h"
 #include "uni_hid_device_vendors.h"
 #include "uni_hid_parser_8bitdo.h"
 #include "uni_hid_parser_android.h"
@@ -38,8 +39,6 @@ limitations under the License.
 #include "uni_hid_parser_xboxone.h"
 #include "uni_platform.h"
 
-#define MAX_DEVICES 8
-
 enum {
   FLAGS_INCOMING = (1 << 0),
   FLAGS_CONNECTED = (1 << 1),
@@ -52,7 +51,7 @@ enum {
   FLAGS_HAS_CONTROLLER_TYPE = (1 << 13),
 };
 
-static uni_hid_device_t g_devices[MAX_DEVICES];
+static uni_hid_device_t g_devices[UNI_HID_DEVICE_MAX_DEVICES];
 static uni_hid_device_t* g_sdp_device = NULL;
 static struct timeval g_sdp_start_time;
 static const bd_addr_t zero_addr = {0, 0, 0, 0, 0, 0};
@@ -63,7 +62,7 @@ static void process_misc_button_home(uni_hid_device_t* d);
 void uni_hid_device_init(void) { memset(g_devices, 0, sizeof(g_devices)); }
 
 uni_hid_device_t* uni_hid_device_create(bd_addr_t address) {
-  for (int j = 0; j < MAX_DEVICES; j++) {
+  for (int j = 0; j < UNI_HID_DEVICE_MAX_DEVICES; j++) {
     if (bd_addr_cmp(g_devices[j].address, zero_addr) == 0) {
       memcpy(g_devices[j].address, address, 6);
       return &g_devices[j];
@@ -73,7 +72,7 @@ uni_hid_device_t* uni_hid_device_create(bd_addr_t address) {
 }
 
 uni_hid_device_t* uni_hid_device_get_instance_for_address(bd_addr_t addr) {
-  for (int j = 0; j < MAX_DEVICES; j++) {
+  for (int j = 0; j < UNI_HID_DEVICE_MAX_DEVICES; j++) {
     if (bd_addr_cmp(addr, g_devices[j].address) == 0) {
       return &g_devices[j];
     }
@@ -83,7 +82,7 @@ uni_hid_device_t* uni_hid_device_get_instance_for_address(bd_addr_t addr) {
 
 uni_hid_device_t* uni_hid_device_get_instance_for_cid(uint16_t cid) {
   if (cid == 0) return NULL;
-  for (int i = 0; i < MAX_DEVICES; i++) {
+  for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
     if (g_devices[i].hid_interrupt_cid == cid ||
         g_devices[i].hid_control_cid == cid) {
       return &g_devices[i];
@@ -95,7 +94,7 @@ uni_hid_device_t* uni_hid_device_get_instance_for_cid(uint16_t cid) {
 uni_hid_device_t* uni_hid_device_get_instance_for_connection_handle(
     hci_con_handle_t handle) {
   if (handle == 0) return NULL;
-  for (int i = 0; i < MAX_DEVICES; i++) {
+  for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
     if (g_devices[i].con_handle == handle) {
       return &g_devices[i];
     }
@@ -103,9 +102,14 @@ uni_hid_device_t* uni_hid_device_get_instance_for_connection_handle(
   return NULL;
 }
 
+uni_hid_device_t* uni_hid_device_get_instance_for_idx(int idx) {
+  if (idx < 0 || idx >= UNI_HID_DEVICE_MAX_DEVICES) return NULL;
+  return &g_devices[idx];
+}
+
 uni_hid_device_t* uni_hid_device_get_first_device_with_state(
     enum DEVICE_STATE state) {
-  for (int i = 0; i < MAX_DEVICES; i++) {
+  for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
     if ((bd_addr_cmp(g_devices[i].address, zero_addr) != 0) &&
         (g_devices[i].state == state))
       return &g_devices[i];
@@ -129,60 +133,19 @@ uni_hid_device_t* uni_hid_device_get_sdp_device(uint64_t* elapsed /*out*/) {
   return g_sdp_device;
 }
 
-void uni_hid_device_assign_joystick_port(uni_hid_device_t* d) {
+void uni_hid_device_set_ready(uni_hid_device_t* d) {
   if (d == NULL) {
-    loge("ERROR: Invalid device\n");
+    loge("ERROR: Invalid NULL device\n");
     return;
   }
 
-  // Some safety checks. These conditions should not happen
-  if ((d->joystick_port != JOYSTICK_PORT_NONE) ||
-      (!uni_hid_device_has_controller_type(d))) {
-    loge("uni_hid_device_assign_joystick_port: pre-condition not met\n");
-    return;
-  }
-
-  // FIXME: Joystick might not get assigned here. This is to make the FSM happy.
-  uni_hid_device_set_state(d, STATE_JOYSTICK_ASSIGNED);
-
-  uint32_t used_joystick_ports = 0;
-  for (int i = 0; i < MAX_DEVICES; i++) {
-    used_joystick_ports |= g_devices[i].joystick_port;
-  }
-
-#if UNIJOYSTICLE_SINGLE_PORT
-  int wanted_port = JOYSTICK_PORT_A;
-  d->emu_mode = EMULATION_MODE_SINGLE_JOY;
-#else   // UNIJOYSTICLE_SINGLE_PORT  == 0
-  // Try with Port B, assume it is a joystick
-  int wanted_port = JOYSTICK_PORT_B;
-  d->emu_mode = EMULATION_MODE_SINGLE_JOY;
-  // d->emu_mode = EMULATION_MODE_COMBO_JOY_JOY;
-
-  // ... unless it is a mouse which should try with PORT A. Amiga/Atari ST use
-  // mice in PORT A. Undefined on the C64, but most apps use it in PORT A as
-  // well.
-  uint32_t mouse_cod = MASK_COD_MAJOR_PERIPHERAL | MASK_COD_MINOR_POINT_DEVICE;
-  if ((d->cod & mouse_cod) == mouse_cod) {
-    wanted_port = JOYSTICK_PORT_A;
-    d->emu_mode = EMULATION_MODE_SINGLE_MOUSE;
-  }
-
-  // If wanted port is already assigned, try with the next one
-  if (used_joystick_ports & wanted_port) {
-    logi("Port already assigned, trying another one\n");
-    wanted_port = (~wanted_port) & JOYSTICK_PORT_AB_MASK;
-  }
-#endif  // UNIJOYSTICLE_SINGLE_PORT  == 0
-
-  uni_hid_device_set_joystick_port(d, wanted_port);
-
-  if (d->report_parser.setup) d->report_parser.setup(d);
+  if (g_platform->on_device_ready(d) == 0)
+    uni_hid_device_set_state(d, STATE_DEVICE_READY);
 }
 
 void uni_hid_device_remove_entry_with_channel(uint16_t channel) {
   if (channel == 0) return;
-  for (int i = 0; i < MAX_DEVICES; i++) {
+  for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
     if (g_devices[i].hid_control_cid == channel ||
         g_devices[i].hid_interrupt_cid == channel) {
       memset(&g_devices[i], 0, sizeof(g_devices[i]));
@@ -192,7 +155,7 @@ void uni_hid_device_remove_entry_with_channel(uint16_t channel) {
 }
 
 void uni_hid_device_request_inquire(void) {
-  for (int i = 0; i < MAX_DEVICES; i++) {
+  for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
     // retry remote name request
     if (g_devices[i].state == STATE_REMOTE_NAME_INQUIRED) {
       g_devices[i].state = STATE_REMOTE_NAME_REQUEST;
@@ -209,16 +172,14 @@ void uni_hid_device_set_connected(uni_hid_device_t* d, bool connected) {
   if (connected) {
     // connected
     d->flags |= FLAGS_CONNECTED;
+    g_platform->on_device_connected(d);
   } else {
     // disconnected
     d->flags &= ~(FLAGS_CONNECTED | FLAGS_INCOMING);
     d->hid_control_cid = 0;
     d->hid_interrupt_cid = 0;
 
-    if (d->joystick_port != JOYSTICK_PORT_NONE) {
-      uni_hid_device_set_joystick_port(d, JOYSTICK_PORT_NONE);
-      d->emu_mode = EMULATION_MODE_SINGLE_JOY;
-    }
+    g_platform->on_device_disconnected(d);
   }
 }
 
@@ -350,15 +311,15 @@ void uni_hid_device_dump_device(uni_hid_device_t* d) {
   logi(
       "%s, handle=%d, ctrl_cid=0x%04x, intr_cid=0x%04x, cod=0x%08x, "
       "vid=0x%04x, pid=0x%04x, flags=0x%08x, "
-      "port=%d, ctrl_type=0x%02x, name='%s'\n",
+      "ctrl_type=0x%02x, name='%s'\n",
       bd_addr_to_str(d->address), d->con_handle, d->hid_control_cid,
       d->hid_interrupt_cid, d->cod, d->vendor_id, d->product_id, d->flags,
-      d->joystick_port, d->controller_type, d->name);
+      d->controller_type, d->name);
 }
 
 void uni_hid_device_dump_all(void) {
   logi("Connected devices:\n");
-  for (int i = 0; i < MAX_DEVICES; i++) {
+  for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
     if (bd_addr_cmp(g_devices[i].address, zero_addr) == 0) continue;
     uni_hid_device_dump_device(&g_devices[i]);
   }
@@ -534,8 +495,11 @@ void uni_hid_device_set_connection_handle(uni_hid_device_t* d,
 }
 
 void uni_hid_device_process_gamepad(uni_hid_device_t* d) {
-  if (d->joystick_port == JOYSTICK_PORT_NONE) return;
+  if (d->state != STATE_DEVICE_READY) {
+    return;
+  }
 
+#if 0
   // FIXME: Add support for EMULATION_MODE_COMBO_JOY_MOUSE
   uni_joystick_t joy, joy_ext;
   memset(&joy, 0, sizeof(joy));
@@ -569,6 +533,7 @@ void uni_hid_device_process_gamepad(uni_hid_device_t* d) {
       loge("Unsupported emulation mode: %d\n", d->emu_mode);
       break;
   }
+#endif
 
   // FIXME: each backend should decide what to do with misc buttons
   process_misc_button_system(d);
@@ -595,47 +560,7 @@ static void process_misc_button_system(uni_hid_device_t* d) {
   if (d->wait_release_misc_button & MISC_BUTTON_SYSTEM) return;
   d->wait_release_misc_button |= MISC_BUTTON_SYSTEM;
 
-  if (d->joystick_port == JOYSTICK_PORT_NONE) {
-    logi(
-        "cannot swap port since device has joystick_port = "
-        "JOYSTICK_PORT_NONE\n");
-    return;
-  }
-
-  // This could happen if device is any Combo emu mode.
-  if (d->joystick_port == (JOYSTICK_PORT_A | JOYSTICK_PORT_B)) {
-    logi(
-        "cannot swap port since has more than one port associated with. "
-        "Leave emu mode and try again.\n");
-    return;
-  }
-
-  // Swap joysticks if only one device is attached.
-  int num_devices = 0;
-  for (int j = 0; j < MAX_DEVICES; j++) {
-    if ((bd_addr_cmp(g_devices[j].address, zero_addr) != 0) &&
-        (g_devices[j].joystick_port > 0)) {
-      num_devices++;
-      if (num_devices > 1) {
-        logi(
-            "cannot swap joystick ports when more than one device is "
-            "attached\n");
-        uni_hid_device_dump_all();
-        return;
-      }
-    }
-  }
-
-  // swap joystick A with B
-  uni_joystick_port_t p =
-      (d->joystick_port == JOYSTICK_PORT_A) ? JOYSTICK_PORT_B : JOYSTICK_PORT_A;
-  uni_hid_device_set_joystick_port(d, p);
-
-  // Clear joystick after switch to avoid having a line "On".
-  uni_joystick_t joy;
-  memset(&joy, 0, sizeof(joy));
-  g_platform->on_joy_a_data(&joy);
-  g_platform->on_joy_b_data(&joy);
+  g_platform->on_device_gamepad_event(d, GAMEPAD_SYSTEM_BUTTON_PRESSED);
 }
 
 // process_misc_button_home dumps uni_hid_device debug info in the console.
@@ -660,41 +585,6 @@ static void process_misc_button_home(uni_hid_device_t* d) {
   d->wait_release_misc_button |= MISC_BUTTON_HOME;
 }
 
-// Events
-
-void uni_hid_device_on_emu_mode_change(void) {
-  int num_devices = 0;
-  uni_hid_device_t* d = NULL;
-  for (int j = 0; j < MAX_DEVICES; j++) {
-    if (bd_addr_cmp(g_devices[j].address, zero_addr) != 0 &&
-        g_devices[j].hid_control_cid != 0 &&
-        g_devices[j].hid_interrupt_cid != 0) {
-      num_devices++;
-      d = &g_devices[j];
-    }
-  }
-
-  if (num_devices != 1) {
-    loge("cannot change mode. Expected num_devices=1, actual=%d\n",
-         num_devices);
-    return;
-  }
-
-  if (d->emu_mode == EMULATION_MODE_SINGLE_JOY) {
-    d->emu_mode = EMULATION_MODE_COMBO_JOY_JOY;
-    d->prev_joystick_port = d->joystick_port;
-    uni_hid_device_set_joystick_port(d, JOYSTICK_PORT_A | JOYSTICK_PORT_B);
-    logi("Emulation mode = Combo Joy Joy\n");
-  } else if (d->emu_mode == EMULATION_MODE_COMBO_JOY_JOY) {
-    d->emu_mode = EMULATION_MODE_SINGLE_JOY;
-    uni_hid_device_set_joystick_port(d, d->prev_joystick_port);
-    // Turn on only the valid one
-    logi("Emulation mode = Single Joy\n");
-  } else {
-    loge("Cannot switch emu mode. Current mode: %d\n", d->emu_mode);
-  }
-}
-
 void uni_hid_device_set_state(uni_hid_device_t* d, enum DEVICE_STATE s) {
   if (d == NULL) {
     loge("ERROR: Invalid device\n");
@@ -710,29 +600,6 @@ enum DEVICE_STATE uni_hid_device_get_state(uni_hid_device_t* d) {
     return 0;
   }
   return d->state;
-}
-
-void uni_hid_device_set_joystick_port(uni_hid_device_t* d,
-                                      uni_joystick_port_t p) {
-  if (d == NULL) {
-    loge("ERROR: Invalid device\n");
-    return;
-  }
-  d->joystick_port = p;
-  logi("device %s has new joystick port: %d\n", bd_addr_to_str(d->address), p);
-
-  // Fetch all enabled ports
-  uni_joystick_port_t all_ports = JOYSTICK_PORT_NONE;
-  for (int j = 0; j < MAX_DEVICES; j++) {
-    if (bd_addr_cmp(g_devices[j].address, zero_addr) != 0) {
-      all_ports |= g_devices[j].joystick_port;
-    }
-  }
-  g_platform->on_port_assign_changed(all_ports);
-
-  if (d->report_parser.update_led != NULL) {
-    d->report_parser.update_led(d);
-  }
 }
 
 // Try to send the report now. If it can't, queue it and send it in the next

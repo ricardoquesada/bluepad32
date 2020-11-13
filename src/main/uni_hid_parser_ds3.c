@@ -45,10 +45,11 @@ typedef enum ds3_fsm {
 // ds3_instance_t represents data used by the DS3 driver instance.
 typedef struct ds3_instance_s {
   ds3_fsm_t state;
+  uni_gamepad_seat_t gamepad_seat;
 } ds3_instance_t;
 
 static ds3_instance_t* get_ds3_instance(uni_hid_device_t* d);
-static void update_led(uni_hid_device_t* d);
+static void update_led(uni_hid_device_t* d, uni_gamepad_seat_t seat);
 
 enum ps3_packet_index {
   ps3_packet_index_buttons_raw = 2,
@@ -116,7 +117,7 @@ void uni_hid_parser_ds3_parse_raw(uni_hid_device_t* d, const uint8_t* report,
 
   ds3_instance_t* ins = get_ds3_instance(d);
   if (ins->state == DS3_FSM_REQUIRES_LED_UPDATE) {
-    update_led(d);
+    update_led(d, ins->gamepad_seat);
   }
 
   uni_gamepad_t* gp = &d->gamepad;
@@ -203,7 +204,8 @@ void uni_hid_parser_ds3_parse_raw(uni_hid_device_t* d, const uint8_t* report,
   gp->updated_states |= GAMEPAD_STATE_BRAKE | GAMEPAD_STATE_ACCELERATOR;
 }
 
-void uni_hid_parser_ds3_update_led(uni_hid_device_t* d) {
+void uni_hid_parser_ds3_update_led(uni_hid_device_t* d,
+                                   uni_gamepad_seat_t seat) {
   ds3_instance_t* ins = get_ds3_instance(d);
 
   // It seems that if a LED update is sent before the "request stream report",
@@ -211,9 +213,10 @@ void uni_hid_parser_ds3_update_led(uni_hid_device_t* d) {
   // Update LED after stream report is set.
   if (ins->state <= DS3_FSM_REQUIRES_LED_UPDATE) {
     ins->state = DS3_FSM_REQUIRES_LED_UPDATE;
+    ins->gamepad_seat = seat;
     return;
   }
-  update_led(d);
+  update_led(d, seat);
 }
 
 void uni_hid_parser_ds3_setup(struct uni_hid_device_s* d) {
@@ -235,7 +238,7 @@ static ds3_instance_t* get_ds3_instance(uni_hid_device_t* d) {
   return (ds3_instance_t*)&d->parser_data[0];
 }
 
-static void update_led(uni_hid_device_t* d) {
+static void update_led(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
   ds3_instance_t* ins = get_ds3_instance(d);
   ins->state = DS3_FSM_LED_UPDATED;
 
@@ -263,11 +266,11 @@ static void update_led(uni_hid_device_t* d) {
 #define LED_OFFSET 11
   control_packet[LED_OFFSET] = 0;
 
-  if ((d->joystick_port & JOYSTICK_PORT_A) != 0) {
+  if ((seat & GAMEPAD_SEAT_A) != 0) {
     control_packet[LED_OFFSET] |= ps3_led_mask_led1;
   }
 
-  if ((d->joystick_port & JOYSTICK_PORT_B) != 0) {
+  if ((seat & GAMEPAD_SEAT_B) != 0) {
     control_packet[LED_OFFSET] |= ps3_led_mask_led2;
   }
 

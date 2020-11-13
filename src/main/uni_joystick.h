@@ -22,13 +22,6 @@ limitations under the License.
 
 #include <stdint.h>
 
-typedef enum {
-  JOYSTICK_PORT_NONE = 0,
-  JOYSTICK_PORT_A = (1 << 0),
-  JOYSTICK_PORT_B = (1 << 1),
-  JOYSTICK_PORT_AB_MASK = (JOYSTICK_PORT_A | JOYSTICK_PORT_B),
-} uni_joystick_port_t;
-
 // Valid for Amiga, Atari 8-bit, Atari St, C64 and others...
 typedef struct {
   uint8_t up;         // line 1 - Y2 for quad mouse

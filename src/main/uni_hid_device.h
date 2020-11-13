@@ -30,6 +30,9 @@ limitations under the License.
 #define MAX_NAME_LEN 240
 #define MAX_DESCRIPTOR_LEN 512
 
+// Max number of devices that can be connected at the same time.
+#define UNI_HID_DEVICE_MAX_DEVICES 8
+
 // clang-format off
 #define MASK_COD_MAJOR_PERIPHERAL   0x0500  // 0b0000_0101_0000_0000
 #define MASK_COD_MAJOR_AUDIO        0x0400  // 0b0000_0100_0000_0000
@@ -54,7 +57,7 @@ enum DEVICE_STATE {
   STATE_L2CAP_CONTROL_CONNECTED,
   STATE_L2CAP_INTERRUPT_CONNECTION_REQUESTED,
   STATE_L2CAP_INTERRUPT_CONNECTED,
-  STATE_JOYSTICK_ASSIGNED,
+  STATE_DEVICE_READY,
 };
 
 struct uni_hid_device_s {
@@ -89,16 +92,11 @@ struct uni_hid_device_s {
   enum DEVICE_STATE state;
 
   // Gamepad
-  uint8_t controller_type;            // type of controller attached
-  uni_emulation_mode_t emu_mode;      // type of controller to emulate
-  uni_joystick_port_t joystick_port;  // which port does it control, A or B?
-  uni_joystick_port_t
-      prev_joystick_port;  // which port was used before switching emu mode
+  uint8_t controller_type;  // type of controller attached
+  uni_gamepad_t gamepad;    // gamepad state
 
   // Functions used to parse the usage page/usage.
   uni_report_parser_t report_parser;
-
-  uni_gamepad_t gamepad;
 
   // Buttons that needs to be released before triggering the action again.
   uint32_t wait_release_misc_button;
@@ -126,13 +124,14 @@ uni_hid_device_t* uni_hid_device_get_instance_for_connection_handle(
     hci_con_handle_t handle);
 uni_hid_device_t* uni_hid_device_get_first_device_with_state(
     enum DEVICE_STATE state);
+uni_hid_device_t* uni_hid_device_get_instance_for_idx(int idx);
 
 // Which device is currently doing a SDP query.
 void uni_hid_device_set_sdp_device(uni_hid_device_t* d);
 // Returns the elapsed time since the last SDP query in microseconds.
 uni_hid_device_t* uni_hid_device_get_sdp_device(uint64_t* elapsed /*out*/);
 
-void uni_hid_device_assign_joystick_port(uni_hid_device_t* d);
+void uni_hid_device_set_ready(uni_hid_device_t* d);
 
 void uni_hid_device_remove_entry_with_channel(uint16_t channel);
 
@@ -186,12 +185,5 @@ void uni_hid_device_send_intr_report(uni_hid_device_t* d, const uint8_t* report,
 void uni_hid_device_send_ctrl_report(uni_hid_device_t* d, const uint8_t* report,
                                      uint16_t len);
 void uni_hid_device_send_queued_reports(uni_hid_device_t* d);
-
-void uni_hid_device_set_joystick_port(uni_hid_device_t* d,
-                                      uni_joystick_port_t p);
-
-// events
-
-void uni_hid_device_on_emu_mode_change(void);
 
 #endif  // UNI_HID_DEVICE_H

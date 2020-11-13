@@ -50,7 +50,8 @@ typedef void (*report_parse_usage_fn_t)(struct uni_hid_device_s* d,
 typedef void (*report_parse_raw_fn_t)(struct uni_hid_device_s* d,
                                       const uint8_t* report,
                                       uint16_t report_len);
-typedef void (*report_update_led_t)(struct uni_hid_device_s* d);
+typedef void (*report_update_led_t)(struct uni_hid_device_s* d,
+                                    uni_gamepad_seat_t s);
 
 // Parsers should implement these optional functions:
 typedef struct {

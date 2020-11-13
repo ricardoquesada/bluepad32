@@ -475,7 +475,9 @@ static void parse_usage_firmware_v4_8(uni_hid_device_t* d,
   }
 }
 
-void uni_hid_parser_xboxone_update_led(uni_hid_device_t* d) {
+void uni_hid_parser_xboxone_update_led(uni_hid_device_t* d,
+                                       uni_gamepad_seat_t seat) {
+  UNUSED(seat);
   if (d == NULL) {
     loge("Xbox One: Invalid device\n");
     return;

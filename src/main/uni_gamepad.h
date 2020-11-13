@@ -90,6 +90,17 @@ enum {
   GAMEPAD_STATE_MISC_BUTTON_SYSTEM = 1 << 27,
 };
 
+typedef enum {
+  GAMEPAD_SEAT_NONE = 0,
+  GAMEPAD_SEAT_A = 1 << 1,
+  GAMEPAD_SEAT_B = 1 << 2,
+  GAMEPAD_SEAT_C = 1 << 3,
+  GAMEPAD_SEAT_D = 1 << 4,
+
+  // Masks
+  GAMEPAD_SEAT_AB_MASK = (GAMEPAD_SEAT_A | GAMEPAD_SEAT_B),
+} uni_gamepad_seat_t;
+
 // uni_gamepad_t is a virtual gamepad.
 // Different parsers should populate this virtual gamepad accordingly.
 // For example, the virtual gamepad doesn't have a Hat, but has a D-pad.

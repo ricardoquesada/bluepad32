@@ -6,12 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+- Refactor: Move platform logic to "platforms". Uni_hid_device is simpler,
+        less error-prone. Platforms should implement their own logic.
+        Added more events to platforms like connect, disconnect, ready.
 - Misc: Firmware extracted from Unijoysticle2 project and make it its own
         project. Easier for other non-unijoysticle user to integrate into their
         own projects. New name for the firmware: "bluepad32".
 - Firmware: Added support Sony DualShock3 gamepads
 - tools: Compiles & updated to new btstack code
-- BTstack: Using master 2020-07-31 - f0565ba15ec6e40b02659514800395516b4729f6
+- BTstack: Using master 2020-10-07 - 16f6f81ae588cf9f7d69b19328eee69fbd03db94
 - ESP-IDF: Using v4.1
 
 ## [1.1.0] - 2020-07-23

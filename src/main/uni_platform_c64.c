@@ -29,6 +29,7 @@ limitations under the License.
 #include "uni_config.h"
 #include "uni_debug.h"
 #include "uni_hid_device.h"
+#include "uni_joystick.h"
 
 // --- Consts
 
@@ -80,19 +81,21 @@ enum {
 
 // C64 "instance"
 typedef struct c64_instance_s {
-  uint8_t state;
-  uint8_t mode;
-  uint8_t firmware_hi;
-  uint8_t firmware_lo;
-  uint8_t controller_type;
+  uni_emulation_mode_t emu_mode;         // type of controller to emulate
+  uni_gamepad_seat_t gamepad_seat;       // which "seat" (port) is being used
+  uni_gamepad_seat_t prev_gamepad_seat;  // which "seat" (port) was used before
+                                         // switching emu mode
 } c64_instance_t;
 
+// --- Constants
 static const gpio_num_t JOY_A_PORTS[] = {
     GPIO_JOY_A_UP,   GPIO_JOY_A_DOWN,  GPIO_JOY_A_LEFT, GPIO_JOY_A_RIGHT,
     GPIO_JOY_A_FIRE, GPIO_JOY_A_POT_X, GPIO_JOY_A_POT_Y};
 static const gpio_num_t JOY_B_PORTS[] = {
     GPIO_JOY_B_UP,   GPIO_JOY_B_DOWN,  GPIO_JOY_B_LEFT, GPIO_JOY_B_RIGHT,
     GPIO_JOY_B_FIRE, GPIO_JOY_A_POT_X, GPIO_JOY_A_POT_Y};
+
+static const bd_addr_t zero_addr = {0, 0, 0, 0, 0, 0};
 
 // --- Globals
 
@@ -115,6 +118,9 @@ static uint8_t g_autofire_b_enabled = 0;
 // --- Code
 
 static c64_instance_t* get_c64_instance(uni_hid_device_t* d);
+static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat);
+static void c64_on_joy_a_data(uni_joystick_t* joy);
+static void c64_on_joy_b_data(uni_joystick_t* joy);
 
 // Interrupt handlers
 static void handle_event_mouse();
@@ -152,7 +158,8 @@ static void auto_fire_loop(void* arg);
     _a < _b ? _a : _b;      \
   })
 
-static void c64_init(int argc, const char** argv) {
+// Platform Events
+static void c64_on_init(int argc, const char** argv) {
   UNUSED(argc);
   UNUSED(argv);
   gpio_config_t io_conf;
@@ -226,18 +233,133 @@ static void c64_init(int argc, const char** argv) {
   // portPRIVILEGE_BIT, NULL, 1);
 }
 
-// Events
 static void c64_on_init_complete(void) {
   // Turn Off LEDs
   gpio_set_level(GPIO_LED_J1, 0);
   gpio_set_level(GPIO_LED_J2, 0);
 }
 
-static void c64_on_port_assign_changed(uni_joystick_port_t port) {
-  bool port_status_a = ((port & JOYSTICK_PORT_A) != 0);
-  bool port_status_b = ((port & JOYSTICK_PORT_B) != 0);
-  gpio_set_level(GPIO_LED_J1, port_status_a);
-  gpio_set_level(GPIO_LED_J2, port_status_b);
+static void c64_on_device_connected(uni_hid_device_t* d) {
+  if (d == NULL) {
+    loge("ERROR: c64_on_device_connected: Invalid NULL device\n");
+  }
+}
+
+static void c64_on_device_disconnected(uni_hid_device_t* d) {
+  if (d == NULL) {
+    loge("ERROR: c64_on_device_disconnected: Invalid NULL device\n");
+    return;
+  }
+  c64_instance_t* ins = get_c64_instance(d);
+
+  if (ins->gamepad_seat != GAMEPAD_SEAT_NONE) {
+    set_gamepad_seat(d, GAMEPAD_SEAT_NONE);
+    ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
+  }
+}
+
+static int c64_on_device_ready(uni_hid_device_t* d) {
+  if (d == NULL) {
+    loge("ERROR: c64_on_device_ready: Invalid NULL device\n");
+    return -1;
+  }
+  c64_instance_t* ins = get_c64_instance(d);
+
+  // Some safety checks. These conditions should not happen
+  if ((ins->gamepad_seat != GAMEPAD_SEAT_NONE) ||
+      (!uni_hid_device_has_controller_type(d))) {
+    loge("uni_hid_device_set_ready: pre-condition not met\n");
+    return -1;
+  }
+
+  uint32_t used_joystick_ports = 0;
+  for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
+    uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(i);
+    used_joystick_ports |= get_c64_instance(tmp_d)->gamepad_seat;
+  }
+
+#if UNIJOYSTICLE_SINGLE_PORT
+  int wanted_seat = GAMEPAD_SEAT_A;
+  ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
+#else   // UNIJOYSTICLE_SINGLE_PORT  == 0
+  // Try with Port B, assume it is a joystick
+  int wanted_seat = GAMEPAD_SEAT_B;
+  ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
+  // d->emu_mode = EMULATION_MODE_COMBO_JOY_JOY;
+
+  // ... unless it is a mouse which should try with PORT A. Amiga/Atari ST use
+  // mice in PORT A. Undefined on the C64, but most apps use it in PORT A as
+  // well.
+  uint32_t mouse_cod = MASK_COD_MAJOR_PERIPHERAL | MASK_COD_MINOR_POINT_DEVICE;
+  if ((d->cod & mouse_cod) == mouse_cod) {
+    wanted_seat = GAMEPAD_SEAT_A;
+    ins->emu_mode = EMULATION_MODE_SINGLE_MOUSE;
+  }
+
+  // If wanted port is already assigned, try with the next one
+  if (used_joystick_ports & wanted_seat) {
+    logi("Port already assigned, trying another one\n");
+    wanted_seat = (~wanted_seat) & GAMEPAD_SEAT_AB_MASK;
+  }
+#endif  // UNIJOYSTICLE_SINGLE_PORT  == 0
+
+  set_gamepad_seat(d, wanted_seat);
+
+  if (d->report_parser.setup) d->report_parser.setup(d);
+
+  return 0;
+}
+
+static void c64_on_device_gamepad_event(uni_hid_device_t* d, int event) {
+  if (d == NULL) {
+    loge("ERROR: c64_on_device_gamepad_event: Invalid NULL device\n");
+    return;
+  }
+
+  c64_instance_t* ins = get_c64_instance(d);
+
+  if (ins->gamepad_seat == GAMEPAD_SEAT_NONE) {
+    logi(
+        "c64: cannot swap port since device has joystick_port = "
+        "GAMEPAD_SEAT_NONE\n");
+    return;
+  }
+
+  // This could happen if device is any Combo emu mode.
+  if (ins->gamepad_seat == (GAMEPAD_SEAT_A | GAMEPAD_SEAT_B)) {
+    logi(
+        "c64: cannot swap port since has more than one port associated with. "
+        "Leave emu mode and try again.\n");
+    return;
+  }
+
+  // Swap joysticks if only one device is attached.
+  int num_devices = 0;
+  for (int j = 0; j < UNI_HID_DEVICE_MAX_DEVICES; j++) {
+    uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
+    if ((bd_addr_cmp(tmp_d->address, zero_addr) != 0) &&
+        (get_c64_instance(tmp_d)->gamepad_seat > 0)) {
+      num_devices++;
+      if (num_devices > 1) {
+        logi(
+            "c64: cannot swap joystick ports when more than one device is "
+            "attached\n");
+        uni_hid_device_dump_all();
+        return;
+      }
+    }
+  }
+
+  // swap joystick A with B
+  uni_gamepad_seat_t seat =
+      (ins->gamepad_seat == GAMEPAD_SEAT_A) ? GAMEPAD_SEAT_B : GAMEPAD_SEAT_A;
+  set_gamepad_seat(d, seat);
+
+  // Clear joystick after switch to avoid having a line "On".
+  uni_joystick_t joy;
+  memset(&joy, 0, sizeof(joy));
+  c64_on_joy_a_data(&joy);
+  c64_on_joy_b_data(&joy);
 }
 
 static void c64_on_mouse_data(int32_t delta_x, int32_t delta_y,
@@ -280,6 +402,33 @@ static void c64_on_joy_b_data(uni_joystick_t* joy) {
 static uint8_t c64_is_button_pressed(void) {
   // Hi-released, Low-pressed
   return !gpio_get_level(GPIO_PUSH_BUTTON);
+}
+
+static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
+  c64_instance_t* ins = get_c64_instance(d);
+  ins->gamepad_seat = seat;
+
+  logi("C64: device %s has new gamepad seat: %d\n", bd_addr_to_str(d->address),
+       seat);
+
+  // Fetch all enabled ports
+  uni_gamepad_seat_t all_seats = GAMEPAD_SEAT_NONE;
+  for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
+    uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(i);
+    if (tmp_d == NULL) continue;
+    if (bd_addr_cmp(tmp_d->address, zero_addr) != 0) {
+      all_seats |= get_c64_instance(tmp_d)->gamepad_seat;
+    }
+  }
+
+  bool status_a = ((all_seats & GAMEPAD_SEAT_A) != 0);
+  bool status_b = ((all_seats & GAMEPAD_SEAT_B) != 0);
+  gpio_set_level(GPIO_LED_J1, status_a);
+  gpio_set_level(GPIO_LED_J2, status_b);
+
+  if (d->report_parser.update_led != NULL) {
+    d->report_parser.update_led(d, all_seats);
+  }
 }
 
 static void joy_update_port(uni_joystick_t* joy, const gpio_num_t* gpios) {
@@ -490,16 +639,56 @@ static void handle_event_button() {
   // "down", button pressed.
   logi("handle_event_button: %d -> %d\n", enabled, !enabled);
   enabled = !enabled;
-  uni_hid_device_on_emu_mode_change();
+
+  // Change emulation mode
+  int num_devices = 0;
+  uni_hid_device_t* d = NULL;
+  for (int j = 0; j < UNI_HID_DEVICE_MAX_DEVICES; j++) {
+    uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
+    if (bd_addr_cmp(tmp_d->address, zero_addr) != 0 &&
+        tmp_d->hid_control_cid != 0 && tmp_d->hid_interrupt_cid != 0) {
+      num_devices++;
+      d = tmp_d;
+    }
+  }
+
+  if (d == NULL) {
+    loge("c64: Cannot find valid HID devicen\n");
+  }
+
+  if (num_devices != 1) {
+    loge("c64: cannot change mode. Expected num_devices=1, actual=%d\n",
+         num_devices);
+    return;
+  }
+
+  c64_instance_t* ins = get_c64_instance(d);
+
+  if (ins->emu_mode == EMULATION_MODE_SINGLE_JOY) {
+    ins->emu_mode = EMULATION_MODE_COMBO_JOY_JOY;
+    ins->prev_gamepad_seat = ins->gamepad_seat;
+    set_gamepad_seat(d, GAMEPAD_SEAT_A | GAMEPAD_SEAT_B);
+    logi("c64: Emulation mode = Combo Joy Joy\n");
+  } else if (ins->emu_mode == EMULATION_MODE_COMBO_JOY_JOY) {
+    ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
+    set_gamepad_seat(d, ins->prev_gamepad_seat);
+    // Turn on only the valid one
+    logi("c64: Emulation mode = Single Joy\n");
+  } else {
+    loge("c64: Cannot switch emu mode. Current mode: %d\n", ins->emu_mode);
+  }
 }
 
 struct uni_platform* uni_platform_c64_create(void) {
   static struct uni_platform plat;
 
   plat.name = "Unijoysticle for the C64";
-  plat.init = c64_init;
+  plat.on_init = c64_on_init;
   plat.on_init_complete = c64_on_init_complete;
-  plat.on_port_assign_changed = c64_on_port_assign_changed;
+  plat.on_device_connected = c64_on_device_connected;
+  plat.on_device_disconnected = c64_on_device_disconnected;
+  plat.on_device_ready = c64_on_device_ready;
+  plat.on_device_gamepad_event = c64_on_device_gamepad_event;
   plat.on_joy_a_data = c64_on_joy_a_data;
   plat.on_joy_b_data = c64_on_joy_b_data;
   plat.on_mouse_data = c64_on_mouse_data;

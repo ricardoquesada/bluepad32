@@ -37,7 +37,7 @@ void uni_platform_init(int argc, const char** argv) {
 #error "Platform not defined"
 #endif
 
-  g_platform->init(argc, argv);
+  g_platform->on_init(argc, argv);
 
   logi("Platform: %s\n", g_platform->name);
 }

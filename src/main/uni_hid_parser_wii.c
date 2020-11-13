@@ -911,7 +911,9 @@ static void wii_fsm_assign_device(uni_hid_device_t* d) {
 
 static void wii_fsm_update_led(uni_hid_device_t* d) {
   logi("fsm: upload_led\n");
-  uni_hid_parser_wii_update_led(d);
+  // FIXME: Turn on all LEDs for debugging purposes
+  // Correct LEDS will be updated once wii_update_led is called.
+  uni_hid_parser_wii_update_led(d, 0x0f);
   wii_instance_t* ins = get_wii_instance(d);
   ins->state = WII_FSM_LED_UPDATED;
   wii_process_fsm(d);
@@ -1047,7 +1049,8 @@ void uni_hid_parser_wii_parse_raw(uni_hid_device_t* d, const uint8_t* report,
   }
 }
 
-void uni_hid_parser_wii_update_led(uni_hid_device_t* d) {
+void uni_hid_parser_wii_update_led(uni_hid_device_t* d,
+                                   uni_gamepad_seat_t seat) {
   if (d == NULL) {
     loge("Wii: ERROR: Invalid device\n");
     return;
@@ -1056,7 +1059,7 @@ void uni_hid_parser_wii_update_led(uni_hid_device_t* d) {
   uint8_t report[] = {
       0xa2, WIIPROTO_REQ_LED, 0x00 /* LED */
   };
-  uint8_t led = (d->joystick_port) << 4;
+  uint8_t led = seat << 4;
 
   wii_instance_t* ins = get_wii_instance(d);
   // If vertical mode is on, enable LED 4.

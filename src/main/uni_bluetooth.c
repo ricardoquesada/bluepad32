@@ -888,7 +888,7 @@ static void fsm_process(uni_hid_device_t* d) {
     if (d->state == STATE_L2CAP_INTERRUPT_CONNECTED) {
       if (uni_hid_device_has_hid_descriptor(d)) {
         /* done */
-        uni_hid_device_assign_joystick_port(d);
+        uni_hid_device_set_ready(d);
       } else {
         sdp_query_hid_descriptor(d);
       }
@@ -896,7 +896,7 @@ static void fsm_process(uni_hid_device_t* d) {
       sdp_query_product_id(d);
     } else if (d->state == STATE_SDP_VENDOR_FETCHED) {
       /* done */
-      uni_hid_device_assign_joystick_port(d);
+      uni_hid_device_set_ready(d);
     }
   } else {
     if (d->state == STATE_DEVICE_DISCOVERED) {
@@ -924,7 +924,7 @@ static void fsm_process(uni_hid_device_t* d) {
       logd("STATE_L2CAP_INTERRUPT_CONNECTED\n");
       if (d->sdp_query_before_connect) {
         /* done */
-        uni_hid_device_assign_joystick_port(d);
+        uni_hid_device_set_ready(d);
       } else {
         sdp_query_hid_descriptor(d);
       }
@@ -937,7 +937,7 @@ static void fsm_process(uni_hid_device_t* d) {
         l2cap_create_control_connection(d);
       } else {
         /* done */
-        uni_hid_device_assign_joystick_port(d);
+        uni_hid_device_set_ready(d);
       }
     }
   }

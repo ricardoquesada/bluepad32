@@ -344,7 +344,7 @@ static uint32_t crc32_le(uint32_t seed, const void* data, size_t len) {
   return crc;
 }
 
-void uni_hid_parser_ds4_update_led(uni_hid_device_t* d) {
+void uni_hid_parser_ds4_update_led(uni_hid_device_t* d, uni_gamepad_seat_t s) {
 #if UNI_USE_DUALSHOCK4_REPORT_0x11
   // Force feedback info taken from:
   //
@@ -373,8 +373,8 @@ void uni_hid_parser_ds4_update_led(uni_hid_device_t* d) {
   ff.unk0[2] = 0x7;            // blink + LED + motor
   ff.rumble_left = 0x00;
   ff.rumble_right = 0x00;
-  ff.led_red = (d->joystick_port & JOYSTICK_PORT_B) ? 0x30 : 0x00;
-  ff.led_green = (d->joystick_port & JOYSTICK_PORT_A) ? 0x30 : 0x00;
+  ff.led_red = (s & GAMEPAD_SEAT_A) ? 0x30 : 0x00;
+  ff.led_green = (s & GAMEPAD_SEAT_B) ? 0x30 : 0x00;
   ff.led_blue = 0x00;
   ff.flash_led1 = 0x0;
   ff.flash_led2 = 0x0;

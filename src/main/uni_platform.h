@@ -21,8 +21,12 @@ limitations under the License.
 
 #include <stdint.h>
 
-#include "uni_joystick.h"
 #include "uni_hid_device.h"
+#include "uni_joystick.h"
+
+enum {
+  GAMEPAD_SYSTEM_BUTTON_PRESSED,
+};
 
 // uni_platform must be defined for each new platform that is implemented.
 // It contains callbacks and other init functions that each "platform" must
@@ -33,14 +37,25 @@ struct uni_platform {
   // The name of the platform
   char* name;
 
-  // Initialize the platform
-  void (*init)(int argc, const char** argv);
-
-  // events
+  // Events
+  // on_init is called just once, at boot time
+  void (*on_init)(int argc, const char** argv);
+  // on_init_complete is called on_init finishes
   void (*on_init_complete)(void);
+
+  // When a device (gamepad) connects. But probably it is not ready to use.
+  // HID and/or other things might not have been parsed/init yet.
   void (*on_device_connected)(uni_hid_device_t* d);
+  // When a device (gamepad) disconnects.
   void (*on_device_disconnected)(uni_hid_device_t* d);
-  void (*on_port_assign_changed)(uni_joystick_port_t port);
+  // When a device (gamepad) is ready to be used. Each platform can override
+  // whether the device should be ready by returning a non-zero value.
+  int (*on_device_ready)(uni_hid_device_t* d);
+
+  // When a device (gamepad) generates a "system event" like pressing the home
+  // button.
+  void (*on_device_gamepad_event)(uni_hid_device_t* d, int event);
+
   void (*on_joy_a_data)(uni_joystick_t* joy);
   void (*on_joy_b_data)(uni_joystick_t* joy);
   void (*on_mouse_data)(int32_t delta_x, int32_t delta_y, uint16_t buttons);

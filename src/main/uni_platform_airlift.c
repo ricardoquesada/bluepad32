@@ -260,13 +260,13 @@ static void IRAM_ATTR isr_handler_on_chip_select(void* arg) {
   gpio_set_level(GPIO_READY, 1);
 }
 
-static void airlift_init(int argc, const char** argv) {
+// Events
+static void airlift_on_init(int argc, const char** argv) {
   UNUSED(argc);
   UNUSED(argv);
-  logi("********** airlift_init()\n");
+  logi("********** airlift_on_init()\n");
 }
 
-// Events
 static void airlift_on_init_complete(void) {
   logi("************  airlift_on_init_complete()\n");
   // SPI Initialization taken from Nina-fw; the firmware used in Adafruit
@@ -308,25 +308,30 @@ static void airlift_on_init_complete(void) {
   gpio_set_pull_mode(GPIO_SCLK, GPIO_PULLDOWN_ONLY);
   gpio_set_pull_mode(GPIO_CS, GPIO_PULLUP_ONLY);
 
-  esp_err_t ret = spi_slave_initialize(VSPI_HOST, &buscfg, &slvcfg, DMA_CHANNEL);
+  esp_err_t ret =
+      spi_slave_initialize(VSPI_HOST, &buscfg, &slvcfg, DMA_CHANNEL);
   logi("spi_slave_initialize = %d\n", ret);
-  assert(ret==ESP_OK);
+  assert(ret == ESP_OK);
 
   // Manually put the ESP32 in upload mode so that the ESP32 UART is connected
   // with the main MCU UART.
   // digitalWrite(ESP32_GPIO0, LOW);
-//  gpio_set_level(GPIO_NUM_0, 0);
+  //  gpio_set_level(GPIO_NUM_0, 0);
 
   // digitalWrite(ESP32_RESETN, LOW);
-//  gpio_set_level(GPIO_NUM_19, 0);
+  //  gpio_set_level(GPIO_NUM_19, 0);
   // delay(100);
-//  vTaskDelay(100 / portTICK_PERIOD_MS);
+  //  vTaskDelay(100 / portTICK_PERIOD_MS);
 
   // digitalWrite(ESP32_RESETN, HIGH);
-//  gpio_set_level(GPIO_NUM_19, 1);
+  //  gpio_set_level(GPIO_NUM_19, 1);
 }
 
-static void airlift_on_port_assign_changed(uni_joystick_port_t port) {}
+static void airlift_on_device_connected(uni_hid_device_t* d) {}
+
+static void airlift_on_device_disconnected(uni_hid_device_t* d) {}
+
+static int airlift_on_device_ready(uni_hid_device_t* d) { return 0; }
 
 static void airlift_on_mouse_data(int32_t delta_x, int32_t delta_y,
                                   uint16_t buttons) {}
@@ -341,9 +346,11 @@ struct uni_platform* uni_platform_airlift_create(void) {
   static struct uni_platform plat;
 
   plat.name = "Adafruit AirLift";
-  plat.init = airlift_init;
+  plat.on_init = airlift_on_init;
   plat.on_init_complete = airlift_on_init_complete;
-  plat.on_port_assign_changed = airlift_on_port_assign_changed;
+  plat.on_device_connected = airlift_on_device_connected;
+  plat.on_device_disconnected = airlift_on_device_disconnected;
+  plat.on_device_ready = airlift_on_device_ready;
   plat.on_joy_a_data = airlift_on_joy_a_data;
   plat.on_joy_b_data = airlift_on_joy_b_data;
   plat.on_mouse_data = airlift_on_mouse_data;

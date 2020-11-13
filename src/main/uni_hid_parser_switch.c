@@ -797,7 +797,10 @@ static void fsm_update_led(struct uni_hid_device_s* d) {
   req->transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
   req->report_id = 0x01;         // 0x01 for sub commands
   req->subcmd_id = SUBCMD_SET_LEDS;
-  req->data[0] = d->joystick_port;
+  // FIXME: Turning on all 4 LEDs for debugging purposes.
+  /// Then the correct should be used when "switch_update_led" is called.
+  // req->data[0] = d->joystick_port;
+  req->data[0] = 0x0f;
   send_subcmd(d, req, sizeof(out));
 }
 
@@ -806,7 +809,8 @@ static void fsm_ready(struct uni_hid_device_s* d) {
   ins->state = STATE_READY;
 }
 
-void uni_hid_parser_switch_update_led(uni_hid_device_t* d) {
+void uni_hid_parser_switch_update_led(uni_hid_device_t* d,
+                                      uni_gamepad_seat_t seat) {
   switch_instance_t* ins = get_switch_instance(d);
   if (ins->state == STATE_UNINIT) {
     return;
@@ -819,7 +823,7 @@ void uni_hid_parser_switch_update_led(uni_hid_device_t* d) {
   req->transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
   req->report_id = 0x01;         // 0x01 for sub commands
   req->subcmd_id = SUBCMD_SET_LEDS;
-  req->data[0] = d->joystick_port;
+  req->data[0] = seat;
   send_subcmd(d, req, sizeof(report));
 }
 
