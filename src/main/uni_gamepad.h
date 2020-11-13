@@ -82,10 +82,10 @@ enum {
 
 typedef enum {
   GAMEPAD_SEAT_NONE = 0,
-  GAMEPAD_SEAT_A = 1 << 1,
-  GAMEPAD_SEAT_B = 1 << 2,
-  GAMEPAD_SEAT_C = 1 << 3,
-  GAMEPAD_SEAT_D = 1 << 4,
+  GAMEPAD_SEAT_A = 1 << 0,
+  GAMEPAD_SEAT_B = 1 << 1,
+  GAMEPAD_SEAT_C = 1 << 2,
+  GAMEPAD_SEAT_D = 1 << 3,
 
   // Masks
   GAMEPAD_SEAT_AB_MASK = (GAMEPAD_SEAT_A | GAMEPAD_SEAT_B),

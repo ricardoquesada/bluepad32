@@ -373,8 +373,8 @@ void uni_hid_parser_ds4_update_led(uni_hid_device_t* d, uni_gamepad_seat_t s) {
   ff.unk0[2] = 0x7;            // blink + LED + motor
   ff.rumble_left = 0x00;
   ff.rumble_right = 0x00;
-  ff.led_red = (s & GAMEPAD_SEAT_A) ? 0x30 : 0x00;
-  ff.led_green = (s & GAMEPAD_SEAT_B) ? 0x30 : 0x00;
+  ff.led_red = (s & GAMEPAD_SEAT_B) ? 0x30 : 0x00;
+  ff.led_green = (s & GAMEPAD_SEAT_A) ? 0x30 : 0x00;
   ff.led_blue = 0x00;
   ff.flash_led1 = 0x0;
   ff.flash_led2 = 0x0;
