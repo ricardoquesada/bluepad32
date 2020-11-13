@@ -1075,7 +1075,7 @@ void uni_hid_parser_wii_update_led(uni_hid_device_t* d) {
 // Helpers
 //
 static wii_instance_t* get_wii_instance(uni_hid_device_t* d) {
-  return (wii_instance_t*)&d->data[0];
+  return (wii_instance_t*)&d->parser_data[0];
 }
 
 static void wii_read_mem(uni_hid_device_t* d, wii_read_type_t t,

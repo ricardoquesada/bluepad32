@@ -232,7 +232,7 @@ void uni_hid_parser_ds3_setup(struct uni_hid_device_s* d) {
 // Helpers
 //
 static ds3_instance_t* get_ds3_instance(uni_hid_device_t* d) {
-  return (ds3_instance_t*)&d->data[0];
+  return (ds3_instance_t*)&d->parser_data[0];
 }
 
 static void update_led(uni_hid_device_t* d) {

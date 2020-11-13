@@ -527,5 +527,5 @@ static void rumble(uni_hid_device_t* d) {
 // Helpers
 //
 xboxone_instance_t* get_xboxone_instance(uni_hid_device_t* d) {
-  return (xboxone_instance_t*)&d->data[0];
+  return (xboxone_instance_t*)&d->parser_data[0];
 }

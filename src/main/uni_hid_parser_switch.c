@@ -850,7 +850,7 @@ uint8_t uni_hid_parser_switch_does_packet_match(struct uni_hid_device_s* d,
 // Helpers
 //
 static switch_instance_t* get_switch_instance(uni_hid_device_t* d) {
-  return (switch_instance_t*)&d->data[0];
+  return (switch_instance_t*)&d->parser_data[0];
 }
 
 static void send_subcmd(uni_hid_device_t* d, struct switch_subcmd_request* r,
