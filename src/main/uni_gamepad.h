@@ -21,18 +21,8 @@ limitations under the License.
 
 #include <stdint.h>
 
-#include "uni_joystick.h"
-
 extern const int AXIS_NORMALIZE_RANGE;
 extern const int AXIS_THRESHOLD;
-
-// FIXME: doesn't seem to belong in this file.
-typedef enum {
-  EMULATION_MODE_SINGLE_JOY,
-  EMULATION_MODE_SINGLE_MOUSE,
-  EMULATION_MODE_COMBO_JOY_JOY,
-  EMULATION_MODE_COMBO_JOY_MOUSE,
-} uni_emulation_mode_t;
 
 enum {
   DPAD_UP = 1 << 0,
@@ -154,15 +144,5 @@ typedef struct {
 } uni_gamepad_t;
 
 void uni_gamepad_dump(const uni_gamepad_t* gp);
-void uni_gamepad_to_single_joy(const uni_gamepad_t* gp,
-                               uni_joystick_t* out_joy);
-void uni_gamepad_to_combo_joy_joy(const uni_gamepad_t* gp,
-                                  uni_joystick_t* out_joy1,
-                                  uni_joystick_t* out_joy2);
-void uni_gamepad_to_single_mouse(const uni_gamepad_t* gp,
-                                 uni_joystick_t* out_mouse);
-void uni_gamepad_to_combo_joy_mouse(const uni_gamepad_t* gp,
-                                    uni_joystick_t* out_joy,
-                                    uni_joystick_t* out_mouse);
 
 #endif  // UNI_GAMEPAD_H

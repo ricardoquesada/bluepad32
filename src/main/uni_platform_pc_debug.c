@@ -28,35 +28,17 @@ limitations under the License.
 
 static int g_enhanced_mode = 0;
 static int g_delete_keys = 0;
-static uni_joystick_t prev_joys[2] = {{.auto_fire = 255}, {.auto_fire = 255}};
 
-static void print_joystick(int joy_port, uni_joystick_t* joy) {
-  if (memcmp(joy, &prev_joys[joy_port], sizeof(*joy)) != 0) {
-    printf(
-        "Joy %d: up=%d, down=%d, left=%d, right=%d, fire=%d, potx=%d, poty=%d, "
-        "autofire=%d\n",
-        joy_port, joy->up, joy->down, joy->left, joy->right, joy->fire,
-        joy->pot_x, joy->pot_y, joy->auto_fire);
-    memcpy(&prev_joys[joy_port], joy, sizeof(*joy));
-  }
-}
-
-static void pc_debug_on_joy_a_data(uni_joystick_t* joy) {
-  print_joystick(0, joy);
-}
-static void pc_debug_on_joy_b_data(uni_joystick_t* joy) {
-  print_joystick(1, joy);
-}
-static void pc_debug_on_mouse_data(int32_t delta_x, int32_t delta_y,
-                                   uint16_t buttons) {
-  printf("pc_debug: mouse: x=%d, y=%d, buttons=0x%4x\n", delta_x, delta_y,
-         buttons);
+static void pc_debug_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
+  UNUSED(d);
+  uni_gamepad_dump(gp);
 }
 
 static uint8_t pc_debug_is_button_pressed() { return g_delete_keys; }
 
 // Events.
 static void pc_debug_on_init(int argc, const char** argv) {
+  printf("pc_debug: on_init()\n");
   for (int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "--enhanced") == 0 || strcmp(argv[i], "-e") == 0) {
       g_enhanced_mode = 1;
@@ -69,7 +51,9 @@ static void pc_debug_on_init(int argc, const char** argv) {
   }
 }
 
-static void pc_debug_on_init_complete(void) {}
+static void pc_debug_on_init_complete(void) {
+  printf("pc_debug: on_init_complete()\n");
+}
 
 static void pc_debug_on_device_connected(uni_hid_device_t* d) {
   printf("pc_debug: device connected: %p\n", d);
@@ -93,9 +77,7 @@ struct uni_platform* uni_platform_pc_debug_create(void) {
   plat.on_device_connected = pc_debug_on_device_connected;
   plat.on_device_disconnected = pc_debug_on_device_disconnected;
   plat.on_device_ready = pc_debug_on_device_ready;
-  plat.on_joy_a_data = pc_debug_on_joy_a_data;
-  plat.on_joy_b_data = pc_debug_on_joy_b_data;
-  plat.on_mouse_data = pc_debug_on_mouse_data;
+  plat.on_gamepad_data = pc_debug_on_gamepad_data;
   plat.is_button_pressed = pc_debug_is_button_pressed;
 
   return &plat;

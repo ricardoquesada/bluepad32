@@ -65,7 +65,8 @@ clean:
 	-rm -f sixaxispairer unijoysticle ble_host
 
 unijoysticle: ${CORE_OBJ} ${COMMON_OBJ} ${CLASSIC_OBJ} ${SDP_CLIENT} btstack_ring_buffer.o btstack_hid_parser.o \
-	../main/uni_main.o ../main/uni_bluetooth.o ../main/uni_hid_device.o  ../main/uni_hid_parser.o ../main/uni_gamepad.o \
+	../main/uni_main.o ../main/uni_bluetooth.o ../main/uni_hid_device.o  ../main/uni_hid_parser.o \
+	../main/uni_gamepad.o ../main/uni_joystick.o \
 	../main/uni_hid_parser_android.o ../main/uni_hid_parser_icade.o ../main/uni_hid_parser_ouya.o \
 	../main/uni_hid_parser_xboxone.o ../main/uni_hid_parser_nimbus.o ../main/uni_hid_parser_smarttvremote.o \
 	../main/uni_hid_parser_ds3.o ../main/uni_hid_parser_ds4.o ../main/uni_hid_parser_8bitdo.o ../main/uni_hid_parser_generic.o \

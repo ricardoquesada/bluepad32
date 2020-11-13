@@ -1,4 +1,3 @@
-
 /****************************************************************************
 http://retro.moe/unijoysticle2
 
@@ -22,6 +21,8 @@ limitations under the License.
 
 #include <stdint.h>
 
+#include "uni_gamepad.h"
+
 // Valid for Amiga, Atari 8-bit, Atari St, C64 and others...
 typedef struct {
   uint8_t up;         // line 1 - Y2 for quad mouse
@@ -35,5 +36,16 @@ typedef struct {
   uint8_t pot_x;      // line 9 - Right button for mouse
   uint8_t auto_fire;  // virtual button
 } uni_joystick_t;
+
+void uni_joy_to_single_joy_from_gamepad(const uni_gamepad_t* gp,
+                                        uni_joystick_t* out_joy);
+void uni_joy_to_combo_joy_joy_from_gamepad(const uni_gamepad_t* gp,
+                                           uni_joystick_t* out_joy1,
+                                           uni_joystick_t* out_joy2);
+void uni_joy_to_single_mouse_from_gamepad(const uni_gamepad_t* gp,
+                                          uni_joystick_t* out_mouse);
+void uni_joy_to_combo_joy_mouse_from_gamepad(const uni_gamepad_t* gp,
+                                             uni_joystick_t* out_joy,
+                                             uni_joystick_t* out_mouse);
 
 #endif  // UNI_JOYSTICK_H

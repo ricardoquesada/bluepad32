@@ -56,9 +56,12 @@ struct uni_platform {
   // button.
   void (*on_device_gamepad_event)(uni_hid_device_t* d, int event);
 
-  void (*on_joy_a_data)(uni_joystick_t* joy);
-  void (*on_joy_b_data)(uni_joystick_t* joy);
-  void (*on_mouse_data)(int32_t delta_x, int32_t delta_y, uint16_t buttons);
+  // Indicates that a gamepad button / stick was pressed / released.
+  void (*on_gamepad_data)(uni_hid_device_t* d, uni_gamepad_t* gp);
+
+  // FIXME: Probably not a platform callback.
+  // Platform indicates that a certain button is pressed.
+  // Used at boot time to delete the saved Bluetooth connections.
   uint8_t (*is_button_pressed)(void);
 };
 

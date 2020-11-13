@@ -28,6 +28,7 @@ limitations under the License.
 
 #include "uni_config.h"
 #include "uni_debug.h"
+#include "uni_gamepad.h"
 #include "uni_hid_device.h"
 #include "uni_joystick.h"
 
@@ -79,9 +80,17 @@ enum {
   EVENT_BIT_AUTOFIRE = (1 << 0),
 };
 
+// Different emulation modes
+typedef enum {
+  EMULATION_MODE_SINGLE_JOY,
+  EMULATION_MODE_SINGLE_MOUSE,
+  EMULATION_MODE_COMBO_JOY_JOY,
+  EMULATION_MODE_COMBO_JOY_MOUSE,
+} emulation_mode_t;
+
 // C64 "instance"
 typedef struct c64_instance_s {
-  uni_emulation_mode_t emu_mode;         // type of controller to emulate
+  emulation_mode_t emu_mode;             // type of controller to emulate
   uni_gamepad_seat_t gamepad_seat;       // which "seat" (port) is being used
   uni_gamepad_seat_t prev_gamepad_seat;  // which "seat" (port) was used before
                                          // switching emu mode
@@ -119,8 +128,9 @@ static uint8_t g_autofire_b_enabled = 0;
 
 static c64_instance_t* get_c64_instance(uni_hid_device_t* d);
 static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat);
-static void c64_on_joy_a_data(uni_joystick_t* joy);
-static void c64_on_joy_b_data(uni_joystick_t* joy);
+static void process_joystick(uni_joystick_t* joy, uni_gamepad_seat_t seat);
+static void process_mouse(uni_hid_device_t* d, int32_t delta_x, int32_t delta_y,
+                          uint16_t buttons);
 
 // Interrupt handlers
 static void handle_event_mouse();
@@ -358,14 +368,66 @@ static void c64_on_device_gamepad_event(uni_hid_device_t* d, int event) {
   // Clear joystick after switch to avoid having a line "On".
   uni_joystick_t joy;
   memset(&joy, 0, sizeof(joy));
-  c64_on_joy_a_data(&joy);
-  c64_on_joy_b_data(&joy);
+  process_joystick(&joy, GAMEPAD_SEAT_A);
+  process_joystick(&joy, GAMEPAD_SEAT_B);
 }
 
-static void c64_on_mouse_data(int32_t delta_x, int32_t delta_y,
-                              uint16_t buttons) {
+static void c64_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
+  if (d == NULL) {
+    loge("ERROR: c64_on_device_gamepad_data: Invalid NULL device\n");
+    return;
+  }
+
+  c64_instance_t* ins = get_c64_instance(d);
+
+  // FIXME: Add support for EMULATION_MODE_COMBO_JOY_MOUSE
+  uni_joystick_t joy, joy_ext;
+  memset(&joy, 0, sizeof(joy));
+  memset(&joy_ext, 0, sizeof(joy_ext));
+
+  switch (ins->emu_mode) {
+    case EMULATION_MODE_SINGLE_JOY:
+      uni_joy_to_single_joy_from_gamepad(gp, &joy);
+      process_joystick(&joy, ins->gamepad_seat);
+      break;
+    case EMULATION_MODE_SINGLE_MOUSE:
+      uni_joy_to_single_mouse_from_gamepad(gp, &joy);
+      process_mouse(d, gp->axis_x, gp->axis_y, gp->buttons);
+      break;
+    case EMULATION_MODE_COMBO_JOY_JOY:
+      uni_joy_to_combo_joy_joy_from_gamepad(gp, &joy, &joy_ext);
+      process_joystick(&joy, GAMEPAD_SEAT_B);
+      process_joystick(&joy_ext, GAMEPAD_SEAT_A);
+      break;
+    case EMULATION_MODE_COMBO_JOY_MOUSE:
+      uni_joy_to_combo_joy_mouse_from_gamepad(gp, &joy, &joy_ext);
+      process_joystick(&joy, GAMEPAD_SEAT_B);
+      process_joystick(&joy_ext, GAMEPAD_SEAT_A);
+      break;
+    default:
+      loge("c64: Unsupported emulation mode: %d\n", ins->emu_mode);
+      break;
+  }
+}
+
+static uint8_t c64_is_button_pressed(void) {
+  // Hi-released, Low-pressed
+  return !gpio_get_level(GPIO_PUSH_BUTTON);
+}
+
+//
+// Helpers
+//
+
+static c64_instance_t* get_c64_instance(uni_hid_device_t* d) {
+  return (c64_instance_t*)&d->platform_data[0];
+}
+
+static void process_mouse(uni_hid_device_t* d, int32_t delta_x, int32_t delta_y,
+                          uint16_t buttons) {
+  UNUSED(d);
   static uint16_t prev_buttons = 0;
-  logd("mouse: x=%d, y=%d, buttons=0x%4x\n", delta_x, delta_y, buttons);
+  logd("c64: mouse: x=%d, y=%d, buttons=0x%4x\n", delta_x, delta_y, buttons);
 
   // Mouse is implemented using a quadrature encoding
   // FIXME: Passing values to mouse task using global variables. This is, of
@@ -384,24 +446,20 @@ static void c64_on_mouse_data(int32_t delta_x, int32_t delta_y,
   }
 }
 
-static void c64_on_joy_a_data(uni_joystick_t* joy) {
-  joy_update_port(joy, JOY_A_PORTS);
-  g_autofire_a_enabled = joy->auto_fire;
-  if (g_autofire_a_enabled) {
-    xEventGroupSetBits(g_auto_fire_group, EVENT_BIT_AUTOFIRE);
+static void process_joystick(uni_joystick_t* joy, uni_gamepad_seat_t seat) {
+  if (seat == GAMEPAD_SEAT_A) {
+    joy_update_port(joy, JOY_A_PORTS);
+    g_autofire_a_enabled = joy->auto_fire;
+  } else if (seat == GAMEPAD_SEAT_B) {
+    joy_update_port(joy, JOY_B_PORTS);
+    g_autofire_b_enabled = joy->auto_fire;
+  } else {
+    loge("c64: process_joystick: invalid gamepad seat: %d\n", seat);
   }
-}
 
-static void c64_on_joy_b_data(uni_joystick_t* joy) {
-  joy_update_port(joy, JOY_B_PORTS);
-  g_autofire_b_enabled = joy->auto_fire;
-  if (g_autofire_b_enabled) {
+  if (g_autofire_a_enabled || g_autofire_b_enabled) {
     xEventGroupSetBits(g_auto_fire_group, EVENT_BIT_AUTOFIRE);
   }
-}
-static uint8_t c64_is_button_pressed(void) {
-  // Hi-released, Low-pressed
-  return !gpio_get_level(GPIO_PUSH_BUTTON);
 }
 
 static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
@@ -500,6 +558,7 @@ static void auto_fire_loop(void* arg) {
     }
   }
 }
+
 // Mouse handler
 void handle_event_mouse() {
   // Copy global variables to local, in case they changed.
@@ -689,17 +748,8 @@ struct uni_platform* uni_platform_c64_create(void) {
   plat.on_device_disconnected = c64_on_device_disconnected;
   plat.on_device_ready = c64_on_device_ready;
   plat.on_device_gamepad_event = c64_on_device_gamepad_event;
-  plat.on_joy_a_data = c64_on_joy_a_data;
-  plat.on_joy_b_data = c64_on_joy_b_data;
-  plat.on_mouse_data = c64_on_mouse_data;
+  plat.on_gamepad_data = c64_on_gamepad_data;
   plat.is_button_pressed = c64_is_button_pressed;
 
   return &plat;
-}
-
-//
-// Helpers
-//
-static c64_instance_t* get_c64_instance(uni_hid_device_t* d) {
-  return (c64_instance_t*)&d->platform_data[0];
 }

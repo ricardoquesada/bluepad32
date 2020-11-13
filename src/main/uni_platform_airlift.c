@@ -333,12 +333,7 @@ static void airlift_on_device_disconnected(uni_hid_device_t* d) {}
 
 static int airlift_on_device_ready(uni_hid_device_t* d) { return 0; }
 
-static void airlift_on_mouse_data(int32_t delta_x, int32_t delta_y,
-                                  uint16_t buttons) {}
-
-static void airlift_on_joy_a_data(uni_joystick_t* joy) {}
-
-static void airlift_on_joy_b_data(uni_joystick_t* joy) {}
+static void airlift_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {}
 
 static uint8_t airlift_is_button_pressed(void) { return 0; }
 
@@ -351,9 +346,7 @@ struct uni_platform* uni_platform_airlift_create(void) {
   plat.on_device_connected = airlift_on_device_connected;
   plat.on_device_disconnected = airlift_on_device_disconnected;
   plat.on_device_ready = airlift_on_device_ready;
-  plat.on_joy_a_data = airlift_on_joy_a_data;
-  plat.on_joy_b_data = airlift_on_joy_b_data;
-  plat.on_mouse_data = airlift_on_mouse_data;
+  plat.on_gamepad_data = airlift_on_gamepad_data;
   plat.is_button_pressed = airlift_is_button_pressed;
 
   return &plat;
