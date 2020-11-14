@@ -260,11 +260,13 @@ static void IRAM_ATTR isr_handler_on_chip_select(void* arg) {
   gpio_set_level(GPIO_READY, 1);
 }
 
-// Events
-static void airlift_on_init(int argc, const char** argv) {
+//
+// Platform Overrides
+//
+static void airlift_init(int argc, const char** argv) {
   UNUSED(argc);
   UNUSED(argv);
-  logi("********** airlift_on_init()\n");
+  logi("********** airlift_init()\n");
 }
 
 static void airlift_on_init_complete(void) {
@@ -340,11 +342,14 @@ static void airlift_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {}
 
 static int32_t airlift_get_property(uni_platform_property_t key) { return 0; }
 
+//
+// Entry Point
+//
 struct uni_platform* uni_platform_airlift_create(void) {
   static struct uni_platform plat;
 
   plat.name = "Adafruit AirLift";
-  plat.on_init = airlift_on_init;
+  plat.init = airlift_init;
   plat.on_init_complete = airlift_on_init_complete;
   plat.on_device_connected = airlift_on_device_connected;
   plat.on_device_disconnected = airlift_on_device_disconnected;

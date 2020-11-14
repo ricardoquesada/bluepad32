@@ -43,9 +43,11 @@ struct uni_platform {
   // The name of the platform
   char* name;
 
-  // Events
-  // on_init is called just once, at boot time
-  void (*on_init)(int argc, const char** argv);
+  // Platform "callbacks".
+
+  // init is called just once, just after boot time, and before Bluetooth
+  // gets initialized.
+  void (*init)(int argc, const char** argv);
   // on_init_complete is called when initialization finishes
   void (*on_init_complete)(void);
 
@@ -58,16 +60,16 @@ struct uni_platform {
   // whether the device should be ready by returning a non-zero value.
   int (*on_device_ready)(uni_hid_device_t* d);
 
-  // When a device (gamepad) generates an Out-of-Band event, like pressing the
-  // home button.
-  void (*on_device_oob_event)(uni_hid_device_t* d,
-                              uni_platform_oob_event_t event);
-
-  // Indicates that a gamepad button / stick was pressed / released.
+  // Indicates that a gamepad button and/or stick was pressed and/or released.
   void (*on_gamepad_data)(uni_hid_device_t* d, uni_gamepad_t* gp);
 
   // Return -1 if property is not supported
   int32_t (*get_property)(uni_platform_property_t key);
+
+  // When a device (gamepad) generates an Out-of-Band event, like pressing the
+  // home button.
+  void (*on_device_oob_event)(uni_hid_device_t* d,
+                              uni_platform_oob_event_t event);
 };
 
 // Global platform "object"

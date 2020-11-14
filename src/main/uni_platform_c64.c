@@ -168,8 +168,10 @@ static void auto_fire_loop(void* arg);
     _a < _b ? _a : _b;      \
   })
 
-// Platform Events
-static void c64_on_init(int argc, const char** argv) {
+//
+// Platform Overrides
+//
+static void c64_init(int argc, const char** argv) {
   UNUSED(argc);
   UNUSED(argv);
   gpio_config_t io_conf;
@@ -320,6 +322,51 @@ static int c64_on_device_ready(uni_hid_device_t* d) {
   return 0;
 }
 
+static void c64_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
+  if (d == NULL) {
+    loge("ERROR: c64_on_device_gamepad_data: Invalid NULL device\n");
+    return;
+  }
+
+  c64_instance_t* ins = get_c64_instance(d);
+
+  // FIXME: Add support for EMULATION_MODE_COMBO_JOY_MOUSE
+  uni_joystick_t joy, joy_ext;
+  memset(&joy, 0, sizeof(joy));
+  memset(&joy_ext, 0, sizeof(joy_ext));
+
+  switch (ins->emu_mode) {
+    case EMULATION_MODE_SINGLE_JOY:
+      uni_joy_to_single_joy_from_gamepad(gp, &joy);
+      process_joystick(&joy, ins->gamepad_seat);
+      break;
+    case EMULATION_MODE_SINGLE_MOUSE:
+      uni_joy_to_single_mouse_from_gamepad(gp, &joy);
+      process_mouse(d, gp->axis_x, gp->axis_y, gp->buttons);
+      break;
+    case EMULATION_MODE_COMBO_JOY_JOY:
+      uni_joy_to_combo_joy_joy_from_gamepad(gp, &joy, &joy_ext);
+      process_joystick(&joy, GAMEPAD_SEAT_B);
+      process_joystick(&joy_ext, GAMEPAD_SEAT_A);
+      break;
+    case EMULATION_MODE_COMBO_JOY_MOUSE:
+      uni_joy_to_combo_joy_mouse_from_gamepad(gp, &joy, &joy_ext);
+      process_joystick(&joy, GAMEPAD_SEAT_B);
+      process_joystick(&joy_ext, GAMEPAD_SEAT_A);
+      break;
+    default:
+      loge("c64: Unsupported emulation mode: %d\n", ins->emu_mode);
+      break;
+  }
+}
+
+static int32_t c64_get_property(uni_platform_property_t key) {
+  if (key != PLATFORM_PROPERTY_DELETE_STORED_KEYS) return -1;
+
+  // Hi-released, Low-pressed
+  return !gpio_get_level(GPIO_PUSH_BUTTON);
+}
+
 static void c64_on_device_oob_event(uni_hid_device_t* d,
                                     uni_platform_oob_event_t event) {
   if (d == NULL) {
@@ -378,50 +425,6 @@ static void c64_on_device_oob_event(uni_hid_device_t* d,
   process_joystick(&joy, GAMEPAD_SEAT_B);
 }
 
-static void c64_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
-  if (d == NULL) {
-    loge("ERROR: c64_on_device_gamepad_data: Invalid NULL device\n");
-    return;
-  }
-
-  c64_instance_t* ins = get_c64_instance(d);
-
-  // FIXME: Add support for EMULATION_MODE_COMBO_JOY_MOUSE
-  uni_joystick_t joy, joy_ext;
-  memset(&joy, 0, sizeof(joy));
-  memset(&joy_ext, 0, sizeof(joy_ext));
-
-  switch (ins->emu_mode) {
-    case EMULATION_MODE_SINGLE_JOY:
-      uni_joy_to_single_joy_from_gamepad(gp, &joy);
-      process_joystick(&joy, ins->gamepad_seat);
-      break;
-    case EMULATION_MODE_SINGLE_MOUSE:
-      uni_joy_to_single_mouse_from_gamepad(gp, &joy);
-      process_mouse(d, gp->axis_x, gp->axis_y, gp->buttons);
-      break;
-    case EMULATION_MODE_COMBO_JOY_JOY:
-      uni_joy_to_combo_joy_joy_from_gamepad(gp, &joy, &joy_ext);
-      process_joystick(&joy, GAMEPAD_SEAT_B);
-      process_joystick(&joy_ext, GAMEPAD_SEAT_A);
-      break;
-    case EMULATION_MODE_COMBO_JOY_MOUSE:
-      uni_joy_to_combo_joy_mouse_from_gamepad(gp, &joy, &joy_ext);
-      process_joystick(&joy, GAMEPAD_SEAT_B);
-      process_joystick(&joy_ext, GAMEPAD_SEAT_A);
-      break;
-    default:
-      loge("c64: Unsupported emulation mode: %d\n", ins->emu_mode);
-      break;
-  }
-}
-
-static int32_t c64_get_property(uni_platform_property_t key) {
-  if (key != PLATFORM_PROPERTY_DELETE_STORED_KEYS) return -1;
-
-  // Hi-released, Low-pressed
-  return !gpio_get_level(GPIO_PUSH_BUTTON);
-}
 
 //
 // Helpers
@@ -746,11 +749,14 @@ static void handle_event_button() {
   }
 }
 
+//
+// Entry Point
+//
 struct uni_platform* uni_platform_c64_create(void) {
   static struct uni_platform plat;
 
   plat.name = "Unijoysticle for the C64";
-  plat.on_init = c64_on_init;
+  plat.init = c64_init;
   plat.on_init_complete = c64_on_init_complete;
   plat.on_device_connected = c64_on_device_connected;
   plat.on_device_disconnected = c64_on_device_disconnected;

@@ -27,31 +27,26 @@ limitations under the License.
 #include "uni_gamepad.h"
 #include "uni_hid_device.h"
 
+//
+// Globals
+//
 static int g_enhanced_mode = 0;
 static int g_delete_keys = 0;
 
 // PC Debug "instance"
 typedef struct pc_debug_instance_s {
-  uni_gamepad_seat_t gamepad_seat;  // which "seat" (port) is being used
+  uni_gamepad_seat_t gamepad_seat;  // which "seat" is being used
 } pc_debug_instance_t;
 
 // Declarations
 static void set_led(uni_hid_device_t* d);
 static pc_debug_instance_t* get_pc_debug_instance(uni_hid_device_t* d);
 
-static void pc_debug_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
-  UNUSED(d);
-  uni_gamepad_dump(gp);
-}
-
-static int32_t pc_debug_get_property(uni_platform_property_t key) {
-  if (key != PLATFORM_PROPERTY_DELETE_STORED_KEYS) return -1;
-  return g_delete_keys;
-}
-
-// Events.
-static void pc_debug_on_init(int argc, const char** argv) {
-  printf("pc_debug: on_init()\n");
+//
+// Platform Overrides
+//
+static void pc_debug_init(int argc, const char** argv) {
+  printf("pc_debug: init()\n");
   for (int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "--enhanced") == 0 || strcmp(argv[i], "-e") == 0) {
       g_enhanced_mode = 1;
@@ -87,6 +82,16 @@ static int pc_debug_on_device_ready(uni_hid_device_t* d) {
   return 0;
 }
 
+static void pc_debug_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
+  UNUSED(d);
+  uni_gamepad_dump(gp);
+}
+
+static int32_t pc_debug_get_property(uni_platform_property_t key) {
+  if (key != PLATFORM_PROPERTY_DELETE_STORED_KEYS) return -1;
+  return g_delete_keys;
+}
+
 static void pc_debug_on_device_oob_event(uni_hid_device_t* d,
                                          uni_platform_oob_event_t event) {
   if (d == NULL) {
@@ -107,6 +112,13 @@ static void pc_debug_on_device_oob_event(uni_hid_device_t* d,
   set_led(d);
 }
 
+//
+// Helpers
+//
+static pc_debug_instance_t* get_pc_debug_instance(uni_hid_device_t* d) {
+  return (pc_debug_instance_t*)&d->platform_data[0];
+}
+
 static void set_led(uni_hid_device_t* d) {
   if (d->report_parser.update_led != NULL) {
     pc_debug_instance_t* ins = get_pc_debug_instance(d);
@@ -115,22 +127,13 @@ static void set_led(uni_hid_device_t* d) {
 }
 
 //
-// Helpers
-//
-
-static pc_debug_instance_t* get_pc_debug_instance(uni_hid_device_t* d) {
-  return (pc_debug_instance_t*)&d->platform_data[0];
-}
-
-//
 // Entry Point
 //
-
 struct uni_platform* uni_platform_pc_debug_create(void) {
   static struct uni_platform plat;
 
   plat.name = "PC Debug";
-  plat.on_init = pc_debug_on_init;
+  plat.init = pc_debug_init;
   plat.on_init_complete = pc_debug_on_init_complete;
   plat.on_device_connected = pc_debug_on_device_connected;
   plat.on_device_disconnected = pc_debug_on_device_disconnected;
