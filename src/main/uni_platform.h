@@ -52,9 +52,9 @@ struct uni_platform {
   // whether the device should be ready by returning a non-zero value.
   int (*on_device_ready)(uni_hid_device_t* d);
 
-  // When a device (gamepad) generates a "system event" like pressing the home
-  // button.
-  void (*on_device_gamepad_event)(uni_hid_device_t* d, int event);
+  // When a device (gamepad) generates an Out-of-Band event, like pressing the
+  // home button.
+  void (*on_device_oob_event)(uni_hid_device_t* d, int event);
 
   // Indicates that a gamepad button / stick was pressed / released.
   void (*on_gamepad_data)(uni_hid_device_t* d, uni_gamepad_t* gp);

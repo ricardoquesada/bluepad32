@@ -32,7 +32,7 @@ static int g_delete_keys = 0;
 
 // PC Debug "instance"
 typedef struct pc_debug_instance_s {
-  uni_gamepad_seat_t gamepad_seat;       // which "seat" (port) is being used
+  uni_gamepad_seat_t gamepad_seat;  // which "seat" (port) is being used
 } pc_debug_instance_t;
 
 // Declarations
@@ -77,19 +77,29 @@ static int pc_debug_on_device_ready(uni_hid_device_t* d) {
   printf("pc_debug: device ready: %p\n", d);
   pc_debug_instance_t* ins = get_pc_debug_instance(d);
   ins->gamepad_seat = GAMEPAD_SEAT_A;
+
+  // FIXME: call paser->update_led() from on_device_ready. Otherwise parsers
+  // like the DS4 might not enable "stream" mode and will fail.
   set_led(d);
   return 0;
 }
 
-static void pc_debug_on_device_gamepad_event(uni_hid_device_t* d, int event) {
+static void pc_debug_on_device_oob_event(uni_hid_device_t* d, int event) {
   UNUSED(event);
   if (d == NULL) {
     loge("ERROR: pc_debug_on_device_gamepad_event: Invalid NULL device\n");
     return;
   }
 
+  if (event != GAMEPAD_SYSTEM_BUTTON_PRESSED) {
+    loge("ERROR: pc_debug_on_device_gamepad_event: unsupported event: 0x%04x\n",
+         event);
+    return;
+  }
+
   pc_debug_instance_t* ins = get_pc_debug_instance(d);
-  ins->gamepad_seat = ins->gamepad_seat == GAMEPAD_SEAT_A ? GAMEPAD_SEAT_B : GAMEPAD_SEAT_A;
+  ins->gamepad_seat =
+      ins->gamepad_seat == GAMEPAD_SEAT_A ? GAMEPAD_SEAT_B : GAMEPAD_SEAT_A;
 
   set_led(d);
 }
@@ -122,8 +132,8 @@ struct uni_platform* uni_platform_pc_debug_create(void) {
   plat.on_device_connected = pc_debug_on_device_connected;
   plat.on_device_disconnected = pc_debug_on_device_disconnected;
   plat.on_device_ready = pc_debug_on_device_ready;
+  plat.on_device_oob_event = pc_debug_on_device_oob_event;
   plat.on_gamepad_data = pc_debug_on_gamepad_data;
-  plat.on_device_gamepad_event = pc_debug_on_device_gamepad_event;
   plat.is_button_pressed = pc_debug_is_button_pressed;
 
   return &plat;

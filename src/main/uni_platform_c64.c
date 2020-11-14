@@ -320,9 +320,15 @@ static int c64_on_device_ready(uni_hid_device_t* d) {
   return 0;
 }
 
-static void c64_on_device_gamepad_event(uni_hid_device_t* d, int event) {
+static void c64_on_device_oob_event(uni_hid_device_t* d, int event) {
   if (d == NULL) {
     loge("ERROR: c64_on_device_gamepad_event: Invalid NULL device\n");
+    return;
+  }
+
+  if (event != GAMEPAD_SYSTEM_BUTTON_PRESSED) {
+    loge("ERROR: c64_on_device_gamepad_event: unsupported event: 0x%04x\n",
+         event);
     return;
   }
 
@@ -747,7 +753,7 @@ struct uni_platform* uni_platform_c64_create(void) {
   plat.on_device_connected = c64_on_device_connected;
   plat.on_device_disconnected = c64_on_device_disconnected;
   plat.on_device_ready = c64_on_device_ready;
-  plat.on_device_gamepad_event = c64_on_device_gamepad_event;
+  plat.on_device_oob_event = c64_on_device_oob_event;
   plat.on_gamepad_data = c64_on_gamepad_data;
   plat.is_button_pressed = c64_is_button_pressed;
 
