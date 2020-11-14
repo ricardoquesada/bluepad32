@@ -44,7 +44,10 @@ static void pc_debug_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
   uni_gamepad_dump(gp);
 }
 
-static uint8_t pc_debug_is_button_pressed() { return g_delete_keys; }
+static int32_t pc_debug_get_property(uni_platform_property_t key) {
+  if (key != PLATFORM_PROPERTY_DELETE_STORED_KEYS) return -1;
+  return g_delete_keys;
+}
 
 // Events.
 static void pc_debug_on_init(int argc, const char** argv) {
@@ -84,14 +87,14 @@ static int pc_debug_on_device_ready(uni_hid_device_t* d) {
   return 0;
 }
 
-static void pc_debug_on_device_oob_event(uni_hid_device_t* d, int event) {
-  UNUSED(event);
+static void pc_debug_on_device_oob_event(uni_hid_device_t* d,
+                                         uni_platform_oob_event_t event) {
   if (d == NULL) {
     loge("ERROR: pc_debug_on_device_gamepad_event: Invalid NULL device\n");
     return;
   }
 
-  if (event != GAMEPAD_SYSTEM_BUTTON_PRESSED) {
+  if (event != PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON) {
     loge("ERROR: pc_debug_on_device_gamepad_event: unsupported event: 0x%04x\n",
          event);
     return;
@@ -134,7 +137,7 @@ struct uni_platform* uni_platform_pc_debug_create(void) {
   plat.on_device_ready = pc_debug_on_device_ready;
   plat.on_device_oob_event = pc_debug_on_device_oob_event;
   plat.on_gamepad_data = pc_debug_on_gamepad_data;
-  plat.is_button_pressed = pc_debug_is_button_pressed;
+  plat.get_property = pc_debug_get_property;
 
   return &plat;
 }

@@ -837,8 +837,9 @@ static void list_link_keys(void) {
     loge("Link key iterator not implemented\n");
     return;
   }
-  uint8_t delete_keys = g_platform->is_button_pressed();
-  if (delete_keys)
+  int32_t delete_keys =
+      g_platform->get_property(PLATFORM_PROPERTY_DELETE_STORED_KEYS);
+  if (delete_keys == 1)
     printf("Deleting stored link keys:\n");
   else
     printf("Stored link keys:\n");

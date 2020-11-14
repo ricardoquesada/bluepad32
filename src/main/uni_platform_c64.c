@@ -278,7 +278,7 @@ static int c64_on_device_ready(uni_hid_device_t* d) {
   // Some safety checks. These conditions should not happen
   if ((ins->gamepad_seat != GAMEPAD_SEAT_NONE) ||
       (!uni_hid_device_has_controller_type(d))) {
-    loge("uni_hid_device_set_ready: pre-condition not met\n");
+    loge("ERROR: c64_on_device_ready: pre-condition not met\n");
     return -1;
   }
 
@@ -308,7 +308,7 @@ static int c64_on_device_ready(uni_hid_device_t* d) {
 
   // If wanted port is already assigned, try with the next one
   if (used_joystick_ports & wanted_seat) {
-    logi("Port already assigned, trying another one\n");
+    logi("c64: Port already assigned, trying another one\n");
     wanted_seat = (~wanted_seat) & GAMEPAD_SEAT_AB_MASK;
   }
 #endif  // UNIJOYSTICLE_SINGLE_PORT  == 0
@@ -320,15 +320,15 @@ static int c64_on_device_ready(uni_hid_device_t* d) {
   return 0;
 }
 
-static void c64_on_device_oob_event(uni_hid_device_t* d, int event) {
+static void c64_on_device_oob_event(uni_hid_device_t* d,
+                                    uni_platform_oob_event_t event) {
   if (d == NULL) {
     loge("ERROR: c64_on_device_gamepad_event: Invalid NULL device\n");
     return;
   }
 
-  if (event != GAMEPAD_SYSTEM_BUTTON_PRESSED) {
-    loge("ERROR: c64_on_device_gamepad_event: unsupported event: 0x%04x\n",
-         event);
+  if (event != PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON) {
+    loge("ERROR: c64_on_device_oob_event: unsupported event: 0x%04x\n", event);
     return;
   }
 
@@ -349,7 +349,7 @@ static void c64_on_device_oob_event(uni_hid_device_t* d, int event) {
     return;
   }
 
-  // Swap joysticks if only one device is attached.
+  // Swap joysticks iff one device is attached.
   int num_devices = 0;
   for (int j = 0; j < UNI_HID_DEVICE_MAX_DEVICES; j++) {
     uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
@@ -416,7 +416,9 @@ static void c64_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
   }
 }
 
-static uint8_t c64_is_button_pressed(void) {
+static int32_t c64_get_property(uni_platform_property_t key) {
+  if (key != PLATFORM_PROPERTY_DELETE_STORED_KEYS) return -1;
+
   // Hi-released, Low-pressed
   return !gpio_get_level(GPIO_PUSH_BUTTON);
 }
@@ -755,7 +757,7 @@ struct uni_platform* uni_platform_c64_create(void) {
   plat.on_device_ready = c64_on_device_ready;
   plat.on_device_oob_event = c64_on_device_oob_event;
   plat.on_gamepad_data = c64_on_gamepad_data;
-  plat.is_button_pressed = c64_is_button_pressed;
+  plat.get_property = c64_get_property;
 
   return &plat;
 }

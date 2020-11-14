@@ -333,11 +333,12 @@ static void airlift_on_device_disconnected(uni_hid_device_t* d) {}
 
 static int airlift_on_device_ready(uni_hid_device_t* d) { return 0; }
 
-static void airlift_on_device_oob_event(uni_hid_device_t* d, int event) {}
+static void airlift_on_device_oob_event(uni_hid_device_t* d,
+                                        uni_platform_oob_event_t event) {}
 
 static void airlift_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {}
 
-static uint8_t airlift_is_button_pressed(void) { return 0; }
+static int32_t airlift_get_property(uni_platform_property_t key) { return 0; }
 
 struct uni_platform* uni_platform_airlift_create(void) {
   static struct uni_platform plat;
@@ -350,7 +351,7 @@ struct uni_platform* uni_platform_airlift_create(void) {
   plat.on_device_ready = airlift_on_device_ready;
   plat.on_device_oob_event = airlift_on_device_oob_event;
   plat.on_gamepad_data = airlift_on_gamepad_data;
-  plat.is_button_pressed = airlift_is_button_pressed;
+  plat.get_property = airlift_get_property;
 
   return &plat;
 }

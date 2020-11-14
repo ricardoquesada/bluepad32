@@ -24,9 +24,15 @@ limitations under the License.
 #include "uni_hid_device.h"
 #include "uni_joystick.h"
 
-enum {
-  GAMEPAD_SYSTEM_BUTTON_PRESSED,
-};
+typedef enum {
+  // The gamepad "System" button was pressed
+  PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON,
+} uni_platform_oob_event_t;
+
+typedef enum {
+  // Whether or not the Bluetooth stored keys should be deleted at boot time
+  PLATFORM_PROPERTY_DELETE_STORED_KEYS,
+} uni_platform_property_t;
 
 // uni_platform must be defined for each new platform that is implemented.
 // It contains callbacks and other init functions that each "platform" must
@@ -40,7 +46,7 @@ struct uni_platform {
   // Events
   // on_init is called just once, at boot time
   void (*on_init)(int argc, const char** argv);
-  // on_init_complete is called on_init finishes
+  // on_init_complete is called when initialization finishes
   void (*on_init_complete)(void);
 
   // When a device (gamepad) connects. But probably it is not ready to use.
@@ -54,15 +60,14 @@ struct uni_platform {
 
   // When a device (gamepad) generates an Out-of-Band event, like pressing the
   // home button.
-  void (*on_device_oob_event)(uni_hid_device_t* d, int event);
+  void (*on_device_oob_event)(uni_hid_device_t* d,
+                              uni_platform_oob_event_t event);
 
   // Indicates that a gamepad button / stick was pressed / released.
   void (*on_gamepad_data)(uni_hid_device_t* d, uni_gamepad_t* gp);
 
-  // FIXME: Probably not a platform callback.
-  // Platform indicates that a certain button is pressed.
-  // Used at boot time to delete the saved Bluetooth connections.
-  uint8_t (*is_button_pressed)(void);
+  // Return -1 if property is not supported
+  int32_t (*get_property)(uni_platform_property_t key);
 };
 
 // Global platform "object"
