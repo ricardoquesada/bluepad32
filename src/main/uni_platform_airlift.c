@@ -52,10 +52,23 @@ limitations under the License.
 #define GPIO_READY GPIO_NUM_33
 #define DMA_CHANNEL 1
 
+//
+// Globals
+//
 const char FIRMWARE_VERSION[] = "Bluepad32 for Adafruit AirLift v0.1";
-
 static SemaphoreHandle_t _ready_semaphore = NULL;
 static uni_joystick_t _gamepad0;
+
+// Airlift device "instance"
+typedef struct airlift_instance_s {
+  uni_gamepad_seat_t gamepad_seat;  // which "seat" is being used
+} airlift_instance_t;
+
+static airlift_instance_t* get_airlift_instance(uni_hid_device_t* d);
+
+//
+// SPI / Nina-fw related
+//
 
 static int spi_transfer(uint8_t out[], uint8_t in[], size_t len) {
   spi_slave_transaction_t slvTrans;
@@ -333,7 +346,13 @@ static void airlift_on_device_connected(uni_hid_device_t* d) {}
 
 static void airlift_on_device_disconnected(uni_hid_device_t* d) {}
 
-static int airlift_on_device_ready(uni_hid_device_t* d) { return 0; }
+static int airlift_on_device_ready(uni_hid_device_t* d) {
+  if (d->report_parser.update_led != NULL) {
+    airlift_instance_t* ins = get_airlift_instance(d);
+    d->report_parser.update_led(d, ins->gamepad_seat);
+  }
+  return 0;
+}
 
 static void airlift_on_device_oob_event(uni_hid_device_t* d,
                                         uni_platform_oob_event_t event) {}
@@ -341,6 +360,13 @@ static void airlift_on_device_oob_event(uni_hid_device_t* d,
 static void airlift_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {}
 
 static int32_t airlift_get_property(uni_platform_property_t key) { return 0; }
+
+//
+// Helpers
+//
+static airlift_instance_t* get_airlift_instance(uni_hid_device_t* d) {
+  return (airlift_instance_t*)&d->platform_data[0];
+}
 
 //
 // Entry Point
