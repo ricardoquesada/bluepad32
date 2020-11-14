@@ -127,6 +127,7 @@ typedef struct switch_instance_s {
   uint8_t firmware_hi;
   uint8_t firmware_lo;
   uint8_t controller_type;
+  uni_gamepad_seat_t gamepad_seat;
   // Factory calibration info
   switch_cal_stick_t cal_x;
   switch_cal_stick_t cal_y;
@@ -797,10 +798,7 @@ static void fsm_update_led(struct uni_hid_device_s* d) {
   req->transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
   req->report_id = 0x01;         // 0x01 for sub commands
   req->subcmd_id = SUBCMD_SET_LEDS;
-  // FIXME: Turning on all 4 LEDs for debugging purposes.
-  /// Then the correct should be used when "switch_update_led" is called.
-  // req->data[0] = d->joystick_port;
-  req->data[0] = 0x0f;
+  req->data[0] = ins->gamepad_seat;
   send_subcmd(d, req, sizeof(out));
 }
 
@@ -815,6 +813,8 @@ void uni_hid_parser_switch_update_led(uni_hid_device_t* d,
   if (ins->state == STATE_UNINIT) {
     return;
   }
+
+  ins->gamepad_seat = seat;
 
   // 1 == SET_LEDS subcmd len
   uint8_t report[sizeof(struct switch_subcmd_request) + 1] = {0};

@@ -141,6 +141,12 @@ void uni_hid_device_set_ready(uni_hid_device_t* d) {
 
   if (g_platform->on_device_ready(d) == 0)
     uni_hid_device_set_state(d, STATE_DEVICE_READY);
+
+  // FIXME: Setup must be run after "platform->on_device_ready" due to legacy
+  // logic.
+  // Might be safe to move "setup" before "on_device_ready", but all gamepads
+  // must be tested.
+  if (d->report_parser.setup) d->report_parser.setup(d);
 }
 
 void uni_hid_device_remove_entry_with_channel(uint16_t channel) {

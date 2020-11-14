@@ -135,6 +135,7 @@ typedef struct wii_instance_s {
   uint8_t flags;
   enum wii_devtype dev_type;
   enum wii_exttype ext_type;
+  uni_gamepad_seat_t gamepad_seat;
 
   // Debug only
   int debug_fd;         // File descriptor where dump is saved
@@ -911,10 +912,8 @@ static void wii_fsm_assign_device(uni_hid_device_t* d) {
 
 static void wii_fsm_update_led(uni_hid_device_t* d) {
   logi("fsm: upload_led\n");
-  // FIXME: Turn on all LEDs for debugging purposes
-  // Correct LEDS will be updated once wii_update_led is called.
-  uni_hid_parser_wii_update_led(d, 0x0f);
   wii_instance_t* ins = get_wii_instance(d);
+  uni_hid_parser_wii_update_led(d, ins->gamepad_seat);
   ins->state = WII_FSM_LED_UPDATED;
   wii_process_fsm(d);
 }
@@ -1062,6 +1061,8 @@ void uni_hid_parser_wii_update_led(uni_hid_device_t* d,
   uint8_t led = seat << 4;
 
   wii_instance_t* ins = get_wii_instance(d);
+  ins->gamepad_seat = seat;
+
   // If vertical mode is on, enable LED 4.
   if (ins->flags & WII_FLAGS_VERTICAL) {
     led |= 0x80;

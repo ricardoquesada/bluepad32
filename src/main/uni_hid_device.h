@@ -107,11 +107,11 @@ struct uni_hid_device_s {
 
   // Bytes reserved to gamepad's parser instances.
   // E.g: The Wii driver uses it for the state machine.
-  uint8_t parser_data[64];
+  uint8_t parser_data[128];
 
   // Bytes reserved to different platforms.
   // E.g: C64 or Airlift might use it to store different values.
-  uint8_t platform_data[64];
+  uint8_t platform_data[128];
 };
 typedef struct uni_hid_device_s uni_hid_device_t;
 
