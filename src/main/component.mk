@@ -8,6 +8,3 @@
 #
 CFLAGS += -Wno-format -Wall -Werror
 
-# C64 as target platform
-CFLAGS += -DUNI_PLATFORM_C64
-#CFLAGS += -DUNI_PLATFORM_AIRLIFT
