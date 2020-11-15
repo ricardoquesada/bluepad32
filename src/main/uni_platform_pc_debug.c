@@ -88,6 +88,7 @@ static void pc_debug_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
 }
 
 static int32_t pc_debug_get_property(uni_platform_property_t key) {
+  logi("pc_debug: get_property(): %d\n", key);
   if (key != PLATFORM_PROPERTY_DELETE_STORED_KEYS) return -1;
   return g_delete_keys;
 }
@@ -98,6 +99,7 @@ static void pc_debug_on_device_oob_event(uni_hid_device_t* d,
     loge("ERROR: pc_debug_on_device_gamepad_event: Invalid NULL device\n");
     return;
   }
+  logi("pc_debug: on_device_oob_event(): %d\n", event);
 
   if (event != PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON) {
     loge("ERROR: pc_debug_on_device_gamepad_event: unsupported event: 0x%04x\n",
