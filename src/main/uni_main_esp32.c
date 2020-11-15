@@ -49,8 +49,6 @@ static void enable_uart_output(int enabled) {
     // uartAttach();
     ets_install_uart_printf();
     uart_tx_switch(CONFIG_ESP_CONSOLE_UART_NUM);
-
-    ets_printf("*** UART output enabled\n");
   } else {
     PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[1], PIN_FUNC_GPIO);
     PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[3], PIN_FUNC_GPIO);

@@ -345,9 +345,9 @@ static void airlift_on_init_complete(void) {
 }
 
 static void airlift_on_device_connected(uni_hid_device_t* d) {
-    airlift_instance_t* ins = get_airlift_instance(d);
-    memset(ins, 0, sizeof(*ins));
-    ins->gamepad_seat = GAMEPAD_SEAT_A;
+  airlift_instance_t* ins = get_airlift_instance(d);
+  memset(ins, 0, sizeof(*ins));
+  ins->gamepad_seat = GAMEPAD_SEAT_A;
 }
 
 static void airlift_on_device_disconnected(uni_hid_device_t* d) {}
@@ -360,8 +360,7 @@ static int airlift_on_device_ready(uni_hid_device_t* d) {
   return 0;
 }
 
-static void airlift_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
-}
+static void airlift_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {}
 
 static void airlift_on_device_oob_event(uni_hid_device_t* d,
                                         uni_platform_oob_event_t event) {
@@ -369,7 +368,8 @@ static void airlift_on_device_oob_event(uni_hid_device_t* d,
   if (event != UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON) return;
 
   airlift_instance_t* ins = get_airlift_instance(d);
-  ins->gamepad_seat = (ins->gamepad_seat == GAMEPAD_SEAT_A) ? GAMEPAD_SEAT_B : GAMEPAD_SEAT_A;
+  ins->gamepad_seat =
+      (ins->gamepad_seat == GAMEPAD_SEAT_A) ? GAMEPAD_SEAT_B : GAMEPAD_SEAT_A;
 
   if (d->report_parser.update_led != NULL) {
     d->report_parser.update_led(d, ins->gamepad_seat);

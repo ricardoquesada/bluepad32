@@ -843,6 +843,7 @@ static void list_link_keys(void) {
     logi("Deleting stored link keys:\n");
   else
     logi("Stored link keys:\n");
+
   while (gap_link_key_iterator_get_next(&it, addr, link_key, &type)) {
     logi("%s - type %u, key: ", bd_addr_to_str(addr), (int)type);
     printf_hexdump(link_key, 16);
@@ -958,7 +959,7 @@ int uni_bluetooth_init(void) {
   // TODO: For DS3 support, uncomment the following line.
   // It seems that with gap_security_level(0) all gamepads work except
   // Nintendo Switch Pro controller.
-  //gap_set_security_level(0);
+  // gap_set_security_level(0);
 
   int security_level = gap_get_security_level();
   logi("Gap security level: %d\n", security_level);

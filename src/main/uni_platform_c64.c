@@ -176,9 +176,10 @@ static void c64_init(int argc, const char** argv) {
   UNUSED(argv);
 
 #if PLAT_C64_SINGLE_PORT
-  logi("Single port / 3-button mode enabled (Amiga/Atari ST compatible)\n");
+  logi(
+      "c64: Single port / 3-button mode enabled (Amiga/Atari ST compatible)\n");
 #else
-  logi("Dual port / 1-button mode enabled\n");
+  logi("c64: Dual port / 1-button mode enabled\n");
 #endif
 
   gpio_config_t io_conf;
@@ -431,7 +432,6 @@ static void c64_on_device_oob_event(uni_hid_device_t* d,
   process_joystick(&joy, GAMEPAD_SEAT_A);
   process_joystick(&joy, GAMEPAD_SEAT_B);
 }
-
 
 //
 // Helpers
