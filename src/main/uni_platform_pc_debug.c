@@ -46,7 +46,7 @@ static pc_debug_instance_t* get_pc_debug_instance(uni_hid_device_t* d);
 // Platform Overrides
 //
 static void pc_debug_init(int argc, const char** argv) {
-  printf("pc_debug: init()\n");
+  logi("pc_debug: init()\n");
   for (int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "--enhanced") == 0 || strcmp(argv[i], "-e") == 0) {
       g_enhanced_mode = 1;
@@ -60,19 +60,19 @@ static void pc_debug_init(int argc, const char** argv) {
 }
 
 static void pc_debug_on_init_complete(void) {
-  printf("pc_debug: on_init_complete()\n");
+  logi("pc_debug: on_init_complete()\n");
 }
 
 static void pc_debug_on_device_connected(uni_hid_device_t* d) {
-  printf("pc_debug: device connected: %p\n", d);
+  logi("pc_debug: device connected: %p\n", d);
 }
 
 static void pc_debug_on_device_disconnected(uni_hid_device_t* d) {
-  printf("pc_debug: device disconnected: %p\n", d);
+  logi("pc_debug: device disconnected: %p\n", d);
 }
 
 static int pc_debug_on_device_ready(uni_hid_device_t* d) {
-  printf("pc_debug: device ready: %p\n", d);
+  logi("pc_debug: device ready: %p\n", d);
   pc_debug_instance_t* ins = get_pc_debug_instance(d);
   ins->gamepad_seat = GAMEPAD_SEAT_A;
 

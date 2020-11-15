@@ -41,8 +41,10 @@ limitations under the License.
 
 #include "uni_config.h"
 #include "uni_debug.h"
+#include "uni_gamepad.h"
 #include "uni_hid_device.h"
 #include "uni_joystick.h"
+#include "uni_platform.h"
 
 // SPI et al pins
 #define GPIO_MOSI GPIO_NUM_14
@@ -342,7 +344,11 @@ static void airlift_on_init_complete(void) {
   //  gpio_set_level(GPIO_NUM_19, 1);
 }
 
-static void airlift_on_device_connected(uni_hid_device_t* d) {}
+static void airlift_on_device_connected(uni_hid_device_t* d) {
+    airlift_instance_t* ins = get_airlift_instance(d);
+    memset(ins, 0, sizeof(*ins));
+    ins->gamepad_seat = GAMEPAD_SEAT_A;
+}
 
 static void airlift_on_device_disconnected(uni_hid_device_t* d) {}
 
@@ -354,12 +360,26 @@ static int airlift_on_device_ready(uni_hid_device_t* d) {
   return 0;
 }
 
+static void airlift_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
+}
+
 static void airlift_on_device_oob_event(uni_hid_device_t* d,
-                                        uni_platform_oob_event_t event) {}
+                                        uni_platform_oob_event_t event) {
+  logi("airlift_on_device_oob_event(), event=%d\n", event);
+  if (event != PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON) return;
 
-static void airlift_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {}
+  airlift_instance_t* ins = get_airlift_instance(d);
+  ins->gamepad_seat = (ins->gamepad_seat == GAMEPAD_SEAT_A) ? GAMEPAD_SEAT_B : GAMEPAD_SEAT_A;
 
-static int32_t airlift_get_property(uni_platform_property_t key) { return 0; }
+  if (d->report_parser.update_led != NULL) {
+    d->report_parser.update_led(d, ins->gamepad_seat);
+  }
+}
+
+static int32_t airlift_get_property(uni_platform_property_t key) {
+  logi("airlift_get_property(), key=%d\n", key);
+  return 0;
+}
 
 //
 // Helpers

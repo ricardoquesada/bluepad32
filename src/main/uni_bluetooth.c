@@ -329,7 +329,7 @@ static void packet_handler(uint8_t packet_type, uint16_t channel,
           logi("UNSUPPORTED ---> HCI_EVENT_HID_META <---\n");
           break;
         case HCI_EVENT_INQUIRY_RESULT:
-          // printf("--> HCI_EVENT_INQUIRY_RESULT <--\n");
+          // logi("--> HCI_EVENT_INQUIRY_RESULT <--\n");
           break;
         case HCI_EVENT_CONNECTION_REQUEST:
           logi("--> HCI_EVENT_CONNECTION_REQUEST: link_type = %d <--\n",
@@ -840,17 +840,17 @@ static void list_link_keys(void) {
   int32_t delete_keys =
       g_platform->get_property(PLATFORM_PROPERTY_DELETE_STORED_KEYS);
   if (delete_keys == 1)
-    printf("Deleting stored link keys:\n");
+    logi("Deleting stored link keys:\n");
   else
-    printf("Stored link keys:\n");
+    logi("Stored link keys:\n");
   while (gap_link_key_iterator_get_next(&it, addr, link_key, &type)) {
-    printf("%s - type %u, key: ", bd_addr_to_str(addr), (int)type);
+    logi("%s - type %u, key: ", bd_addr_to_str(addr), (int)type);
     printf_hexdump(link_key, 16);
     if (delete_keys) {
       gap_drop_link_key_for_bd_addr(addr);
     }
   }
-  printf(".\n");
+  logi(".\n");
   gap_link_key_iterator_done(&it);
 }
 

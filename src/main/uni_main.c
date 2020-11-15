@@ -18,6 +18,7 @@ limitations under the License.
 
 #include "uni_bluetooth.h"
 #include "uni_config.h"
+#include "uni_debug.h"
 #include "uni_hid_device.h"
 #include "uni_platform.h"
 
@@ -29,13 +30,13 @@ int btstack_main(int argc, const char** argv) {
   UNUSED(argv);
 
   // Honoring with BT copyright + adding own message to avoid confusion
-  printf("Bluepad32 (C) 2016-2020 Ricardo Quesada and contributors.\n");
-  printf("Version: v2.0.0-beta\n");
-  printf("Bluetooth stack: Copyright (C) 2017 BlueKitchen GmbH.\n");
+  logi("Bluepad32 (C) 2016-2020 Ricardo Quesada and contributors.\n");
+  logi("Version: v2.0.0-beta\n");
+  logi("Bluetooth stack: Copyright (C) 2017 BlueKitchen GmbH.\n");
 #if UNIJOYSTICLE_SINGLE_PORT
-  printf("Single port / 3-button mode enabled (Amiga/Atari ST compatible)\n");
+  logi("Single port / 3-button mode enabled (Amiga/Atari ST compatible)\n");
 #else
-  printf("Dual port / 1-button mode enabled\n");
+  logi("Dual port / 1-button mode enabled\n");
 #endif
 
   uni_platform_init(argc, argv);
