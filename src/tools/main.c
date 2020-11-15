@@ -30,7 +30,7 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Please inquire about commercial licensing options at 
+ * Please inquire about commercial licensing options at
  * contact@bluekitchen-gmbh.com
  *
  */
@@ -67,14 +67,14 @@
 #include "btstack_tlv_posix.h"
 #include "btstack_chipset_zephyr.h"
 
+#include "uni_main.h"
+
 #define TLV_DB_PATH_PREFIX "/tmp/btstack_"
 #define TLV_DB_PATH_POSTFIX ".tlv"
 static char tlv_db_path[100];
 static const btstack_tlv_t * tlv_impl;
 static btstack_tlv_posix_t   tlv_context;
 static bd_addr_t             local_addr;
-
-int btstack_main(int argc, const char * argv[]);
 
 static const uint8_t read_static_address_command_complete_prefix[] = { 0x0e, 0x1b, 0x01, 0x09, 0xfc };
 
@@ -124,7 +124,7 @@ static void packet_handler (uint8_t packet_type, uint16_t channel, uint8_t *pack
             btstack_tlv_set_instance(tlv_impl, &tlv_context);
 #ifdef ENABLE_CLASSIC
             hci_set_link_key_db(btstack_link_key_db_tlv_get_instance(tlv_impl, &tlv_context));
-#endif    
+#endif
 #ifdef ENABLE_BLE
             le_device_db_tlv_configure(tlv_impl, &tlv_context);
 #endif
@@ -147,7 +147,7 @@ static void packet_handler (uint8_t packet_type, uint16_t channel, uint8_t *pack
 static void sigint_handler(int param){
     UNUSED(param);
 
-    printf("CTRL-C - SIGINT received, shutting down..\n");   
+    printf("CTRL-C - SIGINT received, shutting down..\n");
     log_info("sigint_handler: shutting down");
 
     // reset anyway
@@ -156,7 +156,7 @@ static void sigint_handler(int param){
     // power down
     hci_power_control(HCI_POWER_OFF);
     hci_close();
-    log_info("Good bye, see you.\n");    
+    log_info("Good bye, see you.\n");
     exit(0);
 }
 
@@ -194,7 +194,7 @@ int main(int argc, const char * argv[]){
 	/// GET STARTED with BTstack ///
 	btstack_memory_init();
     btstack_run_loop_init(btstack_run_loop_posix_get_instance());
-	    
+
     if (usb_path_len){
         hci_transport_usb_set_path(usb_path_len, usb_path);
     }
@@ -226,11 +226,8 @@ int main(int argc, const char * argv[]){
     // handle CTRL-c
     signal(SIGINT, sigint_handler);
 
-    // setup app
-    btstack_main(argc, argv);
-
-    // go
-    btstack_run_loop_execute();    
+    // Uni main (forever)
+    uni_main(argc, argv);
 
     return 0;
 }

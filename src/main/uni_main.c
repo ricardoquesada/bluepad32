@@ -16,23 +16,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
+#include "uni_main.h"
+
 #include "uni_bluetooth.h"
 #include "uni_config.h"
 #include "uni_debug.h"
 #include "uni_hid_device.h"
 #include "uni_platform.h"
 
-int btstack_main(int argc, const char** argv);
-
 // Main. Called by BlueKitchen bluetooth stack
-int btstack_main(int argc, const char** argv) {
+int uni_main(int argc, const char** argv) {
   UNUSED(argc);
   UNUSED(argv);
 
-  // Honoring with BT copyright + adding own message to avoid confusion
   logi("Bluepad32 (C) 2016-2020 Ricardo Quesada and contributors.\n");
   logi("Version: v2.0.0-beta\n");
-  logi("Bluetooth stack: Copyright (C) 2017 BlueKitchen GmbH.\n");
+
+  // Honoring with BT copyright
+  logi("BTStack: Copyright (C) 2017 BlueKitchen GmbH.\n");
+
 #if UNIJOYSTICLE_SINGLE_PORT
   logi("Single port / 3-button mode enabled (Amiga/Atari ST compatible)\n");
 #else
@@ -44,6 +46,9 @@ int btstack_main(int argc, const char** argv) {
 
   // Continue with bluetooth setup.
   uni_bluetooth_init();
+
+  // BTStack loop (forever)
+  btstack_run_loop_execute();
 
   return 0;
 }

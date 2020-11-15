@@ -62,7 +62,7 @@ clean_src:
 clean:
 	-rm -rf ../main/*.o
 	-rm -rf *.o
-	-rm -f sixaxispairer unijoysticle ble_host
+	-rm -f sixaxispairer unijoysticle
 
 unijoysticle: ${CORE_OBJ} ${COMMON_OBJ} ${CLASSIC_OBJ} ${SDP_CLIENT} btstack_ring_buffer.o btstack_hid_parser.o \
 	../main/uni_main.o ../main/uni_bluetooth.o ../main/uni_hid_device.o  ../main/uni_hid_parser.o \
@@ -75,13 +75,9 @@ unijoysticle: ${CORE_OBJ} ${COMMON_OBJ} ${CLASSIC_OBJ} ${SDP_CLIENT} btstack_rin
 	../main/uni_platform.o ../main/uni_platform_pc_debug.o
 	${CC} $^ ${CFLAGS} ${LDFLAGS} -o $@
 
-ble_host:  ${CORE_OBJ} ${COMMON_OBJ} ${CLASSIC_OBJ} ${SDP_CLIENT} btstack_ring_buffer.o btstack_hid_parser.o \
-	gatt_client.o att_dispatch.o att_server.o att_db.o \
-	ble_host.o
-
 sixaxispairer: sixaxispairer.o
 	echo "Compiling sixaxis pairer"
 	echo "Make sure that 'libhidapi-dev' is installed"
 	${CC} $^ -lhidapi-libusb -o $@
 
-all: unijoysticle ble_host ${EXAMPLES}
+all: unijoysticle ${EXAMPLES}

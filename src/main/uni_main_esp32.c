@@ -27,11 +27,12 @@ limitations under the License.
 #include "btstack_run_loop.h"
 #include "hci_dump.h"
 #include "uni_debug.h"
-
-extern int btstack_main(int argc, const char* argv[]);
+#include "uni_main.h"
 
 // Code taken from nina-fw
-// The firmware is compiled with UART RX/TX disabled by default.
+// https://github.com/adafruit/nina-fw/blob/master/main/sketch.ino.cpp
+//
+// Bluepad32 is compiled with UART RX/TX disabled by default.
 // But can be enabled/disabled in runtime by calling this function.
 static void enable_uart_output(int enabled) {
   if (enabled) {
@@ -79,13 +80,8 @@ int app_main(void) {
   // Configure BTstack for ESP32 VHCI Controller
   btstack_init();
 
-  // Setup example
-  btstack_main(0, NULL);
-
-  // Enter run loop (forever)
-  btstack_run_loop_execute();
-
-  logi("Running in Core %d\n", xPortGetCoreID());
+  // Main loop
+  uni_main(0, NULL);
 
   return 0;
 }
