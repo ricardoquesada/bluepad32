@@ -109,6 +109,7 @@ enum wii_fsm {
   WII_FSM_DEV_GUESSED,              // Device type guessed
   WII_FSM_DEV_ASSIGNED,             // Device type assigned
   WII_FSM_LED_UPDATED,              // After device was assigned, update LEDs.
+                                    // Gamepad ready to be used
 };
 
 // As defined here: http://wiibrew.org/wiki/Wiimote#0x21:_Read_Memory_Data
@@ -176,6 +177,7 @@ static void wii_fsm_dump_eeprom(uni_hid_device_t* d);
 static void wii_read_mem(uni_hid_device_t* d, wii_read_type_t t,
                          uint32_t offset, uint16_t size);
 static wii_instance_t* get_wii_instance(uni_hid_device_t* d);
+static void set_led(uni_hid_device_t* d, uni_gamepad_seat_t seat);
 
 // process_ functions
 
@@ -913,7 +915,7 @@ static void wii_fsm_assign_device(uni_hid_device_t* d) {
 static void wii_fsm_update_led(uni_hid_device_t* d) {
   logi("fsm: upload_led\n");
   wii_instance_t* ins = get_wii_instance(d);
-  uni_hid_parser_wii_update_led(d, ins->gamepad_seat);
+  set_led(d, ins->gamepad_seat);
   ins->state = WII_FSM_LED_UPDATED;
   wii_process_fsm(d);
 }
@@ -975,7 +977,6 @@ static void wii_process_fsm(uni_hid_device_t* d) {
       wii_fsm_update_led(d);
       break;
     case WII_FSM_LED_UPDATED:
-      // do nothing. FSM finished.
       break;
   }
 }
@@ -1054,14 +1055,31 @@ void uni_hid_parser_wii_update_led(uni_hid_device_t* d,
     loge("Wii: ERROR: Invalid device\n");
     return;
   }
+
+  wii_instance_t* ins = get_wii_instance(d);
+  // Always update gamepad_seat regarless of the state
+  ins->gamepad_seat = seat;
+
+  if (ins->state < WII_FSM_LED_UPDATED) return;
+
+  set_led(d, seat);
+}
+
+//
+// Helpers
+//
+static wii_instance_t* get_wii_instance(uni_hid_device_t* d) {
+  return (wii_instance_t*)&d->parser_data[0];
+}
+
+static void set_led(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
+  wii_instance_t* ins = get_wii_instance(d);
+
   // Set LED to 1.
   uint8_t report[] = {
       0xa2, WIIPROTO_REQ_LED, 0x00 /* LED */
   };
   uint8_t led = seat << 4;
-
-  wii_instance_t* ins = get_wii_instance(d);
-  ins->gamepad_seat = seat;
 
   // If vertical mode is on, enable LED 4.
   if (ins->flags & WII_FLAGS_VERTICAL) {
@@ -1073,13 +1091,6 @@ void uni_hid_parser_wii_update_led(uni_hid_device_t* d,
   }
   report[2] = led;
   uni_hid_device_send_intr_report(d, report, sizeof(report));
-}
-
-//
-// Helpers
-//
-static wii_instance_t* get_wii_instance(uni_hid_device_t* d) {
-  return (wii_instance_t*)&d->parser_data[0];
 }
 
 static void wii_read_mem(uni_hid_device_t* d, wii_read_type_t t,

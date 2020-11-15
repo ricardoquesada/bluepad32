@@ -128,6 +128,7 @@ typedef struct switch_instance_s {
   uint8_t firmware_lo;
   uint8_t controller_type;
   uni_gamepad_seat_t gamepad_seat;
+
   // Factory calibration info
   switch_cal_stick_t cal_x;
   switch_cal_stick_t cal_y;
@@ -233,6 +234,7 @@ static void process_reply_enable_imu(struct uni_hid_device_s* d,
                                      const struct switch_report_21_s* r,
                                      int len);
 static int32_t calibrate_axis(int16_t v, switch_cal_stick_t cal);
+static void set_led(uni_hid_device_t* d, uni_gamepad_seat_t seat);
 
 void uni_hid_parser_switch_setup(struct uni_hid_device_s* d) {
   switch_instance_t* ins = get_switch_instance(d);
@@ -793,13 +795,7 @@ static void fsm_update_led(struct uni_hid_device_s* d) {
   switch_instance_t* ins = get_switch_instance(d);
   ins->state = STATE_UPDATE_LED;
 
-  uint8_t out[sizeof(struct switch_subcmd_request) + 1] = {0};
-  struct switch_subcmd_request* req = (struct switch_subcmd_request*)&out[0];
-  req->transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
-  req->report_id = 0x01;         // 0x01 for sub commands
-  req->subcmd_id = SUBCMD_SET_LEDS;
-  req->data[0] = ins->gamepad_seat;
-  send_subcmd(d, req, sizeof(out));
+  set_led(d, ins->gamepad_seat);
 }
 
 static void fsm_ready(struct uni_hid_device_s* d) {
@@ -810,21 +806,13 @@ static void fsm_ready(struct uni_hid_device_s* d) {
 void uni_hid_parser_switch_update_led(uni_hid_device_t* d,
                                       uni_gamepad_seat_t seat) {
   switch_instance_t* ins = get_switch_instance(d);
-  if (ins->state == STATE_UNINIT) {
-    return;
-  }
-
+  // Seat must be set, even if it is not ready. Initialization will use this
+  // seat and set the correct LEDs values.
   ins->gamepad_seat = seat;
 
-  // 1 == SET_LEDS subcmd len
-  uint8_t report[sizeof(struct switch_subcmd_request) + 1] = {0};
+  if (ins->state < STATE_READY) return;
 
-  struct switch_subcmd_request* req = (struct switch_subcmd_request*)&report[0];
-  req->transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
-  req->report_id = 0x01;         // 0x01 for sub commands
-  req->subcmd_id = SUBCMD_SET_LEDS;
-  req->data[0] = seat;
-  send_subcmd(d, req, sizeof(report));
+  set_led(d, seat);
 }
 
 uint8_t uni_hid_parser_switch_does_packet_match(struct uni_hid_device_s* d,
@@ -855,6 +843,21 @@ uint8_t uni_hid_parser_switch_does_packet_match(struct uni_hid_device_s* d,
 //
 static switch_instance_t* get_switch_instance(uni_hid_device_t* d) {
   return (switch_instance_t*)&d->parser_data[0];
+}
+
+static void set_led(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
+  switch_instance_t* ins = get_switch_instance(d);
+  ins->gamepad_seat = seat;
+
+  // 1 == SET_LEDS subcmd len
+  uint8_t report[sizeof(struct switch_subcmd_request) + 1] = {0};
+
+  struct switch_subcmd_request* req = (struct switch_subcmd_request*)&report[0];
+  req->transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
+  req->report_id = 0x01;         // 0x01 for sub commands
+  req->subcmd_id = SUBCMD_SET_LEDS;
+  req->data[0] = seat;
+  send_subcmd(d, req, sizeof(report));
 }
 
 static void send_subcmd(uni_hid_device_t* d, struct switch_subcmd_request* r,

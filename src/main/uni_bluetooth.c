@@ -955,9 +955,10 @@ int uni_bluetooth_init(void) {
   hci_event_callback_registration.callback = &packet_handler;
   hci_add_event_handler(&hci_event_callback_registration);
 
-  // TODO:
-  // Added for DS3 support. Not sure whether it will break other gamepads.
-  gap_set_security_level(0);
+  // TODO: For DS3 support, uncomment the following line.
+  // It seems that with gap_security_level(0) all gamepads work except
+  // Nintendo Switch Pro controller.
+  //gap_set_security_level(0);
 
   int security_level = gap_get_security_level();
   logi("Gap security level: %d\n", security_level);

@@ -139,14 +139,15 @@ void uni_hid_device_set_ready(uni_hid_device_t* d) {
     return;
   }
 
+  // TODO: Confirm that setup can run before "set_led()".
+  // Old code, which was very well tested, was callilng update-led before setup.
+  // It is wrong, but it was working.
+  // Setup is executed before update-led, and all 4 major gamepads work ok:
+  // XboxOne, DS4, Switch and Wii. But don't know the rest of the gamepads.
+  if (d->report_parser.setup) d->report_parser.setup(d);
+
   if (g_platform->on_device_ready(d) == 0)
     uni_hid_device_set_state(d, STATE_DEVICE_READY);
-
-  // FIXME: Setup must be run after "platform->on_device_ready" due to legacy
-  // logic.
-  // Might be safe to move "setup" before "on_device_ready", but all gamepads
-  // must be tested.
-  if (d->report_parser.setup) d->report_parser.setup(d);
 }
 
 void uni_hid_device_remove_entry_with_channel(uint16_t channel) {
