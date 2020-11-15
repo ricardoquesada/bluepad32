@@ -533,7 +533,7 @@ static void process_misc_button_system(uni_hid_device_t* d) {
   if (d->wait_release_misc_button & MISC_BUTTON_SYSTEM) return;
   d->wait_release_misc_button |= MISC_BUTTON_SYSTEM;
 
-  g_platform->on_device_oob_event(d, PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON);
+  g_platform->on_device_oob_event(d, UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON);
 }
 
 // process_misc_button_home dumps uni_hid_device debug info in the console.

@@ -366,7 +366,7 @@ static void airlift_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
 static void airlift_on_device_oob_event(uni_hid_device_t* d,
                                         uni_platform_oob_event_t event) {
   logi("airlift_on_device_oob_event(), event=%d\n", event);
-  if (event != PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON) return;
+  if (event != UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON) return;
 
   airlift_instance_t* ins = get_airlift_instance(d);
   ins->gamepad_seat = (ins->gamepad_seat == GAMEPAD_SEAT_A) ? GAMEPAD_SEAT_B : GAMEPAD_SEAT_A;

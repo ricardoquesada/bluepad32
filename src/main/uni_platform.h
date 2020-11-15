@@ -26,12 +26,12 @@ limitations under the License.
 
 typedef enum {
   // The gamepad "System" button was pressed
-  PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON,
+  UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON,
 } uni_platform_oob_event_t;
 
 typedef enum {
   // Whether or not the Bluetooth stored keys should be deleted at boot time
-  PLATFORM_PROPERTY_DELETE_STORED_KEYS,
+  UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS,
 } uni_platform_property_t;
 
 // uni_platform must be defined for each new platform that is implemented.

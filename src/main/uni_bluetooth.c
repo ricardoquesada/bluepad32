@@ -838,7 +838,7 @@ static void list_link_keys(void) {
     return;
   }
   int32_t delete_keys =
-      g_platform->get_property(PLATFORM_PROPERTY_DELETE_STORED_KEYS);
+      g_platform->get_property(UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS);
   if (delete_keys == 1)
     logi("Deleting stored link keys:\n");
   else

@@ -361,7 +361,7 @@ static void c64_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
 }
 
 static int32_t c64_get_property(uni_platform_property_t key) {
-  if (key != PLATFORM_PROPERTY_DELETE_STORED_KEYS) return -1;
+  if (key != UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS) return -1;
 
   // Hi-released, Low-pressed
   return !gpio_get_level(GPIO_PUSH_BUTTON);
@@ -374,7 +374,7 @@ static void c64_on_device_oob_event(uni_hid_device_t* d,
     return;
   }
 
-  if (event != PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON) {
+  if (event != UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON) {
     loge("ERROR: c64_on_device_oob_event: unsupported event: 0x%04x\n", event);
     return;
   }
