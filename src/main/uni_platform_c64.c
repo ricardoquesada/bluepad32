@@ -147,9 +147,9 @@ static void delay_us(uint32_t delay);
 
 // GPIO Interrupt handlers
 static void IRAM_ATTR gpio_isr_handler_button(void* arg);
-#if UNI_ENABLE_POT
+#if PLAT_C64_ENABLE_POT
 static void IRAM_ATTR gpio_isr_handler_pot(void* arg);
-#endif  // UNI_ENABLE_POT
+#endif  // PLAT_C64_ENABLE_POT
 
 static void event_loop(void* arg);
 static void auto_fire_loop(void* arg);
@@ -174,6 +174,13 @@ static void auto_fire_loop(void* arg);
 static void c64_init(int argc, const char** argv) {
   UNUSED(argc);
   UNUSED(argv);
+
+#if PLAT_C64_SINGLE_PORT
+  logi("Single port / 3-button mode enabled (Amiga/Atari ST compatible)\n");
+#else
+  logi("Dual port / 1-button mode enabled\n");
+#endif
+
   gpio_config_t io_conf;
   io_conf.intr_type = GPIO_INTR_DISABLE;
   io_conf.mode = GPIO_MODE_OUTPUT;
@@ -223,7 +230,7 @@ static void c64_init(int argc, const char** argv) {
       GPIO_PUSH_BUTTON, gpio_isr_handler_button, (void*)GPIO_PUSH_BUTTON));
 
 // C64 POT related
-#if UNI_ENABLE_POT
+#if PLAT_C64_ENABLE_POT
   io_conf.intr_type = GPIO_INTR_POSEDGE;  // GPIO_INTR_NEGEDGE
   io_conf.mode = GPIO_MODE_INPUT;
   io_conf.pin_bit_mask = 1ULL << GPIO_NUM_12;
@@ -233,7 +240,7 @@ static void c64_init(int argc, const char** argv) {
   ESP_ERROR_CHECK(gpio_install_isr_service(0));
   ESP_ERROR_CHECK(gpio_isr_handler_add(GPIO_NUM_12, gpio_isr_handler_pot,
                                        (void*)GPIO_NUM_12));
-#endif  // UNI_ENABLE_POT
+#endif  // PLAT_C64_ENABLE_POT
 
   // Split "events" from "auto_fire", since auto-fire is an on-going event.
   g_event_group = xEventGroupCreate();
@@ -518,12 +525,12 @@ static void joy_update_port(uni_joystick_t* joy, const gpio_num_t* gpios) {
     gpio_set_level(gpios[4], !!joy->fire);
   }
 
-#if UNIJOYSTICLE_SINGLE_PORT == 1
+#if PLAT_C64_SINGLE_PORT == 1
   // Diginal buttons B and C for Amiga/Atari ST (pot X and pot Y on C64) are
   // enabled only on "unijoysticle single port" mode.
   gpio_set_level(gpios[5], !!joy->pot_x);
   gpio_set_level(gpios[6], !!joy->pot_y);
-#endif  // UNIJOYSTICLE_SINGLE_PORT == 1
+#endif  // PLAT_C64_SINGLE_PORT == 1
 }
 
 static void event_loop(void* arg) {
@@ -676,7 +683,7 @@ static void IRAM_ATTR gpio_isr_handler_button(void* arg) {
   if (xHigherPriorityTaskWoken == pdTRUE) portYIELD_FROM_ISR();
 }
 
-#if UNI_ENABLE_POT
+#if PLAT_C64_ENABLE_POT
 static void IRAM_ATTR gpio_isr_handler_pot(void* arg) {
   uint32_t gpio_num = (uint32_t)arg;
   (void)gpio_num;
@@ -686,7 +693,7 @@ static void IRAM_ATTR gpio_isr_handler_pot(void* arg) {
                             &xHigherPriorityTaskWoken);
   if (xHigherPriorityTaskWoken == pdTRUE) portYIELD_FROM_ISR();
 }
-#endif  // UNI_ENABLE_POT
+#endif  // PLAT_C64_ENABLE_POT
 
 static void handle_event_button() {
   // FIXME: Debouncer might fail when releasing the button. Implement something

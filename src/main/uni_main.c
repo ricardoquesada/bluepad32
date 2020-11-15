@@ -35,12 +35,6 @@ int uni_main(int argc, const char** argv) {
   // Honoring with BT copyright
   logi("BTStack: Copyright (C) 2017 BlueKitchen GmbH.\n");
 
-#if UNIJOYSTICLE_SINGLE_PORT
-  logi("Single port / 3-button mode enabled (Amiga/Atari ST compatible)\n");
-#else
-  logi("Dual port / 1-button mode enabled\n");
-#endif
-
   uni_platform_init(argc, argv);
   uni_hid_device_init();
 
