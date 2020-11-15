@@ -27,8 +27,10 @@ limitations under the License.
 #include "uni_gamepad.h"
 #include "uni_hid_parser.h"
 
-#define MAX_NAME_LEN 240
-#define MAX_DESCRIPTOR_LEN 512
+#define HID_MAX_NAME_LEN 240
+#define HID_MAX_DESCRIPTOR_LEN 512
+#define HID_DEVICE_MAX_PARSER_DATA 128
+#define HID_DEVICE_MAX_PLATFORM_DATA 128
 
 // Max number of devices that can be connected at the same time.
 #define UNI_HID_DEVICE_MAX_DEVICES 8
@@ -68,13 +70,13 @@ struct uni_hid_device_s {
   uint32_t cod;
   uint16_t vendor_id;
   uint16_t product_id;
-  char name[MAX_NAME_LEN];
+  char name[HID_MAX_NAME_LEN];
 
   // incoming, connected, hid, cod, etc...
   uint32_t flags;
 
   // SDP
-  uint8_t hid_descriptor[MAX_DESCRIPTOR_LEN];
+  uint8_t hid_descriptor[HID_MAX_DESCRIPTOR_LEN];
   uint16_t hid_descriptor_len;
   // DualShock4 1st gen requires to do the SDP query before l2cap connect,
   // otherwise it won't work.
@@ -107,11 +109,11 @@ struct uni_hid_device_s {
 
   // Bytes reserved to gamepad's parser instances.
   // E.g: The Wii driver uses it for the state machine.
-  uint8_t parser_data[128];
+  uint8_t parser_data[HID_DEVICE_MAX_PARSER_DATA];
 
   // Bytes reserved to different platforms.
   // E.g: C64 or Airlift might use it to store different values.
-  uint8_t platform_data[128];
+  uint8_t platform_data[HID_DEVICE_MAX_PLATFORM_DATA];
 };
 typedef struct uni_hid_device_s uni_hid_device_t;
 

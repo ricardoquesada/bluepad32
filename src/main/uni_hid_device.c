@@ -252,7 +252,7 @@ void uni_hid_device_set_name(uni_hid_device_t* d, const uint8_t* name,
   }
 
   if (name != NULL) {
-    int min = btstack_min(MAX_NAME_LEN - 1, name_len);
+    int min = btstack_min(HID_MAX_NAME_LEN - 1, name_len);
     memcpy(d->name, name, min);
     d->name[min] = 0;
 
@@ -277,7 +277,7 @@ void uni_hid_device_set_hid_descriptor(uni_hid_device_t* d,
     return;
   }
 
-  int min = btstack_min(MAX_DESCRIPTOR_LEN, len);
+  int min = btstack_min(HID_MAX_DESCRIPTOR_LEN, len);
   memcpy(d->hid_descriptor, descriptor, len);
   d->hid_descriptor_len = min;
   d->flags |= FLAGS_HAS_HID_DESCRIPTOR;
