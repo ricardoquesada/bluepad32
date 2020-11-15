@@ -25,23 +25,6 @@ limitations under the License.
 #define UNI_LOG_INFO 1
 #define UNI_LOG_DEBUG 0
 
-// Enable pin compatibility with Unijoysticle v1 pinout. Enable this if you have
-// a Unijoysticle v1 (the one with ESP8266) and want to replace the ESP8266 with
-// an ESP32. If you are Esteban/Arleka most probably you want this enabled.
-#define UNI_ENABLE_COMPAT_V1 0  // Enabled if 1
-
-// Enable C64 POT support. Currently not implemented
-#define UNI_ENABLE_POT 0  // Enabled if 1
-
-// Enable Amiga/Atari ST mouse support.
-#define UNI_ENABLE_MOUSE 1  // Enabled if 1
-
-// To be used with Unijoysticle devices that only connect to one port.
-// For exmaple, the Amiga device made by https://arananet.net/
-// These devices have only one port, so they only cannot use JOYSTICK_PORT_A,
-// and have 3 buttons mapped.
-#define UNIJOYSTICLE_SINGLE_PORT 0  // Enabled if 1
-
 // From Linux drivers/hid/hid-sony.c:
 // The default behavior of the DUALSHOCK 4 is to send reports using
 // report type 1 when running over Bluetooth. However, when feature

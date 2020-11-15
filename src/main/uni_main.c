@@ -24,7 +24,7 @@ limitations under the License.
 #include "uni_hid_device.h"
 #include "uni_platform.h"
 
-// Main. Called by BlueKitchen bluetooth stack
+// Main entry point, runs forever
 int uni_main(int argc, const char** argv) {
   UNUSED(argc);
   UNUSED(argv);

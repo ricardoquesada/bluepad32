@@ -523,7 +523,7 @@ static void joy_update_port(uni_joystick_t* joy, const gpio_num_t* gpios) {
   // enabled only on "unijoysticle single port" mode.
   gpio_set_level(gpios[5], !!joy->pot_x);
   gpio_set_level(gpios[6], !!joy->pot_y);
-#endif  // UNIJOYSTICLE_SINGLE_PORT == 0
+#endif  // UNIJOYSTICLE_SINGLE_PORT == 1
 }
 
 static void event_loop(void* arg) {
