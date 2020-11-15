@@ -8,10 +8,10 @@ include $(IDF_PATH)/make/project.mk
 ifeq ($(PLATFORM),)
   $(error You must provide a PLATFORM parameter. E.g: "PLATFORM=c64 make -j")
 else
-  ifeq ($(wildcard platforms/$(PLATFORM)-config.mk),)
+  ifeq ($(wildcard configs/$(PLATFORM)-config.mk),)
     $(error Invalid PLATFORM specified)
   endif
 endif
 
-include platforms/$(PLATFORM)-config.mk
+include configs/$(PLATFORM)-config.mk
 

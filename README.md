@@ -64,6 +64,9 @@ $ ./integrate_btstack.py
 4. Compile Bluepad32
 
 ```
+# Define platform: c64, airlift, etc...
+$ export PLATFORM=c64
+
 $ cd ${BLUEPAD32}/src
 $ make -j
 ```

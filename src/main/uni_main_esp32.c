@@ -66,7 +66,7 @@ static void enable_uart_output(int enabled) {
 int app_main(void) {
   // hci_dump_open(NULL, HCI_DUMP_STDOUT);
 
-#ifdef UNI_PLATFORM_AIRLIFT
+#ifdef UNI_UART_OUTPUT_DISABLE
   // Adafruit Airlift modules have the UART RX/TX (GPIO 1 / 3) wired with the
   // controller so they can't be used for logging. In fact they can generate
   // noise and can break the communication with the controller. That's why it is
