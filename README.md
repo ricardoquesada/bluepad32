@@ -42,7 +42,8 @@ See: [Supported gamepads][gamepads]
 
 1. Install ESP-IDF
 
-Install the ESP32 toolchain. Use version **4.0.1**. Might work on newer ones, but not tested.
+Install the ESP32 toolchain. Use version **4.1**. Might work on newer / older
+ones, but not tested.
 
 * https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/
 
@@ -63,10 +64,16 @@ $ ./integrate_btstack.py
 
 4. Compile Bluepad32
 
+Choose target platform:
+
 ```
 # Define platform: c64, airlift, etc...
 $ export PLATFORM=c64
+```
 
+And compile it:
+
+```
 $ cd ${BLUEPAD32}/src
 $ make -j
 ```
