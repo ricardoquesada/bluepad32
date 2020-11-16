@@ -67,7 +67,7 @@ $ ./integrate_btstack.py
 Choose target platform:
 
 ```
-# Define platform: unijoysticle, airlift, etc...
+# Choose target platform: unijoysticle, airlift, etc...
 $ export PLATFORM=unijoysticle
 ```
 

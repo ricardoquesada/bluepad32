@@ -1,8 +1,3 @@
-# Bluepad32 firmware
-PROJECT_NAME := bluepad32
-
-include $(IDF_PATH)/make/project.mk
-
 # Select the platform to build for.
 # e.g: "unijoysticle", "airlift", etc.
 ifeq ($(PLATFORM),)
@@ -14,4 +9,9 @@ else
 endif
 
 include configs/$(PLATFORM)-config.mk
+
+# Bluepad32 firmware
+PROJECT_NAME := bluepad32-${PLATFORM}
+
+include $(IDF_PATH)/make/project.mk
 
