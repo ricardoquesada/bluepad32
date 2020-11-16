@@ -20,15 +20,15 @@ limitations under the License.
 
 #include "uni_debug.h"
 #include "uni_platform_airlift.h"
-#include "uni_platform_c64.h"
 #include "uni_platform_pc_debug.h"
+#include "uni_platform_unijoysticle.h"
 
 void uni_platform_init(int argc, const char** argv) {
   // Only one for the moment. Each vendor must create its own.
   // These UNI_PLATFORM_ defines are defined in the Makefile and CMakeLists.txt
 
-#ifdef UNI_PLATFORM_C64
-  g_platform = uni_platform_c64_create();
+#ifdef UNI_PLATFORM_UNIJOYSTICLE
+  g_platform = uni_platform_unijoysticle_create();
 #elif defined(UNI_PLATFORM_PC_DEBUG)
   g_platform = uni_platform_pc_debug_create();
 #elif defined(UNI_PLATFORM_AIRLIFT)

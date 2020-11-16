@@ -67,8 +67,8 @@ $ ./integrate_btstack.py
 Choose target platform:
 
 ```
-# Define platform: c64, airlift, etc...
-$ export PLATFORM=c64
+# Define platform: unijoysticle, airlift, etc...
+$ export PLATFORM=unijoysticle
 ```
 
 And compile it:

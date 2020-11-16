@@ -117,6 +117,8 @@ For ESP32 development:
 
 ```sh
 $ cd bluepad32/src
+# Choose target platform: unijoysticle, airlift, etc.
+$ export PLATFORM=unijoysticle
 $ make -j
 $ make flash monitor
 ```

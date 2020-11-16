@@ -1,5 +1,5 @@
 # Define which platform
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUNI_PLATFORM_C64")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUNI_PLATFORM_UNIJOYSTICLE")
 
 set(COMPONENT_SRCS "uni_bluetooth.c"
                    "uni_circular_buffer.c"
@@ -23,8 +23,8 @@ set(COMPONENT_SRCS "uni_bluetooth.c"
                    "uni_main_esp32.c"
                    "uni_platform.c"
                    "uni_platform_airlift.c"
-                   "uni_platform_c64.c"
                    "uni_platform_pc_debug.c"
+                   "uni_platform_unijoysticle.c"
                    )
 set(COMPONENT_ADD_INCLUDEDIRS ".")
 

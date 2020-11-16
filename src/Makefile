@@ -1,12 +1,12 @@
-# Unijoysticle 2 firmware
-PROJECT_NAME := firmware
+# Bluepad32 firmware
+PROJECT_NAME := bluepad32
 
 include $(IDF_PATH)/make/project.mk
 
 # Select the platform to build for.
-# e.g: "c64", "airlift", etc.
+# e.g: "unijoysticle", "airlift", etc.
 ifeq ($(PLATFORM),)
-  $(error You must provide a PLATFORM parameter. E.g: "PLATFORM=c64 make -j")
+  $(error You must provide a PLATFORM parameter. E.g: "PLATFORM=unijoysticle make -j")
 else
   ifeq ($(wildcard configs/$(PLATFORM)-config.mk),)
     $(error Invalid PLATFORM specified)
