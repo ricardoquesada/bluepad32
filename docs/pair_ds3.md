@@ -37,9 +37,10 @@ Btstack ready!
 
 In this example, the ESP32 Address is "CC:50:E3:AF:E2:96".
 
-### Plugin the DS3 gamepad
+### Plug in the DS3 gamepad
 
-Plugin the DS3 gamepad to your PC. Should work on all Linux, Mac and Windows, although I only tested it on Linux.
+Plug in the DS3 gamepad to your PC. Should work on all Linux, Mac and Windows,
+although I only tested it on Linux.
 
 ### Pair it
 
@@ -57,11 +58,9 @@ For MacOS, Windows: I don't know, you are in your own.
 
 * Compile the "sixaxis pairer":
 
-Get the firmware source code from https://gitlab.com/ricardoquesada/bluepad32
-
 ```sh
-$ cd /.../bluepad32/tools
-$ cc -o sixaxispairer sixaxispairer.c -lhidapi-libusb
+$ cd bluepad32/tools
+$ make sixaxispairer
 $ ./sixaxispairer XX:XX:XX:XX:XX:XX  # Following our example, it should be CC:50:E3:AF:E2:96
 ```
 
@@ -69,5 +68,6 @@ $ ./sixaxispairer XX:XX:XX:XX:XX:XX  # Following our example, it should be CC:50
 
 ### Unplug DS3 from computer
 
-Unplug the DS3 gamepad from your computer and press the "Play" button on the DS3 to establish a connection with the ESP32.
-It might take a few seconds (perhaps more than 10 seconds) to establish the connection.
+Unplug the DS3 gamepad from your computer and press the "Play" button on the DS3
+to establish a connection with the ESP32. It might take a few seconds
+(perhaps more than 10 seconds) to establish the connection.
