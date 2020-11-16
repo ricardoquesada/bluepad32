@@ -1,4 +1,4 @@
-# How to pair a DUALSHOCK3 (sixaxis) gamepad with the Unijosyticle
+# How to pair a DUALSHOCK3 (sixaxis) gamepad with the ESP32
 
 The DUALSHOCK3 gamepad does not implement the entire Bluetooth stack. It requires "manual pairing" in order to work.
 
