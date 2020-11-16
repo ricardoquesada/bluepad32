@@ -333,15 +333,15 @@ static void airlift_on_init_complete(void) {
   // Manually put the ESP32 in upload mode so that the ESP32 UART is connected
   // with the main MCU UART.
   // digitalWrite(ESP32_GPIO0, LOW);
-  //  gpio_set_level(GPIO_NUM_0, 0);
+  gpio_set_level(GPIO_NUM_0, 0);
 
   // digitalWrite(ESP32_RESETN, LOW);
-  //  gpio_set_level(GPIO_NUM_19, 0);
+  gpio_set_level(GPIO_NUM_19, 0);
   // delay(100);
-  //  vTaskDelay(100 / portTICK_PERIOD_MS);
+  vTaskDelay(100 / portTICK_PERIOD_MS);
 
   // digitalWrite(ESP32_RESETN, HIGH);
-  //  gpio_set_level(GPIO_NUM_19, 1);
+  gpio_set_level(GPIO_NUM_19, 1);
 }
 
 static void airlift_on_device_connected(uni_hid_device_t* d) {
