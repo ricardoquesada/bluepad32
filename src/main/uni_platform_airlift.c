@@ -83,10 +83,10 @@ static int spi_transfer(uint8_t out[], uint8_t in[], size_t len) {
   slvTrans.tx_buffer = out;
   slvTrans.rx_buffer = in;
 
-  spi_slave_queue_trans(VSPI_HOST, &slvTrans, portMAX_DELAY);
+  spi_slave_queue_trans(HSPI_HOST, &slvTrans, portMAX_DELAY);
   xSemaphoreTake(_ready_semaphore, portMAX_DELAY);
   gpio_set_level(GPIO_READY, 0);
-  spi_slave_get_trans_result(VSPI_HOST, &slvRetTrans, portMAX_DELAY);
+  spi_slave_get_trans_result(HSPI_HOST, &slvRetTrans, portMAX_DELAY);
   gpio_set_level(GPIO_READY, 1);
 
   return (slvTrans.trans_len / 8);
@@ -240,52 +240,20 @@ static int process_request(const uint8_t command[], int command_len,
   return response_len;
 }
 
-#define SPI_BUFFER_LEN SPI_MAX_DMA_LEN
-static void spi_main_loop(void* arg) {
-  WORD_ALIGNED_ATTR uint8_t response_buf[SPI_BUFFER_LEN + 1];
-  WORD_ALIGNED_ATTR uint8_t command_buf[SPI_BUFFER_LEN + 1];
-
-  while (1) {
-    logi("************  while main loop\n");
-    memset(command_buf, 0, SPI_BUFFER_LEN);
-    int command_len = spi_transfer(NULL, command_buf, SPI_BUFFER_LEN);
-
-    // process request
-    memset(response_buf, 0, SPI_BUFFER_LEN);
-    int response_len = process_request(command_buf, command_len, response_buf);
-
-    spi_transfer(response_buf, NULL, response_len);
-  }
-}
-
 // Called after a transaction is queued and ready for pickup by master.
 static void spi_post_setup_cb(spi_slave_transaction_t* trans) {
   UNUSED(trans);
-  logi("************  spi_post_setup_cb\n");
   xSemaphoreGiveFromISR(_ready_semaphore, NULL);
-
-  // Create SPI main loop thread
-  // Bluetooth code runs in Core 0.
-  // In order to not interfere with it, this one should run in the other Core.
-  xTaskCreatePinnedToCore(spi_main_loop, "spi_main_loop", 8192, NULL, 1, NULL,
-                          1);
 }
 
 static void IRAM_ATTR isr_handler_on_chip_select(void* arg) {
   gpio_set_level(GPIO_READY, 1);
 }
 
-//
-// Platform Overrides
-//
-static void airlift_init(int argc, const char** argv) {
-  UNUSED(argc);
-  UNUSED(argv);
-  logi("********** airlift_init()\n");
-}
+#define SPI_BUFFER_LEN SPI_MAX_DMA_LEN
+static void spi_main_loop(void* arg) {
+  // Runs in Core 1
 
-static void airlift_on_init_complete(void) {
-  logi("************  airlift_on_init_complete()\n");
   // SPI Initialization taken from Nina-fw; the firmware used in Adafruit
   // AirLift products:
   // https://github.com/adafruit/nina-fw/blob/master/arduino/libraries/SPIS/src/SPIS.cpp
@@ -311,7 +279,9 @@ static void airlift_on_init_complete(void) {
   // Configuration for the SPI bus
   spi_bus_config_t buscfg = {.mosi_io_num = GPIO_MOSI,
                              .miso_io_num = GPIO_MISO,
-                             .sclk_io_num = GPIO_SCLK};
+                             .sclk_io_num = GPIO_SCLK,
+                             .quadwp_io_num = -1,
+                             .quadhd_io_num = -1};
 
   // Configuration for the SPI slave interface
   spi_slave_interface_config_t slvcfg = {.mode = 0,
@@ -321,27 +291,63 @@ static void airlift_on_init_complete(void) {
                                          .post_setup_cb = spi_post_setup_cb,
                                          .post_trans_cb = NULL};
 
-  gpio_set_pull_mode(GPIO_MOSI, GPIO_FLOATING);
-  gpio_set_pull_mode(GPIO_SCLK, GPIO_PULLDOWN_ONLY);
+  // gpio_set_pull_mode(GPIO_MOSI, GPIO_FLOATING);
+  gpio_set_pull_mode(GPIO_MOSI, GPIO_PULLUP_ONLY);
+  gpio_set_pull_mode(GPIO_SCLK, GPIO_PULLUP_ONLY);
   gpio_set_pull_mode(GPIO_CS, GPIO_PULLUP_ONLY);
 
   esp_err_t ret =
-      spi_slave_initialize(VSPI_HOST, &buscfg, &slvcfg, DMA_CHANNEL);
-  logi("spi_slave_initialize = %d\n", ret);
+      spi_slave_initialize(HSPI_HOST, &buscfg, &slvcfg, DMA_CHANNEL);
+  logi("**** spi_slave_initialize = %d\n", ret);
   assert(ret == ESP_OK);
 
   // Manually put the ESP32 in upload mode so that the ESP32 UART is connected
   // with the main MCU UART.
   // digitalWrite(ESP32_GPIO0, LOW);
-  gpio_set_level(GPIO_NUM_0, 0);
+  // gpio_set_level(GPIO_NUM_0, 0);
 
   // digitalWrite(ESP32_RESETN, LOW);
-  gpio_set_level(GPIO_NUM_19, 0);
+  // gpio_set_level(GPIO_NUM_19, 0);
   // delay(100);
-  vTaskDelay(100 / portTICK_PERIOD_MS);
+  // vTaskDelay(100 / portTICK_PERIOD_MS);
 
   // digitalWrite(ESP32_RESETN, HIGH);
-  gpio_set_level(GPIO_NUM_19, 1);
+  // gpio_set_level(GPIO_NUM_19, 1);
+
+  WORD_ALIGNED_ATTR uint8_t response_buf[SPI_BUFFER_LEN + 1];
+  WORD_ALIGNED_ATTR uint8_t command_buf[SPI_BUFFER_LEN + 1];
+
+  while (1) {
+    logi("************  while main loop\n");
+    memset(command_buf, 0, SPI_BUFFER_LEN);
+    int command_len = spi_transfer(NULL, command_buf, SPI_BUFFER_LEN);
+
+    // process request
+    memset(response_buf, 0, SPI_BUFFER_LEN);
+    int response_len = process_request(command_buf, command_len, response_buf);
+
+    spi_transfer(response_buf, NULL, response_len);
+  }
+}
+
+//
+// Platform Overrides
+//
+static void airlift_init(int argc, const char** argv) {
+  UNUSED(argc);
+  UNUSED(argv);
+  logi("********** airlift_init()\n");
+}
+
+static void airlift_on_init_complete(void) {
+  logi("************  airlift_on_init_complete()\n");
+
+  logi("**** Init Core: %d\n", xPortGetCoreID());
+
+  // Bluetooth code runs on Core 0
+  // SPI code, including initialization, must run on Core 1.
+  xTaskCreatePinnedToCore(spi_main_loop, "spi_main_loop", 8192, NULL, 1, NULL,
+                          1);
 }
 
 static void airlift_on_device_connected(uni_hid_device_t* d) {
