@@ -33,4 +33,9 @@ limitations under the License.
 // Using report 0x11 is needed to change the DUALSHOCK4 LEDs
 #define UNI_USE_DUALSHOCK4_REPORT_0x11 1  // Enabled if 1
 
+// Enable DualShock3 support.
+// To enable it, gat_set_security_level(0) must be called (by default it is 2)
+// but it seems that this breaks Nintendo Switch gamepad support.
+#define UNI_ENABLE_DUALSHOCK3 0  // Enabled if 1
+
 #endif  // UNI_CONFIG_H
