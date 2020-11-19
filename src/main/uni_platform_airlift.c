@@ -32,6 +32,7 @@ limitations under the License.
 
 #include <driver/gpio.h>
 #include <driver/spi_slave.h>
+#include <driver/uart.h>
 #include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
@@ -252,6 +253,29 @@ static void IRAM_ATTR isr_handler_on_chip_select(void* arg) {
 
 #define SPI_BUFFER_LEN SPI_MAX_DMA_LEN
 static void spi_main_loop(void* arg) {
+
+  // Start from sketch.ino.cpp setup()
+
+  // put SWD and SWCLK pins connected to SAMD as inputs
+  // Arduino: pinMode(15, INPUT);
+  gpio_set_direction(GPIO_NUM_15, GPIO_MODE_INPUT);
+  gpio_set_pull_mode(GPIO_NUM_15, GPIO_FLOATING);
+  PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[GPIO_NUM_15], PIN_FUNC_GPIO);
+
+  // Arduino: pinMode(21, INPUT);
+  gpio_set_direction(GPIO_NUM_21, GPIO_MODE_INPUT);
+  gpio_set_pull_mode(GPIO_NUM_21, GPIO_FLOATING);
+  PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[GPIO_NUM_21], PIN_FUNC_GPIO);
+
+  // Arduino: pinMode(5, INPUT);
+  gpio_set_direction(GPIO_NUM_5, GPIO_MODE_INPUT);
+  gpio_set_pull_mode(GPIO_NUM_5, GPIO_FLOATING);
+  PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[GPIO_NUM_5], PIN_FUNC_GPIO);
+
+  // End from sketch.ino.cpp setup()
+
+  // From SPIS.cpp SPISClass::being()
+
   // Arduino: pinMode(_readyPin, OUTPUT);
   gpio_set_direction(GPIO_READY, GPIO_MODE_OUTPUT);
   gpio_set_pull_mode(GPIO_READY, GPIO_FLOATING);
@@ -291,6 +315,8 @@ static void spi_main_loop(void* arg) {
       spi_slave_initialize(VSPI_HOST, &buscfg, &slvcfg, DMA_CHANNEL);
   logi("spi_slave_initialize = %d\n", ret);
   assert(ret == ESP_OK);
+
+  // End SPIS.cpp SPISClass::being()
 
   // Manually put the ESP32 in upload mode so that the ESP32 UART is connected
   // with the main MCU UART.
