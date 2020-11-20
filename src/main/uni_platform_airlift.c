@@ -44,9 +44,8 @@ limitations under the License.
 #include "uni_debug.h"
 #include "uni_gamepad.h"
 #include "uni_hid_device.h"
-#include "uni_joystick.h"
-#include "uni_platform.h"
 #include "uni_main_esp32.h"
+#include "uni_platform.h"
 
 // SPI et al pins
 // AirLift doesn't use the pre-designated IO_MUX pins for VSPI.
@@ -66,7 +65,9 @@ limitations under the License.
 //
 const char FIRMWARE_VERSION[] = "ABCDE";
 static SemaphoreHandle_t _ready_semaphore = NULL;
-static uni_joystick_t _gamepad0;
+static int _connected_gamepads = 0;
+static uni_gamepad_t _gamepad0;
+static SemaphoreHandle_t _gamepad_mutex = NULL;
 
 // Airlift device "instance"
 typedef struct airlift_instance_s {
@@ -119,6 +120,7 @@ static int request_get_fw_version(const uint8_t command[], uint8_t response[]) {
   return 4 + sizeof(FIRMWARE_VERSION);
 }
 
+// Command 0x60
 static int request_connected_gamepads(const uint8_t command[],
                                       uint8_t response[]) {
   response[2] = 1;  // number of parameters
@@ -128,10 +130,14 @@ static int request_connected_gamepads(const uint8_t command[],
   return 5;
 }
 
+// Command 0x61
 static int request_gamepad_data(const uint8_t command[], uint8_t response[]) {
   response[2] = 1;                  // number of parameters
   response[3] = sizeof(_gamepad0);  // parameter 1 lenght
+
+  xSemaphoreTake(_gamepad_mutex, portMAX_DELAY);
   memcpy(&response[4], &_gamepad0, sizeof(_gamepad0));
+  xSemaphoreGive(_gamepad_mutex);
 
   return 4 + sizeof(_gamepad0);
 }
@@ -248,6 +254,8 @@ static int process_request(const uint8_t command[], int command_len,
   }
 
   if (response_len <= 0) {
+    loge("Error in request:\n");
+    printf_hexdump(command, command_len);
     // Response for invalid requests
     response[0] = CMD_ERR;
     response[1] = 0x00;
@@ -267,7 +275,7 @@ static int process_request(const uint8_t command[], int command_len,
 }
 
 // Called after a transaction is queued and ready for pickup by master.
-static void spi_post_setup_cb(spi_slave_transaction_t* trans) {
+static void IRAM_ATTR spi_post_setup_cb(spi_slave_transaction_t* trans) {
   UNUSED(trans);
   xSemaphoreGiveFromISR(_ready_semaphore, NULL);
 }
@@ -279,28 +287,31 @@ static void IRAM_ATTR isr_handler_on_chip_select(void* arg) {
 #define SPI_BUFFER_LEN SPI_MAX_DMA_LEN
 static void spi_main_loop(void* arg) {
 
+  _gamepad_mutex = xSemaphoreCreateMutex();
+  assert(_gamepad_mutex != NULL);
+
   // Small delay to let CPU0 finish initialization. This is to prevent collision
   // in the log(). No harm is done if there is collision, only that it is more
   // difficult to read the logs from the console.
-  vTaskDelay(500 / portTICK_PERIOD_MS);
+  vTaskDelay(1000 / portTICK_PERIOD_MS);
 
   // Start from sketch.ino.cpp setup()
 
   // put SWD and SWCLK pins connected to SAMD as inputs
   // Arduino: pinMode(15, INPUT);
-  gpio_set_direction(GPIO_NUM_15, GPIO_MODE_INPUT);
-  gpio_set_pull_mode(GPIO_NUM_15, GPIO_FLOATING);
-  PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[GPIO_NUM_15], PIN_FUNC_GPIO);
+//  gpio_set_direction(GPIO_NUM_15, GPIO_MODE_INPUT);
+//  gpio_set_pull_mode(GPIO_NUM_15, GPIO_FLOATING);
+//  PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[GPIO_NUM_15], PIN_FUNC_GPIO);
 
   // Arduino: pinMode(21, INPUT);
-  gpio_set_direction(GPIO_NUM_21, GPIO_MODE_INPUT);
-  gpio_set_pull_mode(GPIO_NUM_21, GPIO_FLOATING);
-  PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[GPIO_NUM_21], PIN_FUNC_GPIO);
+//  gpio_set_direction(GPIO_NUM_21, GPIO_MODE_INPUT);
+//  gpio_set_pull_mode(GPIO_NUM_21, GPIO_FLOATING);
+//  PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[GPIO_NUM_21], PIN_FUNC_GPIO);
 
   // Arduino: pinMode(5, INPUT);
-  gpio_set_direction(GPIO_NUM_5, GPIO_MODE_INPUT);
-  gpio_set_pull_mode(GPIO_NUM_5, GPIO_FLOATING);
-  PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[GPIO_NUM_5], PIN_FUNC_GPIO);
+//  gpio_set_direction(GPIO_NUM_5, GPIO_MODE_INPUT);
+//  gpio_set_pull_mode(GPIO_NUM_5, GPIO_FLOATING);
+//  PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[GPIO_NUM_5], PIN_FUNC_GPIO);
 
   // End from sketch.ino.cpp setup()
 
@@ -410,19 +421,27 @@ static void airlift_on_device_connected(uni_hid_device_t* d) {
   airlift_instance_t* ins = get_airlift_instance(d);
   memset(ins, 0, sizeof(*ins));
   ins->gamepad_seat = GAMEPAD_SEAT_A;
+
 }
 
-static void airlift_on_device_disconnected(uni_hid_device_t* d) {}
+static void airlift_on_device_disconnected(uni_hid_device_t* d) {
+  _connected_gamepads--;
+}
 
 static int airlift_on_device_ready(uni_hid_device_t* d) {
   if (d->report_parser.update_led != NULL) {
     airlift_instance_t* ins = get_airlift_instance(d);
     d->report_parser.update_led(d, ins->gamepad_seat);
   }
+  _connected_gamepads++;
   return 0;
 }
 
-static void airlift_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {}
+static void airlift_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
+  xSemaphoreTake(_gamepad_mutex, portMAX_DELAY);
+  _gamepad0 = *gp;
+  xSemaphoreGive(_gamepad_mutex);
+}
 
 static void airlift_on_device_oob_event(uni_hid_device_t* d,
                                         uni_platform_oob_event_t event) {

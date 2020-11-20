@@ -21,4 +21,4 @@ limitations under the License.
 
 void uni_esp32_enable_uart_output(int enabled);
 
-#endif // UNI_MAIN_ESP32_H
+#endif  // UNI_MAIN_ESP32_H
