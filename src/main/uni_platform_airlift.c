@@ -48,7 +48,9 @@ limitations under the License.
 #include "uni_platform.h"
 
 // SPI et al pins
-// AirLift doesn't use the pre-designated pins for VSPI.
+// AirLift doesn't use the pre-designated IO_MUX pins for VSPI.
+// Instead it uses the GPIO matrix, that might not be suitable for fast SPI
+// communications.
 //#define GPIO_MOSI GPIO_NUM_23
 //#define GPIO_MISO GPIO_NUM_19
 #define GPIO_MOSI GPIO_NUM_14
@@ -56,12 +58,12 @@ limitations under the License.
 #define GPIO_SCLK GPIO_NUM_18
 #define GPIO_CS GPIO_NUM_5
 #define GPIO_READY GPIO_NUM_33
-#define DMA_CHANNEL 1
+#define DMA_CHANNEL 2
 
 //
 // Globals
 //
-const char FIRMWARE_VERSION[] = "Bluepad32 for Adafruit AirLift v0.1";
+const char FIRMWARE_VERSION[] = "ABCDE";
 static SemaphoreHandle_t _ready_semaphore = NULL;
 static uni_joystick_t _gamepad0;
 
@@ -102,7 +104,7 @@ static int request_get_fw_version(const uint8_t command[], uint8_t response[]) {
 
   memcpy(&response[4], FIRMWARE_VERSION, sizeof(FIRMWARE_VERSION));
 
-  return 5 + sizeof(FIRMWARE_VERSION);
+  return 4 + sizeof(FIRMWARE_VERSION);
 }
 
 static int request_connected_gamepads(const uint8_t command[],
@@ -111,7 +113,7 @@ static int request_connected_gamepads(const uint8_t command[],
   response[3] = 1;  // parameter 1 length
   response[4] = 1;  // FIXME: hardcoded one connected gamepad
 
-  return 6;
+  return 5;
 }
 
 static int request_gamepad_data(const uint8_t command[], uint8_t response[]) {
@@ -119,7 +121,7 @@ static int request_gamepad_data(const uint8_t command[], uint8_t response[]) {
   response[3] = sizeof(_gamepad0);  // parameter 1 lenght
   memcpy(&response[4], &_gamepad0, sizeof(_gamepad0));
 
-  return 5 + sizeof(_gamepad0);
+  return 4 + sizeof(_gamepad0);
 }
 
 typedef int (*command_handler_t)(const uint8_t command[],
@@ -212,6 +214,15 @@ const command_handler_t command_handlers[] = {
 #define COMMAND_HANDLERS_MAX \
   (sizeof(command_handlers) / sizeof(command_handlers[0]))
 
+// Nina-fw commands. Taken from:
+// https://github.com/adafruit/Adafruit_CircuitPython_ESP32SPI/blob/master/adafruit_esp32spi/adafruit_esp32spi.py
+enum {
+  CMD_START = 0xe0,
+  CMD_END = 0xee,
+  CMD_ERR = 0xef,
+  CMD_REPLY_FLAG = 1 << 7,
+};
+
 static int process_request(const uint8_t command[], int command_len,
                            uint8_t response[] /* out */) {
   int response_len = 0;
@@ -225,15 +236,19 @@ static int process_request(const uint8_t command[], int command_len,
   }
 
   if (response_len <= 0) {
-    response[0] = 0xef;
+    // Response for invalid requests
+    response[0] = CMD_ERR;
     response[1] = 0x00;
-    response[2] = 0xee;
+    response[2] = CMD_END;
 
     response_len = 3;
   } else {
-    response[0] = 0xe0;
-    response[1] = (0x80 | command[1]);
-    response[response_len - 1] = 0xee;
+    response[0] = CMD_START;
+    response[1] = (CMD_REPLY_FLAG | command[1]);
+
+    // Add extra byte to indicate end of command
+    response[response_len] = CMD_END;
+    response_len++;
   }
 
   return response_len;
@@ -251,6 +266,11 @@ static void IRAM_ATTR isr_handler_on_chip_select(void* arg) {
 
 #define SPI_BUFFER_LEN SPI_MAX_DMA_LEN
 static void spi_main_loop(void* arg) {
+
+  // Small delay to let CPU0 finish initialization. This is to prevent collision
+  // in the log(). No harm is done if there is collision, only that it is more
+  // difficult to read the logs from the console.
+  vTaskDelay(500 / portTICK_PERIOD_MS);
 
   // Start from sketch.ino.cpp setup()
 
@@ -300,13 +320,17 @@ static void spi_main_loop(void* arg) {
   // Configuration for the SPI slave interface
   spi_slave_interface_config_t slvcfg = {.mode = 0,
                                          .spics_io_num = GPIO_CS,
-                                         .queue_size = 1,
+                                         .queue_size = 3,
                                          .flags = 0,
                                          .post_setup_cb = spi_post_setup_cb,
                                          .post_trans_cb = NULL};
 
-  gpio_set_pull_mode(GPIO_MOSI, GPIO_FLOATING);
-  gpio_set_pull_mode(GPIO_SCLK, GPIO_PULLDOWN_ONLY);
+//  gpio_set_pull_mode(GPIO_MOSI, GPIO_FLOATING);
+//  gpio_set_pull_mode(GPIO_SCLK, GPIO_PULLDOWN_ONLY);
+//  gpio_set_pull_mode(GPIO_CS, GPIO_PULLUP_ONLY);
+  //Enable pull-ups on SPI lines so we don't detect rogue pulses when no master is connected.
+  gpio_set_pull_mode(GPIO_MOSI, GPIO_PULLUP_ONLY);
+  gpio_set_pull_mode(GPIO_SCLK, GPIO_PULLUP_ONLY);
   gpio_set_pull_mode(GPIO_CS, GPIO_PULLUP_ONLY);
 
   esp_err_t ret =
@@ -331,22 +355,16 @@ static void spi_main_loop(void* arg) {
 
   WORD_ALIGNED_ATTR uint8_t response_buf[SPI_BUFFER_LEN + 1];
   WORD_ALIGNED_ATTR uint8_t command_buf[SPI_BUFFER_LEN + 1];
+//  uint8_t* command_buf = (uint8_t*)heap_caps_malloc(SPI_BUFFER_LEN, MALLOC_CAP_DMA);
+//  uint8_t* response_buf= (uint8_t*)heap_caps_malloc(SPI_BUFFER_LEN, MALLOC_CAP_DMA);
 
   while (1) {
-    logi("************  while main loop\n");
     memset(command_buf, 0, SPI_BUFFER_LEN);
     int command_len = spi_transfer(NULL, command_buf, SPI_BUFFER_LEN);
-
-    logi("****** spi_transfer:\n");
-    printf_hexdump(command_buf, command_len);
-    logi("\n");
 
     // process request
     memset(response_buf, 0, SPI_BUFFER_LEN);
     int response_len = process_request(command_buf, command_len, response_buf);
-
-    logi("****** before spi_transfer (%d)\n", response_len);
-    printf_hexdump(response_buf, response_len);
 
     spi_transfer(response_buf, NULL, response_len);
   }
