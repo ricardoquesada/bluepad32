@@ -34,7 +34,7 @@ limitations under the License.
 //
 // Bluepad32 is compiled with UART RX/TX disabled by default.
 // But can be enabled/disabled in runtime by calling this function.
-static void enable_uart_output(int enabled) {
+void uni_esp32_enable_uart_output(int enabled) {
   if (enabled) {
     PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[1], 0);
     PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[3], 0);
@@ -70,9 +70,9 @@ int app_main(void) {
   // controller so they can't be used for logging. In fact they can generate
   // noise and can break the communication with the controller. That's why it is
   // disabled by default.
-  enable_uart_output(0);
+  uni_esp32_enable_uart_output(0);
 #else
-  enable_uart_output(1);
+  uni_esp32_enable_uart_output(1);
 #endif
 
   // Configure BTstack for ESP32 VHCI Controller

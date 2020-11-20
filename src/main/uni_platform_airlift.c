@@ -46,6 +46,7 @@ limitations under the License.
 #include "uni_hid_device.h"
 #include "uni_joystick.h"
 #include "uni_platform.h"
+#include "uni_main_esp32.h"
 
 // SPI et al pins
 // AirLift doesn't use the pre-designated IO_MUX pins for VSPI.
@@ -98,6 +99,17 @@ static int spi_transfer(uint8_t out[], uint8_t in[], size_t len) {
   return (slvTrans.trans_len / 8);
 }
 
+// Command 0x1a
+static int request_set_debug(const uint8_t command[], uint8_t response[]) {
+  uni_esp32_enable_uart_output(command[4]);
+  response[2] = 1; // number of parameters
+  response[3] = 1; // parameter 1 length
+  response[4] = 1;
+
+  return 5;
+}
+
+// Command 0x37
 static int request_get_fw_version(const uint8_t command[], uint8_t response[]) {
   response[2] = 1;                         // number of parameters
   response[3] = sizeof(FIRMWARE_VERSION);  // parameter 1 length
@@ -142,7 +154,7 @@ const command_handler_t command_handlers[] = {
     NULL,  // setPowerMode,
     NULL,  // setApNet,
     NULL,  // setApPassPhrase,
-    NULL,  // setDebug,
+    request_set_debug,  // setDebug (0x1a)
     NULL,  // getTemperature,
     NULL, NULL, NULL, NULL,
 
@@ -172,7 +184,7 @@ const command_handler_t command_handlers[] = {
     NULL,                    // reqHostByName,
     NULL,                    // getHostByName,
     NULL,                    // startScanNetworks,
-    request_get_fw_version,  // getFwVersion,
+    request_get_fw_version,  // getFwVersion (0x37)
     NULL,
     NULL,  // sendUDPdata,
     NULL,  // getRemoteData,
