@@ -48,6 +48,9 @@ limitations under the License.
 #include "uni_platform.h"
 
 // SPI et al pins
+// AirLift doesn't use the pre-designated pins for VSPI.
+//#define GPIO_MOSI GPIO_NUM_23
+//#define GPIO_MISO GPIO_NUM_19
 #define GPIO_MOSI GPIO_NUM_14
 #define GPIO_MISO GPIO_NUM_23
 #define GPIO_SCLK GPIO_NUM_18
@@ -211,14 +214,9 @@ const command_handler_t command_handlers[] = {
 
 static int process_request(const uint8_t command[], int command_len,
                            uint8_t response[] /* out */) {
-  if (command_len < 2) {
-    loge("Airlift: invalid process_request lenght: got %d, want >= 2",
-         command_len);
-    return -1;
-  }
   int response_len = 0;
 
-  if (command[0] == 0xe0 && command[1] < COMMAND_HANDLERS_MAX) {
+  if (command_len >= 2 && command[0] == 0xe0 && command[1] < COMMAND_HANDLERS_MAX) {
     command_handler_t command_handler = command_handlers[command[1]];
 
     if (command_handler) {
@@ -339,9 +337,16 @@ static void spi_main_loop(void* arg) {
     memset(command_buf, 0, SPI_BUFFER_LEN);
     int command_len = spi_transfer(NULL, command_buf, SPI_BUFFER_LEN);
 
+    logi("****** spi_transfer:\n");
+    printf_hexdump(command_buf, command_len);
+    logi("\n");
+
     // process request
     memset(response_buf, 0, SPI_BUFFER_LEN);
     int response_len = process_request(command_buf, command_len, response_buf);
+
+    logi("****** before spi_transfer (%d)\n", response_len);
+    printf_hexdump(response_buf, response_len);
 
     spi_transfer(response_buf, NULL, response_len);
   }
