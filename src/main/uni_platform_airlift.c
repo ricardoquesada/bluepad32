@@ -319,17 +319,7 @@ static void spi_main_loop(void* arg) {
   // Small delay to let CPU0 finish initialization. This is to prevent collision
   // in the log(). No harm is done if there is collision, only that it is more
   // difficult to read the logs from the console.
-  vTaskDelay(1000 / portTICK_PERIOD_MS);
-
-  // From SPIS.cpp SPISClass::being()
-
-  // Arduino: pinMode(_readyPin, OUTPUT);
-  gpio_set_direction(GPIO_READY, GPIO_MODE_OUTPUT);
-  gpio_set_pull_mode(GPIO_READY, GPIO_FLOATING);
-  PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[GPIO_READY], PIN_FUNC_GPIO);
-
-  // Arduino: digitalWrite(_readyPin, HIGH);
-  gpio_set_level(GPIO_READY, 1);
+  vTaskDelay(250 / portTICK_PERIOD_MS);
 
   _ready_semaphore = xSemaphoreCreateCounting(1, 0);
 
@@ -395,6 +385,20 @@ static void airlift_init(int argc, const char** argv) {
   UNUSED(argc);
   UNUSED(argv);
   logi("********** airlift_init()\n");
+
+  // First things first:
+  // Set READY pin as not ready (HIGH) so that "master" doesn't start the
+  // transaction while we are still booting
+
+  // From SPIS.cpp SPISClass::being()
+
+  // Arduino: pinMode(_readyPin, OUTPUT);
+  gpio_set_direction(GPIO_READY, GPIO_MODE_OUTPUT);
+  gpio_set_pull_mode(GPIO_READY, GPIO_FLOATING);
+  PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[GPIO_READY], PIN_FUNC_GPIO);
+
+  // Arduino: digitalWrite(_readyPin, HIGH);
+  gpio_set_level(GPIO_READY, 1);
 }
 
 static void airlift_on_init_complete(void) {
