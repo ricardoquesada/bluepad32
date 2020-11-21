@@ -23,10 +23,13 @@ limitations under the License.
 // Instead of implementing all of these pre-defined requests, we add our own
 // gamepad-related requests.
 
+// Logic based on Adafruit Nina-fw code: https://github.com/adafruit/nina-fw
+//
 // This firmware should work on all Adafruit "AirLift" family like:
 // - AirLift
 // - Matrix Portal
 // - PyPortal
+
 
 #include "uni_platform_airlift.h"
 
@@ -58,12 +61,12 @@ limitations under the License.
 #define GPIO_SCLK GPIO_NUM_18
 #define GPIO_CS GPIO_NUM_5
 #define GPIO_READY GPIO_NUM_33
-#define DMA_CHANNEL 2
+#define DMA_CHANNEL 1
 
 //
 // Globals
 //
-const char FIRMWARE_VERSION[] = "ABCDE";
+const char FIRMWARE_VERSION[] = "Bluepad32 for Airlift v1.0";
 static SemaphoreHandle_t _ready_semaphore = NULL;
 static int _connected_gamepads = 0;
 static uni_gamepad_t _gamepad0;
@@ -81,23 +84,28 @@ static airlift_instance_t* get_airlift_instance(uni_hid_device_t* d);
 //
 
 static int spi_transfer(uint8_t out[], uint8_t in[], size_t len) {
-  spi_slave_transaction_t slvTrans;
-  spi_slave_transaction_t* slvRetTrans;
+  spi_slave_transaction_t* slv_ret_trans;
 
-  memset(&slvTrans, 0x00, sizeof(slvTrans));
+  spi_slave_transaction_t slv_trans = {
+    .length = len * 8,
+    .trans_len = 0,
+    .tx_buffer = out,
+    .rx_buffer = in};
 
-  slvTrans.length = len * 8;
-  slvTrans.trans_len = 0;
-  slvTrans.tx_buffer = out;
-  slvTrans.rx_buffer = in;
+  esp_err_t ret = spi_slave_queue_trans(VSPI_HOST, &slv_trans, portMAX_DELAY);
+  if (ret != ESP_OK) return -1;
 
-  spi_slave_queue_trans(VSPI_HOST, &slvTrans, portMAX_DELAY);
   xSemaphoreTake(_ready_semaphore, portMAX_DELAY);
   gpio_set_level(GPIO_READY, 0);
-  spi_slave_get_trans_result(VSPI_HOST, &slvRetTrans, portMAX_DELAY);
+
+  ret = spi_slave_get_trans_result(VSPI_HOST, &slv_ret_trans, portMAX_DELAY);
+  if (ret != ESP_OK) return -1;
+
+  assert(slv_ret_trans == &slv_trans);
+
   gpio_set_level(GPIO_READY, 1);
 
-  return (slvTrans.trans_len / 8);
+  return (slv_trans.trans_len / 8);
 }
 
 // Command 0x1a
@@ -105,7 +113,7 @@ static int request_set_debug(const uint8_t command[], uint8_t response[]) {
   uni_esp32_enable_uart_output(command[4]);
   response[2] = 1; // number of parameters
   response[3] = 1; // parameter 1 length
-  response[4] = 1;
+  response[4] = command[4];
 
   return 5;
 }
@@ -284,7 +292,6 @@ static void IRAM_ATTR isr_handler_on_chip_select(void* arg) {
   gpio_set_level(GPIO_READY, 1);
 }
 
-#define SPI_BUFFER_LEN SPI_MAX_DMA_LEN
 static void spi_main_loop(void* arg) {
 
   _gamepad_mutex = xSemaphoreCreateMutex();
@@ -294,26 +301,6 @@ static void spi_main_loop(void* arg) {
   // in the log(). No harm is done if there is collision, only that it is more
   // difficult to read the logs from the console.
   vTaskDelay(1000 / portTICK_PERIOD_MS);
-
-  // Start from sketch.ino.cpp setup()
-
-  // put SWD and SWCLK pins connected to SAMD as inputs
-  // Arduino: pinMode(15, INPUT);
-//  gpio_set_direction(GPIO_NUM_15, GPIO_MODE_INPUT);
-//  gpio_set_pull_mode(GPIO_NUM_15, GPIO_FLOATING);
-//  PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[GPIO_NUM_15], PIN_FUNC_GPIO);
-
-  // Arduino: pinMode(21, INPUT);
-//  gpio_set_direction(GPIO_NUM_21, GPIO_MODE_INPUT);
-//  gpio_set_pull_mode(GPIO_NUM_21, GPIO_FLOATING);
-//  PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[GPIO_NUM_21], PIN_FUNC_GPIO);
-
-  // Arduino: pinMode(5, INPUT);
-//  gpio_set_direction(GPIO_NUM_5, GPIO_MODE_INPUT);
-//  gpio_set_pull_mode(GPIO_NUM_5, GPIO_FLOATING);
-//  PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[GPIO_NUM_5], PIN_FUNC_GPIO);
-
-  // End from sketch.ino.cpp setup()
 
   // From SPIS.cpp SPISClass::being()
 
@@ -343,47 +330,37 @@ static void spi_main_loop(void* arg) {
   // Configuration for the SPI slave interface
   spi_slave_interface_config_t slvcfg = {.mode = 0,
                                          .spics_io_num = GPIO_CS,
-                                         .queue_size = 3,
+                                         .queue_size = 1,
                                          .flags = 0,
                                          .post_setup_cb = spi_post_setup_cb,
                                          .post_trans_cb = NULL};
 
-//  gpio_set_pull_mode(GPIO_MOSI, GPIO_FLOATING);
-//  gpio_set_pull_mode(GPIO_SCLK, GPIO_PULLDOWN_ONLY);
-//  gpio_set_pull_mode(GPIO_CS, GPIO_PULLUP_ONLY);
-  //Enable pull-ups on SPI lines so we don't detect rogue pulses when no master is connected.
-  gpio_set_pull_mode(GPIO_MOSI, GPIO_PULLUP_ONLY);
-  gpio_set_pull_mode(GPIO_SCLK, GPIO_PULLUP_ONLY);
+  // Enable pull-ups on SPI lines so we don't detect rogue pulses when no master is connected.
+  // gpio_set_pull_mode(GPIO_MOSI, GPIO_PULLUP_ONLY);
+  // gpio_set_pull_mode(GPIO_SCLK, GPIO_PULLUP_ONLY);
+  // gpio_set_pull_mode(GPIO_CS, GPIO_PULLUP_ONLY);
+
+  // Honor Nina-fw way of setting up these GPIOs.
+  gpio_set_pull_mode(GPIO_MOSI, GPIO_FLOATING);
+  gpio_set_pull_mode(GPIO_SCLK, GPIO_PULLDOWN_ONLY);
   gpio_set_pull_mode(GPIO_CS, GPIO_PULLUP_ONLY);
 
   esp_err_t ret =
       spi_slave_initialize(VSPI_HOST, &buscfg, &slvcfg, DMA_CHANNEL);
-  logi("spi_slave_initialize = %d\n", ret);
   assert(ret == ESP_OK);
 
-  // End SPIS.cpp SPISClass::being()
 
-  // Manually put the ESP32 in upload mode so that the ESP32 UART is connected
-  // with the main MCU UART.
-  // digitalWrite(ESP32_GPIO0, LOW);
-  // gpio_set_level(GPIO_NUM_0, 0);
+//#define SPI_BUFFER_LEN SPI_MAX_DMA_LEN
 
-  // digitalWrite(ESP32_RESETN, LOW);
-  // gpio_set_level(GPIO_NUM_19, 0);
-  // delay(100);
-  // vTaskDelay(100 / portTICK_PERIOD_MS);
-
-  // digitalWrite(ESP32_RESETN, HIGH);
-  // gpio_set_level(GPIO_NUM_19, 1);
-
-  WORD_ALIGNED_ATTR uint8_t response_buf[SPI_BUFFER_LEN + 1];
-  WORD_ALIGNED_ATTR uint8_t command_buf[SPI_BUFFER_LEN + 1];
-//  uint8_t* command_buf = (uint8_t*)heap_caps_malloc(SPI_BUFFER_LEN, MALLOC_CAP_DMA);
-//  uint8_t* response_buf= (uint8_t*)heap_caps_malloc(SPI_BUFFER_LEN, MALLOC_CAP_DMA);
+  // Must be modulo 4 and word aligned.
+#define SPI_BUFFER_LEN 256
+  WORD_ALIGNED_ATTR uint8_t response_buf[SPI_BUFFER_LEN];
+  WORD_ALIGNED_ATTR uint8_t command_buf[SPI_BUFFER_LEN];
 
   while (1) {
     memset(command_buf, 0, SPI_BUFFER_LEN);
     int command_len = spi_transfer(NULL, command_buf, SPI_BUFFER_LEN);
+    if (command_len == 0) continue;
 
     // process request
     memset(response_buf, 0, SPI_BUFFER_LEN);
@@ -404,16 +381,10 @@ static void airlift_init(int argc, const char** argv) {
 
 static void airlift_on_init_complete(void) {
   logi("************  airlift_on_init_complete()\n");
-  // SPI Initialization taken from Nina-fw; the firmware used in Adafruit
-  // AirLift products:
-  // https://github.com/adafruit/nina-fw/blob/master/arduino/libraries/SPIS/src/SPIS.cpp
-
-  // The Arduino-like API was converted to ESP32 API calls.
-
   // Create SPI main loop thread
   // Bluetooth code runs in Core 0.
   // In order to not interfere with it, this one should run in the other Core.
-  xTaskCreatePinnedToCore(spi_main_loop, "spi_main_loop", 16384, NULL, 1, NULL,
+  xTaskCreatePinnedToCore(spi_main_loop, "spi_main_loop", 8192, NULL, 1, NULL,
                           1);
 }
 
