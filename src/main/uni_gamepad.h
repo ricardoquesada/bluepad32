@@ -98,14 +98,12 @@ typedef enum {
 //
 // If the real device only has one joy-pad, it should populate the left side
 // of the virtual gamepad.
-// Example: a TV remote control should populate the left d-pad and the left
+// Example: a TV remote control should populate the left D-pad and the left
 // joypad.
 //
-// The virtual gamepad will then be processed by the dfferent retro-computer
-// joysticks.
+// The virtual gamepad will then be processed by the dfferent "platforms".
 //
 // Virtual Gamepad layout:
-//
 //
 //  Left             Center            Right
 //
@@ -117,7 +115,7 @@ typedef enum {
 //  axis-l button                      axis-r button
 //
 //  trigger's buttons & accelerator are shared physically.
-//  Buttons are
+
 typedef struct {
   // Usage Page: 0x01 (Generic Desktop Controls)
   uint8_t dpad;
@@ -136,10 +134,12 @@ typedef struct {
   // Usage Page: 0x09 (Button)
   uint16_t buttons;
 
-  // Misc buttos (from 0x0c (Consumer) and others)
+  // Misc buttons (from 0x0c (Consumer) and others)
   uint8_t misc_buttons;
 
-  // updated states
+  // FIXME: It might be OK to get rid of this variable. Or in any case, it
+  // should be moved ouside uni_gamepad_t?
+  // Indicates which states have been updated
   uint32_t updated_states;
 } uni_gamepad_t;
 

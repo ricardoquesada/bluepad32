@@ -30,7 +30,6 @@ limitations under the License.
 // - Matrix Portal
 // - PyPortal
 
-
 #include "uni_platform_airlift.h"
 
 #include <driver/gpio.h>
@@ -63,18 +62,29 @@ limitations under the License.
 #define GPIO_READY GPIO_NUM_33
 #define DMA_CHANNEL 1
 
+// Gamepad related
+// Arbitrary max number of gamepads that can be connected at the same time
+#define AIRLIFT_MAX_GAMEPADS 4
+typedef struct {
+  // Which gamepads are connected: bitwise-OR
+  uni_gamepad_seat_t seats;
+  // A max of 4 gamepads are supported
+  uni_gamepad_t gamepads[AIRLIFT_MAX_GAMEPADS];
+} _gamepads_state_t;
+
 //
 // Globals
 //
-const char FIRMWARE_VERSION[] = "Bluepad32 for Airlift v1.0";
+static const char FIRMWARE_VERSION[] = "Bluepad32 for Airlift v1.0";
 static SemaphoreHandle_t _ready_semaphore = NULL;
-static int _connected_gamepads = 0;
-static uni_gamepad_t _gamepad0;
 static SemaphoreHandle_t _gamepad_mutex = NULL;
+static _gamepads_state_t _gamepads_state;
 
 // Airlift device "instance"
 typedef struct airlift_instance_s {
-  uni_gamepad_seat_t gamepad_seat;  // which "seat" is being used
+  // Gamepad index, from 0 to AIRLIFT_MAX_GAMEPADS
+  // -1 means gamepad was not assigned yet.
+  int8_t gamepad_idx;
 } airlift_instance_t;
 
 static airlift_instance_t* get_airlift_instance(uni_hid_device_t* d);
@@ -87,10 +97,7 @@ static int spi_transfer(uint8_t out[], uint8_t in[], size_t len) {
   spi_slave_transaction_t* slv_ret_trans;
 
   spi_slave_transaction_t slv_trans = {
-    .length = len * 8,
-    .trans_len = 0,
-    .tx_buffer = out,
-    .rx_buffer = in};
+      .length = len * 8, .trans_len = 0, .tx_buffer = out, .rx_buffer = in};
 
   esp_err_t ret = spi_slave_queue_trans(VSPI_HOST, &slv_trans, portMAX_DELAY);
   if (ret != ESP_OK) return -1;
@@ -111,8 +118,8 @@ static int spi_transfer(uint8_t out[], uint8_t in[], size_t len) {
 // Command 0x1a
 static int request_set_debug(const uint8_t command[], uint8_t response[]) {
   uni_esp32_enable_uart_output(command[4]);
-  response[2] = 1; // number of parameters
-  response[3] = 1; // parameter 1 length
+  response[2] = 1;  // number of parameters
+  response[3] = 1;  // parameter 1 length
   response[4] = command[4];
 
   return 5;
@@ -129,25 +136,15 @@ static int request_get_fw_version(const uint8_t command[], uint8_t response[]) {
 }
 
 // Command 0x60
-static int request_connected_gamepads(const uint8_t command[],
-                                      uint8_t response[]) {
-  response[2] = 1;  // number of parameters
-  response[3] = 1;  // parameter 1 length
-  response[4] = 1;  // FIXME: hardcoded one connected gamepad
-
-  return 5;
-}
-
-// Command 0x61
 static int request_gamepad_data(const uint8_t command[], uint8_t response[]) {
-  response[2] = 1;                  // number of parameters
-  response[3] = sizeof(_gamepad0);  // parameter 1 lenght
+  response[2] = 1;                        // number of parameters
+  response[3] = sizeof(_gamepads_state);  // parameter 1 lenght
 
   xSemaphoreTake(_gamepad_mutex, portMAX_DELAY);
-  memcpy(&response[4], &_gamepad0, sizeof(_gamepad0));
+  memcpy(&response[4], &_gamepads_state, sizeof(_gamepads_state));
   xSemaphoreGive(_gamepad_mutex);
 
-  return 4 + sizeof(_gamepad0);
+  return 4 + sizeof(_gamepads_state);
 }
 
 typedef int (*command_handler_t)(const uint8_t command[],
@@ -162,14 +159,14 @@ const command_handler_t command_handlers[] = {
     NULL,  // setPassPhrase,
     NULL,  // setKey,
     NULL,
-    NULL,  // setIPconfig,
-    NULL,  // setDNSconfig,
-    NULL,  // setHostname,
-    NULL,  // setPowerMode,
-    NULL,  // setApNet,
-    NULL,  // setApPassPhrase,
+    NULL,               // setIPconfig,
+    NULL,               // setDNSconfig,
+    NULL,               // setHostname,
+    NULL,               // setPowerMode,
+    NULL,               // setApNet,
+    NULL,               // setApPassPhrase,
     request_set_debug,  // setDebug (0x1a)
-    NULL,  // getTemperature,
+    NULL,               // getTemperature,
     NULL, NULL, NULL, NULL,
 
     // 0x20 -> 0x2f
@@ -232,10 +229,9 @@ const command_handler_t command_handlers[] = {
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 
     // 0x60 -> 0x6f: Bluepad32 own extensions
-    request_connected_gamepads,  // request_connected_gamepads
-    request_gamepad_data,        // request_gamepad_data
-    NULL,                        // request_set_gamepad_rumble
-    NULL,                        // request_set_gamepad_led_color
+    request_gamepad_data,  // request_gamepad_data
+    NULL,                  // request_set_gamepad_rumble
+    NULL,                  // request_set_gamepad_led_color
 };
 #define COMMAND_HANDLERS_MAX \
   (sizeof(command_handlers) / sizeof(command_handlers[0]))
@@ -253,7 +249,8 @@ static int process_request(const uint8_t command[], int command_len,
                            uint8_t response[] /* out */) {
   int response_len = 0;
 
-  if (command_len >= 2 && command[0] == 0xe0 && command[1] < COMMAND_HANDLERS_MAX) {
+  if (command_len >= 2 && command[0] == 0xe0 &&
+      command[1] < COMMAND_HANDLERS_MAX) {
     command_handler_t command_handler = command_handlers[command[1]];
 
     if (command_handler) {
@@ -293,7 +290,6 @@ static void IRAM_ATTR isr_handler_on_chip_select(void* arg) {
 }
 
 static void spi_main_loop(void* arg) {
-
   _gamepad_mutex = xSemaphoreCreateMutex();
   assert(_gamepad_mutex != NULL);
 
@@ -335,8 +331,8 @@ static void spi_main_loop(void* arg) {
                                          .post_setup_cb = spi_post_setup_cb,
                                          .post_trans_cb = NULL};
 
-  // Enable pull-ups on SPI lines so we don't detect rogue pulses when no master is connected.
-  // gpio_set_pull_mode(GPIO_MOSI, GPIO_PULLUP_ONLY);
+  // Enable pull-ups on SPI lines so we don't detect rogue pulses when no master
+  // is connected. gpio_set_pull_mode(GPIO_MOSI, GPIO_PULLUP_ONLY);
   // gpio_set_pull_mode(GPIO_SCLK, GPIO_PULLUP_ONLY);
   // gpio_set_pull_mode(GPIO_CS, GPIO_PULLUP_ONLY);
 
@@ -349,8 +345,7 @@ static void spi_main_loop(void* arg) {
       spi_slave_initialize(VSPI_HOST, &buscfg, &slvcfg, DMA_CHANNEL);
   assert(ret == ESP_OK);
 
-
-//#define SPI_BUFFER_LEN SPI_MAX_DMA_LEN
+  //#define SPI_BUFFER_LEN SPI_MAX_DMA_LEN
 
   // Must be modulo 4 and word aligned.
 #define SPI_BUFFER_LEN 256
@@ -391,26 +386,57 @@ static void airlift_on_init_complete(void) {
 static void airlift_on_device_connected(uni_hid_device_t* d) {
   airlift_instance_t* ins = get_airlift_instance(d);
   memset(ins, 0, sizeof(*ins));
-  ins->gamepad_seat = GAMEPAD_SEAT_A;
-
+  ins->gamepad_idx = -1;
 }
 
 static void airlift_on_device_disconnected(uni_hid_device_t* d) {
-  _connected_gamepads--;
+  airlift_instance_t* ins = get_airlift_instance(d);
+  // Process it only if the gamepad has been assigned before.
+  if (ins->gamepad_idx != -1) {
+    ins->gamepad_idx = -1;
+    _gamepads_state.seats &= ~(1 << ins->gamepad_idx);
+  }
 }
 
 static int airlift_on_device_ready(uni_hid_device_t* d) {
+  if (_gamepads_state.seats ==
+      (GAMEPAD_SEAT_A | GAMEPAD_SEAT_B | GAMEPAD_SEAT_C | GAMEPAD_SEAT_D)) {
+    // No more available seats, reject connection;
+    return -1;
+  }
+
+  airlift_instance_t* ins = get_airlift_instance(d);
+  if (ins->gamepad_idx != -1) {
+    loge("airlift: unexpected value for on_device_ready; got: %d, want: -1\n",
+         ins->gamepad_idx);
+  }
+
+  // Find first available gamepad
+  for (int i = 0; i < AIRLIFT_MAX_GAMEPADS; i++) {
+    if ((_gamepads_state.seats & (1 << i)) == 0) {
+      ins->gamepad_idx = i;
+      _gamepads_state.seats |= (1 << i);
+      break;
+    }
+  }
+
   if (d->report_parser.update_led != NULL) {
     airlift_instance_t* ins = get_airlift_instance(d);
-    d->report_parser.update_led(d, ins->gamepad_seat);
+    d->report_parser.update_led(d, (1 << ins->gamepad_idx));
   }
-  _connected_gamepads++;
   return 0;
 }
 
 static void airlift_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
+  airlift_instance_t* ins = get_airlift_instance(d);
+  if (ins->gamepad_idx < 0 || ins->gamepad_idx >= AIRLIFT_MAX_GAMEPADS) {
+    loge("Airlift: unexpected gamepad idx, got: %d, want: [0-%d]\n",
+         ins->gamepad_idx, AIRLIFT_MAX_GAMEPADS);
+    return;
+  }
+
   xSemaphoreTake(_gamepad_mutex, portMAX_DELAY);
-  _gamepad0 = *gp;
+  _gamepads_state.gamepads[ins->gamepad_idx] = *gp;
   xSemaphoreGive(_gamepad_mutex);
 }
 
@@ -419,13 +445,7 @@ static void airlift_on_device_oob_event(uni_hid_device_t* d,
   logi("airlift_on_device_oob_event(), event=%d\n", event);
   if (event != UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON) return;
 
-  airlift_instance_t* ins = get_airlift_instance(d);
-  ins->gamepad_seat =
-      (ins->gamepad_seat == GAMEPAD_SEAT_A) ? GAMEPAD_SEAT_B : GAMEPAD_SEAT_A;
-
-  if (d->report_parser.update_led != NULL) {
-    d->report_parser.update_led(d, ins->gamepad_seat);
-  }
+  // TODO: Do something ?
 }
 
 static int32_t airlift_get_property(uni_platform_property_t key) {
