@@ -9,10 +9,10 @@ The AirLift module and the main processor talk to each other using the SPI proto
 AirLift modules come with the [official nina-fw firmware][nina-fw].
 
 Bluepad32 replaces the [official ESP32 firmware][nina-fw] that comes with AirLift
-modules. Bluepad32 is compatible-enough with Nina-fw.
+modules. Bluepad32 is "compatible-enough" with Nina-fw:
 
 * Uses SPI, and the same GPIOs to talk to the main processor
-* Uses the some Nina-fw protocol that runs on top of SPI
+* Uses the same Nina-fw protocol that runs on top of SPI
 * But not all Nina-fw messages are implemented. Only the ones that are needed
   to have gamepad support working.
 
@@ -20,9 +20,10 @@ modules. Bluepad32 is compatible-enough with Nina-fw.
 [airlift-esp32]: https://www.adafruit.com/product/4201
 [nina-fw]: https://github.com/adafruit/nina-fw
 
-## Compile Bluepad32
+## Compile Bluepad32 for AirLift
 
-Read [README.md][readme] for the ESP-IDF requirements, with this change:
+Read [README.md][readme] for the ESP-IDF requirements. And choose `airlift` as
+the target platform:
 
 ```sh
 $ export PLATFORM=airlift
@@ -42,9 +43,10 @@ GPIOs are exposed, and might not be possible to flash the firmware directly usin
 `make flash`.
 
 It depends from AirLift module to AirLift module. But to give a concrete example,
-let's see how to install it on a [MatrixPortal M4][matrix_portal_m4] (which has an AirLift module):
+let's see how to install it on a [MatrixPortal M4][matrix_portal_m4]
+(which has an AirLift module):
 
-* Put MatrixPortal M4 in "boot" mode.
+* Put MatrixPortal M4 in "boot" mode
 * Flash the MatrixPortal-M4 [passthrough firmware]
 
 And only now, you can do `make flash`, with just one exception: by default
@@ -61,12 +63,12 @@ $ esptool.py --port /dev/ttyACM0 --baud 115200 --before no_reset write_flash 0x1
 
 ## How to debug Bluepad32
 
-Assuming that the ESP32 UART pins are not exposed (like in the majority of the
-AirLift modules), the recommended way to debug the Bluepad32 firmware is:
+Assuming that the ESP32 UART pins are not exposed (true for all AirLift modules),
+the recommended way to debug the Bluepad32 firmware is:
 
 * Get any ESP32 breakout module. It could be an [Adafruit HUZZAH32][esp32-adafruit] or [any other ESP32 breakout][amazon-esp32].
   * JUST DON'T GET A ESP32-S2 (doesn't have Bluetooth!). JUST "ESP32"
-* Get SAMD51 only module, like the [Adafruit Feather M4 Express][feather_m4]
+* Get a SAMD51 module, like the [Adafruit Feather M4 Express][feather_m4]
 * Wire it like this:
 
 |       | ESP32 | SAMD51 |
@@ -82,26 +84,28 @@ Something like this:
 
 ![wiring](https://lh3.googleusercontent.com/pw/ACtC-3dutrQXEj9I5zicNFW3K3PBbfge7MdwgB8dyi-wPSrtSp8zku3Y4c9WtBqQ9Bfa92xOjgSkZncAuzAZyc5F392tFkzkqWUl4YkfrKrM4e8TGP-B_7I7G_fRvFbIYbEQQIi-LlOnPU5SdGYYeW6hxxpJ_w=-no)
 
-
 Pros:
 
 * Can see the console of both the ESP32 and SAM51 at the same time
-* Can use Logic Analizer to inspect SPI (in case it is needed)
-
+* Can use Logic Analizer to inspect SPI (just in case it is needed)
 
 [esp32-adafruit]: https://www.adafruit.com/product/4172?gclid=EAIaIQobChMI-eeixraV7QIVED2tBh2qywzJEAQYASABEgLsTfD_BwE
 [amazon-esp32]: https://www.amazon.com/s?k=esp32+module+breakout
 [feather_m4]: https://www.adafruit.com/product/3857
 
-## Testing it
+## CircuitPython example
 
 ### Patching adafruit_esp32spi
 
-Apply this patch for adafruit_esp32spi:
+The first thing that you need to do is to patch `adafruit_esp32spi`:
 
 * https://github.com/adafruit/Adafruit_CircuitPython_ESP32SPI/pull/118
 
-### Example
+This will add the `get_gamepad_data` function to CircuitPython.
+
+### Complete example
+
+And this is how you would use it:
 
 ```python
 import time
@@ -151,8 +155,8 @@ while True:
 
 **Does Bluepad32 only run on AirLift modules?**
 
-In general, **Bluepad32** can run on any ESP32 module and it is very easy to
-adapt it to your own needs.
+**Bluepad32** can run on any ESP32 module and it is very easy to adapt it to
+your own needs.
 
 But in particular, **Bluepad32 for AirLift** can be used without custom changes
 in any module that runs the Nina-fw firmware.
