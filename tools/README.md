@@ -25,3 +25,8 @@ $ ./sixaxispairer XX:XX:XX:XX:XX:XX
 ```
 
 [docs_pairer]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/docs/pair_ds3.md
+
+## Paint for CircuitPython
+
+* Copy circuitpython_paint.py to the CIRCUITPY folder, rename it to `code.py`
+* Make sure to install the needed dependencies

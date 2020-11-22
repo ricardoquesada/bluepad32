@@ -116,8 +116,12 @@ print('Firmware vers:', esp.firmware_version)
 while True:
     gp = esp.get_gamepads_data()
     print('Gamepad: ', gp)
-    time.sleep(0.1)
+    time.sleep(0.032)
 ```
+
+A more working "Paint" example can be found here:
+
+* https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/tools/circuitpython_paint.py
 
 ## How to debug Bluepad32 for AirLift
 
