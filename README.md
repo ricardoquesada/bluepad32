@@ -9,6 +9,7 @@ What you do with the ESP32, is up to you. But here are some examples:
 
 * Use gamepads to play games in the Commodore 64 ([Unijoysticle2][unijoysticle2])
 * Use it to play games in a FPGA console ([ULX3S][ulx3s])
+* Play games in [MatrixPortal M4][maxtrixportal] (or any AirLift board)
 * Control your LED lamp
 * Control your remote car
 * Add it to your own IoT/smart-home project
@@ -16,6 +17,7 @@ What you do with the ESP32, is up to you. But here are some examples:
 
 [unijoysticle2]: https://retro.moe/unijoysticle2/
 [ulx3s]: https://www.crowdsupply.com/radiona/ulx3s
+[matrixportal]: https://learn.adafruit.com/adafruit-matrixportal-m4
 
 
 ## Supported controllers
