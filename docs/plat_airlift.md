@@ -69,7 +69,7 @@ The first thing that you need to do is to patch `adafruit_esp32spi`:
 
 * https://github.com/adafruit/Adafruit_CircuitPython_ESP32SPI/pull/118
 
-This will add the `get_gamepad_data` function to CircuitPython.
+This will add the `get_gamepads_data` function to CircuitPython.
 
 ### Complete example
 
@@ -114,7 +114,7 @@ esp = adafruit_esp32spi.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset, 
 print('Firmware vers:', esp.firmware_version)
 
 while True:
-    gp = esp.get_gamepad_data()
+    gp = esp.get_gamepads_data()
     print('Gamepad: ', gp)
     time.sleep(0.1)
 ```
