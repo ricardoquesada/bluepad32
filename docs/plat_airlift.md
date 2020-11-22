@@ -97,11 +97,59 @@ Pros:
 
 ### Patching adafruit_esp32spi
 
+Apply this patch for adafruit_esp32spi:
+
+* https://github.com/adafruit/Adafruit_CircuitPython_ESP32SPI/pull/118
+
 ### Example
+
+```python
+import time
+
+import board
+import busio
+from digitalio import DigitalInOut
+from adafruit_esp32spi import adafruit_esp32spi
+
+# If you are using a board with pre-defined ESP32 Pins:
+#esp32_cs = DigitalInOut(board.ESP_CS)
+#esp32_ready = DigitalInOut(board.ESP_BUSY)
+#esp32_reset = DigitalInOut(board.ESP_RESET)
+
+# If you have an AirLift Shield:
+# esp32_cs = DigitalInOut(board.D10)
+# esp32_ready = DigitalInOut(board.D7)
+# esp32_reset = DigitalInOut(board.D5)
+
+# If you have an AirLift Featherwing or ItsyBitsy Airlift:
+# esp32_cs = DigitalInOut(board.D13)
+# esp32_ready = DigitalInOut(board.D11)
+# esp32_reset = DigitalInOut(board.D12)
+
+# If you have an externally connected ESP32:
+# NOTE: You may need to change the pins to reflect your wiring
+esp32_cs = DigitalInOut(board.D10)
+esp32_ready = DigitalInOut(board.D9)
+esp32_reset = DigitalInOut(board.D6)
+
+spi = busio.SPI(board.SCK, board.MOSI, board.MISO)
+esp = adafruit_esp32spi.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset, debug=0)
+
+# Optionally, to enable UART logging in the ESP32
+# esp.set_esp_debug(1)
+
+# Should display "Bluepad32 for Airlift"
+print('Firmware vers:', esp.firmware_version)
+
+while True:
+    gp = esp.get_gamepad_data()
+    print('Gamepad: ', gp)
+    time.sleep(0.1)
+```
 
 ## FAQ
 
-**Does Bluepad only run on AirLift modules?**
+**Does Bluepad32 only run on AirLift modules?**
 
 In general, **Bluepad32** can run on any ESP32 module and it is very easy to
 adapt it to your own needs.
