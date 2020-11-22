@@ -372,7 +372,8 @@ static void spi_main_loop(void* arg) {
                                          .post_trans_cb = NULL};
 
   // Enable pull-ups on SPI lines so we don't detect rogue pulses when no master
-  // is connected. gpio_set_pull_mode(GPIO_MOSI, GPIO_PULLUP_ONLY);
+  // is connected.
+  // gpio_set_pull_mode(GPIO_MOSI, GPIO_PULLUP_ONLY);
   // gpio_set_pull_mode(GPIO_SCLK, GPIO_PULLUP_ONLY);
   // gpio_set_pull_mode(GPIO_CS, GPIO_PULLUP_ONLY);
 
@@ -385,9 +386,8 @@ static void spi_main_loop(void* arg) {
       spi_slave_initialize(VSPI_HOST, &buscfg, &slvcfg, DMA_CHANNEL);
   assert(ret == ESP_OK);
 
-  //#define SPI_BUFFER_LEN SPI_MAX_DMA_LEN
-
   // Must be modulo 4 and word aligned.
+  // A higher value up to SPI_MAX_DMA_LEN can be defined if needed.
 #define SPI_BUFFER_LEN 256
   WORD_ALIGNED_ATTR uint8_t response_buf[SPI_BUFFER_LEN];
   WORD_ALIGNED_ATTR uint8_t command_buf[SPI_BUFFER_LEN];
@@ -411,13 +411,10 @@ static void spi_main_loop(void* arg) {
 static void airlift_init(int argc, const char** argv) {
   UNUSED(argc);
   UNUSED(argv);
-  logi("********** airlift_init()\n");
 
   // First things first:
-  // Set READY pin as not ready (HIGH) so that "master" doesn't start the
+  // Set READY pin as not-ready (HIGH) so that SPI-master doesn't start the
   // transaction while we are still booting
-
-  // From SPIS.cpp SPISClass::being()
 
   // Arduino: pinMode(_readyPin, OUTPUT);
   gpio_set_direction(GPIO_READY, GPIO_MODE_OUTPUT);
@@ -429,10 +426,9 @@ static void airlift_init(int argc, const char** argv) {
 }
 
 static void airlift_on_init_complete(void) {
-  logi("************  airlift_on_init_complete()\n");
   // Create SPI main loop thread
-  // Bluetooth code runs in Core 0.
-  // In order to not interfere with it, this one should run in the other Core.
+  // In order to not interfere with Bluetooth that runs in CPU0, SPI code should
+  // run in CPU1
   xTaskCreatePinnedToCore(spi_main_loop, "spi_main_loop", 8192, NULL, 1, NULL,
                           1);
 }
@@ -445,7 +441,7 @@ static void airlift_on_device_connected(uni_hid_device_t* d) {
 
 static void airlift_on_device_disconnected(uni_hid_device_t* d) {
   airlift_instance_t* ins = get_airlift_instance(d);
-  // Process it only if the gamepad has been assigned before.
+  // Only process it if the gamepad has been assigned before
   if (ins->gamepad_idx != -1) {
     ins->gamepad_idx = -1;
     _gamepad_seats &= ~(1 << ins->gamepad_idx);
@@ -455,7 +451,7 @@ static void airlift_on_device_disconnected(uni_hid_device_t* d) {
 static int airlift_on_device_ready(uni_hid_device_t* d) {
   if (_gamepad_seats ==
       (GAMEPAD_SEAT_A | GAMEPAD_SEAT_B | GAMEPAD_SEAT_C | GAMEPAD_SEAT_D)) {
-    // No more available seats, reject connection;
+    // No more available seats, reject connection
     return -1;
   }
 
@@ -506,14 +502,13 @@ static void airlift_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
 
 static void airlift_on_device_oob_event(uni_hid_device_t* d,
                                         uni_platform_oob_event_t event) {
-  logi("airlift_on_device_oob_event(), event=%d\n", event);
   if (event != UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON) return;
 
   // TODO: Do something ?
 }
 
 static int32_t airlift_get_property(uni_platform_property_t key) {
-  logi("airlift_get_property(), key=%d\n", key);
+  // FIXME: support well-known uni_platform_property_t keys
   return 0;
 }
 
