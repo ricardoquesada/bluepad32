@@ -24,6 +24,7 @@ limitations under the License.
 extern const int AXIS_NORMALIZE_RANGE;
 extern const int AXIS_THRESHOLD;
 
+// DPAD constants.
 enum {
   DPAD_UP = 1 << 0,
   DPAD_DOWN = 1 << 1,
@@ -31,6 +32,7 @@ enum {
   DPAD_LEFT = 1 << 3,
 };
 
+// BUTTON_XXX are the main gamepad buttons, like X, Y, etc.
 enum {
   BUTTON_A = 1 << 0,
   BUTTON_B = 1 << 1,
@@ -42,16 +44,19 @@ enum {
   BUTTON_TRIGGER_R = 1 << 7,
   BUTTON_THUMB_L = 1 << 8,
   BUTTON_THUMB_R = 1 << 9,
-
-  BUTTON_TOTAL = 10
 };
 
+// MISC_BUTTONS_ are buttons that are not not the "main" buttons.
 enum {
   MISC_BUTTON_SYSTEM = 1 << 0,
   MISC_BUTTON_BACK = 1 << 1,
   MISC_BUTTON_HOME = 1 << 2,
 };
 
+// GAMEPAD_STATE_XXX are used internally to determine which button event
+// were registered in the last HID report.
+// Most gamepad (if not all) report all their buttons in just one report.
+// TODO: Investigate if this is legacy code, or it is actually needed for iCade.
 enum {
   GAMEPAD_STATE_DPAD = 1 << 0,
 
@@ -80,6 +85,11 @@ enum {
   GAMEPAD_STATE_MISC_BUTTON_SYSTEM = 1 << 27,
 };
 
+// Represents which "seat" the gamepad is using. Multiple gamepads can be
+// connected at the same time, and the "seat" is the ID of each gamepad.
+// In the Legacy firmware it was possible for a gamepad to take more than one
+// seat, but since the v2.0 it might not be needed anymore.
+// TODO: Investigate if this really needs to be a "bit".
 typedef enum {
   GAMEPAD_SEAT_NONE = 0,
   GAMEPAD_SEAT_A = 1 << 0,
