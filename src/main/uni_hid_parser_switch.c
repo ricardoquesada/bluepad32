@@ -154,7 +154,7 @@ struct switch_subcmd_request {
   uint8_t rumble_right[4];
   uint8_t subcmd_id;
   uint8_t data[0];  // length depends on the subcommand
-} __attribute__((__packed__));
+} __attribute__((packed));
 
 struct switch_report_3f_s {
   uint8_t buttons_main;

@@ -66,13 +66,39 @@ limitations under the License.
 // Arbitrary max number of gamepads that can be connected at the same time
 #define AIRLIFT_MAX_GAMEPADS 4
 
+// Instead of using the uni_gamepad, we create one.
+// This is because this "struct" is sent via the wire and the format, padding,
+// etc. must not change.
+typedef struct __attribute__((packed)) {
+  // Used to tell "master" who is the owner of this data. 4 gamepads can be
+  // connected, this value indicates which gamepad it is.
+  uint8_t idx;
+
+  // Usage Page: 0x01 (Generic Desktop Controls)
+  uint8_t dpad;
+  int32_t axis_x;
+  int32_t axis_y;
+  int32_t axis_rx;
+  int32_t axis_ry;
+
+  // Usage Page: 0x02 (Sim controls)
+  int32_t brake;
+  int32_t accelerator;
+
+  // Usage Page: 0x09 (Button)
+  uint16_t buttons;
+
+  // Misc buttons (from 0x0c (Consumer) and others)
+  uint8_t misc_buttons;
+} airlift_gamepad_t;
+
 //
 // Globals
 //
-static const char FIRMWARE_VERSION[] = "Bluepad32 for Airlift v1.0";
+static const char FIRMWARE_VERSION[] = "Bluepad32 for Airlift v0.1";
 static SemaphoreHandle_t _ready_semaphore = NULL;
 static SemaphoreHandle_t _gamepad_mutex = NULL;
-static uni_gamepad_t _gamepads[AIRLIFT_MAX_GAMEPADS];
+static airlift_gamepad_t _gamepads[AIRLIFT_MAX_GAMEPADS];
 static uni_gamepad_seat_t _gamepad_seats;
 
 // Airlift device "instance"
@@ -113,8 +139,8 @@ static int spi_transfer(uint8_t out[], uint8_t in[], size_t len) {
 // Command 0x1a
 static int request_set_debug(const uint8_t command[], uint8_t response[]) {
   uni_esp32_enable_uart_output(command[4]);
-  response[2] = 1;  // number of parameters
-  response[3] = 1;  // parameter 1 length
+  response[2] = 1;  // Number of parameters
+  response[3] = 1;  // Parameter 1 length
   response[4] = command[4];
 
   return 5;
@@ -122,8 +148,8 @@ static int request_set_debug(const uint8_t command[], uint8_t response[]) {
 
 // Command 0x37
 static int request_get_fw_version(const uint8_t command[], uint8_t response[]) {
-  response[2] = 1;                         // number of parameters
-  response[3] = sizeof(FIRMWARE_VERSION);  // parameter 1 length
+  response[2] = 1;                         // Number of parameters
+  response[3] = sizeof(FIRMWARE_VERSION);  // Parameter 1 length
 
   memcpy(&response[4], FIRMWARE_VERSION, sizeof(FIRMWARE_VERSION));
 
@@ -132,41 +158,42 @@ static int request_get_fw_version(const uint8_t command[], uint8_t response[]) {
 
 // Command 0x60
 static int request_gamepad_data(const uint8_t command[], uint8_t response[]) {
-  // returned struct:
+  // Returned struct:
   // --- generic to all requests
   // byte 2: number of parameters (always 1 for 0x60)
   //      3: lenght of each parameter (always total size of payload for 0x60)
   // --- 0x60 specific
   //      4: number of gamepad reports. 0 == no reports
   // --- gamepad I
-  //      5: gamepad seat (0, 1, 2 or 3)
-  //      6-....N: gamepad data (see uni_gamepad_t)
+  //      5: gamepad data (0, 1, 2 or 3)
   // --- gamepad I+1
   //      ...
   //
   // Instead of returning multiple parameters, one per gamepad, one parameter
   // is returned, of variable witdth.
-  response[2] = 1;                        // number of parameters
+  response[2] = 1;  // number of parameters
 
   xSemaphoreTake(_gamepad_mutex, portMAX_DELAY);
 
-  int total = 0;
+  int total_gamepads = 0;
   int offset = 5;
-  for (int i=0;i < AIRLIFT_MAX_GAMEPADS; i++) {
+  for (int i = 0; i < AIRLIFT_MAX_GAMEPADS; i++) {
     if (_gamepad_seats & (1 << i)) {
-      total++;
-      response[offset] = i;
-      memcpy(&response[offset+1], &_gamepads[i], sizeof(_gamepads[0]));
-      offset += 1 + sizeof(_gamepads[0]);
+      total_gamepads++;
+      // TODO: This assignment should be placed somwhere else
+      _gamepads[i].idx = i;
+      memcpy(&response[offset], &_gamepads[i], sizeof(_gamepads[0]));
+      offset += sizeof(_gamepads[0]);
     }
   }
 
-  response[3] = 1 + total * (1 + sizeof(_gamepads[0])); // parameter 1 length
-  response[4] = total; // Number of gamepad reports
+  response[3] =
+      1 + total_gamepads * sizeof(_gamepads[0]);  // Parameter 1 length
+  response[4] = total_gamepads;                   // Number of gamepad reports
 
   xSemaphoreGive(_gamepad_mutex);
 
-  // offset is the total lenght
+  // "offset" is the total length
   return offset;
 }
 
@@ -272,7 +299,7 @@ static int process_request(const uint8_t command[], int command_len,
                            uint8_t response[] /* out */) {
   int response_len = 0;
 
-  if (command_len >= 2 && command[0] == 0xe0 &&
+  if (command_len >= 2 && command[0] == CMD_START &&
       command[1] < COMMAND_HANDLERS_MAX) {
     command_handler_t command_handler = command_handlers[command[1]];
 
@@ -282,7 +309,7 @@ static int process_request(const uint8_t command[], int command_len,
   }
 
   if (response_len <= 0) {
-    loge("Error in request:\n");
+    loge("AirLift: Error in request:\n");
     printf_hexdump(command, command_len);
     // Response for invalid requests
     response[0] = CMD_ERR;
@@ -434,7 +461,7 @@ static int airlift_on_device_ready(uni_hid_device_t* d) {
 
   airlift_instance_t* ins = get_airlift_instance(d);
   if (ins->gamepad_idx != -1) {
-    loge("airlift: unexpected value for on_device_ready; got: %d, want: -1\n",
+    loge("AirLift: unexpected value for on_device_ready; got: %d, want: -1\n",
          ins->gamepad_idx);
   }
 
@@ -463,7 +490,17 @@ static void airlift_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
   }
 
   xSemaphoreTake(_gamepad_mutex, portMAX_DELAY);
-  _gamepads[ins->gamepad_idx] = *gp;
+  _gamepads[ins->gamepad_idx] = (airlift_gamepad_t){
+      .dpad = gp->dpad,
+      .axis_x = gp->axis_x,
+      .axis_y = gp->axis_y,
+      .axis_rx = gp->axis_rx,
+      .axis_ry = gp->axis_ry,
+      .brake = gp->brake,
+      .accelerator = gp->accelerator,
+      .buttons = gp->buttons,
+      .misc_buttons = gp->misc_buttons,
+  };
   xSemaphoreGive(_gamepad_mutex);
 }
 
