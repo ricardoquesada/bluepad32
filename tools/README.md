@@ -28,5 +28,5 @@ $ ./sixaxispairer XX:XX:XX:XX:XX:XX
 
 ## Paint for CircuitPython
 
-* Copy circuitpython_paint.py to the CIRCUITPY folder, rename it to `code.py`
-* Make sure to install the needed dependencies
+* Copy `circuitpython_paint.py` to the CIRCUITPY folder, rename it to `code.py`
+* Open `circuitpython_paint.py` to check the needed dependencies

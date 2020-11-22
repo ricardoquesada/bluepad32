@@ -3,6 +3,10 @@
 # See: https://gitlab.com/ricardoquesada/bluepad32
 
 # Copy this file the CIRCUITPY folder, and rename it as "code.py"
+# Install these CircuitPython libs:
+#  - adafruit_bus_device
+#  - adafruit_esp32spi
+#  - adafruit_matrixportal
 
 import time
 
