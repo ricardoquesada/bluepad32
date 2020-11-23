@@ -18,7 +18,6 @@ modules. Bluepad32 is "compatible-enough" with Nina-fw:
 
 [adafruit]: https://www.adafruit.com
 [airlift-esp32]: https://www.adafruit.com/product/4201
-[nina-fw]: https://github.com/adafruit/nina-fw
 
 ## Compile Bluepad32 for AirLift
 
@@ -146,13 +145,13 @@ Something like this (left: Feather M4 express, right: HUZZAH32)
 
 ![fritzing](https://lh3.googleusercontent.com/pw/ACtC-3fNxNMUdaoBg7DGB6OPPDDnu_DQ15fmJS_I3crWjFKg7k3DA4HDeI8I_SUicSFamGuIVsHpM-myo5h-v1YOOFUU7lz6mU5tyExXDWZXedaYbUxhgf-GXfeZhMCdJCt1nZ04zFb1nyH86-pvZqc8yG9Y4A=-no)
 
-NOTE: If you are going to use a HUZZAH32, use the labels from the back of the board! Ignore the MISO/MOSI/SCK labels from the front.
+NOTE: If you use a HUZZAH32, pay attention to the GPIO labels. The MOSI/MISO/SCK lables that are in the front of board, are not the ones that you should use. See the back of the board for the correct GPIO numbers.
 
 In real life it might look more messy:
 
 ![wiring](https://lh3.googleusercontent.com/pw/ACtC-3dutrQXEj9I5zicNFW3K3PBbfge7MdwgB8dyi-wPSrtSp8zku3Y4c9WtBqQ9Bfa92xOjgSkZncAuzAZyc5F392tFkzkqWUl4YkfrKrM4e8TGP-B_7I7G_fRvFbIYbEQQIi-LlOnPU5SdGYYeW6hxxpJ_w=-no)
 
-The benefits of using two separate modules (SAMD51 + ESP32) is:
+The benefits of using two separate modules (SAMD51 + ESP32) are:
 
 * You can see the console of both the ESP32 and SAM51 at the same time
 * If needed, you can inspect the SPI protocol with a logic analizer
@@ -169,4 +168,11 @@ The benefits of using two separate modules (SAMD51 + ESP32) is:
 your own needs.
 
 But in particular, **Bluepad32 for AirLift** can be used without custom changes
-in any module that runs the Nina-fw firmware.
+in any module that runs the [Nina-fw][nina-fw] firmware, including but not limited to:
+
+* All Adafruit boards that include an AirLift module
+* All Arduino boards that include a [NINA-W10 module][nina-w10] (although not tested)
+
+
+[nina-fw]: https://github.com/adafruit/nina-fw
+[nina-w10]: https://www.u-blox.com/en/product/nina-w10-series-open-cpu
