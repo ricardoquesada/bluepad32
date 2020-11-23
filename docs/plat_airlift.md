@@ -152,10 +152,10 @@ In real life it might look more messy:
 
 ![wiring](https://lh3.googleusercontent.com/pw/ACtC-3dutrQXEj9I5zicNFW3K3PBbfge7MdwgB8dyi-wPSrtSp8zku3Y4c9WtBqQ9Bfa92xOjgSkZncAuzAZyc5F392tFkzkqWUl4YkfrKrM4e8TGP-B_7I7G_fRvFbIYbEQQIi-LlOnPU5SdGYYeW6hxxpJ_w=-no)
 
-Pros:
+The benefits of using two separate modules (SAMD51 + ESP32) is:
 
-* Can see the console of both the ESP32 and SAM51 at the same time
-* Can use Logic Analizer to inspect SPI (just in case it is needed)
+* You can see the console of both the ESP32 and SAM51 at the same time
+* If needed, you can inspect the SPI protocol with a logic analizer
 
 [esp32-adafruit]: https://www.adafruit.com/product/4172?gclid=EAIaIQobChMI-eeixraV7QIVED2tBh2qywzJEAQYASABEgLsTfD_BwE
 [amazon-esp32]: https://www.amazon.com/s?k=esp32+module+breakout
