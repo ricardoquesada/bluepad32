@@ -3,11 +3,12 @@
 # See: https://gitlab.com/ricardoquesada/bluepad32
 
 # Copy this file the CIRCUITPY folder, and rename it as "code.py"
-# Install these CircuitPython libs:
+# Then install the following CircuitPython libs to CIRCUITPY/lib/
 #  - adafruit_bus_device
 #  - adafruit_esp32spi
 #  - adafruit_matrixportal
 
+import math
 import time
 
 import board
@@ -19,6 +20,10 @@ from adafruit_matrixportal.matrix import Matrix
 
 
 class Paint:
+    _SCREEN_WIDTH = 64
+    _SCREEN_HEIGHT = 32
+    _PALETTE_SIZE = 16
+
     def __init__(self):
         self._esp = self._init_spi()
         self._bitmap, self._palette = self._init_bitmap()
@@ -52,10 +57,11 @@ class Paint:
         return esp
 
     def _init_bitmap(self):
-        bitmap = displayio.Bitmap(64, 32, 16)
+        bitmap = displayio.Bitmap(
+            self._SCREEN_WIDTH, self._SCREEN_HEIGHT, self._PALETTE_SIZE)
 
         # For fun, just use the CGA color palette
-        palette = displayio.Palette(16)
+        palette = displayio.Palette(self._PALETTE_SIZE)
         palette[0] = (0, 0, 0)  # Black
         palette[1] = (0, 0, 170)  # Blue
         palette[2] = (0, 170, 0)  # Green
@@ -63,9 +69,9 @@ class Paint:
         palette[4] = (170, 0, 0)  # Red
         palette[5] = (170, 0, 170)  # Magenta
         palette[6] = (170, 85, 0)  # Brown
-        palette[7] = (170, 170, 170)  # Light gray
+        palette[7] = (170, 170, 170)  # Light Gray
 
-        palette[8] = (85, 85, 85)  # Drak gray
+        palette[8] = (85, 85, 85)  # Dark Gray
         palette[9] = (85, 85, 255)  # Light Blue
         palette[10] = (85, 255, 85)  # Light Green
         palette[11] = (85, 255, 255)  # Light Cyan
@@ -80,7 +86,8 @@ class Paint:
         tile_grid = displayio.TileGrid(bitmap, pixel_shader=palette)
         group = displayio.Group()
         group.append(tile_grid)
-        matrix = Matrix(bit_depth=4)
+        # 16 colors == 4 bit of depth
+        matrix = Matrix(bit_depth=math.ceil(math.log(self._PALETTE_SIZE, 2)))
         display = matrix.display
         display.show(group)
 
@@ -128,9 +135,9 @@ class Paint:
                     y += 1
 
                 x = max(x, 0)
-                x = min(x, 63)
+                x = min(x, self._SCREEN_WIDTH-1)
                 y = max(y, 0)
-                y = min(y, 31)
+                y = min(y, self._SCREEN_HEIGHT-1)
 
                 # Button constants are defined here:
                 # https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/src/main/uni_gamepad.h
@@ -143,9 +150,9 @@ class Paint:
                 color = color % max_color
 
                 if buttons & 0x04:  # Button X
-                    # fill with current color
-                    for i in range(0, 64):
-                        for j in range(0, 32):
+                    # fill screen with current color
+                    for i in range(0, self._SCREEN_WIDTH):
+                        for j in range(0, self._SCREEN_HEIGHT):
                             self._bitmap[i, j] = color
 
             self._bitmap[x, y] = color
