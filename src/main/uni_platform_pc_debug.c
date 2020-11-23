@@ -84,6 +84,11 @@ static int pc_debug_on_device_ready(uni_hid_device_t* d) {
 
 static void pc_debug_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
   UNUSED(d);
+  static uni_gamepad_t prev = {0};
+  if (memcmp(&prev, gp, sizeof(*gp)) == 0) {
+    return;
+  }
+  prev = *gp;
   uni_gamepad_dump(gp);
 }
 

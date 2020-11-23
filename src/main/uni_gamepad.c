@@ -27,7 +27,7 @@ const int AXIS_NORMALIZE_RANGE = 1024;  // 10-bit resolution (1024)
 const int AXIS_THRESHOLD = (1024 / 8);
 
 void uni_gamepad_dump(const uni_gamepad_t* gp) {
-  logd(
+  logi(
       "(0x%04x) dpad=0x%02x, x=%d, y=%d, rx=%d, ry=%d, brake=%d, accel=%d, "
       "buttons=0x%08x, misc=0x%02x\n",
       gp->updated_states, gp->dpad, gp->axis_x, gp->axis_y, gp->axis_rx,

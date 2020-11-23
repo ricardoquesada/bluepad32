@@ -750,10 +750,6 @@ static void on_l2cap_data_packet(uint16_t channel, uint8_t* packet,
   report_len--;
 
   uni_hid_parser(d, report, report_len);
-
-  // Debug info
-  uni_gamepad_dump(&d->gamepad);
-
   uni_hid_device_process_gamepad(d);
 }
 
