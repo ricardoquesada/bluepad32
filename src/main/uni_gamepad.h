@@ -32,7 +32,7 @@ enum {
   DPAD_LEFT = 1 << 3,
 };
 
-// BUTTON_XXX are the main gamepad buttons, like X, Y, etc.
+// BUTTON_ are the main gamepad buttons, like X, Y, A, B, etc.
 enum {
   BUTTON_A = 1 << 0,
   BUTTON_B = 1 << 1,
@@ -46,14 +46,15 @@ enum {
   BUTTON_THUMB_R = 1 << 9,
 };
 
-// MISC_BUTTONS_ are buttons that are not not the "main" buttons.
+// MISC_BUTTONS_ are buttons that are usually not used in the game, but are
+// helpers like "back", "home", etc.
 enum {
   MISC_BUTTON_SYSTEM = 1 << 0,
   MISC_BUTTON_BACK = 1 << 1,
   MISC_BUTTON_HOME = 1 << 2,
 };
 
-// GAMEPAD_STATE_XXX are used internally to determine which button event
+// GAMEPAD_STATE_ are used internally to determine which button event
 // were registered in the last HID report.
 // Most gamepad (if not all) report all their buttons in just one report.
 // TODO: Investigate if this is legacy code, or it is actually needed for iCade.
