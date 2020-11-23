@@ -100,8 +100,10 @@ class Paint:
             gamepad = self._esp.get_gamepads_data()
             if len(gamepad) > 0:
                 gp = gamepad[0]
+
+                # d-pad constants are defined here:
+                # https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/src/main/uni_gamepad.h
                 dpad = gp['dpad']
-                buttons = gp['buttons']
                 if dpad & 0x01:  # Up
                     y -= 1
                 if dpad & 0x02:  # Down
@@ -110,19 +112,35 @@ class Paint:
                     x += 1
                 if dpad & 0x08:  # Left
                     x -= 1
+
+                # axis + accel + brake have a 10-bit resolution
+                # axis range: -512-511
+                # accel, brake range: 0-1023
+                axis_x = gp['axis_x']
+                axis_y = gp['axis_y']
+                if axis_x < -100:
+                    x -= 1
+                if axis_x > 100:
+                    x += 1
+                if axis_y < -100:
+                    y -= 1
+                if axis_y > 100:
+                    y += 1
+
                 x = max(x, 0)
                 x = min(x, 63)
                 y = max(y, 0)
                 y = min(y, 31)
 
+                # Button constants are defined here:
+                # https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/src/main/uni_gamepad.h
+                buttons = gp['buttons']
+
                 if buttons & 0x01:  # Button A
                     color += 1
                 if buttons & 0x02:  # Button B
                     color -= 1
-                if color < 0:
-                    color = max_color - 1
-                if color >= max_color:
-                    color = 0
+                color = color % max_color
 
                 if buttons & 0x04:  # Button X
                     # fill with current color
