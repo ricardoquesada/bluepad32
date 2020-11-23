@@ -69,7 +69,8 @@ bluepad32: ${CORE_OBJ} ${COMMON_OBJ} ${CLASSIC_OBJ} ${SDP_CLIENT} btstack_ring_b
 	../src/main/uni_gamepad.o ../src/main/uni_joystick.o \
 	../src/main/uni_hid_parser_android.o ../src/main/uni_hid_parser_icade.o ../src/main/uni_hid_parser_ouya.o \
 	../src/main/uni_hid_parser_xboxone.o ../src/main/uni_hid_parser_nimbus.o ../src/main/uni_hid_parser_smarttvremote.o \
-	../src/main/uni_hid_parser_ds3.o ../src/main/uni_hid_parser_ds4.o ../src/main/uni_hid_parser_8bitdo.o ../src/main/uni_hid_parser_generic.o \
+	../src/main/uni_hid_parser_ds3.o ../src/main/uni_hid_parser_ds4.o ../src/main/uni_hid_parser_ds5.o \
+	../src/main/uni_hid_parser_8bitdo.o ../src/main/uni_hid_parser_generic.o \
 	../src/main/uni_hid_parser_wii.o ../src/main/uni_hid_parser_switch.o \
 	../src/main/uni_circular_buffer.o \
 	../src/main/uni_platform.o ../src/main/uni_platform_pc_debug.o

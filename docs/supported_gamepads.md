@@ -12,6 +12,7 @@ All Bluetooth Classic HID controllers are supported, or should be easy to suppor
 Example of Bluetooth Classic HID controllers are:
 
 - Xbox One S controller (`L`)
+- DUALSHOCK 5
 - DUALSHOCK 4 controller, both 2013 (`P`) and 2016 (`O`) editions
 - DUALSHOCK 3 controller
 - Nintendo Switch Pro controller (`W`) and clones (`V`)
@@ -68,7 +69,21 @@ Tested gamepads so far.
 [xbox_one_s]: https://lh3.googleusercontent.com/YmONc-MhVZhnE8HVRgzH7FKSpT_29MLeIF70U5AfrcBuCtuNJ2Ln5xkmSpNqO0myrFpnDLbFvR2TRTRu0xcqvP3cLNaq1BBpruEAn-Z7vBbwzNtaXx7eQaLLF7aa8tt2Wa0IcYxeD08=-no
 [issue_1]: https://gitlab.com/ricardoquesada/unijoysticle2/issues/1
 
-## DUALSHOCK 4
+## Sony DualSense (PS5)
+
+[![ddualsense_gamepad][dualsense]][11]
+
+- [Must be in PC mode][25]. Clones might not work.
+- Press:
+  - *X* for Fire
+  - *O* for Jump
+  - *Right shoulder* for Auto-fire
+  - *Play* button to swap joystick port
+- LED / color: Not supported at the moment
+
+[dualsense]: https://lh3.googleusercontent.com/pw/ACtC-3d1CVA-e5srBTDhTD6D-3BSWYi7MncfECPj_9bQJfcGOAKIHrP6g6Ha7xAD0trE59eN-Qv_U33MklCFPskPWRLjfFI4ITHEol8RAmTYNHFNrA-gwhoXEn2ks_M7UDDbxiKhNdaPNXexxgj5zzOtpBjiyw=-no
+
+## Sony DUALSHOCK 4 (PS4)
 
 [![ds4_gamepad][dualshock_4]][14]
 
@@ -83,9 +98,9 @@ Tested gamepads so far.
 
 [dualshock_4]: https://lh3.googleusercontent.com/_0sAxKXbSkk4g8rWJzTNxAirz2hD632jW4TGjGVOwjoac8sD4AfiN9PA1HdGWhm_ujcVygDlEG-LENPemF7IyFhqVsHgVHfCMVeFVjBbeDl-fUUjdMbRYAE8FiKdyWM_UBNUNmVy9Ro=-no
 
-## DUALSHOCK 3
+## Sony DUALSHOCK 3 (PS3)
 
-[![ds3_gamepad][dualshock_3]][14]
+[![ds3_gamepad][dualshock_3]][12]
 
 - Tested with genuine DS3. Clones might not work.
 - Press:
@@ -382,6 +397,8 @@ Many of the virtual buttons/pads are left unmapped, but could be mapped in the f
 - M3: Button Back
 
 [1]: https://lh3.googleusercontent.com/sfRd1qSHaxe4he4lt63Xjsr_ejmrthB00bPpIj4CwuUOyzKy3otIrdsPqhy_Y0U78Ibcw5bssuUOgKxNsvhvq6AQGlmigtj2tWA67HQHEaDU4tEmq850Z47rwRW9EzAhFGi6XrgUhUI=-no
+[11]: https://www.playstation.com/en-us/accessories/dualsense-wireless-controller/
+[12]: https://www.playstation.com/en-us/explore/accessories/dualshock-3-ps3/
 [13]: https://www.xbox.com/en-US/xbox-one/accessories/controllers/xbox-wireless-controller
 [14]: https://www.playstation.com/en-us/explore/accessories/gaming-controllers/dualshock-4/
 [15]: https://www.asus.com/us/Home-Entertainment/Gamepad-TV500BG/

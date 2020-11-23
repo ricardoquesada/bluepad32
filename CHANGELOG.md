@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Misc: Firmware extracted from Unijoysticle2 project and make it its own
         project. Easier for other non-unijoysticle user to integrate into their
         own projects. New name for the firmware: "bluepad32".
-- Firmware: Added support Sony DualShock3 gamepads
+- Firmware:
+    - Added support Sony DualShock5 and DualShock3 gamepads
 - tools: Compiles & updated to new btstack code
 - BTstack: Using master 2020-10-07 - 16f6f81ae588cf9f7d69b19328eee69fbd03db94
 - ESP-IDF: Using v4.1
