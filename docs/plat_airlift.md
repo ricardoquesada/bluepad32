@@ -119,7 +119,7 @@ while True:
     time.sleep(0.032)
 ```
 
-A more working "Paint" example can be found here:
+A more complete working example, is this "Paint for CircuitPython":
 
 * https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/tools/circuitpython_paint.py
 

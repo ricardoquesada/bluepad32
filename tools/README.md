@@ -28,5 +28,10 @@ $ ./sixaxispairer XX:XX:XX:XX:XX:XX
 
 ## Paint for CircuitPython
 
-* Copy `circuitpython_paint.py` to the CIRCUITPY folder, rename it to `code.py`
-* Open `circuitpython_paint.py` to check the needed dependencies
+"circuitpython_paint.py" is a simple "Paint" program that you control with the gamepad. To test it do:
+
+* Copy [circuitpython_paint.py][paint] to the `CIRCUITPY` folder
+* And rename it to `code.py`
+* Open [circuitpython_paint.py][paint] to check the needed dependencies, and copy them to the `CIRCUIPY/lib` folder
+
+[paint]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/tools/circuitpython_paint.py
