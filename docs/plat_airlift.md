@@ -142,7 +142,13 @@ the recommended way to debug the Bluepad32 firmware is:
 | READY | 33    | D9     |
 | RESET | EN    | D6     |
 
-Something like this:
+Something like this (left: Feather M4 express, right: HUZZAH32)
+
+![fritzing](https://lh3.googleusercontent.com/pw/ACtC-3fNxNMUdaoBg7DGB6OPPDDnu_DQ15fmJS_I3crWjFKg7k3DA4HDeI8I_SUicSFamGuIVsHpM-myo5h-v1YOOFUU7lz6mU5tyExXDWZXedaYbUxhgf-GXfeZhMCdJCt1nZ04zFb1nyH86-pvZqc8yG9Y4A=-no)
+
+NOTE: If you are going to use a HUZZAH32, use the labels from the back of the board! Ignore the MISO/MOSI/SCK labels from the front.
+
+In real life it might look more messy:
 
 ![wiring](https://lh3.googleusercontent.com/pw/ACtC-3dutrQXEj9I5zicNFW3K3PBbfge7MdwgB8dyi-wPSrtSp8zku3Y4c9WtBqQ9Bfa92xOjgSkZncAuzAZyc5F392tFkzkqWUl4YkfrKrM4e8TGP-B_7I7G_fRvFbIYbEQQIi-LlOnPU5SdGYYeW6hxxpJ_w=-no)
 
