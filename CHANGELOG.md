@@ -4,17 +4,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [unreleased]
+## [2.0.0-beta0] - 2020-11-20
 
+- Firmware: Added support Sony DualShock5 and DualShock3 gamepads
+- Platform: Added support for AirLift family of modules
 - Refactor: Move platform logic to "platforms". Uni_hid_device is simpler,
         less error-prone. Platforms should implement their own logic.
         Added more events to platforms like connect, disconnect, ready.
 - Misc: Firmware extracted from Unijoysticle2 project and make it its own
         project. Easier for other non-unijoysticle user to integrate into their
         own projects. New name for the firmware: "bluepad32".
-- Firmware:
-    - Added support Sony DualShock5 and DualShock3 gamepads
-- tools: Compiles & updated to new btstack code
+- tools:
+    - Compiles & updated to new btstack code
+    - Added "circuitpython_paint.py": Example of how to use Bluepad32 with
+      MatrixPortal M4 (AirLift)
+
 - BTstack: Using master 2020-10-07 - 16f6f81ae588cf9f7d69b19328eee69fbd03db94
 - ESP-IDF: Using v4.1
 

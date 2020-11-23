@@ -154,6 +154,8 @@ In real life it might look more messy:
 The benefits of using two separate modules (SAMD51 + ESP32) are:
 
 * You can see the console of both the ESP32 and SAM51 at the same time
+* Faster flashing: it is > 2x faster to flash Bluepad32 directly to the ESP32 than
+  to flash it with "PassThrough" method required for AirLift modules.
 * If needed, you can inspect the SPI protocol with a logic analizer
 
 [esp32-adafruit]: https://www.adafruit.com/product/4172?gclid=EAIaIQobChMI-eeixraV7QIVED2tBh2qywzJEAQYASABEgLsTfD_BwE
