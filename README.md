@@ -108,11 +108,13 @@ $ make flash monitor
 
 ## License
 
-Bluepad32 open source, licensed under Apache 2.
+Bluepad32 is open source, [licensed under Apache 2][apache2].
 
-However Bluepad32 depends on the great BTStack library. Which is free to use for
+However Bluepad32 depends on the great [BTStack library][btstack-github]. Which is free to use for
 open source projects. But commercial for closed-source projects.
-[Contact them for details][btstack]. They are very friendly + helpful
+[Contact them for details][btstack-homepage]. They are very friendly + helpful
 (I’m not affiliated with them).
 
-[btstack]: https://bluekitchen-gmbh.com/
+[btstack-github]: https://github.com/bluekitchen/btstack
+[apache2]: https://www.apache.org/licenses/LICENSE-2.0
+[btstack-homepage]: https://bluekitchen-gmbh.com/
