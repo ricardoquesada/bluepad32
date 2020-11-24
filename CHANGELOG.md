@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.0-beta0] - 2020-11-20
 
-- Firmware: Added support Sony DualShock5 and DualShock3 gamepads
+- Firmware: Added support Sony DualSense (PS5) and DualShock3 (PS3) gamepads
 - Platform: Added support for AirLift family of modules
 - Refactor: Move platform logic to "platforms". Uni_hid_device is simpler,
         less error-prone. Platforms should implement their own logic.
@@ -15,10 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
         project. Easier for other non-unijoysticle user to integrate into their
         own projects. New name for the firmware: "bluepad32".
 - tools:
-    - Compiles & updated to new btstack code
-    - Added "circuitpython_paint.py": Example of how to use Bluepad32 with
-      MatrixPortal M4 (AirLift)
-
+  - Compiles & updated to new btstack code
+  - Added "circuitpython_paint.py": Example of how to use Bluepad32 with
+    MatrixPortal M4 (AirLift)
 - BTstack: Using master 2020-10-07 - 16f6f81ae588cf9f7d69b19328eee69fbd03db94
 - ESP-IDF: Using v4.1
 

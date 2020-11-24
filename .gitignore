@@ -6,6 +6,10 @@
 *.swp
 *.swo
 
+# Distribution files, used internally and build files
+dist/
+build/
+
 # Xcode
 *.mode*v*
 *.pbxuser
