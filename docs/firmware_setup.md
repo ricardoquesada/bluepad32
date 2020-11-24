@@ -6,7 +6,7 @@ If you only want to flash the latest firmware version without downloading the to
 
 Download latest precompiled firmware from here:
 
-- https://github.com/ricardoquesada/unijoysticle2/releases
+- https://github.com/ricardoquesada/bluepad32/releases
 
 And then...
 
