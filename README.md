@@ -19,6 +19,15 @@ What you do with the ESP32, is up to you. But here are some examples:
 [ulx3s]: https://www.crowdsupply.com/radiona/ulx3s
 [matrixportal]: https://learn.adafruit.com/adafruit-matrixportal-m4
 
+## Features
+
+* Supports most, if not all, modern Bluetooth gamepads (see below)
+* Fast (very low latency)
+* Small footprint
+* Uses only one core (CPU0). The remaining one is free to use.
+* C99 based
+* Open Source (Apache 2 license)
+
 ## Supported controllers
 
 ![Supported_gamepads](https://lh3.googleusercontent.com/U1PRr4a21yGffPHxRlONqeolOnr2i-IuONM4ajQksvxB5Lr3zfQFmkHJJbwRNVUY0WrNik5Ia79se3sQx0aa4axuGnBbytyH_5fJnKELX4FOMRM4qrF3bYCmmp0Vk3ZnltQ0YCiRTK0=-no)

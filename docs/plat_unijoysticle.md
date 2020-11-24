@@ -10,3 +10,10 @@ Basically you can play Commodore 64 games using modern gamepads.
 Detailed information about the project can be found here:
 
 * http://retro.moe/unijoysticle2
+
+## How to compile it
+
+```sh
+$ export PLATFORM=unijoysticle
+$ make -j
+```
