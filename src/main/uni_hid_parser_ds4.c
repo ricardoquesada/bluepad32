@@ -363,7 +363,7 @@ void uni_hid_parser_ds4_update_led(uni_hid_device_t* d, uni_gamepad_seat_t s) {
     uint8_t flash_led2;  // time to flash dark (255 = 2.5 seconds)
     uint8_t unk1[61];
     uint32_t crc;
-  } __attribute__((__packed__));
+  } __attribute__((packed));
 
   struct ff_report ff;
   memset(&ff, 0, sizeof(ff));

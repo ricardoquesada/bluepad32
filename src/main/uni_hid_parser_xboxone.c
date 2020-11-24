@@ -507,7 +507,7 @@ static void rumble(uni_hid_device_t* d) {
     uint8_t duration;  // unknown unit, 255 is ~second
     uint8_t start_delay;
     uint8_t loop_count;  // how many times "duration" is repeated
-  } __attribute__((__packed__));
+  } __attribute__((packed));
 
   struct ff_report ff = {
       .transaction_type = 0xa2,  // HIDP_TRANS_DATA | HIDP_DATA_RTYPE_OUPUT

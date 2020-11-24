@@ -36,6 +36,9 @@ struct uni_platform* uni_platform_airlift_create(void) {
 
 ```
 
+Bluepad32 only uses one core of the ESP32 (CPU0). The remaining one (CPU1) is
+free to use. As an example, AirLift uses it to read from SPI. See [uni_platform_airlift.c] for details.
+
 [uni_platform_airlift.c]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/src/main/uni_platform_airlift.c
 
 ## 2. Add a makefile config file
