@@ -19,7 +19,17 @@ modules. Bluepad32 is "compatible-enough" with Nina-fw:
 [adafruit]: https://www.adafruit.com
 [airlift-esp32]: https://www.adafruit.com/product/4201
 
-## Compile Bluepad32 for AirLift
+## Getting Bluepad32 for Airlift firwmare
+
+### 1. Get a pre-compiled firmware
+
+You can grab a precompiled firmware from here (choose latest version):
+
+* https://github.com/ricardoquesada/bluepad32/tags
+
+And download the `bluepad32-airlift.zip`. It includes a README with instructions.
+
+### 2. Or compile it yourself
 
 Read [README.md][readme] for the ESP-IDF requirements. And choose `airlift` as
 the target platform:
