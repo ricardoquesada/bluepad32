@@ -5,6 +5,7 @@ Adding a new platform is easy:
 1. create your `src/main/uni_platform_yourplatform.c` file
 2. add you `src/configs/yourplatform-config.mk` makefile config file
 3. edit `src/main/uni_platform.c` file
+4. add documentation in `docs/plat_yourplatform.md`
 
 ## 1. Platform file
 
@@ -78,15 +79,18 @@ void uni_platform_init(int argc, const char** argv) {
 
 ```
 
-
 [uni_platform.c]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/src/main/uni_platform.c
 
 
-## Compilation
+## 4. Add documentation
 
-To compile it, do:
+Add a `docs/plat_yourplatform.md` file that, at least, describes:
 
-```sh
-$ export PLATFORM=yourplatform
-$ make -j
-```
+* How to compile it
+* Where to find more info about your platform.
+
+Use the following file as reference:
+
+* [plat_airlift.md]
+
+[plat_airlift.md]:  https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/docs/plat_airlift.md
