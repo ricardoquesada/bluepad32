@@ -26,7 +26,7 @@ What you do with the ESP32, is up to you. But here are some examples:
 * Small footprint
 * Uses only one core (CPU0). The remaining one is free to use.
 * C99 based
-* Open Source (Apache 2 license)
+* Open Source (see below)
 
 ## Supported controllers
 
@@ -98,8 +98,21 @@ $ make flash monitor
 
 ## Support
 
+* [Documentation][docs]
 * [Discord][discord]
 * [Google groups][forum]
 
+[docs]: https://gitlab.com/ricardoquesada/bluepad32/-/tree/master/docs
 [discord]: https://discord.com/channels/775177861665521725/775177925938642945
 [forum]: https://groups.google.com/forum/#!forum/unijoysticle
+
+## License
+
+Bluepad32 open source, licensed under Apache 2.
+
+However Bluepad32 depends on the great BTStack library. Which is free to use for
+open source projects. But commercial for closed-source projects.
+[Contact them for details][btstack]. They are very friendly + helpful
+(I’m not affiliated with them).
+
+[btstack]: https://bluekitchen-gmbh.com/
