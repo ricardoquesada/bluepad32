@@ -90,6 +90,14 @@ static void pc_debug_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
   }
   prev = *gp;
   uni_gamepad_dump(gp);
+
+  // Debugging
+  if (d->report_parser.set_led_color != NULL) {
+    uint8_t r = (gp->accelerator * 256) / 1024;
+    uint8_t g = (gp->brake * 256) / 1024;
+    uint8_t b = (gp->axis_x * 256) / 512;
+    d->report_parser.set_led_color(d, r, g, b);
+  }
 }
 
 static int32_t pc_debug_get_property(uni_platform_property_t key) {
@@ -130,6 +138,10 @@ static void set_led(uni_hid_device_t* d) {
   if (d->report_parser.set_leds != NULL) {
     pc_debug_instance_t* ins = get_pc_debug_instance(d);
     d->report_parser.set_leds(d, ins->gamepad_seat);
+  }
+
+  if (d->report_parser.set_led_color != NULL) {
+    d->report_parser.set_led_color(d, 0xff, 0, 0);
   }
 }
 

@@ -344,7 +344,7 @@ static uint32_t crc32_le(uint32_t seed, const void* data, size_t len) {
   return crc;
 }
 
-void uni_hid_parser_ds4_set_leds(uni_hid_device_t* d, uni_gamepad_seat_t s) {
+void uni_hid_parser_ds4_set_led_color(uni_hid_device_t* d, uint8_t r, uint8_t g, uint8_t b) {
 #if UNI_USE_DUALSHOCK4_REPORT_0x11
   // Force feedback info taken from:
   //
@@ -373,9 +373,10 @@ void uni_hid_parser_ds4_set_leds(uni_hid_device_t* d, uni_gamepad_seat_t s) {
   ff.unk0[2] = 0x7;            // blink + LED + motor
   ff.rumble_left = 0x00;
   ff.rumble_right = 0x00;
-  ff.led_red = (s & GAMEPAD_SEAT_B) ? 0x30 : 0x00;
-  ff.led_green = (s & GAMEPAD_SEAT_A) ? 0x30 : 0x00;
-  ff.led_blue = 0x00;
+  // 64 seems to be the max value for each color
+  ff.led_red = (r * 64) / 256;
+  ff.led_green = (g * 64) / 256;
+  ff.led_blue = (b * 64) / 256;
   ff.flash_led1 = 0x0;
   ff.flash_led2 = 0x0;
 
