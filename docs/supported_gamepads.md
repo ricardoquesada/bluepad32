@@ -2,68 +2,48 @@
 
 ![Supported gamepads][Supported gamepads]
 
-[Supported gamepads]: https://lh3.googleusercontent.com/U1PRr4a21yGffPHxRlONqeolOnr2i-IuONM4ajQksvxB5Lr3zfQFmkHJJbwRNVUY0WrNik5Ia79se3sQx0aa4axuGnBbytyH_5fJnKELX4FOMRM4qrF3bYCmmp0Vk3ZnltQ0YCiRTK0=-no
+[Supported gamepads]:https://lh3.googleusercontent.com/pw/ACtC-3cg22O7VPT8NwXIATr2rsgs-rn2kShZeiUbArIK-2lIkskCLI6q06nRtK9been8Hom49dOacwHD8bVT2Tc8YKsxd5w73W25lhOvlRk6Xf9RVXgB5AZcmdl2PoWhrEAZUbmBl1pS6HrtMuZYI506US7YuA=-no
 
-## Bluetooth Classic: Supported
+## Bluetooth Classic controllers
 
-![reference-supported-gamepads][ref-supported-gamepads]
-
-All Bluetooth Classic HID controllers are supported, or should be easy to support them.
-Example of Bluetooth Classic HID controllers are:
+List of supported Bluetooth Classic controller
 
 - Xbox One S controller (`L`)
 - DualSense (PS5)
-- DUALSHOCK 4 (PS4) controller, both 2013 (`P`) and 2016 (`O`) editions
+- DUALSHOCK 4 (PS4) controller, both 2013 and 2016 editions
 - DUALSHOCK 3 (PS3) controller
-- Nintendo Switch Pro controller (`W`) and clones (`V`)
-- Nintendo Wii U Pro controller (`U`)
-- Nintendo Wii Remote (`T`) and Remote Motion Plus (`S`), including Nunchuk (`Q`) and Classic Controller (`R`)
-- 8BitDo controllers (`I`, `J`, `K`)
-- Android controllers (`A`, `D`, `E`, `F`)
-- iCade controllers (`B`, `M`)
-- Nimbus SteelSeries(`N`)
-- OUYA controllers (`C`)
-- Some TV remote controls, like the Amazon Fire TV (`H`)
+- Nintendo Switch Pro controller and clones
+- Nintendo Wii U Pro controller
+- Nintendo Wii Remote and Remote Motion Plus, including Nunchuk and Classic Controller
+- 8BitDo controllers
+- Android controllers
+- iCade controllers
+- Nimbus SteelSeries
+- OUYA controllers
+- Some TV remote controls, like the Amazon Fire TV
 - Some mice (`G`)
 
-[ref-supported-gamepads]: https://lh3.googleusercontent.com/o_oR_kKOLRvXQXHSXgYVNUZ13dpC-6dKV7PLu_8Rq7RmexMTfOLmQspl_3N-htomOyWgf5YQTzex4Y3GOP1QmEVSZdZBNWYCavk_ql5XhU825VHjaisGcTopVx3o7pOCEavvIrrl44s=w200-h222-no
+If you have a Bluetooth Classic gamepad and is not on that list, please file a bug.
 
 ## Bluetooth BLE: Not supported ATM
 
 Not every Bluetooth HID controller is "Classic". Some of them are "BLE" (low energy).
-And "BLE" controllers are **not supported** at the moment, like:
+"BLE" controllers are **not supported** at the moment, like:
 
 - Apple TV remote control (1st gen)
 - Nexus Android TV remote control
 
-The good news is that all popular Bluetooth gamepads are Classic (not BLE).
+# Supported gamepads
 
-## Non-Bluetooth: Not supported
-
-Not every wireless controller is Bluetooth. If the controller doesn't explicitly say
-it is a Bluetooth, most probably it is not a Bluetooth controller, hence not supported by Unijoysticle.
-
-Controllers known to be non-Bluetooth:
-
-- mice / keyboards that come with their own wireless dongle.
-- NVIDIA Shield gamepad
-
-# Tested gamepads
-
-Tested gamepads so far.
+List of supported gamepads with supported features, known bugs, etc.
 
 ## Xbox One S
 
 [![Xbox One S][xbox_one_s]][13]
 
 - Must be the *Xbox One S* and not the *Xbox One* gamepad. The *Xbox One S* supports Bluetooth, while the regular *Xbox One* doesn't.
-- Supports both "old" and "new" Xbox One mappings:  supports firmware v3.1 as well as firmware v4.8.
-- Press:
-  - *A* for Fire
-  - *B* for Jump
-  - *Right shoulder* for Auto-fire
-  - *Xbox* button to swap joystick port
-- Supports Force Feedback: it rumbles when it connects to the Unijoysticle device or changes joystick port.
+- Supports both "old" and "new" Xbox One mappings: supports firmware v3.1 as well as firmware v4.8.
+- Supports Force Feedback
 - Known Issues: [issue #1][issue_1]
 
 [xbox_one_s]: https://lh3.googleusercontent.com/YmONc-MhVZhnE8HVRgzH7FKSpT_29MLeIF70U5AfrcBuCtuNJ2Ln5xkmSpNqO0myrFpnDLbFvR2TRTRu0xcqvP3cLNaq1BBpruEAn-Z7vBbwzNtaXx7eQaLLF7aa8tt2Wa0IcYxeD08=-no
@@ -74,11 +54,6 @@ Tested gamepads so far.
 [![ddualsense_gamepad][dualsense]][11]
 
 - [Must be in PC mode][25]. Clones might not work.
-- Press:
-  - *X* for Fire
-  - *O* for Jump
-  - *Right shoulder* for Auto-fire
-  - *Play* button to swap joystick port
 - LED / color: Not supported at the moment
 
 [dualsense]: https://lh3.googleusercontent.com/pw/ACtC-3d1CVA-e5srBTDhTD6D-3BSWYi7MncfECPj_9bQJfcGOAKIHrP6g6Ha7xAD0trE59eN-Qv_U33MklCFPskPWRLjfFI4ITHEol8RAmTYNHFNrA-gwhoXEn2ks_M7UDDbxiKhNdaPNXexxgj5zzOtpBjiyw=-no
@@ -89,12 +64,7 @@ Tested gamepads so far.
 
 - [Must be in PC mode][25]. Clones might not work.
 - Supports both the 2013 and 2016 editions
-- Press:
-  - *X* for Fire
-  - *O* for Jump
-  - *Right shoulder* for Auto-fire
-  - *Play* button to swap joystick port
-- LED sets color according to assigned port number. Green: port #1, red: port #2, yellow: enhanced mode.
+- LED color: supported
 
 [dualshock_4]: https://lh3.googleusercontent.com/_0sAxKXbSkk4g8rWJzTNxAirz2hD632jW4TGjGVOwjoac8sD4AfiN9PA1HdGWhm_ujcVygDlEG-LENPemF7IyFhqVsHgVHfCMVeFVjBbeDl-fUUjdMbRYAE8FiKdyWM_UBNUNmVy9Ro=-no
 
@@ -103,16 +73,13 @@ Tested gamepads so far.
 [![ds3_gamepad][dualshock_3]][12]
 
 - Tested with genuine DS3. Clones might not work.
-- Press:
-  - *X* for Fire
-  - *O* for Jump
-  - *Right shoulder* for Auto-fire
-  - *Play* button to swap joystick port
-- LEDs #1 and #2 indicates what joystick is being controlled. E.g: If LED #1 is lit, it means that the gamepad is controlling Joystick #1.
+- LEDs: supported
 - Requires that the [DS3 is manually paired][pair_ds3] to the Unijoysticle device.
+- Disabled by default since it conflicts with Nintendo Switch. To enable it edit: [uni_config.h]
 
 [dualshock_3]: https://lh3.googleusercontent.com/pw/ACtC-3dEBJYkdIpF5_icFUY7n7otgw5LPpLyviKS14JL2EJtuiDBt6Kk-XcKlIIP9JCgT0yxJVN1KuW-JICpilYKhMGfDxQt6vjJm8r_lRS1R9IyOX4iBlUQoIrflt9KmSjXBjcJlS81cmKaGB166HF608v5MA=-no
 [pair_ds3]: pair_ds3.md
+[uni_config.h]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/src/main/uni_config.h
 
 ## Nintendo Wii Remote
 
@@ -123,9 +90,7 @@ Tested gamepads so far.
   - Sideways mode (default)
   - Accelerometer mode
   - Vertical mode
-- LEDs #1 and #2 indicates what joystick is being controlled.
-  - E.g: If LED #1 is lit, it means that the Wii Remote is controlling Joystick #1.
-- Press *Home* button to swap joystick port
+- LEDs: supported
 - To start pairing, use the "Sync" method (press "Sync" button).
 
 ### Sideways mode
@@ -193,14 +158,7 @@ A Nintendo Classic Controller or Classic Controller Pro can be used when it is a
 to the Wii Remote. When attached, the Wii Remote will be "disabled" and only the
 Classic Controller can be used.
 
-- LEDs #1 and #2 from the Wii Remote indicates what joystick is being controlled.
-  E.g: If LED #1 is lit, it means that the Classic Controller is controlling
-  Joystick #1.
-- Press:
-  - *B* for Fire
-  - *A* for Jump
-  - *Right shoulder* for Auto-fire
-  - *Home* button to swap joystick port
+- LEDs: supported
 
 [wii_classic_controller_img]: https://lh3.googleusercontent.com/nX-CyjcmorkW90mP8RybO_pJ7ezM4EJk1tsqkz8HAuLkHBAasccZzq5h-A74Ez-h7Zmv5hpsuBu5n66EeThwRUnLTIu8ffk2MstEMBjHiGrcNoyq-XAC9zeh97Kz8GDBDLqmujmm2J0=-no
 
@@ -208,12 +166,7 @@ Classic Controller can be used.
 
 [![Wii U Pro][wii_u_pro]][27]
 
-- LEDs #1 and #2 indicates what joystick is being controlled. E.g: If LED #1 is lit, it means that the gamepad is controlling Joystick #1.
-- Press:
-  - *B* for Fire
-  - *A* for Jump
-  - *Right shoulder* for Auto-fire
-  - *Home* button to swap joystick port
+- LEDs: supported
 
 [wii_u_pro]: https://lh3.googleusercontent.com/kfKAySKzV-lLG7VmQGfCES1KuhtjBcTIfMzo59FgABcL7Ir9Tp7fQqrTP2iFqf8UVIhce1JhIXyBN_EH9eXpjlf5Q4b9NhhyxrFX9H0yVVRF0_pghjjz3pVqmY4uxS-FMgr7FC7egNo=w360-no
 
@@ -223,14 +176,8 @@ Classic Controller can be used.
 
 Clones and "licensed by Nintendo" controllers should also work supported Ok.
 
-- Press:
-  - *B* for Fire
-  - *A* for Jump
-  - *Right shoulder* for Auto-fire
-  - *Home* button to swap joystick port
-- LEDs #1 and #2 indicates what joystick is being controlled
+- LEDs: supported
 - Home Light turns on when connected
-
 
 [switch_pro]: https://en.wikipedia.org/wiki/Nintendo_Switch_Pro_Controller
 [switch_pro_img]: https://lh3.googleusercontent.com/33hrGYM117T9pPrW0L-wr7bl0trLXooqmp4I78XV9vWkumHE8mK8Z_5KJZFzWKNpJg31gvrxHC0agF5BUgVr2f6awNYb98R-xPIWaawG6b0XwxHzm8hzz39Wnnv6qLmeEXsRaeoybsA=-no
@@ -240,11 +187,7 @@ Clones and "licensed by Nintendo" controllers should also work supported Ok.
 ![Android][android_gamepad]
 
 - Tested with: [ASUS][15], [Moga Pro 2][16], [Amazon Fire TV gamepads][17]
-- Press:
-  - *A* for Fire
-  - *B* for Jump
-  - *Right shoulder* for Auto-fire
-  - the main/big button in the center (depends on the Android gamepad) to swap joystick port.
+- LEDs: Not supported
 
 [android_gamepad]: https://lh3.googleusercontent.com/S3H1pEGYGT5aVTwF3ySWHF7vqbonDYR0UxOLJBxFe5At6Q4AP_4TQUCaNOiEXD22U4H3C0lVP1E3m26H3QM4rIbgp1wysbQoSt1NpD61snlWES5N5zGUgx20c2sfFCKZL4w_Gl66Y1s=-no
 
@@ -253,11 +196,6 @@ Clones and "licensed by Nintendo" controllers should also work supported Ok.
 [![Nimbus SteelSeries for iOS][nimbus_steelseries]][18]
 
 - Tested with Nimbus SteelSeries for iOS.
-- Press:
-  - *A* for Fire
-  - *B* for Jump
-  - *Right shoulder* for Auto-fire
-  - *Menu button* to swap joystick port
 
 [nimbus_steelseries]: https://lh3.googleusercontent.com/QeK4QebBIw4O-vWuyc-oxTGT_eST6BZ_2y6R9X5cuXPsQVQgZRdm5JEYs982dDKkYDs7AqCIGZyCQBRPJgLJ3ZxNqt_7KYMl9uKkWtmR0P89VbYgC4cMtkEFob2ihA8J6UxGHQ_4Tw0=-no
 
@@ -266,11 +204,7 @@ Clones and "licensed by Nintendo" controllers should also work supported Ok.
 [![OUYA 1st gen][ouya_1gen]][19]
 
 - Only 1st gen is supported. It is unknown the status on newer version. They might or might not work.
-- Press:
-  - *O* for Fire
-  - *A* for JUmp
-  - *Right shoulder* for Auto-fire
-  - *OUYA button* to swap joystick port
+- LEDs: Not supported
 - Known issues: [issue #7][issue_7]
 
 [ouya_1gen]: https://lh3.googleusercontent.com/FtbQLbt1QrzU59TTPQHIEarGZItlPik0bGWo40iDu0rnMwddCEwKMcy8LAe_fqzklaSKfMbt3-EvFJI4Vcoz3gSPTgC9MnTog3MyGfNWMc0Wq2Idq1kzjPOpRIS5OXeSqSSmIfGa5-w=-no
@@ -282,18 +216,12 @@ Clones and "licensed by Nintendo" controllers should also work supported Ok.
 
 - Tested with: [8BitDo SN30 Pro][8bitdo_sn30_pro], [8BitDo Lite][8bitdo_lite], [8BitDo NES30][8bitdo_nes30]
 - All 8BitDo modes are supported: *Switch*, *Android*, *Windows* and *macOS*.
-- Press:
-  - *B* for Fire
-  - *A* for Jump
-  - *Right shoulder* for Auto-fire
-  - *Start* (or *Home*) to swap joystick port (depends on the 8Bitdo controller)
 - Known issues: [issue #10][issue_10]
 
 [8bitdo_sn30_pro_img]: https://lh3.googleusercontent.com/KX3q2kT7UZcEDGN8953RB7msPV343Gworbgaq-eLeKtqSzjTlOIUkoCf0QAf2GrnroQm0ADOCDgj3rK8EWpl2tfqScqExsiSorWZFf7lzA8-m1EoYYkVyjYaeFsSxzcC17kw9CkMNWQ=-no
 [8bitdo_nes30]: https://www.google.com/search?q=8bitdo+nes30
 [8bitdo_lite]: https://www.8bitdo.com/lite/
 [8bitdo_sn30_pro]: https://www.8bitdo.com/sn30-pro-g-classic-or-sn30-pro-sn/
-[issue_3]: https://gitlab.com/ricardoquesada/unijoysticle2/issues/3
 [issue_10]: https://gitlab.com/ricardoquesada/unijoysticle2/issues/10
 
 ## iCade Family
@@ -303,11 +231,6 @@ Clones and "licensed by Nintendo" controllers should also work supported Ok.
 [![iCade][icade_img]][icade_url]
 
 - The original iCade cabinets works great.
-- Press:
-  - *Top Left* for Fire
-  - *Bottom Left* for Jump
-  - *Bottom Right* for Auto-fire
-  - *Top Right* button to swap joystick port
 - Might work with other controllers that support the iCade protocol, but the `uni_hid_device_vendors.h` file might need to be updated.
 
 [icade_img]: https://lh3.googleusercontent.com/owslbSElM2BJL5M9h3hqksaCJhjAGf7DyfEwRFxxqjdG3Y73D5V9ScI0zVNokmSJMO6jrHMuX7j437kB-ER7kCAzc8GPX4ir9MPEVdypuxMneoIuzp3yAY8DqvkItbSZY0hlaAUMPn8=-no
@@ -317,12 +240,6 @@ Clones and "licensed by Nintendo" controllers should also work supported Ok.
 
 [![iCade 8bitty][8bitty_img]][8bitty_url]
 
-- Press:
-  - *Bottom Left* for Fire
-  - *Bottom Right* for Jump
-  - *Right shoulder* for Auto-fire
-  - *Select* button to swap joystick port
-
 [8bitty_img]: https://lh3.googleusercontent.com/LKf4C5SDVlE1mx91vyh8S7AhaJgsgiBZlOuLSVlIKMllSzMbWqOj6lXFmYfPn8fFxBblsXmNyEFVreaJFaxKLjBVTTMhJ2k4Z6C-40c8MSSNCCCokPrhWS_rDQoHtVx01Xckqx-62FI=-no
 [8bitty_url]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=m570.l1313&_nkw=icade+8-bitty&_sacat=0&LH_TitleDesc=0&_osacat=0&_odkw=icade+8bitty
 
@@ -331,8 +248,6 @@ Clones and "licensed by Nintendo" controllers should also work supported Ok.
 [![Amazon Fire TV Remote 1st gen][fire_tv_remote]][22]
 
 - Only *1st gen* is supported. Apparently *2nd gen* uses BLE instead of BT Classic.
-- Press:
-  - *Home button* to swap joystick port
 
 [fire_tv_remote]: https://lh3.googleusercontent.com/qnSdv7NM5et0vDhMQsRp7oMniqcjYxGKN9QJY0_gRWT6NXFrdWBf94JKNvP77abBZoykaSQOJBtXUnGW-Z1yF-MWn3q3t2Nt_TUVVV7a2HsPFjRc_DIuLh8tPiQNsEZSWDsb0z6Ys3k=-no
 
