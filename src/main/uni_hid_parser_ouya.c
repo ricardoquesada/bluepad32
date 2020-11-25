@@ -193,8 +193,8 @@ void uni_hid_parser_ouya_parse_usage(uni_hid_device_t* d,
   }
 }
 
-void uni_hid_parser_ouya_update_led(uni_hid_device_t* d,
-                                    uni_gamepad_seat_t seat) {
+void uni_hid_parser_ouya_set_leds(uni_hid_device_t* d,
+                                  uni_gamepad_seat_t seat) {
 #if 0
   const uint8_t report[] = {0xa2, 0x07, 0xff, 0xff, 0xff,
                             0xff, 0xff, 0xff, 0xff, 0xff};

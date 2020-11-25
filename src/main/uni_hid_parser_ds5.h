@@ -31,7 +31,4 @@ void uni_hid_parser_ds5_parse_usage(struct uni_hid_device_s *d,
                                     uint16_t usage, int32_t value);
 void uni_hid_parser_ds5_parse_raw(struct uni_hid_device_s *d,
                                   const uint8_t *report, uint16_t len);
-void uni_hid_parser_ds5_update_led(struct uni_hid_device_s *d,
-                                   uni_gamepad_seat_t s);
-
 #endif  // UNI_HID_PARSER_DS5_H

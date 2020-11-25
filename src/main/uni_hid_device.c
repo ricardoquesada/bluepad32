@@ -140,7 +140,7 @@ void uni_hid_device_set_ready(uni_hid_device_t* d) {
     return;
   }
 
-  // TODO: Confirm that setup can run before "set_led()".
+  // TODO: Confirm that setup can run before "set_leds()".
   // Old code, which was very well tested, was callilng update-led before setup.
   // It is wrong, but it was working.
   // Setup is executed before update-led, and all 4 major gamepads work ok:
@@ -391,7 +391,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
       d->report_parser.init_report = uni_hid_parser_ouya_init_report;
       d->report_parser.parse_usage = uni_hid_parser_ouya_parse_usage;
       d->report_parser.parse_raw = NULL;
-      d->report_parser.update_led = uni_hid_parser_ouya_update_led;
+      d->report_parser.set_leds = uni_hid_parser_ouya_set_leds;
       logi("Device detected as OUYA: 0x%02x\n", type);
       break;
     case CONTROLLER_TYPE_XBoxOneController:
@@ -399,7 +399,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
       d->report_parser.init_report = uni_hid_parser_xboxone_init_report;
       d->report_parser.parse_usage = uni_hid_parser_xboxone_parse_usage;
       d->report_parser.parse_raw = NULL;
-      d->report_parser.update_led = uni_hid_parser_xboxone_update_led;
+      d->report_parser.set_leds = uni_hid_parser_xboxone_set_leds;
       logi("Device detected as Xbox One: 0x%02x\n", type);
       break;
     case CONTROLLER_TYPE_AndroidController:
@@ -407,7 +407,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
       d->report_parser.init_report = uni_hid_parser_android_init_report;
       d->report_parser.parse_usage = uni_hid_parser_android_parse_usage;
       d->report_parser.parse_raw = NULL;
-      d->report_parser.update_led = uni_hid_parser_android_update_led;
+      d->report_parser.set_leds = uni_hid_parser_android_set_leds;
       logi("Device detected as Android: 0x%02x\n", type);
       break;
     case CONTROLLER_TYPE_NimbusController:
@@ -415,7 +415,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
       d->report_parser.init_report = uni_hid_parser_nimbus_init_report;
       d->report_parser.parse_usage = uni_hid_parser_nimbus_parse_usage;
       d->report_parser.parse_raw = NULL;
-      d->report_parser.update_led = uni_hid_parser_nimbus_update_led;
+      d->report_parser.set_leds = uni_hid_parser_nimbus_set_leds;
       logi("Device detected as Nimbus: 0x%02x\n", type);
       break;
     case CONTROLLER_TYPE_SmartTVRemoteController:
@@ -429,7 +429,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
       d->report_parser.setup = uni_hid_parser_ds3_setup;
       d->report_parser.init_report = uni_hid_parser_ds3_init_report;
       d->report_parser.parse_raw = uni_hid_parser_ds3_parse_raw;
-      d->report_parser.update_led = uni_hid_parser_ds3_update_led;
+      d->report_parser.set_leds = uni_hid_parser_ds3_set_leds;
       d->report_parser.parse_usage = NULL;
       logi("Device detected as DUALSHOCK3: 0x%02x\n", type);
       break;
@@ -438,10 +438,10 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
       d->report_parser.init_report = uni_hid_parser_ds4_init_report;
 #if UNI_USE_DUALSHOCK4_REPORT_0x11
       d->report_parser.parse_raw = uni_hid_parser_ds4_parse_raw;
-      d->report_parser.update_led = uni_hid_parser_ds4_update_led;
+      d->report_parser.set_leds = uni_hid_parser_ds4_set_leds;
 #else
       d->report_parser.parse_usage = uni_hid_parser_ds4_parse_usage;
-      d->report_parser.update_led = NULL;
+      d->report_parser.set_leds = NULL;
 #endif  //
       logi("Device detected as DUALSHOCK4: 0x%02x\n", type);
       break;
@@ -449,7 +449,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
       d->report_parser.setup = NULL;
       d->report_parser.init_report = uni_hid_parser_ds5_init_report;
       d->report_parser.parse_usage = uni_hid_parser_ds5_parse_usage;
-      d->report_parser.update_led = NULL;
+      d->report_parser.set_leds = NULL;
       logi("Device detected as DUALSHOCK5: 0x%02x\n", type);
       break;
     case CONTROLLER_TYPE_8BitdoController:
@@ -471,7 +471,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
       d->report_parser.init_report = uni_hid_parser_wii_init_report;
       d->report_parser.parse_usage = NULL;
       d->report_parser.parse_raw = uni_hid_parser_wii_parse_raw;
-      d->report_parser.update_led = uni_hid_parser_wii_update_led;
+      d->report_parser.set_leds = uni_hid_parser_wii_set_leds;
       logi("Device detected as Wii controller: 0x%02x\n", type);
       break;
     case CONTROLLER_TYPE_SwitchProController:
@@ -479,7 +479,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
       d->report_parser.init_report = uni_hid_parser_switch_init_report;
       d->report_parser.parse_usage = NULL;
       d->report_parser.parse_raw = uni_hid_parser_switch_parse_raw;
-      d->report_parser.update_led = uni_hid_parser_switch_update_led;
+      d->report_parser.set_leds = uni_hid_parser_switch_set_leds;
       logi("Device detected as Nintendo Switch Pro controller: 0x%02x\n", type);
       break;
     default:

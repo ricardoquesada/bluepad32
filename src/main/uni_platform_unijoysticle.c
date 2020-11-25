@@ -50,7 +50,6 @@ limitations under the License.
 // Enabled if 1
 #define PLAT_UNIJOYSTICLE_SINGLE_PORT 0
 
-
 // --- Consts
 
 // 20 milliseconds ~= 1 frame in PAL
@@ -196,7 +195,8 @@ static void unijoysticle_init(int argc, const char** argv) {
 
 #if PLAT_UNIJOYSTICLE_SINGLE_PORT
   logi(
-      "unijoysticle: Single port / 3-button mode enabled (Amiga/Atari ST compatible)\n");
+      "unijoysticle: Single port / 3-button mode enabled (Amiga/Atari ST "
+      "compatible)\n");
 #else
   logi("unijoysticle: Dual port / 1-button mode enabled\n");
 #endif
@@ -349,7 +349,8 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
   return 0;
 }
 
-static void unijoysticle_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
+static void unijoysticle_on_gamepad_data(uni_hid_device_t* d,
+                                         uni_gamepad_t* gp) {
   if (d == NULL) {
     loge("ERROR: unijoysticle_on_device_gamepad_data: Invalid NULL device\n");
     return;
@@ -395,14 +396,15 @@ static int32_t unijoysticle_get_property(uni_platform_property_t key) {
 }
 
 static void unijoysticle_on_device_oob_event(uni_hid_device_t* d,
-                                    uni_platform_oob_event_t event) {
+                                             uni_platform_oob_event_t event) {
   if (d == NULL) {
     loge("ERROR: unijoysticle_on_device_gamepad_event: Invalid NULL device\n");
     return;
   }
 
   if (event != UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON) {
-    loge("ERROR: unijoysticle_on_device_oob_event: unsupported event: 0x%04x\n", event);
+    loge("ERROR: unijoysticle_on_device_oob_event: unsupported event: 0x%04x\n",
+         event);
     return;
   }
 
@@ -418,7 +420,8 @@ static void unijoysticle_on_device_oob_event(uni_hid_device_t* d,
   // This could happen if device is any Combo emu mode.
   if (ins->gamepad_seat == (GAMEPAD_SEAT_A | GAMEPAD_SEAT_B)) {
     logi(
-        "unijoysticle: cannot swap port since has more than one port associated with. "
+        "unijoysticle: cannot swap port since has more than one port "
+        "associated with. "
         "Leave emu mode and try again.\n");
     return;
   }
@@ -432,7 +435,8 @@ static void unijoysticle_on_device_oob_event(uni_hid_device_t* d,
       num_devices++;
       if (num_devices > 1) {
         logi(
-            "unijoysticle: cannot swap joystick ports when more than one device is "
+            "unijoysticle: cannot swap joystick ports when more than one "
+            "device is "
             "attached\n");
         uni_hid_device_dump_all();
         return;
@@ -464,7 +468,8 @@ static void process_mouse(uni_hid_device_t* d, int32_t delta_x, int32_t delta_y,
                           uint16_t buttons) {
   UNUSED(d);
   static uint16_t prev_buttons = 0;
-  logd("unijoysticle: mouse: x=%d, y=%d, buttons=0x%4x\n", delta_x, delta_y, buttons);
+  logd("unijoysticle: mouse: x=%d, y=%d, buttons=0x%4x\n", delta_x, delta_y,
+       buttons);
 
   // Mouse is implemented using a quadrature encoding
   // FIXME: Passing values to mouse task using global variables. This is, of
@@ -503,8 +508,8 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
   unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
   ins->gamepad_seat = seat;
 
-  logi("unijoysticle: device %s has new gamepad seat: %d\n", bd_addr_to_str(d->address),
-       seat);
+  logi("unijoysticle: device %s has new gamepad seat: %d\n",
+       bd_addr_to_str(d->address), seat);
 
   // Fetch all enabled ports
   uni_gamepad_seat_t all_seats = GAMEPAD_SEAT_NONE;
@@ -521,8 +526,8 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
   gpio_set_level(GPIO_LED_J1, status_a);
   gpio_set_level(GPIO_LED_J2, status_b);
 
-  if (d->report_parser.update_led != NULL) {
-    d->report_parser.update_led(d, all_seats);
+  if (d->report_parser.set_leds != NULL) {
+    d->report_parser.set_leds(d, all_seats);
   }
 }
 
@@ -753,8 +758,9 @@ static void handle_event_button() {
   }
 
   if (num_devices != 1) {
-    loge("unijoysticle: cannot change mode. Expected num_devices=1, actual=%d\n",
-         num_devices);
+    loge(
+        "unijoysticle: cannot change mode. Expected num_devices=1, actual=%d\n",
+        num_devices);
     return;
   }
 
@@ -771,7 +777,8 @@ static void handle_event_button() {
     // Turn on only the valid one
     logi("unijoysticle: Emulation mode = Single Joy\n");
   } else {
-    loge("unijoysticle: Cannot switch emu mode. Current mode: %d\n", ins->emu_mode);
+    loge("unijoysticle: Cannot switch emu mode. Current mode: %d\n",
+         ins->emu_mode);
   }
 }
 

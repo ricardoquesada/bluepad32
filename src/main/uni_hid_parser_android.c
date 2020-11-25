@@ -224,8 +224,8 @@ void uni_hid_parser_android_parse_usage(uni_hid_device_t* d,
   }
 }
 
-void uni_hid_parser_android_update_led(uni_hid_device_t* d,
-                                       uni_gamepad_seat_t seat) {
+void uni_hid_parser_android_set_leds(uni_hid_device_t* d,
+                                     uni_gamepad_seat_t seat) {
 #if 0
   static uint8_t report_id = 0;
   logi("using report id = 0x%02x\n", report_id);

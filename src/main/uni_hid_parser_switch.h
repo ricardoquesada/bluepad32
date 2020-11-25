@@ -29,8 +29,8 @@ void uni_hid_parser_switch_setup(struct uni_hid_device_s* d);
 void uni_hid_parser_switch_init_report(struct uni_hid_device_s* d);
 void uni_hid_parser_switch_parse_raw(struct uni_hid_device_s* d,
                                      const uint8_t* report, uint16_t len);
-void uni_hid_parser_switch_update_led(struct uni_hid_device_s* d,
-                                      uni_gamepad_seat_t seat);
+void uni_hid_parser_switch_set_leds(struct uni_hid_device_s* d,
+                                    uni_gamepad_seat_t seat);
 uint8_t uni_hid_parser_switch_does_packet_match(struct uni_hid_device_s* d,
                                                 const uint8_t* packet, int len);
 

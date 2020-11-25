@@ -127,9 +127,9 @@ static pc_debug_instance_t* get_pc_debug_instance(uni_hid_device_t* d) {
 }
 
 static void set_led(uni_hid_device_t* d) {
-  if (d->report_parser.update_led != NULL) {
+  if (d->report_parser.set_leds != NULL) {
     pc_debug_instance_t* ins = get_pc_debug_instance(d);
-    d->report_parser.update_led(d, ins->gamepad_seat);
+    d->report_parser.set_leds(d, ins->gamepad_seat);
   }
 }
 

@@ -470,9 +470,9 @@ static int airlift_on_device_ready(uni_hid_device_t* d) {
     }
   }
 
-  if (d->report_parser.update_led != NULL) {
+  if (d->report_parser.set_leds != NULL) {
     airlift_instance_t* ins = get_airlift_instance(d);
-    d->report_parser.update_led(d, (1 << ins->gamepad_idx));
+    d->report_parser.set_leds(d, (1 << ins->gamepad_idx));
   }
   return 0;
 }

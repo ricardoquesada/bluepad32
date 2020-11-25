@@ -803,8 +803,8 @@ static void fsm_ready(struct uni_hid_device_s* d) {
   ins->state = STATE_READY;
 }
 
-void uni_hid_parser_switch_update_led(uni_hid_device_t* d,
-                                      uni_gamepad_seat_t seat) {
+void uni_hid_parser_switch_set_leds(uni_hid_device_t* d,
+                                    uni_gamepad_seat_t seat) {
   switch_instance_t* ins = get_switch_instance(d);
   // Seat must be set, even if it is not ready. Initialization will use this
   // seat and set the correct LEDs values.

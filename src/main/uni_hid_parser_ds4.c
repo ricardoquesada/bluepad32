@@ -344,7 +344,7 @@ static uint32_t crc32_le(uint32_t seed, const void* data, size_t len) {
   return crc;
 }
 
-void uni_hid_parser_ds4_update_led(uni_hid_device_t* d, uni_gamepad_seat_t s) {
+void uni_hid_parser_ds4_set_leds(uni_hid_device_t* d, uni_gamepad_seat_t s) {
 #if UNI_USE_DUALSHOCK4_REPORT_0x11
   // Force feedback info taken from:
   //
