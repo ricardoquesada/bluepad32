@@ -1,5 +1,6 @@
 # Makefile for libusb based examples
-BTSTACK_ROOT = 	../external/btstack
+BTSTACK_ROOT = 	../../external/btstack
+BLUEPAD32_ROOT = ../../src/main
 
 CORE += main.c btstack_stdin_posix.c btstack_tlv_posix.c
 
@@ -34,7 +35,7 @@ VPATH += ${BTSTACK_ROOT}/chipset/csr
 VPATH += ${BTSTACK_ROOT}/chipset/zephyr
 
 # use pkg-config
-CFLAGS  += $(shell pkg-config libusb-1.0 --cflags) -I../src/main
+CFLAGS  += $(shell pkg-config libusb-1.0 --cflags) -I${BLUEPAD32_ROOT}
 LDFLAGS += $(shell pkg-config libusb-1.0 --libs)
 
 #EXAMPLES = ${EXAMPLES_DUAL_MODE} ${EXAMPLES_LE_ONLY}
@@ -60,25 +61,33 @@ clean_src:
 	rm -rf ${BTSTACK_ROOT}/platform/embedded/*.o
 
 clean:
-	-rm -rf ../src/main/*.o
+	-rm -rf ${BLUEPAD32_ROOT}*.o
 	-rm -rf *.o
-	-rm -f sixaxispairer bluepad32
+	-rm -f bluepad32
 
 bluepad32: ${CORE_OBJ} ${COMMON_OBJ} ${CLASSIC_OBJ} ${SDP_CLIENT} btstack_ring_buffer.o btstack_hid_parser.o \
-	../src/main/uni_main.o ../src/main/uni_bluetooth.o ../src/main/uni_hid_device.o  ../src/main/uni_hid_parser.o \
-	../src/main/uni_gamepad.o ../src/main/uni_joystick.o \
-	../src/main/uni_hid_parser_android.o ../src/main/uni_hid_parser_icade.o ../src/main/uni_hid_parser_ouya.o \
-	../src/main/uni_hid_parser_xboxone.o ../src/main/uni_hid_parser_nimbus.o ../src/main/uni_hid_parser_smarttvremote.o \
-	../src/main/uni_hid_parser_ds3.o ../src/main/uni_hid_parser_ds4.o ../src/main/uni_hid_parser_ds5.o \
-	../src/main/uni_hid_parser_8bitdo.o ../src/main/uni_hid_parser_generic.o \
-	../src/main/uni_hid_parser_wii.o ../src/main/uni_hid_parser_switch.o \
-	../src/main/uni_circular_buffer.o \
-	../src/main/uni_platform.o ../src/main/uni_platform_pc_debug.o
+	${BLUEPAD32_ROOT}/uni_bluetooth.o \
+	${BLUEPAD32_ROOT}/uni_circular_buffer.o \
+	${BLUEPAD32_ROOT}/uni_gamepad.o \
+	${BLUEPAD32_ROOT}/uni_hid_device.o \
+	${BLUEPAD32_ROOT}/uni_hid_parser.o \
+	${BLUEPAD32_ROOT}/uni_hid_parser_8bitdo.o \
+	${BLUEPAD32_ROOT}/uni_hid_parser_android.o \
+	${BLUEPAD32_ROOT}/uni_hid_parser_ds3.o \
+	${BLUEPAD32_ROOT}/uni_hid_parser_ds4.o \
+	${BLUEPAD32_ROOT}/uni_hid_parser_ds5.o \
+	${BLUEPAD32_ROOT}/uni_hid_parser_generic.o \
+	${BLUEPAD32_ROOT}/uni_hid_parser_icade.o \
+	${BLUEPAD32_ROOT}/uni_hid_parser_nimbus.o \
+	${BLUEPAD32_ROOT}/uni_hid_parser_ouya.o \
+	${BLUEPAD32_ROOT}/uni_hid_parser_smarttvremote.o \
+	${BLUEPAD32_ROOT}/uni_hid_parser_switch.o \
+	${BLUEPAD32_ROOT}/uni_hid_parser_wii.o \
+	${BLUEPAD32_ROOT}/uni_hid_parser_xboxone.o \
+	${BLUEPAD32_ROOT}/uni_joystick.o \
+	${BLUEPAD32_ROOT}/uni_main.o \
+	${BLUEPAD32_ROOT}/uni_platform.o \
+	${BLUEPAD32_ROOT}/uni_platform_pc_debug.o
 	${CC} $^ ${CFLAGS} ${LDFLAGS} -o $@
-
-sixaxispairer: sixaxispairer.o
-	echo "Compiling sixaxis pairer"
-	echo "Make sure that 'libhidapi-dev' is installed"
-	${CC} $^ -lhidapi-libusb -o $@
 
 all: bluepad32 ${EXAMPLES}
