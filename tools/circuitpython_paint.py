@@ -10,19 +10,64 @@
 
 import math
 import time
+import struct
 
 import board
 import busio
 import displayio
-from digitalio import DigitalInOut
+
 from adafruit_esp32spi import adafruit_esp32spi
 from adafruit_matrixportal.matrix import Matrix
+from digitalio import DigitalInOut
+from micropython import const
+
+
+class Bluepad32_SPIcontrol(adafruit_esp32spi.ESP_SPIcontrol):
+    """Implements the SPI commands for Bluepad32"""
+    # Nina-fw commands stopped at 0x50. Bluepad32 extensions start at 0x60
+    # See: https://github.com/adafruit/Adafruit_CircuitPython_ESP32SPI/blob/master/adafruit_esp32spi/adafruit_esp32spi.py
+    _GET_GAMEPADS_DATA = const(0x60)
+
+    def get_gamepads_data(self):
+        """Returns a list of gamepads. Empty if no gamepad are connected.
+        Each gamepad entry is a dictionary that represents that gamepad state
+        like: buttons pressed, axis values, dpad and more.
+        """
+        resp = self._send_command_get_response(_GET_GAMEPADS_DATA)
+        # Response has exactly one argument
+        assert len(resp) == 1, "Invalid number of responses."
+        arg1 = resp[0]
+        gamepads = []
+        total_gamepads = arg1[0]
+        # Sanity check
+        assert total_gamepads < 8, "Invalid number of gamepads"
+
+        # TODO: Expose these gamepad constants to Python:
+        # https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/src/main/uni_gamepad.h
+        offset = 1
+        for _ in range(total_gamepads):
+            unp = struct.unpack_from("<BBiiiiiiHB", arg1, offset)
+            gamepad = {
+                "idx": unp[0],
+                "dpad": unp[1],
+                "axis_x": unp[2],
+                "axis_y": unp[3],
+                "axis_rx": unp[4],
+                "axis_ry": unp[5],
+                "brake": unp[6],
+                "accelerator": unp[7],
+                "buttons": unp[8],
+                "misc_buttons": unp[9],
+            }
+            gamepads.append(gamepad)
+            offset += 29
+        return gamepads
 
 
 class Paint:
-    _SCREEN_WIDTH = 64
-    _SCREEN_HEIGHT = 32
-    _PALETTE_SIZE = 16
+    _SCREEN_WIDTH = const(64)
+    _SCREEN_HEIGHT = const(32)
+    _PALETTE_SIZE = const(16)
 
     def __init__(self):
         self._esp = self._init_spi()
@@ -52,16 +97,15 @@ class Paint:
         # esp32_reset = DigitalInOut(board.D12)
 
         spi = busio.SPI(board.SCK, board.MOSI, board.MISO)
-        esp = adafruit_esp32spi.ESP_SPIcontrol(
+        esp = Bluepad32_SPIcontrol(
             spi, esp32_cs, esp32_ready, esp32_reset, debug=0)
         return esp
 
     def _init_bitmap(self):
-        bitmap = displayio.Bitmap(
-            self._SCREEN_WIDTH, self._SCREEN_HEIGHT, self._PALETTE_SIZE)
+        bitmap = displayio.Bitmap(_SCREEN_WIDTH, _SCREEN_HEIGHT, _PALETTE_SIZE)
 
         # For fun, just use the CGA color palette
-        palette = displayio.Palette(self._PALETTE_SIZE)
+        palette = displayio.Palette(_PALETTE_SIZE)
         palette[0] = (0, 0, 0)  # Black
         palette[1] = (0, 0, 170)  # Blue
         palette[2] = (0, 170, 0)  # Green
@@ -87,7 +131,7 @@ class Paint:
         group = displayio.Group()
         group.append(tile_grid)
         # 16 colors == 4 bit of depth
-        matrix = Matrix(bit_depth=math.ceil(math.log(self._PALETTE_SIZE, 2)))
+        matrix = Matrix(bit_depth=math.ceil(math.log(_PALETTE_SIZE, 2)))
         display = matrix.display
         display.show(group)
 
@@ -110,7 +154,7 @@ class Paint:
 
                 # d-pad constants are defined here:
                 # https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/src/main/uni_gamepad.h
-                dpad = gp['dpad']
+                dpad = gp["dpad"]
                 if dpad & 0x01:  # Up
                     y -= 1
                 if dpad & 0x02:  # Down
@@ -123,8 +167,8 @@ class Paint:
                 # axis + accel + brake have a 10-bit resolution
                 # axis range: -512-511
                 # accel, brake range: 0-1023
-                axis_x = gp['axis_x']
-                axis_y = gp['axis_y']
+                axis_x = gp["axis_x"]
+                axis_y = gp["axis_y"]
                 if axis_x < -100:
                     x -= 1
                 if axis_x > 100:
@@ -135,13 +179,13 @@ class Paint:
                     y += 1
 
                 x = max(x, 0)
-                x = min(x, self._SCREEN_WIDTH-1)
+                x = min(x, _SCREEN_WIDTH - 1)
                 y = max(y, 0)
-                y = min(y, self._SCREEN_HEIGHT-1)
+                y = min(y, _SCREEN_HEIGHT - 1)
 
                 # Button constants are defined here:
                 # https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/src/main/uni_gamepad.h
-                buttons = gp['buttons']
+                buttons = gp["buttons"]
 
                 if buttons & 0x01:  # Button A
                     color += 1
@@ -151,8 +195,8 @@ class Paint:
 
                 if buttons & 0x04:  # Button X
                     # fill screen with current color
-                    for i in range(0, self._SCREEN_WIDTH):
-                        for j in range(0, self._SCREEN_HEIGHT):
+                    for i in range(0, _SCREEN_WIDTH):
+                        for j in range(0, _SCREEN_HEIGHT):
                             self._bitmap[i, j] = color
 
             self._bitmap[x, y] = color

@@ -72,25 +72,58 @@ $ esptool.py --port /dev/ttyACM0 --baud 115200 --before no_reset write_flash 0x1
 
 ## CircuitPython example
 
-### Patching adafruit_esp32spi
-
-The first thing that you need to do is to patch `adafruit_esp32spi`:
-
-* https://github.com/adafruit/Adafruit_CircuitPython_ESP32SPI/pull/118
-
-This will add the `get_gamepads_data` function to CircuitPython.
-
-### Complete example
-
 And this is how you would use it:
 
 ```python
 import time
+import struct
 
 import board
 import busio
 from digitalio import DigitalInOut
 from adafruit_esp32spi import adafruit_esp32spi
+from micropython import const
+
+class Bluepad32_SPIcontrol(adafruit_esp32spi.ESP_SPIcontrol):
+    """Implements the SPI commands for Bluepad32"""
+    # Nina-fw commands stopped at 0x50. Bluepad32 extensions start at 0x60
+    # See: https://github.com/adafruit/Adafruit_CircuitPython_ESP32SPI/blob/master/adafruit_esp32spi/adafruit_esp32spi.py
+    _GET_GAMEPADS_DATA = const(0x60)
+
+    def get_gamepads_data(self):
+        """Returns a list of gamepads. Empty if no gamepad are connected.
+        Each gamepad entry is a dictionary that represents that gamepad state
+        like: buttons pressed, axis values, dpad and more.
+        """
+        resp = self._send_command_get_response(_GET_GAMEPADS_DATA)
+        # Response has exactly one argument
+        assert len(resp) == 1, "Invalid number of responses."
+        arg1 = resp[0]
+        gamepads = []
+        total_gamepads = arg1[0]
+        # Sanity check
+        assert total_gamepads < 8, "Invalid number of gamepads"
+
+        # TODO: Expose these gamepad constants to Python:
+        # https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/src/main/uni_gamepad.h
+        offset = 1
+        for _ in range(total_gamepads):
+            unp = struct.unpack_from("<BBiiiiiiHB", arg1, offset)
+            gamepad = {
+                "idx": unp[0],
+                "dpad": unp[1],
+                "axis_x": unp[2],
+                "axis_y": unp[3],
+                "axis_rx": unp[4],
+                "axis_ry": unp[5],
+                "brake": unp[6],
+                "accelerator": unp[7],
+                "buttons": unp[8],
+                "misc_buttons": unp[9],
+            }
+            gamepads.append(gamepad)
+            offset += 29
+        return gamepads
 
 # If you are using a board with pre-defined ESP32 Pins:
 #esp32_cs = DigitalInOut(board.ESP_CS)
@@ -114,7 +147,7 @@ esp32_ready = DigitalInOut(board.D9)
 esp32_reset = DigitalInOut(board.D6)
 
 spi = busio.SPI(board.SCK, board.MOSI, board.MISO)
-esp = adafruit_esp32spi.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset, debug=0)
+esp = Bluepad32_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset, debug=0)
 
 # Optionally, to enable UART logging in the ESP32
 # esp.set_esp_debug(1)
@@ -128,7 +161,7 @@ while True:
     time.sleep(0.032)
 ```
 
-A more complete working example, is this "Paint for CircuitPython":
+A more detailed working example, is this "Paint for CircuitPython":
 
 * https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/tools/circuitpython_paint.py
 
