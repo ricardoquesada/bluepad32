@@ -224,8 +224,7 @@ void uni_hid_parser_android_parse_usage(uni_hid_device_t* d,
   }
 }
 
-void uni_hid_parser_android_set_leds(uni_hid_device_t* d,
-                                     uni_gamepad_seat_t seat) {
+void uni_hid_parser_android_set_leds(uni_hid_device_t* d, uint8_t leds) {
 #if 0
   static uint8_t report_id = 0;
   logi("using report id = 0x%02x\n", report_id);
@@ -237,6 +236,6 @@ void uni_hid_parser_android_set_leds(uni_hid_device_t* d,
   uni_hid_device_queue_report(d, report, sizeof(report));
 #else
   UNUSED(d);
-  UNUSED(seat);
+  UNUSED(leds);
 #endif
 }

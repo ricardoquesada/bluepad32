@@ -234,7 +234,7 @@ static void process_reply_enable_imu(struct uni_hid_device_s* d,
                                      const struct switch_report_21_s* r,
                                      int len);
 static int32_t calibrate_axis(int16_t v, switch_cal_stick_t cal);
-static void set_led(uni_hid_device_t* d, uni_gamepad_seat_t seat);
+static void set_led(uni_hid_device_t* d, uint8_t leds);
 
 void uni_hid_parser_switch_setup(struct uni_hid_device_s* d) {
   switch_instance_t* ins = get_switch_instance(d);
@@ -803,17 +803,19 @@ static void fsm_ready(struct uni_hid_device_s* d) {
   ins->state = STATE_READY;
 }
 
-void uni_hid_parser_switch_set_leds(uni_hid_device_t* d,
-                                    uni_gamepad_seat_t seat) {
+void uni_hid_parser_switch_set_leds(uni_hid_device_t* d, uint8_t leds) {
   switch_instance_t* ins = get_switch_instance(d);
   // Seat must be set, even if it is not ready. Initialization will use this
   // seat and set the correct LEDs values.
-  ins->gamepad_seat = seat;
+  ins->gamepad_seat = leds;
 
   if (ins->state < STATE_READY) return;
 
-  set_led(d, seat);
+  set_led(d, leds);
 }
+
+void uni_hid_parser_switch_set_rumble(struct uni_hid_device_s* d, uint8_t left,
+                                      uint8_t right, uint16_t duration) {}
 
 uint8_t uni_hid_parser_switch_does_packet_match(struct uni_hid_device_s* d,
                                                 const uint8_t* packet,
@@ -845,9 +847,9 @@ static switch_instance_t* get_switch_instance(uni_hid_device_t* d) {
   return (switch_instance_t*)&d->parser_data[0];
 }
 
-static void set_led(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
+static void set_led(uni_hid_device_t* d, uint8_t leds) {
   switch_instance_t* ins = get_switch_instance(d);
-  ins->gamepad_seat = seat;
+  ins->gamepad_seat = leds;
 
   // 1 == SET_LEDS subcmd len
   uint8_t report[sizeof(struct switch_subcmd_request) + 1] = {0};
@@ -856,7 +858,11 @@ static void set_led(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
   req->transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
   req->report_id = 0x01;         // 0x01 for sub commands
   req->subcmd_id = SUBCMD_SET_LEDS;
-  req->data[0] = seat;
+  // LSB: turn on LEDs, MSB: flash LEDs
+  // Official Switch doesn't honor the flash bit.
+  // 8BitDo in Switch mode: LEDs are not working
+  // White-label Switch clone: works Ok with flash LEDs
+  req->data[0] = leds & 0x0f;
   send_subcmd(d, req, sizeof(report));
 }
 

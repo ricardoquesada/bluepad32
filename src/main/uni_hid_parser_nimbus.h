@@ -30,7 +30,6 @@ void uni_hid_parser_nimbus_parse_usage(struct uni_hid_device_s* d,
                                        hid_globals_t* globals,
                                        uint16_t usage_page, uint16_t usage,
                                        int32_t value);
-void uni_hid_parser_nimbus_set_leds(struct uni_hid_device_s* d,
-                                    uni_gamepad_seat_t seat);
+void uni_hid_parser_nimbus_set_leds(struct uni_hid_device_s* d, uint8_t leds);
 
 #endif  // UNI_HID_PARSER_NIMBUS_H

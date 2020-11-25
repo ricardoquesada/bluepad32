@@ -490,6 +490,11 @@ void uni_hid_device_process_gamepad(uni_hid_device_t* d) {
     return;
   }
 
+  // Don't propagate the event if there are no changes in the gamepad state.
+  // This could happen when a gamepad process a "control" report instead of
+  // data.
+  if (d->gamepad.updated_states == 0) return;
+
   g_platform->on_gamepad_data(d, &d->gamepad);
 
   // FIXME: each backend should decide what to do with misc buttons

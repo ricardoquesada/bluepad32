@@ -51,8 +51,7 @@ typedef void (*report_parse_raw_fn_t)(struct uni_hid_device_s* d,
                                       const uint8_t* report,
                                       uint16_t report_len);
 
-typedef void (*report_set_leds_t)(struct uni_hid_device_s* d,
-                                  uni_gamepad_seat_t s);
+typedef void (*report_set_leds_t)(struct uni_hid_device_s* d, uint8_t leds);
 typedef void (*report_set_led_color_t)(struct uni_hid_device_s* d, uint8_t r,
                                        uint8_t g, uint8_t b);
 typedef void (*report_set_rumble_t)(struct uni_hid_device_s* d,

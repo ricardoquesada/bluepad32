@@ -204,7 +204,7 @@ void uni_hid_parser_ds3_parse_raw(uni_hid_device_t* d, const uint8_t* report,
   gp->updated_states |= GAMEPAD_STATE_BRAKE | GAMEPAD_STATE_ACCELERATOR;
 }
 
-void uni_hid_parser_ds3_set_leds(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
+void uni_hid_parser_ds3_set_leds(uni_hid_device_t* d, uint8_t leds) {
   ds3_instance_t* ins = get_ds3_instance(d);
 
   // It seems that if a LED update is sent before the "request stream report",
@@ -212,10 +212,10 @@ void uni_hid_parser_ds3_set_leds(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
   // Update LED after stream report is set.
   if (ins->state <= DS3_FSM_REQUIRES_LED_UPDATE) {
     ins->state = DS3_FSM_REQUIRES_LED_UPDATE;
-    ins->gamepad_seat = seat;
+    ins->gamepad_seat = leds;
     return;
   }
-  update_led(d, seat);
+  update_led(d, leds);
 }
 
 void uni_hid_parser_ds3_setup(struct uni_hid_device_s* d) {

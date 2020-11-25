@@ -1049,7 +1049,7 @@ void uni_hid_parser_wii_parse_raw(uni_hid_device_t* d, const uint8_t* report,
   }
 }
 
-void uni_hid_parser_wii_set_leds(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
+void uni_hid_parser_wii_set_leds(uni_hid_device_t* d, uint8_t leds) {
   if (d == NULL) {
     loge("Wii: ERROR: Invalid device\n");
     return;
@@ -1057,11 +1057,11 @@ void uni_hid_parser_wii_set_leds(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
 
   wii_instance_t* ins = get_wii_instance(d);
   // Always update gamepad_seat regarless of the state
-  ins->gamepad_seat = seat;
+  ins->gamepad_seat = leds;
 
   if (ins->state < WII_FSM_LED_UPDATED) return;
 
-  set_led(d, seat);
+  set_led(d, leds);
 }
 
 //
