@@ -31,6 +31,32 @@ limitations under the License.
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
 
+typedef struct __attribute((packed)) {
+  // Report related
+  uint8_t transaction_type;  // type of transaction
+  uint8_t report_id;         // report Id
+  // Data related
+  uint8_t unk0[2];
+  uint8_t flags;
+  uint8_t unk1[2];
+  uint8_t rumble_left;
+  uint8_t rumble_right;
+  uint8_t led_red;
+  uint8_t led_green;
+  uint8_t led_blue;
+  uint8_t flash_led1;  // time to flash bright (255 = 2.5 seconds)
+  uint8_t flash_led2;  // time to flash dark (255 = 2.5 seconds)
+  uint8_t unk2[61];
+  uint32_t crc;
+} ds4_ff_report_t;
+
+// When sending the FF report, which "features" should be set.
+enum {
+  DS4_FF_FLAG_RUMBLE = 1 << 0,
+  DS4_FF_FLAG_LED_COLOR = 1 << 1,
+  DS4_FF_FLAG_LED_BLINK = 1 << 2,
+};
+
 void uni_hid_parser_ds4_init_report(uni_hid_device_t* d) {
   // Reset old state. Each report contains a full-state.
   memset(&d->gamepad, 0, sizeof(d->gamepad));
@@ -344,41 +370,19 @@ static uint32_t crc32_le(uint32_t seed, const void* data, size_t len) {
   return crc;
 }
 
-void uni_hid_parser_ds4_set_led_color(uni_hid_device_t* d, uint8_t r, uint8_t g, uint8_t b) {
+void uni_hid_parser_ds4_set_led_color(uni_hid_device_t* d, uint8_t r, uint8_t g,
+                                      uint8_t b) {
 #if UNI_USE_DUALSHOCK4_REPORT_0x11
-  // Force feedback info taken from:
-  //
-  struct ff_report {
-    // Report related
-    uint8_t transaction_type;  // type of transaction
-    uint8_t report_id;         // report Id
-    // Data related
-    uint8_t unk0[5];
-    uint8_t rumble_left;
-    uint8_t rumble_right;
-    uint8_t led_red;
-    uint8_t led_green;
-    uint8_t led_blue;
-    uint8_t flash_led1;  // time to flash bright (255 = 2.5 seconds)
-    uint8_t flash_led2;  // time to flash dark (255 = 2.5 seconds)
-    uint8_t unk1[61];
-    uint32_t crc;
-  } __attribute__((packed));
+  ds4_ff_report_t ff = {0};
 
-  struct ff_report ff;
-  memset(&ff, 0, sizeof(ff));
-  ff.transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
-  ff.report_id = 0x11;         // taken from HID descriptor
-  ff.unk0[0] = 0xc4;           // HID alone + poll interval
-  ff.unk0[2] = 0x7;            // blink + LED + motor
-  ff.rumble_left = 0x00;
-  ff.rumble_right = 0x00;
+  ff.transaction_type = 0xa2;        // DATA | TYPE_OUTPUT
+  ff.report_id = 0x11;               // taken from HID descriptor
+  ff.unk0[0] = 0xc4;                 // HID alone + poll interval
+  ff.flags = DS4_FF_FLAG_LED_COLOR;  // blink + LED + motor
   // 64 seems to be the max value for each color
   ff.led_red = (r * 64) / 256;
   ff.led_green = (g * 64) / 256;
   ff.led_blue = (b * 64) / 256;
-  ff.flash_led1 = 0x0;
-  ff.flash_led2 = 0x0;
 
   /* CRC generation */
   uint8_t bthdr = 0xA2;
@@ -392,4 +396,30 @@ void uni_hid_parser_ds4_set_led_color(uni_hid_device_t* d, uint8_t r, uint8_t g,
 #else
   UNUSED(d);
 #endif
+}
+
+void uni_hid_parser_ds4_set_rumble(uni_hid_device_t* d, uint8_t left,
+                                   uint8_t right, uint16_t duration) {
+  UNUSED(duration);
+
+  // Left motor: big force
+  // Right motor: small force
+  ds4_ff_report_t ff = {0};
+
+  ff.transaction_type = 0xa2;     // DATA | TYPE_OUTPUT
+  ff.report_id = 0x11;            // taken from HID descriptor
+  ff.unk0[0] = 0xc4;              // HID alone + poll interval
+  ff.flags = DS4_FF_FLAG_RUMBLE;  // blink + LED + motor
+  ff.rumble_left = left;
+  ff.rumble_right = right;
+
+  /* CRC generation */
+  uint8_t bthdr = 0xA2;
+  uint32_t crc;
+
+  crc = crc32_le(0xffffffff, &bthdr, 1);
+  crc = ~crc32_le(crc, (uint8_t*)&ff.report_id, sizeof(ff) - 5);
+  ff.crc = crc;
+
+  uni_hid_device_send_intr_report(d, (uint8_t*)&ff, sizeof(ff));
 }

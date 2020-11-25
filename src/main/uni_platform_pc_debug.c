@@ -92,11 +92,22 @@ static void pc_debug_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
   uni_gamepad_dump(gp);
 
   // Debugging
+  // Axis: control RGB color
   if (d->report_parser.set_led_color != NULL) {
-    uint8_t r = (gp->accelerator * 256) / 1024;
-    uint8_t g = (gp->brake * 256) / 1024;
-    uint8_t b = (gp->axis_x * 256) / 512;
+    uint8_t r = (gp->axis_x * 256) / 512;
+    uint8_t g = (gp->axis_y * 256) / 512;
+    uint8_t b = (gp->axis_rx * 256) / 512;
     d->report_parser.set_led_color(d, r, g, b);
+  }
+  // Accelerator/Brake: control rumble
+  if (d->report_parser.set_rumble != NULL) {
+    uint8_t left = (gp->accelerator * 256) / 1024;
+    uint8_t right = (gp->brake * 256) / 1024;
+    d->report_parser.set_rumble(d, left, right, 0);
+  }
+  // Buttons: Control LEDs On/Off
+  if (d->report_parser.set_leds != NULL) {
+    d->report_parser.set_leds(d, (uint8_t)gp->buttons);
   }
 }
 

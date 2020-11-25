@@ -428,6 +428,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
 #if UNI_USE_DUALSHOCK4_REPORT_0x11
       d->report_parser.parse_raw = uni_hid_parser_ds4_parse_raw;
       d->report_parser.set_led_color = uni_hid_parser_ds4_set_led_color;
+      d->report_parser.set_rumble = uni_hid_parser_ds4_set_rumble;
 #else
       d->report_parser.parse_usage = uni_hid_parser_ds4_parse_usage;
 #endif  //

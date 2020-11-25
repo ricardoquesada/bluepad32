@@ -54,9 +54,10 @@ typedef void (*report_parse_raw_fn_t)(struct uni_hid_device_s* d,
 typedef void (*report_set_leds_t)(struct uni_hid_device_s* d,
                                   uni_gamepad_seat_t s);
 typedef void (*report_set_led_color_t)(struct uni_hid_device_s* d, uint8_t r,
-                                   uint8_t g, uint8_t b);
+                                       uint8_t g, uint8_t b);
 typedef void (*report_set_rumble_t)(struct uni_hid_device_s* d,
-                                    uint8_t magnitude, uint8_t duration);
+                                    uint8_t left_magnitude,
+                                    uint8_t right_magnitude, uint16_t duration);
 
 // Parsers should implement these optional functions:
 typedef struct {
