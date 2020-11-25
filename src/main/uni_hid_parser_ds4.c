@@ -57,6 +57,51 @@ enum {
   DS4_FF_FLAG_LED_BLINK = 1 << 2,
 };
 
+#define CRCPOLY 0xedb88320
+static uint32_t crc32_le(uint32_t seed, const void* data, size_t len) {
+  uint32_t crc = seed;
+  const uint8_t* src = data;
+  uint32_t mult;
+  int i;
+
+  while (len--) {
+    crc ^= *src++;
+    for (i = 0; i < 8; i++) {
+      mult = (crc & 1) ? CRCPOLY : 0;
+      crc = (crc >> 1) ^ mult;
+    }
+  }
+
+  return crc;
+}
+
+void uni_hid_parser_ds4_setup(struct uni_hid_device_s* d) {
+  // From Linux drivers/hid/hid-sony.c:
+  // The default behavior of the DUALSHOCK 4 is to send reports using
+  // report type 1 when running over Bluetooth. However, when feature
+  // report 2 is requested during the controller initialization it starts
+  // sending input reports in report 17.
+
+  // Also turns off blinking, LED and rumble.
+  ds4_ff_report_t ff = {0};
+
+  ff.transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
+  ff.report_id = 0x11;         // taken from HID descriptor
+  ff.unk0[0] = 0xc4;           // HID alone + poll interval
+  ff.flags = DS4_FF_FLAG_RUMBLE | DS4_FF_FLAG_LED_COLOR |
+             DS4_FF_FLAG_LED_BLINK;  // blink + LED + motor
+
+  /* CRC generation */
+  uint8_t bthdr = 0xA2;
+  uint32_t crc;
+
+  crc = crc32_le(0xffffffff, &bthdr, 1);
+  crc = ~crc32_le(crc, (uint8_t*)&ff.report_id, sizeof(ff) - 5);
+  ff.crc = crc;
+
+  uni_hid_device_send_intr_report(d, (uint8_t*)&ff, sizeof(ff));
+}
+
 void uni_hid_parser_ds4_init_report(uni_hid_device_t* d) {
   // Reset old state. Each report contains a full-state.
   memset(&d->gamepad, 0, sizeof(d->gamepad));
@@ -352,27 +397,8 @@ void uni_hid_parser_ds4_parse_usage(uni_hid_device_t* d, hid_globals_t* globals,
   }
 }
 
-#define CRCPOLY 0xedb88320
-static uint32_t crc32_le(uint32_t seed, const void* data, size_t len) {
-  uint32_t crc = seed;
-  const uint8_t* src = data;
-  uint32_t mult;
-  int i;
-
-  while (len--) {
-    crc ^= *src++;
-    for (i = 0; i < 8; i++) {
-      mult = (crc & 1) ? CRCPOLY : 0;
-      crc = (crc >> 1) ^ mult;
-    }
-  }
-
-  return crc;
-}
-
 void uni_hid_parser_ds4_set_led_color(uni_hid_device_t* d, uint8_t r, uint8_t g,
                                       uint8_t b) {
-#if UNI_USE_DUALSHOCK4_REPORT_0x11
   ds4_ff_report_t ff = {0};
 
   ff.transaction_type = 0xa2;        // DATA | TYPE_OUTPUT
@@ -393,9 +419,6 @@ void uni_hid_parser_ds4_set_led_color(uni_hid_device_t* d, uint8_t r, uint8_t g,
   ff.crc = crc;
 
   uni_hid_device_send_intr_report(d, (uint8_t*)&ff, sizeof(ff));
-#else
-  UNUSED(d);
-#endif
 }
 
 void uni_hid_parser_ds4_set_rumble(uni_hid_device_t* d, uint8_t left,

@@ -25,6 +25,7 @@ limitations under the License.
 #include "uni_hid_parser.h"
 
 // For DUALSHOCK 4 gamepads
+void uni_hid_parser_ds4_setup(struct uni_hid_device_s *d);
 void uni_hid_parser_ds4_init_report(struct uni_hid_device_s *d);
 void uni_hid_parser_ds4_parse_usage(struct uni_hid_device_s *d,
                                     hid_globals_t *globals, uint16_t usage_page,
