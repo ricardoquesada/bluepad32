@@ -39,8 +39,8 @@ typedef struct __attribute((packed)) {
   uint8_t unk0[2];
   uint8_t flags;
   uint8_t unk1[2];
-  uint8_t rumble_left;
   uint8_t rumble_right;
+  uint8_t rumble_left;
   uint8_t led_red;
   uint8_t led_green;
   uint8_t led_blue;

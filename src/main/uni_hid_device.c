@@ -396,7 +396,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
       d->report_parser.setup = uni_hid_parser_xboxone_setup;
       d->report_parser.init_report = uni_hid_parser_xboxone_init_report;
       d->report_parser.parse_usage = uni_hid_parser_xboxone_parse_usage;
-      d->report_parser.set_leds = uni_hid_parser_xboxone_set_leds;
+      d->report_parser.set_rumble = uni_hid_parser_xboxone_set_rumble;
       logi("Device detected as Xbox One: 0x%02x\n", type);
       break;
     case CONTROLLER_TYPE_AndroidController:

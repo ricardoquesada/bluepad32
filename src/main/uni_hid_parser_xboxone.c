@@ -44,7 +44,8 @@ typedef struct wii_instance_s {
 } xboxone_instance_t;
 
 static xboxone_instance_t* get_xboxone_instance(uni_hid_device_t* d);
-static void rumble(uni_hid_device_t* d);
+static void rumble(uni_hid_device_t* d, uint8_t left, uint8_t right,
+                   uint16_t duration);
 static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
                                       hid_globals_t* globals,
                                       uint16_t usage_page, uint16_t usage,
@@ -475,17 +476,17 @@ static void parse_usage_firmware_v4_8(uni_hid_device_t* d,
   }
 }
 
-void uni_hid_parser_xboxone_set_leds(uni_hid_device_t* d,
-                                     uni_gamepad_seat_t seat) {
-  UNUSED(seat);
+void uni_hid_parser_xboxone_set_rumble(uni_hid_device_t* d, uint8_t left,
+                                       uint8_t right, uint16_t duration) {
   if (d == NULL) {
     loge("Xbox One: Invalid device\n");
     return;
   }
-  rumble(d);
+  rumble(d, left, right, duration);
 }
 
-static void rumble(uni_hid_device_t* d) {
+static void rumble(uni_hid_device_t* d, uint8_t left, uint8_t right,
+                   uint16_t duration) {
   // Actuators for the force feedback (FF).
   enum {
     FF_RIGHT = 1 << 0,
@@ -512,12 +513,13 @@ static void rumble(uni_hid_device_t* d) {
   struct ff_report ff = {
       .transaction_type = 0xa2,  // HIDP_TRANS_DATA | HIDP_DATA_RTYPE_OUPUT
       .report_id = 0x03,         // taken from HID descriptor
-      .enable_actuators = FF_TRIGGER_LEFT | FF_TRIGGER_RIGHT,
-      .force_left_trigger = 25,
-      .force_right_trigger = 25,
-      .force_left = 25,
-      .force_right = 25,
-      .duration = 12,
+      .enable_actuators =
+          FF_RIGHT | FF_LEFT | FF_TRIGGER_LEFT | FF_TRIGGER_RIGHT,
+      .force_left_trigger = left,
+      .force_right_trigger = right,
+      .force_left = left,
+      .force_right = right,
+      .duration = (uint8_t)duration,
       .start_delay = 0,
       .loop_count = 0,
   };

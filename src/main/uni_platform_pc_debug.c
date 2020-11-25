@@ -101,9 +101,9 @@ static void pc_debug_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
   }
   // Accelerator/Brake: control rumble
   if (d->report_parser.set_rumble != NULL) {
-    uint8_t left = (gp->accelerator * 256) / 1024;
-    uint8_t right = (gp->brake * 256) / 1024;
-    d->report_parser.set_rumble(d, left, right, 0);
+    uint8_t left = (gp->brake * 256) / 1024;
+    uint8_t right = (gp->accelerator * 256) / 1024;
+    d->report_parser.set_rumble(d, left, right, 128);
   }
   // Buttons: Control LEDs On/Off
   if (d->report_parser.set_leds != NULL) {
