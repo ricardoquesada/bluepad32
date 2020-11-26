@@ -30,8 +30,8 @@ void uni_hid_parser_switch_init_report(struct uni_hid_device_s* d);
 void uni_hid_parser_switch_parse_raw(struct uni_hid_device_s* d,
                                      const uint8_t* report, uint16_t len);
 void uni_hid_parser_switch_set_leds(struct uni_hid_device_s* d, uint8_t leds);
-void uni_hid_parser_switch_set_rumble(struct uni_hid_device_s* d, uint8_t left,
-                                      uint8_t right, uint16_t duration);
+void uni_hid_parser_switch_set_rumble(struct uni_hid_device_s* d, uint8_t value,
+                                      uint8_t duration);
 uint8_t uni_hid_parser_switch_does_packet_match(struct uni_hid_device_s* d,
                                                 const uint8_t* packet, int len);
 

@@ -39,7 +39,7 @@ typedef struct pc_debug_instance_s {
 } pc_debug_instance_t;
 
 // Declarations
-static void set_led(uni_hid_device_t* d);
+static void trigger_event_on_gamepad(uni_hid_device_t* d);
 static pc_debug_instance_t* get_pc_debug_instance(uni_hid_device_t* d);
 
 //
@@ -76,9 +76,7 @@ static int pc_debug_on_device_ready(uni_hid_device_t* d) {
   pc_debug_instance_t* ins = get_pc_debug_instance(d);
   ins->gamepad_seat = GAMEPAD_SEAT_A;
 
-  // FIXME: call paser->update_led() from on_device_ready. Otherwise parsers
-  // like the DS4 might not enable "stream" mode and will fail.
-  set_led(d);
+  trigger_event_on_gamepad(d);
   return 0;
 }
 
@@ -91,6 +89,7 @@ static void pc_debug_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
   prev = *gp;
   uni_gamepad_dump(gp);
 
+#if 1
   // Debugging
   // Axis: control RGB color
   if (d->report_parser.set_led_color != NULL) {
@@ -99,16 +98,16 @@ static void pc_debug_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
     uint8_t b = (gp->axis_rx * 256) / 512;
     d->report_parser.set_led_color(d, r, g, b);
   }
-  // Accelerator/Brake: control rumble
+  // Axis ry: control rumble
   if (d->report_parser.set_rumble != NULL) {
-    uint8_t left = (gp->brake * 256) / 1024;
-    uint8_t right = (gp->accelerator * 256) / 1024;
-    d->report_parser.set_rumble(d, left, right, 128);
+    uint8_t value = (gp->axis_ry * 256) / 512;
+    d->report_parser.set_rumble(d, value, 128);
   }
   // Buttons: Control LEDs On/Off
   if (d->report_parser.set_leds != NULL) {
     d->report_parser.set_leds(d, (uint8_t)gp->buttons);
   }
+#endif
 }
 
 static int32_t pc_debug_get_property(uni_platform_property_t key) {
@@ -135,7 +134,7 @@ static void pc_debug_on_device_oob_event(uni_hid_device_t* d,
   ins->gamepad_seat =
       ins->gamepad_seat == GAMEPAD_SEAT_A ? GAMEPAD_SEAT_B : GAMEPAD_SEAT_A;
 
-  set_led(d);
+  trigger_event_on_gamepad(d);
 }
 
 //
@@ -145,14 +144,21 @@ static pc_debug_instance_t* get_pc_debug_instance(uni_hid_device_t* d) {
   return (pc_debug_instance_t*)&d->platform_data[0];
 }
 
-static void set_led(uni_hid_device_t* d) {
-  if (d->report_parser.set_leds != NULL) {
-    pc_debug_instance_t* ins = get_pc_debug_instance(d);
-    d->report_parser.set_leds(d, ins->gamepad_seat);
-  }
+static void trigger_event_on_gamepad(uni_hid_device_t* d) {
+  pc_debug_instance_t* ins = get_pc_debug_instance(d);
+//  if (d->report_parser.set_leds != NULL) {
+//    d->report_parser.set_leds(d, ins->gamepad_seat);
+//  }
 
   if (d->report_parser.set_led_color != NULL) {
-    d->report_parser.set_led_color(d, 0xff, 0, 0);
+    uint8_t red = (ins->gamepad_seat & 0x01) ? 0xff : 0;
+    uint8_t green = (ins->gamepad_seat & 0x02) ? 0xff : 0;
+    uint8_t blue = (ins->gamepad_seat & 0x04) ? 0xff : 0;
+    d->report_parser.set_led_color(d, red, green, blue);
+  }
+
+  if (d->report_parser.set_rumble != NULL) {
+    d->report_parser.set_rumble(d, 0x80 /* value */, 0x04 /* duration */);
   }
 }
 

@@ -30,7 +30,7 @@ void uni_hid_parser_ds3_init_report(struct uni_hid_device_s *d);
 void uni_hid_parser_ds3_parse_raw(struct uni_hid_device_s *d,
                                   const uint8_t *report, uint16_t len);
 void uni_hid_parser_ds3_set_leds(struct uni_hid_device_s *d, uint8_t leds);
-void uni_hid_parser_ds3_set_rumble(struct uni_hid_device_s *d, uint8_t left,
-                                   uint8_t right, uint16_t duration);
+void uni_hid_parser_ds3_set_rumble(struct uni_hid_device_s *d, uint8_t value,
+                                   uint8_t duration);
 
 #endif  // UNI_HID_PARSER_DS3_H

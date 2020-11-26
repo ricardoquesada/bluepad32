@@ -10,10 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    - Setting player LEDs
    - Setting LED color (DS4, DualSense)
    - Rumble
-- DualShock4: Supports Rumble + any color can be set to the LED
+- DualShock4: Supports Rumble (WIP) + any color can be set to the LED
 - DualShock3: Supports players LEDs + Rumble
 - DualShock3: Fix button mappings. A <-> B, X <-> Y
 - XboxOne: Suports Rumble
+- Switch: Supports rumble (WIP)
 
 ## [2.0.0-beta0] - 2020-11-20
 

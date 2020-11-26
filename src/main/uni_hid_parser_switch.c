@@ -932,7 +932,7 @@ static void fsm_ready(struct uni_hid_device_s* d) {
 
 static struct switch_rumble_freq_data find_rumble_freq(uint16_t freq) {
   const struct switch_rumble_freq_data* data = rumble_freqs;
-  int i = 0;
+  unsigned int i = 0;
 
   if (freq > data[0].freq) {
     for (i = 1; i < TOTAL_RUMBLE_FREQS - 1; i++) {
@@ -945,7 +945,7 @@ static struct switch_rumble_freq_data find_rumble_freq(uint16_t freq) {
 
 static struct switch_rumble_amp_data find_rumble_amp(uint16_t amp) {
   const struct switch_rumble_amp_data* data = rumble_amps;
-  int i = 0;
+  unsigned int i = 0;
 
   if (amp > data[0].amp) {
     for (i = 1; i < TOTAL_RUMBLE_AMPS - 1; i++) {
@@ -983,24 +983,17 @@ void uni_hid_parser_switch_set_leds(uni_hid_device_t* d, uint8_t leds) {
   set_led(d, leds);
 }
 
-void uni_hid_parser_switch_set_rumble(struct uni_hid_device_s* d, uint8_t left,
-                                      uint8_t right, uint16_t duration) {
-  // For further info see:
-  // https://github.com/dekuNukem/Nintendo_Switch_Reverse_Engineering/blob/master/rumble_data_table.md
-  switch_instance_t* ins = get_switch_instance(d);
+void uni_hid_parser_switch_set_rumble(struct uni_hid_device_s* d, uint8_t value,
+                                      uint8_t duration) {
+  // FIXME: timer that cancels rumble after duration
+  UNUSED(duration);
 
   struct switch_rumble_only_request req = {0};
 
   req.transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
   req.report_id = OUTPUT_RUMBLE_ONLY;
-  req.rumble_left[0] = 0xa8;
-  req.rumble_left[1] = 0x12;
-  req.rumble_left[2] = 0x80;
-  req.rumble_left[3] = 0x49;
-  req.rumble_right[0] = 0xa8;
-  req.rumble_right[1] = 0x12;
-  req.rumble_right[2] = 0x80;
-  req.rumble_right[3] = 0x49;
+  switch_encode_rumble(req.rumble_left, value << 2, value, 800);
+  switch_encode_rumble(req.rumble_right, value << 2, value, 800);
 
   // TODO: It is safe to cast switch_rumble_only_request into a subcommand
   // but could become dangerous if more data is added/removed.
