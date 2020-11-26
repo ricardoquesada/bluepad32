@@ -344,8 +344,6 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
 
   set_gamepad_seat(d, wanted_seat);
 
-  if (d->report_parser.setup) d->report_parser.setup(d);
-
   return 0;
 }
 
@@ -530,15 +528,16 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
     // First try with color LED (best experience)
     uint8_t red = 0;
     uint8_t green = 0;
-    if (seat & 0x01) g = 0xff;
-    if (seat & 0x02) r = 0xff;
+    if (seat & 0x01) green = 0xff;
+    if (seat & 0x02) red = 0xff;
     d->report_parser.set_led_color(d, red, green, 0x00 /* blue*/);
   } else if (d->report_parser.set_leds != NULL) {
     // 2nd best option: set player LEDs
     d->report_parser.set_leds(d, all_seats);
   } else if (d->report_parser.set_rumble != NULL) {
     // Finally, as last resort, rumble
-    d->report_parser.set_rumble(0x20, 0x20, 0x10);
+    d->report_parser.set_rumble(d, 0x20 /* left */, 0x20 /* right */,
+                                0x10 /* duration */);
   }
 }
 
