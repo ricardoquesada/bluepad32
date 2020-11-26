@@ -140,11 +140,8 @@ void uni_hid_device_set_ready(uni_hid_device_t* d) {
     return;
   }
 
-  // TODO: Confirm that setup can run before "set_leds()".
-  // Old code, which was very well tested, was callilng update-led before setup.
-  // It is wrong, but it was working.
-  // Setup is executed before update-led, and all 4 major gamepads work ok:
-  // XboxOne, DS4, Switch and Wii. But don't know the rest of the gamepads.
+  // The "HID device" should be ready before calling the platform since the
+  // platform might call the "HID device". E.g: to set the LEDs
   if (d->report_parser.setup) d->report_parser.setup(d);
 
   if (g_platform->on_device_ready(d) == 0)
