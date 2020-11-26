@@ -216,6 +216,39 @@ void uni_hid_parser_ds3_set_leds(uni_hid_device_t* d, uint8_t leds) {
   update_led(d, leds);
 }
 
+void uni_hid_parser_ds3_set_rumble(uni_hid_device_t* d, uint8_t left,
+                                   uint8_t right, uint16_t duration) {
+  ds3_instance_t* ins = get_ds3_instance(d);
+
+  // LED cmd. LED1==2, LED2==4, etc...
+  uint8_t leds = ins->gamepad_seat << 1;
+  if (duration == 0xff) duration = 0xfe;
+
+  if (left == 0xff) left = 0xfe;
+  if (right == 0xff) left = 0xfe;
+  // Dual Shock 3 Control Packet, as defined in
+  // https://github.com/ros-drivers/joystick_drivers/blob/52e8fcfb5619382a04756207b228fbc569f9a3ca/ps3joy/scripts/ps3joy_node.py#L276
+  uint8_t control_packet[] = {
+      0x52,                        // Transaction type: SET_REPORT Output
+      0x01,                        // Report ID
+      0x00,                        // padding
+      duration,                    // right motor duration: 0xff == forever
+      !!right,                     // right motor (small) on: 0 or 1
+      duration,                    // left motor duration: 0xff == forever
+      left,                        // left motor (big) force: 0-255
+      0x00,     0x00, 0x00, 0x00,  // padding
+      leds,                        // Which LEDs are on
+      0xff,     0x27, 0x10, 0x00, 0x32,  // LED 4
+      0xff,     0x27, 0x10, 0x00, 0x32,  // LED 3
+      0xff,     0x27, 0x10, 0x00, 0x32,  // LED 2
+      0xff,     0x27, 0x10, 0x00, 0x32,  // LED 1
+      0x00,     0x00, 0x00, 0x00, 0x00,  // reserved
+  };
+
+  uni_hid_device_send_ctrl_report(d, (uint8_t*)&control_packet,
+                                  sizeof(control_packet));
+}
+
 void uni_hid_parser_ds3_setup(struct uni_hid_device_s* d) {
   // Dual Shock 3 Sixasis requires a magic packet to be sent in order to
   // enable reports. Taken from:

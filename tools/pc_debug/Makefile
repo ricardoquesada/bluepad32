@@ -61,7 +61,7 @@ clean_src:
 	rm -rf ${BTSTACK_ROOT}/platform/embedded/*.o
 
 clean:
-	-rm -rf ${BLUEPAD32_ROOT}*.o
+	-rm -rf ${BLUEPAD32_ROOT}/*.o
 	-rm -rf *.o
 	-rm -f bluepad32
 

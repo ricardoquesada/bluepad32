@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- Gamepads: Provide 3 properties (when avaiable):
+   - Setting player LEDs
+   - Setting LED color (DS4, DualSense)
+   - Rumble
+- DualShock4: Supports Rumble + any color can be set to the LED
+- DualShock3: Supports players LEDs + Rumble
+- DualShock3: Fix button mappings. A <-> B, X <-> Y
+- XboxOne: Suports Rumble
+
 ## [2.0.0-beta0] - 2020-11-20
 
 - Firmware: Added support Sony DualSense (PS5) and DualShock3 (PS3) gamepads
