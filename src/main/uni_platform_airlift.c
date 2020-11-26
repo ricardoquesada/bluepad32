@@ -1,7 +1,7 @@
 /****************************************************************************
 http://retro.moe/unijoysticle2
 
-Copyright 2019 Ricardo Quesada
+Copyright 2020 Ricardo Quesada
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -46,6 +46,7 @@ limitations under the License.
 #include "uni_debug.h"
 #include "uni_gamepad.h"
 #include "uni_hid_device.h"
+#include "uni_hid_parser.h"
 #include "uni_main_esp32.h"
 #include "uni_platform.h"
 
@@ -157,7 +158,47 @@ static int request_get_fw_version(const uint8_t command[], uint8_t response[]) {
 }
 
 // Command 0x60
-static int request_gamepad_data(const uint8_t command[], uint8_t response[]) {
+static int request_gamepads_data(const uint8_t command[], uint8_t response[]) {
+  // Returned struct:
+  // --- generic to all requests
+  // byte 2: number of parameters (always 1 for 0x60)
+  //      3: lenght of each parameter (always total size of payload for 0x60)
+  // --- 0x60 specific
+  //      4: number of gamepad reports. 0 == no reports
+  // --- gamepad I
+  //      5: gamepad data (0, 1, 2 or 3)
+  // --- gamepad I+1
+  //      ...
+  //
+  // Instead of returning multiple parameters, one per gamepad, one parameter
+  // is returned, of variable witdth.
+  response[2] = 1;  // number of parameters
+
+  xSemaphoreTake(_gamepad_mutex, portMAX_DELAY);
+
+  int total_gamepads = 0;
+  int offset = 5;
+  for (int i = 0; i < AIRLIFT_MAX_GAMEPADS; i++) {
+    if (_gamepad_seats & (1 << i)) {
+      total_gamepads++;
+      memcpy(&response[offset], &_gamepads[i], sizeof(_gamepads[0]));
+      offset += sizeof(_gamepads[0]);
+    }
+  }
+
+  response[3] =
+      1 + total_gamepads * sizeof(_gamepads[0]);  // Parameter 1 length
+  response[4] = total_gamepads;                   // Number of gamepad reports
+
+  xSemaphoreGive(_gamepad_mutex);
+
+  // "offset" is the total length
+  return offset;
+}
+
+// Command 0x61
+static int request_gamepads_properties(const uint8_t command[],
+                                       uint8_t response[]) {
   // Returned struct:
   // --- generic to all requests
   // byte 2: number of parameters (always 1 for 0x60)
@@ -195,6 +236,87 @@ static int request_gamepad_data(const uint8_t command[], uint8_t response[]) {
 
   // "offset" is the total length
   return offset;
+}
+
+static uint8_t predicate_airlift_index(uni_hid_device_t* d, void* data) {
+  int wanted_idx = (int)data;
+  airlift_instance_t* ins = get_airlift_instance(d);
+  if (ins->gamepad_idx != wanted_idx) return 0;
+  return 1;
+}
+
+static int request_set_gamepad_player_leds(const uint8_t command[],
+                                           uint8_t response[]) {
+  int idx = command[2];
+  uint8_t leds = command[3];
+
+  response[2] = 1;  // Number of parameters
+  response[3] = 1;  // Lenghts of each parameter
+
+  uni_hid_device_t* d = uni_hid_device_get_instance_with_predicate(
+      predicate_airlift_index, (void*)idx);
+
+  if (d == NULL) {
+    response[4] = 1;  // Gamepad not found
+  } else if (d->report_parser.set_leds == NULL) {
+    // Gamepad doesn't support feature
+    response[4] = 2;  // Gamepad not found
+  } else {
+    d->report_parser.set_leds(d, leds);
+    response[4] = 0;  // Ok
+  }
+
+  return 5;
+}
+
+static int request_set_gamepad_color_led(const uint8_t command[],
+                                         uint8_t response[]) {
+  int idx = command[2];
+  uint8_t r = command[3];
+  uint8_t g = command[4];
+  uint8_t b = command[5];
+
+  response[2] = 1;  // Number of parameters
+  response[3] = 1;  // Lenghts of each parameter
+
+  uni_hid_device_t* d = uni_hid_device_get_instance_with_predicate(
+      predicate_airlift_index, (void*)idx);
+
+  if (d == NULL) {
+    response[4] = 1;  // Gamepad not found
+  } else if (d->report_parser.set_led_color == NULL) {
+    // Gamepad doesn't support feature
+    response[4] = 2;  // Gamepad not found
+  } else {
+    d->report_parser.set_led_color(d, r, g, b);
+    response[4] = 0;  // Ok
+  }
+
+  return 5;
+}
+
+static int request_set_gamepad_rumble(const uint8_t command[],
+                                      uint8_t response[]) {
+  int idx = command[2];
+  uint8_t force = command[3];
+  uint8_t duration = command[4];
+
+  response[2] = 1;  // Number of parameters
+  response[3] = 1;  // Lenghts of each parameter
+
+  uni_hid_device_t* d = uni_hid_device_get_instance_with_predicate(
+      predicate_airlift_index, (void*)idx);
+
+  if (d == NULL) {
+    response[4] = 1;  // Gamepad not found
+  } else if (d->report_parser.set_rumble == NULL) {
+    // Gamepad doesn't support feature
+    response[4] = 2;  // Gamepad not found
+  } else {
+    d->report_parser.set_rumble(d, force, duration);
+    response[4] = 0;  // Ok
+  }
+  return 5;
 }
 
 typedef int (*command_handler_t)(const uint8_t command[],
@@ -279,9 +401,12 @@ const command_handler_t command_handlers[] = {
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 
     // 0x60 -> 0x6f: Bluepad32 own extensions
-    request_gamepad_data,  // request_gamepad_data
-    NULL,                  // request_set_gamepad_rumble
-    NULL,                  // request_set_gamepad_led_color
+    request_gamepads_data,            // data
+    request_gamepads_properties,      // name, features like rumble, leds, etc.
+    request_set_gamepad_player_leds,  // the 4 LEDs that is available in many
+                                      // gamepads
+    request_set_gamepad_color_led,    // available on DS4, DualSense
+    request_set_gamepad_rumble,       // available on DS4, Xbox, Switch, etc.
 };
 #define COMMAND_HANDLERS_MAX \
   (sizeof(command_handlers) / sizeof(command_handlers[0]))
@@ -346,7 +471,7 @@ static void spi_main_loop(void* arg) {
   // Small delay to let CPU0 finish initialization. This is to prevent collision
   // in the log(). No harm is done if there is collision, only that it is more
   // difficult to read the logs from the console.
-  vTaskDelay(250 / portTICK_PERIOD_MS);
+  vTaskDelay(50 / portTICK_PERIOD_MS);
 
   _ready_semaphore = xSemaphoreCreateCounting(1, 0);
 
@@ -487,6 +612,8 @@ static void airlift_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
 
   xSemaphoreTake(_gamepad_mutex, portMAX_DELAY);
   _gamepads[ins->gamepad_idx] = (airlift_gamepad_t){
+      .idx = ins->gamepad_idx,  // This is how "client" knows which gamepad
+                                // emitted the events
       .dpad = gp->dpad,
       .axis_x = gp->axis_x,
       .axis_y = gp->axis_y,

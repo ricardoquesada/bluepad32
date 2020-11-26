@@ -108,6 +108,16 @@ uni_hid_device_t* uni_hid_device_get_instance_for_idx(int idx) {
   return &g_devices[idx];
 }
 
+uni_hid_device_t* uni_hid_device_get_instance_with_predicate(
+    uni_hid_device_predicate_t predicate, void* data) {
+  for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
+    // Only "ready" devices are propagated
+    if (g_devices[i].state != STATE_DEVICE_READY) continue;
+    if (predicate(&g_devices[i], data)) return &g_devices[i];
+  }
+  return NULL;
+}
+
 uni_hid_device_t* uni_hid_device_get_first_device_with_state(
     enum DEVICE_STATE state) {
   for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {

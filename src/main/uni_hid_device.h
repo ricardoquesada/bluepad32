@@ -117,9 +117,15 @@ struct uni_hid_device_s {
 };
 typedef struct uni_hid_device_s uni_hid_device_t;
 
+// Callback function used as in get_instance_with_predicate
+typedef uint8_t (*uni_hid_device_predicate_t)(uni_hid_device_t* d, void* data);
+
 void uni_hid_device_init(void);
 
 uni_hid_device_t* uni_hid_device_create(bd_addr_t address);
+
+// Don't add any other get_instance_for_XXX function.
+// Insteaad use: get_instance_with_predicate()
 uni_hid_device_t* uni_hid_device_get_instance_for_address(bd_addr_t addr);
 uni_hid_device_t* uni_hid_device_get_instance_for_cid(uint16_t cid);
 uni_hid_device_t* uni_hid_device_get_instance_for_connection_handle(
@@ -127,6 +133,8 @@ uni_hid_device_t* uni_hid_device_get_instance_for_connection_handle(
 uni_hid_device_t* uni_hid_device_get_first_device_with_state(
     enum DEVICE_STATE state);
 uni_hid_device_t* uni_hid_device_get_instance_for_idx(int idx);
+uni_hid_device_t* uni_hid_device_get_instance_with_predicate(
+    uni_hid_device_predicate_t predicate, void* data);
 
 // Which device is currently doing a SDP query.
 void uni_hid_device_set_sdp_device(uni_hid_device_t* d);
