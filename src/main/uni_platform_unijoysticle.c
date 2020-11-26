@@ -537,7 +537,7 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
   } else if (d->report_parser.set_rumble != NULL) {
     // Finally, as last resort, rumble
     d->report_parser.set_rumble(d, 0x20 /* left */, 0x20 /* right */,
-                                0x10 /* duration */);
+                                0x04 /* duration */);
   }
 }
 
