@@ -28,6 +28,6 @@ limitations under the License.
 // Enable DualShock3 support.
 // To enable it, gat_set_security_level(0) must be called (by default it is 2)
 // but it seems that this breaks Nintendo Switch gamepad support.
-#define UNI_ENABLE_DUALSHOCK3 1  // Enabled if 1
+#define UNI_ENABLE_DUALSHOCK3 0  // Enabled if 1
 
 #endif  // UNI_CONFIG_H
