@@ -1,16 +1,14 @@
 /****************************************************************************
-Dual Shock 3 hid support for Unijoysticle from Marcelo Lorenzati
-mlorenzati@gmail.com
+Original DS3 support by Marcelo Lorenzati mlorenzati@gmail.com
+LEDs, rumble support + additional fixes by Ricardo Quesada
 
-Source of info:
+Technical info taken from:
+https://github.com/torvalds/linux/blob/master/drivers/hid/hid-sony.c
 https://github.com/libretro/RetroArch/blob/5166eebcaf82ad784fe4856791880014d78807bd/input/common/hid/device_ds3.c#L180
 http://wiki.ros.org/ps3joy
 https://github.com/ros-drivers/joystick_drivers/blob/master/ps3joy/scripts/ps3joy_node.py
 https://github.com/felis/USB_Host_Shield_2.0/wiki/PS3-Information#Bluetooth
 https://github.com/jvpernis/esp32-ps3
-
-http://retro.moe/unijoysticle2
-Copyright 2019 Ricardo Quesada
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -136,7 +134,7 @@ void uni_hid_parser_ds3_parse_raw(uni_hid_device_t* d, const uint8_t* report,
       ps3_button_mask_l2,       ps3_button_mask_r2,     ps3_button_mask_l3,
       ps3_button_mask_r3};
   uint32_t fire_buttons[] = {
-      BUTTON_X,          BUTTON_A,          BUTTON_B,         BUTTON_Y,
+      BUTTON_Y,          BUTTON_B,          BUTTON_A,         BUTTON_X,
       BUTTON_SHOULDER_L, BUTTON_SHOULDER_R, BUTTON_TRIGGER_L, BUTTON_TRIGGER_R,
       BUTTON_THUMB_L,    BUTTON_THUMB_R};
 #define FIRE_BUTTONS_SIZE (int)(sizeof(fire_buttons) / sizeof(fire_buttons[0]))
@@ -220,7 +218,7 @@ void uni_hid_parser_ds3_set_leds(uni_hid_device_t* d, uint8_t leds) {
 
 void uni_hid_parser_ds3_setup(struct uni_hid_device_s* d) {
   // Dual Shock 3 Sixasis requires a magic packet to be sent in order to
-  // enable reports Taken from:
+  // enable reports. Taken from:
   // https://github.com/ros-drivers/joystick_drivers/blob/52e8fcfb5619382a04756207b228fbc569f9a3ca/ps3joy/scripts/ps3joy_node.py#L299
   static uint8_t sixaxisEnableReports[] = {
       0x53,  // Transaction type: SET_REPORT Feature
@@ -241,37 +239,26 @@ static void update_led(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
   ds3_instance_t* ins = get_ds3_instance(d);
   ins->state = DS3_FSM_LED_UPDATED;
 
+  // LED cmd. LED1==2, LED2==4, etc...
+  uint8_t leds = seat << 1;
   // Dual Shock 3 Control Packet, as defined in
   // https://github.com/ros-drivers/joystick_drivers/blob/52e8fcfb5619382a04756207b228fbc569f9a3ca/ps3joy/scripts/ps3joy_node.py#L276
   uint8_t control_packet[] = {
-      0x52,  // Transaction type: SET_REPORT Output
-      0x01,  // Report ID
-      0x00, 0xff, 0x00, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00,                          // LED cmd
+      0x52,                          // Transaction type: SET_REPORT Output
+      0x01,                          // Report ID
+      0x00,                          // padding
+      0xff,                          // right motor duration: 0xff == forever
+      0x00,                          // right motor (small) on: 0 or 1
+      0xff,                          // left motor duration: 0xff == forever
+      0x00,                          // left motor (big) force: 0-255
+      0x00, 0x00, 0x00, 0x00,        // padding
+      leds,                          // Which LEDs are on
       0xff, 0x27, 0x10, 0x00, 0x32,  // LED 4
       0xff, 0x27, 0x10, 0x00, 0x32,  // LED 3
       0xff, 0x27, 0x10, 0x00, 0x32,  // LED 2
       0xff, 0x27, 0x10, 0x00, 0x32,  // LED 1
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-
-  enum ps3_led_mask {
-    ps3_led_mask_led1 = 1 << 1,
-    ps3_led_mask_led2 = 1 << 2,
-    ps3_led_mask_led3 = 1 << 3,
-    ps3_led_mask_led4 = 1 << 4,
+      0x00, 0x00, 0x00, 0x00, 0x00,  // reserved
   };
-
-#define LED_OFFSET 11
-  control_packet[LED_OFFSET] = 0;
-
-  if ((seat & GAMEPAD_SEAT_A) != 0) {
-    control_packet[LED_OFFSET] |= ps3_led_mask_led1;
-  }
-
-  if ((seat & GAMEPAD_SEAT_B) != 0) {
-    control_packet[LED_OFFSET] |= ps3_led_mask_led2;
-  }
 
   uni_hid_device_send_ctrl_report(d, (uint8_t*)&control_packet,
                                   sizeof(control_packet));

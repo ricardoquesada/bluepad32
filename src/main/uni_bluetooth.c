@@ -62,6 +62,7 @@
 
 #include "btstack.h"
 #include "btstack_config.h"
+#include "uni_config.h"
 #include "uni_debug.h"
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
