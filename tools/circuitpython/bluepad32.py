@@ -30,6 +30,7 @@ class ESP_SPIcontrol(adafruit_esp32spi.ESP_SPIcontrol):
     _SET_GAMEPAD_PLAYER_LEDS = const(0x62)
     _SET_GAMEPAD_COLOR_LED = const(0x63)
     _SET_GAMEPAD_RUMBLE = const(0x64)
+    _BLUETOOTH_DEL_KEYS = const(0x65)
 
     def get_gamepads_data(self):
         """Returns a list of gamepads. Empty if no gamepad are connected.
@@ -72,7 +73,7 @@ class ESP_SPIcontrol(adafruit_esp32spi.ESP_SPIcontrol):
         resp = self._send_command_get_response(
             _SET_GAMEPAD_PLAYER_LEDS, ((gamepad_idx,), (leds,))
         )
-        return resp
+        return resp[0][0]
 
     def set_gamepad_color_led(self, gamepad_idx: int, rgb:tuple):
         """
@@ -80,12 +81,18 @@ class ESP_SPIcontrol(adafruit_esp32spi.ESP_SPIcontrol):
         resp = self._send_command_get_response(
             _SET_GAMEPAD_COLOR_LED, ((gamepad_idx,), rgb)
         )
-        return resp
+        return resp[0][0]
 
     def set_gamepad_rumble(self, gamepad_idx: int, force: int, duration: int):
         """
         """
         resp = self._send_command_get_response(
-            _SET_GAMEPAD_COLOR_LED, ((gamepad_idx,), (force, duration))
+            _SET_GAMEPAD_RUMBLE, ((gamepad_idx,), (force, duration))
         )
-        return resp
+        return resp[0][0]
+
+    def bluetooth_del_keys(self):
+        """
+        """
+        resp = self._send_command_get_response(_BLUETOOTH_DEL_KEYS)
+        return resp[0][0]

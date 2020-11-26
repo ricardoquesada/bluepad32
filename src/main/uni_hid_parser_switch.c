@@ -458,7 +458,6 @@ static void process_fsm(struct uni_hid_device_s* d) {
       break;
     case STATE_READY:
       logd("STATE_READY\n");
-      logi("Switch: gamepad is ready!\n");
       break;
     default:
       loge("Switch: unexpected state: 0x%02x\n", ins->mode);
@@ -928,6 +927,7 @@ static void fsm_update_led(struct uni_hid_device_s* d) {
 static void fsm_ready(struct uni_hid_device_s* d) {
   switch_instance_t* ins = get_switch_instance(d);
   ins->state = STATE_READY;
+  logi("Switch: gamepad is ready!\n");
 }
 
 static struct switch_rumble_freq_data find_rumble_freq(uint16_t freq) {

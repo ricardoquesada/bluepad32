@@ -42,6 +42,7 @@ limitations under the License.
 #include <freertos/semphr.h>
 #include <math.h>
 
+#include "uni_bluetooth.h"
 #include "uni_config.h"
 #include "uni_debug.h"
 #include "uni_gamepad.h"
@@ -245,6 +246,7 @@ static uint8_t predicate_airlift_index(uni_hid_device_t* d, void* data) {
   return 1;
 }
 
+// Command 0x62
 static int request_set_gamepad_player_leds(const uint8_t command[],
                                            uint8_t response[]) {
   // command[3]: len
@@ -271,6 +273,7 @@ static int request_set_gamepad_player_leds(const uint8_t command[],
   return 5;
 }
 
+// Command 0x63
 static int request_set_gamepad_color_led(const uint8_t command[],
                                          uint8_t response[]) {
   // command[3]: len
@@ -299,6 +302,7 @@ static int request_set_gamepad_color_led(const uint8_t command[],
   return 5;
 }
 
+// Command 0x64
 static int request_set_gamepad_rumble(const uint8_t command[],
                                       uint8_t response[]) {
   // command[3]: len
@@ -322,6 +326,17 @@ static int request_set_gamepad_rumble(const uint8_t command[],
     d->report_parser.set_rumble(d, force, duration);
     response[4] = 0;  // Ok
   }
+  return 5;
+}
+
+// Command 0x65
+static int request_bluetooth_del_keys(const uint8_t command[],
+                                      uint8_t response[]) {
+  response[2] = 1;  // Number of parameters
+  response[3] = 1;  // Lenghts of each parameter
+  response[4] = 0;  // Ok
+
+  uni_bluetooth_del_keys();
   return 5;
 }
 
@@ -413,6 +428,7 @@ const command_handler_t command_handlers[] = {
                                       // gamepads
     request_set_gamepad_color_led,    // available on DS4, DualSense
     request_set_gamepad_rumble,       // available on DS4, Xbox, Switch, etc.
+    request_bluetooth_del_keys,       // delete stored Bluetooth keys
 };
 #define COMMAND_HANDLERS_MAX \
   (sizeof(command_handlers) / sizeof(command_handlers[0]))

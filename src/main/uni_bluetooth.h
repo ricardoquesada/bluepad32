@@ -16,9 +16,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
-#ifndef UNI_BT_MAIN_H
-#define UNI_BT_MAIN_H
+#ifndef UNI_BLUETOOTH_H
+#define UNI_BLUETOOTH_H
 
 int uni_bluetooth_init(void);
+void uni_bluetooth_del_keys(void);
 
-#endif  //  UNI_BT_MAIN_H
+#endif  // UNI_BLUETOOTH_H

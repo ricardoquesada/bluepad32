@@ -378,7 +378,7 @@ static void packet_handler(uint8_t packet_type, uint16_t channel,
           break;
         // L2CAP EVENTS
         case L2CAP_EVENT_CAN_SEND_NOW:
-          loge("--> L2CAP_EVENT_CAN_SEND_NOW\n");
+          logd("--> L2CAP_EVENT_CAN_SEND_NOW\n");
           uint16_t local_cid = l2cap_event_can_send_now_get_local_cid(packet);
           device = uni_hid_device_get_instance_for_cid(local_cid);
           if (device == NULL) {
@@ -982,4 +982,23 @@ int uni_bluetooth_init(void) {
   return 0;
 }
 
-/* EXAMPLE_END */
+// Deletes Bluetooth stored keys
+void uni_bluetooth_del_keys(void) {
+  bd_addr_t addr;
+  link_key_t link_key;
+  link_key_type_t type;
+  btstack_link_key_iterator_t it;
+
+  int ok = gap_link_key_iterator_init(&it);
+  if (!ok) {
+    loge("Link key iterator not implemented\n");
+    return;
+  }
+
+  while (gap_link_key_iterator_get_next(&it, addr, link_key, &type)) {
+    logi("Deleting key: %s - type %u, key: \n", bd_addr_to_str(addr),
+         (int)type);
+    gap_drop_link_key_for_bd_addr(addr);
+  }
+  gap_link_key_iterator_done(&it);
+}

@@ -633,7 +633,7 @@ void uni_hid_device_send_queued_reports(uni_hid_device_t* d) {
   }
 
   if (uni_circular_buffer_is_empty(&d->outgoing_buffer)) {
-    logi("circular buffer empty?\n");
+    logd("circular buffer empty?\n");
     return;
   }
 

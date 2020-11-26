@@ -36,6 +36,9 @@ esp = bluepad32.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset, debug=0)
 # Optionally, to enable UART logging in the ESP32
 esp.set_esp_debug(1)
 
+# Delete Bluetooth stored keys. Might make connection easier (or more difficult).
+esp.bluetooth_del_keys()
+
 # Should display "Bluepad32 for Airlift"
 print('Firmware vers:', esp.firmware_version)
 
@@ -66,7 +69,9 @@ while True:
             players_led &= 0x0f
 
         if gp['buttons'] & 0x04:
-            rest = esp.set_gamepad_rumble(gp['idx'], 255, 255)
+            force = 128 # 0-255
+            duration = 10 # 0-255
+            rest = esp.set_gamepad_rumble(gp['idx'], force, duration)
             print(rest)
 
     time.sleep(0.032)

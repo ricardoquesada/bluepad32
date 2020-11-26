@@ -22,7 +22,9 @@ limitations under the License.
 #include <stdint.h>
 
 // UNI_CIRCULAR_BUFFER_SIZE represents how many packets can be queued
-#define UNI_CIRCULAR_BUFFER_SIZE 6
+// Multiple gamepads could be connected at the same time, each queuing
+// multiple packets: Think of 8 gamepads wanted to rumble at the same time.
+#define UNI_CIRCULAR_BUFFER_SIZE 32
 // UNI_CIRCULAR_BUFFER_DATA_SIZE represents the max size of each packet
 #define UNI_CIRCULAR_BUFFER_DATA_SIZE 128
 
