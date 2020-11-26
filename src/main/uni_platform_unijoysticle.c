@@ -292,7 +292,7 @@ static void unijoysticle_on_device_disconnected(uni_hid_device_t* d) {
   unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
 
   if (ins->gamepad_seat != GAMEPAD_SEAT_NONE) {
-    set_gamepad_seat(d, GAMEPAD_SEAT_NONE);
+    ins->gamepad_seat = GAMEPAD_SEAT_NONE;
     ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
   }
 }
@@ -526,8 +526,19 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
   gpio_set_level(GPIO_LED_J1, status_a);
   gpio_set_level(GPIO_LED_J2, status_b);
 
-  if (d->report_parser.set_leds != NULL) {
+  if (d->report_parser.set_led_color != NULL) {
+    // First try with color LED (best experience)
+    uint8_t red = 0;
+    uint8_t green = 0;
+    if (seat & 0x01) g = 0xff;
+    if (seat & 0x02) r = 0xff;
+    d->report_parser.set_led_color(d, red, green, 0x00 /* blue*/);
+  } else if (d->report_parser.set_leds != NULL) {
+    // 2nd best option: set player LEDs
     d->report_parser.set_leds(d, all_seats);
+  } else if (d->report_parser.set_rumble != NULL) {
+    // Finally, as last resort, rumble
+    d->report_parser.set_rumble(0x20, 0x20, 0x10);
   }
 }
 
