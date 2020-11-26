@@ -26,6 +26,10 @@ class ESP_SPIcontrol(adafruit_esp32spi.ESP_SPIcontrol):
     # Nina-fw commands stopped at 0x50. Bluepad32 extensions start at 0x60
     # See: https://github.com/adafruit/Adafruit_CircuitPython_ESP32SPI/blob/master/adafruit_esp32spi/adafruit_esp32spi.py
     _GET_GAMEPADS_DATA = const(0x60)
+    _GET_GAMEPADS_PROPERTIES = const(0x61)
+    _SET_GAMEPAD_PLAYER_LEDS = const(0x62)
+    _SET_GAMEPAD_COLOR_LED = const(0x63)
+    _SET_GAMEPAD_RUMBLE = const(0x64)
 
     def get_gamepads_data(self):
         """Returns a list of gamepads. Empty if no gamepad are connected.
@@ -61,3 +65,27 @@ class ESP_SPIcontrol(adafruit_esp32spi.ESP_SPIcontrol):
             gamepads.append(gamepad)
             offset += 29
         return gamepads
+
+    def set_gamepad_player_leds(self, gamepad_idx: int, leds: int):
+        """
+        """
+        resp = self._send_command_get_response(
+            _SET_GAMEPAD_PLAYER_LEDS, ((gamepad_idx,), (leds,))
+        )
+        return resp
+
+    def set_gamepad_color_led(self, gamepad_idx: int, rgb:tuple):
+        """
+        """
+        resp = self._send_command_get_response(
+            _SET_GAMEPAD_COLOR_LED, ((gamepad_idx,), rgb)
+        )
+        return resp
+
+    def set_gamepad_rumble(self, gamepad_idx: int, force: int, duration: int):
+        """
+        """
+        resp = self._send_command_get_response(
+            _SET_GAMEPAD_COLOR_LED, ((gamepad_idx,), (force, duration))
+        )
+        return resp

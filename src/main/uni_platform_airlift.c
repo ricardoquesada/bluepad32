@@ -247,8 +247,10 @@ static uint8_t predicate_airlift_index(uni_hid_device_t* d, void* data) {
 
 static int request_set_gamepad_player_leds(const uint8_t command[],
                                            uint8_t response[]) {
-  int idx = command[2];
-  uint8_t leds = command[3];
+  // command[3]: len
+  int idx = command[4];
+  // command[5]: len
+  uint8_t leds = command[6];
 
   response[2] = 1;  // Number of parameters
   response[3] = 1;  // Lenghts of each parameter
@@ -271,10 +273,12 @@ static int request_set_gamepad_player_leds(const uint8_t command[],
 
 static int request_set_gamepad_color_led(const uint8_t command[],
                                          uint8_t response[]) {
-  int idx = command[2];
-  uint8_t r = command[3];
-  uint8_t g = command[4];
-  uint8_t b = command[5];
+  // command[3]: len
+  int idx = command[4];
+  // command[5]: len
+  uint8_t r = command[6];
+  uint8_t g = command[7];
+  uint8_t b = command[8];
 
   response[2] = 1;  // Number of parameters
   response[3] = 1;  // Lenghts of each parameter
@@ -297,9 +301,11 @@ static int request_set_gamepad_color_led(const uint8_t command[],
 
 static int request_set_gamepad_rumble(const uint8_t command[],
                                       uint8_t response[]) {
-  int idx = command[2];
-  uint8_t force = command[3];
-  uint8_t duration = command[4];
+  // command[3]: len
+  int idx = command[4];
+  // command[5]: len
+  uint8_t force = command[6];
+  uint8_t duration = command[7];
 
   response[2] = 1;  // Number of parameters
   response[3] = 1;  // Lenghts of each parameter
