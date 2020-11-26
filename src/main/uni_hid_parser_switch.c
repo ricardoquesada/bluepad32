@@ -104,6 +104,11 @@ enum switch_controller_types {
   SWITCH_CONTROLLER_TYPE_PRO = 0x03,  // Gamepad Pro
 };
 
+enum {
+  OUTPUT_RUMBLE_AND_SUBCMD = 0x01,
+  OUTPUT_RUMBLE_ONLY = 0x10,
+};
+
 enum switch_subcmd {
   SUBCMD_REQ_DEV_INFO = 0x02,
   SUBCMD_SET_REPORT_MODE = 0x03,
@@ -148,12 +153,22 @@ struct switch_subcmd_request {
   // Data related
   uint8_t packet_num;  // increment by 1 for each packet sent. It loops in 0x0 -
                        // 0xF range.
-  // Rumble not supported at the moment. For further info see:
-  // https://github.com/dekuNukem/Nintendo_Switch_Reverse_Engineering/blob/master/rumble_data_table.md
   uint8_t rumble_left[4];
   uint8_t rumble_right[4];
   uint8_t subcmd_id;
   uint8_t data[0];  // length depends on the subcommand
+} __attribute__((packed));
+
+struct switch_rumble_only_request {
+  // Report related
+  uint8_t transaction_type;  // type of transaction
+  uint8_t report_id;  // must be 0x01 for subcommand, 0x10 for rumble only
+
+  // Data related
+  uint8_t packet_num;  // increment by 1 for each packet sent. It loops in 0x0 -
+                       // 0xF range.
+  uint8_t rumble_left[4];
+  uint8_t rumble_right[4];
 } __attribute__((packed));
 
 struct switch_report_3f_s {
@@ -189,6 +204,118 @@ struct switch_report_21_s {
   uint8_t subcmd_id;
   uint8_t data[0];
 } __attribute__((packed));
+
+/* frequency/amplitude tables for rumble */
+struct switch_rumble_freq_data {
+  uint16_t high;
+  uint8_t low;
+  uint16_t freq; /* Hz*/
+};
+
+struct switch_rumble_amp_data {
+  uint8_t high;
+  uint16_t low;
+  uint16_t amp;
+};
+
+/*
+ * These tables are from
+ * https://github.com/dekuNukem/Nintendo_Switch_Reverse_Engineering/blob/master/rumble_data_table.md
+ */
+static const struct switch_rumble_freq_data rumble_freqs[] = {
+    /* high, low, freq */
+    {0x0000, 0x01, 41},   {0x0000, 0x02, 42},   {0x0000, 0x03, 43},
+    {0x0000, 0x04, 44},   {0x0000, 0x05, 45},   {0x0000, 0x06, 46},
+    {0x0000, 0x07, 47},   {0x0000, 0x08, 48},   {0x0000, 0x09, 49},
+    {0x0000, 0x0A, 50},   {0x0000, 0x0B, 51},   {0x0000, 0x0C, 52},
+    {0x0000, 0x0D, 53},   {0x0000, 0x0E, 54},   {0x0000, 0x0F, 55},
+    {0x0000, 0x10, 57},   {0x0000, 0x11, 58},   {0x0000, 0x12, 59},
+    {0x0000, 0x13, 60},   {0x0000, 0x14, 62},   {0x0000, 0x15, 63},
+    {0x0000, 0x16, 64},   {0x0000, 0x17, 66},   {0x0000, 0x18, 67},
+    {0x0000, 0x19, 69},   {0x0000, 0x1A, 70},   {0x0000, 0x1B, 72},
+    {0x0000, 0x1C, 73},   {0x0000, 0x1D, 75},   {0x0000, 0x1e, 77},
+    {0x0000, 0x1f, 78},   {0x0000, 0x20, 80},   {0x0400, 0x21, 82},
+    {0x0800, 0x22, 84},   {0x0c00, 0x23, 85},   {0x1000, 0x24, 87},
+    {0x1400, 0x25, 89},   {0x1800, 0x26, 91},   {0x1c00, 0x27, 93},
+    {0x2000, 0x28, 95},   {0x2400, 0x29, 97},   {0x2800, 0x2a, 99},
+    {0x2c00, 0x2b, 102},  {0x3000, 0x2c, 104},  {0x3400, 0x2d, 106},
+    {0x3800, 0x2e, 108},  {0x3c00, 0x2f, 111},  {0x4000, 0x30, 113},
+    {0x4400, 0x31, 116},  {0x4800, 0x32, 118},  {0x4c00, 0x33, 121},
+    {0x5000, 0x34, 123},  {0x5400, 0x35, 126},  {0x5800, 0x36, 129},
+    {0x5c00, 0x37, 132},  {0x6000, 0x38, 135},  {0x6400, 0x39, 137},
+    {0x6800, 0x3a, 141},  {0x6c00, 0x3b, 144},  {0x7000, 0x3c, 147},
+    {0x7400, 0x3d, 150},  {0x7800, 0x3e, 153},  {0x7c00, 0x3f, 157},
+    {0x8000, 0x40, 160},  {0x8400, 0x41, 164},  {0x8800, 0x42, 167},
+    {0x8c00, 0x43, 171},  {0x9000, 0x44, 174},  {0x9400, 0x45, 178},
+    {0x9800, 0x46, 182},  {0x9c00, 0x47, 186},  {0xa000, 0x48, 190},
+    {0xa400, 0x49, 194},  {0xa800, 0x4a, 199},  {0xac00, 0x4b, 203},
+    {0xb000, 0x4c, 207},  {0xb400, 0x4d, 212},  {0xb800, 0x4e, 217},
+    {0xbc00, 0x4f, 221},  {0xc000, 0x50, 226},  {0xc400, 0x51, 231},
+    {0xc800, 0x52, 236},  {0xcc00, 0x53, 241},  {0xd000, 0x54, 247},
+    {0xd400, 0x55, 252},  {0xd800, 0x56, 258},  {0xdc00, 0x57, 263},
+    {0xe000, 0x58, 269},  {0xe400, 0x59, 275},  {0xe800, 0x5a, 281},
+    {0xec00, 0x5b, 287},  {0xf000, 0x5c, 293},  {0xf400, 0x5d, 300},
+    {0xf800, 0x5e, 306},  {0xfc00, 0x5f, 313},  {0x0001, 0x60, 320},
+    {0x0401, 0x61, 327},  {0x0801, 0x62, 334},  {0x0c01, 0x63, 341},
+    {0x1001, 0x64, 349},  {0x1401, 0x65, 357},  {0x1801, 0x66, 364},
+    {0x1c01, 0x67, 372},  {0x2001, 0x68, 381},  {0x2401, 0x69, 389},
+    {0x2801, 0x6a, 397},  {0x2c01, 0x6b, 406},  {0x3001, 0x6c, 415},
+    {0x3401, 0x6d, 424},  {0x3801, 0x6e, 433},  {0x3c01, 0x6f, 443},
+    {0x4001, 0x70, 453},  {0x4401, 0x71, 462},  {0x4801, 0x72, 473},
+    {0x4c01, 0x73, 483},  {0x5001, 0x74, 494},  {0x5401, 0x75, 504},
+    {0x5801, 0x76, 515},  {0x5c01, 0x77, 527},  {0x6001, 0x78, 538},
+    {0x6401, 0x79, 550},  {0x6801, 0x7a, 562},  {0x6c01, 0x7b, 574},
+    {0x7001, 0x7c, 587},  {0x7401, 0x7d, 600},  {0x7801, 0x7e, 613},
+    {0x7c01, 0x7f, 626},  {0x8001, 0x00, 640},  {0x8401, 0x00, 654},
+    {0x8801, 0x00, 668},  {0x8c01, 0x00, 683},  {0x9001, 0x00, 698},
+    {0x9401, 0x00, 713},  {0x9801, 0x00, 729},  {0x9c01, 0x00, 745},
+    {0xa001, 0x00, 761},  {0xa401, 0x00, 778},  {0xa801, 0x00, 795},
+    {0xac01, 0x00, 812},  {0xb001, 0x00, 830},  {0xb401, 0x00, 848},
+    {0xb801, 0x00, 867},  {0xbc01, 0x00, 886},  {0xc001, 0x00, 905},
+    {0xc401, 0x00, 925},  {0xc801, 0x00, 945},  {0xcc01, 0x00, 966},
+    {0xd001, 0x00, 987},  {0xd401, 0x00, 1009}, {0xd801, 0x00, 1031},
+    {0xdc01, 0x00, 1053}, {0xe001, 0x00, 1076}, {0xe401, 0x00, 1100},
+    {0xe801, 0x00, 1124}, {0xec01, 0x00, 1149}, {0xf001, 0x00, 1174},
+    {0xf401, 0x00, 1199}, {0xf801, 0x00, 1226}, {0xfc01, 0x00, 1253}};
+#define TOTAL_RUMBLE_FREQS (sizeof(rumble_freqs) / sizeof(rumble_freqs[0]))
+
+static const struct switch_rumble_amp_data rumble_amps[] = {
+    /* high, low, amp */
+    {0x00, 0x0040, 0},   {0x02, 0x8040, 10},  {0x04, 0x0041, 12},
+    {0x06, 0x8041, 14},  {0x08, 0x0042, 17},  {0x0a, 0x8042, 20},
+    {0x0c, 0x0043, 24},  {0x0e, 0x8043, 28},  {0x10, 0x0044, 33},
+    {0x12, 0x8044, 40},  {0x14, 0x0045, 47},  {0x16, 0x8045, 56},
+    {0x18, 0x0046, 67},  {0x1a, 0x8046, 80},  {0x1c, 0x0047, 95},
+    {0x1e, 0x8047, 112}, {0x20, 0x0048, 117}, {0x22, 0x8048, 123},
+    {0x24, 0x0049, 128}, {0x26, 0x8049, 134}, {0x28, 0x004a, 140},
+    {0x2a, 0x804a, 146}, {0x2c, 0x004b, 152}, {0x2e, 0x804b, 159},
+    {0x30, 0x004c, 166}, {0x32, 0x804c, 173}, {0x34, 0x004d, 181},
+    {0x36, 0x804d, 189}, {0x38, 0x004e, 198}, {0x3a, 0x804e, 206},
+    {0x3c, 0x004f, 215}, {0x3e, 0x804f, 225}, {0x40, 0x0050, 230},
+    {0x42, 0x8050, 235}, {0x44, 0x0051, 240}, {0x46, 0x8051, 245},
+    {0x48, 0x0052, 251}, {0x4a, 0x8052, 256}, {0x4c, 0x0053, 262},
+    {0x4e, 0x8053, 268}, {0x50, 0x0054, 273}, {0x52, 0x8054, 279},
+    {0x54, 0x0055, 286}, {0x56, 0x8055, 292}, {0x58, 0x0056, 298},
+    {0x5a, 0x8056, 305}, {0x5c, 0x0057, 311}, {0x5e, 0x8057, 318},
+    {0x60, 0x0058, 325}, {0x62, 0x8058, 332}, {0x64, 0x0059, 340},
+    {0x66, 0x8059, 347}, {0x68, 0x005a, 355}, {0x6a, 0x805a, 362},
+    {0x6c, 0x005b, 370}, {0x6e, 0x805b, 378}, {0x70, 0x005c, 387},
+    {0x72, 0x805c, 395}, {0x74, 0x005d, 404}, {0x76, 0x805d, 413},
+    {0x78, 0x005e, 422}, {0x7a, 0x805e, 431}, {0x7c, 0x005f, 440},
+    {0x7e, 0x805f, 450}, {0x80, 0x0060, 460}, {0x82, 0x8060, 470},
+    {0x84, 0x0061, 480}, {0x86, 0x8061, 491}, {0x88, 0x0062, 501},
+    {0x8a, 0x8062, 512}, {0x8c, 0x0063, 524}, {0x8e, 0x8063, 535},
+    {0x90, 0x0064, 547}, {0x92, 0x8064, 559}, {0x94, 0x0065, 571},
+    {0x96, 0x8065, 584}, {0x98, 0x0066, 596}, {0x9a, 0x8066, 609},
+    {0x9c, 0x0067, 623}, {0x9e, 0x8067, 636}, {0xa0, 0x0068, 650},
+    {0xa2, 0x8068, 665}, {0xa4, 0x0069, 679}, {0xa6, 0x8069, 694},
+    {0xa8, 0x006a, 709}, {0xaa, 0x806a, 725}, {0xac, 0x006b, 741},
+    {0xae, 0x806b, 757}, {0xb0, 0x006c, 773}, {0xb2, 0x806c, 790},
+    {0xb4, 0x006d, 808}, {0xb6, 0x806d, 825}, {0xb8, 0x006e, 843},
+    {0xba, 0x806e, 862}, {0xbc, 0x006f, 881}, {0xbe, 0x806f, 900},
+    {0xc0, 0x0070, 920}, {0xc2, 0x8070, 940}, {0xc4, 0x0071, 960},
+    {0xc6, 0x8071, 981}, {0xc8, 0x0072, 1003}};
+#define TOTAL_RUMBLE_AMPS (sizeof(rumble_amps) / sizeof(rumble_amps[0]))
 
 static void process_input_subcmd_reply(struct uni_hid_device_s* d,
                                        const uint8_t* report, int len);
@@ -803,6 +930,48 @@ static void fsm_ready(struct uni_hid_device_s* d) {
   ins->state = STATE_READY;
 }
 
+static struct switch_rumble_freq_data find_rumble_freq(uint16_t freq) {
+  const struct switch_rumble_freq_data* data = rumble_freqs;
+  int i = 0;
+
+  if (freq > data[0].freq) {
+    for (i = 1; i < TOTAL_RUMBLE_FREQS - 1; i++) {
+      if (freq > data[i - 1].freq && freq <= data[i].freq) break;
+    }
+  }
+
+  return data[i];
+}
+
+static struct switch_rumble_amp_data find_rumble_amp(uint16_t amp) {
+  const struct switch_rumble_amp_data* data = rumble_amps;
+  int i = 0;
+
+  if (amp > data[0].amp) {
+    for (i = 1; i < TOTAL_RUMBLE_AMPS - 1; i++) {
+      if (amp > data[i - 1].amp && amp <= data[i].amp) break;
+    }
+  }
+
+  return data[i];
+}
+
+static void switch_encode_rumble(uint8_t* data, uint16_t freq_low,
+                                 uint16_t freq_high, uint16_t amp) {
+  struct switch_rumble_freq_data freq_data_low;
+  struct switch_rumble_freq_data freq_data_high;
+  struct switch_rumble_amp_data amp_data;
+
+  freq_data_low = find_rumble_freq(freq_low);
+  freq_data_high = find_rumble_freq(freq_high);
+  amp_data = find_rumble_amp(amp);
+
+  data[0] = (freq_data_high.high >> 8) & 0xFF;
+  data[1] = (freq_data_high.high & 0xFF) + amp_data.high;
+  data[2] = freq_data_low.low + ((amp_data.low >> 8) & 0xFF);
+  data[3] = amp_data.low & 0xFF;
+}
+
 void uni_hid_parser_switch_set_leds(uni_hid_device_t* d, uint8_t leds) {
   switch_instance_t* ins = get_switch_instance(d);
   // Seat must be set, even if it is not ready. Initialization will use this
@@ -815,7 +984,28 @@ void uni_hid_parser_switch_set_leds(uni_hid_device_t* d, uint8_t leds) {
 }
 
 void uni_hid_parser_switch_set_rumble(struct uni_hid_device_s* d, uint8_t left,
-                                      uint8_t right, uint16_t duration) {}
+                                      uint8_t right, uint16_t duration) {
+  // For further info see:
+  // https://github.com/dekuNukem/Nintendo_Switch_Reverse_Engineering/blob/master/rumble_data_table.md
+  switch_instance_t* ins = get_switch_instance(d);
+
+  struct switch_rumble_only_request req = {0};
+
+  req.transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
+  req.report_id = OUTPUT_RUMBLE_ONLY;
+  req.rumble_left[0] = 0xa8;
+  req.rumble_left[1] = 0x12;
+  req.rumble_left[2] = 0x80;
+  req.rumble_left[3] = 0x49;
+  req.rumble_right[0] = 0xa8;
+  req.rumble_right[1] = 0x12;
+  req.rumble_right[2] = 0x80;
+  req.rumble_right[3] = 0x49;
+
+  // TODO: It is safe to cast switch_rumble_only_request into a subcommand
+  // but could become dangerous if more data is added/removed.
+  send_subcmd(d, (struct switch_subcmd_request*)&req, sizeof(req));
+}
 
 uint8_t uni_hid_parser_switch_does_packet_match(struct uni_hid_device_s* d,
                                                 const uint8_t* packet,
@@ -855,8 +1045,8 @@ static void set_led(uni_hid_device_t* d, uint8_t leds) {
   uint8_t report[sizeof(struct switch_subcmd_request) + 1] = {0};
 
   struct switch_subcmd_request* req = (struct switch_subcmd_request*)&report[0];
-  req->transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
-  req->report_id = 0x01;         // 0x01 for sub commands
+  req->transaction_type = 0xa2;               // DATA | TYPE_OUTPUT
+  req->report_id = OUTPUT_RUMBLE_AND_SUBCMD;  // 0x01 for sub commands
   req->subcmd_id = SUBCMD_SET_LEDS;
   // LSB: turn on LEDs, MSB: flash LEDs
   // Official Switch doesn't honor the flash bit.

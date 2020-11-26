@@ -459,6 +459,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
       d->report_parser.init_report = uni_hid_parser_switch_init_report;
       d->report_parser.parse_raw = uni_hid_parser_switch_parse_raw;
       d->report_parser.set_leds = uni_hid_parser_switch_set_leds;
+      d->report_parser.set_rumble = uni_hid_parser_switch_set_rumble;
       logi("Device detected as Nintendo Switch Pro controller: 0x%02x\n", type);
       break;
     default:
