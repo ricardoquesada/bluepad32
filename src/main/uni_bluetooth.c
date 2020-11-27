@@ -525,7 +525,9 @@ static void on_gap_inquiry_result(uint16_t channel, uint8_t* packet,
       logi("... device already added (state=%d)\n",
            uni_hid_device_get_state(device));
       uni_hid_device_dump_device(device);
-      return;
+      bool deleted = uni_hid_device_auto_delete(device);
+      if (!deleted) return;
+      // If it was not deleted, fallthrough, and let it create it again.
     }
     if (!device) {
       device = uni_hid_device_create(addr);

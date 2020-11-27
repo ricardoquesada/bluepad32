@@ -65,6 +65,7 @@ void uni_hid_device_init(void) { memset(g_devices, 0, sizeof(g_devices)); }
 uni_hid_device_t* uni_hid_device_create(bd_addr_t address) {
   for (int j = 0; j < UNI_HID_DEVICE_MAX_DEVICES; j++) {
     if (bd_addr_cmp(g_devices[j].address, zero_addr) == 0) {
+      memset(&g_devices[j], 0, sizeof(g_devices[j]));
       memcpy(g_devices[j].address, address, 6);
       return &g_devices[j];
     }
@@ -322,14 +323,39 @@ uint16_t uni_hid_device_get_vendor_id(uni_hid_device_t* d) {
   return d->vendor_id;
 }
 
+bool uni_hid_device_auto_delete(uni_hid_device_t* d) {
+  if (d == NULL) {
+    loge("Invalid hid device: NULL\n");
+    return false;
+  }
+
+  // 15 is an arbitrary number that seems to work Ok.
+  if (++d->auto_delete < 10) return false;
+
+  logi("Autodeleting device:\n");
+  uni_hid_device_dump_device(d);
+
+  if (d->state == STATE_DEVICE_READY) {
+    loge("Disconnecting device before deleting it\n");
+    // Might call platform callbacks.
+    uni_hid_device_set_connected(d, false);
+  }
+
+  // And if auto-delete was called, that means that something went wrong.
+  // So, just clean the entire entry
+  memset(d, 0, sizeof(*d));
+
+  return true;
+}
+
 void uni_hid_device_dump_device(uni_hid_device_t* d) {
   logi(
       "%s, handle=%d, ctrl_cid=0x%04x, intr_cid=0x%04x, cod=0x%08x, "
       "vid=0x%04x, pid=0x%04x, flags=0x%08x, "
-      "ctrl_type=0x%02x, name='%s'\n",
+      "ctrl_type=0x%02x, name='%s', (del:%d)\n",
       bd_addr_to_str(d->address), d->con_handle, d->hid_control_cid,
       d->hid_interrupt_cid, d->cod, d->vendor_id, d->product_id, d->flags,
-      d->controller_type, d->name);
+      d->controller_type, d->name, d->auto_delete);
 }
 
 void uni_hid_device_dump_all(void) {

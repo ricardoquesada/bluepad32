@@ -75,6 +75,11 @@ struct uni_hid_device_s {
   // incoming, connected, hid, cod, etc...
   uint32_t flags;
 
+  // Times the device was discovered while also failed to establish a connection
+  // If it reaches a certain threshold, then the discovered devices should be
+  // start the connection process again.
+  int auto_delete;
+
   // SDP
   uint8_t hid_descriptor[HID_MAX_DESCRIPTOR_LEN];
   uint16_t hid_descriptor_len;
@@ -84,7 +89,7 @@ struct uni_hid_device_s {
   // connect, so we use this variable to determine when to do the SDP query.
   // TODO: Actually this is not entirely true since it works Ok when using
   // Unijoysticle + btstack + libusb in Linux. The correct thing to do is to
-  // debug the linux connection and see what packets are sent before the
+  // debug the Linux connection and see what packets are sent before the
   // connection.
   uint8_t sdp_query_before_connect;
 
@@ -138,7 +143,8 @@ uni_hid_device_t* uni_hid_device_get_instance_with_predicate(
 
 // Which device is currently doing a SDP query.
 void uni_hid_device_set_sdp_device(uni_hid_device_t* d);
-// Returns the elapsed time since the last SDP query in microseconds.
+// Returns which device is currently doing a SDP query, and also the elapsed
+// time since the last SDP query in microseconds.
 uni_hid_device_t* uni_hid_device_get_sdp_device(uint64_t* elapsed /*out*/);
 
 void uni_hid_device_set_ready(uni_hid_device_t* d);
@@ -155,6 +161,10 @@ bool uni_hid_device_is_cod_supported(uint32_t cod);
 void uni_hid_device_set_hid_descriptor(uni_hid_device_t* d,
                                        const uint8_t* descriptor, int len);
 bool uni_hid_device_has_hid_descriptor(uni_hid_device_t* d);
+
+// Returns true if the device was deleted.
+// The device will be deleted after call "auto_delete" gets calls N times.
+bool uni_hid_device_auto_delete(uni_hid_device_t* d);
 
 void uni_hid_device_set_incoming(uni_hid_device_t* d, bool incoming);
 bool uni_hid_device_is_incoming(uni_hid_device_t* d);
