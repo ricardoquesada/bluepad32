@@ -113,6 +113,74 @@ typedef struct airlift_instance_s {
 static airlift_instance_t* get_airlift_instance(uni_hid_device_t* d);
 
 //
+//
+// Shared by CPU0 / CPU1
+//
+// BTStack / Bluepad32 are not thread safe.
+// This code is the bridge between CPU1 and CPU0.
+// CPU1 (SPI-slave) queues possible commands here,
+// CPU0 will read from them and execute the commands.
+//
+//
+enum {
+  PENDING_REQUEST_CMD_NONE = 0,
+  PENDING_REQUEST_CMD_LED_RGB = 1,
+  PENDING_REQUEST_CMD_LED_PLAYERS = 2,
+  PENDING_REQUEST_CMD_RUMBLE = 3,
+};
+
+typedef struct {
+  uint8_t device_idx;
+  uint8_t cmd;
+  uint8_t args[8];
+} pending_request_t;
+
+static SemaphoreHandle_t _pending_request_mutex = NULL;
+#define MAX_PENDING_REQUESTS 16
+pending_request_t _pending_requests[MAX_PENDING_REQUESTS];
+int _pending_request_tail_idx = 0;
+
+void pending_request_queue(uint8_t device_idx, uint8_t cmd, int args_len,
+                           const uint8_t* args) {
+  xSemaphoreTake(_pending_request_mutex, portMAX_DELAY);
+  if (_pending_request_tail_idx >= MAX_PENDING_REQUESTS) {
+    loge("AirLift: could not queue pending request. Stack full\n");
+    goto exit;
+  }
+  pending_request_t* request = &_pending_requests[_pending_request_tail_idx];
+  request->device_idx = device_idx;
+  request->cmd = cmd;
+  memcpy(request->args, args, args_len);
+  _pending_request_tail_idx++;
+
+exit:
+  xSemaphoreGive(_pending_request_mutex);
+  return;
+}
+
+// Iterates all over the pending requests, calling the callback with the
+// request, one at the time. And the resets the pending requests.
+typedef void (*pending_request_fn_t)(pending_request_t* r);
+void pending_request_map_and_reset(pending_request_fn_t func) {
+  xSemaphoreTake(_pending_request_mutex, portMAX_DELAY);
+  for (int i = 0; i < _pending_request_tail_idx; i++) {
+    func(&_pending_requests[i]);
+  }
+  // Reset pending requests
+  _pending_request_tail_idx = 0;
+  xSemaphoreGive(_pending_request_mutex);
+}
+
+//
+//
+// CPU1 - CPU1 - CPU1
+//
+// BTStack / Bluepad32 are not thread safe.
+// Be extra careful when calling code that runs on the other CPU
+//
+//
+
+//
 // SPI / Nina-fw related
 //
 
@@ -239,6 +307,8 @@ static int request_gamepads_properties(const uint8_t command[],
   return offset;
 }
 
+// Called both from CPU0 and CPU1.
+// Only local variables should be used.
 static uint8_t predicate_airlift_index(uni_hid_device_t* d, void* data) {
   int wanted_idx = (int)data;
   airlift_instance_t* ins = get_airlift_instance(d);
@@ -252,23 +322,15 @@ static int request_set_gamepad_player_leds(const uint8_t command[],
   // command[3]: len
   int idx = command[4];
   // command[5]: len
-  uint8_t leds = command[6];
+  // command[6]: leds
 
+  pending_request_queue(idx, PENDING_REQUEST_CMD_LED_PLAYERS, 1 /* len */,
+                        &command[6]);
+
+  // TODO: We really don't know whether this request will succeed
   response[2] = 1;  // Number of parameters
   response[3] = 1;  // Lenghts of each parameter
-
-  uni_hid_device_t* d = uni_hid_device_get_instance_with_predicate(
-      predicate_airlift_index, (void*)idx);
-
-  if (d == NULL) {
-    response[4] = 1;  // Gamepad not found
-  } else if (d->report_parser.set_leds == NULL) {
-    // Gamepad doesn't support feature
-    response[4] = 2;  // Gamepad not found
-  } else {
-    d->report_parser.set_leds(d, leds);
-    response[4] = 0;  // Ok
-  }
+  response[4] = 0;  // Ok
 
   return 5;
 }
@@ -279,25 +341,15 @@ static int request_set_gamepad_color_led(const uint8_t command[],
   // command[3]: len
   int idx = command[4];
   // command[5]: len
-  uint8_t r = command[6];
-  uint8_t g = command[7];
-  uint8_t b = command[8];
+  // command[6-8]: RGB
 
+  pending_request_queue(idx, PENDING_REQUEST_CMD_LED_RGB, 3 /* len */,
+                        &command[6]);
+
+  // TODO: We really don't know whether this request will succeed
   response[2] = 1;  // Number of parameters
   response[3] = 1;  // Lenghts of each parameter
-
-  uni_hid_device_t* d = uni_hid_device_get_instance_with_predicate(
-      predicate_airlift_index, (void*)idx);
-
-  if (d == NULL) {
-    response[4] = 1;  // Gamepad not found
-  } else if (d->report_parser.set_led_color == NULL) {
-    // Gamepad doesn't support feature
-    response[4] = 2;  // Gamepad not found
-  } else {
-    d->report_parser.set_led_color(d, r, g, b);
-    response[4] = 0;  // Ok
-  }
+  response[4] = 0;  // Ok
 
   return 5;
 }
@@ -308,24 +360,16 @@ static int request_set_gamepad_rumble(const uint8_t command[],
   // command[3]: len
   int idx = command[4];
   // command[5]: len
-  uint8_t force = command[6];
-  uint8_t duration = command[7];
+  // command[6,7]: force, duration
 
+  pending_request_queue(idx, PENDING_REQUEST_CMD_RUMBLE, 2 /* len */,
+                        &command[6]);
+
+  // TODO: We really don't know whether this request will succeed
   response[2] = 1;  // Number of parameters
   response[3] = 1;  // Lenghts of each parameter
+  response[4] = 0;  // Ok
 
-  uni_hid_device_t* d = uni_hid_device_get_instance_with_predicate(
-      predicate_airlift_index, (void*)idx);
-
-  if (d == NULL) {
-    response[4] = 1;  // Gamepad not found
-  } else if (d->report_parser.set_rumble == NULL) {
-    // Gamepad doesn't support feature
-    response[4] = 2;  // Gamepad not found
-  } else {
-    d->report_parser.set_rumble(d, force, duration);
-    response[4] = 0;  // Ok
-  }
   return 5;
 }
 
@@ -336,6 +380,7 @@ static int request_bluetooth_del_keys(const uint8_t command[],
   response[3] = 1;  // Lenghts of each parameter
   response[4] = 0;  // Ok
 
+  // TODO: Not thread safe, but should be mostly Okish (?)
   uni_bluetooth_del_keys();
   return 5;
 }
@@ -424,7 +469,8 @@ const command_handler_t command_handlers[] = {
     // 0x60 -> 0x6f: Bluepad32 own extensions
     request_gamepads_data,            // data
     request_gamepads_properties,      // name, features like rumble, leds, etc.
-    request_set_gamepad_player_leds,  // the 4 LEDs that is available in many
+    request_set_gamepad_player_leds,  // the 4 LEDs that is available in
+                                      // many
                                       // gamepads
     request_set_gamepad_color_led,    // available on DS4, DualSense
     request_set_gamepad_rumble,       // available on DS4, Xbox, Switch, etc.
@@ -490,9 +536,9 @@ static void spi_main_loop(void* arg) {
   _gamepad_mutex = xSemaphoreCreateMutex();
   assert(_gamepad_mutex != NULL);
 
-  // Small delay to let CPU0 finish initialization. This is to prevent collision
-  // in the log(). No harm is done if there is collision, only that it is more
-  // difficult to read the logs from the console.
+  // Small delay to let CPU0 finish initialization. This is to prevent
+  // collision in the log(). No harm is done if there is collision, only
+  // that it is more difficult to read the logs from the console.
   vTaskDelay(50 / portTICK_PERIOD_MS);
 
   _ready_semaphore = xSemaphoreCreateCounting(1, 0);
@@ -518,9 +564,8 @@ static void spi_main_loop(void* arg) {
                                          .post_setup_cb = spi_post_setup_cb,
                                          .post_trans_cb = NULL};
 
-  // Enable pull-ups on SPI lines so we don't detect rogue pulses when no master
-  // is connected.
-  // gpio_set_pull_mode(GPIO_MOSI, GPIO_PULLUP_ONLY);
+  // Enable pull-ups on SPI lines so we don't detect rogue pulses when no
+  // master is connected. gpio_set_pull_mode(GPIO_MOSI, GPIO_PULLUP_ONLY);
   // gpio_set_pull_mode(GPIO_SCLK, GPIO_PULLUP_ONLY);
   // gpio_set_pull_mode(GPIO_CS, GPIO_PULLUP_ONLY);
 
@@ -553,6 +598,15 @@ static void spi_main_loop(void* arg) {
 }
 
 //
+//
+// CPU0 - CPU0 - CPU0
+//
+// BTStack / Bluepad32 are not thread safe.
+// Be extra careful when calling code that runs on the other CPU
+//
+//
+
+//
 // Platform Overrides
 //
 static void airlift_init(int argc, const char** argv) {
@@ -570,12 +624,16 @@ static void airlift_init(int argc, const char** argv) {
 
   // Arduino: digitalWrite(_readyPin, HIGH);
   gpio_set_level(GPIO_READY, 1);
+
+  // Mutex that protects "bridge" between CPU0 and CPU1
+  _pending_request_mutex = xSemaphoreCreateMutex();
+  assert(_pending_request_mutex != NULL);
 }
 
 static void airlift_on_init_complete(void) {
   // Create SPI main loop thread
-  // In order to not interfere with Bluetooth that runs in CPU0, SPI code should
-  // run in CPU1
+  // In order to not interfere with Bluetooth that runs in CPU0, SPI code
+  // should run in CPU1
   xTaskCreatePinnedToCore(spi_main_loop, "spi_main_loop", 8192, NULL, 1, NULL,
                           1);
 }
@@ -604,8 +662,10 @@ static int airlift_on_device_ready(uni_hid_device_t* d) {
 
   airlift_instance_t* ins = get_airlift_instance(d);
   if (ins->gamepad_idx != -1) {
-    loge("AirLift: unexpected value for on_device_ready; got: %d, want: -1\n",
-         ins->gamepad_idx);
+    loge(
+        "AirLift: unexpected value for on_device_ready; got: %d, want: "
+        "-1\n",
+        ins->gamepad_idx);
   }
 
   // Find first available gamepad
@@ -624,7 +684,46 @@ static int airlift_on_device_ready(uni_hid_device_t* d) {
   return 0;
 }
 
+static void process_pending(pending_request_t* pending) {
+  int idx = pending->device_idx;
+  // FIXME: Not thread safe
+  uni_hid_device_t* d = uni_hid_device_get_instance_with_predicate(
+      predicate_airlift_index, (void*)idx);
+  if (d == NULL) {
+    loge(
+        "AirLift: device cannot be found while processing pending "
+        "requests\n");
+    return;
+  }
+  switch (pending->cmd) {
+    case PENDING_REQUEST_CMD_LED_RGB:
+      if (d->report_parser.set_led_color != NULL)
+        d->report_parser.set_led_color(d, pending->args[0], pending->args[1],
+                                       pending->args[2]);
+      break;
+    case PENDING_REQUEST_CMD_LED_PLAYERS:
+      if (d->report_parser.set_leds != NULL)
+        d->report_parser.set_leds(d, pending->args[0]);
+      break;
+    case PENDING_REQUEST_CMD_RUMBLE:
+      if (d->report_parser.set_rumble != NULL)
+        d->report_parser.set_rumble(d, pending->args[0], pending->args[1]);
+      break;
+    default:
+      loge("AirLift: Invalid pending command: %d\n", pending->cmd);
+  }
+}
+
 static void airlift_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
+  // FIXME:
+  // When SPI-slave (CPU1) receives a request that cannot be fulfilled
+  // immediately, most probably because it needs to run on CPU0, it is
+  // processed from this callback. And this works, because most probably a
+  // "gamepad_data" event is generated almost immediately after the
+  // SPI-slave request was made. Although unlikely, it could happen that
+  // "gamepad_data" gets called after a delay.
+  pending_request_map_and_reset(process_pending);
+
   airlift_instance_t* ins = get_airlift_instance(d);
   if (ins->gamepad_idx < 0 || ins->gamepad_idx >= AIRLIFT_MAX_GAMEPADS) {
     loge("Airlift: unexpected gamepad idx, got: %d, want: [0-%d]\n",
