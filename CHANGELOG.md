@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- uni_bluetooth: added "auto-delete" to prevent having "orphan" connections forever
+- AirLift:
+   - Multi-core code fixed.
+   - Added "bluepad32.py" library (tools/circuitpython/)
+   - Added more samples/tests in tools/circuitpython/
 - Gamepads: Provide 3 properties (when avaiable):
    - Setting player LEDs
    - Setting LED color (DS4, DualSense)
@@ -15,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DualShock3: Fix button mappings. A <-> B, X <-> Y
 - XboxOne: Suports Rumble
 - Switch: Supports rumble (WIP)
+- ESP-IDF sdkconfig:
+  - Bluetooth Controller: BR/EDR ACL Max Connections: 7 (max value)
+  - Bluetooth Controller: BR/EDR Sync (SCO/eSCO) Max Connections: 3 (max value)
 
 ## [2.0.0-beta0] - 2020-11-20
 
