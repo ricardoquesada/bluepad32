@@ -90,9 +90,9 @@ void uni_hid_parser_ds4_setup(struct uni_hid_device_s* d) {
   ff.unk0[0] = 0xc4;           // HID alone + poll interval
   ff.flags = DS4_FF_FLAG_RUMBLE | DS4_FF_FLAG_LED_COLOR |
              DS4_FF_FLAG_LED_BLINK;  // blink + LED + motor
-  // Default LED color: White
-  ff.led_red = 0x40;
-  ff.led_green = 0x40;
+  // Default LED color: Blue
+  ff.led_red = 0x00;
+  ff.led_green = 0x00;
   ff.led_blue = 0x40;
 
   /* CRC generation */
@@ -409,10 +409,9 @@ void uni_hid_parser_ds4_set_led_color(uni_hid_device_t* d, uint8_t r, uint8_t g,
   ff.report_id = 0x11;               // taken from HID descriptor
   ff.unk0[0] = 0xc4;                 // HID alone + poll interval
   ff.flags = DS4_FF_FLAG_LED_COLOR;  // blink + LED + motor
-  // 64 seems to be the max value for each color
-  ff.led_red = (r * 64) / 256;
-  ff.led_green = (g * 64) / 256;
-  ff.led_blue = (b * 64) / 256;
+  ff.led_red = r;
+  ff.led_green = g;
+  ff.led_blue = b;
 
   /* CRC generation */
   uint8_t bthdr = 0xA2;

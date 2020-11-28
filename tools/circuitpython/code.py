@@ -145,11 +145,20 @@ class Paint:
                 # https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/src/main/uni_gamepad.h
                 buttons = gp["buttons"]
 
-                if buttons & 0x01:  # Button A
-                    color += 1
-                if buttons & 0x02:  # Button B
-                    color -= 1
-                color = color % max_color
+                if buttons & (0x01 | 0x02):
+                    if buttons & 0x01:  # Button A
+                        color += 1
+                    if buttons & 0x02:  # Button B
+                        color -= 1
+                    color = color % max_color
+
+                    # Only a few gamepads support changing the LED color, like the DUALSHOCK 4
+                    # and the DualSense.
+                    # If the connected gamepad doesn't support it, nothing will happen.
+                    r = (self._palette[color] & 0xff000) >> 16
+                    g = (self._palette[color] & 0xff00) >> 8
+                    b = (self._palette[color] & 0xff)
+                    self._esp.set_gamepad_color_led(gp['idx'], (r,g,b))
 
                 if buttons & 0x04:  # Button X
                     # fill screen with current color
