@@ -1,8 +1,13 @@
-## Paint for CircuitPython
+## CircuitPython examples
 
-It is a simple "Paint" program that you control with the gamepad. To test it do:
+* Copy the `bluepad32.py` file to the `CIRCUITPY` folder
+* Choose one of the `code_*.py` examples and copy it to `CIRCUITPY` as `copy.py`
+* Install needed CircuitPython dependencies. Open the different `code_.*py` files for further info
 
-* Copy the `*.py` files to the `CIRCUITPY` folder
-* Open [code.py][paint] to check the needed dependencies, and copy them to the `CIRCUIPY/lib` folder
+E.g:
 
-[paint]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/tools/circuitpython/code.py
+```sh
+# Valid for Linux
+$ cp bluepad32.py /media/$USER/CIRCUITPY
+$ cp code_paint.py /media/$USER/CIRCUITPY/code.py
+```

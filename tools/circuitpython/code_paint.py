@@ -11,12 +11,11 @@
 import math
 import time
 
+import bluepad32
+
 import board
 import busio
 import displayio
-
-import bluepad32
-
 from adafruit_matrixportal.matrix import Matrix
 from digitalio import DigitalInOut
 from micropython import const

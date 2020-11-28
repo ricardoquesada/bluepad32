@@ -31,7 +31,8 @@ esp32_ready = DigitalInOut(board.D9)
 esp32_reset = DigitalInOut(board.D6)
 
 spi = busio.SPI(board.SCK, board.MOSI, board.MISO)
-esp = bluepad32.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset, debug=0)
+esp = bluepad32.ESP_SPIcontrol(
+    spi, esp32_cs, esp32_ready, esp32_reset, debug=0)
 
 # Optionally, to enable UART logging in the ESP32
 esp.set_esp_debug(1)
@@ -69,8 +70,8 @@ while True:
             players_led &= 0x0f
 
         if gp['buttons'] & 0x04:
-            force = 128 # 0-255
-            duration = 10 # 0-255
+            force = 128  # 0-255
+            duration = 10  # 0-255
             rest = esp.set_gamepad_rumble(gp['idx'], force, duration)
             print(rest)
 
