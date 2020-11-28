@@ -96,10 +96,13 @@ class Paint:
 
     def run(self):
         # esp.set_esp_debug(1)
-        x = 0
-        y = 0
+        x = _SCREEN_WIDTH // 2
+        y = _SCREEN_HEIGHT // 2
         color = 1
-        max_color = len(self._palette)
+
+        snake = [(x, y)]
+        dir_x = -1
+        dir_y = 0
 
         while True:
             # TODO: Is there a "displayio.wait_for_refresh()". Couldn't find it.
@@ -112,57 +115,29 @@ class Paint:
                 # d-pad constants are defined here:
                 # https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/src/main/uni_gamepad.h
                 dpad = gp["dpad"]
-                if dpad & 0x01:  # Up
-                    y -= 1
-                if dpad & 0x02:  # Down
-                    y += 1
-                if dpad & 0x04:  # Right
-                    x += 1
-                if dpad & 0x08:  # Left
-                    x -= 1
+                if dpad & (0x01 | 0x02):  # Up or Down
+                    dir_y = -1 if dpad & 0x01 else 1
+                    dir_x = 0
+                elif dpad & (0x04 | 0x08): # Right or Left
+                    dir_x = 1 if dpad & 0x04 else -1
+                    dir_y = 0
 
-                # axis + accel + brake have a 10-bit resolution
-                # axis range: -512-511
-                # accel, brake range: 0-1023
-                axis_x = gp["axis_x"]
-                axis_y = gp["axis_y"]
-                if axis_x < -100:
-                    x -= 1
-                if axis_x > 100:
-                    x += 1
-                if axis_y < -100:
-                    y -= 1
-                if axis_y > 100:
-                    y += 1
+            head = snake[0]
+            new_x = head[0] + dir_x
+            new_x = max(0, new_x)
+            new_x = min(_SCREEN_WIDTH-1, new_x)
 
-                x = max(x, 0)
-                x = min(x, _SCREEN_WIDTH - 1)
-                y = max(y, 0)
-                y = min(y, _SCREEN_HEIGHT - 1)
+            new_y = head[1] + dir_y
+            new_y = max(0, new_y)
+            new_y = min(_SCREEN_HEIGHT-1, new_y)
 
-                # Button constants are defined here:
-                # https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/src/main/uni_gamepad.h
-                buttons = gp["buttons"]
+            snake.insert(0, (new_x, new_y))
+            if len(snake) > 10:
+                del snake[-1]
 
-                if buttons & (0x01 | 0x02):
-                    if buttons & 0x01:  # Button A
-                        color += 1
-                    if buttons & 0x02:  # Button B
-                        color -= 1
-                    color = color % max_color
-
-                    # Only a few gamepads support changing the LED color, like the DUALSHOCK 4
-                    # and the DualSense.
-                    # If the connected gamepad doesn't support it, nothing will happen.
-                    r = (self._palette[color] & 0xff000) >> 16
-                    g = (self._palette[color] & 0xff00) >> 8
-                    b = (self._palette[color] & 0xff)
-                    self._esp.set_gamepad_color_led(gp['idx'], (r, g, b))
-
-                if buttons & 0x04:  # Button X
-                    self._bitmap.fill(color)
-
-            self._bitmap[x, y] = color
+            self._bitmap.fill(0)
+            for s in snake:
+                self._bitmap[s[0], s[1]] = color
 
 
 Paint().run()
