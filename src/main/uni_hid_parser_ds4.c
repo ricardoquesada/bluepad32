@@ -90,6 +90,10 @@ void uni_hid_parser_ds4_setup(struct uni_hid_device_s* d) {
   ff.unk0[0] = 0xc4;           // HID alone + poll interval
   ff.flags = DS4_FF_FLAG_RUMBLE | DS4_FF_FLAG_LED_COLOR |
              DS4_FF_FLAG_LED_BLINK;  // blink + LED + motor
+  // Default LED color: White
+  ff.led_red = 0x40;
+  ff.led_green = 0x40;
+  ff.led_blue = 0x40;
 
   /* CRC generation */
   uint8_t bthdr = 0xA2;

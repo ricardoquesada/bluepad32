@@ -998,8 +998,7 @@ void uni_bluetooth_del_keys(void) {
   }
 
   while (gap_link_key_iterator_get_next(&it, addr, link_key, &type)) {
-    logi("Deleting key: %s - type %u, key: \n", bd_addr_to_str(addr),
-         (int)type);
+    logi("Deleting key: %s - type %u\n", bd_addr_to_str(addr), (int)type);
     gap_drop_link_key_for_bd_addr(addr);
   }
   gap_link_key_iterator_done(&it);
