@@ -137,17 +137,14 @@ class Display:
         # 16 colors == 4 bit of depth
         matrix = Matrix(bit_depth=math.ceil(math.log(PALETTE_SIZE, 2)))
         display = matrix.display
-        display.auto_refresh = True
-        display.rotation = 0
+        # display.auto_refresh = False
+        # display.rotation = 0
         display.show(group)
 
         return display
 
     def refresh(self):
-        self._display.refresh()
-        # print(dir(self._display))
-        # print(dir(self._display.framebuffer))
-        # xxx
+        self._display.refresh(target_frames_per_second=30)
 
 
 class Game:
@@ -188,6 +185,7 @@ class Game:
             # In the meantime fix speed at 30 FPS
             time.sleep(0.032)
             gamepads = self._esp.get_gamepads_data()
+            self._display.refresh()
 
         # Blue for #0
         self._esp.set_gamepad_color_led(0, (0, 0, 255))
@@ -237,13 +235,12 @@ class Game:
         self.wait_for_gamepads()
 
         while True:
-            # TODO: Is there a "displayio.wait_for_refresh()". Couldn't find it.
-            # In the meantime fix speed at 30 FPS
-            time.sleep(0.032)
+            start_time = time.monotonic()
+
             gamepads = self._esp.get_gamepads_data()
             for gp in gamepads:
 
-                # d-pad constants are defined here:
+                # D-pad constants are defined here:
                 # https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/src/main/uni_gamepad.h
                 dpad = gp["dpad"]
                 needs_update = True
@@ -266,11 +263,6 @@ class Game:
 
             self.animate_if_no_collision(snake0, snake1)
 
-            # Clear screen + draw different sprites
-            bitmap.fill(0)
-            for sprite in sprites:
-                sprite.draw(bitmap)
-
             # check collision
             if snake0.eat_fruit(fruit):
                 fruit.set_position(
@@ -285,10 +277,18 @@ class Game:
                 )
                 snake1.increase_tail(1)
 
-            # "target_frames_per_second=30" was raising an error.
-            # Use "auto-fresh=True", but just call refresh right-after updating
-            # the bitmap. This is to prevent a possible flicker.
+            # Clear screen + draw different sprites
+            bitmap.fill(0)
+            for sprite in sprites:
+                sprite.draw(bitmap)
+
             self._display.refresh()
+
+            dt = time.monotonic() - start_time
+            # Target at 30 FPS
+            sleep_time = 0.0333333 - dt
+            if sleep_time > 0:
+                time.sleep(sleep_time)
 
 
 Game().run()
