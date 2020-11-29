@@ -26,12 +26,13 @@ SCREEN_WIDTH = const(64)
 SCREEN_HEIGHT = const(32)
 PALETTE_SIZE = const(16)
 
+
 class Fruit:
     def __init__(self, pos):
         self._pos = pos
         self._color = 4
         x, y = pos[0], pos[1]
-        self._pixels = [(pos), (x+1, y), (x, y+1), (x+1, y+1)]
+        self._pixels = [(pos), (x + 1, y), (x, y + 1), (x + 1, y + 1)]
 
     def animation(self):
         pass
@@ -42,6 +43,7 @@ class Fruit:
 
     def pixels(self):
         return self._pixels
+
 
 class Snake:
     def __init__(self, snake, direction, color):
@@ -70,7 +72,7 @@ class Snake:
             return -1
         if y < 0 or y >= SCREEN_HEIGHT:
             return -1
-        self._snake.insert(0, (x,y))
+        self._snake.insert(0, (x, y))
         if len(self._snake) > self._len:
             # Remove tail
             del self._snake[-1]
@@ -79,6 +81,7 @@ class Snake:
     def draw(self, bitmap) -> None:
         for s in self._snake:
             bitmap[s[0], s[1]] = self._color
+
 
 class Display:
     def __init__(self):
@@ -128,9 +131,10 @@ class Display:
 
     def refresh(self):
         self._display.refresh()
-        #print(dir(self._display))
-        #print(dir(self._display.framebuffer))
-        #xxx
+        # print(dir(self._display))
+        # print(dir(self._display.framebuffer))
+        # xxx
+
 
 class Game:
     def __init__(self):
@@ -160,8 +164,7 @@ class Game:
         # esp32_reset = DigitalInOut(board.D12)
 
         spi = busio.SPI(board.SCK, board.MOSI, board.MISO)
-        esp = bluepad32.ESP_SPIcontrol(
-            spi, esp32_cs, esp32_ready, esp32_reset, debug=0)
+        esp = bluepad32.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset, debug=0)
         return esp
 
     def run(self):
@@ -169,8 +172,15 @@ class Game:
         x = SCREEN_WIDTH // 2
         y = SCREEN_HEIGHT // 2
 
-        snake0 = Snake([(x//2, y), (x//2+1,y), (x//2+2,y)], direction=(-1,0), color=1)
-        fruit = Fruit(pos=(random.randint(0,SCREEN_WIDTH-2), random.randint(0,SCREEN_HEIGHT-2)))
+        snake0 = Snake(
+            [(x // 2, y), (x // 2 + 1, y), (x // 2 + 2, y)], direction=(-1, 0), color=1
+        )
+        fruit = Fruit(
+            pos=(
+                random.randint(0, SCREEN_WIDTH - 2),
+                random.randint(0, SCREEN_HEIGHT - 2),
+            )
+        )
 
         bitmap = self._display.get_bitmap()
 
@@ -186,13 +196,14 @@ class Game:
                 # https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/src/main/uni_gamepad.h
                 dpad = gp["dpad"]
                 needs_update = True
-                if dpad & 0x01: # Up
+                dir_x, dir_y = 0, 0
+                if dpad & 0x01:  # Up
                     dir_x, dir_y = 0, -1
-                elif dpad & 0x02: # Down
+                elif dpad & 0x02:  # Down
                     dir_x, dir_y = 0, 1
-                elif dpad & 0x04: # Right
+                elif dpad & 0x04:  # Right
                     dir_x, dir_y = 1, 0
-                elif dpad & 0x08: # Left
+                elif dpad & 0x08:  # Left
                     dir_x, dir_y = -1, 0
                 else:
                     needs_update = False
@@ -209,8 +220,15 @@ class Game:
 
             # check collision
             if snake0.eat_fruit(fruit):
-                fruit = Fruit(pos=(random.randint(0,SCREEN_WIDTH-2), random.randint(0,SCREEN_HEIGHT-2)))
+                fruit = Fruit(
+                    pos=(
+                        random.randint(0, SCREEN_WIDTH - 2),
+                        random.randint(0, SCREEN_HEIGHT - 2),
+                    )
+                )
                 snake0.increase_tail(1)
 
             self._display.refresh()
+
+
 Game().run()
