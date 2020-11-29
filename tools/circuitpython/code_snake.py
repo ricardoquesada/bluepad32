@@ -34,7 +34,7 @@ class Fruit:
         x, y = pos[0], pos[1]
         self._pixels = [(pos), (x + 1, y), (x, y + 1), (x + 1, y + 1)]
 
-    def animation(self):
+    def animate(self):
         pass
 
     def draw(self, bitmap):
@@ -43,6 +43,9 @@ class Fruit:
 
     def pixels(self):
         return self._pixels
+
+    def set_position(self, x, y):
+        self._pixels = [(x, y), (x + 1, y), (x, y + 1), (x + 1, y + 1)]
 
 
 class Snake:
@@ -53,6 +56,11 @@ class Snake:
         self._color = color
 
     def set_direction(self, direction) -> None:
+        # Don't allow opposite direction
+        if direction[0] is not 0 and direction[0] == -self._direction[0]:
+            return
+        if direction[1] is not 0 and direction[1] == -self._direction[1]:
+            return
         self._direction = direction
 
     def increase_tail(self, units: int) -> None:
@@ -167,6 +175,19 @@ class Game:
         esp = bluepad32.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset, debug=0)
         return esp
 
+    def wait_for_gamepads(self):
+        gamepads = []
+        while len(gamepads) != 2:
+            # TODO: Is there a "displayio.wait_for_refresh()". Couldn't find it.
+            # In the meantime fix speed at 30 FPS
+            time.sleep(0.032)
+            gamepads = self._esp.get_gamepads_data()
+
+        # Blue for #0
+        self._esp.set_gamepad_color_led(0, (0, 0, 255))
+        # Green for #1
+        self._esp.set_gamepad_color_led(1, (0, 255, 0))
+
     def run(self):
         # esp.set_esp_debug(1)
         x = SCREEN_WIDTH // 2
@@ -175,6 +196,12 @@ class Game:
         snake0 = Snake(
             [(x // 2, y), (x // 2 + 1, y), (x // 2 + 2, y)], direction=(-1, 0), color=1
         )
+        snake1 = Snake(
+            [(x + x // 2, y), (x + x // 2 + 1, y), (x + x // 2 + 2, y)],
+            direction=(1, 0),
+            color=2,
+        )
+
         fruit = Fruit(
             pos=(
                 random.randint(0, SCREEN_WIDTH - 2),
@@ -182,15 +209,22 @@ class Game:
             )
         )
 
+        sprites = (snake0, snake1, fruit)
         bitmap = self._display.get_bitmap()
+
+        # Draw sprites / fruit. Initial position
+        bitmap.fill(0)
+        for sprite in sprites:
+            sprite.draw(bitmap)
+
+        self.wait_for_gamepads()
 
         while True:
             # TODO: Is there a "displayio.wait_for_refresh()". Couldn't find it.
             # In the meantime fix speed at 30 FPS
             time.sleep(0.032)
-            gamepad = self._esp.get_gamepads_data()
-            if len(gamepad) > 0:
-                gp = gamepad[0]
+            gamepads = self._esp.get_gamepads_data()
+            for gp in gamepads:
 
                 # d-pad constants are defined here:
                 # https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/src/main/uni_gamepad.h
@@ -209,25 +243,35 @@ class Game:
                     needs_update = False
 
                 if needs_update:
-                    snake0.set_direction((dir_x, dir_y))
+                    idx = gp["idx"]
+                    s = snake0 if idx == 0 else snake1
+                    s.set_direction((dir_x, dir_y))
 
-            snake0.animate()
+            for sprite in sprites:
+                sprite.animate()
 
             # Clear screen + draw different sprites
             bitmap.fill(0)
-            snake0.draw(bitmap)
-            fruit.draw(bitmap)
+            for sprite in sprites:
+                sprite.draw(bitmap)
 
             # check collision
             if snake0.eat_fruit(fruit):
-                fruit = Fruit(
-                    pos=(
-                        random.randint(0, SCREEN_WIDTH - 2),
-                        random.randint(0, SCREEN_HEIGHT - 2),
-                    )
+                fruit.set_position(
+                    random.randint(0, SCREEN_WIDTH - 2),
+                    random.randint(0, SCREEN_HEIGHT - 2),
                 )
                 snake0.increase_tail(1)
+            elif snake1.eat_fruit(fruit):
+                fruit.set_position(
+                    random.randint(0, SCREEN_WIDTH - 2),
+                    random.randint(0, SCREEN_HEIGHT - 2),
+                )
+                snake1.increase_tail(1)
 
+            # "target_frames_per_second=30" was raising an error.
+            # Use "auto-fresh=True", but just call refresh right-after updating
+            # the bitmap. This is to prevent a possible flicker.
             self._display.refresh()
 
 
