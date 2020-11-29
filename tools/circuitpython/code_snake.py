@@ -49,29 +49,24 @@ class Fruit:
 
 
 class Snake:
-    def __init__(self, snake, direction, color):
+    def __init__(self, pixels, direction, color):
         self._direction = direction
-        self._snake = snake
-        self._len = len(snake)
+        self._pixels = pixels
+        self._len = len(pixels)
         self._color = color
 
     def set_direction(self, direction) -> None:
-        # Don't allow opposite direction
-        if direction[0] is not 0 and direction[0] == -self._direction[0]:
-            return
-        if direction[1] is not 0 and direction[1] == -self._direction[1]:
-            return
         self._direction = direction
 
     def increase_tail(self, units: int) -> None:
         self._len += units
 
     def eat_fruit(self, fruit: Fruit) -> bool:
-        head = self._snake[0]
+        head = self._pixels[0]
         return head in fruit.pixels()
 
     def animate(self) -> int:
-        head = self._snake[0]
+        head = self._pixels[0]
         # x
         x = self._direction[0] + head[0]
         # y
@@ -80,15 +75,26 @@ class Snake:
             return -1
         if y < 0 or y >= SCREEN_HEIGHT:
             return -1
-        self._snake.insert(0, (x, y))
-        if len(self._snake) > self._len:
+        self._pixels.insert(0, (x, y))
+        if len(self._pixels) > self._len:
             # Remove tail
-            del self._snake[-1]
+            del self._pixels[-1]
         return 0
 
     def draw(self, bitmap) -> None:
-        for s in self._snake:
-            bitmap[s[0], s[1]] = self._color
+        for p in self._pixels:
+            bitmap[p[0], p[1]] = self._color
+
+    def pixels(self):
+        return self._pixels
+
+    def next_head(self):
+        head = self._pixels[0]
+        return (head[0] + self._direction[0], head[1] + self._direction[1])
+
+    def remove_tail(self):
+        if len(self._pixels) > 1:
+            del self._pixels[-1]
 
 
 class Display:
@@ -188,6 +194,17 @@ class Game:
         # Green for #1
         self._esp.set_gamepad_color_led(1, (0, 255, 0))
 
+    def animate_if_no_collision(self, s0, s1):
+        all_pixels = s0.pixels() + s1.pixels()
+        if s0.next_head() not in all_pixels:
+            s0.animate()
+        else:
+            s0.remove_tail()
+        if s1.next_head() not in all_pixels:
+            s1.animate()
+        else:
+            s1.remove_tail()
+
     def run(self):
         # esp.set_esp_debug(1)
         x = SCREEN_WIDTH // 2
@@ -197,7 +214,7 @@ class Game:
             [(x // 2, y), (x // 2 + 1, y), (x // 2 + 2, y)], direction=(-1, 0), color=1
         )
         snake1 = Snake(
-            [(x + x // 2, y), (x + x // 2 + 1, y), (x + x // 2 + 2, y)],
+            [(x + x // 2 + 2, y), (x + x // 2 + 1, y), (x + x // 2 + 0, y)],
             direction=(1, 0),
             color=2,
         )
@@ -247,8 +264,7 @@ class Game:
                     s = snake0 if idx == 0 else snake1
                     s.set_direction((dir_x, dir_y))
 
-            for sprite in sprites:
-                sprite.animate()
+            self.animate_if_no_collision(snake0, snake1)
 
             # Clear screen + draw different sprites
             bitmap.fill(0)
