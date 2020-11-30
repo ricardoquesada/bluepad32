@@ -97,7 +97,7 @@ typedef struct __attribute__((packed)) {
 //
 // Globals
 //
-static const char FIRMWARE_VERSION[] = "Bluepad32 for Airlift v0.1";
+static const char FIRMWARE_VERSION[] = "Bluepad32 for Airlift v0.2";
 static SemaphoreHandle_t _ready_semaphore = NULL;
 static SemaphoreHandle_t _gamepad_mutex = NULL;
 static airlift_gamepad_t _gamepads[AIRLIFT_MAX_GAMEPADS];

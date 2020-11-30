@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.0.0-beta1] - 2020-11-30
 
 - uni_bluetooth: added "auto-delete" to prevent having "orphan" connections forever
 - AirLift:
@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DualShock3: Fix button mappings. A <-> B, X <-> Y
 - XboxOne: Suports Rumble
 - Switch: Supports rumble (WIP)
+- tools: each tool in its own directory.
+- tools/circuitpython: Added "snake", a "real" game that showcases the gamepad
 - ESP-IDF sdkconfig:
   - Bluetooth Controller: BR/EDR ACL Max Connections: 7 (max value)
   - Bluetooth Controller: BR/EDR Sync (SCO/eSCO) Max Connections: 3 (max value)
