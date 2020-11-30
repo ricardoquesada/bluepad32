@@ -111,6 +111,11 @@ class Snake:
         self._color = color
 
     def set_direction(self, direction) -> None:
+        # Forbid opposite direction
+        if direction[0] != 0 and direction[0] == -self._direction[0]:
+            return
+        if direction[1] != 0 and direction[1] == -self._direction[1]:
+            return
         self._direction = direction
 
     def increase_tail(self, units: int) -> None:
@@ -168,10 +173,10 @@ class Display:
         palette = displayio.Palette(PALETTE_SIZE)
         palette[0] = (0, 0, 0)  # Black
         palette[1] = (255, 255, 255)  # White
-        palette[2] = (136, 0, 0)  # Red
+        palette[2] = (170, 0, 0)  # Red
         palette[3] = (170, 255, 238)  # Cyan
         palette[4] = (204, 68, 204)  # Violet
-        palette[5] = (0, 204, 85)  # Green
+        palette[5] = (0, 170, 0)  # Green
         palette[6] = (0, 0, 170)  # Blue
         palette[7] = (238, 238, 119)  # Yellow
 
