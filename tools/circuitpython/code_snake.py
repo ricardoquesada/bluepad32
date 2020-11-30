@@ -26,11 +26,64 @@ SCREEN_WIDTH = const(64)
 SCREEN_HEIGHT = const(32)
 PALETTE_SIZE = const(16)
 
+BLACK = const(0)
+WHITE = const(1)
+RED = const(2)
+CYAN = const(3)
+VIOLET = const(4)
+GREEN = const(5)
+BLUE = const(6)
+YELLOW = const(7)
+ORANGE = const(8)
+BROWN = const(9)
+LIGHT_RED = const(10)
+DARK_GREY = const(11)
+GREY_2 = const(12)
+LIGHT_GREEN = const(13)
+LIGHT_BLUE = const(14)
+LIGHT_GRAY = const(15)
+
+
+class C64Label:
+    """Renders bitmap labels based in on a 8 * 256 charset.
+    E.g: Character 0 is defined by bytes 0-7, Character 1 from bytes 8-15,
+    and so on.
+    This format is used in many 8-bit computers like the Commodore 64.
+    Use VChar64 editor to edit your own charset:
+    https://github.com/ricardoquesada/vchar64
+    """
+
+    def __init__(
+        self, label: str, pos=(0, 0), color=WHITE, file="data/c64-font-charset.bin"
+    ):
+        self._charset = None
+        self._label = label
+        self._pos = pos
+        self._color = color
+        with open(file, "rb") as f:
+            self._charset = f.read()
+
+    def draw(self, bitmap) -> None:
+        bitmap_x = self._pos[0]
+        for c in self._label:
+            # Each char in chardef takes 8 bytes
+            idx = ord(c) * 8
+            bitmap_y = self._pos[1]
+            for y in range(8):
+                b = self._charset[idx + y]
+                for x in range(8):
+                    bit = b & (1 << (7 - x))
+                    if bit:
+                        bitmap[bitmap_x + x, bitmap_y + y] = self._color
+            bitmap_x += 8
+
 
 class Fruit:
+    """A Sprite that represents what the snakes eat"""
+
     def __init__(self, pos):
         self._pos = pos
-        self._color = 4
+        self._color = RED
         x, y = pos[0], pos[1]
         self._pixels = [(pos), (x + 1, y), (x, y + 1), (x + 1, y + 1)]
 
@@ -49,6 +102,8 @@ class Fruit:
 
 
 class Snake:
+    """A sprite that represents what the players control"""
+
     def __init__(self, pixels, direction, color):
         self._direction = direction
         self._pixels = pixels
@@ -95,6 +150,7 @@ class Snake:
     def remove_tail(self):
         if len(self._pixels) > 1:
             del self._pixels[-1]
+            # self._len -= 1
 
 
 class Display:
@@ -108,25 +164,25 @@ class Display:
     def _init_bitmap(self):
         bitmap = displayio.Bitmap(SCREEN_WIDTH, SCREEN_HEIGHT, PALETTE_SIZE)
 
-        # For fun, just use the CGA color palette
+        # For fun, just use the C64 color palette
         palette = displayio.Palette(PALETTE_SIZE)
         palette[0] = (0, 0, 0)  # Black
-        palette[1] = (0, 0, 170)  # Blue
-        palette[2] = (0, 170, 0)  # Green
-        palette[3] = (0, 170, 170)  # Cyan
-        palette[4] = (170, 0, 0)  # Red
-        palette[5] = (170, 0, 170)  # Magenta
-        palette[6] = (170, 85, 0)  # Brown
-        palette[7] = (170, 170, 170)  # Light Gray
+        palette[1] = (255, 255, 255)  # White
+        palette[2] = (136, 0, 0)  # Red
+        palette[3] = (170, 255, 238)  # Cyan
+        palette[4] = (204, 68, 204)  # Violet
+        palette[5] = (0, 204, 85)  # Green
+        palette[6] = (0, 0, 170)  # Blue
+        palette[7] = (238, 238, 119)  # Yellow
 
-        palette[8] = (85, 85, 85)  # Dark Gray
-        palette[9] = (85, 85, 255)  # Light Blue
-        palette[10] = (85, 255, 85)  # Light Green
-        palette[11] = (85, 255, 255)  # Light Cyan
-        palette[12] = (255, 85, 85)  # Light Red
-        palette[13] = (255, 85, 255)  # Light Magenta
-        palette[14] = (255, 255, 85)  # Yellow
-        palette[15] = (255, 255, 255)  # White
+        palette[8] = (221, 136, 85)  # Orange
+        palette[9] = (102, 68, 0)  # Brown
+        palette[10] = (255, 119, 199)  # Light red
+        palette[11] = (51, 51, 51)  # Dark Grey
+        palette[12] = (119, 119, 199)  # Grey 2
+        palette[13] = (170, 255, 102)  # Light green
+        palette[14] = (0, 136, 255)  # Light Blue
+        palette[15] = (187, 187, 187)  # Light Grey
 
         return bitmap, palette
 
@@ -178,20 +234,6 @@ class Game:
         esp = bluepad32.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset, debug=0)
         return esp
 
-    def wait_for_gamepads(self):
-        gamepads = []
-        while len(gamepads) != 2:
-            # TODO: Is there a "displayio.wait_for_refresh()". Couldn't find it.
-            # In the meantime fix speed at 30 FPS
-            time.sleep(0.032)
-            gamepads = self._esp.get_gamepads_data()
-            self._display.refresh()
-
-        # Blue for #0
-        self._esp.set_gamepad_color_led(0, (0, 0, 255))
-        # Green for #1
-        self._esp.set_gamepad_color_led(1, (0, 255, 0))
-
     def animate_if_no_collision(self, s0, s1):
         all_pixels = s0.pixels() + s1.pixels()
         if s0.next_head() not in all_pixels:
@@ -203,18 +245,94 @@ class Game:
         else:
             s1.remove_tail()
 
-    def run(self):
-        # esp.set_esp_debug(1)
+    def show_title(self):
+        bitmap = self._display.get_bitmap()
+        bitmap.fill(BLACK)
+        label1 = C64Label("CIRCUIT", pos=(4, 5), color=VIOLET)
+        label2 = C64Label("Snake", pos=(12, 12), color=RED)
+        label3 = C64Label("v0.1", pos=(16, 24), color=DARK_GREY)
+        label1.draw(bitmap)
+        label2.draw(bitmap)
+        label3.draw(bitmap)
+        self._display.refresh()
+        time.sleep(5)
+
+    def show_gamepads(self):
+        bitmap = self._display.get_bitmap()
+        label1 = C64Label("connect", pos=(4, 4), color=LIGHT_BLUE)
+        label2 = C64Label("two", pos=(20, 12), color=LIGHT_BLUE)
+        label3 = C64Label("gamepads", pos=(0, 20), color=LIGHT_BLUE)
+
+        def show():
+            bitmap.fill(BLACK)
+            label1.draw(bitmap)
+            label2.draw(bitmap)
+            label3.draw(bitmap)
+
+        def hide():
+            bitmap.fill(BLACK)
+
+        gamepads = []
+        do_show = True
+        while len(gamepads) != 2:
+            # TODO: Is there a "displayio.wait_for_refresh()". Couldn't find it.
+            # In the meantime fix speed at 30 FPS
+            if do_show:
+                show()
+            else:
+                hide()
+            do_show = not do_show
+            time.sleep(0.7)
+            gamepads = self._esp.get_gamepads_data()
+            self._display.refresh()
+
+        # Blue for #0
+        self._esp.set_gamepad_color_led(0, (0, 0, 255))
+        # Green for #1
+        self._esp.set_gamepad_color_led(1, (0, 255, 0))
+
+    def show_winner(self, winner):
+        if winner == 0:
+            label = "BLUE"
+            color = BLUE
+            x = 16
+        else:
+            label = "GREEN"
+            color = GREEN
+            x = 12
+
+        bitmap = self._display.get_bitmap()
+        bitmap.fill(BLACK)
+        label1 = C64Label(label, pos=(x, 8), color=color)
+        label2 = C64Label("WINS", pos=(16, 16), color=color)
+        label1.draw(bitmap)
+        label2.draw(bitmap)
+        self._display.refresh()
+        time.sleep(1)
+
+    def is_game_over(self, snake0, snake1) -> bool:
+        l0 = len(snake0.pixels())
+        l1 = len(snake1.pixels())
+        # At least one player reaches len 10, but not both at the same time
+        return (l0 > 15 or l1 > 15) and l0 is not l1
+
+    def play(self) -> int:
+        """Returns which player won the game"""
+
+        # Start Game
+        bitmap = self._display.get_bitmap()
+
         x = SCREEN_WIDTH // 2
         y = SCREEN_HEIGHT // 2
-
         snake0 = Snake(
-            [(x // 2, y), (x // 2 + 1, y), (x // 2 + 2, y)], direction=(-1, 0), color=1
+            [(x // 2, y), (x // 2 + 1, y), (x // 2 + 2, y)],
+            direction=(-1, 0),
+            color=BLUE,
         )
         snake1 = Snake(
             [(x + x // 2 + 2, y), (x + x // 2 + 1, y), (x + x // 2 + 0, y)],
             direction=(1, 0),
-            color=2,
+            color=GREEN,
         )
 
         fruit = Fruit(
@@ -225,22 +343,19 @@ class Game:
         )
 
         sprites = (snake0, snake1, fruit)
-        bitmap = self._display.get_bitmap()
 
         # Draw sprites / fruit. Initial position
-        bitmap.fill(0)
+        bitmap.fill(BLACK)
         for sprite in sprites:
             sprite.draw(bitmap)
 
-        self.wait_for_gamepads()
-
-        while True:
+        while not self.is_game_over(snake0, snake1):
             start_time = time.monotonic()
 
             gamepads = self._esp.get_gamepads_data()
             for gp in gamepads:
 
-                # D-pad constants are defined here:
+                # d-pad constants are defined here:
                 # https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/src/main/uni_gamepad.h
                 dpad = gp["dpad"]
                 needs_update = True
@@ -278,7 +393,7 @@ class Game:
                 snake1.increase_tail(1)
 
             # Clear screen + draw different sprites
-            bitmap.fill(0)
+            bitmap.fill(BLACK)
             for sprite in sprites:
                 sprite.draw(bitmap)
 
@@ -289,6 +404,25 @@ class Game:
             sleep_time = 0.0333333 - dt
             if sleep_time > 0:
                 time.sleep(sleep_time)
+
+        # Who won the game? player 0 or 1
+        if len(snake0.pixels()) > len(snake1.pixels()):
+            return 0
+        return 1
+
+    def run(self):
+        # esp.set_esp_debug(1)
+
+        # Show Main title
+        self.show_title()
+
+        # Show & Wait for gamepads
+        self.show_gamepads()
+
+        while True:
+            # play
+            winner = self.play()
+            self.show_winner(winner)
 
 
 Game().run()

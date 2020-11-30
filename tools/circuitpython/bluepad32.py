@@ -23,6 +23,7 @@ from micropython import const
 
 class ESP_SPIcontrol(adafruit_esp32spi.ESP_SPIcontrol):
     """Implements the SPI commands for Bluepad32"""
+
     # Nina-fw commands stopped at 0x50. Bluepad32 extensions start at 0x60
     # See: https://github.com/adafruit/Adafruit_CircuitPython_ESP32SPI/blob/master/adafruit_esp32spi/adafruit_esp32spi.py
     _GET_GAMEPADS_DATA = const(0x60)
@@ -32,7 +33,7 @@ class ESP_SPIcontrol(adafruit_esp32spi.ESP_SPIcontrol):
     _SET_GAMEPAD_RUMBLE = const(0x64)
     _BLUETOOTH_DEL_KEYS = const(0x65)
 
-    def get_gamepads_data(self):
+    def get_gamepads_data(self) -> list:
         """Returns a list of gamepads. Empty if no gamepad are connected.
         Each gamepad entry is a dictionary that represents that gamepad state
         like: buttons pressed, axis values, dpad and more.
@@ -67,32 +68,28 @@ class ESP_SPIcontrol(adafruit_esp32spi.ESP_SPIcontrol):
             offset += 29
         return gamepads
 
-    def set_gamepad_player_leds(self, gamepad_idx: int, leds: int):
-        """
-        """
+    def set_gamepad_player_leds(self, gamepad_idx: int, leds: int) -> int:
+        """TODO"""
         resp = self._send_command_get_response(
             _SET_GAMEPAD_PLAYER_LEDS, ((gamepad_idx,), (leds,))
         )
         return resp[0][0]
 
-    def set_gamepad_color_led(self, gamepad_idx: int, rgb:tuple):
-        """
-        """
+    def set_gamepad_color_led(self, gamepad_idx: int, rgb: tuple[int, int, int]) -> int:
+        """TODO"""
         resp = self._send_command_get_response(
             _SET_GAMEPAD_COLOR_LED, ((gamepad_idx,), rgb)
         )
         return resp[0][0]
 
-    def set_gamepad_rumble(self, gamepad_idx: int, force: int, duration: int):
-        """
-        """
+    def set_gamepad_rumble(self, gamepad_idx: int, force: int, duration: int) -> int:
+        """TODO"""
         resp = self._send_command_get_response(
             _SET_GAMEPAD_RUMBLE, ((gamepad_idx,), (force, duration))
         )
         return resp[0][0]
 
-    def bluetooth_del_keys(self):
-        """
-        """
+    def bluetooth_del_keys(self) -> int:
+        """TODO"""
         resp = self._send_command_get_response(_BLUETOOTH_DEL_KEYS)
         return resp[0][0]
