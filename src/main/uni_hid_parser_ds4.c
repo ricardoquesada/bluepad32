@@ -25,11 +25,20 @@ limitations under the License.
 
 #include "uni_hid_parser_ds4.h"
 
+#include <assert.h>
+
 #include "hid_usage.h"
 #include "uni_config.h"
 #include "uni_debug.h"
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
+
+typedef struct {
+  // Must be first element
+  btstack_timer_source_t ts;
+  uni_hid_device_t* hid_device;
+  bool rumble_in_progress;
+} ds4_instance_t;
 
 typedef struct __attribute((packed)) {
   // Report related
@@ -57,6 +66,9 @@ enum {
   DS4_FF_FLAG_LED_BLINK = 1 << 2,
 };
 
+static void ds4_rumble_off(btstack_timer_source_t * ts);
+static ds4_instance_t* get_ds4_instance(uni_hid_device_t* d);
+
 #define CRCPOLY 0xedb88320
 static uint32_t crc32_le(uint32_t seed, const void* data, size_t len) {
   uint32_t crc = seed;
@@ -81,6 +93,10 @@ void uni_hid_parser_ds4_setup(struct uni_hid_device_s* d) {
   // report type 1 when running over Bluetooth. However, when feature
   // report 2 is requested during the controller initialization it starts
   // sending input reports in report 17.
+
+  ds4_instance_t* ins = get_ds4_instance(d);
+  memset(ins, 0, sizeof(*ins));
+  ins->hid_device = d;  // Used by rumble callbacks
 
   // Also turns off blinking, LED and rumble.
   ds4_ff_report_t ff = {0};
@@ -426,7 +442,6 @@ void uni_hid_parser_ds4_set_led_color(uni_hid_device_t* d, uint8_t r, uint8_t g,
 
 void uni_hid_parser_ds4_set_rumble(uni_hid_device_t* d, uint8_t value,
                                    uint8_t duration) {
-  // FIXME: timer that cancels rumble after duration
   UNUSED(duration);
 
   ds4_ff_report_t ff = {0};
@@ -449,6 +464,46 @@ void uni_hid_parser_ds4_set_rumble(uni_hid_device_t* d, uint8_t value,
   ff.crc = crc;
 
   uni_hid_device_send_intr_report(d, (uint8_t*)&ff, sizeof(ff));
+
+  // set timer to turn off rumble
+  ds4_instance_t* ins = get_ds4_instance(d);
+  if (ins->rumble_in_progress) return;
+
+  ins->ts.process = &ds4_rumble_off;
+  ins->rumble_in_progress = 1;
+  int ms = duration * 4; // duration: 256 ~= 1 second
+  btstack_run_loop_set_timer(&ins->ts, ms);
+  btstack_run_loop_add_timer(&ins->ts);
 }
 
+//
 // Helpers
+//
+static void ds4_rumble_off(btstack_timer_source_t * ts){
+  ds4_instance_t* ins = (ds4_instance_t*)ts;
+  // No need to protect it with a mutex since it runs in the same main thread
+  assert(ins->rumble_in_progress);
+  ins->rumble_in_progress = 0;
+
+  ds4_ff_report_t ff = {0};
+
+  ff.transaction_type = 0xa2;     // DATA | TYPE_OUTPUT
+  ff.report_id = 0x11;            // taken from HID descriptor
+  ff.unk0[0] = 0xc4;              // HID alone + poll interval
+  ff.flags = DS4_FF_FLAG_RUMBLE;  // blink + LED + motor
+  // ff.rumble_left & ff.rumble_right are 0
+
+  /* CRC generation */
+  uint8_t bthdr = 0xA2;
+  uint32_t crc;
+
+  crc = crc32_le(0xffffffff, &bthdr, 1);
+  crc = ~crc32_le(crc, (uint8_t*)&ff.report_id, sizeof(ff) - 5);
+  ff.crc = crc;
+
+  uni_hid_device_send_intr_report(ins->hid_device, (uint8_t*)&ff, sizeof(ff));
+}
+
+static ds4_instance_t* get_ds4_instance(uni_hid_device_t* d) {
+  return (ds4_instance_t*)&d->parser_data[0];
+}

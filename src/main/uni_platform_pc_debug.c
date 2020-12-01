@@ -89,7 +89,7 @@ static void pc_debug_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
   prev = *gp;
   uni_gamepad_dump(gp);
 
-#if 1
+#if 0
   // Debugging
   // Axis: control RGB color
   if (d->report_parser.set_led_color != NULL) {
@@ -158,7 +158,7 @@ static void trigger_event_on_gamepad(uni_hid_device_t* d) {
   }
 
   if (d->report_parser.set_rumble != NULL) {
-    d->report_parser.set_rumble(d, 0x80 /* value */, 0x04 /* duration */);
+    d->report_parser.set_rumble(d, 0x80 /* value */, 0x10 /* duration */);
   }
 }
 
