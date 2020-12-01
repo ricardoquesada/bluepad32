@@ -45,6 +45,7 @@ typedef struct ds3_instance_s {
   ds3_fsm_t state;
   uni_gamepad_seat_t gamepad_seat;
 } ds3_instance_t;
+_Static_assert( sizeof(ds3_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "ds3 intance too big");
 
 static ds3_instance_t* get_ds3_instance(uni_hid_device_t* d);
 static void update_led(uni_hid_device_t* d, uni_gamepad_seat_t seat);

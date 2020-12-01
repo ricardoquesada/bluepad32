@@ -142,6 +142,7 @@ typedef struct wii_instance_s {
   int debug_fd;         // File descriptor where dump is saved
   uint32_t debug_addr;  // Current dump address
 } wii_instance_t;
+_Static_assert( sizeof(wii_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "Wii intance too big");
 
 static void process_req_status(uni_hid_device_t* d, const uint8_t* report,
                                uint16_t len);

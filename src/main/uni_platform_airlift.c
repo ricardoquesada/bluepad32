@@ -109,6 +109,7 @@ typedef struct airlift_instance_s {
   // -1 means gamepad was not assigned yet.
   int8_t gamepad_idx;
 } airlift_instance_t;
+_Static_assert( sizeof(airlift_instance_t) < HID_DEVICE_MAX_PLATFORM_DATA, "Airlift intance too big");
 
 static airlift_instance_t* get_airlift_instance(uni_hid_device_t* d);
 

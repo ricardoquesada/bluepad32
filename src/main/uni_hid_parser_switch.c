@@ -144,6 +144,7 @@ typedef struct switch_instance_s {
   int debug_fd;         // File descriptor where dump is saved
   uint32_t debug_addr;  // Current dump address
 } switch_instance_t;
+_Static_assert( sizeof(switch_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "Switch intance too big");
 
 struct switch_subcmd_request {
   // Report related

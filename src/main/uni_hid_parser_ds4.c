@@ -450,3 +450,6 @@ void uni_hid_parser_ds4_set_rumble(uni_hid_device_t* d, uint8_t value,
 
   uni_hid_device_send_intr_report(d, (uint8_t*)&ff, sizeof(ff));
 }
+
+// Helpers
+

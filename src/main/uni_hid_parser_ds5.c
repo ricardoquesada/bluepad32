@@ -36,12 +36,12 @@ void uni_hid_parser_ds5_init_report(uni_hid_device_t* d) {
 void uni_hid_parser_ds5_parse_raw(uni_hid_device_t* d, const uint8_t* report,
                                   uint16_t len) {
   if (report[0] != 0x11) {
-    loge("DS4: Unexpected report type: got 0x%02x, want: 0x11\n", report[0]);
+    loge("DS5: Unexpected report type: got 0x%02x, want: 0x11\n", report[0]);
     // printf_hexdump(report, len);
     return;
   }
   if (len != 78) {
-    loge("DS4: Unexpected report len: got %d, want: 78\n", len);
+    loge("DS5: Unexpected report len: got %d, want: 78\n", len);
     return;
   }
   uni_gamepad_t* gp = &d->gamepad;
@@ -195,7 +195,7 @@ void uni_hid_parser_ds5_parse_usage(uni_hid_device_t* d, hid_globals_t* globals,
           gp->updated_states |= GAMEPAD_STATE_DPAD;
           break;
         default:
-          logi("DS4: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n",
+          logi("DS5: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n",
                usage_page, usage, value);
           break;
       }
@@ -206,7 +206,7 @@ void uni_hid_parser_ds5_parse_usage(uni_hid_device_t* d, hid_globals_t* globals,
           gp->battery = value;
           break;
         default:
-          logi("DS4: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n",
+          logi("DS5: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n",
                usage_page, usage, value);
           break;
       }
@@ -309,7 +309,7 @@ void uni_hid_parser_ds5_parse_usage(uni_hid_device_t* d, hid_globals_t* globals,
           // unassigned
           break;
         default:
-          logi("DS4: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n",
+          logi("DS5: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n",
                usage_page, usage, value);
           break;
       }
@@ -317,7 +317,7 @@ void uni_hid_parser_ds5_parse_usage(uni_hid_device_t* d, hid_globals_t* globals,
     }
     // unknown usage page
     default:
-      logi("DS4: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n",
+      logi("DS5: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n",
            usage_page, usage, value);
       break;
   }
