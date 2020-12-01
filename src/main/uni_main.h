@@ -21,5 +21,4 @@ limitations under the License.
 
 int uni_main(int argc, const char** argv);
 
-#endif // UNI_MAIN_H
-
+#endif  // UNI_MAIN_H

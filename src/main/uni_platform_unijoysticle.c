@@ -113,7 +113,8 @@ typedef struct unijoysticle_instance_s {
   uni_gamepad_seat_t prev_gamepad_seat;  // which "seat" (port) was used before
                                          // switching emu mode
 } unijoysticle_instance_t;
-_Static_assert( sizeof(unijoysticle_instance_t) < HID_DEVICE_MAX_PLATFORM_DATA, "Unijoysticle intance too big");
+_Static_assert(sizeof(unijoysticle_instance_t) < HID_DEVICE_MAX_PLATFORM_DATA,
+               "Unijoysticle intance too big");
 
 // --- Constants
 static const gpio_num_t JOY_A_PORTS[] = {

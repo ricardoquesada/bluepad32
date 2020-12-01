@@ -23,4 +23,4 @@ limitations under the License.
 
 struct uni_platform* uni_platform_airlift_create(void);
 
-#endif // UNI_PLATFORM_AIRLIFT_H
+#endif  // UNI_PLATFORM_AIRLIFT_H

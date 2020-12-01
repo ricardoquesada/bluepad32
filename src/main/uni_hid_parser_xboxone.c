@@ -42,7 +42,8 @@ enum xboxone_firmware {
 typedef struct wii_instance_s {
   enum xboxone_firmware version;
 } xboxone_instance_t;
-_Static_assert( sizeof(xboxone_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "Xbox one intance too big");
+_Static_assert(sizeof(xboxone_instance_t) < HID_DEVICE_MAX_PARSER_DATA,
+               "Xbox one intance too big");
 
 static xboxone_instance_t* get_xboxone_instance(uni_hid_device_t* d);
 static void parse_usage_firmware_v3_1(uni_hid_device_t* d,

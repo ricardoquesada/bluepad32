@@ -146,9 +146,9 @@ static pc_debug_instance_t* get_pc_debug_instance(uni_hid_device_t* d) {
 
 static void trigger_event_on_gamepad(uni_hid_device_t* d) {
   pc_debug_instance_t* ins = get_pc_debug_instance(d);
-//  if (d->report_parser.set_leds != NULL) {
-//    d->report_parser.set_leds(d, ins->gamepad_seat);
-//  }
+  //  if (d->report_parser.set_leds != NULL) {
+  //    d->report_parser.set_leds(d, ins->gamepad_seat);
+  //  }
 
   if (d->report_parser.set_led_color != NULL) {
     uint8_t red = (ins->gamepad_seat & 0x01) ? 0xff : 0;
