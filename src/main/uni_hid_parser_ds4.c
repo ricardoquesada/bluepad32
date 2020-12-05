@@ -66,7 +66,7 @@ enum {
   DS4_FF_FLAG_LED_BLINK = 1 << 2,
 };
 
-static void ds4_rumble_off(btstack_timer_source_t * ts);
+static void ds4_rumble_off(btstack_timer_source_t* ts);
 static ds4_instance_t* get_ds4_instance(uni_hid_device_t* d);
 
 #define CRCPOLY 0xedb88320
@@ -471,7 +471,7 @@ void uni_hid_parser_ds4_set_rumble(uni_hid_device_t* d, uint8_t value,
 
   ins->ts.process = &ds4_rumble_off;
   ins->rumble_in_progress = 1;
-  int ms = duration * 4; // duration: 256 ~= 1 second
+  int ms = duration * 4;  // duration: 256 ~= 1 second
   btstack_run_loop_set_timer(&ins->ts, ms);
   btstack_run_loop_add_timer(&ins->ts);
 }
@@ -479,7 +479,7 @@ void uni_hid_parser_ds4_set_rumble(uni_hid_device_t* d, uint8_t value,
 //
 // Helpers
 //
-static void ds4_rumble_off(btstack_timer_source_t * ts){
+static void ds4_rumble_off(btstack_timer_source_t* ts) {
   ds4_instance_t* ins = (ds4_instance_t*)ts;
   // No need to protect it with a mutex since it runs in the same main thread
   assert(ins->rumble_in_progress);

@@ -880,7 +880,7 @@ static void l2cap_create_interrupt_connection(uni_hid_device_t* d) {
 static void fsm_process(uni_hid_device_t* d) {
   // logi("fsm_process: %p = 0x%02x\n", d, d->state);
   if (d == NULL) {
-    loge("Invalid device\n");
+    loge("fsm_process: Invalid device\n");
   }
   // Two flows: Incoming (initiated by gamepad) vs. discovered (initiated by
   // Unijoysticle).

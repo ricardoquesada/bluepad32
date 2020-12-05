@@ -22,6 +22,8 @@ limitations under the License.
 
 #include "uni_hid_parser_switch.h"
 
+#include <assert.h>
+
 #define ENABLE_SPI_FLASH_DUMP 0
 
 #if ENABLE_SPI_FLASH_DUMP
@@ -127,6 +129,10 @@ typedef struct switch_cal_stick_s {
 
 // switch_instance_t represents data used by the Switch driver instance.
 typedef struct switch_instance_s {
+  btstack_timer_source_t ts;
+  uni_hid_device_t* hid_device;
+  bool rumble_in_progress;
+
   uint8_t state;
   uint8_t mode;
   uint8_t firmware_hi;
@@ -364,9 +370,12 @@ static void process_reply_enable_imu(struct uni_hid_device_s* d,
                                      int len);
 static int32_t calibrate_axis(int16_t v, switch_cal_stick_t cal);
 static void set_led(uni_hid_device_t* d, uint8_t leds);
+static void switch_rumble_off(btstack_timer_source_t* ts);
 
 void uni_hid_parser_switch_setup(struct uni_hid_device_s* d) {
   switch_instance_t* ins = get_switch_instance(d);
+
+  ins->hid_device = d;  // Used by rumble callbacks
 
   ins->state = STATE_SETUP;
   ins->mode = SWITCH_MODE_NONE;
@@ -933,29 +942,26 @@ static void fsm_ready(struct uni_hid_device_s* d) {
 }
 
 static struct switch_rumble_freq_data find_rumble_freq(uint16_t freq) {
-  const struct switch_rumble_freq_data* data = rumble_freqs;
   unsigned int i = 0;
-
-  if (freq > data[0].freq) {
+  if (freq > rumble_freqs[0].freq) {
     for (i = 1; i < TOTAL_RUMBLE_FREQS - 1; i++) {
-      if (freq > data[i - 1].freq && freq <= data[i].freq) break;
+      if (freq > rumble_freqs[i - 1].freq && freq <= rumble_freqs[i].freq)
+        break;
     }
   }
 
-  return data[i];
+  return rumble_freqs[i];
 }
 
 static struct switch_rumble_amp_data find_rumble_amp(uint16_t amp) {
-  const struct switch_rumble_amp_data* data = rumble_amps;
   unsigned int i = 0;
-
-  if (amp > data[0].amp) {
+  if (amp > rumble_amps[0].amp) {
     for (i = 1; i < TOTAL_RUMBLE_AMPS - 1; i++) {
-      if (amp > data[i - 1].amp && amp <= data[i].amp) break;
+      if (amp > rumble_amps[i - 1].amp && amp <= rumble_amps[i].amp) break;
     }
   }
 
-  return data[i];
+  return rumble_amps[i];
 }
 
 static void switch_encode_rumble(uint8_t* data, uint16_t freq_low,
@@ -994,12 +1000,22 @@ void uni_hid_parser_switch_set_rumble(struct uni_hid_device_s* d, uint8_t value,
 
   req.transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
   req.report_id = OUTPUT_RUMBLE_ONLY;
-  switch_encode_rumble(req.rumble_left, value << 2, value, 800);
-  switch_encode_rumble(req.rumble_right, value << 2, value, 800);
+  switch_encode_rumble(req.rumble_left, value << 2, value, 500);
+  switch_encode_rumble(req.rumble_right, value << 2, value, 500);
 
   // TODO: It is safe to cast switch_rumble_only_request into a subcommand
   // but could become dangerous if more data is added/removed.
   send_subcmd(d, (struct switch_subcmd_request*)&req, sizeof(req));
+
+  // set timer to turn off rumble
+  switch_instance_t* ins = get_switch_instance(d);
+  if (ins->rumble_in_progress) return;
+
+  ins->ts.process = &switch_rumble_off;
+  ins->rumble_in_progress = 1;
+  int ms = duration * 4;  // duration: 256 ~= 1 second
+  btstack_run_loop_set_timer(&ins->ts, ms);
+  btstack_run_loop_add_timer(&ins->ts);
 }
 
 uint8_t uni_hid_parser_switch_does_packet_match(struct uni_hid_device_s* d,
@@ -1072,4 +1088,25 @@ static int32_t calibrate_axis(int16_t v, switch_cal_stick_t cal) {
   ret = ret > (AXIS_NORMALIZE_RANGE / 2) ? (AXIS_NORMALIZE_RANGE / 2) : ret;
   ret = ret < -AXIS_NORMALIZE_RANGE / 2 ? -AXIS_NORMALIZE_RANGE / 2 : ret;
   return ret;
+}
+
+static void switch_rumble_off(btstack_timer_source_t* ts) {
+  logi("switch_rumble_off******************\n");
+  switch_instance_t* ins = (switch_instance_t*)ts;
+  // No need to protect it with a mutex since it runs in the same main thread
+  assert(ins->rumble_in_progress);
+  ins->rumble_in_progress = 0;
+
+  struct switch_rumble_only_request req = {0};
+
+  req.transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
+  req.report_id = OUTPUT_RUMBLE_ONLY;
+  uint8_t rumble_default[4] = {0x00, 0x01, 0x40, 0x40};
+  memcpy(req.rumble_left, rumble_default, sizeof(req.rumble_left));
+  memcpy(req.rumble_right, rumble_default, sizeof(req.rumble_left));
+
+  // TODO: It is safe to cast switch_rumble_only_request into a subcommand
+  // but could become dangerous if more data is added/removed.
+  send_subcmd(ins->hid_device, (struct switch_subcmd_request*)&req,
+              sizeof(req));
 }
