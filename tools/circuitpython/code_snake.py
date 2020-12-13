@@ -13,6 +13,7 @@ import time
 import random
 
 import bluepad32
+import music76489
 
 import board
 import busio
@@ -60,6 +61,7 @@ class C64Label:
         self._label = label
         self._pos = pos
         self._color = color
+        self._music = None
         with open(file, "rb") as f:
             self._charset = f.read()
 
@@ -260,7 +262,12 @@ class Game:
         label2.draw(bitmap)
         label3.draw(bitmap)
         self._display.refresh()
-        time.sleep(5)
+        self._music.load_song("data/anime.vgm")
+        elapsed = 0
+        start_time = time.monotonic()
+        while elapsed < 5:
+            self._music.play()
+            elapsed = time.monotonic() - start_time
 
     def show_gamepads(self):
         bitmap = self._display.get_bitmap()
@@ -287,9 +294,16 @@ class Game:
             else:
                 hide()
             do_show = not do_show
-            time.sleep(0.7)
+            start_time = time.monotonic()
+            elapsed = 0
+            while elapsed < 0.7:
+                self._music.play()
+                elapsed = time.monotonic() - start_time
+
             gamepads = self._esp.get_gamepads_data()
             self._display.refresh()
+
+        self._music.reset()
 
         # Blue for #0
         self._esp.set_gamepad_color_led(0, (0, 0, 255))
@@ -313,7 +327,11 @@ class Game:
         label1.draw(bitmap)
         label2.draw(bitmap)
         self._display.refresh()
-        time.sleep(1)
+        elapsed = 0
+        start_time = time.monotonic()
+        while elapsed < 1:
+            self._music.play()
+            elapsed = time.monotonic() - start_time
 
     def is_game_over(self, snake0, snake1) -> bool:
         l0 = len(snake0.pixels())
@@ -404,19 +422,29 @@ class Game:
 
             self._display.refresh()
 
+            self._music.play()
+
             dt = time.monotonic() - start_time
-            # Target at 30 FPS
+            # Target at 30 FPS, but don't slow down music which needs to play at 60Hz
             sleep_time = 0.0333333 - dt
             if sleep_time > 0:
-                time.sleep(sleep_time)
+                sleep_time /= 10
+                for _ in range(10):
+                    time.sleep(sleep_time)
+                    self._music.play()
 
         # Who won the game? player 0 or 1
         if len(snake0.pixels()) > len(snake1.pixels()):
             return 0
         return 1
 
+    def init_music(self):
+        self._music = music76489.Music76489()
+
     def run(self):
         # esp.set_esp_debug(1)
+
+        self.init_music()
 
         # Show Main title
         self.show_title()
@@ -424,6 +452,7 @@ class Game:
         # Show & Wait for gamepads
         self.show_gamepads()
 
+        self._music.load_song("data/boss_battle.vgm")
         while True:
             # play
             winner = self.play()
