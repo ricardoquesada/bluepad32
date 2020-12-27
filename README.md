@@ -104,7 +104,7 @@ $ make flash monitor
 * [Google groups][forum]
 
 [docs]: https://gitlab.com/ricardoquesada/bluepad32/-/tree/master/docs
-[discord]: https://discord.com/channels/775177861665521725/775177925938642945
+[discord]: https://discord.gg/r5aMn6Cw5q
 [forum]: https://groups.google.com/forum/#!forum/unijoysticle
 
 ## License
