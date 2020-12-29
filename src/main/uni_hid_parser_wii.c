@@ -661,11 +661,20 @@ static void process_drm_kee(uni_hid_device_t* d, const uint8_t* report,
 
   // Process axis
   const uint16_t axis_base = 0x800;
-  // const uint16_t axis_range = 0x500;
-  int16_t lx = data[0] + ((data[1] & 0x0f) << 8) - axis_base;
-  int16_t rx = data[2] + ((data[3] & 0x0f) << 8) - axis_base;
-  int16_t ly = data[4] + ((data[5] & 0x0f) << 8) - axis_base;
-  int16_t ry = data[6] + ((data[7] & 0x0f) << 8) - axis_base;
+  int16_t lx = data[0]  + ((data[1] & 0x0f) << 8) - axis_base;
+  int16_t rx = data[2]  + ((data[3] & 0x0f) << 8) - axis_base;
+  int16_t ly = data[4]  + ((data[5] & 0x0f) << 8) - axis_base;
+  int16_t ry = data[6]  + ((data[7] & 0x0f) << 8) - axis_base;
+
+  // Axis have 12-bit of resolution, but Bluepad32 uses 10-bit for the axis.
+  // In theory we could just convert "from wire to bluepad32" in just one step
+  // using a few "shift right" operations.
+  // But apparently Wii U Controller doesn't use the whole range of the 12-bits.
+  // The max value seems to be 1280 instead of 2048.
+  lx = lx * 512 / 1280;
+  rx = rx * 512 / 1280;
+  ly = ly * 512 / 1280;
+  ry = ry * 512 / 1280;
 
   // Y is inverted
   gp->axis_x = lx;
