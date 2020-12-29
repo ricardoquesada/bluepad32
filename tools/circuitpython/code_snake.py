@@ -266,7 +266,8 @@ class Game:
         elapsed = 0
         start_time = time.monotonic()
         while elapsed < 5:
-            self._music.play()
+            self._music.tick()
+            time.sleep(0.016)
             elapsed = time.monotonic() - start_time
 
     def show_gamepads(self):
@@ -297,7 +298,8 @@ class Game:
             start_time = time.monotonic()
             elapsed = 0
             while elapsed < 0.7:
-                self._music.play()
+                self._music.tick()
+                time.sleep(0.016)
                 elapsed = time.monotonic() - start_time
 
             gamepads = self._esp.get_gamepads_data()
@@ -330,7 +332,8 @@ class Game:
         elapsed = 0
         start_time = time.monotonic()
         while elapsed < 1:
-            self._music.play()
+            self._music.tick()
+            time.sleep(1 / 60)
             elapsed = time.monotonic() - start_time
 
     def is_game_over(self, snake0, snake1) -> bool:
@@ -374,6 +377,8 @@ class Game:
 
         while not self.is_game_over(snake0, snake1):
             start_time = time.monotonic()
+
+            self._music.tick()
 
             gamepads = self._esp.get_gamepads_data()
             for gp in gamepads:
@@ -422,16 +427,15 @@ class Game:
 
             self._display.refresh()
 
-            self._music.play()
-
             dt = time.monotonic() - start_time
-            # Target at 30 FPS, but don't slow down music which needs to play at 60Hz
-            sleep_time = 0.0333333 - dt
+
+            # Game at 30Hz, Music at 60Hz.
+            sleep_time = 0.016666 - dt
             if sleep_time > 0:
-                sleep_time /= 10
-                for _ in range(10):
-                    time.sleep(sleep_time)
-                    self._music.play()
+                time.sleep(sleep_time)
+
+            self._music.tick()
+            time.sleep(0.016666)
 
         # Who won the game? player 0 or 1
         if len(snake0.pixels()) > len(snake1.pixels()):

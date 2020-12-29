@@ -43,7 +43,7 @@ class Music76489:
         self._should_loop = False
         self._loop_offset = 0
         self._prev_time = time.monotonic()
-        self._time_to_wait = 0
+        self._ticks_to_wait = 0
         self._end_of_song = False
 
         self._spi = busio.SPI(board.A1, MOSI=board.A2)
@@ -101,19 +101,13 @@ class Music76489:
             self._should_loop = True if loop != 0 else False
             self._loop_offset = loop + 0x1C - 0x40
 
-    def play(self):
+    def tick(self):
         if self._end_of_song:
             raise Exception("End of song reached")
 
-        if self._time_to_wait > 0:
-            now = time.monotonic()
-            dt = now - self._prev_time
-            self._prev_time = now
-            self._time_to_wait -= dt
-            # Allow some error margin
-            if self._time_to_wait > 0.0001:
-                return
-            self._time_to_wait = 0
+        self._ticks_to_wait -= 1
+        if self._ticks_to_wait > 0:
+            return
 
         # Convert to local variables (easier to ready... and tiny bit faster?)
         data = self._data
@@ -173,7 +167,7 @@ class Music76489:
                 if self._should_loop:
                     i = self._loop_offset
                 else:
-                    self.end_song()
+                    self._end_of_song = True
                     break
 
             else:
@@ -181,15 +175,187 @@ class Music76489:
         # update offset
         self._offset = i
 
-    def end_song(self):
-        self._end_of_song = True
-
     def delay_one(self):
-        self._time_to_wait = 1 / 60
+        self._ticks_to_wait += 1
 
     def delay_n(self, samples):
         # 735 samples == 1/60s
-        self._time_to_wait = samples / (735 * 60)
+        self._ticks_to_wait += samples // 735
+
+    def play_vgm(self, filename: str) -> None:
+        self.load_song(filename)
+        while not self._end_of_song:
+            self.tick()
+            # One tick == 1/60 of a second
+            time.sleep(1 / 60)
+
+    def play_freq(self, channel: int, freq: float) -> None:
+        # Supported frequency range: [110.35 - 55930.4]
+        # Although freqs > 7902.13 shouldn't be used
+        # In terms of musical notes the range is: [A2 - B8+]
+        # Formula taken from here: https://www.smspower.org/Development/SN76489
+        clock = 3579545  # Hz
+        reg = int(clock // (freq * 2 * 16))
+
+        print(f"reg: {reg}")
+
+        # 1022 and 1023 are reserved for samples
+        if reg > 1021:
+            reg = 1021
+
+        lsb = reg & 15
+        msb = reg >> 4
+
+        # Latch + tone
+        # bit7: 1=Latch
+        # bit4: 0=Tone
+        data = 0b1000_0000
+        # Channel: Bits 5,6
+        data |= channel << 5
+        # tone lsb: Bits 0-3
+        data |= lsb
+        self.write_port_data(data)
+
+        # Data
+        # bit7: 0=Data
+        data = 0b0000_0000
+        # tone msb: Bits 0-5
+        data |= msb
+        self.write_port_data(data)
+
+    def play_note(self, voice: int, note: int, octave: int) -> None:
+        # Initial note C0:
+        # https://pages.mtu.edu/~suits/notefreqs.html
+        print(f"note:{note}, octave:{octave}")
+        c0 = 16.35
+        distance = octave * 12 + note
+        freq = c0 * (2 ** (distance / 12))
+        print(f"freq: {freq}")
+        self.play_freq(voice, freq)
+
+    def play_notes(self, notes: str) -> None:
+        # Inspired by C128 "play" BASIC command:
+        # https://www.commodore.ca/manuals/128_system_guide/sect-07b.htm#7.3.html
+
+        # Defaults
+        voice = 0
+        octave = 4
+        duration = 16
+
+        # Hack
+        notes = notes + " "
+
+        i = 0
+        l = len(notes)
+        while i < l:
+            n = notes[i]
+            if n == "V":
+                # Voice: voices go from 0-2
+                voice = notes[i + 1]
+                i += 2
+            elif n == "O":
+                octave = int(notes[i + 1])
+                i += 2
+            elif n in "CDEFGAB":
+                # Notes
+                # C, C#, D, D#, E, F, F#, G, G#, A, A#, B
+                mn = {
+                    "C": 0,
+                    "C#": 1,
+                    "D": 2,
+                    "D#": 3,
+                    "E": 4,
+                    "F": 5,
+                    "F#": 6,
+                    "G": 7,
+                    "G#": 8,
+                    "A": 9,
+                    "A#": 10,
+                    "B": 11,
+                }
+                if notes[i + 1] == "#":
+                    n = n + "#"
+                    i += 1
+                note = mn[n]
+                self.set_vol(voice, 9)
+                self.play_note(voice, note, octave)
+                i += 1
+                # TODO: support envelops
+                time.sleep(0.016666 * duration * 2)
+                self.set_vol(voice, 0)
+                time.sleep(0.016666)
+
+            elif n == "U":
+                # TODO: Remove volument support in favor of envelops
+                # Volume
+                vol = int(notes[i + 1])
+                self.set_vol(voice, vol)
+                i += 2
+            elif n in "WHQIS":
+                d = {
+                    "W": 64,  # Whole
+                    "H": 32,  # Half
+                    "Q": 16,  # Quarter
+                    "I": 8,  # Eighth
+                    "S": 4,  # Sixteenth
+                }
+                duration = d[n]
+                i += 1
+            elif n in " ,":
+                i += 1
+        self.set_vol(0, 0)
+
+    def play_tone(self, channel: int, tone: int) -> None:
+        assert channel >= 0 and channel <= 2
+        assert tone >= 0 and tone <= 1023
+        tone = 1023 - tone
+        lsb = tone & 15
+        msb = tone >> 4
+
+        # Latch + tone
+        # bit7: 1=Latch
+        # bit4: 0=Tone
+        data = 0b1000_0000
+        # Channel: Bits 5,6
+        data |= channel << 5
+        # tone lsb: Bits 0-3
+        data |= lsb
+        self.write_port_data(data)
+
+        # Data
+        # bit7: 0=Data
+        data = 0b0000_0000
+        # tone msb: Bits 0-5
+        data |= msb
+        self.write_port_data(data)
+
+    def play_noise(self, mode: int, shift_rate: int) -> None:
+        assert mode == 0 or mode == 1
+        assert shift_rate >= 0 and shift_rate <= 3
+
+        # Latch + noise
+        # bit7: 1=latch
+        # bit 5,6: 11=channel 3 (noise)
+        # bit4: 1=noise/tone (not vol)
+        data = 0b1111_0000
+        # mode: white=1, periodic=0
+        data |= mode << 2
+        data |= shift_rate
+        self.write_port_data(data)
+
+    def set_vol(self, channel: int, vol: int) -> None:
+        assert channel >= 0 and channel <= 3
+        assert vol >= 0 and vol <= 15
+
+        # Latch + Volume
+        # bit7: 1=latch
+        # bit4: 1=volumen
+        data = 0b1001_0000
+        # Channel
+        data |= channel << 5
+        # Volume
+        data |= 15 - vol
+        self.write_port_data(data)
 
     def write_port_data(self, byte_data):
         # If you wire everything upside-down, might easier to reverse it
@@ -210,7 +376,8 @@ class Music76489:
             return r
 
         # Send data
-        self._sr.gpio = reverse_byte(byte_data)
+        #self._sr.gpio = reverse_byte(byte_data)
+        self._sr.gpio = byte_data
 
         # Enable SN76489
         self._sn76489_we.value = False
@@ -244,6 +411,26 @@ $ %(prog)s my_music.vgm
         while True:
             m.parse()
             time.sleep(1 / 60)
+
+
+def siren():
+    m = Music76489()
+    m.set_vol(0, 10)
+    m.set_vol(1, 10)
+    m.set_vol(2, 10)
+
+    while True:
+        for i in range(0, 1022):
+            m.play_tone(0, i)
+            m.play_tone(1, 1022 - i)
+            m.play_tone(2, i // 4)
+            time.sleep(0.001)
+
+        for i in range(0, 1022):
+            m.play_tone(0, 1022 - i)
+            m.play_tone(1, i)
+            m.play_tone(2, (1022 - i) // 4)
+            time.sleep(0.001)
 
 
 if __name__ == "__main__":
