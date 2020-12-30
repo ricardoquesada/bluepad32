@@ -194,7 +194,7 @@ static void process_req_status(uni_hid_device_t* d, const uint8_t* report,
   uint8_t flags = report[3] & 0x0f;  // LF (leds / flags)
   if (ins->state == WII_FSM_DID_REQ_STATUS) {
     if (d->product_id == 0x0306) {
-      // We are possitive that this is a Wii Remote 1st gen
+      // We are positive that this is a Wii Remote 1st gen
       ins->state = WII_FSM_DEV_GUESSED;
       ins->dev_type = WII_DEVTYPE_REMOTE;
     } else if (d->product_id == 0x0330) {
@@ -380,6 +380,7 @@ static void process_req_return(uni_hid_device_t* d, const uint8_t* report,
   }
 }
 
+// Used for WiiMote in Sideways and Vertical Mode.
 // Defined here: http://wiibrew.org/wiki/Wiimote#0x30:_Core_Buttons
 static void process_drm_k(uni_hid_device_t* d, const uint8_t* report,
                           uint16_t len) {
@@ -404,10 +405,13 @@ static void process_drm_k(uni_hid_device_t* d, const uint8_t* report,
   gp->misc_buttons |=
       (data[1] & 0x80) ? MISC_BUTTON_SYSTEM : 0;                // Button "home"
   gp->misc_buttons |= (data[0] & 0x10) ? MISC_BUTTON_HOME : 0;  // Button "+"
+  gp->misc_buttons |= (data[1] & 0x10) ? MISC_BUTTON_BACK : 0;  // Button "-"
   gp->updated_states |=
-      GAMEPAD_STATE_MISC_BUTTON_SYSTEM | GAMEPAD_STATE_MISC_BUTTON_HOME;
+      GAMEPAD_STATE_MISC_BUTTON_SYSTEM | GAMEPAD_STATE_MISC_BUTTON_HOME |
+      GAMEPAD_STATE_MISC_BUTTON_BACK;
 }
 
+// Used for WiiMote in Sideways Mode (Directions and A/B/X/Y Buttons only).
 static void process_drm_k_horizontal(uni_gamepad_t* gp, const uint8_t* data) {
   // dpad
   gp->dpad |= (data[0] & 0x01) ? DPAD_DOWN : 0;
@@ -425,6 +429,7 @@ static void process_drm_k_horizontal(uni_gamepad_t* gp, const uint8_t* data) {
                         GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y;
 }
 
+// Used for WiiMote in Vertical Mode (Directions and A/B/X/Y Buttons only).
 static void process_drm_k_vertical(uni_gamepad_t* gp, const uint8_t* data) {
   // dpad
   gp->dpad |= (data[0] & 0x01) ? DPAD_LEFT : 0;
@@ -442,7 +447,7 @@ static void process_drm_k_vertical(uni_gamepad_t* gp, const uint8_t* data) {
                         GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y;
 }
 
-// Defined here:
+// Used for WiiMote in Accelerometer Mode. Defined here:
 // http://wiibrew.org/wiki/Wiimote#0x31:_Core_Buttons_and_Accelerometer
 static void process_drm_ka(uni_hid_device_t* d, const uint8_t* report,
                            uint16_t len) {
@@ -488,13 +493,23 @@ static void process_drm_ka(uni_hid_device_t* d, const uint8_t* report,
 
   gp->buttons |= (report[2] & 0x08) ? BUTTON_A : 0;  // Big button "A"
   gp->buttons |= (report[2] & 0x04) ? BUTTON_B : 0;  // Button Shoulder
-  gp->updated_states |= GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B;
+  gp->buttons |= (report[2] & 0x02) ? BUTTON_X : 0;  // Button "1"
+  gp->buttons |= (report[2] & 0x01) ? BUTTON_Y : 0;  // Button "2"
+  gp->updated_states |= GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B |
+                        GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y;
 
   gp->misc_buttons |=
       (report[2] & 0x80) ? MISC_BUTTON_SYSTEM : 0;  // Button "home"
-  gp->updated_states |= GAMEPAD_STATE_MISC_BUTTON_SYSTEM;
+  gp->misc_buttons |=
+      (report[2] & 0x10) ? MISC_BUTTON_BACK : 0;  // Button "-"
+  gp->misc_buttons |=
+      (report[1] & 0x10) ? MISC_BUTTON_HOME : 0;  // Button "+"
+  gp->updated_states |= GAMEPAD_STATE_MISC_BUTTON_SYSTEM |
+                        GAMEPAD_STATE_MISC_BUTTON_BACK |
+                        GAMEPAD_STATE_MISC_BUTTON_HOME;
 }
 
+// Used in WiiMote + Nunchuk Mode
 // Defined here:
 // http://wiibrew.org/wiki/Wiimote#0x32:_Core_Buttons_with_8_Extension_bytes
 static void process_drm_ke(uni_hid_device_t* d, const uint8_t* report,
@@ -522,7 +537,7 @@ static void process_drm_ke(uni_hid_device_t* d, const uint8_t* report,
   // When VERTICAL mode is enabled, Nunchuk behaves as "right" joystick,
   // and the Wii remote behaves as the "left" joystick.
   if (ins->flags == WII_FLAGS_VERTICAL) {
-    // Treat Nunchuk as "right" joyspad.
+    // Treat Nunchuk as "right" joypad.
     gp->axis_rx = n.sx * factor;
     gp->axis_ry = n.sy * factor;
     gp->updated_states |= GAMEPAD_STATE_AXIS_RX | GAMEPAD_STATE_AXIS_RY;
@@ -556,13 +571,22 @@ static void process_drm_ke(uni_hid_device_t* d, const uint8_t* report,
     // If "vertical" not enabled, update Button B as well
     gp->buttons |= (report[2] & 0x08) ? BUTTON_B : 0;  // Big button "A"
   }
+  gp->buttons |= (report[2] & 0x02) ? BUTTON_X : 0;  // Button "1"
+  gp->buttons |= (report[2] & 0x01) ? BUTTON_Y : 0;  // Button "2"
   gp->updated_states |= GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B |
+                        GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y |
                         GAMEPAD_STATE_BUTTON_SHOULDER_L |
                         GAMEPAD_STATE_BUTTON_SHOULDER_R;
 
   gp->misc_buttons |=
       (report[2] & 0x80) ? MISC_BUTTON_SYSTEM : 0;  // Button "home"
-  gp->updated_states |= GAMEPAD_STATE_MISC_BUTTON_SYSTEM;
+  gp->misc_buttons |=
+      (report[2] & 0x10) ? MISC_BUTTON_BACK : 0;  // Button "-"
+  gp->misc_buttons |=
+      (report[1] & 0x10) ? MISC_BUTTON_HOME : 0;  // Button "+"
+  gp->updated_states |= GAMEPAD_STATE_MISC_BUTTON_SYSTEM |
+                        GAMEPAD_STATE_MISC_BUTTON_BACK |
+                        GAMEPAD_STATE_MISC_BUTTON_HOME;
 }
 
 // Defined here:
@@ -599,6 +623,7 @@ static nunchuk_t process_nunchuk(const uint8_t* e, uint16_t len) {
   return n;
 }
 
+// Used for the Wii U Pro Controller
 // Defined here:
 // http://wiibrew.org/wiki/Wiimote#0x34:_Core_Buttons_with_19_Extension_bytes
 static void process_drm_kee(uni_hid_device_t* d, const uint8_t* report,
@@ -712,11 +737,13 @@ static void process_drm_kee(uni_hid_device_t* d, const uint8_t* report,
   // Process misc buttons
   gp->misc_buttons |= !(data[8] & 0x08) ? MISC_BUTTON_SYSTEM : 0;  // BH
   gp->misc_buttons |= !(data[8] & 0x04) ? MISC_BUTTON_HOME : 0;    // B+
+  gp->misc_buttons |= !(data[8] & 0x10) ? MISC_BUTTON_BACK : 0;    // B-
   gp->updated_states |=
-      GAMEPAD_STATE_MISC_BUTTON_SYSTEM | GAMEPAD_STATE_MISC_BUTTON_HOME;
+      GAMEPAD_STATE_MISC_BUTTON_SYSTEM | GAMEPAD_STATE_MISC_BUTTON_HOME |
+      GAMEPAD_STATE_MISC_BUTTON_BACK;
 }
 
-// Defined here:
+// Used for the Wii Classic Controller (includes Pro?). Defined here:
 // http://wiibrew.org/wiki/Wiimote#0x3d:_21_Extension_Bytes
 static void process_drm_e(uni_hid_device_t* d, const uint8_t* report,
                           uint16_t len) {
@@ -793,8 +820,10 @@ static void process_drm_e(uni_hid_device_t* d, const uint8_t* report,
   // Buttons Misc
   gp->misc_buttons |= (data[4] & 0b00001000) ? 0 : MISC_BUTTON_SYSTEM;  // Home
   gp->misc_buttons |= (data[4] & 0b00000100) ? 0 : MISC_BUTTON_HOME;    // +
+  gp->misc_buttons |= (data[4] & 0b00010000) ? 0 : MISC_BUTTON_BACK;    // -
   gp->updated_states |=
-      GAMEPAD_STATE_MISC_BUTTON_SYSTEM | GAMEPAD_STATE_MISC_BUTTON_HOME;
+      GAMEPAD_STATE_MISC_BUTTON_SYSTEM | GAMEPAD_STATE_MISC_BUTTON_HOME |
+      GAMEPAD_STATE_MISC_BUTTON_BACK;
 
   // printf("lx=%d, ly=%d, rx=%d, ry=%d, lt=%d, rt=%d\n", lx, ly, rx, ry, lt,
   // rt);
