@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - DualShock4: Rumble duration works Ok.
 - Switch: Rumble duration works Ok.
+- Wii / Wii U:
+    - Added '-' button to mappings,
+    - Improved mappings while WiiMote is in "vertical" mode
+- tools/circuitpython: improved music/snake examples
 
 ## [2.0.0-beta1] - 2020-11-30
 
