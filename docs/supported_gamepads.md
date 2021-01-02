@@ -8,7 +8,7 @@
 
 List of supported Bluetooth Classic controller
 
-- Xbox One S controller (`L`)
+- Xbox One S controller
 - DualSense (PS5)
 - DUALSHOCK 4 (PS4) controller, both 2013 and 2016 editions
 - DUALSHOCK 3 (PS3) controller
@@ -21,7 +21,7 @@ List of supported Bluetooth Classic controller
 - Nimbus SteelSeries
 - OUYA controllers
 - Some TV remote controls, like the Amazon Fire TV
-- Some mice (`G`)
+- Some mice
 
 If you have a Bluetooth Classic gamepad and is not on that list, please file a bug.
 
