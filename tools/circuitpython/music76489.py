@@ -1,12 +1,25 @@
-#!/usr/bin/env python3
+# Copyright 2021, Ricardo Quesada
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # -----------------------------------------------------------------------------
-# 76489 music player
+# 76489 music player for the Quico Kids Console
+#
 # Supports VGM format 1.50:
 #  - https://www.smspower.org/uploads/Music/vgmspec150.txt
 #  - There are newer VGM formats, but supporting the one used in Deflemask.
 # -----------------------------------------------------------------------------
-"""
-"""
+
 import adafruit_74hc595
 import board
 import busio
@@ -14,7 +27,7 @@ import digitalio
 import struct
 import time
 
-"""copy paste to test on console
+"""copy paste to test on REPL
 import adafruit_74hc595
 import board
 import busio
@@ -27,7 +40,6 @@ we = digitalio.DigitalInOut(board.A4)
 we.direction = digitalio.Direction.OUTPUT
 
 sr.gpio = 0xff
-
 """
 
 
@@ -35,7 +47,7 @@ __docformat__ = "restructuredtext"
 
 
 class Music76489:
-    """The class that does all the conversions"""
+    """Class to play music on 76489 chip"""
 
     def __init__(self):
         self._offset = 0
@@ -56,7 +68,12 @@ class Music76489:
 
         self.reset()
 
-    def load_song(self, filename):
+    def load_vgm(self, filename):
+        """Loads a VGM song.
+
+        The loaded song does not play automatically. In order to play the song
+        the user must call "tick()" every 1/60s
+        """
         self.reset()
         with open(filename, "rb") as fd:
             # FIXME: Assuming VGM version is 1.50 (64 bytes of header)
@@ -101,7 +118,8 @@ class Music76489:
             self._should_loop = True if loop != 0 else False
             self._loop_offset = loop + 0x1C - 0x40
 
-    def tick(self):
+    def tick(self) -> None:
+        """Should be called to play an already loaded VGM song file"""
         if self._end_of_song:
             raise Exception("End of song reached")
 
@@ -142,7 +160,7 @@ class Music76489:
 
             #  0x50 dd    : PSG (SN76489/SN76496) write value dd
             if data[i] == 0x50:
-                self.write_port_data(data[i + 1])
+                self._write_port_data(data[i + 1])
                 i = i + 2
 
             #  0x61 nn nn : Wait n samples, n can range from 0 to 65535 (approx 1.49
@@ -151,14 +169,14 @@ class Music76489:
             elif data[i] == 0x61:
                 # unpack little endian unsigned short
                 delay = struct.unpack_from("<H", data, i + 1)[0]
-                self.delay_n(delay)
+                self._delay_n(delay)
                 i = i + 3
                 break
 
             #  0x62       : wait 735 samples (60th of a second), a shortcut for
             #               0x61 0xdf 0x02
             elif data[i] == 0x62:
-                self.delay_one()
+                self._delay_one()
                 i = i + 1
                 break
 
@@ -175,14 +193,15 @@ class Music76489:
         # update offset
         self._offset = i
 
-    def delay_one(self):
+    def _delay_one(self):
         self._ticks_to_wait += 1
 
-    def delay_n(self, samples):
+    def _delay_n(self, samples):
         # 735 samples == 1/60s
         self._ticks_to_wait += samples // 735
 
     def play_vgm(self, filename: str) -> None:
+        """Plays a VGM song file. Returns when the song finishes."""
         self.load_song(filename)
         while not self._end_of_song:
             self.tick()
@@ -190,14 +209,13 @@ class Music76489:
             time.sleep(1 / 60)
 
     def play_freq(self, channel: int, freq: float) -> None:
+        """Plays a certain frequency for in channel."""
         # Supported frequency range: [110.35 - 55930.4]
         # Although freqs > 7902.13 shouldn't be used
         # In terms of musical notes the range is: [A2 - B8+]
         # Formula taken from here: https://www.smspower.org/Development/SN76489
         clock = 3579545  # Hz
         reg = int(clock // (freq * 2 * 16))
-
-        print(f"reg: {reg}")
 
         # 1022 and 1023 are reserved for samples
         if reg > 1021:
@@ -214,23 +232,21 @@ class Music76489:
         data |= channel << 5
         # tone lsb: Bits 0-3
         data |= lsb
-        self.write_port_data(data)
+        self._write_port_data(data)
 
         # Data
         # bit7: 0=Data
         data = 0b0000_0000
         # tone msb: Bits 0-5
         data |= msb
-        self.write_port_data(data)
+        self._write_port_data(data)
 
-    def play_note(self, voice: int, note: int, octave: int) -> None:
+    def _play_note(self, voice: int, note: int, octave: int) -> None:
         # Initial note C0:
         # https://pages.mtu.edu/~suits/notefreqs.html
-        print(f"note:{note}, octave:{octave}")
         c0 = 16.35
         distance = octave * 12 + note
         freq = c0 * (2 ** (distance / 12))
-        print(f"freq: {freq}")
         self.play_freq(voice, freq)
 
     def play_notes(self, notes: str) -> None:
@@ -278,7 +294,7 @@ class Music76489:
                     i += 1
                 note = mn[n]
                 self.set_vol(voice, 9)
-                self.play_note(voice, note, octave)
+                self._play_note(voice, note, octave)
                 i += 1
                 # TODO: support envelops
                 time.sleep(0.016666 * duration * 2)
@@ -305,30 +321,6 @@ class Music76489:
                 i += 1
         self.set_vol(0, 0)
 
-    def play_tone(self, channel: int, tone: int) -> None:
-        assert channel >= 0 and channel <= 2
-        assert tone >= 0 and tone <= 1023
-        tone = 1023 - tone
-        lsb = tone & 15
-        msb = tone >> 4
-
-        # Latch + tone
-        # bit7: 1=Latch
-        # bit4: 0=Tone
-        data = 0b1000_0000
-        # Channel: Bits 5,6
-        data |= channel << 5
-        # tone lsb: Bits 0-3
-        data |= lsb
-        self.write_port_data(data)
-
-        # Data
-        # bit7: 0=Data
-        data = 0b0000_0000
-        # tone msb: Bits 0-5
-        data |= msb
-        self.write_port_data(data)
-
     def play_noise(self, mode: int, shift_rate: int) -> None:
         assert mode == 0 or mode == 1
         assert shift_rate >= 0 and shift_rate <= 3
@@ -341,7 +333,7 @@ class Music76489:
         # mode: white=1, periodic=0
         data |= mode << 2
         data |= shift_rate
-        self.write_port_data(data)
+        self._write_port_data(data)
 
     def set_vol(self, channel: int, vol: int) -> None:
         assert channel >= 0 and channel <= 3
@@ -355,9 +347,9 @@ class Music76489:
         data |= channel << 5
         # Volume
         data |= 15 - vol
-        self.write_port_data(data)
+        self._write_port_data(data)
 
-    def write_port_data(self, byte_data):
+    def _write_port_data(self, byte_data):
         # If you wire everything upside-down, might easier to reverse it
         # in software than to re-wire everything again... at least in the
         # prototype phase.
@@ -376,7 +368,7 @@ class Music76489:
             return r
 
         # Send data
-        #self._sr.gpio = reverse_byte(byte_data)
+        # self._sr.gpio = reverse_byte(byte_data)
         self._sr.gpio = byte_data
 
         # Enable SN76489
@@ -389,49 +381,6 @@ class Music76489:
     def reset(self):
         reset_seq = [0x9F, 0xBF, 0xDF, 0xFF]
         for b in reset_seq:
-            self.write_port_data(b)
+            self._write_port_data(b)
         self._offset = 0
         self._data = bytearray()
-
-
-def main():
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        description="VGM music playaer",
-        epilog="""Example:
-
-$ %(prog)s my_music.vgm
-""",
-    )
-    parser.add_argument("filename", metavar="<filename>", help="file to play")
-    args = parser.parse_args()
-    if args.filename:
-        m = Music76489(args.filename)
-        while True:
-            m.parse()
-            time.sleep(1 / 60)
-
-
-def siren():
-    m = Music76489()
-    m.set_vol(0, 10)
-    m.set_vol(1, 10)
-    m.set_vol(2, 10)
-
-    while True:
-        for i in range(0, 1022):
-            m.play_tone(0, i)
-            m.play_tone(1, 1022 - i)
-            m.play_tone(2, i // 4)
-            time.sleep(0.001)
-
-        for i in range(0, 1022):
-            m.play_tone(0, 1022 - i)
-            m.play_tone(1, i)
-            m.play_tone(2, (1022 - i) // 4)
-            time.sleep(0.001)
-
-
-if __name__ == "__main__":
-    main()

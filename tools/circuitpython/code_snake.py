@@ -262,7 +262,7 @@ class Game:
         label2.draw(bitmap)
         label3.draw(bitmap)
         self._display.refresh()
-        self._music.load_song("data/anime.vgm")
+        self._music.load_vgm("data/anime.vgm")
         elapsed = 0
         start_time = time.monotonic()
         while elapsed < 5:
@@ -456,7 +456,7 @@ class Game:
         # Show & Wait for gamepads
         self.show_gamepads()
 
-        self._music.load_song("data/boss_battle.vgm")
+        self._music.load_vgm("data/boss_battle.vgm")
         while True:
             # play
             winner = self.play()
