@@ -101,7 +101,7 @@ static const char FIRMWARE_VERSION[] = "Bluepad32 for Airlift v0.2";
 static SemaphoreHandle_t _ready_semaphore = NULL;
 static SemaphoreHandle_t _gamepad_mutex = NULL;
 static airlift_gamepad_t _gamepads[AIRLIFT_MAX_GAMEPADS];
-static uni_gamepad_seat_t _gamepad_seats;
+static volatile uni_gamepad_seat_t _gamepad_seats;
 
 // Airlift device "instance"
 typedef struct airlift_instance_s {
@@ -137,10 +137,11 @@ typedef struct {
   uint8_t args[8];
 } pending_request_t;
 
+// TODO: Replace this ad-hoc code with xQueue?
 static SemaphoreHandle_t _pending_request_mutex = NULL;
 #define MAX_PENDING_REQUESTS 16
-pending_request_t _pending_requests[MAX_PENDING_REQUESTS];
-int _pending_request_tail_idx = 0;
+static pending_request_t _pending_requests[MAX_PENDING_REQUESTS];
+static volatile int _pending_request_tail_idx = 0;
 
 void pending_request_queue(uint8_t device_idx, uint8_t cmd, int args_len,
                            const uint8_t* args) {
@@ -161,7 +162,7 @@ exit:
 }
 
 // Iterates all over the pending requests, calling the callback with the
-// request, one at the time. And the resets the pending requests.
+// request, one at the time. And then resets the pending requests.
 typedef void (*pending_request_fn_t)(pending_request_t* r);
 void pending_request_map_and_reset(pending_request_fn_t func) {
   xSemaphoreTake(_pending_request_mutex, portMAX_DELAY);

@@ -32,7 +32,6 @@ What you do with the ESP32, is up to you. But here are some examples:
 
 ![Supported gamepads](https://lh3.googleusercontent.com/pw/ACtC-3cg22O7VPT8NwXIATr2rsgs-rn2kShZeiUbArIK-2lIkskCLI6q06nRtK9been8Hom49dOacwHD8bVT2Tc8YKsxd5w73W25lhOvlRk6Xf9RVXgB5AZcmdl2PoWhrEAZUbmBl1pS6HrtMuZYI506US7YuA=-no)
 
-
 * Sony DualSense (PS5)
 * Sony DUALSHOCK 4 (PS4)
 * Sony DUALSHOCK 3 (PS3)
