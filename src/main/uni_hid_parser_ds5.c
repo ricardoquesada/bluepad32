@@ -34,7 +34,7 @@ typedef struct {
   uni_hid_device_t* hid_device;
   bool rumble_in_progress;
   uint8_t output_seq;
-} dd_instance_t;
+} ds5_instance_t;
 
 typedef struct __attribute((packed)) {
   // Bluetooth only
@@ -71,7 +71,7 @@ typedef struct __attribute((packed)) {
   //
   uint8_t reserved4[24];
   uint32_t crc;
-} dd_output_report_t;
+} ds5_output_report_t;
 
 /* Touchpad. Not used, added for completeness. */
 typedef struct __attribute((packed)) {
@@ -79,7 +79,7 @@ typedef struct __attribute((packed)) {
   uint8_t x_lo;
   uint8_t x_hi : 4, y_lo : 4;
   uint8_t y_hi;
-} dd_touch_point_t;
+} ds5_touch_point_t;
 
 /* Main DualSense input report excluding any BT/USB specific headers. */
 typedef struct __attribute((packed)) {
@@ -97,35 +97,53 @@ typedef struct __attribute((packed)) {
   uint8_t reserved2;
 
   /* Touchpad */
-  dd_touch_point_t points[2];
+  ds5_touch_point_t points[2];
 
   uint8_t reserved3[12];
   uint8_t status;
   uint8_t reserved4[11];
-} dd_input_report_t;
+} ds5_input_report_t;
 
-static dd_instance_t* get_dd_instance(uni_hid_device_t* d);
-static void dd_send_output_report(uni_hid_device_t* d, dd_output_report_t* out);
+static ds5_instance_t* get_ds5_instance(uni_hid_device_t* d);
+static void ds5_send_output_report(uni_hid_device_t* d, ds5_output_report_t* out);
 
 void uni_hid_parser_ds5_init_report(uni_hid_device_t* d) {
-  // Reset old state. Each report contains a full-state.
-  memset(&d->gamepad, 0, sizeof(d->gamepad));
+  UNUSED(d);
+  // Do nothing.
 }
 
 void uni_hid_parser_ds5_setup(uni_hid_device_t* d) {
-  loge("dd: uni_hid_parser_ds5_setup\n");
-  dd_instance_t* ins = get_dd_instance(d);
+  ds5_instance_t* ins = get_ds5_instance(d);
   memset(ins, 0, sizeof(*ins));
   ins->hid_device = d;  // Used by rumble callbacks
 
   // Turns off blinking, LED and rumble.
-  dd_output_report_t out = {0};
+  ds5_output_report_t out = {0};
 
   out.transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
   out.report_id = 0x31;         // taken from HID descriptor
   out.tag = 0x10;               // Magic number must be set to 0x10
 
-  dd_send_output_report(d, &out);
+  ds5_send_output_report(d, &out);
+
+  uni_gamepad_t* gp = &d->gamepad;
+  memset(gp, 0, sizeof(*gp));
+
+  // Only report 0x31 is supported which is a "full report". It is safe to set
+  // the reported states just once, here:
+  gp->updated_states |= (GAMEPAD_STATE_AXIS_X | GAMEPAD_STATE_AXIS_Y |
+                         GAMEPAD_STATE_AXIS_RX | GAMEPAD_STATE_AXIS_RY);
+  gp->updated_states |= GAMEPAD_STATE_BRAKE | GAMEPAD_STATE_ACCELERATOR;
+  gp->updated_states |= GAMEPAD_STATE_DPAD;
+  gp->updated_states |= GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y |
+                        GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B;
+  gp->updated_states |=
+      GAMEPAD_STATE_BUTTON_TRIGGER_L | GAMEPAD_STATE_BUTTON_TRIGGER_R |
+      GAMEPAD_STATE_BUTTON_SHOULDER_L | GAMEPAD_STATE_BUTTON_SHOULDER_R;
+  gp->updated_states |=
+      GAMEPAD_STATE_MISC_BUTTON_BACK | GAMEPAD_STATE_MISC_BUTTON_HOME;
+  gp->updated_states |=
+      GAMEPAD_STATE_BUTTON_THUMB_L | GAMEPAD_STATE_BUTTON_THUMB_R;
 }
 
 void uni_hid_parser_ds5_parse_raw(uni_hid_device_t* d, const uint8_t* report,
@@ -140,27 +158,89 @@ void uni_hid_parser_ds5_parse_raw(uni_hid_device_t* d, const uint8_t* report,
     return;
   }
   uni_gamepad_t* gp = &d->gamepad;
-  const dd_input_report_t* r = (dd_input_report_t*)&report[2];
+  const ds5_input_report_t* r = (ds5_input_report_t*)&report[2];
 
   // Axis
   gp->axis_x = (r->x - 127) * 4;
   gp->axis_y = (r->y - 127) * 4;
   gp->axis_rx = (r->rx - 127) * 4;
   gp->axis_ry = (r->ry - 127) * 4;
-  gp->updated_states |= (GAMEPAD_STATE_AXIS_X | GAMEPAD_STATE_AXIS_Y |
-                         GAMEPAD_STATE_AXIS_RX | GAMEPAD_STATE_AXIS_RY);
 
   gp->brake = r->brake * 4;
   gp->accelerator = r->throttle * 4;
-  gp->updated_states |= GAMEPAD_STATE_BRAKE | GAMEPAD_STATE_ACCELERATOR;
 
   // Hat
   uint8_t value = r->buttons[0] & 0xf;
   if (value > 7) value = 0xff; /* Center 0, 0 */
   gp->dpad = uni_hid_parser_hat_to_dpad(value);
-  gp->updated_states |= GAMEPAD_STATE_DPAD;
 
-  // printf_hexdump(r, sizeof(*r));
+  // Buttons
+  // TODO: ds3, ds4, ds5 have these buttons in common. Refactor.
+  // TODO: create function to set these flags.
+  if (r->buttons[0] & 0x10)  // West
+    gp->buttons |= BUTTON_X;
+  else
+    gp->buttons &= ~BUTTON_X;
+
+  if (r->buttons[0] & 0x20)  // South
+    gp->buttons |= BUTTON_A;
+  else
+    gp->buttons &= ~BUTTON_A;
+
+  if (r->buttons[0] & 0x40)  // East
+    gp->buttons |= BUTTON_B;
+  else
+    gp->buttons &= ~BUTTON_B;
+
+  if (r->buttons[0] & 0x80)  // North
+    gp->buttons |= BUTTON_Y;
+  else
+    gp->buttons &= ~BUTTON_Y;
+
+  if (r->buttons[1] & 0x01)  // Shoulder L
+    gp->buttons |= BUTTON_SHOULDER_L;
+  else
+    gp->buttons &= ~BUTTON_SHOULDER_L;
+
+  if (r->buttons[1] & 0x02)  // Shoulder R
+    gp->buttons |= BUTTON_SHOULDER_R;
+  else
+    gp->buttons &= ~BUTTON_SHOULDER_R;
+
+  if (r->buttons[1] & 0x04)  // Trigger L
+    gp->buttons |= BUTTON_TRIGGER_L;
+  else
+    gp->buttons &= ~BUTTON_TRIGGER_L;
+
+  if (r->buttons[1] & 0x08)  // Trigger R
+    gp->buttons |= BUTTON_TRIGGER_R;
+  else
+    gp->buttons &= ~BUTTON_TRIGGER_R;
+
+  if (r->buttons[1] & 0x10)  // Share
+    gp->misc_buttons |= MISC_BUTTON_BACK;
+  else
+    gp->misc_buttons &= ~MISC_BUTTON_BACK;
+
+  if (r->buttons[1] & 0x20)  // Options
+    gp->misc_buttons |= MISC_BUTTON_HOME;
+  else
+    gp->misc_buttons &= ~MISC_BUTTON_HOME;
+
+  if (r->buttons[1] & 0x40)  // Thumb L
+    gp->buttons |= BUTTON_THUMB_L;
+  else
+    gp->buttons &= ~BUTTON_THUMB_L;
+
+  if (r->buttons[1] & 0x80)  // Thumb R
+    gp->buttons |= BUTTON_THUMB_R;
+  else
+    gp->buttons &= ~BUTTON_THUMB_R;
+
+  if (r->buttons[2] & 0x01)  // PlayStation button
+    gp->misc_buttons |= MISC_BUTTON_SYSTEM;
+  else
+    gp->misc_buttons &= ~MISC_BUTTON_SYSTEM;
 }
 
 void uni_hid_parser_ds5_parse_usage(uni_hid_device_t* d, hid_globals_t* globals,
@@ -362,17 +442,13 @@ void uni_hid_parser_ds5_set_rumble(struct uni_hid_device_s* d, uint8_t value,
 //
 // Helpers
 //
-static dd_instance_t* get_dd_instance(uni_hid_device_t* d) {
-  return (dd_instance_t*)&d->parser_data[0];
+static ds5_instance_t* get_ds5_instance(uni_hid_device_t* d) {
+  return (ds5_instance_t*)&d->parser_data[0];
 }
 
-static void dd_send_output_report(uni_hid_device_t* d,
-                                  dd_output_report_t* out) {
-  loge("dd: dd_send_output_report\n");
-
-  dd_instance_t* ins = get_dd_instance(d);
-
-  printf_hexdump(out, sizeof(*out));
+static void ds5_send_output_report(uni_hid_device_t* d,
+                                  ds5_output_report_t* out) {
+  ds5_instance_t* ins = get_ds5_instance(d);
 
   // Highest 4-bit is a sequence number, which needs to be increased every
   // report. Lowest 4-bit is tag and can be zero for now.
@@ -386,6 +462,7 @@ static void dd_send_output_report(uni_hid_device_t* d,
   crc = crc32_le(0xffffffff, &bthdr, 1);
   crc = ~crc32_le(crc, (uint8_t*)&out->report_id, sizeof(*out) - 5);
   out->crc = crc;
+
 
   uni_hid_device_send_intr_report(d, (uint8_t*)out, sizeof(*out));
 }

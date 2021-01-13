@@ -467,7 +467,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
       break;
     case CONTROLLER_TYPE_PS5Controller:
       d->report_parser.init_report = uni_hid_parser_ds5_init_report;
-#if 0
+#if 1
       d->report_parser.setup = uni_hid_parser_ds5_setup;
       d->report_parser.parse_raw = uni_hid_parser_ds5_parse_raw;
       d->report_parser.set_led_color = uni_hid_parser_ds5_set_led_color;
