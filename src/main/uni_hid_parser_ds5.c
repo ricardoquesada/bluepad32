@@ -21,6 +21,8 @@ limitations under the License.
 
 #include "uni_hid_parser_ds5.h"
 
+#include <assert.h>
+
 #include "hid_usage.h"
 #include "uni_config.h"
 #include "uni_debug.h"
@@ -29,6 +31,10 @@ limitations under the License.
 #include "uni_utils.h"
 
 enum {
+  // Values for flag 0
+  DS5_FLAG0_COMPATIBLE_VIBRATION = 1 << 0,
+  DS5_FLAG0_HAPTICS_SELECT = 1 << 1,
+
   // Values for flag 1
   DS5_FLAG1_LIGHTBAR = 1 << 2,
   DS5_FLAG1_PLAYER_LED = 1 << 4,
@@ -119,6 +125,7 @@ typedef struct __attribute((packed)) {
 static ds5_instance_t* get_ds5_instance(uni_hid_device_t* d);
 static void ds5_send_output_report(uni_hid_device_t* d,
                                    ds5_output_report_t* out);
+static void ds5_set_rumble_off(btstack_timer_source_t* ts);
 
 void uni_hid_parser_ds5_init_report(uni_hid_device_t* d) {
 
@@ -152,12 +159,8 @@ void uni_hid_parser_ds5_setup(uni_hid_device_t* d) {
   // Also, sending an output report enables input report 0x31.
   ds5_output_report_t out = {0};
 
-  out.transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
-  out.report_id = 0x31;         // taken from HID descriptor
-  out.tag = 0x10;               // Magic number must be set to 0x10
-
 	out.valid_flag2 = DS5_FLAG2_LIGHTBAR_SETUP_CONTROL_ENABLE;
-	out.lightbar_setup = DS5_LIGHTBAR_SETUP_LIGHT_OUT; /* Fade light out. */
+	out.lightbar_setup = DS5_LIGHTBAR_SETUP_LIGHT_OUT;
   ds5_send_output_report(d, &out);
 }
 
@@ -366,9 +369,6 @@ void uni_hid_parser_ds5_parse_usage(uni_hid_device_t* d, hid_globals_t* globals,
 void uni_hid_parser_ds5_set_leds(struct uni_hid_device_s *d, uint8_t value) {
   ds5_output_report_t out = {0};
 
-  out.transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
-  out.report_id = 0x31;         // taken from HID descriptor
-  out.tag = 0x10;               // Magic number must be set to 0x10
   out.player_leds = value;
   out.valid_flag1 = DS5_FLAG1_PLAYER_LED;
 
@@ -379,9 +379,6 @@ void uni_hid_parser_ds5_set_led_color(struct uni_hid_device_s* d, uint8_t r,
                                       uint8_t g, uint8_t b) {
   ds5_output_report_t out = {0};
 
-  out.transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
-  out.report_id = 0x31;         // taken from HID descriptor
-  out.tag = 0x10;               // Magic number must be set to 0x10
   out.lightbar_red = r;
   out.lightbar_green = g;
   out.lightbar_blue = b;
@@ -393,9 +390,25 @@ void uni_hid_parser_ds5_set_led_color(struct uni_hid_device_s* d, uint8_t r,
 
 void uni_hid_parser_ds5_set_rumble(struct uni_hid_device_s* d, uint8_t value,
                                    uint8_t duration) {
-  UNUSED(d);
-  UNUSED(value);
-  UNUSED(duration);
+  ds5_instance_t* ins = get_ds5_instance(d);
+  if (ins->rumble_in_progress) return;
+
+  ds5_output_report_t out = {0};
+
+  out.valid_flag0 = DS5_FLAG0_HAPTICS_SELECT | DS5_FLAG0_COMPATIBLE_VIBRATION;
+
+  // Right motor: small force; left motor: big force
+  out.motor_right = value;
+  out.motor_left = value;
+
+  ds5_send_output_report(d, &out);
+
+  // Set timer to turn off rumble
+  ins->ts.process = &ds5_set_rumble_off;
+  ins->rumble_in_progress = 1;
+  int ms = duration * 4;  // duration: 256 ~= 1 second
+  btstack_run_loop_set_timer(&ins->ts, ms);
+  btstack_run_loop_add_timer(&ins->ts);
 }
 
 //
@@ -409,13 +422,17 @@ static void ds5_send_output_report(uni_hid_device_t* d,
                                    ds5_output_report_t* out) {
   ds5_instance_t* ins = get_ds5_instance(d);
 
+  out->transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
+  out->report_id = 0x31;         // taken from HID descriptor
+  out->tag = 0x10;               // Magic number must be set to 0x10
+
   // Highest 4-bit is a sequence number, which needs to be increased every
   // report. Lowest 4-bit is tag and can be zero for now.
   out->seq_tag = (ins->output_seq << 4) | 0x0;
   if (++ins->output_seq == 15) ins->output_seq = 0;
 
   /* CRC generation */
-  uint8_t bthdr = 0xA2;
+  uint8_t bthdr = 0xa2;
   uint32_t crc;
 
   crc = crc32_le(0xffffffff, &bthdr, 1);
@@ -423,4 +440,18 @@ static void ds5_send_output_report(uni_hid_device_t* d,
   out->crc = crc;
 
   uni_hid_device_send_intr_report(d, (uint8_t*)out, sizeof(*out));
+}
+
+static void ds5_set_rumble_off(btstack_timer_source_t* ts) {
+  loge("DS5: rumble-off\n");
+  ds5_instance_t* ins = (ds5_instance_t*)ts;
+
+  // No need to protect it with a mutex since it runs in the same main thread
+  assert(ins->rumble_in_progress);
+  ins->rumble_in_progress = 0;
+
+  ds5_output_report_t out = {0};
+  out.valid_flag0 = DS5_FLAG0_COMPATIBLE_VIBRATION | DS5_FLAG0_HAPTICS_SELECT;
+
+  ds5_send_output_report(ins->hid_device, &out);
 }

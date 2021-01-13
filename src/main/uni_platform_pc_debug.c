@@ -146,8 +146,9 @@ static pc_debug_instance_t* get_pc_debug_instance(uni_hid_device_t* d) {
 
 static void trigger_event_on_gamepad(uni_hid_device_t* d) {
   pc_debug_instance_t* ins = get_pc_debug_instance(d);
-  if (d->report_parser.set_leds != NULL) {
-    d->report_parser.set_leds(d, ins->gamepad_seat);
+
+  if (d->report_parser.set_rumble != NULL) {
+    d->report_parser.set_rumble(d, 0x80 /* value */, 0150 /* duration */);
   }
 
   if (d->report_parser.set_led_color != NULL) {
@@ -157,8 +158,8 @@ static void trigger_event_on_gamepad(uni_hid_device_t* d) {
     d->report_parser.set_led_color(d, red, green, blue);
   }
 
-  if (d->report_parser.set_rumble != NULL) {
-    d->report_parser.set_rumble(d, 0x80 /* value */, 0x10 /* duration */);
+  if (d->report_parser.set_leds != NULL) {
+    d->report_parser.set_leds(d, ins->gamepad_seat);
   }
 }
 

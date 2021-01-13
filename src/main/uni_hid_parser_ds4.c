@@ -425,14 +425,12 @@ void uni_hid_parser_ds4_set_led_color(uni_hid_device_t* d, uint8_t r, uint8_t g,
 
 void uni_hid_parser_ds4_set_rumble(uni_hid_device_t* d, uint8_t value,
                                    uint8_t duration) {
-  UNUSED(duration);
-
   ds4_ff_report_t ff = {0};
 
   ff.transaction_type = 0xa2;     // DATA | TYPE_OUTPUT
   ff.report_id = 0x11;            // taken from HID descriptor
   ff.unk0[0] = 0xc4;              // HID alone + poll interval
-  ff.flags = DS4_FF_FLAG_RUMBLE;  // blink + LED + motor
+  ff.flags = DS4_FF_FLAG_RUMBLE;  // motor
   // Right motor: small force
   // Left motor: big force
   ff.rumble_right = value;
