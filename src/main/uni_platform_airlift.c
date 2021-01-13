@@ -472,9 +472,8 @@ const command_handler_t command_handlers[] = {
     // 0x60 -> 0x6f: Bluepad32 own extensions
     request_gamepads_data,            // data
     request_gamepads_properties,      // name, features like rumble, leds, etc.
-    request_set_gamepad_player_leds,  // the 4 LEDs that is available in
-                                      // many
-                                      // gamepads
+    request_set_gamepad_player_leds,  // the 4 LEDs that is available in many
+                                      // gamepads.
     request_set_gamepad_color_led,    // available on DS4, DualSense
     request_set_gamepad_rumble,       // available on DS4, Xbox, Switch, etc.
     request_bluetooth_del_keys,       // delete stored Bluetooth keys

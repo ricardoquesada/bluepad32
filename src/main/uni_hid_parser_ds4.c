@@ -32,6 +32,7 @@ limitations under the License.
 #include "uni_debug.h"
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
+#include "uni_utils.h"
 
 typedef struct {
   // Must be first element
@@ -68,24 +69,6 @@ enum {
 
 static void ds4_rumble_off(btstack_timer_source_t* ts);
 static ds4_instance_t* get_ds4_instance(uni_hid_device_t* d);
-
-#define CRCPOLY 0xedb88320
-static uint32_t crc32_le(uint32_t seed, const void* data, size_t len) {
-  uint32_t crc = seed;
-  const uint8_t* src = data;
-  uint32_t mult;
-  int i;
-
-  while (len--) {
-    crc ^= *src++;
-    for (i = 0; i < 8; i++) {
-      mult = (crc & 1) ? CRCPOLY : 0;
-      crc = (crc >> 1) ^ mult;
-    }
-  }
-
-  return crc;
-}
 
 void uni_hid_parser_ds4_setup(struct uni_hid_device_s* d) {
   // From Linux drivers/hid/hid-sony.c:

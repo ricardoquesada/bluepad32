@@ -406,9 +406,9 @@ static void process_drm_k(uni_hid_device_t* d, const uint8_t* report,
       (data[1] & 0x80) ? MISC_BUTTON_SYSTEM : 0;                // Button "home"
   gp->misc_buttons |= (data[0] & 0x10) ? MISC_BUTTON_HOME : 0;  // Button "+"
   gp->misc_buttons |= (data[1] & 0x10) ? MISC_BUTTON_BACK : 0;  // Button "-"
-  gp->updated_states |=
-      GAMEPAD_STATE_MISC_BUTTON_SYSTEM | GAMEPAD_STATE_MISC_BUTTON_HOME |
-      GAMEPAD_STATE_MISC_BUTTON_BACK;
+  gp->updated_states |= GAMEPAD_STATE_MISC_BUTTON_SYSTEM |
+                        GAMEPAD_STATE_MISC_BUTTON_HOME |
+                        GAMEPAD_STATE_MISC_BUTTON_BACK;
 }
 
 // Used for WiiMote in Sideways Mode (Directions and A/B/X/Y Buttons only).
@@ -500,10 +500,8 @@ static void process_drm_ka(uni_hid_device_t* d, const uint8_t* report,
 
   gp->misc_buttons |=
       (report[2] & 0x80) ? MISC_BUTTON_SYSTEM : 0;  // Button "home"
-  gp->misc_buttons |=
-      (report[2] & 0x10) ? MISC_BUTTON_BACK : 0;  // Button "-"
-  gp->misc_buttons |=
-      (report[1] & 0x10) ? MISC_BUTTON_HOME : 0;  // Button "+"
+  gp->misc_buttons |= (report[2] & 0x10) ? MISC_BUTTON_BACK : 0;  // Button "-"
+  gp->misc_buttons |= (report[1] & 0x10) ? MISC_BUTTON_HOME : 0;  // Button "+"
   gp->updated_states |= GAMEPAD_STATE_MISC_BUTTON_SYSTEM |
                         GAMEPAD_STATE_MISC_BUTTON_BACK |
                         GAMEPAD_STATE_MISC_BUTTON_HOME;
@@ -580,10 +578,8 @@ static void process_drm_ke(uni_hid_device_t* d, const uint8_t* report,
 
   gp->misc_buttons |=
       (report[2] & 0x80) ? MISC_BUTTON_SYSTEM : 0;  // Button "home"
-  gp->misc_buttons |=
-      (report[2] & 0x10) ? MISC_BUTTON_BACK : 0;  // Button "-"
-  gp->misc_buttons |=
-      (report[1] & 0x10) ? MISC_BUTTON_HOME : 0;  // Button "+"
+  gp->misc_buttons |= (report[2] & 0x10) ? MISC_BUTTON_BACK : 0;  // Button "-"
+  gp->misc_buttons |= (report[1] & 0x10) ? MISC_BUTTON_HOME : 0;  // Button "+"
   gp->updated_states |= GAMEPAD_STATE_MISC_BUTTON_SYSTEM |
                         GAMEPAD_STATE_MISC_BUTTON_BACK |
                         GAMEPAD_STATE_MISC_BUTTON_HOME;
@@ -738,9 +734,9 @@ static void process_drm_kee(uni_hid_device_t* d, const uint8_t* report,
   gp->misc_buttons |= !(data[8] & 0x08) ? MISC_BUTTON_SYSTEM : 0;  // BH
   gp->misc_buttons |= !(data[8] & 0x04) ? MISC_BUTTON_HOME : 0;    // B+
   gp->misc_buttons |= !(data[8] & 0x10) ? MISC_BUTTON_BACK : 0;    // B-
-  gp->updated_states |=
-      GAMEPAD_STATE_MISC_BUTTON_SYSTEM | GAMEPAD_STATE_MISC_BUTTON_HOME |
-      GAMEPAD_STATE_MISC_BUTTON_BACK;
+  gp->updated_states |= GAMEPAD_STATE_MISC_BUTTON_SYSTEM |
+                        GAMEPAD_STATE_MISC_BUTTON_HOME |
+                        GAMEPAD_STATE_MISC_BUTTON_BACK;
 }
 
 // Used for the Wii Classic Controller (includes Pro?). Defined here:
@@ -821,9 +817,9 @@ static void process_drm_e(uni_hid_device_t* d, const uint8_t* report,
   gp->misc_buttons |= (data[4] & 0b00001000) ? 0 : MISC_BUTTON_SYSTEM;  // Home
   gp->misc_buttons |= (data[4] & 0b00000100) ? 0 : MISC_BUTTON_HOME;    // +
   gp->misc_buttons |= (data[4] & 0b00010000) ? 0 : MISC_BUTTON_BACK;    // -
-  gp->updated_states |=
-      GAMEPAD_STATE_MISC_BUTTON_SYSTEM | GAMEPAD_STATE_MISC_BUTTON_HOME |
-      GAMEPAD_STATE_MISC_BUTTON_BACK;
+  gp->updated_states |= GAMEPAD_STATE_MISC_BUTTON_SYSTEM |
+                        GAMEPAD_STATE_MISC_BUTTON_HOME |
+                        GAMEPAD_STATE_MISC_BUTTON_BACK;
 
   // printf("lx=%d, ly=%d, rx=%d, ry=%d, lt=%d, rt=%d\n", lx, ly, rx, ry, lt,
   // rt);
