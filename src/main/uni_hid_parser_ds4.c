@@ -49,8 +49,8 @@ typedef struct __attribute((packed)) {
   uint8_t unk0[2];
   uint8_t flags;
   uint8_t unk1[2];
-  uint8_t rumble_right;
-  uint8_t rumble_left;
+  uint8_t motor_right;
+  uint8_t motor_left;
   uint8_t led_red;
   uint8_t led_green;
   uint8_t led_blue;
@@ -58,7 +58,7 @@ typedef struct __attribute((packed)) {
   uint8_t flash_led2;  // time to flash dark (255 = 2.5 seconds)
   uint8_t unk2[61];
   uint32_t crc;
-} ds4_ff_report_t;
+} ds4_output_report_t;
 
 // When sending the FF report, which "features" should be set.
 enum {
@@ -67,8 +67,10 @@ enum {
   DS4_FF_FLAG_LED_BLINK = 1 << 2,
 };
 
-static void ds4_rumble_off(btstack_timer_source_t* ts);
 static ds4_instance_t* get_ds4_instance(uni_hid_device_t* d);
+static void ds4_send_output_report(uni_hid_device_t* d,
+                                   ds4_output_report_t* out);
+static void ds4_set_rumble_off(btstack_timer_source_t* ts);
 
 void uni_hid_parser_ds4_setup(struct uni_hid_device_s* d) {
   // From Linux drivers/hid/hid-sony.c:
@@ -82,32 +84,39 @@ void uni_hid_parser_ds4_setup(struct uni_hid_device_s* d) {
   ins->hid_device = d;  // Used by rumble callbacks
 
   // Also turns off blinking, LED and rumble.
-  ds4_ff_report_t ff = {0};
+  ds4_output_report_t out = {0};
 
-  ff.transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
-  ff.report_id = 0x11;         // taken from HID descriptor
-  ff.unk0[0] = 0xc4;           // HID alone + poll interval
-  ff.flags = DS4_FF_FLAG_RUMBLE | DS4_FF_FLAG_LED_COLOR |
-             DS4_FF_FLAG_LED_BLINK;  // blink + LED + motor
+  out.flags = DS4_FF_FLAG_RUMBLE | DS4_FF_FLAG_LED_COLOR |
+              DS4_FF_FLAG_LED_BLINK;  // blink + LED + motor
+
   // Default LED color: Blue
-  ff.led_red = 0x00;
-  ff.led_green = 0x00;
-  ff.led_blue = 0x40;
+  out.led_red = 0x00;
+  out.led_green = 0x00;
+  out.led_blue = 0x40;
 
-  /* CRC generation */
-  uint8_t bthdr = 0xA2;
-  uint32_t crc;
-
-  crc = crc32_le(0xffffffff, &bthdr, 1);
-  crc = ~crc32_le(crc, (uint8_t*)&ff.report_id, sizeof(ff) - 5);
-  ff.crc = crc;
-
-  uni_hid_device_send_intr_report(d, (uint8_t*)&ff, sizeof(ff));
+  ds4_send_output_report(d, &out);
 }
 
 void uni_hid_parser_ds4_init_report(uni_hid_device_t* d) {
-  // Reset old state. Each report contains a full-state.
-  memset(&d->gamepad, 0, sizeof(d->gamepad));
+  uni_gamepad_t* gp = &d->gamepad;
+  memset(gp, 0, sizeof(*gp));
+
+  // Only report 0x11 is supported which is a "full report". It is safe to set
+  // the reported states just once, here:
+  gp->updated_states = GAMEPAD_STATE_AXIS_X | GAMEPAD_STATE_AXIS_Y |
+                       GAMEPAD_STATE_AXIS_RX | GAMEPAD_STATE_AXIS_RY;
+  gp->updated_states |= GAMEPAD_STATE_BRAKE | GAMEPAD_STATE_ACCELERATOR;
+  gp->updated_states |= GAMEPAD_STATE_DPAD;
+  gp->updated_states |= GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y |
+                        GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B;
+  gp->updated_states |=
+      GAMEPAD_STATE_BUTTON_TRIGGER_L | GAMEPAD_STATE_BUTTON_TRIGGER_R |
+      GAMEPAD_STATE_BUTTON_SHOULDER_L | GAMEPAD_STATE_BUTTON_SHOULDER_R;
+  gp->updated_states |=
+      GAMEPAD_STATE_BUTTON_THUMB_L | GAMEPAD_STATE_BUTTON_THUMB_R;
+  gp->updated_states |= GAMEPAD_STATE_MISC_BUTTON_BACK |
+                        GAMEPAD_STATE_MISC_BUTTON_HOME |
+                        GAMEPAD_STATE_MISC_BUTTON_SYSTEM;
 }
 
 void uni_hid_parser_ds4_parse_raw(uni_hid_device_t* d, const uint8_t* report,
@@ -129,94 +138,55 @@ void uni_hid_parser_ds4_parse_raw(uni_hid_device_t* d, const uint8_t* report,
   gp->axis_y = (data[1] - 127) * 4;
   gp->axis_rx = (data[2] - 127) * 4;
   gp->axis_ry = (data[3] - 127) * 4;
-  gp->updated_states |= (GAMEPAD_STATE_AXIS_X | GAMEPAD_STATE_AXIS_Y |
-                         GAMEPAD_STATE_AXIS_RX | GAMEPAD_STATE_AXIS_RY);
+
+  // Brake & throttle
+  gp->brake = data[7] * 4;
+  gp->accelerator = data[8] * 4;
 
   // Hat
   uint8_t value = data[4] & 0xf;
   if (value > 7) value = 0xff; /* Center 0, 0 */
   gp->dpad = uni_hid_parser_hat_to_dpad(value);
-  gp->updated_states |= GAMEPAD_STATE_DPAD;
 
   // Buttons
-  if (data[4] & 0x10)  // West
-    gp->buttons |= BUTTON_X;
-  else
-    gp->buttons &= ~BUTTON_X;
+  // West
+  if (data[4] & 0x10) gp->buttons |= BUTTON_X;
 
-  if (data[4] & 0x20)  // South
-    gp->buttons |= BUTTON_A;
-  else
-    gp->buttons &= ~BUTTON_A;
+  // South
+  if (data[4] & 0x20) gp->buttons |= BUTTON_A;
 
-  if (data[4] & 0x40)  // East
-    gp->buttons |= BUTTON_B;
-  else
-    gp->buttons &= ~BUTTON_B;
+  // East
+  if (data[4] & 0x40) gp->buttons |= BUTTON_B;
 
-  if (data[4] & 0x80)  // North
-    gp->buttons |= BUTTON_Y;
-  else
-    gp->buttons &= ~BUTTON_Y;
-  gp->updated_states |= GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y |
-                        GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B;
+  // North
+  if (data[4] & 0x80) gp->buttons |= BUTTON_Y;
 
-  if (data[5] & 0x01)  // Shoulder L
-    gp->buttons |= BUTTON_SHOULDER_L;
-  else
-    gp->buttons &= ~BUTTON_SHOULDER_L;
+  // Shoulder L
+  if (data[5] & 0x01) gp->buttons |= BUTTON_SHOULDER_L;
 
-  if (data[5] & 0x02)  // Shoulder R
-    gp->buttons |= BUTTON_SHOULDER_R;
-  else
-    gp->buttons &= ~BUTTON_SHOULDER_R;
+  // Shoulder R
+  if (data[5] & 0x02) gp->buttons |= BUTTON_SHOULDER_R;
 
-  if (data[5] & 0x04)  // Trigger L
-    gp->buttons |= BUTTON_TRIGGER_L;
-  else
-    gp->buttons &= ~BUTTON_TRIGGER_L;
+  // Trigger L
+  if (data[5] & 0x04) gp->buttons |= BUTTON_TRIGGER_L;
 
-  if (data[5] & 0x08)  // Trigger R
-    gp->buttons |= BUTTON_TRIGGER_R;
-  else
-    gp->buttons &= ~BUTTON_TRIGGER_R;
-  gp->updated_states |=
-      GAMEPAD_STATE_BUTTON_TRIGGER_L | GAMEPAD_STATE_BUTTON_TRIGGER_R |
-      GAMEPAD_STATE_BUTTON_SHOULDER_L | GAMEPAD_STATE_BUTTON_SHOULDER_R;
+  // Trigger R
+  if (data[5] & 0x08) gp->buttons |= BUTTON_TRIGGER_R;
 
-  if (data[5] & 0x10)  // Share
-    gp->misc_buttons |= MISC_BUTTON_BACK;
-  else
-    gp->misc_buttons &= ~MISC_BUTTON_BACK;
+  // Share
+  if (data[5] & 0x10) gp->misc_buttons |= MISC_BUTTON_BACK;
 
-  if (data[5] & 0x20)  // Options
-    gp->misc_buttons |= MISC_BUTTON_HOME;
-  else
-    gp->misc_buttons &= ~MISC_BUTTON_HOME;
-  gp->updated_states |=
-      GAMEPAD_STATE_MISC_BUTTON_BACK | GAMEPAD_STATE_MISC_BUTTON_HOME;
+  // Options
+  if (data[5] & 0x20) gp->misc_buttons |= MISC_BUTTON_HOME;
 
-  if (data[5] & 0x40)  // Thumb L
-    gp->buttons |= BUTTON_THUMB_L;
-  else
-    gp->buttons &= ~BUTTON_THUMB_L;
+  // Thumb L
+  if (data[5] & 0x40) gp->buttons |= BUTTON_THUMB_L;
 
-  if (data[5] & 0x80)  // Thumb R
-    gp->buttons |= BUTTON_THUMB_R;
-  else
-    gp->buttons &= ~BUTTON_THUMB_R;
-  gp->updated_states |=
-      GAMEPAD_STATE_BUTTON_THUMB_L | GAMEPAD_STATE_BUTTON_THUMB_R;
+  // Thumb R
+  if (data[5] & 0x80) gp->buttons |= BUTTON_THUMB_R;
 
-  if (data[6] & 0x01)  // PlayStation button
-    gp->misc_buttons |= MISC_BUTTON_SYSTEM;
-  else
-    gp->misc_buttons &= ~MISC_BUTTON_SYSTEM;
-  gp->updated_states |= GAMEPAD_STATE_MISC_BUTTON_SYSTEM;
-
-  gp->brake = data[7] * 4;
-  gp->accelerator = data[8] * 4;
-  gp->updated_states |= GAMEPAD_STATE_BRAKE | GAMEPAD_STATE_ACCELERATOR;
+  // PlayStation button
+  if (data[6] & 0x01) gp->misc_buttons |= MISC_BUTTON_SYSTEM;
 }
 
 void uni_hid_parser_ds4_parse_usage(uni_hid_device_t* d, hid_globals_t* globals,
@@ -230,39 +200,28 @@ void uni_hid_parser_ds4_parse_usage(uni_hid_device_t* d, hid_globals_t* globals,
       switch (usage) {
         case HID_USAGE_AXIS_X:
           gp->axis_x = uni_hid_parser_process_axis(globals, value);
-          gp->updated_states |= GAMEPAD_STATE_AXIS_X;
           break;
         case HID_USAGE_AXIS_Y:
           gp->axis_y = uni_hid_parser_process_axis(globals, value);
-          gp->updated_states |= GAMEPAD_STATE_AXIS_Y;
           break;
         case HID_USAGE_AXIS_Z:
           gp->axis_rx = uni_hid_parser_process_axis(globals, value);
-          gp->updated_states |= GAMEPAD_STATE_AXIS_RX;
           break;
         case HID_USAGE_AXIS_RX:
           gp->brake = uni_hid_parser_process_pedal(globals, value);
-          gp->updated_states |= GAMEPAD_STATE_BRAKE;
           break;
         case HID_USAGE_AXIS_RY:
           gp->accelerator = uni_hid_parser_process_pedal(globals, value);
-          gp->updated_states |= GAMEPAD_STATE_ACCELERATOR;
           break;
         case HID_USAGE_AXIS_RZ:
           gp->axis_ry = uni_hid_parser_process_axis(globals, value);
-          gp->updated_states |= GAMEPAD_STATE_AXIS_RY;
           break;
         case HID_USAGE_HAT:
           hat = uni_hid_parser_process_hat(globals, value);
           gp->dpad = uni_hid_parser_hat_to_dpad(hat);
-          gp->updated_states |= GAMEPAD_STATE_DPAD;
           break;
         case HID_USAGE_SYSTEM_MAIN_MENU:
-          if (value)
-            gp->misc_buttons |= MISC_BUTTON_SYSTEM;
-          else
-            gp->misc_buttons &= ~MISC_BUTTON_SYSTEM;
-          gp->updated_states |= GAMEPAD_STATE_MISC_BUTTON_SYSTEM;
+          if (value) gp->misc_buttons |= MISC_BUTTON_SYSTEM;
           break;
         case HID_USAGE_DPAD_UP:
         case HID_USAGE_DPAD_DOWN:
@@ -292,95 +251,43 @@ void uni_hid_parser_ds4_parse_usage(uni_hid_device_t* d, hid_globals_t* globals,
     case HID_USAGE_PAGE_BUTTON: {
       switch (usage) {
         case 0x01:  // Square Button (0x01)
-          if (value)
-            gp->buttons |= BUTTON_X;
-          else
-            gp->buttons &= ~BUTTON_X;
-          gp->updated_states |= GAMEPAD_STATE_BUTTON_X;
+          if (value) gp->buttons |= BUTTON_X;
           break;
         case 0x02:  // X Button (0x02)
-          if (value)
-            gp->buttons |= BUTTON_A;
-          else
-            gp->buttons &= ~BUTTON_A;
-          gp->updated_states |= GAMEPAD_STATE_BUTTON_A;
+          if (value) gp->buttons |= BUTTON_A;
           break;
         case 0x03:  // Circle Button (0x04)
-          if (value)
-            gp->buttons |= BUTTON_B;
-          else
-            gp->buttons &= ~BUTTON_B;
-          gp->updated_states |= GAMEPAD_STATE_BUTTON_B;
+          if (value) gp->buttons |= BUTTON_B;
           break;
         case 0x04:  // Triangle Button (0x08)
-          if (value)
-            gp->buttons |= BUTTON_Y;
-          else
-            gp->buttons &= ~BUTTON_Y;
-          gp->updated_states |= GAMEPAD_STATE_BUTTON_Y;
+          if (value) gp->buttons |= BUTTON_Y;
           break;
         case 0x05:  // Shoulder Left (0x10)
-          if (value)
-            gp->buttons |= BUTTON_SHOULDER_L;
-          else
-            gp->buttons &= ~BUTTON_SHOULDER_L;
-          gp->updated_states |= GAMEPAD_STATE_BUTTON_SHOULDER_L;
+          if (value) gp->buttons |= BUTTON_SHOULDER_L;
           break;
         case 0x06:  // Shoulder Right (0x20)
-          if (value)
-            gp->buttons |= BUTTON_SHOULDER_R;
-          else
-            gp->buttons &= ~BUTTON_SHOULDER_R;
-          gp->updated_states |= GAMEPAD_STATE_BUTTON_SHOULDER_R;
+          if (value) gp->buttons |= BUTTON_SHOULDER_R;
           break;
         case 0x07:  // Trigger L (0x40)
-          if (value)
-            gp->buttons |= BUTTON_TRIGGER_L;
-          else
-            gp->buttons &= ~BUTTON_TRIGGER_L;
-          gp->updated_states |= GAMEPAD_STATE_BUTTON_TRIGGER_L;
+          if (value) gp->buttons |= BUTTON_TRIGGER_L;
           break;
         case 0x08:  // Trigger R (0x80)
-          if (value)
-            gp->buttons |= BUTTON_TRIGGER_R;
-          else
-            gp->buttons &= ~BUTTON_TRIGGER_R;
-          gp->updated_states |= GAMEPAD_STATE_BUTTON_TRIGGER_R;
+          if (value) gp->buttons |= BUTTON_TRIGGER_R;
           break;
         case 0x09:  // Share (0x100)
-          if (value)
-            gp->misc_buttons |= MISC_BUTTON_BACK;
-          else
-            gp->misc_buttons &= ~MISC_BUTTON_BACK;
-          gp->updated_states |= GAMEPAD_STATE_MISC_BUTTON_BACK;
+          if (value) gp->misc_buttons |= MISC_BUTTON_BACK;
           break;
         case 0x0a:  // options button (0x200)
-          if (value)
-            gp->misc_buttons |= MISC_BUTTON_HOME;
-          else
-            gp->misc_buttons &= ~MISC_BUTTON_HOME;
-          gp->updated_states |= GAMEPAD_STATE_MISC_BUTTON_HOME;
+          if (value) gp->misc_buttons |= MISC_BUTTON_HOME;
           break;
         case 0x0b:  // thumb L (0x400)
-          if (value)
-            gp->buttons |= BUTTON_THUMB_L;
-          else
-            gp->buttons &= ~BUTTON_THUMB_L;
-          gp->updated_states |= GAMEPAD_STATE_BUTTON_THUMB_L;
+          if (value) gp->buttons |= BUTTON_THUMB_L;
           break;
         case 0x0c:  // thumb R (0x800)
-          if (value)
-            gp->buttons |= BUTTON_THUMB_R;
-          else
-            gp->buttons &= ~BUTTON_THUMB_R;
-          gp->updated_states |= GAMEPAD_STATE_BUTTON_THUMB_R;
+          if (value) gp->buttons |= BUTTON_THUMB_R;
           break;
         case 0x0d:  // ps button (0x1000)
-          if (value)
-            gp->misc_buttons |= MISC_BUTTON_SYSTEM;
-          else
-            gp->misc_buttons &= ~MISC_BUTTON_SYSTEM;
-          gp->updated_states |= GAMEPAD_STATE_MISC_BUTTON_SYSTEM;
+          if (value) gp->misc_buttons |= MISC_BUTTON_SYSTEM;
           break;
         case 0x0e:  // touch pad button (0x2000)
           // unassigned
@@ -402,55 +309,31 @@ void uni_hid_parser_ds4_parse_usage(uni_hid_device_t* d, hid_globals_t* globals,
 
 void uni_hid_parser_ds4_set_led_color(uni_hid_device_t* d, uint8_t r, uint8_t g,
                                       uint8_t b) {
-  ds4_ff_report_t ff = {0};
+  ds4_output_report_t out = {0};
 
-  ff.transaction_type = 0xa2;        // DATA | TYPE_OUTPUT
-  ff.report_id = 0x11;               // taken from HID descriptor
-  ff.unk0[0] = 0xc4;                 // HID alone + poll interval
-  ff.flags = DS4_FF_FLAG_LED_COLOR;  // blink + LED + motor
-  ff.led_red = r;
-  ff.led_green = g;
-  ff.led_blue = b;
+  out.flags = DS4_FF_FLAG_LED_COLOR;  // blink + LED + motor
+  out.led_red = r;
+  out.led_green = g;
+  out.led_blue = b;
 
-  /* CRC generation */
-  uint8_t bthdr = 0xA2;
-  uint32_t crc;
-
-  crc = crc32_le(0xffffffff, &bthdr, 1);
-  crc = ~crc32_le(crc, (uint8_t*)&ff.report_id, sizeof(ff) - 5);
-  ff.crc = crc;
-
-  uni_hid_device_send_intr_report(d, (uint8_t*)&ff, sizeof(ff));
+  ds4_send_output_report(d, &out);
 }
 
 void uni_hid_parser_ds4_set_rumble(uni_hid_device_t* d, uint8_t value,
                                    uint8_t duration) {
-  ds4_ff_report_t ff = {0};
-
-  ff.transaction_type = 0xa2;     // DATA | TYPE_OUTPUT
-  ff.report_id = 0x11;            // taken from HID descriptor
-  ff.unk0[0] = 0xc4;              // HID alone + poll interval
-  ff.flags = DS4_FF_FLAG_RUMBLE;  // motor
-  // Right motor: small force
-  // Left motor: big force
-  ff.rumble_right = value;
-  ff.rumble_left = value;
-
-  /* CRC generation */
-  uint8_t bthdr = 0xA2;
-  uint32_t crc;
-
-  crc = crc32_le(0xffffffff, &bthdr, 1);
-  crc = ~crc32_le(crc, (uint8_t*)&ff.report_id, sizeof(ff) - 5);
-  ff.crc = crc;
-
-  uni_hid_device_send_intr_report(d, (uint8_t*)&ff, sizeof(ff));
-
-  // set timer to turn off rumble
   ds4_instance_t* ins = get_ds4_instance(d);
   if (ins->rumble_in_progress) return;
 
-  ins->ts.process = &ds4_rumble_off;
+  ds4_output_report_t out = {0};
+
+  out.flags = DS4_FF_FLAG_RUMBLE;  // motor
+  // Right motor: small force; left motor: big force
+  out.motor_right = value;
+  out.motor_left = value;
+  ds4_send_output_report(d, &out);
+
+  // set timer to turn off rumble
+  ins->ts.process = &ds4_set_rumble_off;
   ins->rumble_in_progress = 1;
   int ms = duration * 4;  // duration: 256 ~= 1 second
   btstack_run_loop_set_timer(&ins->ts, ms);
@@ -460,31 +343,34 @@ void uni_hid_parser_ds4_set_rumble(uni_hid_device_t* d, uint8_t value,
 //
 // Helpers
 //
-static void ds4_rumble_off(btstack_timer_source_t* ts) {
+static ds4_instance_t* get_ds4_instance(uni_hid_device_t* d) {
+  return (ds4_instance_t*)&d->parser_data[0];
+}
+
+static void ds4_send_output_report(uni_hid_device_t* d,
+                                   ds4_output_report_t* out) {
+  out->transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
+  out->report_id = 0x11;         // taken from HID descriptor
+  out->unk0[0] = 0xc4;           // HID alone + poll interval
+
+  /* CRC generation */
+  uint8_t bthdr = 0xa2;
+  uint32_t crc;
+
+  crc = crc32_le(0xffffffff, &bthdr, 1);
+  crc = ~crc32_le(crc, (uint8_t*)&out->report_id, sizeof(*out) - 5);
+  out->crc = crc;
+
+  uni_hid_device_send_intr_report(d, (uint8_t*)out, sizeof(*out));
+}
+
+static void ds4_set_rumble_off(btstack_timer_source_t* ts) {
   ds4_instance_t* ins = (ds4_instance_t*)ts;
   // No need to protect it with a mutex since it runs in the same main thread
   assert(ins->rumble_in_progress);
   ins->rumble_in_progress = 0;
 
-  ds4_ff_report_t ff = {0};
-
-  ff.transaction_type = 0xa2;     // DATA | TYPE_OUTPUT
-  ff.report_id = 0x11;            // taken from HID descriptor
-  ff.unk0[0] = 0xc4;              // HID alone + poll interval
-  ff.flags = DS4_FF_FLAG_RUMBLE;  // blink + LED + motor
-  // ff.rumble_left & ff.rumble_right are 0
-
-  /* CRC generation */
-  uint8_t bthdr = 0xA2;
-  uint32_t crc;
-
-  crc = crc32_le(0xffffffff, &bthdr, 1);
-  crc = ~crc32_le(crc, (uint8_t*)&ff.report_id, sizeof(ff) - 5);
-  ff.crc = crc;
-
-  uni_hid_device_send_intr_report(ins->hid_device, (uint8_t*)&ff, sizeof(ff));
-}
-
-static ds4_instance_t* get_ds4_instance(uni_hid_device_t* d) {
-  return (ds4_instance_t*)&d->parser_data[0];
+  ds4_output_report_t out = {0};
+  out.flags = DS4_FF_FLAG_RUMBLE;  // motor
+  ds4_send_output_report(ins->hid_device, &out);
 }

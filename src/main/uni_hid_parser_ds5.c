@@ -128,14 +128,13 @@ static void ds5_send_output_report(uni_hid_device_t* d,
 static void ds5_set_rumble_off(btstack_timer_source_t* ts);
 
 void uni_hid_parser_ds5_init_report(uni_hid_device_t* d) {
-
   uni_gamepad_t* gp = &d->gamepad;
   memset(gp, 0, sizeof(*gp));
 
   // Only report 0x31 is supported which is a "full report". It is safe to set
   // the reported states just once, here:
   gp->updated_states = GAMEPAD_STATE_AXIS_X | GAMEPAD_STATE_AXIS_Y |
-                        GAMEPAD_STATE_AXIS_RX | GAMEPAD_STATE_AXIS_RY;
+                       GAMEPAD_STATE_AXIS_RX | GAMEPAD_STATE_AXIS_RY;
   gp->updated_states |= GAMEPAD_STATE_BRAKE | GAMEPAD_STATE_ACCELERATOR;
   gp->updated_states |= GAMEPAD_STATE_DPAD;
   gp->updated_states |= GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y |
@@ -159,8 +158,8 @@ void uni_hid_parser_ds5_setup(uni_hid_device_t* d) {
   // Also, sending an output report enables input report 0x31.
   ds5_output_report_t out = {0};
 
-	out.valid_flag2 = DS5_FLAG2_LIGHTBAR_SETUP_CONTROL_ENABLE;
-	out.lightbar_setup = DS5_LIGHTBAR_SETUP_LIGHT_OUT;
+  out.valid_flag2 = DS5_FLAG2_LIGHTBAR_SETUP_CONTROL_ENABLE;
+  out.lightbar_setup = DS5_LIGHTBAR_SETUP_LIGHT_OUT;
   ds5_send_output_report(d, &out);
 }
 
@@ -267,8 +266,7 @@ void uni_hid_parser_ds5_parse_usage(uni_hid_device_t* d, hid_globals_t* globals,
           gp->dpad = uni_hid_parser_hat_to_dpad(hat);
           break;
         case HID_USAGE_SYSTEM_MAIN_MENU:
-          if (value)
-            gp->misc_buttons |= MISC_BUTTON_SYSTEM;
+          if (value) gp->misc_buttons |= MISC_BUTTON_SYSTEM;
           break;
         case HID_USAGE_DPAD_UP:
         case HID_USAGE_DPAD_DOWN:
@@ -297,56 +295,43 @@ void uni_hid_parser_ds5_parse_usage(uni_hid_device_t* d, hid_globals_t* globals,
     case HID_USAGE_PAGE_BUTTON: {
       switch (usage) {
         case 0x01:  // Square Button (0x01)
-          if (value)
-            gp->buttons |= BUTTON_X;
+          if (value) gp->buttons |= BUTTON_X;
           break;
         case 0x02:  // X Button (0x02)
-          if (value)
-            gp->buttons |= BUTTON_A;
+          if (value) gp->buttons |= BUTTON_A;
           break;
         case 0x03:  // Circle Button (0x04)
-          if (value)
-            gp->buttons |= BUTTON_B;
+          if (value) gp->buttons |= BUTTON_B;
           break;
         case 0x04:  // Triangle Button (0x08)
-          if (value)
-            gp->buttons |= BUTTON_Y;
+          if (value) gp->buttons |= BUTTON_Y;
           break;
         case 0x05:  // Shoulder Left (0x10)
-          if (value)
-            gp->buttons |= BUTTON_SHOULDER_L;
+          if (value) gp->buttons |= BUTTON_SHOULDER_L;
           break;
         case 0x06:  // Shoulder Right (0x20)
-          if (value)
-            gp->buttons |= BUTTON_SHOULDER_R;
+          if (value) gp->buttons |= BUTTON_SHOULDER_R;
           break;
         case 0x07:  // Trigger L (0x40)
-          if (value)
-            gp->buttons |= BUTTON_TRIGGER_L;
+          if (value) gp->buttons |= BUTTON_TRIGGER_L;
           break;
         case 0x08:  // Trigger R (0x80)
-          if (value)
-            gp->buttons |= BUTTON_TRIGGER_R;
+          if (value) gp->buttons |= BUTTON_TRIGGER_R;
           break;
         case 0x09:  // Share (0x100)
-          if (value)
-            gp->misc_buttons |= MISC_BUTTON_BACK;
+          if (value) gp->misc_buttons |= MISC_BUTTON_BACK;
           break;
         case 0x0a:  // options button (0x200)
-          if (value)
-            gp->misc_buttons |= MISC_BUTTON_HOME;
+          if (value) gp->misc_buttons |= MISC_BUTTON_HOME;
           break;
         case 0x0b:  // thumb L (0x400)
-          if (value)
-            gp->buttons |= BUTTON_THUMB_L;
+          if (value) gp->buttons |= BUTTON_THUMB_L;
           break;
         case 0x0c:  // thumb R (0x800)
-          if (value)
-            gp->buttons |= BUTTON_THUMB_R;
+          if (value) gp->buttons |= BUTTON_THUMB_R;
           break;
         case 0x0d:  // ps button (0x1000)
-          if (value)
-            gp->misc_buttons |= MISC_BUTTON_SYSTEM;
+          if (value) gp->misc_buttons |= MISC_BUTTON_SYSTEM;
           break;
         case 0x0e:  // touch pad button (0x2000)
           // unassigned
@@ -366,7 +351,7 @@ void uni_hid_parser_ds5_parse_usage(uni_hid_device_t* d, hid_globals_t* globals,
   }
 }
 
-void uni_hid_parser_ds5_set_leds(struct uni_hid_device_s *d, uint8_t value) {
+void uni_hid_parser_ds5_set_leds(struct uni_hid_device_s* d, uint8_t value) {
   ds5_output_report_t out = {0};
 
   out.player_leds = value;
