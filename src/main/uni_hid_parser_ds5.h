@@ -32,6 +32,7 @@ void uni_hid_parser_ds5_parse_usage(struct uni_hid_device_s *d,
                                     uint16_t usage, int32_t value);
 void uni_hid_parser_ds5_parse_raw(struct uni_hid_device_s *d,
                                   const uint8_t *report, uint16_t len);
+void uni_hid_parser_ds5_set_leds(struct uni_hid_device_s *d, uint8_t value);
 void uni_hid_parser_ds5_set_led_color(struct uni_hid_device_s *d, uint8_t r,
                                       uint8_t g, uint8_t b);
 void uni_hid_parser_ds5_set_rumble(struct uni_hid_device_s *d, uint8_t value,
