@@ -24,12 +24,9 @@ limitations under the License.
 #include "btstack.h"
 #include "uni_hid_parser.h"
 
-// For DUALSHOCK 5 gamepads
+// For DualSense gamepads
 void uni_hid_parser_ds5_setup(struct uni_hid_device_s *d);
 void uni_hid_parser_ds5_init_report(struct uni_hid_device_s *d);
-void uni_hid_parser_ds5_parse_usage(struct uni_hid_device_s *d,
-                                    hid_globals_t *globals, uint16_t usage_page,
-                                    uint16_t usage, int32_t value);
 void uni_hid_parser_ds5_parse_raw(struct uni_hid_device_s *d,
                                   const uint8_t *report, uint16_t len);
 void uni_hid_parser_ds5_set_leds(struct uni_hid_device_s *d, uint8_t value);
