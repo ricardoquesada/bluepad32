@@ -40,6 +40,8 @@ typedef struct {
   uni_hid_device_t* hid_device;
   bool rumble_in_progress;
 } ds4_instance_t;
+_Static_assert(sizeof(ds4_instance_t) < HID_DEVICE_MAX_PARSER_DATA,
+               "DS4 intance too big");
 
 typedef struct __attribute((packed)) {
   // Report related
@@ -57,8 +59,23 @@ typedef struct __attribute((packed)) {
   uint8_t flash_led1;  // time to flash bright (255 = 2.5 seconds)
   uint8_t flash_led2;  // time to flash dark (255 = 2.5 seconds)
   uint8_t unk2[61];
-  uint32_t crc;
+  uint32_t crc32;
 } ds4_output_report_t;
+
+typedef struct __attribute((packed)) {
+  // Axis
+  uint8_t x, y;
+  uint8_t rx, ry;
+
+  // Hat + buttons
+  uint8_t buttons[3];
+
+  // Brake & throttle
+  uint8_t brake;
+  uint8_t throttle;
+
+  // Add missing data
+} ds4_input_report_t;
 
 // When sending the FF report, which "features" should be set.
 enum {
@@ -131,62 +148,38 @@ void uni_hid_parser_ds4_parse_raw(uni_hid_device_t* d, const uint8_t* report,
     return;
   }
   uni_gamepad_t* gp = &d->gamepad;
-  const uint8_t* data = &report[3];
+  const ds4_input_report_t* r = (ds4_input_report_t*)&report[3];
 
   // Axis
-  gp->axis_x = (data[0] - 127) * 4;
-  gp->axis_y = (data[1] - 127) * 4;
-  gp->axis_rx = (data[2] - 127) * 4;
-  gp->axis_ry = (data[3] - 127) * 4;
-
-  // Brake & throttle
-  gp->brake = data[7] * 4;
-  gp->accelerator = data[8] * 4;
+  gp->axis_x = (r->x - 127) * 4;
+  gp->axis_y = (r->y - 127) * 4;
+  gp->axis_rx = (r->rx - 127) * 4;
+  gp->axis_ry = (r->ry - 127) * 4;
 
   // Hat
-  uint8_t value = data[4] & 0xf;
+  uint8_t value = r->buttons[0] & 0xf;
   if (value > 7) value = 0xff; /* Center 0, 0 */
   gp->dpad = uni_hid_parser_hat_to_dpad(value);
 
   // Buttons
-  // West
-  if (data[4] & 0x10) gp->buttons |= BUTTON_X;
+  // TODO: ds4, ds5 have these buttons in common. Refactor.
+  if (r->buttons[0] & 0x10) gp->buttons |= BUTTON_X;                 // West
+  if (r->buttons[0] & 0x20) gp->buttons |= BUTTON_A;                 // South
+  if (r->buttons[0] & 0x40) gp->buttons |= BUTTON_B;                 // East
+  if (r->buttons[0] & 0x80) gp->buttons |= BUTTON_Y;                 // North
+  if (r->buttons[1] & 0x01) gp->buttons |= BUTTON_SHOULDER_L;        // L1
+  if (r->buttons[1] & 0x02) gp->buttons |= BUTTON_SHOULDER_R;        // R1
+  if (r->buttons[1] & 0x04) gp->buttons |= BUTTON_TRIGGER_L;         // L2
+  if (r->buttons[1] & 0x08) gp->buttons |= BUTTON_TRIGGER_R;         // R2
+  if (r->buttons[1] & 0x10) gp->misc_buttons |= MISC_BUTTON_BACK;    // Share
+  if (r->buttons[1] & 0x20) gp->misc_buttons |= MISC_BUTTON_HOME;    // Options
+  if (r->buttons[1] & 0x40) gp->buttons |= BUTTON_THUMB_L;           // Thumb L
+  if (r->buttons[1] & 0x80) gp->buttons |= BUTTON_THUMB_R;           // Thumb R
+  if (r->buttons[2] & 0x01) gp->misc_buttons |= MISC_BUTTON_SYSTEM;  // PS
 
-  // South
-  if (data[4] & 0x20) gp->buttons |= BUTTON_A;
-
-  // East
-  if (data[4] & 0x40) gp->buttons |= BUTTON_B;
-
-  // North
-  if (data[4] & 0x80) gp->buttons |= BUTTON_Y;
-
-  // Shoulder L
-  if (data[5] & 0x01) gp->buttons |= BUTTON_SHOULDER_L;
-
-  // Shoulder R
-  if (data[5] & 0x02) gp->buttons |= BUTTON_SHOULDER_R;
-
-  // Trigger L
-  if (data[5] & 0x04) gp->buttons |= BUTTON_TRIGGER_L;
-
-  // Trigger R
-  if (data[5] & 0x08) gp->buttons |= BUTTON_TRIGGER_R;
-
-  // Share
-  if (data[5] & 0x10) gp->misc_buttons |= MISC_BUTTON_BACK;
-
-  // Options
-  if (data[5] & 0x20) gp->misc_buttons |= MISC_BUTTON_HOME;
-
-  // Thumb L
-  if (data[5] & 0x40) gp->buttons |= BUTTON_THUMB_L;
-
-  // Thumb R
-  if (data[5] & 0x80) gp->buttons |= BUTTON_THUMB_R;
-
-  // PlayStation button
-  if (data[6] & 0x01) gp->misc_buttons |= MISC_BUTTON_SYSTEM;
+  // Brake & throttle
+  gp->brake = r->brake * 4;
+  gp->accelerator = r->throttle * 4;
 }
 
 void uni_hid_parser_ds4_parse_usage(uni_hid_device_t* d, hid_globals_t* globals,
@@ -355,11 +348,9 @@ static void ds4_send_output_report(uni_hid_device_t* d,
 
   /* CRC generation */
   uint8_t bthdr = 0xa2;
-  uint32_t crc;
-
-  crc = crc32_le(0xffffffff, &bthdr, 1);
-  crc = ~crc32_le(crc, (uint8_t*)&out->report_id, sizeof(*out) - 5);
-  out->crc = crc;
+  uint32_t crc32 = crc32_le(0xffffffff, &bthdr, 1);
+  crc32 = ~crc32_le(crc32, (uint8_t*)&out->report_id, sizeof(*out) - 5);
+  out->crc32 = crc32;
 
   uni_hid_device_send_intr_report(d, (uint8_t*)out, sizeof(*out));
 }

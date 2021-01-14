@@ -53,6 +53,8 @@ typedef struct {
   bool rumble_in_progress;
   uint8_t output_seq;
 } ds5_instance_t;
+_Static_assert(sizeof(ds5_instance_t) < HID_DEVICE_MAX_PARSER_DATA,
+               "DS5 intance too big");
 
 typedef struct __attribute((packed)) {
   // Bluetooth only
@@ -88,7 +90,7 @@ typedef struct __attribute((packed)) {
 
   //
   uint8_t reserved4[24];
-  uint32_t crc;
+  uint32_t crc32;
 } ds5_output_report_t;
 
 /* Touchpad. Not used, added for completeness. */
@@ -192,46 +194,20 @@ void uni_hid_parser_ds5_parse_raw(uni_hid_device_t* d, const uint8_t* report,
   gp->dpad = uni_hid_parser_hat_to_dpad(value);
 
   // Buttons
-  // TODO: ds3, ds4, ds5 have these buttons in common. Refactor.
-  // TODO: create function to set these flags.
-  if (r->buttons[0] & 0x10)  // West
-    gp->buttons |= BUTTON_X;
-
-  if (r->buttons[0] & 0x20)  // South
-    gp->buttons |= BUTTON_A;
-
-  if (r->buttons[0] & 0x40)  // East
-    gp->buttons |= BUTTON_B;
-
-  if (r->buttons[0] & 0x80)  // North
-    gp->buttons |= BUTTON_Y;
-
-  if (r->buttons[1] & 0x01)  // Shoulder L
-    gp->buttons |= BUTTON_SHOULDER_L;
-
-  if (r->buttons[1] & 0x02)  // Shoulder R
-    gp->buttons |= BUTTON_SHOULDER_R;
-
-  if (r->buttons[1] & 0x04)  // Trigger L
-    gp->buttons |= BUTTON_TRIGGER_L;
-
-  if (r->buttons[1] & 0x08)  // Trigger R
-    gp->buttons |= BUTTON_TRIGGER_R;
-
-  if (r->buttons[1] & 0x10)  // Share
-    gp->misc_buttons |= MISC_BUTTON_BACK;
-
-  if (r->buttons[1] & 0x20)  // Options
-    gp->misc_buttons |= MISC_BUTTON_HOME;
-
-  if (r->buttons[1] & 0x40)  // Thumb L
-    gp->buttons |= BUTTON_THUMB_L;
-
-  if (r->buttons[1] & 0x80)  // Thumb R
-    gp->buttons |= BUTTON_THUMB_R;
-
-  if (r->buttons[2] & 0x01)  // PlayStation button
-    gp->misc_buttons |= MISC_BUTTON_SYSTEM;
+  // TODO: ds4, ds5 have these buttons in common. Refactor.
+  if (r->buttons[0] & 0x10) gp->buttons |= BUTTON_X;                 // West
+  if (r->buttons[0] & 0x20) gp->buttons |= BUTTON_A;                 // South
+  if (r->buttons[0] & 0x40) gp->buttons |= BUTTON_B;                 // East
+  if (r->buttons[0] & 0x80) gp->buttons |= BUTTON_Y;                 // North
+  if (r->buttons[1] & 0x01) gp->buttons |= BUTTON_SHOULDER_L;        // L1
+  if (r->buttons[1] & 0x02) gp->buttons |= BUTTON_SHOULDER_R;        // R1
+  if (r->buttons[1] & 0x04) gp->buttons |= BUTTON_TRIGGER_L;         // L2
+  if (r->buttons[1] & 0x08) gp->buttons |= BUTTON_TRIGGER_R;         // R2
+  if (r->buttons[1] & 0x10) gp->misc_buttons |= MISC_BUTTON_BACK;    // Share
+  if (r->buttons[1] & 0x20) gp->misc_buttons |= MISC_BUTTON_HOME;    // Options
+  if (r->buttons[1] & 0x40) gp->buttons |= BUTTON_THUMB_L;           // Thumb L
+  if (r->buttons[1] & 0x80) gp->buttons |= BUTTON_THUMB_R;           // Thumb R
+  if (r->buttons[2] & 0x01) gp->misc_buttons |= MISC_BUTTON_SYSTEM;  // PS
 }
 
 void uni_hid_parser_ds5_parse_usage(uni_hid_device_t* d, hid_globals_t* globals,
@@ -418,11 +394,9 @@ static void ds5_send_output_report(uni_hid_device_t* d,
 
   /* CRC generation */
   uint8_t bthdr = 0xa2;
-  uint32_t crc;
-
-  crc = crc32_le(0xffffffff, &bthdr, 1);
-  crc = ~crc32_le(crc, (uint8_t*)&out->report_id, sizeof(*out) - 5);
-  out->crc = crc;
+  uint32_t crc32 = crc32_le(0xffffffff, &bthdr, 1);
+  crc32 = ~crc32_le(crc32, (uint8_t*)&out->report_id, sizeof(*out) - 5);
+  out->crc32 = crc32;
 
   uni_hid_device_send_intr_report(d, (uint8_t*)out, sizeof(*out));
 }
