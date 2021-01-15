@@ -54,13 +54,13 @@ while True:
         if first_time == False:
             first_time = True
             print(gp)
-            resp = esp.set_gamepad_color_led(gp['idx'], color)
+            resp = esp.set_gamepad_lightbar_color(gp['idx'], color)
             print(resp)
 
         if gp['buttons'] & 0x01:
             # Shuffle colors. "random.shuffle" not preset in CircuitPython
             color = (color[2], color[0], color[1])
-            rest = esp.set_gamepad_color_led(gp['idx'], color)
+            rest = esp.set_gamepad_lightbar_color(gp['idx'], color)
             print(rest)
 
         if gp['buttons'] & 0x02:

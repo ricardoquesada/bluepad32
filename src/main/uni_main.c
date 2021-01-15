@@ -29,8 +29,8 @@ int uni_main(int argc, const char** argv) {
   UNUSED(argc);
   UNUSED(argv);
 
-  logi("Bluepad32 (C) 2016-2020 Ricardo Quesada and contributors.\n");
-  logi("Version: v2.0.0-beta1\n");
+  logi("Bluepad32 (C) 2016-2021 Ricardo Quesada and contributors.\n");
+  logi("Version: v2.0.0-beta2\n");
 
   // Honoring with BT copyright
   logi("BTStack: Copyright (C) 2017 BlueKitchen GmbH.\n");
