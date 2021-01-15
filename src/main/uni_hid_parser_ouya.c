@@ -193,7 +193,7 @@ void uni_hid_parser_ouya_parse_usage(uni_hid_device_t* d,
   }
 }
 
-void uni_hid_parser_ouya_set_leds(uni_hid_device_t* d, uint8_t leds) {
+void uni_hid_parser_ouya_set_player_leds(uni_hid_device_t* d, uint8_t leds) {
 #if 0
   const uint8_t report[] = {0xa2, 0x07, 0xff, 0xff, 0xff,
                             0xff, 0xff, 0xff, 0xff, 0xff};

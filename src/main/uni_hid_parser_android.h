@@ -30,6 +30,7 @@ void uni_hid_parser_android_parse_usage(struct uni_hid_device_s* d,
                                         hid_globals_t* globals,
                                         uint16_t usage_page, uint16_t usage,
                                         int32_t value);
-void uni_hid_parser_android_set_leds(struct uni_hid_device_s* d, uint8_t leds);
+void uni_hid_parser_android_set_player_leds(struct uni_hid_device_s* d,
+                                            uint8_t leds);
 
 #endif  // UNI_HID_PARSER_ANDROID_H

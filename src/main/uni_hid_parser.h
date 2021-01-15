@@ -51,9 +51,10 @@ typedef void (*report_parse_raw_fn_t)(struct uni_hid_device_s* d,
                                       const uint8_t* report,
                                       uint16_t report_len);
 
-typedef void (*report_set_leds_fn_t)(struct uni_hid_device_s* d, uint8_t leds);
-typedef void (*report_set_led_color_fn_t)(struct uni_hid_device_s* d, uint8_t r,
-                                          uint8_t g, uint8_t b);
+typedef void (*report_set_player_leds_fn_t)(struct uni_hid_device_s* d,
+                                            uint8_t leds);
+typedef void (*report_set_lightbar_color_fn_t)(struct uni_hid_device_s* d,
+                                               uint8_t r, uint8_t g, uint8_t b);
 typedef void (*report_set_rumble_fn_t)(struct uni_hid_device_s* d,
                                        uint8_t force, uint8_t duration);
 
@@ -68,9 +69,9 @@ typedef struct {
   // Called with the raw report
   report_parse_raw_fn_t parse_raw;
   // If implemented, turns on/off the different gamepad LEDs
-  report_set_leds_fn_t set_leds;
-  // If implemented, changes the gamepad LED color (e.g: in DS4 and DualSense)
-  report_set_led_color_fn_t set_led_color;
+  report_set_player_leds_fn_t set_player_leds;
+  // If implemented, changes the lightbar color (e.g: in DS4 and DualSense)
+  report_set_lightbar_color_fn_t set_lightbar_color;
   // If implemented, activates rumble in the gamepad
   report_set_rumble_fn_t set_rumble;
 } uni_report_parser_t;

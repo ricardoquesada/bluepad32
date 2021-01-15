@@ -126,8 +126,8 @@ static airlift_instance_t* get_airlift_instance(uni_hid_device_t* d);
 //
 enum {
   PENDING_REQUEST_CMD_NONE = 0,
-  PENDING_REQUEST_CMD_LED_RGB = 1,
-  PENDING_REQUEST_CMD_LED_PLAYERS = 2,
+  PENDING_REQUEST_CMD_LIGHTBAR_COLOR = 1,
+  PENDING_REQUEST_CMD_PLAYER_LEDS = 2,
   PENDING_REQUEST_CMD_RUMBLE = 3,
 };
 
@@ -327,7 +327,7 @@ static int request_set_gamepad_player_leds(const uint8_t command[],
   // command[5]: len
   // command[6]: leds
 
-  pending_request_queue(idx, PENDING_REQUEST_CMD_LED_PLAYERS, 1 /* len */,
+  pending_request_queue(idx, PENDING_REQUEST_CMD_PLAYER_LEDS, 1 /* len */,
                         &command[6]);
 
   // TODO: We really don't know whether this request will succeed
@@ -346,7 +346,7 @@ static int request_set_gamepad_color_led(const uint8_t command[],
   // command[5]: len
   // command[6-8]: RGB
 
-  pending_request_queue(idx, PENDING_REQUEST_CMD_LED_RGB, 3 /* len */,
+  pending_request_queue(idx, PENDING_REQUEST_CMD_LIGHTBAR_COLOR, 3 /* len */,
                         &command[6]);
 
   // TODO: We really don't know whether this request will succeed
@@ -679,9 +679,9 @@ static int airlift_on_device_ready(uni_hid_device_t* d) {
     }
   }
 
-  if (d->report_parser.set_leds != NULL) {
+  if (d->report_parser.set_player_leds != NULL) {
     airlift_instance_t* ins = get_airlift_instance(d);
-    d->report_parser.set_leds(d, (1 << ins->gamepad_idx));
+    d->report_parser.set_player_leds(d, (1 << ins->gamepad_idx));
   }
   return 0;
 }
@@ -698,14 +698,14 @@ static void process_pending(pending_request_t* pending) {
     return;
   }
   switch (pending->cmd) {
-    case PENDING_REQUEST_CMD_LED_RGB:
-      if (d->report_parser.set_led_color != NULL)
-        d->report_parser.set_led_color(d, pending->args[0], pending->args[1],
-                                       pending->args[2]);
+    case PENDING_REQUEST_CMD_LIGHTBAR_COLOR:
+      if (d->report_parser.set_lightbar_color != NULL)
+        d->report_parser.set_lightbar_color(d, pending->args[0],
+                                            pending->args[1], pending->args[2]);
       break;
-    case PENDING_REQUEST_CMD_LED_PLAYERS:
-      if (d->report_parser.set_leds != NULL)
-        d->report_parser.set_leds(d, pending->args[0]);
+    case PENDING_REQUEST_CMD_PLAYER_LEDS:
+      if (d->report_parser.set_player_leds != NULL)
+        d->report_parser.set_player_leds(d, pending->args[0]);
       break;
     case PENDING_REQUEST_CMD_RUMBLE:
       if (d->report_parser.set_rumble != NULL)

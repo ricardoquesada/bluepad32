@@ -1085,7 +1085,7 @@ void uni_hid_parser_wii_parse_raw(uni_hid_device_t* d, const uint8_t* report,
   }
 }
 
-void uni_hid_parser_wii_set_leds(uni_hid_device_t* d, uint8_t leds) {
+void uni_hid_parser_wii_set_player_leds(uni_hid_device_t* d, uint8_t leds) {
   if (d == NULL) {
     loge("Wii: ERROR: Invalid device\n");
     return;

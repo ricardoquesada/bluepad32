@@ -214,7 +214,8 @@ void uni_hid_parser_ds5_parse_raw(uni_hid_device_t* d, const uint8_t* report,
 // one supported. If needed, the function is preserved in git history:
 // https://gitlab.com/ricardoquesada/bluepad32/-/blob/c32598f39831fd8c2fa2f73ff3c1883049caafc2/src/main/uni_hid_parser_ds5.c#L213
 
-void uni_hid_parser_ds5_set_leds(struct uni_hid_device_s* d, uint8_t value) {
+void uni_hid_parser_ds5_set_player_leds(struct uni_hid_device_s* d,
+                                        uint8_t value) {
   ds5_output_report_t out = {0};
 
   out.player_leds = value;
@@ -223,8 +224,8 @@ void uni_hid_parser_ds5_set_leds(struct uni_hid_device_s* d, uint8_t value) {
   ds5_send_output_report(d, &out);
 }
 
-void uni_hid_parser_ds5_set_led_color(struct uni_hid_device_s* d, uint8_t r,
-                                      uint8_t g, uint8_t b) {
+void uni_hid_parser_ds5_set_lightbar_color(struct uni_hid_device_s* d,
+                                           uint8_t r, uint8_t g, uint8_t b) {
   ds5_output_report_t out = {0};
 
   out.lightbar_red = r;

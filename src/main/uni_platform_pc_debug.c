@@ -92,11 +92,11 @@ static void pc_debug_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
 #if 0
   // Debugging
   // Axis: control RGB color
-  if (d->report_parser.set_led_color != NULL) {
+  if (d->report_parser.set_lightbar_color != NULL) {
     uint8_t r = (gp->axis_x * 256) / 512;
     uint8_t g = (gp->axis_y * 256) / 512;
     uint8_t b = (gp->axis_rx * 256) / 512;
-    d->report_parser.set_led_color(d, r, g, b);
+    d->report_parser.set_lightbar_color(d, r, g, b);
   }
   // Axis ry: control rumble
   if (d->report_parser.set_rumble != NULL) {
@@ -104,8 +104,8 @@ static void pc_debug_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
     d->report_parser.set_rumble(d, value, 128);
   }
   // Buttons: Control LEDs On/Off
-  if (d->report_parser.set_leds != NULL) {
-    d->report_parser.set_leds(d, (uint8_t)gp->buttons);
+  if (d->report_parser.set_player_leds != NULL) {
+    d->report_parser.set_player_leds(d, (uint8_t)gp->buttons);
   }
 #endif
 }
@@ -151,15 +151,15 @@ static void trigger_event_on_gamepad(uni_hid_device_t* d) {
     d->report_parser.set_rumble(d, 0x80 /* value */, 0150 /* duration */);
   }
 
-  if (d->report_parser.set_led_color != NULL) {
+  if (d->report_parser.set_lightbar_color != NULL) {
     uint8_t red = (ins->gamepad_seat & 0x01) ? 0xff : 0;
     uint8_t green = (ins->gamepad_seat & 0x02) ? 0xff : 0;
     uint8_t blue = (ins->gamepad_seat & 0x04) ? 0xff : 0;
-    d->report_parser.set_led_color(d, red, green, blue);
+    d->report_parser.set_lightbar_color(d, red, green, blue);
   }
 
-  if (d->report_parser.set_leds != NULL) {
-    d->report_parser.set_leds(d, ins->gamepad_seat);
+  if (d->report_parser.set_player_leds != NULL) {
+    d->report_parser.set_player_leds(d, ins->gamepad_seat);
   }
 }
 

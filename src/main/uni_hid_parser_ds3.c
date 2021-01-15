@@ -197,7 +197,7 @@ void uni_hid_parser_ds3_parse_raw(uni_hid_device_t* d, const uint8_t* report,
   if (r->buttons[2] & 0x01) gp->misc_buttons |= MISC_BUTTON_SYSTEM;  // PS
 }
 
-void uni_hid_parser_ds3_set_leds(uni_hid_device_t* d, uint8_t leds) {
+void uni_hid_parser_ds3_set_player_leds(uni_hid_device_t* d, uint8_t leds) {
   ds3_instance_t* ins = get_ds3_instance(d);
   // Always update instance value. It could be used by rumble.
   ins->player_leds = leds;

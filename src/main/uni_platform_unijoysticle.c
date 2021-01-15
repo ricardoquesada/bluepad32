@@ -526,16 +526,16 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
   gpio_set_level(GPIO_LED_J1, status_a);
   gpio_set_level(GPIO_LED_J2, status_b);
 
-  if (d->report_parser.set_led_color != NULL) {
+  if (d->report_parser.set_lightbar_color != NULL) {
     // First try with color LED (best experience)
     uint8_t red = 0;
     uint8_t green = 0;
     if (seat & 0x01) green = 0xff;
     if (seat & 0x02) red = 0xff;
-    d->report_parser.set_led_color(d, red, green, 0x00 /* blue*/);
-  } else if (d->report_parser.set_leds != NULL) {
+    d->report_parser.set_lightbar_color(d, red, green, 0x00 /* blue*/);
+  } else if (d->report_parser.set_player_leds != NULL) {
     // 2nd best option: set player LEDs
-    d->report_parser.set_leds(d, all_seats);
+    d->report_parser.set_player_leds(d, all_seats);
   } else if (d->report_parser.set_rumble != NULL) {
     // Finally, as last resort, rumble
     d->report_parser.set_rumble(d, 0x80 /* value */, 0x04 /* duration */);

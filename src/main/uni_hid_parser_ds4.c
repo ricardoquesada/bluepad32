@@ -186,8 +186,8 @@ void uni_hid_parser_ds4_parse_raw(uni_hid_device_t* d, const uint8_t* report,
 // one supported. If needed, the function is preserved in git history:
 // https://gitlab.com/ricardoquesada/bluepad32/-/blob/c32598f39831fd8c2fa2f73ff3c1883049caafc2/src/main/uni_hid_parser_ds4.c#L185
 
-void uni_hid_parser_ds4_set_led_color(uni_hid_device_t* d, uint8_t r, uint8_t g,
-                                      uint8_t b) {
+void uni_hid_parser_ds4_set_lightbar_color(uni_hid_device_t* d, uint8_t r,
+                                           uint8_t g, uint8_t b) {
   ds4_output_report_t out = {0};
 
   out.flags = DS4_FF_FLAG_LED_COLOR;  // blink + LED + motor

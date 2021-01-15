@@ -422,7 +422,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
     case CONTROLLER_TYPE_OUYAController:
       d->report_parser.init_report = uni_hid_parser_ouya_init_report;
       d->report_parser.parse_usage = uni_hid_parser_ouya_parse_usage;
-      d->report_parser.set_leds = uni_hid_parser_ouya_set_leds;
+      d->report_parser.set_player_leds = uni_hid_parser_ouya_set_player_leds;
       logi("Device detected as OUYA: 0x%02x\n", type);
       break;
     case CONTROLLER_TYPE_XBoxOneController:
@@ -435,13 +435,13 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
     case CONTROLLER_TYPE_AndroidController:
       d->report_parser.init_report = uni_hid_parser_android_init_report;
       d->report_parser.parse_usage = uni_hid_parser_android_parse_usage;
-      d->report_parser.set_leds = uni_hid_parser_android_set_leds;
+      d->report_parser.set_player_leds = uni_hid_parser_android_set_player_leds;
       logi("Device detected as Android: 0x%02x\n", type);
       break;
     case CONTROLLER_TYPE_NimbusController:
       d->report_parser.init_report = uni_hid_parser_nimbus_init_report;
       d->report_parser.parse_usage = uni_hid_parser_nimbus_parse_usage;
-      d->report_parser.set_leds = uni_hid_parser_nimbus_set_leds;
+      d->report_parser.set_player_leds = uni_hid_parser_nimbus_set_player_leds;
       logi("Device detected as Nimbus: 0x%02x\n", type);
       break;
     case CONTROLLER_TYPE_SmartTVRemoteController:
@@ -453,7 +453,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
       d->report_parser.setup = uni_hid_parser_ds3_setup;
       d->report_parser.init_report = uni_hid_parser_ds3_init_report;
       d->report_parser.parse_raw = uni_hid_parser_ds3_parse_raw;
-      d->report_parser.set_leds = uni_hid_parser_ds3_set_leds;
+      d->report_parser.set_player_leds = uni_hid_parser_ds3_set_player_leds;
       d->report_parser.set_rumble = uni_hid_parser_ds3_set_rumble;
       logi("Device detected as DUALSHOCK3: 0x%02x\n", type);
       break;
@@ -461,7 +461,8 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
       d->report_parser.setup = uni_hid_parser_ds4_setup;
       d->report_parser.init_report = uni_hid_parser_ds4_init_report;
       d->report_parser.parse_raw = uni_hid_parser_ds4_parse_raw;
-      d->report_parser.set_led_color = uni_hid_parser_ds4_set_led_color;
+      d->report_parser.set_lightbar_color =
+          uni_hid_parser_ds4_set_lightbar_color;
       d->report_parser.set_rumble = uni_hid_parser_ds4_set_rumble;
       logi("Device detected as DUALSHOCK4: 0x%02x\n", type);
       break;
@@ -469,8 +470,9 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
       d->report_parser.init_report = uni_hid_parser_ds5_init_report;
       d->report_parser.setup = uni_hid_parser_ds5_setup;
       d->report_parser.parse_raw = uni_hid_parser_ds5_parse_raw;
-      d->report_parser.set_leds = uni_hid_parser_ds5_set_leds;
-      d->report_parser.set_led_color = uni_hid_parser_ds5_set_led_color;
+      d->report_parser.set_player_leds = uni_hid_parser_ds5_set_player_leds;
+      d->report_parser.set_lightbar_color =
+          uni_hid_parser_ds5_set_lightbar_color;
       d->report_parser.set_rumble = uni_hid_parser_ds5_set_rumble;
       logi("Device detected as DualSense: 0x%02x\n", type);
       break;
@@ -488,14 +490,14 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
       d->report_parser.setup = uni_hid_parser_wii_setup;
       d->report_parser.init_report = uni_hid_parser_wii_init_report;
       d->report_parser.parse_raw = uni_hid_parser_wii_parse_raw;
-      d->report_parser.set_leds = uni_hid_parser_wii_set_leds;
+      d->report_parser.set_player_leds = uni_hid_parser_wii_set_player_leds;
       logi("Device detected as Wii controller: 0x%02x\n", type);
       break;
     case CONTROLLER_TYPE_SwitchProController:
       d->report_parser.setup = uni_hid_parser_switch_setup;
       d->report_parser.init_report = uni_hid_parser_switch_init_report;
       d->report_parser.parse_raw = uni_hid_parser_switch_parse_raw;
-      d->report_parser.set_leds = uni_hid_parser_switch_set_leds;
+      d->report_parser.set_player_leds = uni_hid_parser_switch_set_player_leds;
       d->report_parser.set_rumble = uni_hid_parser_switch_set_rumble;
       logi("Device detected as Nintendo Switch Pro controller: 0x%02x\n", type);
       break;

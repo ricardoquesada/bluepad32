@@ -115,7 +115,7 @@ enum switch_subcmd {
   SUBCMD_REQ_DEV_INFO = 0x02,
   SUBCMD_SET_REPORT_MODE = 0x03,
   SUBCMD_SPI_FLASH_READ = 0x10,
-  SUBCMD_SET_LEDS = 0x30,
+  SUBCMD_SET_PLAYER_LEDS = 0x30,
   SUBCMD_SET_HOME_LIGHT = 0x38,
   SUBCMD_ENABLE_IMU = 0x40,
 };
@@ -360,8 +360,9 @@ static void process_reply_set_report_mode(struct uni_hid_device_s* d,
 static void process_reply_spi_flash_read(struct uni_hid_device_s* d,
                                          const struct switch_report_21_s* r,
                                          int len);
-static void process_reply_set_leds(struct uni_hid_device_s* d,
-                                   const struct switch_report_21_s* r, int len);
+static void process_reply_set_player_leds(struct uni_hid_device_s* d,
+                                          const struct switch_report_21_s* r,
+                                          int len);
 static void process_reply_set_home_light(struct uni_hid_device_s* d,
                                          const struct switch_report_21_s* r,
                                          int len);
@@ -611,10 +612,10 @@ static void process_reply_spi_flash_read(struct uni_hid_device_s* d,
   }
 }
 
-// Reply to SUBCMD_SET_LEDS
-static void process_reply_set_leds(struct uni_hid_device_s* d,
-                                   const struct switch_report_21_s* r,
-                                   int len) {
+// Reply to SUBCMD_SET_PLAYER_LEDS
+static void process_reply_set_player_leds(struct uni_hid_device_s* d,
+                                          const struct switch_report_21_s* r,
+                                          int len) {
   UNUSED(d);
   UNUSED(r);
   UNUSED(len);
@@ -660,8 +661,8 @@ static void process_input_subcmd_reply(struct uni_hid_device_s* d,
     case SUBCMD_SPI_FLASH_READ:
       process_reply_spi_flash_read(d, r, len);
       break;
-    case SUBCMD_SET_LEDS:
-      process_reply_set_leds(d, r, len);
+    case SUBCMD_SET_PLAYER_LEDS:
+      process_reply_set_player_leds(d, r, len);
       break;
     case SUBCMD_SET_HOME_LIGHT:
       process_reply_set_home_light(d, r, len);
@@ -980,7 +981,7 @@ static void switch_encode_rumble(uint8_t* data, uint16_t freq_low,
   data[3] = amp_data.low & 0xFF;
 }
 
-void uni_hid_parser_switch_set_leds(uni_hid_device_t* d, uint8_t leds) {
+void uni_hid_parser_switch_set_player_leds(uni_hid_device_t* d, uint8_t leds) {
   switch_instance_t* ins = get_switch_instance(d);
   // Seat must be set, even if it is not ready. Initialization will use this
   // seat and set the correct LEDs values.
@@ -1058,7 +1059,7 @@ static void set_led(uni_hid_device_t* d, uint8_t leds) {
   struct switch_subcmd_request* req = (struct switch_subcmd_request*)&report[0];
   req->transaction_type = 0xa2;               // DATA | TYPE_OUTPUT
   req->report_id = OUTPUT_RUMBLE_AND_SUBCMD;  // 0x01 for sub commands
-  req->subcmd_id = SUBCMD_SET_LEDS;
+  req->subcmd_id = SUBCMD_SET_PLAYER_LEDS;
   // LSB: turn on LEDs, MSB: flash LEDs
   // Official Switch doesn't honor the flash bit.
   // 8BitDo in Switch mode: LEDs are not working
@@ -1091,7 +1092,6 @@ static int32_t calibrate_axis(int16_t v, switch_cal_stick_t cal) {
 }
 
 static void switch_rumble_off(btstack_timer_source_t* ts) {
-  logi("switch_rumble_off******************\n");
   switch_instance_t* ins = (switch_instance_t*)ts;
   // No need to protect it with a mutex since it runs in the same main thread
   assert(ins->rumble_in_progress);
