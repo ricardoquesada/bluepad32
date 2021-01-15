@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.0.0-beta2] - 2021-01-14
 ### Added
 
-- DualSense: Supports lightbar LED + player LEDs
+- DualSense: Supports lightbar LED + player LEDs + rumble
 - Wii / Wii U: Supports '-' button to mappings
 
 ### Changed
