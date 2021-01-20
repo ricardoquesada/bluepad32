@@ -411,6 +411,9 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
     }
   }
 
+  // Subtype is still unknown, it will be set by the relevant parse_raw() func
+  d->controller_subtype = CONTROLLER_SUBTYPE_NONE;
+
   memset(&d->report_parser, 0, sizeof(d->report_parser));
 
   switch (type) {
