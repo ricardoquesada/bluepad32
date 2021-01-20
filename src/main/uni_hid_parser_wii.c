@@ -913,22 +913,35 @@ static void wii_fsm_assign_device(uni_hid_device_t* d) {
           // Request Core buttons + Accel + extension (nunchuk)
           reportType = WIIPROTO_REQ_DRM_KAE;
           logi("Wii: requesting Core buttons + Accelerometer + E (Nunchuk)\n");
+          d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_NCHKACCEL;
         } else {
           // Request Core buttons + extension (nunchuk)
           reportType = WIIPROTO_REQ_DRM_KE;
           logi("Wii: requesting Core buttons + E (Nunchuk)\n");
+          if (ins->flags == WII_FLAGS_VERTICAL) {
+            d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_NCHK2JOYS;
+		  } else {
+            d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_NCHK;
+		  }
         }
       } else if (ins->ext_type == WII_EXT_CLASSIC_CONTROLLER) {
         logi("Wii: requesting E (Classic Controller)\n");
+        d->controller_subtype = CONTROLLER_SUBTYPE_WII_CLASSIC;
         reportType = WIIPROTO_REQ_DRM_E;
       } else {
         if (ins->flags & WII_FLAGS_ACCEL) {
           // Request Core buttons + accel
           reportType = WIIPROTO_REQ_DRM_KA;
           logi("Wii: requesting Core buttons + Accelerometer\n");
+          d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_ACCEL;
         } else {
           reportType = WIIPROTO_REQ_DRM_K;
           logi("Wii: requesting Core buttons\n");
+          if (ins->flags & WII_FLAGS_VERTICAL) {
+		    d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_VERT;
+		  } else {
+			d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_HORIZ;
+		  }
         }
       }
       uint8_t report[] = {0xa2, WIIPROTO_REQ_DRM, 0x00, reportType};
@@ -937,6 +950,7 @@ static void wii_fsm_assign_device(uni_hid_device_t* d) {
     }
     case WII_DEVTYPE_PRO_CONTROLLER: {
       logi("Wii U Pro controller detected.\n");
+      d->controller_subtype = CONTROLLER_SUBTYPE_WIIUPRO;
       // 0x34 WIIPROTO_REQ_DRM_KEE (present in Wii U Pro controller)
       const uint8_t reportKee[] = {0xa2, WIIPROTO_REQ_DRM, 0x00,
                                    WIIPROTO_REQ_DRM_KEE};

@@ -62,6 +62,18 @@ enum DEVICE_STATE {
   STATE_DEVICE_READY,
 };
 
+typedef enum {
+	CONTROLLER_SUBTYPE_NONE = 0,
+	CONTROLLER_SUBTYPE_WIIMOTE_HORIZ,
+	CONTROLLER_SUBTYPE_WIIMOTE_VERT,
+	CONTROLLER_SUBTYPE_WIIMOTE_ACCEL,
+	CONTROLLER_SUBTYPE_WIIMOTE_NCHK,
+	CONTROLLER_SUBTYPE_WIIMOTE_NCHK2JOYS,
+	CONTROLLER_SUBTYPE_WIIMOTE_NCHKACCEL,
+	CONTROLLER_SUBTYPE_WII_CLASSIC,
+	CONTROLLER_SUBTYPE_WIIUPRO
+} uni_controller_subtype_t;
+
 struct uni_hid_device_s {
   bd_addr_t address;
   hci_con_handle_t con_handle;
@@ -100,6 +112,7 @@ struct uni_hid_device_s {
 
   // Gamepad
   uint8_t controller_type;  // type of controller attached
+  uni_controller_subtype_t controller_subtype;  // sub-type of controller attached
   uni_gamepad_t gamepad;    // gamepad state
 
   // Functions used to parse the usage page/usage.
