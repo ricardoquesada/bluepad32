@@ -185,7 +185,7 @@ static const uni_controller_description_t arrControllers[] = {
 	{ MAKE_CONTROLLER_ID( 0x146b, 0x1103 ), CONTROLLER_TYPE_PS4Controller, NULL },	// NACON Asymetrical Controller -- on windows this doesn't enumerate
 	{ MAKE_CONTROLLER_ID( 0x0f0d, 0x0123 ), CONTROLLER_TYPE_PS4Controller, NULL },	// HORI Wireless Controller Light (Japan only) - only over bt- over usb is xbox and pid 0x0124
 	{ MAKE_CONTROLLER_ID( 0x146b, 0x0d13 ), CONTROLLER_TYPE_PS4Controller, NULL },	// NACON Revolution 3
-	{ MAKE_CONTROLLER_ID( 0x054c, 0x05c4 ), CONTROLLER_TYPE_PS4Controller, NULL },	// added 26/01/2021 from vcorp model 8951 - TUTUO - https://www.amazon.it/gp/product/B07V2KWTH6/
+	{ MAKE_CONTROLLER_ID( 0x054c, 0x05c4 ), CONTROLLER_TYPE_PS4Controller, NULL },	// model 8951 - TUTUO - https://www.amazon.it/gp/product/B07V2KWTH6/
 
 	{ MAKE_CONTROLLER_ID( 0x054c, 0x0ce6 ), CONTROLLER_TYPE_PS5Controller, NULL },	// Sony PS5 Controller
 
@@ -603,7 +603,7 @@ static const uni_controller_description_t arrControllers[] = {
         // 8-Bitdo controllers
         { MAKE_CONTROLLER_ID(0x2820, 0x0009), CONTROLLER_TYPE_8BitdoController, NULL},  // 8Bitdo NES30 Gamepro (Bluepad32)
         { MAKE_CONTROLLER_ID(0x2dc8, 0x6101), CONTROLLER_TYPE_8BitdoController, NULL},  // 8Bitdo SN30 pro (Bluepad32)
-	{ MAKE_CONTROLLER_ID(0x2dc8, 0x3230), CONTROLLER_TYPE_8BitdoController, NULL},  // 8Bitdo zero 2 (Bluepad32) // added 25-01-2021 from vcorp
+	{ MAKE_CONTROLLER_ID(0x2dc8, 0x3230), CONTROLLER_TYPE_8BitdoController, NULL},  // 8Bitdo zero 2 (Bluepad32)
 
         // Generic gamepad
         { MAKE_CONTROLLER_ID(0x0a5c, 0x4502), CONTROLLER_TYPE_GenericController, NULL},  // White-label mini gamepad received as gift in conference (Bluepad32)
