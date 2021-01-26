@@ -602,6 +602,7 @@ static const uni_controller_description_t arrControllers[] = {
         // 8-Bitdo controllers
         { MAKE_CONTROLLER_ID(0x2820, 0x0009), CONTROLLER_TYPE_8BitdoController, NULL},  // 8Bitdo NES30 Gamepro (Bluepad32)
         { MAKE_CONTROLLER_ID(0x2dc8, 0x6101), CONTROLLER_TYPE_8BitdoController, NULL},  // 8Bitdo SN30 pro (Bluepad32)
+	{ MAKE_CONTROLLER_ID(0x2dc8, 0x3230), CONTROLLER_TYPE_8BitdoController, NULL},  // 8Bitdo zero 2 (Bluepad32) // added 25-01-2021 from vcorp
 
         // Generic gamepad
         { MAKE_CONTROLLER_ID(0x0a5c, 0x4502), CONTROLLER_TYPE_GenericController, NULL},  // White-label mini gamepad received as gift in conference (Bluepad32)
