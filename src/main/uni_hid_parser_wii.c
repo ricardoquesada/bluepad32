@@ -920,9 +920,9 @@ static void wii_fsm_assign_device(uni_hid_device_t* d) {
           logi("Wii: requesting Core buttons + E (Nunchuk)\n");
           if (ins->flags == WII_FLAGS_VERTICAL) {
             d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_NCHK2JOYS;
-		  } else {
+          } else {
             d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_NCHK;
-		  }
+          }
         }
       } else if (ins->ext_type == WII_EXT_CLASSIC_CONTROLLER) {
         logi("Wii: requesting E (Classic Controller)\n");
@@ -938,10 +938,10 @@ static void wii_fsm_assign_device(uni_hid_device_t* d) {
           reportType = WIIPROTO_REQ_DRM_K;
           logi("Wii: requesting Core buttons\n");
           if (ins->flags & WII_FLAGS_VERTICAL) {
-		    d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_VERT;
-		  } else {
-			d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_HORIZ;
-		  }
+            d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_VERT;
+          } else {
+            d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_HORIZ;
+          }
         }
       }
       uint8_t report[] = {0xa2, WIIPROTO_REQ_DRM, 0x00, reportType};
