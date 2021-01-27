@@ -576,45 +576,49 @@ static const uni_controller_description_t arrControllers[] = {
 	{ MAKE_CONTROLLER_ID( 0x28de, 0x1201 ), CONTROLLER_TYPE_SteamControllerV2, NULL },	// Valve wired Steam Controller (HEADCRAB)
 	{ MAKE_CONTROLLER_ID( 0x28de, 0x1202 ), CONTROLLER_TYPE_SteamControllerV2, NULL },	// Valve Bluetooth Steam Controller (HEADCRAB)
 
-        // Bluepad32 addons from here:
+	// Bluepad32 addons from here:
 
-        // MFi gamepads unsupported (Bluepad32).
-        { MAKE_CONTROLLER_ID(0x05ac, 0x0001), CONTROLLER_TYPE_AppleController, NULL},  // MFI Extended Gamepad (generic entry for iOS/tvOS)
-        { MAKE_CONTROLLER_ID(0x05ac, 0x0002), CONTROLLER_TYPE_AppleController, NULL},  // MFI Standard Gamepad (generic entry for iOS/tvOS)
+	// MFi gamepads unsupported (Bluepad32).
+	{ MAKE_CONTROLLER_ID(0x05ac, 0x0001), CONTROLLER_TYPE_AppleController, NULL},  // MFI Extended Gamepad (generic entry for iOS/tvOS)
+	{ MAKE_CONTROLLER_ID(0x05ac, 0x0002), CONTROLLER_TYPE_AppleController, NULL},  // MFI Standard Gamepad (generic entry for iOS/tvOS)
 
-        // OUYA
-        { MAKE_CONTROLLER_ID(0x2836, 0x0001), CONTROLLER_TYPE_OUYAController, NULL},  // OUYA 1st Controller (Bluepad32)
+	// OUYA
+	{ MAKE_CONTROLLER_ID(0x2836, 0x0001), CONTROLLER_TYPE_OUYAController, NULL},  // OUYA 1st Controller
 
-        // ION iCade
-        { MAKE_CONTROLLER_ID(0x15e4, 0x0132), CONTROLLER_TYPE_iCadeController, NULL},  // ION iCade (Bluepad32)
-        { MAKE_CONTROLLER_ID(0x0a5c, 0x8502), CONTROLLER_TYPE_iCadeController, NULL},  // iCade 8-bitty (Bluepad32)
-        // {MAKE_CONTROLLER_ID(0x0a5c, 0x4502), CONTROLLER_TYPE_iCadeController, NULL},  // White-label mini gamepad received as gift in conference
-                                                                                   // Device can be put in gamepad or iCade mode. (Bluepad32)
+	// ION iCade
+	{ MAKE_CONTROLLER_ID(0x15e4, 0x0132), CONTROLLER_TYPE_iCadeController, NULL},  // ION iCade
+	{ MAKE_CONTROLLER_ID(0x0a5c, 0x8502), CONTROLLER_TYPE_iCadeController, NULL},  // iCade 8-bitty
+	// {MAKE_CONTROLLER_ID(0x0a5c, 0x4502), CONTROLLER_TYPE_iCadeController, NULL},  // White-label mini gamepad received as gift in conference
+											 // Device can be put in gamepad or iCade mode.
 
-        // Android
-        { MAKE_CONTROLLER_ID(0x20d6, 0x6271), CONTROLLER_TYPE_AndroidController, NULL},  // MOGA Controller, using HID mode (Bluepad32)
-        { MAKE_CONTROLLER_ID(0x0b05, 0x4500), CONTROLLER_TYPE_AndroidController, NULL},  // Asus Controller (Bluepad32)
-        { MAKE_CONTROLLER_ID(0x1949, 0x0402), CONTROLLER_TYPE_AndroidController, NULL},  // Amazon Fire gamepad Controller 1st gen (Bluepad32)
+	// Android
+	{ MAKE_CONTROLLER_ID(0x20d6, 0x6271), CONTROLLER_TYPE_AndroidController, NULL},  // MOGA Controller, using HID mode
+	{ MAKE_CONTROLLER_ID(0x0b05, 0x4500), CONTROLLER_TYPE_AndroidController, NULL},  // Asus Controller
+	{ MAKE_CONTROLLER_ID(0x1949, 0x0402), CONTROLLER_TYPE_AndroidController, NULL},  // Amazon Fire gamepad Controller 1st gen
 
-        // Smart TV remotes
-        { MAKE_CONTROLLER_ID(0x1949, 0x0401), CONTROLLER_TYPE_SmartTVRemoteController, NULL},  // Amazon Fire TV remote Controlelr 1st gen. (Bluepad32)
+	// Smart TV remotes
+	{ MAKE_CONTROLLER_ID(0x1949, 0x0401), CONTROLLER_TYPE_SmartTVRemoteController, NULL},  // Amazon Fire TV remote Controlelr 1st gen
 
-        // 8-Bitdo controllers
-        { MAKE_CONTROLLER_ID(0x2820, 0x0009), CONTROLLER_TYPE_8BitdoController, NULL},  // 8Bitdo NES30 Gamepro (Bluepad32)
-        { MAKE_CONTROLLER_ID(0x2dc8, 0x6101), CONTROLLER_TYPE_8BitdoController, NULL},  // 8Bitdo SN30 pro (Bluepad32)
+	// 8-Bitdo controllers
+	{ MAKE_CONTROLLER_ID(0x2820, 0x0009), CONTROLLER_TYPE_8BitdoController, NULL},  // 8Bitdo NES30 Gamepro
+	{ MAKE_CONTROLLER_ID(0x2dc8, 0x6101), CONTROLLER_TYPE_8BitdoController, NULL},  // 8Bitdo SN30 pro
+	{ MAKE_CONTROLLER_ID(0x2dc8, 0x3230), CONTROLLER_TYPE_8BitdoController, NULL},  // 8Bitdo Zero 2
 
-        // Generic gamepad
-        { MAKE_CONTROLLER_ID(0x0a5c, 0x4502), CONTROLLER_TYPE_GenericController, NULL},  // White-label mini gamepad received as gift in conference (Bluepad32)
+	// Generic gamepad
+	{ MAKE_CONTROLLER_ID(0x0a5c, 0x4502), CONTROLLER_TYPE_GenericController, NULL},  // White-label mini gamepad received as gift in conference
 
-        // SteelSeries Nimbus
-        { MAKE_CONTROLLER_ID(0x0111, 0x1420), CONTROLLER_TYPE_NimbusController, NULL},  // SteelSeries Nimbus (Bluepad32)
+	// SteelSeries Nimbus
+	{ MAKE_CONTROLLER_ID(0x0111, 0x1420), CONTROLLER_TYPE_NimbusController, NULL},  // SteelSeries Nimbus
 
-        // Nintendo Wii U Pro
-        { MAKE_CONTROLLER_ID(0x057e, 0x0330), CONTROLLER_TYPE_WiiController, NULL},  // Nintendo Wii U Pro (Bluepad32)
-        // Nintendo Wii Remote
-        { MAKE_CONTROLLER_ID(0x057e, 0x0306), CONTROLLER_TYPE_WiiController, NULL},  // Nintendo Wii Remote (Bluepad32)
+	// Nintendo Wii U Pro
+	{ MAKE_CONTROLLER_ID(0x057e, 0x0330), CONTROLLER_TYPE_WiiController, NULL},  // Nintendo Wii U Pro
+	// Nintendo Wii Remote
+	{ MAKE_CONTROLLER_ID(0x057e, 0x0306), CONTROLLER_TYPE_WiiController, NULL},  // Nintendo Wii Remote
 
-        // Bluepad32 addons to here.
+	// PS4
+	{ MAKE_CONTROLLER_ID( 0x054c, 0x05c4 ), CONTROLLER_TYPE_PS4Controller, NULL },  // Model 8951 - TUTUO - https://www.amazon.it/gp/product/B07V2KWTH6/
+
+	// Bluepad32 addons to here.
 };
 // clang-format on
 
