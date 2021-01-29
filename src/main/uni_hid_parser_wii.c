@@ -786,8 +786,8 @@ static void process_drm_e(uni_hid_device_t* d, const uint8_t* report,
   int lt = (data[2] & 0b01100000) >> 2 | (data[3] & 0b11100000) >> 5;
   int rt = data[3] & 0b00011111;
   gp->brake = lt * (AXIS_NORMALIZE_RANGE / 32);
-  gp->accelerator = rt * (AXIS_NORMALIZE_RANGE / 32);
-  gp->updated_states |= GAMEPAD_STATE_BRAKE | GAMEPAD_STATE_ACCELERATOR;
+  gp->throttle = rt * (AXIS_NORMALIZE_RANGE / 32);
+  gp->updated_states |= GAMEPAD_STATE_BRAKE | GAMEPAD_STATE_THROTTLE;
 
   // dpad
   gp->dpad |= (data[4] & 0b10000000) ? 0 : DPAD_RIGHT;

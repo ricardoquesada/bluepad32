@@ -87,8 +87,8 @@ void uni_hid_parser_8bitdo_parse_usage(uni_hid_device_t* d,
     case HID_USAGE_PAGE_SIMULATION_CONTROLS:
       switch (usage) {
         case HID_USAGE_ACCELERATOR:
-          gp->accelerator = uni_hid_parser_process_pedal(globals, value);
-          gp->updated_states |= GAMEPAD_STATE_ACCELERATOR;
+          gp->throttle = uni_hid_parser_process_pedal(globals, value);
+          gp->updated_states |= GAMEPAD_STATE_THROTTLE;
           break;
         case HID_USAGE_BRAKE:
           gp->brake = uni_hid_parser_process_pedal(globals, value);

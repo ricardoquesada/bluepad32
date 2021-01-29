@@ -56,8 +56,8 @@ static void to_single_joy(const uni_gamepad_t* gp, uni_joystick_t* out_joy) {
   if (gp->updated_states & GAMEPAD_STATE_BRAKE) {
     out_joy->pot_x = (gp->brake >> 2);  // convert from 1024 to 256
   }
-  if (gp->updated_states & GAMEPAD_STATE_ACCELERATOR) {
-    out_joy->pot_y = (gp->accelerator >> 2);  // convert from 1024 to 256
+  if (gp->updated_states & GAMEPAD_STATE_THROTTLE) {
+    out_joy->pot_y = (gp->throttle >> 2);  // convert from 1024 to 256
   }
 }
 

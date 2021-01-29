@@ -118,8 +118,8 @@ static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
           gp->updated_states |= GAMEPAD_STATE_AXIS_RY;
           break;
         case HID_USAGE_AXIS_RZ:
-          gp->accelerator = uni_hid_parser_process_pedal(globals, value);
-          gp->updated_states |= GAMEPAD_STATE_ACCELERATOR;
+          gp->throttle = uni_hid_parser_process_pedal(globals, value);
+          gp->updated_states |= GAMEPAD_STATE_THROTTLE;
           break;
         case HID_USAGE_HAT:
           hat = uni_hid_parser_process_hat(globals, value);
@@ -330,8 +330,8 @@ static void parse_usage_firmware_v4_8(uni_hid_device_t* d,
     case HID_USAGE_PAGE_SIMULATION_CONTROLS:
       switch (usage) {
         case 0xc4:  // Accelerator
-          gp->accelerator = uni_hid_parser_process_pedal(globals, value);
-          gp->updated_states |= GAMEPAD_STATE_ACCELERATOR;
+          gp->throttle = uni_hid_parser_process_pedal(globals, value);
+          gp->updated_states |= GAMEPAD_STATE_THROTTLE;
           break;
         case 0xc5:  // Brake
           gp->brake = uni_hid_parser_process_pedal(globals, value);

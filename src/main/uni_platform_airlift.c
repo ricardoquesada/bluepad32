@@ -743,7 +743,7 @@ static void airlift_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
       .axis_rx = gp->axis_rx,
       .axis_ry = gp->axis_ry,
       .brake = gp->brake,
-      .accelerator = gp->accelerator,
+      .accelerator = gp->throttle,
       .buttons = gp->buttons,
       .misc_buttons = gp->misc_buttons,
   };

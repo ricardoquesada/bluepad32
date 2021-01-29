@@ -66,15 +66,15 @@ enum {
   GAMEPAD_STATE_AXIS_RX = 1 << 3,
   GAMEPAD_STATE_AXIS_RY = 1 << 4,
 
-  GAMEPAD_STATE_BRAKE = 1 << 5,
-  GAMEPAD_STATE_ACCELERATOR = 1 << 6,
+  GAMEPAD_STATE_BRAKE = 1 << 5,     // AKA L2
+  GAMEPAD_STATE_THROTTLE = 1 << 6,  // AKA R2
 
   GAMEPAD_STATE_BUTTON_A = 1 << 10,
   GAMEPAD_STATE_BUTTON_B = 1 << 11,
   GAMEPAD_STATE_BUTTON_X = 1 << 12,
   GAMEPAD_STATE_BUTTON_Y = 1 << 13,
-  GAMEPAD_STATE_BUTTON_SHOULDER_L = 1 << 14,
-  GAMEPAD_STATE_BUTTON_SHOULDER_R = 1 << 15,
+  GAMEPAD_STATE_BUTTON_SHOULDER_L = 1 << 14,  // AKA L1
+  GAMEPAD_STATE_BUTTON_SHOULDER_R = 1 << 15,  // AKA R1
   GAMEPAD_STATE_BUTTON_TRIGGER_L = 1 << 16,
   GAMEPAD_STATE_BUTTON_TRIGGER_R = 1 << 17,
   GAMEPAD_STATE_BUTTON_THUMB_L = 1 << 18,
@@ -137,7 +137,7 @@ typedef struct {
 
   // Usage Page: 0x02 (Sim controls)
   int32_t brake;
-  int32_t accelerator;
+  int32_t throttle;
 
   // Usage Page: 0x06 (Generic dev controls)
   uint16_t battery;

@@ -137,7 +137,7 @@ void uni_hid_parser_ds5_init_report(uni_hid_device_t* d) {
   // the reported states just once, here:
   gp->updated_states = GAMEPAD_STATE_AXIS_X | GAMEPAD_STATE_AXIS_Y |
                        GAMEPAD_STATE_AXIS_RX | GAMEPAD_STATE_AXIS_RY;
-  gp->updated_states |= GAMEPAD_STATE_BRAKE | GAMEPAD_STATE_ACCELERATOR;
+  gp->updated_states |= GAMEPAD_STATE_BRAKE | GAMEPAD_STATE_THROTTLE;
   gp->updated_states |= GAMEPAD_STATE_DPAD;
   gp->updated_states |= GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y |
                         GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B;
@@ -186,7 +186,7 @@ void uni_hid_parser_ds5_parse_raw(uni_hid_device_t* d, const uint8_t* report,
   gp->axis_ry = (r->ry - 127) * 4;
 
   gp->brake = r->brake * 4;
-  gp->accelerator = r->throttle * 4;
+  gp->throttle = r->throttle * 4;
 
   // Hat
   uint8_t value = r->buttons[0] & 0xf;

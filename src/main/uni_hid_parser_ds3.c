@@ -129,7 +129,7 @@ void uni_hid_parser_ds3_init_report(uni_hid_device_t* d) {
   // the reported states just once, here:
   gp->updated_states = GAMEPAD_STATE_AXIS_X | GAMEPAD_STATE_AXIS_Y |
                        GAMEPAD_STATE_AXIS_RX | GAMEPAD_STATE_AXIS_RY;
-  gp->updated_states |= GAMEPAD_STATE_BRAKE | GAMEPAD_STATE_ACCELERATOR;
+  gp->updated_states |= GAMEPAD_STATE_BRAKE | GAMEPAD_STATE_THROTTLE;
   gp->updated_states |= GAMEPAD_STATE_DPAD;
   gp->updated_states |= GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y |
                         GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B;
@@ -175,7 +175,7 @@ void uni_hid_parser_ds3_parse_raw(uni_hid_device_t* d, const uint8_t* report,
 
   // Brake & throttle
   gp->brake = r->brake * 4;
-  gp->accelerator = r->throttle * 4;
+  gp->throttle = r->throttle * 4;
 
   // Buttons
   if (r->buttons[0] & 0x01) gp->misc_buttons |= MISC_BUTTON_BACK;  // Select

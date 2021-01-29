@@ -77,8 +77,8 @@ void uni_hid_parser_nimbus_parse_usage(uni_hid_device_t* d,
     case HID_USAGE_PAGE_SIMULATION_CONTROLS:
       switch (usage) {
         case HID_USAGE_ACCELERATOR:
-          gp->accelerator = uni_hid_parser_process_pedal(globals, value);
-          gp->updated_states |= GAMEPAD_STATE_ACCELERATOR;
+          gp->throttle = uni_hid_parser_process_pedal(globals, value);
+          gp->updated_states |= GAMEPAD_STATE_THROTTLE;
           break;
         case HID_USAGE_BRAKE:
           gp->brake = uni_hid_parser_process_pedal(globals, value);
@@ -164,8 +164,8 @@ void uni_hid_parser_nimbus_parse_usage(uni_hid_device_t* d,
           else
             gp->buttons &= ~BUTTON_TRIGGER_R;
           gp->updated_states |= GAMEPAD_STATE_BUTTON_TRIGGER_R;
-          gp->accelerator = uni_hid_parser_process_pedal(globals, value);
-          gp->updated_states |= GAMEPAD_STATE_ACCELERATOR;
+          gp->throttle = uni_hid_parser_process_pedal(globals, value);
+          gp->updated_states |= GAMEPAD_STATE_THROTTLE;
           break;
         default:
           logi("Nimbus: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n",

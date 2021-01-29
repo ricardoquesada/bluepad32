@@ -56,8 +56,8 @@ void uni_hid_parser_ouya_parse_usage(uni_hid_device_t* d,
           gp->updated_states |= GAMEPAD_STATE_AXIS_RY;
           break;
         case HID_USAGE_AXIS_RZ:
-          gp->accelerator = uni_hid_parser_process_pedal(globals, value);
-          gp->updated_states |= GAMEPAD_STATE_ACCELERATOR;
+          gp->throttle = uni_hid_parser_process_pedal(globals, value);
+          gp->updated_states |= GAMEPAD_STATE_THROTTLE;
           break;
         default:
           logi(
