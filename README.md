@@ -69,7 +69,7 @@ $ git submodule update --init
 3. Integrate BTStack into ESP32
 
 ```
-$ cd ${BLUEPAD32}/external/btstack/ports/esp32
+$ cd ${BLUEPAD32}/external/btstack/port/esp32
 $ ./integrate_btstack.py
 ```
 
