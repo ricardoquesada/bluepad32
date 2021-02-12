@@ -5,6 +5,7 @@
 MightyMiggy is version of Bluepad32 aimed at the Commodore Amiga line of computers.
 
 MightyMiggy originated as a port of SukkoPera's [OpenPSX2AmigaPadAdapter firmware](https://github.com/SukkoPera/OpenPSX2AmigaPadAdapter), so it has all of its features and even more:
+
 - Controls a joystick and a mouse with a single controller
 - Controls two joysticks with two controllers
 - Supports 2 buttons in joystick mode and 7 buttons in CD32 mode
@@ -17,8 +18,8 @@ The board and firmware retain backwards compatibility and **should** work wherev
 
 DO NOT USE on MSX computers, these have a different electrical interface, even though it appears similar.
 
-
 ## Operating Modes
+
 MightyMiggy should support all the controllers supported by the standard Bluepad32, which have the following general layout:
 
 ![virtual_gamepad][1]
@@ -43,9 +44,11 @@ MightyMiggy supports up to two controllers at the same time. The first controlle
 The exact function of each button depends on the operating mode.
 
 ### Two-Button Joystick Mode
+
 When the adapter is powered on, it defaults to Atari-style Two-Button Mode. While in this mode, the adapter supports different button mappings, which have been carefully designed and tailored to different game genres. The mappings can be switched by pressing <kbd>Back</kbd> in combination with other buttons. The player LED will blink quickly a few times to indicate what mapping has been activated.
 
 #### Standard Mapping: <kbd>Back</kbd> + <kbd>X</kbd>
+
 Standard Mapping is the simplest mapping possible: both the D-Pad and <kbd>Left Analog</kbd> work as direction buttons. <kbd>X</kbd> is <kbd>Button 1</kbd> and <kbd>A</kbd> is <kbd>Button 2</kbd>. This is the default mapping as it should be usable just about in every game out there. It might not be the most natural these days, but it's the way the game was meant to be played by the developers, thus it should never fail you.
 
 Note that very few games were originally made to take advantage of two buttons, as even fewer controllers had that many (!) those days. [Here is a list](http://eab.abime.net/showthread.php?t=57540) of Amiga games that somehow support two buttons, if it can be any useful.
@@ -53,13 +56,15 @@ Note that very few games were originally made to take advantage of two buttons, 
 The player LED will blink once when this mapping is activated.
 
 #### Racing Mapping 1: <kbd>Back</kbd> + <kbd>Y</kbd>
-Racing Mapping 1 is useful for all those racing games that use <kbd>&uarr;</kbd> to accelerate and <kbd>&darr;</kbd> to brake. These have been mapped to <kbd>X</kbd> and <kbd>A</kbd> respectively, which should make them much more natural to play. When accelerating and braking at the same time, braking wins. <kbd>Left Analog</kbd> can be used to steer but its vertical axis is ignored, in order to avoid accidental accelerating/braking. The D-Pad is fully functional and is handy when moving through menus. <kbd>Button 1</kbd> can be found on <kbd>Right Shoulder</kbd>, <kbd>Right Trigger</kbd> or <kbd>Y</kbd>, while <kbd>Button 2</kbd>  is on  <kbd>Left Shoulder</kbd>, <kbd>Left Trigger</kbd> or <kbd>B</kbd>. 
+
+Racing Mapping 1 is useful for all those racing games that use <kbd>&uarr;</kbd> to accelerate and <kbd>&darr;</kbd> to brake. These have been mapped to <kbd>X</kbd> and <kbd>A</kbd> respectively, which should make them much more natural to play. When accelerating and braking at the same time, braking wins. <kbd>Left Analog</kbd> can be used to steer but its vertical axis is ignored, in order to avoid accidental accelerating/braking. The D-Pad is fully functional and is handy when moving through menus. <kbd>Button 1</kbd> can be found on <kbd>Right Shoulder</kbd>, <kbd>Right Trigger</kbd> or <kbd>Y</kbd>, while <kbd>Button 2</kbd>  is on  <kbd>Left Shoulder</kbd>, <kbd>Left Trigger</kbd> or <kbd>B</kbd>.
 
 This mode is probably best suited to games that do not involve shifting gears, as downshifting is usually performed through <kbd>&darr;</kbd> + <kbd>Button 1</kbd> which is pretty cumbersome to achieve (<kbd>Y</kbd> + <kbd>A</kbd>).
 
 The player LED will blink twice when this mapping is activated.
 
 #### Racing Mapping 2: <kbd>Back</kbd> + <kbd>B</kbd>
+
 Racing Mapping 2 is an alternative mapping for racing games that was inspired by GTA V. It lets you use <kbd>Trigger Right</kbd> (or <kbd>Shoulder Right</kbd>) to accelerate and <kbd>Trigger Left</kbd> (or <kbd>Shoulder Left</kbd>) to brake (which means they map to <kbd>&uarr;</kbd> and <kbd>&darr;</kbd>, respectively). <kbd>Button 1</kbd> is mapped to its natural <kbd>X</kbd> position. Steering and the <kbd>D-Pad</kbd> work as in Racing Mode 1.
 
 Accidentally, this control scheme was found out to be very comfortable with games that use <kbd>Button 1</kbd> to accelerate and <kbd>&uarr;</kbd> and <kbd>&darr;</kbd> to shift gears. Since <kbd>&darr;</kbd> is probably used for braking as well, it has also been mapped to <kbd>A</kbd>, while <kbd>Button 2</kbd> has been moved to <kbd>Y</kbd>.
@@ -67,11 +72,13 @@ Accidentally, this control scheme was found out to be very comfortable with game
 The player LED will blink three times when this mapping is activated.
 
 #### Platform Mapping: <kbd>Back</kbd> + <kbd>A</kbd>
+
 Platform Mapping is very similar to Standard Mapping, it just makes jumping way easier on a joypad and more natural to all the Mario players out there, by replicating <kbd>&uarr;</kbd> on <kbd>A</kbd>. Consequently, <kbd>Button 2</kbd> has been moved to <kbd>Y</kbd>.
 
 The player LED will blink four times when this mapping is activated.
 
 #### Custom Mappings: <kbd>Back</kbd> + <kbd>Shoulder Right</kbd>/<kbd>Trigger Right</kbd>/<kbd>Shoulder Left</kbd>/<kbd>Trigger Left</kbd>
+
 What if the built-in mappings are not enough? MightyMiggy allows you to make your own! You can have up to four different ones, which are stored internally so that they can be recalled at any time. By default they behave similarly to the Standard Mapping, but they can be customized so that any button produces either the press of a single button or even of a button combo!
 
 The programming procedure is as follows:
@@ -88,16 +95,19 @@ Note that a mapping you have just programmed is not activated automatically, so 
 The Custom Mappings **cannot** be configured so that <kbd>&darr;</kbd> overrides <kbd>&uarr;</kbd> or so that the vertical axis of <kbd>Left Analog</kbd> is ignored, still they might be useful here and there. For instance, having <kbd>Button 1</kbd> + <kbd>&uarr;</kbd> on <kbd>A</kbd> and <kbd>Button 1</kbd> + <kbd>&darr;</kbd> on <kbd>Y</kbd> makes the Amiga version of *Golden Axe* much more playable.
 
 #### Commodore 64 Mode
+
 <kbd>Button 2</kbd> on Commodore 64 usually behaves in the opposite way at the electrical level, with respect to the other buttons. So a tweak can be enabled to invert the behavior of the button, use it if you find that your game of choice always sees it pressed or if it triggers on release rather than on press.
 
 Just hold <kbd>Back</kbd> and press <kbd>Home</kbd> briefly. The player LED will flash once when this tweak is enabled and twice when it is disabled.
 
 ### Mouse Mode
+
 In all operating modes, <kbd>Right Analog</kbd> on the first connected controller emulates the movements of a mouse. Movement speed is somewhat proportional to how far the stick is moved.
 
 The left and right mouse buttons are mapped to <kbd>Left Thumb</kbd> and <kbd>Right Thumb</kbd> respectively.
 
 ### CD<sup>32</sup> Controller Mode
+
 When a game supports CD<sup>32</sup> joypads, MightyMiggy will automatically switch into this mode, which supports all the 7 buttons of the original CD<sup>32</sup> controller.
 
 By default, buttons are mapped as follows:
@@ -116,8 +126,6 @@ If you press <kbd>Back</kbd>, the 4 main buttons get "rotated":
 - <kbd>X</kbd>: Green
 
 Both the D-Pad and <kbd>Left Analog</kbd> always work as direction buttons.
-
-
 
 ## Getting MightyMiggy firmware
 

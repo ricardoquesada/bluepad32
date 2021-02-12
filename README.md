@@ -8,14 +8,15 @@ Modern Bluetooth gamepads, like the Xbox One and DS4, can connect to the ESP32.
 What you do with the ESP32, is up to you. But here are some examples:
 
 * Use gamepads to play games in the Commodore 64 ([Unijoysticle2][unijoysticle2])
-* Use it to play games in a FPGA console ([ULX3S][ulx3s])
-* Play games in [MatrixPortal M4][matrixportal] (or any AirLift board)
-* Control your LED lamp
-* Control your remote car
-* Add it to your own IoT/smart-home project
+* Or play games in Commodore Amiga ([Unijoysticle2 for the Amiga][amiga])
+* Or play games in [MatrixPortal M4][matrixportal] (or any AirLift board)
+* Or play games in a FPGA console ([ULX3S][ulx3s])
+* Or control your LED lamp
+* Or control your remote car
 * And so on
 
 [unijoysticle2]: https://retro.moe/unijoysticle2/
+[amiga]: https://gitlab.com/SukkoPera/unijoysticle2
 [ulx3s]: https://www.crowdsupply.com/radiona/ulx3s
 [matrixportal]: https://learn.adafruit.com/adafruit-matrixportal-m4
 
