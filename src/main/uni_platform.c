@@ -20,9 +20,9 @@ limitations under the License.
 
 #include "uni_debug.h"
 #include "uni_platform_airlift.h"
+#include "uni_platform_mightymiggy.h"
 #include "uni_platform_pc_debug.h"
 #include "uni_platform_unijoysticle.h"
-#include "uni_platform_mightymiggy.h"
 
 void uni_platform_init(int argc, const char** argv) {
   // Only one for the moment. Each vendor must create its own.
