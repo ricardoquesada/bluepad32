@@ -8,8 +8,11 @@ Contributors:
   - SukkoPera:
     - Improved Wii mappings
     - Added controller_subtype in hid_device
+    - Author of MightyMiggy platform
   - Cristiano Vaccarini (vcorp):
     - Added VID/PID entires for 8bitdo Zero 2 and TUTUO (a PS4 clone)
+  - Ryan C. Bedard:
+    - Fixes in documentation
 
 Many thanks to:
   - Esteban/PVM and many other PVMers: Dualshock4 and general testing
