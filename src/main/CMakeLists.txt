@@ -26,6 +26,7 @@ set(COMPONENT_SRCS "uni_bluetooth.c"
                    "uni_platform_airlift.c"
                    "uni_platform_pc_debug.c"
                    "uni_platform_unijoysticle.c"
+                   "uni_platform_mightymiggy.c"
                    )
 set(COMPONENT_ADD_INCLUDEDIRS ".")
 
