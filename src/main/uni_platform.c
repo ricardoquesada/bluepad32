@@ -22,6 +22,7 @@ limitations under the License.
 #include "uni_platform_airlift.h"
 #include "uni_platform_pc_debug.h"
 #include "uni_platform_unijoysticle.h"
+#include "uni_platform_mightymiggy.h"
 
 void uni_platform_init(int argc, const char** argv) {
   // Only one for the moment. Each vendor must create its own.
@@ -33,6 +34,8 @@ void uni_platform_init(int argc, const char** argv) {
   g_platform = uni_platform_pc_debug_create();
 #elif defined(UNI_PLATFORM_AIRLIFT)
   g_platform = uni_platform_airlift_create();
+#elif defined(UNI_PLATFORM_MIGHTYMIGGY)
+  g_platform = uni_platform_mightymiggy_create();
 #else
 #error "Platform not defined"
 #endif
