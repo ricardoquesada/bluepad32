@@ -90,15 +90,19 @@ static void ds4_send_output_report(uni_hid_device_t* d,
 static void ds4_set_rumble_off(btstack_timer_source_t* ts);
 
 void uni_hid_parser_ds4_setup(struct uni_hid_device_s* d) {
+  ds4_instance_t* ins = get_ds4_instance(d);
+  memset(ins, 0, sizeof(*ins));
+  ins->hid_device = d;  // Used by rumble callbacks
+
   // From Linux drivers/hid/hid-sony.c:
   // The default behavior of the DUALSHOCK 4 is to send reports using
   // report type 1 when running over Bluetooth. However, when feature
   // report 2 is requested during the controller initialization it starts
   // sending input reports in report 17.
 
-  ds4_instance_t* ins = get_ds4_instance(d);
-  memset(ins, 0, sizeof(*ins));
-  ins->hid_device = d;  // Used by rumble callbacks
+  // Enable stream mode
+  static uint8_t calibration_report[] = {0x43, 0x02};
+  uni_hid_device_send_ctrl_report(d, (uint8_t *) calibration_report, sizeof(calibration_report));
 
   // Also turns off blinking, LED and rumble.
   ds4_output_report_t out = {0};
