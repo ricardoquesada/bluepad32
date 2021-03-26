@@ -2433,11 +2433,13 @@ static bool seatInUse(uni_gamepad_seat_t seat) {
     }
   }
 
-  //~ // ... unless it is a mouse which should try with PORT A. Amiga/Atari ST
-  //use ~ // mice in PORT A. Undefined on the C64, but most apps use it in PORT
-  //A as ~ // well. ~ uint32_t mouse_cod = MASK_COD_MAJOR_PERIPHERAL |
-  //MASK_COD_MINOR_POINT_DEVICE; ~ if ((d->cod & mouse_cod) == mouse_cod) { ~
-  //wanted_seat = GAMEPAD_SEAT_A;
+  //~ ... unless it is a mouse which should try with PORT A. Amiga/Atari ST use
+  //~ mice in PORT A. Undefined on the C64, but most apps use it in PORT A as
+  //~ well.
+  //~ uint32_t mouse_cod = MASK_COD_MAJOR_PERIPHERAL |
+  //~                      MASK_COD_MINOR_POINT_DEVICE;
+  //~ if ((d->cod & mouse_cod) == mouse_cod) {
+  //~ wanted_seat = GAMEPAD_SEAT_A;
   //~ }
 
   return inUse;

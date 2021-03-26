@@ -13,6 +13,8 @@ Contributors:
     - Added VID/PID entires for 8bitdo Zero 2 and TUTUO (a PS4 clone)
   - Ryan C. Bedard:
     - Fixes in documentation
+  - Justus Ip:
+    - Explicitly require Stream mode to DS4 gamepads
 
 Many thanks to:
   - Esteban/PVM and many other PVMers: Dualshock4 and general testing

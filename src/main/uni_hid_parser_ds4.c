@@ -100,9 +100,14 @@ void uni_hid_parser_ds4_setup(struct uni_hid_device_s* d) {
   // report 2 is requested during the controller initialization it starts
   // sending input reports in report 17.
 
-  // Enable stream mode
-  static uint8_t calibration_report[] = {0x43, 0x02};
-  uni_hid_device_send_ctrl_report(d, (uint8_t *) calibration_report, sizeof(calibration_report));
+  // Enable stream mode. Some models, like the CUH-ZCT2G require to explicitly
+  // request stream mode.
+  static uint8_t calibration_report[] = {
+      0x43,  // Get report type
+      0x02   // Report to request
+  };
+  uni_hid_device_send_ctrl_report(d, (uint8_t*)calibration_report,
+                                  sizeof(calibration_report));
 
   // Also turns off blinking, LED and rumble.
   ds4_output_report_t out = {0};
@@ -215,7 +220,7 @@ void uni_hid_parser_ds4_set_rumble(uni_hid_device_t* d, uint8_t value,
   out.motor_left = value;
   ds4_send_output_report(d, &out);
 
-  // set timer to turn off rumble
+  // Set timer to turn off rumble
   ins->ts.process = &ds4_set_rumble_off;
   ins->rumble_in_progress = 1;
   int ms = duration * 4;  // duration: 256 ~= 1 second

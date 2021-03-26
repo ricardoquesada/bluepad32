@@ -7,11 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 
+- New platform: MightyMiggy, a new platform that targets Commodore Amiga
 - uni_hid_device: controller_subtype: populated by each "driver".
                   Sets in which "mode" or which attachment the driver has.
                   For the moment only used for Wii attachments.
 - device_vendors: VID/PID for 8bitdo Zero 2 and TUTUO (a PS4 clone)
-- New platform: MightyMiggy, a new platform that targets Commodore Amiga
+- ds4: explicitly require Stream mode at setup time.
 
 ## [2.0.0-beta2] - 2021-01-14
 ### Added
