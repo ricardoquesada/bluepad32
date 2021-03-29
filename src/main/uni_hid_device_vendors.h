@@ -191,6 +191,7 @@ static const uni_controller_description_t arrControllers[] = {
 	{ MAKE_CONTROLLER_ID( 0x0079, 0x0006 ), CONTROLLER_TYPE_UnknownNonSteamController, NULL },	// DragonRise Generic USB PCB, sometimes configured as a PC Twin Shock Controller - looks like a DS3 but the face buttons are 1-4 instead of symbols
 
 	{ MAKE_CONTROLLER_ID( 0x0079, 0x18d4 ), CONTROLLER_TYPE_XBox360Controller, NULL },	// GPD Win 2 X-Box Controller
+	{ MAKE_CONTROLLER_ID( 0x03eb, 0xff02 ), CONTROLLER_TYPE_XBox360Controller, NULL },	// Wooting Two
 	{ MAKE_CONTROLLER_ID( 0x044f, 0xb326 ), CONTROLLER_TYPE_XBox360Controller, NULL },	// Thrustmaster Gamepad GP XID
 	{ MAKE_CONTROLLER_ID( 0x045e, 0x028e ), CONTROLLER_TYPE_XBox360Controller, "Xbox 360 Controller" },	// Microsoft X-Box 360 pad
 	{ MAKE_CONTROLLER_ID( 0x045e, 0x028f ), CONTROLLER_TYPE_XBox360Controller, "Xbox 360 Controller" },	// Microsoft X-Box 360 pad v2
@@ -460,7 +461,6 @@ static const uni_controller_description_t arrControllers[] = {
 	{ MAKE_CONTROLLER_ID( 0x2f24, 0x91 ), CONTROLLER_TYPE_XBoxOneController, NULL },	// Unknown Controller
 	{ MAKE_CONTROLLER_ID( 0x1430, 0x719 ), CONTROLLER_TYPE_XBoxOneController, NULL },	// Unknown Controller
 	{ MAKE_CONTROLLER_ID( 0xf0d, 0xed ), CONTROLLER_TYPE_XBoxOneController, NULL },	// Unknown Controller
-	{ MAKE_CONTROLLER_ID( 0x3eb, 0xff02 ), CONTROLLER_TYPE_XBoxOneController, NULL },	// Unknown Controller
 	{ MAKE_CONTROLLER_ID( 0xf0d, 0xc0 ), CONTROLLER_TYPE_XBoxOneController, NULL },	// Unknown Controller
 	{ MAKE_CONTROLLER_ID( 0xe6f, 0x152 ), CONTROLLER_TYPE_XBoxOneController, NULL },	// Unknown Controller
 	{ MAKE_CONTROLLER_ID( 0xe6f, 0x2a7 ), CONTROLLER_TYPE_XBoxOneController, NULL },	// Unknown Controller
@@ -532,11 +532,9 @@ static const uni_controller_description_t arrControllers[] = {
 	{ MAKE_CONTROLLER_ID( 0x05ac, 0x0001 ), CONTROLLER_TYPE_AppleController, NULL },	// MFI Extended Gamepad (generic entry for iOS/tvOS)
 	{ MAKE_CONTROLLER_ID( 0x05ac, 0x0002 ), CONTROLLER_TYPE_AppleController, NULL },	// MFI Standard Gamepad (generic entry for iOS/tvOS)
 
-    // We currently don't support using a pair of Switch Joy-Con's as a single
-    // controller and we don't want to support using them individually for the
-    // time being, so these should be disabled until one of the above is true
-    // { MAKE_CONTROLLER_ID( 0x057e, 0x2006 ), CONTROLLER_TYPE_SwitchJoyConLeft, NULL },    // Nintendo Switch Joy-Con (Left)
-    // { MAKE_CONTROLLER_ID( 0x057e, 0x2007 ), CONTROLLER_TYPE_SwitchJoyConRight, NULL },   // Nintendo Switch Joy-Con (Right)
+    // We now support Joy-Cons if SDL_HINT_JOYSTICK_HIDAPI_JOY_CONS is set to "1", but they won't be combined into one controller.
+    { MAKE_CONTROLLER_ID( 0x057e, 0x2006 ), CONTROLLER_TYPE_SwitchJoyConLeft, NULL },    // Nintendo Switch Joy-Con (Left)
+    { MAKE_CONTROLLER_ID( 0x057e, 0x2007 ), CONTROLLER_TYPE_SwitchJoyConRight, NULL },   // Nintendo Switch Joy-Con (Right)
 
     // This same controller ID is spoofed by many 3rd-party Switch controllers.
     // The ones we currently know of are:
@@ -564,7 +562,7 @@ static const uni_controller_description_t arrControllers[] = {
 	{ MAKE_CONTROLLER_ID( 0x0e6f, 0x0184 ), CONTROLLER_TYPE_SwitchInputOnlyController, NULL },  // PDP Faceoff Wired Deluxe+ Audio Controller
 	{ MAKE_CONTROLLER_ID( 0x0f0d, 0x00aa ), CONTROLLER_TYPE_SwitchInputOnlyController, NULL },  // HORI Real Arcade Pro V Hayabusa in Switch Mode
 	{ MAKE_CONTROLLER_ID( 0x0e6f, 0x0188 ), CONTROLLER_TYPE_SwitchInputOnlyController, NULL },  // PDP Afterglow Wired Deluxe+ Audio Controller
-	{ MAKE_CONTROLLER_ID( 0x0e6f, 0x0187 ), CONTROLLER_TYPE_SwitchInputOnlyController, NULL },  // PDP Rockcandy Wirec Controller
+	{ MAKE_CONTROLLER_ID( 0x0e6f, 0x0187 ), CONTROLLER_TYPE_SwitchInputOnlyController, NULL },  // PDP Rockcandy Wired Controller
 
 	// Valve products - don't add to public list
 	{ MAKE_CONTROLLER_ID( 0x0000, 0x11fb ), CONTROLLER_TYPE_MobileTouch, NULL },	// Streaming mobile touch virtual controls
