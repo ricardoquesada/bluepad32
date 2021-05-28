@@ -206,7 +206,7 @@ int main(int argc, const char *argv[]) {
     hci_transport_usb_set_path(usb_path_len, usb_path);
   }
 
-    // log into file using HCI_DUMP_PACKETLOGGER format
+  // log into file using HCI_DUMP_PACKETLOGGER format
   char pklg_path[100];
   strcpy(pklg_path, "/tmp/hci_dump");
   if (usb_path_len) {
@@ -215,12 +215,12 @@ int main(int argc, const char *argv[]) {
   }
   strcat(pklg_path, ".pklg");
   hci_dump_posix_fs_open(pklg_path, HCI_DUMP_PACKETLOGGER);
-  const hci_dump_t * hci_dump_impl = hci_dump_posix_fs_get_instance();
+  const hci_dump_t *hci_dump_impl = hci_dump_posix_fs_get_instance();
   hci_dump_init(hci_dump_impl);
   printf("Packet Log: %s\n", pklg_path);
 
   // init HCI
-	hci_init(hci_transport_usb_instance(), NULL);
+  hci_init(hci_transport_usb_instance(), NULL);
 
 #ifdef HAVE_PORTAUDIO
   btstack_audio_sink_set_instance(btstack_audio_portaudio_sink_get_instance());

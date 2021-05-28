@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Using esp-idf v4.2
 - Using bstack "develop" branch
 
+### Fixed
+- Improved Android gamepad support, including support for SteelSeries Stratus Duo
+
 ## [2.0.0] - 2021-05-23
 ### Changed
 - No changes. Just renamed v2.0.0-rc0 to v2.0.0

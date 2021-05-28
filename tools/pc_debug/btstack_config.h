@@ -23,7 +23,7 @@
 #define ENABLE_LE_DATA_LENGTH_EXTENSION
 #define ENABLE_ATT_DELAYED_RESPONSE
 #define ENABLE_LOG_ERROR
-#define ENABLE_LOG_INFO 
+#define ENABLE_LOG_INFO
 #define ENABLE_SCO_OVER_HCI
 #define ENABLE_SDP_DES_DUMP
 #define ENABLE_L2CAP_ENHANCED_RETRANSMISSION_MODE
@@ -31,10 +31,10 @@
 
 // BTstack configuration. buffers, sizes, ...
 #define HCI_ACL_PAYLOAD_SIZE (1691 + 4)
-#define HCI_INCOMING_PRE_BUFFER_SIZE 14 // sizeof BNEP header, avoid memcpy
+#define HCI_INCOMING_PRE_BUFFER_SIZE 14  // sizeof BNEP header, avoid memcpy
 
-#define NVM_NUM_LINK_KEYS              16
-#define NVM_NUM_DEVICE_DB_ENTRIES      16
+#define NVM_NUM_LINK_KEYS 16
+#define NVM_NUM_DEVICE_DB_ENTRIES 16
 
 // Mesh Configuration
 #define ENABLE_MESH
@@ -45,12 +45,11 @@
 #define ENABLE_MESH_PROXY_SERVER
 #define ENABLE_MESH_PROVISIONER
 
-#define MAX_NR_MESH_TRANSPORT_KEYS    16
+#define MAX_NR_MESH_TRANSPORT_KEYS 16
 #define MAX_NR_MESH_VIRTUAL_ADDRESSES 16
-#define MAX_NR_MESH_SUBNETS            2
+#define MAX_NR_MESH_SUBNETS 2
 
 // allow for one NetKey update
-#define MAX_NR_MESH_NETWORK_KEYS      (MAX_NR_MESH_SUBNETS+1)
+#define MAX_NR_MESH_NETWORK_KEYS (MAX_NR_MESH_SUBNETS + 1)
 
 #endif
-

@@ -605,12 +605,12 @@ static const uni_controller_description_t arrControllers[] = {
 	// Generic gamepad
 	{ MAKE_CONTROLLER_ID(0x0a5c, 0x4502), CONTROLLER_TYPE_GenericController, NULL},  // White-label mini gamepad received as gift in conference
 
-	// SteelSeries Nimbus
+	// SteelSeries
 	{ MAKE_CONTROLLER_ID(0x0111, 0x1420), CONTROLLER_TYPE_NimbusController, NULL},  // SteelSeries Nimbus
+	{ MAKE_CONTROLLER_ID(0x0111, 0x1431), CONTROLLER_TYPE_AndroidController, NULL}, // SteelSeries Stratus Duo (Bluetooth)
 
-	// Nintendo Wii U Pro
+	// Nintendo
 	{ MAKE_CONTROLLER_ID(0x057e, 0x0330), CONTROLLER_TYPE_WiiController, NULL},  // Nintendo Wii U Pro
-	// Nintendo Wii Remote
 	{ MAKE_CONTROLLER_ID(0x057e, 0x0306), CONTROLLER_TYPE_WiiController, NULL},  // Nintendo Wii Remote
 
 	// PS4
