@@ -39,10 +39,10 @@ limitations under the License.
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
 
-// Support for Nintendo Switch Pro gamepad.
+// Support for Nintendo Switch Pro gamepad and JoyCons.
 
-static const uint16_t SWITCH_VID = 0x057e;
-static const uint16_t SWITCH_PID = 0x2009;
+static const uint16_t SWITCH_VID = 0x057e;  // Nintendo
+static const uint16_t SWITCH_PID = 0x2009;  // Switch Pro Controller
 static const uint8_t SWITCH_HID_DESCRIPTOR[] = {
     0x05, 0x01, 0x09, 0x05, 0xA1, 0x01, 0x06, 0x01, 0xFF, 0x85, 0x21, 0x09,
     0x21, 0x75, 0x08, 0x95, 0x30, 0x81, 0x02, 0x85, 0x30, 0x09, 0x30, 0x75,
@@ -103,7 +103,7 @@ enum switch_proto_reqs {
 enum switch_controller_types {
   SWITCH_CONTROLLER_TYPE_JCL = 0x01,  // Joy-con left
   SWITCH_CONTROLLER_TYPE_JCR = 0x02,  // Joy-con right
-  SWITCH_CONTROLLER_TYPE_PRO = 0x03,  // Gamepad Pro
+  SWITCH_CONTROLLER_TYPE_PRO = 0x03,  // Pro Controller
 };
 
 enum {
@@ -133,11 +133,11 @@ typedef struct switch_instance_s {
   uni_hid_device_t* hid_device;
   bool rumble_in_progress;
 
-  uint8_t state;
-  uint8_t mode;
-  uint8_t firmware_hi;
-  uint8_t firmware_lo;
-  uint8_t controller_type;
+  enum switch_state state;
+  enum switch_flags mode;
+  uint8_t firmware_version_hi;
+  uint8_t firmware_version_lo;
+  enum switch_controller_types controller_type;
   uni_gamepad_seat_t gamepad_seat;
 
   // Factory calibration info
@@ -325,6 +325,12 @@ static const struct switch_rumble_amp_data rumble_amps[] = {
     {0xc6, 0x8071, 981}, {0xc8, 0x0072, 1003}};
 #define TOTAL_RUMBLE_AMPS (sizeof(rumble_amps) / sizeof(rumble_amps[0]))
 
+static void process_30_joycon_left(uni_hid_device_t* d,
+                                   const struct switch_report_30_s* r);
+static void process_30_joycon_right(uni_hid_device_t* d,
+                                    const struct switch_report_30_s* r);
+static void process_30_pro_controller(uni_hid_device_t* d,
+                                      const struct switch_report_30_s* r);
 static void process_input_subcmd_reply(struct uni_hid_device_s* d,
                                        const uint8_t* report, int len);
 static void process_input_imu_data(struct uni_hid_device_s* d,
@@ -400,11 +406,30 @@ void uni_hid_parser_switch_setup(struct uni_hid_device_s* d) {
 }
 
 void uni_hid_parser_switch_init_report(uni_hid_device_t* d) {
-  // Reset old state. Each report contains a full-state.
-  d->gamepad.updated_states = 0;
-  d->gamepad.dpad = 0;
-  d->gamepad.buttons = 0;
-  d->gamepad.misc_buttons = 0;
+  uni_gamepad_t* gp = &d->gamepad;
+  memset(gp, 0, sizeof(*gp));
+
+  // It is safe to set the reported states just once, here.
+
+  // Common to JoyCons and Pro Controller.
+  gp->updated_states = GAMEPAD_STATE_AXIS_X | GAMEPAD_STATE_AXIS_Y;
+  gp->updated_states |= GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y |
+                        GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B;
+  gp->updated_states |=
+      GAMEPAD_STATE_BUTTON_TRIGGER_L | GAMEPAD_STATE_BUTTON_TRIGGER_R |
+      GAMEPAD_STATE_BUTTON_SHOULDER_L | GAMEPAD_STATE_BUTTON_SHOULDER_R;
+  gp->updated_states |= GAMEPAD_STATE_BUTTON_THUMB_L |
+                        GAMEPAD_STATE_MISC_BUTTON_BACK |
+                        GAMEPAD_STATE_MISC_BUTTON_HOME;
+
+  // Only valid for Pro Controller.
+  switch_instance_t* ins = get_switch_instance(d);
+  if (ins->controller_type == SWITCH_CONTROLLER_TYPE_PRO) {
+    gp->updated_states |= GAMEPAD_STATE_AXIS_RX | GAMEPAD_STATE_AXIS_RY;
+    gp->updated_states |= GAMEPAD_STATE_DPAD;
+    gp->updated_states |=
+        GAMEPAD_STATE_BUTTON_THUMB_R | GAMEPAD_STATE_MISC_BUTTON_SYSTEM;
+  }
 }
 
 void uni_hid_parser_switch_parse_raw(struct uni_hid_device_s* d,
@@ -564,6 +589,7 @@ static void process_reply_req_dev_info(struct uni_hid_device_s* d,
   UNUSED(len);
   switch_instance_t* ins = get_switch_instance(d);
   if (ins->state > STATE_SETUP && ins->mode == SWITCH_MODE_NONE) {
+    // FIXME: Accel should always be reported.
     // Button "A" must be pressed in orther to enable IMU.
     uint8_t enable_imu = !!(r->status.buttons_right & 0x08);
     if (enable_imu) {
@@ -572,8 +598,8 @@ static void process_reply_req_dev_info(struct uni_hid_device_s* d,
       ins->mode = SWITCH_MODE_NORMAL;
     }
   }
-  ins->firmware_hi = r->data[0];
-  ins->firmware_lo = r->data[1];
+  ins->firmware_version_hi = r->data[0];
+  ins->firmware_version_lo = r->data[1];
   ins->controller_type = r->data[2];
   logi("Switch: Firmware version: %d.%d. Controller type=%d\n", r->data[0],
        r->data[1], r->data[2]);
@@ -687,10 +713,29 @@ static void process_input_imu_data(struct uni_hid_device_s* d,
   // 9A FF
 
   UNUSED(len);
-  uni_gamepad_t* gp = &d->gamepad;
   const struct switch_report_30_s* r =
       (const struct switch_report_30_s*)&report[3];
 
+  switch_instance_t* ins = get_switch_instance(d);
+  switch (ins->controller_type) {
+    case SWITCH_CONTROLLER_TYPE_JCL:
+      process_30_joycon_left(d, r);
+      break;
+    case SWITCH_CONTROLLER_TYPE_JCR:
+      process_30_joycon_right(d, r);
+      break;
+    case SWITCH_CONTROLLER_TYPE_PRO:
+      process_30_pro_controller(d, r);
+      break;
+    default:
+      loge("Switch: Invalid controller_type: 0x%04x\n", ins->controller_type);
+      break;
+  }
+}
+
+static void process_30_pro_controller(uni_hid_device_t* d,
+                                      const struct switch_report_30_s* r) {
+  uni_gamepad_t* gp = &d->gamepad;
   // Buttons "right"
   gp->buttons |= (r->buttons_right & 0b00000001) ? BUTTON_X : 0;           // Y
   gp->buttons |= (r->buttons_right & 0b00000010) ? BUTTON_Y : 0;           // X
@@ -698,10 +743,6 @@ static void process_input_imu_data(struct uni_hid_device_s* d,
   gp->buttons |= (r->buttons_right & 0b00001000) ? BUTTON_B : 0;           // A
   gp->buttons |= (r->buttons_right & 0b01000000) ? BUTTON_SHOULDER_R : 0;  // R
   gp->buttons |= (r->buttons_right & 0b10000000) ? BUTTON_TRIGGER_R : 0;   // ZR
-  gp->updated_states |= GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B |
-                        GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y |
-                        GAMEPAD_STATE_BUTTON_SHOULDER_R |
-                        GAMEPAD_STATE_BUTTON_TRIGGER_R;
 
   // Buttons "misc" + thumbs
   gp->misc_buttons |=
@@ -711,15 +752,10 @@ static void process_input_imu_data(struct uni_hid_device_s* d,
       (r->buttons_misc & 0b00010000) ? MISC_BUTTON_SYSTEM : 0;  // Home
   gp->misc_buttons |=
       (r->buttons_misc & 0b00100000) ? MISC_BUTTON_HOME : 0;  // Circle
-  gp->updated_states |= GAMEPAD_STATE_MISC_BUTTON_HOME |
-                        GAMEPAD_STATE_MISC_BUTTON_SYSTEM |
-                        GAMEPAD_STATE_MISC_BUTTON_BACK;
   gp->buttons |=
       (r->buttons_misc & 0b00000100) ? BUTTON_THUMB_R : 0;  // Thumb R
   gp->buttons |=
       (r->buttons_misc & 0b00001000) ? BUTTON_THUMB_L : 0;  // Thumb L
-  gp->updated_states |=
-      GAMEPAD_STATE_BUTTON_THUMB_L | GAMEPAD_STATE_BUTTON_THUMB_R;
 
   // Buttons "left"
   gp->dpad |= (r->buttons_left & 0b00000001) ? DPAD_DOWN : 0;
@@ -728,8 +764,6 @@ static void process_input_imu_data(struct uni_hid_device_s* d,
   gp->dpad |= (r->buttons_left & 0b00001000) ? DPAD_LEFT : 0;
   gp->buttons |= (r->buttons_left & 0b01000000) ? BUTTON_SHOULDER_L : 0;  // L
   gp->buttons |= (r->buttons_left & 0b10000000) ? BUTTON_TRIGGER_L : 0;   // ZL
-  gp->updated_states |= GAMEPAD_STATE_DPAD | GAMEPAD_STATE_BUTTON_SHOULDER_L |
-                        GAMEPAD_STATE_BUTTON_TRIGGER_L;
 
   switch_instance_t* ins = get_switch_instance(d);
   // Stick left
@@ -744,9 +778,73 @@ static void process_input_imu_data(struct uni_hid_device_s* d,
   int16_t ry = (r->stick_right[1] >> 4) | (r->stick_right[2] << 4);
   gp->axis_ry = -calibrate_axis(ry, ins->cal_ry);
   logd("uncalibrated values: x=%d,y=%d,rx=%d,ry=%d\n", lx, ly, rx, ry);
+}
 
-  gp->updated_states |= GAMEPAD_STATE_AXIS_X | GAMEPAD_STATE_AXIS_Y |
-                        GAMEPAD_STATE_AXIS_RX | GAMEPAD_STATE_AXIS_RY;
+static void process_30_joycon_left(uni_hid_device_t* d,
+                                   const struct switch_report_30_s* r) {
+  // JoyCons are treated as standalone controllers. So the buttons/axis are
+  // "rotated".
+  // printf_hexdump(r, sizeof(*r));
+  uni_gamepad_t* gp = &d->gamepad;
+  switch_instance_t* ins = get_switch_instance(d);
+
+  // Axis (left and only stick)
+  int16_t lx = r->stick_left[0] | ((r->stick_left[1] & 0x0f) << 8);
+  gp->axis_y = -calibrate_axis(lx, ins->cal_x);
+  int16_t ly = (r->stick_left[1] >> 4) | (r->stick_left[2] << 4);
+  gp->axis_x = -calibrate_axis(ly, ins->cal_y);
+
+  // Buttons
+  gp->buttons |= (r->buttons_left & 0b00000001) ? BUTTON_B : 0;
+  gp->buttons |= (r->buttons_left & 0b00000010) ? BUTTON_X : 0;
+  gp->buttons |= (r->buttons_left & 0b00000100) ? BUTTON_Y : 0;
+  gp->buttons |= (r->buttons_left & 0b00001000) ? BUTTON_A : 0;
+  gp->buttons |= (r->buttons_left & 0b00010000) ? BUTTON_SHOULDER_R : 0;
+  gp->buttons |= (r->buttons_left & 0b00100000) ? BUTTON_SHOULDER_L : 0;
+  gp->buttons |=
+      (r->buttons_left & 0b01000000) ? BUTTON_TRIGGER_L : 0;  // "L" button
+  gp->buttons |=
+      (r->buttons_left & 0b10000000) ? BUTTON_TRIGGER_R : 0;  // "ZL" button
+  gp->buttons |= (r->buttons_misc & 0b00001000) ? BUTTON_THUMB_L : 0;
+
+  // Misc cbuttons
+  gp->misc_buttons |=
+      (r->buttons_misc & 0b00000001) ? MISC_BUTTON_BACK : 0;  // "-" button
+  gp->misc_buttons |=
+      (r->buttons_misc & 0b00100000) ? MISC_BUTTON_HOME : 0;  // "Square" button
+}
+
+static void process_30_joycon_right(uni_hid_device_t* d,
+                                    const struct switch_report_30_s* r) {
+  // printf_hexdump(r, sizeof(*r));
+
+  uni_gamepad_t* gp = &d->gamepad;
+  switch_instance_t* ins = get_switch_instance(d);
+
+  // Axis (left and only stick)
+  int16_t rx = r->stick_right[0] | ((r->stick_right[1] & 0x0f) << 8);
+  gp->axis_y = calibrate_axis(rx, ins->cal_rx);
+  int16_t ry = (r->stick_right[1] >> 4) | (r->stick_right[2] << 4);
+  gp->axis_x = calibrate_axis(ry, ins->cal_ry);
+
+  // Buttons
+  gp->buttons |= (r->buttons_right & 0b00000001) ? BUTTON_Y : 0;
+  gp->buttons |= (r->buttons_right & 0b00000010) ? BUTTON_B : 0;
+  gp->buttons |= (r->buttons_right & 0b00000100) ? BUTTON_X : 0;
+  gp->buttons |= (r->buttons_right & 0b00001000) ? BUTTON_A : 0;
+  gp->buttons |= (r->buttons_right & 0b00010000) ? BUTTON_SHOULDER_R : 0;
+  gp->buttons |= (r->buttons_right & 0b00100000) ? BUTTON_SHOULDER_L : 0;
+  gp->buttons |=
+      (r->buttons_right & 0b01000000) ? BUTTON_TRIGGER_L : 0;  // "R" button
+  gp->buttons |=
+      (r->buttons_right & 0b10000000) ? BUTTON_TRIGGER_R : 0;  // "ZR" button
+  gp->buttons |= (r->buttons_misc & 0b00000100) ? BUTTON_THUMB_L : 0;
+
+  // Misc cbuttons
+  gp->misc_buttons |=
+      (r->buttons_misc & 0b00000010) ? MISC_BUTTON_HOME : 0;  // "+" button
+  gp->misc_buttons |=
+      (r->buttons_misc & 0b00010000) ? MISC_BUTTON_BACK : 0;  // "Home" button
 }
 
 // Process 0x3f input report: SWITCH_INPUT_BUTTON_EVENT
@@ -768,11 +866,6 @@ static void process_input_button_event(struct uni_hid_device_s* d,
   gp->buttons |= (r->buttons_main & 0b00100000) ? BUTTON_SHOULDER_R : 0;  // R
   gp->buttons |= (r->buttons_main & 0b01000000) ? BUTTON_TRIGGER_L : 0;   // ZL
   gp->buttons |= (r->buttons_main & 0b10000000) ? BUTTON_TRIGGER_R : 0;   // ZR
-  gp->updated_states |=
-      GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B | GAMEPAD_STATE_BUTTON_X |
-      GAMEPAD_STATE_BUTTON_Y | GAMEPAD_STATE_BUTTON_SHOULDER_L |
-      GAMEPAD_STATE_BUTTON_SHOULDER_R | GAMEPAD_STATE_BUTTON_TRIGGER_L |
-      GAMEPAD_STATE_BUTTON_TRIGGER_R;
 
   // Button aux
   gp->misc_buttons |=
@@ -784,15 +877,9 @@ static void process_input_button_event(struct uni_hid_device_s* d,
       (r->buttons_aux & 0b00010000) ? MISC_BUTTON_SYSTEM : 0;  // Home
   gp->misc_buttons |=
       (r->buttons_aux & 0b00100000) ? MISC_BUTTON_HOME : 0;  // Circle
-  gp->updated_states |= GAMEPAD_STATE_MISC_BUTTON_HOME |
-                        GAMEPAD_STATE_MISC_BUTTON_SYSTEM |
-                        GAMEPAD_STATE_MISC_BUTTON_BACK;
-  gp->updated_states |=
-      GAMEPAD_STATE_BUTTON_THUMB_L | GAMEPAD_STATE_BUTTON_THUMB_R;
 
   // Dpad
   gp->dpad = uni_hid_parser_hat_to_dpad(r->hat);
-  gp->updated_states |= GAMEPAD_STATE_DPAD;
 
   // Axis
   gp->axis_x = ((r->x_msb << 8) | r->x_lsb) * AXIS_NORMALIZE_RANGE / 65536 -
@@ -803,8 +890,6 @@ static void process_input_button_event(struct uni_hid_device_s* d,
                 AXIS_NORMALIZE_RANGE / 2;
   gp->axis_ry = ((r->ry_msb << 8) | r->ry_lsb) * AXIS_NORMALIZE_RANGE / 65536 -
                 AXIS_NORMALIZE_RANGE / 2;
-  gp->updated_states |= GAMEPAD_STATE_AXIS_X | GAMEPAD_STATE_AXIS_Y |
-                        GAMEPAD_STATE_AXIS_RX | GAMEPAD_STATE_AXIS_RY;
 }
 
 static void fsm_dump_rom(struct uni_hid_device_s* d) {
@@ -916,6 +1001,12 @@ static void fsm_enable_imu(struct uni_hid_device_s* d) {
 static void fsm_set_home_light(struct uni_hid_device_s* d) {
   switch_instance_t* ins = get_switch_instance(d);
   ins->state = STATE_SET_HOME_LIGHT;
+
+  // Don't set Home Light on JoyCons. It looks strange.
+  if (ins->controller_type != SWITCH_CONTROLLER_TYPE_PRO) {
+    process_fsm(d);
+    return;
+  }
 
   uint8_t out[sizeof(struct switch_subcmd_request) + 3] = {0};
   struct switch_subcmd_request* req = (struct switch_subcmd_request*)&out[0];

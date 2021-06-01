@@ -5,15 +5,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased] -
+### Added
+
+- Nintendo JoyCon support: Both Left and Right JoyCons are supported.
+      Each one is its own controller. Should be used in Horizontal position.
+
 ### Changed
+
 - Using esp-idf v4.2
 - Using bstack "develop" branch
 
 ### Fixed
+
 - Improved Android gamepad support, including support for SteelSeries Stratus Duo
 
 ## [2.0.0] - 2021-05-23
 ### Changed
+
 - No changes. Just renamed v2.0.0-rc0 to v2.0.0
 
 ## [2.0.0-rc0] - 2021-04-09
