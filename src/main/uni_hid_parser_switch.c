@@ -784,7 +784,6 @@ static void process_30_joycon_left(uni_hid_device_t* d,
                                    const struct switch_report_30_s* r) {
   // JoyCons are treated as standalone controllers. So the buttons/axis are
   // "rotated".
-  // printf_hexdump(r, sizeof(*r));
   uni_gamepad_t* gp = &d->gamepad;
   switch_instance_t* ins = get_switch_instance(d);
 
@@ -816,8 +815,8 @@ static void process_30_joycon_left(uni_hid_device_t* d,
 
 static void process_30_joycon_right(uni_hid_device_t* d,
                                     const struct switch_report_30_s* r) {
-  // printf_hexdump(r, sizeof(*r));
-
+  // JoyCons are treated as standalone controllers. So the buttons/axis are
+  // "rotated".
   uni_gamepad_t* gp = &d->gamepad;
   switch_instance_t* ins = get_switch_instance(d);
 

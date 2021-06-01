@@ -13,6 +13,7 @@ List of supported Bluetooth Classic controller
 - DUALSHOCK 4 (PS4) controller, both 2013 and 2016 editions
 - DUALSHOCK 3 (PS3) controller
 - Nintendo Switch Pro controller and clones
+- Nintendo Switch JoyCons
 - Nintendo Wii U Pro controller
 - Nintendo Wii Remote and Remote Motion Plus, including Nunchuk and Classic Controller
 - 8BitDo controllers
@@ -181,6 +182,19 @@ Clones and "licensed by Nintendo" controllers should also work supported Ok.
 
 [switch_pro]: https://en.wikipedia.org/wiki/Nintendo_Switch_Pro_Controller
 [switch_pro_img]: https://lh3.googleusercontent.com/33hrGYM117T9pPrW0L-wr7bl0trLXooqmp4I78XV9vWkumHE8mK8Z_5KJZFzWKNpJg31gvrxHC0agF5BUgVr2f6awNYb98R-xPIWaawG6b0XwxHzm8hzz39Wnnv6qLmeEXsRaeoybsA=-no
+
+## Nintendo Switch JoyCon
+
+[![Switch JoyCon][switch_joycon_img]][switch_joycon]
+
+Both Left and Right JoyCon are supported.
+
+- LEDs: supported
+- They must be used in "horizontal" mode.
+- Each JoyCon represents one gamepad. Cannot be used as a single/combined gamepad.
+
+[switch_joycon]: https://en.wikipedia.org/wiki/Joy-Con
+[switch_joycon_img]: https://lh3.googleusercontent.com/pw/ACtC-3cN7JVNm3SvOM3IeKiAg4Ex03Dg7yxozBRNNV95Ycr_0J1eHF03_oDz8ydwpTZCFcPPfFuSzroK4UQ-3KcM0Y2XKew8deuYTqu_q5Q0nEEjA_KTQJCioVRU0IEbBGXHqy2ybtTP7EXp3p-7_RfjYK7Wjg=w360-no
 
 ## Android
 
