@@ -325,17 +325,17 @@ static const struct switch_rumble_amp_data rumble_amps[] = {
     {0xc6, 0x8071, 981}, {0xc8, 0x0072, 1003}};
 #define TOTAL_RUMBLE_AMPS (sizeof(rumble_amps) / sizeof(rumble_amps[0]))
 
-static void process_30_joycon_left(uni_hid_device_t* d,
-                                   const struct switch_report_30_s* r);
-static void process_30_joycon_right(uni_hid_device_t* d,
-                                    const struct switch_report_30_s* r);
-static void process_30_pro_controller(uni_hid_device_t* d,
-                                      const struct switch_report_30_s* r);
+static void parse_report_30(struct uni_hid_device_s* d, const uint8_t* report,
+                            int len);
+static void parse_report_30_joycon_left(uni_hid_device_t* d,
+                                        const struct switch_report_30_s* r);
+static void parse_report_30_joycon_right(uni_hid_device_t* d,
+                                         const struct switch_report_30_s* r);
+static void parse_report_30_pro_controller(uni_hid_device_t* d,
+                                           const struct switch_report_30_s* r);
+static void parse_report_3f(struct uni_hid_device_s* d, const uint8_t* report,
+                            int len);
 static void process_input_subcmd_reply(struct uni_hid_device_s* d,
-                                       const uint8_t* report, int len);
-static void process_input_imu_data(struct uni_hid_device_s* d,
-                                   const uint8_t* report, int len);
-static void process_input_button_event(struct uni_hid_device_s* d,
                                        const uint8_t* report, int len);
 static switch_instance_t* get_switch_instance(uni_hid_device_t* d);
 static void send_subcmd(uni_hid_device_t* d, struct switch_subcmd_request* r,
@@ -443,10 +443,10 @@ void uni_hid_parser_switch_parse_raw(struct uni_hid_device_s* d,
       process_input_subcmd_reply(d, report, len);
       break;
     case SWITCH_INPUT_IMU_DATA:
-      process_input_imu_data(d, report, len);
+      parse_report_30(d, report, len);
       break;
     case SWITCH_INPUT_BUTTON_EVENT:
-      process_input_button_event(d, report, len);
+      parse_report_3f(d, report, len);
       break;
     default:
       loge("Nintendo Switch: unsupported report id: 0x%02x\n", report[0]);
@@ -705,8 +705,8 @@ static void process_input_subcmd_reply(struct uni_hid_device_s* d,
 }
 
 // Process 0x30 input report: SWITCH_INPUT_IMU_DATA
-static void process_input_imu_data(struct uni_hid_device_s* d,
-                                   const uint8_t* report, int len) {
+static void parse_report_30(struct uni_hid_device_s* d, const uint8_t* report,
+                            int len) {
   // Expecting something like:
   // (a1) 30 44 60 00 00 00 FD 87 7B 0E B8 70 00 6C FD FC FF 78 10 35 00 C1 FF
   // 9D FF 72 FD 01 00 72 10 35 00 C1 FF 9B FF 75 FD FF FF 6C 10 34 00 C2 FF
@@ -719,13 +719,13 @@ static void process_input_imu_data(struct uni_hid_device_s* d,
   switch_instance_t* ins = get_switch_instance(d);
   switch (ins->controller_type) {
     case SWITCH_CONTROLLER_TYPE_JCL:
-      process_30_joycon_left(d, r);
+      parse_report_30_joycon_left(d, r);
       break;
     case SWITCH_CONTROLLER_TYPE_JCR:
-      process_30_joycon_right(d, r);
+      parse_report_30_joycon_right(d, r);
       break;
     case SWITCH_CONTROLLER_TYPE_PRO:
-      process_30_pro_controller(d, r);
+      parse_report_30_pro_controller(d, r);
       break;
     default:
       loge("Switch: Invalid controller_type: 0x%04x\n", ins->controller_type);
@@ -733,8 +733,8 @@ static void process_input_imu_data(struct uni_hid_device_s* d,
   }
 }
 
-static void process_30_pro_controller(uni_hid_device_t* d,
-                                      const struct switch_report_30_s* r) {
+static void parse_report_30_pro_controller(uni_hid_device_t* d,
+                                           const struct switch_report_30_s* r) {
   uni_gamepad_t* gp = &d->gamepad;
   // Buttons "right"
   gp->buttons |= (r->buttons_right & 0b00000001) ? BUTTON_X : 0;           // Y
@@ -746,12 +746,13 @@ static void process_30_pro_controller(uni_hid_device_t* d,
 
   // Buttons "misc" + thumbs
   gp->misc_buttons |=
-      (r->buttons_misc & 0b00000001) ? MISC_BUTTON_BACK : 0;   // -
-  gp->misc_buttons |= (r->buttons_misc & 0b00000010) ? 0 : 0;  // + (unused)
+      (r->buttons_misc & 0b00000001) ? MISC_BUTTON_BACK : 0;  // -
+  gp->misc_buttons |=
+      (r->buttons_misc & 0b00000010) ? MISC_BUTTON_HOME : 0;  // +
   gp->misc_buttons |=
       (r->buttons_misc & 0b00010000) ? MISC_BUTTON_SYSTEM : 0;  // Home
   gp->misc_buttons |=
-      (r->buttons_misc & 0b00100000) ? MISC_BUTTON_HOME : 0;  // Circle
+      (r->buttons_misc & 0b00100000) ? 0 : 0;  // Capture (unused)
   gp->buttons |=
       (r->buttons_misc & 0b00000100) ? BUTTON_THUMB_R : 0;  // Thumb R
   gp->buttons |=
@@ -780,8 +781,8 @@ static void process_30_pro_controller(uni_hid_device_t* d,
   logd("uncalibrated values: x=%d,y=%d,rx=%d,ry=%d\n", lx, ly, rx, ry);
 }
 
-static void process_30_joycon_left(uni_hid_device_t* d,
-                                   const struct switch_report_30_s* r) {
+static void parse_report_30_joycon_left(uni_hid_device_t* d,
+                                        const struct switch_report_30_s* r) {
   // JoyCons are treated as standalone controllers. So the buttons/axis are
   // "rotated".
   uni_gamepad_t* gp = &d->gamepad;
@@ -798,23 +799,21 @@ static void process_30_joycon_left(uni_hid_device_t* d,
   gp->buttons |= (r->buttons_left & 0b00000010) ? BUTTON_X : 0;
   gp->buttons |= (r->buttons_left & 0b00000100) ? BUTTON_Y : 0;
   gp->buttons |= (r->buttons_left & 0b00001000) ? BUTTON_A : 0;
-  gp->buttons |= (r->buttons_left & 0b00010000) ? BUTTON_SHOULDER_R : 0;
-  gp->buttons |= (r->buttons_left & 0b00100000) ? BUTTON_SHOULDER_L : 0;
-  gp->buttons |=
-      (r->buttons_left & 0b01000000) ? BUTTON_TRIGGER_L : 0;  // "L" button
-  gp->buttons |=
-      (r->buttons_left & 0b10000000) ? BUTTON_TRIGGER_R : 0;  // "ZL" button
+  gp->buttons |= (r->buttons_left & 0b00010000) ? BUTTON_SHOULDER_R : 0;  // SR
+  gp->buttons |= (r->buttons_left & 0b00100000) ? BUTTON_SHOULDER_L : 0;  // SL
+  gp->buttons |= (r->buttons_left & 0b01000000) ? BUTTON_TRIGGER_L : 0;   // L
+  gp->buttons |= (r->buttons_left & 0b10000000) ? BUTTON_TRIGGER_R : 0;   // ZL
   gp->buttons |= (r->buttons_misc & 0b00001000) ? BUTTON_THUMB_L : 0;
 
   // Misc cbuttons
   gp->misc_buttons |=
-      (r->buttons_misc & 0b00000001) ? MISC_BUTTON_BACK : 0;  // "-" button
+      (r->buttons_misc & 0b00000001) ? MISC_BUTTON_BACK : 0;  // -
   gp->misc_buttons |=
-      (r->buttons_misc & 0b00100000) ? MISC_BUTTON_HOME : 0;  // "Square" button
+      (r->buttons_misc & 0b00100000) ? MISC_BUTTON_HOME : 0;  // Capture
 }
 
-static void process_30_joycon_right(uni_hid_device_t* d,
-                                    const struct switch_report_30_s* r) {
+static void parse_report_30_joycon_right(uni_hid_device_t* d,
+                                         const struct switch_report_30_s* r) {
   // JoyCons are treated as standalone controllers. So the buttons/axis are
   // "rotated".
   uni_gamepad_t* gp = &d->gamepad;
@@ -831,24 +830,22 @@ static void process_30_joycon_right(uni_hid_device_t* d,
   gp->buttons |= (r->buttons_right & 0b00000010) ? BUTTON_B : 0;
   gp->buttons |= (r->buttons_right & 0b00000100) ? BUTTON_X : 0;
   gp->buttons |= (r->buttons_right & 0b00001000) ? BUTTON_A : 0;
-  gp->buttons |= (r->buttons_right & 0b00010000) ? BUTTON_SHOULDER_R : 0;
-  gp->buttons |= (r->buttons_right & 0b00100000) ? BUTTON_SHOULDER_L : 0;
-  gp->buttons |=
-      (r->buttons_right & 0b01000000) ? BUTTON_TRIGGER_L : 0;  // "R" button
-  gp->buttons |=
-      (r->buttons_right & 0b10000000) ? BUTTON_TRIGGER_R : 0;  // "ZR" button
+  gp->buttons |= (r->buttons_right & 0b00010000) ? BUTTON_SHOULDER_R : 0;  // SR
+  gp->buttons |= (r->buttons_right & 0b00100000) ? BUTTON_SHOULDER_L : 0;  // SL
+  gp->buttons |= (r->buttons_right & 0b01000000) ? BUTTON_TRIGGER_L : 0;   // R
+  gp->buttons |= (r->buttons_right & 0b10000000) ? BUTTON_TRIGGER_R : 0;   // ZR
   gp->buttons |= (r->buttons_misc & 0b00000100) ? BUTTON_THUMB_L : 0;
 
   // Misc cbuttons
   gp->misc_buttons |=
-      (r->buttons_misc & 0b00000010) ? MISC_BUTTON_HOME : 0;  // "+" button
+      (r->buttons_misc & 0b00000010) ? MISC_BUTTON_HOME : 0;  // +
   gp->misc_buttons |=
-      (r->buttons_misc & 0b00010000) ? MISC_BUTTON_BACK : 0;  // "Home" button
+      (r->buttons_misc & 0b00010000) ? MISC_BUTTON_BACK : 0;  // Home
 }
 
 // Process 0x3f input report: SWITCH_INPUT_BUTTON_EVENT
-static void process_input_button_event(struct uni_hid_device_s* d,
-                                       const uint8_t* report, int len) {
+static void parse_report_3f(struct uni_hid_device_s* d, const uint8_t* report,
+                            int len) {
   // Expecting something like:
   // (a1) 3F 00 00 08 D0 81 0F 88 F0 81 6F 8E
   UNUSED(len);
@@ -868,14 +865,14 @@ static void process_input_button_event(struct uni_hid_device_s* d,
 
   // Button aux
   gp->misc_buttons |=
-      (r->buttons_aux & 0b00000001) ? MISC_BUTTON_BACK : 0;  // -
-  gp->buttons |= (r->buttons_aux & 0b00000010) ? 0 : 0;      // + (unmapped)
+      (r->buttons_aux & 0b00000001) ? MISC_BUTTON_BACK : 0;             // -
+  gp->buttons |= (r->buttons_aux & 0b00000010) ? MISC_BUTTON_HOME : 0;  // +
   gp->buttons |= (r->buttons_aux & 0b00000100) ? BUTTON_THUMB_L : 0;  // Thumb L
   gp->buttons |= (r->buttons_aux & 0b00001000) ? BUTTON_THUMB_R : 0;  // Thumb R
   gp->misc_buttons |=
       (r->buttons_aux & 0b00010000) ? MISC_BUTTON_SYSTEM : 0;  // Home
   gp->misc_buttons |=
-      (r->buttons_aux & 0b00100000) ? MISC_BUTTON_HOME : 0;  // Circle
+      (r->buttons_aux & 0b00100000) ? 0 : 0;  // Capture (unused)
 
   // Dpad
   gp->dpad = uni_hid_parser_hat_to_dpad(r->hat);
