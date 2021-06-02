@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Using esp-idf v4.2
-- Using bstack "develop" branch
+- Using bstack v1.4
 - Nintendo Switch:
     - "+" is used a "Home" button, instead of "Capture"
     - Code is cleaner, easier to read.
