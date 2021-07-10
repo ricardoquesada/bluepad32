@@ -2,7 +2,7 @@
 
 ## How to flash the firmware
 
-### Download `esptool.py`:
+### Download `esptool.py`
 
 - Linux: `sudo apt install esptool`
 - macOS: `brew install esptool`
@@ -28,9 +28,9 @@ $ esptool.py --port ${ESPPORT} --baud 115200 --before no_reset write_flash 0x000
 
 ## Further info
 
-* [Bluepad32 for AirLift documentation][bluepad32-airlift]
-* [Upgrade External ESP32 AirLift firmware][adafruit-esp32]
-* [Nina-W10 firmware][nina-fw]
+- [Bluepad32 for AirLift documentation][bluepad32-airlift]
+- [Upgrade External ESP32 AirLift firmware][adafruit-esp32]
+- [Nina-W10 firmware][nina-fw]
 
 [bluepad32-airlift]: https://gitlab.com/ricardoquesada/bluepad32/blob/master/docs/plat_airlift.md
 [adafruit-esp32]: https://learn.adafruit.com/adafruit-airlift-breakout/upgrade-external-esp32-airlift-firmware

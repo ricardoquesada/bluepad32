@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
-// Adafruit AirLift is supposed to work with
+// Arduino NINA is supposed to work with
 // - ESP32 as a co-procesor
 // - And the main processor (usually an ARM or AVR)
 // The ESP32 is a SPI-slave witch should handle a pre-defined set of requests.
@@ -25,12 +25,12 @@ limitations under the License.
 
 // Logic based on Adafruit Nina-fw code: https://github.com/adafruit/nina-fw
 //
-// This firmware should work on all Adafruit "AirLift" family like:
-// - AirLift
-// - Matrix Portal
-// - PyPortal
+// This firmware should work on all Arduino boards with an NINA-W10x
+// - Arduino Nano RP2040 Connect
+// - Arduino Nano 33 IoT
+// - Arduino MKR WiFi 1010
 
-#include "uni_platform_airlift.h"
+#include "uni_platform_nina.h"
 
 #include <driver/gpio.h>
 #include <driver/spi_slave.h>
@@ -52,12 +52,21 @@ limitations under the License.
 #include "uni_platform.h"
 
 // SPI et al pins
-// AirLift doesn't use the pre-designated IO_MUX pins for VSPI.
+// NINA / AirLift don't use the pre-designated IO_MUX pins for VSPI.
 // Instead it uses the GPIO matrix, that might not be suitable for fast SPI
 // communications.
 //#define GPIO_MOSI GPIO_NUM_23
 //#define GPIO_MISO GPIO_NUM_19
+
+// The only difference between NINA and Airlift, seems to be the MOSI pin.
+#ifdef UNI_PLATFORM_AIRLIFT
 #define GPIO_MOSI GPIO_NUM_14
+#elif defined(UNI_PLATFORM_NINA)
+#define GPIO_MOSI GPIO_NUM_12
+#else
+// FIXME: This file should not be compiled when NINA/Airlift is not used.
+#define GPIO_MOSI GPIO_NUM_0
+#endif
 #define GPIO_MISO GPIO_NUM_23
 #define GPIO_SCLK GPIO_NUM_18
 #define GPIO_CS GPIO_NUM_5
@@ -92,27 +101,35 @@ typedef struct __attribute__((packed)) {
 
   // Misc buttons (from 0x0c (Consumer) and others)
   uint8_t misc_buttons;
-} airlift_gamepad_t;
+} nina_gamepad_t;
 
 //
 // Globals
 //
+#ifdef UNI_PLATFORM_AIRLIFT
 static const char FIRMWARE_VERSION[] = "Bluepad32 for Airlift v0.3";
+#elif defined(UNI_PLATFORM_NINA)
+static const char FIRMWARE_VERSION[] = "Bluepad32 for NINA v0.1";
+#else
+// FIXME: This file should not be compiled when NINA/Airlift is not used.
+static const char FIRMWARE_VERSION[] = "";
+#endif
+
 static SemaphoreHandle_t _ready_semaphore = NULL;
 static SemaphoreHandle_t _gamepad_mutex = NULL;
-static airlift_gamepad_t _gamepads[AIRLIFT_MAX_GAMEPADS];
+static nina_gamepad_t _gamepads[AIRLIFT_MAX_GAMEPADS];
 static volatile uni_gamepad_seat_t _gamepad_seats;
 
 // Airlift device "instance"
-typedef struct airlift_instance_s {
+typedef struct nina_instance_s {
   // Gamepad index, from 0 to AIRLIFT_MAX_GAMEPADS
   // -1 means gamepad was not assigned yet.
   int8_t gamepad_idx;
-} airlift_instance_t;
-_Static_assert(sizeof(airlift_instance_t) < HID_DEVICE_MAX_PLATFORM_DATA,
+} nina_instance_t;
+_Static_assert(sizeof(nina_instance_t) < HID_DEVICE_MAX_PLATFORM_DATA,
                "Airlift intance too big");
 
-static airlift_instance_t* get_airlift_instance(uni_hid_device_t* d);
+static nina_instance_t* get_nina_instance(uni_hid_device_t* d);
 
 //
 //
@@ -312,9 +329,9 @@ static int request_gamepads_properties(const uint8_t command[],
 
 // Called both from CPU0 and CPU1.
 // Only local variables should be used.
-static uint8_t predicate_airlift_index(uni_hid_device_t* d, void* data) {
+static uint8_t predicate_nina_index(uni_hid_device_t* d, void* data) {
   int wanted_idx = (int)data;
-  airlift_instance_t* ins = get_airlift_instance(d);
+  nina_instance_t* ins = get_nina_instance(d);
   if (ins->gamepad_idx != wanted_idx) return 0;
   return 1;
 }
@@ -611,7 +628,7 @@ static void spi_main_loop(void* arg) {
 //
 // Platform Overrides
 //
-static void airlift_init(int argc, const char** argv) {
+static void nina_init(int argc, const char** argv) {
   UNUSED(argc);
   UNUSED(argv);
 
@@ -632,7 +649,7 @@ static void airlift_init(int argc, const char** argv) {
   assert(_pending_request_mutex != NULL);
 }
 
-static void airlift_on_init_complete(void) {
+static void nina_on_init_complete(void) {
   // Create SPI main loop thread
   // In order to not interfere with Bluetooth that runs in CPU0, SPI code
   // should run in CPU1
@@ -640,14 +657,14 @@ static void airlift_on_init_complete(void) {
                           1);
 }
 
-static void airlift_on_device_connected(uni_hid_device_t* d) {
-  airlift_instance_t* ins = get_airlift_instance(d);
+static void nina_on_device_connected(uni_hid_device_t* d) {
+  nina_instance_t* ins = get_nina_instance(d);
   memset(ins, 0, sizeof(*ins));
   ins->gamepad_idx = -1;
 }
 
-static void airlift_on_device_disconnected(uni_hid_device_t* d) {
-  airlift_instance_t* ins = get_airlift_instance(d);
+static void nina_on_device_disconnected(uni_hid_device_t* d) {
+  nina_instance_t* ins = get_nina_instance(d);
   // Only process it if the gamepad has been assigned before
   if (ins->gamepad_idx != -1) {
     ins->gamepad_idx = -1;
@@ -655,14 +672,14 @@ static void airlift_on_device_disconnected(uni_hid_device_t* d) {
   }
 }
 
-static int airlift_on_device_ready(uni_hid_device_t* d) {
+static int nina_on_device_ready(uni_hid_device_t* d) {
   if (_gamepad_seats ==
       (GAMEPAD_SEAT_A | GAMEPAD_SEAT_B | GAMEPAD_SEAT_C | GAMEPAD_SEAT_D)) {
     // No more available seats, reject connection
     return -1;
   }
 
-  airlift_instance_t* ins = get_airlift_instance(d);
+  nina_instance_t* ins = get_nina_instance(d);
   if (ins->gamepad_idx != -1) {
     loge(
         "AirLift: unexpected value for on_device_ready; got: %d, want: "
@@ -680,7 +697,7 @@ static int airlift_on_device_ready(uni_hid_device_t* d) {
   }
 
   if (d->report_parser.set_player_leds != NULL) {
-    airlift_instance_t* ins = get_airlift_instance(d);
+    nina_instance_t* ins = get_nina_instance(d);
     d->report_parser.set_player_leds(d, (1 << ins->gamepad_idx));
   }
   return 0;
@@ -690,7 +707,7 @@ static void process_pending(pending_request_t* pending) {
   int idx = pending->device_idx;
   // FIXME: Not thread safe
   uni_hid_device_t* d = uni_hid_device_get_instance_with_predicate(
-      predicate_airlift_index, (void*)idx);
+      predicate_nina_index, (void*)idx);
   if (d == NULL) {
     loge(
         "AirLift: device cannot be found while processing pending "
@@ -716,7 +733,7 @@ static void process_pending(pending_request_t* pending) {
   }
 }
 
-static void airlift_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
+static void nina_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
   // FIXME:
   // When SPI-slave (CPU1) receives a request that cannot be fulfilled
   // immediately, most probably because it needs to run on CPU0, it is
@@ -726,7 +743,7 @@ static void airlift_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
   // "gamepad_data" gets called after a delay.
   pending_request_map_and_reset(process_pending);
 
-  airlift_instance_t* ins = get_airlift_instance(d);
+  nina_instance_t* ins = get_nina_instance(d);
   if (ins->gamepad_idx < 0 || ins->gamepad_idx >= AIRLIFT_MAX_GAMEPADS) {
     loge("Airlift: unexpected gamepad idx, got: %d, want: [0-%d]\n",
          ins->gamepad_idx, AIRLIFT_MAX_GAMEPADS);
@@ -734,7 +751,7 @@ static void airlift_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
   }
 
   xSemaphoreTake(_gamepad_mutex, portMAX_DELAY);
-  _gamepads[ins->gamepad_idx] = (airlift_gamepad_t){
+  _gamepads[ins->gamepad_idx] = (nina_gamepad_t){
       .idx = ins->gamepad_idx,  // This is how "client" knows which gamepad
                                 // emitted the events
       .dpad = gp->dpad,
@@ -750,14 +767,14 @@ static void airlift_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
   xSemaphoreGive(_gamepad_mutex);
 }
 
-static void airlift_on_device_oob_event(uni_hid_device_t* d,
-                                        uni_platform_oob_event_t event) {
+static void nina_on_device_oob_event(uni_hid_device_t* d,
+                                     uni_platform_oob_event_t event) {
   if (event != UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON) return;
 
   // TODO: Do something ?
 }
 
-static int32_t airlift_get_property(uni_platform_property_t key) {
+static int32_t nina_get_property(uni_platform_property_t key) {
   // FIXME: support well-known uni_platform_property_t keys
   return 0;
 }
@@ -765,25 +782,42 @@ static int32_t airlift_get_property(uni_platform_property_t key) {
 //
 // Helpers
 //
-static airlift_instance_t* get_airlift_instance(uni_hid_device_t* d) {
-  return (airlift_instance_t*)&d->platform_data[0];
+static nina_instance_t* get_nina_instance(uni_hid_device_t* d) {
+  return (nina_instance_t*)&d->platform_data[0];
 }
 
 //
 // Entry Point
 //
+struct uni_platform* uni_platform_nina_create(void) {
+  static struct uni_platform plat;
+
+  plat.name = "Arduino NINA";
+  plat.init = nina_init;
+  plat.on_init_complete = nina_on_init_complete;
+  plat.on_device_connected = nina_on_device_connected;
+  plat.on_device_disconnected = nina_on_device_disconnected;
+  plat.on_device_ready = nina_on_device_ready;
+  plat.on_device_oob_event = nina_on_device_oob_event;
+  plat.on_gamepad_data = nina_on_gamepad_data;
+  plat.get_property = nina_get_property;
+
+  return &plat;
+}
+
+// Airlift and NINA are identical with the exception of the MOSI pin.
 struct uni_platform* uni_platform_airlift_create(void) {
   static struct uni_platform plat;
 
-  plat.name = "Adafruit AirLift";
-  plat.init = airlift_init;
-  plat.on_init_complete = airlift_on_init_complete;
-  plat.on_device_connected = airlift_on_device_connected;
-  plat.on_device_disconnected = airlift_on_device_disconnected;
-  plat.on_device_ready = airlift_on_device_ready;
-  plat.on_device_oob_event = airlift_on_device_oob_event;
-  plat.on_gamepad_data = airlift_on_gamepad_data;
-  plat.get_property = airlift_get_property;
+  plat.name = "Adafruit Airlift";
+  plat.init = nina_init;
+  plat.on_init_complete = nina_on_init_complete;
+  plat.on_device_connected = nina_on_device_connected;
+  plat.on_device_disconnected = nina_on_device_disconnected;
+  plat.on_device_ready = nina_on_device_ready;
+  plat.on_device_oob_event = nina_on_device_oob_event;
+  plat.on_gamepad_data = nina_on_gamepad_data;
+  plat.get_property = nina_get_property;
 
   return &plat;
 }

@@ -12,7 +12,7 @@ class Distro:
     def __init__(self, platform, version=""):
         # List of platforms to build
         if platform == "all":
-            self._platforms = ("unijoysticle", "airlift", "mightymiggy")
+            self._platforms = ("unijoysticle", "airlift", "mightymiggy", "nina")
         else:
             self._platforms = (platform,)
 

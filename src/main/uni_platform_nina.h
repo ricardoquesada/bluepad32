@@ -16,11 +16,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
-#ifndef UNI_PLATFORM_AIRLIFT_H
-#define UNI_PLATFORM_AIRLIFT_H
+#ifndef UNI_PLATFORM_NINA_H
+#define UNI_PLATFORM_NINA_H
 
 #include "uni_platform.h"
 
+struct uni_platform* uni_platform_nina_create(void);
 struct uni_platform* uni_platform_airlift_create(void);
 
-#endif  // UNI_PLATFORM_AIRLIFT_H
+#endif  // UNI_PLATFORM_NINA_H

@@ -165,20 +165,3 @@ The benefits of using two separate modules (SAMD51 + ESP32) are:
 [esp32-adafruit]: https://www.adafruit.com/product/4172?gclid=EAIaIQobChMI-eeixraV7QIVED2tBh2qywzJEAQYASABEgLsTfD_BwE
 [amazon-esp32]: https://www.amazon.com/s?k=esp32+module+breakout
 [feather_m4]: https://www.adafruit.com/product/3857
-
-## FAQ
-
-**Does Bluepad32 only run on AirLift modules?**
-
-**Bluepad32** can run on any ESP32 module and it is very easy to adapt it to
-your own needs.
-
-But in particular, **Bluepad32 for AirLift** can be used without custom changes
-in any module that runs the [Nina-fw][nina-fw] firmware, including but not limited to:
-
-* All Adafruit boards that include an AirLift module
-* All Arduino boards that include a [NINA-W10 module][nina-w10] (although not tested)
-
-
-[nina-fw]: https://github.com/adafruit/nina-fw
-[nina-w10]: https://www.u-blox.com/en/product/nina-w10-series-open-cpu
