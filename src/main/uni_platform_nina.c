@@ -84,6 +84,7 @@ typedef struct __attribute__((packed)) {
   // Used to tell "master" who is the owner of this data. 4 gamepads can be
   // connected, this value indicates which gamepad it is.
   uint8_t idx;
+  uint8_t connected;  // 1 if true
 
   // Usage Page: 0x01 (Generic Desktop Controls)
   uint8_t dpad;
@@ -757,8 +758,15 @@ static void nina_on_device_disconnected(uni_hid_device_t* d) {
   nina_instance_t* ins = get_nina_instance(d);
   // Only process it if the gamepad has been assigned before
   if (ins->gamepad_idx != -1) {
-    ins->gamepad_idx = -1;
+    if (ins->gamepad_idx < 0 || ins->gamepad_idx >= NINA_MAX_GAMEPADS) {
+      loge("NINA: unexpected gamepad idx, got: %d, want: [0-%d]\n",
+           ins->gamepad_idx, NINA_MAX_GAMEPADS);
+      return;
+    }
+    _gamepads[ins->gamepad_idx].connected = 0;
     _gamepad_seats &= ~(1 << ins->gamepad_idx);
+
+    ins->gamepad_idx = -1;
   }
 }
 
@@ -766,6 +774,7 @@ static int nina_on_device_ready(uni_hid_device_t* d) {
   if (_gamepad_seats ==
       (GAMEPAD_SEAT_A | GAMEPAD_SEAT_B | GAMEPAD_SEAT_C | GAMEPAD_SEAT_D)) {
     // No more available seats, reject connection
+    logi("NINA: More available seats\n");
     return -1;
   }
 
@@ -773,6 +782,7 @@ static int nina_on_device_ready(uni_hid_device_t* d) {
   if (ins->gamepad_idx != -1) {
     loge("NINA: unexpected value for on_device_ready; got: %d, want: -1\n",
          ins->gamepad_idx);
+    return -1;
   }
 
   // Find first available gamepad
@@ -780,6 +790,7 @@ static int nina_on_device_ready(uni_hid_device_t* d) {
     if ((_gamepad_seats & (1 << i)) == 0) {
       ins->gamepad_idx = i;
       _gamepad_seats |= (1 << i);
+      _gamepads[ins->gamepad_idx].connected = 1;
       break;
     }
   }
@@ -849,6 +860,7 @@ static void nina_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
   _gamepads[ins->gamepad_idx] = (nina_gamepad_t){
       .idx = ins->gamepad_idx,  // This is how "client" knows which gamepad
                                 // emitted the events
+      .connected = 1,
       .dpad = gp->dpad,
       .axis_x = gp->axis_x,
       .axis_y = gp->axis_y,
