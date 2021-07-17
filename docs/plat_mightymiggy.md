@@ -133,7 +133,7 @@ Both the D-Pad and <kbd>Left Analog</kbd> always work as direction buttons.
 
 You can grab a precompiled firmware from here (choose latest version):
 
-* https://github.com/ricardoquesada/bluepad32/tags
+* https://gitlab.com/ricardoquesada/bluepad32/tags
 
 And download the `bluepad32-mightymiggy.zip`. It includes a README with instructions.
 

@@ -49,7 +49,6 @@ $ make -j
 
 [readme]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/README.md
 
-
 ## Install Bluepad32 for NINA
 
 ### Arduino board in "passthrough" mode
@@ -82,7 +81,8 @@ And only now, you can do `make flash`, with just one exception: by default
 $ esptool.py --port /dev/ttyACM0 --baud 115200 --before no_reset write_flash 0x1000 ./build/bootloader/bootloader.bin 0x10000 ./build/bluepad32-airlift.bin 0x8000 ./build/partitions_singleapp.bin
 ```
 
-
 ## Example
 
-TODO: Write client library and publish it to Arduino
+The Bluepad32 library for Arduino with examples can be found here:
+
+* http://gitlab.com/ricardoquesada/bluepad32-arduino
