@@ -50,6 +50,7 @@ limitations under the License.
 #include "uni_hid_parser.h"
 #include "uni_main_esp32.h"
 #include "uni_platform.h"
+#include "uni_version.h"
 
 // SPI et al pins
 // NINA / AirLift don't use the pre-designated IO_MUX pins for VSPI.
@@ -110,9 +111,9 @@ typedef struct __attribute__((packed)) {
 // Globals
 //
 #ifdef UNI_PLATFORM_AIRLIFT
-static const char FIRMWARE_VERSION[] = "Bluepad32 for Airlift v1.0";
+static const char FIRMWARE_VERSION[] = "Bluepad32 for Airlift v" UNI_VERSION;
 #elif defined(UNI_PLATFORM_NINA)
-static const char FIRMWARE_VERSION[] = "Bluepad32 for NINA v1.0";
+static const char FIRMWARE_VERSION[] = "Bluepad32 for NINA v" UNI_VERSION;
 #else
 // FIXME: This file should not be compiled when NINA/Airlift is not used.
 static const char FIRMWARE_VERSION[] = "";
