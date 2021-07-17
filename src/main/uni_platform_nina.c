@@ -82,9 +82,8 @@ limitations under the License.
 // etc. must not change.
 typedef struct __attribute__((packed)) {
   // Used to tell "master" who is the owner of this data. 4 gamepads can be
-  // connected, this value indicates which gamepad it is.
+  // connected, this value indicates which gamepad it is. Goes from 0 to 3.
   uint8_t idx;
-  uint8_t connected;  // 1 if true
 
   // Usage Page: 0x01 (Generic Desktop Controls)
   uint8_t dpad;
@@ -102,6 +101,9 @@ typedef struct __attribute__((packed)) {
 
   // Misc buttons (from 0x0c (Consumer) and others)
   uint8_t misc_buttons;
+
+  // Not related to the state:
+  uint8_t type;  // model: PS4, PS3, Xbox, etc..?
 } nina_gamepad_t;
 
 //
@@ -322,56 +324,52 @@ static int request_digital_read(const uint8_t command[], uint8_t response[]) {
   return 5;
 }
 
-// Command 0x60
+// Command 0x00
+static int request_protocol_version(const uint8_t command[],
+                                    uint8_t response[]) {
+#define PROTOCOL_VERSION_HI 0x01
+#define PROTOCOL_VERSION_LO 0x00
+
+  response[2] = 1;  // Number of parameters
+  response[3] = 2;  // Param len
+  response[4] = PROTOCOL_VERSION_HI;
+  response[5] = PROTOCOL_VERSION_LO;
+
+  return 6;
+}
+
+// Command 0x01
 static int request_gamepads_data(const uint8_t command[], uint8_t response[]) {
   // Returned struct:
   // --- generic to all requests
-  // byte 2: number of parameters (always 1 for 0x60)
-  //      3: lenght of parameter (always total size of payload for 0x60)
-  // --- 0x60 specific
-  //      4: number of gamepad reports. 0 == no reports
-  // --- gamepad I
-  //      5: gamepad data (0, 1, 2 or 3)
-  // --- gamepad I+1
-  //      ...
-  //
-  // Instead of returning multiple parameters (one per gamepad) one parameter
-  // is returned.
-  response[2] = 1;  // number of parameters
+  // byte 2: number of parameters (contains the number of gamepads)
+  //      3: param len (sizeof(_gamepads[0])
+  //      4: gamepad N data
 
   xSemaphoreTake(_gamepad_mutex, portMAX_DELAY);
 
   int total_gamepads = 0;
-  int offset = 5;
+  int offset = 3;
   for (int i = 0; i < NINA_MAX_GAMEPADS; i++) {
     if (_gamepad_seats & (1 << i)) {
       total_gamepads++;
-      memcpy(&response[offset], &_gamepads[i], sizeof(_gamepads[0]));
-      offset += sizeof(_gamepads[0]);
+      // Update param len
+      response[offset] = sizeof(_gamepads[0]);
+      // Update param (data)
+      memcpy(&response[offset + 1], &_gamepads[i], sizeof(_gamepads[0]));
+      offset += sizeof(_gamepads[0]) + 1;
     }
   }
 
-  response[3] = 1 + total_gamepads * sizeof(_gamepads[0]);  // param len
-  response[4] = total_gamepads;  // Number of gamepad reports
+  response[2] = total_gamepads;  // total params
 
   xSemaphoreGive(_gamepad_mutex);
 
-  // "offset" is the total length
+  // "offset" has the total length
   return offset;
 }
 
-// Command 0x61
-static int request_gamepads_properties(const uint8_t command[],
-                                       uint8_t response[]) {
-  // FIXME: Unimplemented
-  response[2] = 1;  // number of params
-  response[3] = 1;  // param len
-  response[4] = RESPONSE_ERROR;
-
-  return 5;
-}
-
-// Command 0x62
+// Command 0x02
 static int request_set_gamepad_player_leds(const uint8_t command[],
                                            uint8_t response[]) {
   // command[2]: total params
@@ -391,7 +389,7 @@ static int request_set_gamepad_player_leds(const uint8_t command[],
   return 5;
 }
 
-// Command 0x63
+// Command 0x03
 static int request_set_gamepad_color_led(const uint8_t command[],
                                          uint8_t response[]) {
   // command[2]: total params
@@ -411,7 +409,7 @@ static int request_set_gamepad_color_led(const uint8_t command[],
   return 5;
 }
 
-// Command 0x64
+// Command 0x04
 static int request_set_gamepad_rumble(const uint8_t command[],
                                       uint8_t response[]) {
   // command[2]: total params
@@ -431,9 +429,9 @@ static int request_set_gamepad_rumble(const uint8_t command[],
   return 5;
 }
 
-// Command 0x65
-static int request_bluetooth_del_keys(const uint8_t command[],
-                                      uint8_t response[]) {
+// Command 0x05
+static int request_forget_bluetooth_keys(const uint8_t command[],
+                                         uint8_t response[]) {
   response[2] = 1;  // Number of parameters
   response[3] = 1;  // Param len
   response[4] = RESPONSE_OK;
@@ -449,13 +447,13 @@ const command_handler_t command_handlers[] = {
     // 0x00 -> 0x0f: Bluepad32 own extensions
     // These 16 entries are NULL in NINA. Perhaps they are reserved for future
     // use? Seems to be safe to use them for Bluepad32 commands.
+    request_protocol_version,
     request_gamepads_data,            // data
-    request_gamepads_properties,      // name, features like rumble, leds, etc.
     request_set_gamepad_player_leds,  // the 4 LEDs that is available in many
                                       // gamepads.
     request_set_gamepad_color_led,    // available on DS4, DualSense
     request_set_gamepad_rumble,       // available on DS4, Xbox, Switch, etc.
-    request_bluetooth_del_keys,       // delete stored Bluetooth keys
+    request_forget_bluetooth_keys,    // forget stored Bluetooth keys
     NULL,
     NULL,
     NULL,
@@ -763,7 +761,6 @@ static void nina_on_device_disconnected(uni_hid_device_t* d) {
            ins->gamepad_idx, NINA_MAX_GAMEPADS);
       return;
     }
-    _gamepads[ins->gamepad_idx].connected = 0;
     _gamepad_seats &= ~(1 << ins->gamepad_idx);
 
     ins->gamepad_idx = -1;
@@ -790,7 +787,6 @@ static int nina_on_device_ready(uni_hid_device_t* d) {
     if ((_gamepad_seats & (1 << i)) == 0) {
       ins->gamepad_idx = i;
       _gamepad_seats |= (1 << i);
-      _gamepads[ins->gamepad_idx].connected = 1;
       break;
     }
   }
@@ -860,7 +856,6 @@ static void nina_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
   _gamepads[ins->gamepad_idx] = (nina_gamepad_t){
       .idx = ins->gamepad_idx,  // This is how "client" knows which gamepad
                                 // emitted the events
-      .connected = 1,
       .dpad = gp->dpad,
       .axis_x = gp->axis_x,
       .axis_y = gp->axis_y,
@@ -870,6 +865,8 @@ static void nina_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
       .throttle = gp->throttle,
       .buttons = gp->buttons,
       .misc_buttons = gp->misc_buttons,
+
+      .type = d->controller_type,
   };
   xSemaphoreGive(_gamepad_mutex);
 }
