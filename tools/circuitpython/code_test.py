@@ -1,5 +1,7 @@
+# Copyright 2020 - 2021, Ricardo Quesada, http://retro.moe
+# SPDX-License-Identifier: Apache-2.0
+
 import time
-import struct
 
 # Get this file from BLUEPAD32_SRC/tools/circuitpython/
 import bluepad32
@@ -10,9 +12,9 @@ from digitalio import DigitalInOut
 from micropython import const
 
 # If you are using a board with pre-defined ESP32 Pins:
-#esp32_cs = DigitalInOut(board.ESP_CS)
-#esp32_ready = DigitalInOut(board.ESP_BUSY)
-#esp32_reset = DigitalInOut(board.ESP_RESET)
+esp32_cs = DigitalInOut(board.ESP_CS)
+esp32_ready = DigitalInOut(board.ESP_BUSY)
+esp32_reset = DigitalInOut(board.ESP_RESET)
 
 # If you have an AirLift Shield:
 # esp32_cs = DigitalInOut(board.D10)
@@ -26,25 +28,24 @@ from micropython import const
 
 # If you have an externally connected ESP32:
 # NOTE: You may need to change the pins to reflect your wiring
-esp32_cs = DigitalInOut(board.D10)
-esp32_ready = DigitalInOut(board.D9)
-esp32_reset = DigitalInOut(board.D6)
+# esp32_cs = DigitalInOut(board.D10)
+# esp32_ready = DigitalInOut(board.D9)
+# esp32_reset = DigitalInOut(board.D6)
 
 spi = busio.SPI(board.SCK, board.MOSI, board.MISO)
-esp = bluepad32.ESP_SPIcontrol(
-    spi, esp32_cs, esp32_ready, esp32_reset, debug=0)
+esp = bluepad32.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset, debug=0)
 
 # Optionally, to enable UART logging in the ESP32
-esp.set_esp_debug(1)
+# esp.set_esp_debug(1)
 
 # Delete Bluetooth stored keys. Might make connection easier (or more difficult).
-esp.bluetooth_del_keys()
+# esp.forget_bluetooth_keys()
 
 # Should display "Bluepad32 for Airlift"
-print('Firmware vers:', esp.firmware_version)
+print("Firmware vers:", esp.firmware_version)
 
 first_time = False
-color = [0xff, 0x80, 0x20]
+color = [0xFF, 0x00, 0x00]
 players_led = 0x01
 
 while True:
@@ -54,25 +55,25 @@ while True:
         if first_time == False:
             first_time = True
             print(gp)
-            resp = esp.set_gamepad_lightbar_color(gp['idx'], color)
+            resp = esp.set_gamepad_lightbar_color(gp["idx"], color)
             print(resp)
 
-        if gp['buttons'] & 0x01:
+        if gp["buttons"] & 0x01:  # Button A
             # Shuffle colors. "random.shuffle" not preset in CircuitPython
             color = (color[2], color[0], color[1])
-            rest = esp.set_gamepad_lightbar_color(gp['idx'], color)
+            rest = esp.set_gamepad_lightbar_color(gp["idx"], color)
             print(rest)
 
-        if gp['buttons'] & 0x02:
-            rest = esp.set_gamepad_player_leds(gp['idx'], players_led)
+        if gp["buttons"] & 0x02:  # Button B
+            rest = esp.set_gamepad_player_leds(gp["idx"], players_led)
             print(rest)
             players_led += 1
-            players_led &= 0x0f
+            players_led &= 0x0F
 
-        if gp['buttons'] & 0x04:
+        if gp["buttons"] & 0x04:  # Button X
             force = 128  # 0-255
             duration = 10  # 0-255
-            rest = esp.set_gamepad_rumble(gp['idx'], force, duration)
+            rest = esp.set_gamepad_rumble(gp["idx"], force, duration)
             print(rest)
 
     time.sleep(0.032)

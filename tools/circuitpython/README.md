@@ -1,7 +1,7 @@
 ## CircuitPython examples
 
 * Copy the `bluepad32.py` file to the `CIRCUITPY` folder
-* Choose one of the `code_*.py` examples and copy it to `CIRCUITPY` as `copy.py`
+* Choose one of the `code_*.py` examples and copy it to `CIRCUITPY` as `code.py`
 
 E.g:
 

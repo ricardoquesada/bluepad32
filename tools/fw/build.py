@@ -115,7 +115,7 @@ $ %(prog)s --set-version v2.0.0 unijoysticle
 
     parser.add_argument(
         "platform",
-        choices=["all", "unijoysticle", "airlift", "mightymiggy"],
+        choices=["all", "unijoysticle", "airlift", "mightymiggy", "nina"],
         help="Platform to build for",
     )
 
