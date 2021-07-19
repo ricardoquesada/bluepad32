@@ -230,10 +230,10 @@ static int spi_transfer(uint8_t out[], uint8_t in[], size_t len) {
   return (slv_trans.trans_len / 8);
 }
 
-// Possible answers when the request doesn't need an answer, like in "set_xxx"
+// Possible answers when the request doesn't need an answer, like in "set_xxx".
 enum {
-  RESPONSE_OK = 0,
-  RESPONSE_ERROR = 1,
+  RESPONSE_ERROR = 0,
+  RESPONSE_OK = 1,
 };
 
 // Command 0x1a
@@ -291,7 +291,7 @@ static int request_set_pin_mode(const uint8_t command[], uint8_t response[]) {
 
   response[2] = 1;  // number of parameters
   response[3] = 1;  // parameter 1 length
-  response[4] = 1;  // FIXME: response. Arduino uses 1, but 0 means Ok (?)
+  response[4] = RESPONSE_OK;
   return 5;
 }
 
