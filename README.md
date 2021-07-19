@@ -4,21 +4,22 @@
 
 A bluetooth gamepad "host" for the ESP32.
 
-Modern Bluetooth gamepads, like the Xbox One and DS4, can connect to the ESP32.
-What you do with the ESP32, is up to you. But here are some examples:
+Add Bluetooth gamepad support to your projects easily.
 
 * Use gamepads to play games in the Commodore 64 ([Unijoysticle2][unijoysticle2])
 * Or play games in Commodore Amiga ([Unijoysticle2 for the Amiga][amiga])
-* Or play games in [MatrixPortal M4][matrixportal] (or any AirLift board)
+* Or play games using [CircuitPython][bp32-circuitpython] in a [MatrixPortal M4][matrixportal] (or any Adafruit board with an AirLift co-processor)
+* Or control a robot using [Arduino][bp32-arduino] in a [Nano RP2040 Connect][rp2040] (or any Arduino board with a NINA co-processor)
 * Or play games in a FPGA console ([ULX3S][ulx3s])
-* Or control your LED lamp
-* Or control your remote car
-* And so on
+* etc.
 
 [unijoysticle2]: https://retro.moe/unijoysticle2/
 [amiga]: https://gitlab.com/SukkoPera/unijoysticle2
 [ulx3s]: https://www.crowdsupply.com/radiona/ulx3s
 [matrixportal]: https://learn.adafruit.com/adafruit-matrixportal-m4
+[rp2040]: https://docs.arduino.cc/hardware/nano-rp2040-connect
+[bp32-arduino]: https://gitlab.com/ricardoquesada/bluepad32-arduino
+[bp32-circuitpython]: https://gitlab.com/ricardoquesada/bluepad32-circuitpython
 
 ## Features
 
@@ -79,7 +80,7 @@ $ ./integrate_btstack.py
 Choose target platform:
 
 ```
-# Choose target platform: unijoysticle, airlift, etc...
+# Choose target platform: unijoysticle, airlift, nina, etc...
 $ export PLATFORM=unijoysticle
 ```
 
