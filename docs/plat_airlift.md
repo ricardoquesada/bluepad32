@@ -72,7 +72,7 @@ $ esptool.py --port /dev/ttyACM0 --baud 115200 --before no_reset write_flash 0x1
 
 ## CircuitPython example
 
-The Bluepad32 library for CircuitPython, including a working example can be found here:
+The Bluepad32 library for CircuitPython, including a working example is available here:
 
 * https://gitlab.com/ricardoquesada/bluepad32-circuitpython
 

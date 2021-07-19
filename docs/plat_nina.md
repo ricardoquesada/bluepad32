@@ -13,16 +13,15 @@ NINA modules are co-processors, usually used only to bring WiFi or BLE to the ma
 
 NINA and the main processor talk to each other using the SPI protocol using the [official NINA firmware][nina-fw].
 
-Bluepad32 replaces the the official firmware with its, which is "compatible enough" with the official one:
+Bluepad32 replaces the the official firmware, which is "compatible enough" with the official one:
 
 - Uses SPI, and the same GPIOs to talk to the main processor
 - Uses the same Nina-fw protocol that runs on top of SPI
 - But not all Nina-fw messages are implemented. Only the ones that are needed
-  to have gamepad support working.
-  - For example WiFi won't be available.
+  to have gamepad support working. For example WiFi is not available.
 
-[adafruit]: https://www.adafruit.com
-[airlift-esp32]: https://www.adafruit.com/product/4201
+[nina-esp32]: https://www.u-blox.com/en/product/nina-w10-series-open-cpu
+[nina-fw]: https://github.com/arduino/nina-fw
 
 ## Getting Bluepad32 for NINA firwmare
 
@@ -83,6 +82,6 @@ $ esptool.py --port /dev/ttyACM0 --baud 115200 --before no_reset write_flash 0x1
 
 ## Example
 
-The Bluepad32 library for Arduino with examples can be found here:
+The Bluepad32 library for Arduino with examples is available here:
 
 * http://gitlab.com/ricardoquesada/bluepad32-arduino

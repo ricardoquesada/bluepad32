@@ -1,5 +1,7 @@
 # Bluepad32
 
+[![discord](https://img.shields.io/discord/775177861665521725.svg)](https://discord.gg/r5aMn6Cw5q)
+
 ![logo](https://lh3.googleusercontent.com/pw/ACtC-3dNNrE9YKWMQNBTVYl8gkX70jN2qLwSYMQFLR0IzzoRT9uTQ1a9n80O3tyNmF95MLxL9NPWlqm5ph7e9wTGZoHeQWPMsJWqs3qiHub1LcigLtlEX09V6f1DWwQlg52OkeumKDJTG_ext8EN_J6kn0kAqg=-no)
 
 A bluetooth gamepad "host" for the ESP32.
@@ -55,7 +57,7 @@ See: [Supported gamepads][gamepads]
 
 1. Install ESP-IDF
 
-Install the ESP32 toolchain. Use version **4.1**. Might work on newer / older
+Install the ESP32 toolchain. Use version **4.2**. Might work on newer / older
 ones, but not tested.
 
 * https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/
