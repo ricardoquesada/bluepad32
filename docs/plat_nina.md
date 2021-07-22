@@ -11,14 +11,21 @@ These modules are present on some Arduino boards like:
 
 NINA modules are co-processors, usually used only to bring WiFi or BLE to the main processor.
 
-NINA and the main processor talk to each other using the SPI protocol using the [official NINA firmware][nina-fw].
+In order to have gamepad support, the original NINA firmware must be replaced
+with Bluepad32 firmware. This is a simple step that needs to be done just once,
+and can be "undone" at any time.
 
-Bluepad32 replaces the the official firmware, which is "compatible enough" with the official one:
+![how-does-it-work](bluepad32-nina-how-does-it-work.png)
+
+- Gamepad (A) talks to NINA module (B)
+- NINA module (B) talks to main processor
+
+Bluepad32 firmware is "compatible-enough" with the original firmware:
 
 - Uses SPI, and the same GPIOs to talk to the main processor
-- Uses the same Nina-fw protocol that runs on top of SPI
-- But not all Nina-fw messages are implemented. Only the ones that are needed
-  to have gamepad support working. For example WiFi is not available.
+- Uses the same protocol that runs on top of SPI
+- But not all messages are implemented. Only the ones that are needed
+  to have gamepad support working.
 
 [nina-esp32]: https://www.u-blox.com/en/product/nina-w10-series-open-cpu
 [nina-fw]: https://github.com/arduino/nina-fw
@@ -47,7 +54,7 @@ Compile it and flash it to the Arduino board.
 
 You can grab a precompiled firmware from here (choose latest version):
 
-* https://gitlab.com/ricardoquesada/bluepad32/tags
+- https://gitlab.com/ricardoquesada/bluepad32/tags
 
 And download the `bluepad32-nina-xxx.zip` file.
 
@@ -101,4 +108,4 @@ $ esptool.py --port ${ESPPORT} --baud 115200 --before no_reset write_flash 0x100
 
 The Bluepad32 library for Arduino with examples is available here:
 
-* http://gitlab.com/ricardoquesada/bluepad32-arduino
+- http://gitlab.com/ricardoquesada/bluepad32-arduino

@@ -11,9 +11,18 @@ Detailed information about the project can be found here:
 
 * http://retro.moe/unijoysticle2
 
-## How to compile it
+## How to compile it & flash it
 
 ```sh
+# Compile it...
+
+$ cd {BLUEPAD32}/src
 $ export PLATFORM=unijoysticle
 $ make -j
+
+# ... and flash it!
+
+# Port my vary
+$ export ESPPORT=/dev/ttyUSB0
+$ make flash
 ```

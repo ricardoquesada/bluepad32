@@ -2,22 +2,50 @@
 
 ## What is AirLift
 
-AirLift is a family of [ESP32 modules][airlift-esp32] created by [Adafruit][adafruit].
-These modules are co-processors, usually used only to bring WiFi or BLE to the main processor.
+AirLift is an [ESP32][esp32] module created by [Adafruit][adafruit].
+This module is a "co-processor", usually used to bring WiFi or BLE to the main processor.
 
-The AirLift module and the main processor talk to each other using the SPI protocol.
-AirLift modules come with the [official nina-fw firmware][nina-fw].
+AirLift modules and bundled in some boards, like in:
 
-Bluepad32 replaces the [official ESP32 firmware][nina-fw] that comes with AirLift
-modules. Bluepad32 is "compatible-enough" with Nina-fw:
+* [MatrixPortal M4][matrixportal-m4]
+* [PyPortal][pyportal]
+* [PyBadge][pybadge]
+* [Metro M4 Express AirLift][metro-m4-airlift]
+
+Or can be standalone boards:
+
+* [AirLift module][airlift-module]
+
+AirLift modules come pre-installed with [Adafruit's NINA firmware][nina-fw].
+
+**NOTE**: [Adafruit's NINA][nina-fw] firmware is a fork of [Arduino's NINA][arduino-nina] firmware.
+They are pretty similar, but not exactly the same.
+
+In order to have gamepad support, the original AirLift firmware must be replaced
+with Bluepad32 firmware. This is a simple step that needs to be done just once,
+and can be "undone" at any time.
+
+![how-does-it-work](bluepad32-airlift-how-does-it-work.png)
+
+* Gamepad (A) talks to AirLift module (B)
+* AirLift module (B) talks to main processor
+
+Bluepad32 firmware is "compatible-enough" with the original firmware:
 
 * Uses SPI, and the same GPIOs to talk to the main processor
-* Uses the same Nina-fw protocol that runs on top of SPI
-* But not all Nina-fw messages are implemented. Only the ones that are needed
+* Uses the same protocol that runs on top of SPI
+* But not all messages are implemented. Only the ones that are needed
   to have gamepad support working.
 
 [adafruit]: https://www.adafruit.com
-[airlift-esp32]: https://www.adafruit.com/product/4201
+[airlift-module]: https://www.adafruit.com/product/4201
+[arduino-nina]: https://github.com/arduino/nina-fw
+[esp32]: https://www.espressif.com/en/products/socs/esp32
+[matrixportal-m4]: https://www.adafruit.com/product/4745
+[metro-m4-airlift]: https://www.adafruit.com/product/4000
+[nina-fw]: https://github.com/adafruit/nina-fw
+[pybadge]: https://www.adafruit.com/product/4200
+[pyportal]: https://www.adafruit.com/product/4116
 
 ## Flashing Bluepad32 firwmare
 
@@ -36,7 +64,6 @@ Might slightly vary from board to board, but basically what you have to do is:
    * Details here: [Adafruit's Upgrade AirLift firmware][adafruit-airlift-upgrade]
 
 [adafruit-airlift-upgrade]: https://learn.adafruit.com/upgrading-esp32-firmware/upgrade-an-airlift-all-in-one-board
-
 
 ### 2. Flash pre-compiled version
 
@@ -62,6 +89,7 @@ $ make -j
 ```
 
 To flash it, you have to use the `--before no_reset` option:
+
 ```sh
 # Flash it!
 
