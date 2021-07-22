@@ -1,4 +1,4 @@
-# Bluepad32 for NINA
+# Bluepad32 firmware for NINA
 
 ## What is NINA
 
@@ -23,62 +23,79 @@ Bluepad32 replaces the the official firmware, which is "compatible enough" with 
 [nina-esp32]: https://www.u-blox.com/en/product/nina-w10-series-open-cpu
 [nina-fw]: https://github.com/arduino/nina-fw
 
-## Getting Bluepad32 for NINA firwmare
+## Flashing Bluepad32 firmware
 
-### 1. Get a pre-compiled firmware
+To flash Bluepad32 firmware, you have to:
 
-You can grab a precompiled firmware from here (choose latest version):
+1. Put the Arduino board in "pass-through" mode
+2. Flash pre-compiled version
+3. Or compile it yourself and flash it.
 
-* https://gitlab.com/ricardoquesada/bluepad32/tags
+### 1. Put Arduino board in "passthrough" mode
 
-And download the `bluepad32-nina.zip`. It includes a README with instructions.
+Before flash Bluepad32 firmware, you have to put the Arduino board in "pass-through" mode:
 
-### 2. Or compile it yourself
-
-Read [README.md][readme] for the ESP-IDF requirements. And choose `nina` as
-the target platform:
-
-```sh
-$ export PLATFORM=nina
-
-# And then compile it
-
-$ make -j
-```
-
-[readme]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/README.md
-
-## Install Bluepad32 for NINA
-
-### Arduino board in "passthrough" mode
-
-Open Arduino IDE, and open the `SerialNINAPassthrough` sketch:
+1. Open Arduino IDE
+2. Install the WiFiNINA library (just do it once)
+3. And finally open the `SerialNINAPassthrough` sketch:
 
 - File -> Examples -> WiFiNINA -> Tools -> SerialNINAPassthrough
 
 Compile it and flash it to the Arduino board.
 
-### Flash Bluepad32 to NINA module
+### 2. Flash a pre-compiled firmware
+
+You can grab a precompiled firmware from here (choose latest version):
+
+* https://gitlab.com/ricardoquesada/bluepad32/tags
+
+And download the `bluepad32-nina-xxx.zip` file.
+
+Unzip it, and follow the instructions described in the `README.md` file.
+
+### 3. Or compile it yourself and flash it
+
+Make sure you have installed the requirements described here: [README.md][readme].
+
+Chose `nina` as the target platform:
 
 ```sh
-# Linux
+$ cd ${BLUEPAD32}/src
+
+# Set correct platform
+$ export PLATFORM=nina
+
+# And then compile it!
+$ make -j
+```
+
+On Nano 32 IoT / MKR WIFI 1010, doing `make flash` will just work.
+
+```sh
+# Only valid for:
+#   * the Nano 33 IoT
+#   * MKR WIFI 1010
+
+# Port might be different
 $ export ESPPORT=/dev/ttyACM0
-# macOS
-$ export ESPPORT=/dev/cu.usbmodem14121301
-# Windows
-$ export ESPPORT=COM??  #??? Try different ones
 
-$ esptool.py --port ${ESPPORT} --baud 115200 --before no_reset write_flash 0x0000 bluepad32-nina-full.bin
+$ make flash
 ```
 
-And only now, you can do `make flash`, with just one exception: by default
-`make flash` will try to reset ESP32, but it just won't work. Just use
-`--before no_reset`. E.g:
+But on NANO RP2040 Connect, you have to flash it using the `--before no_reset` option,
+and **NOT** `--before default_reset`. E.g:
 
 ```sh
-# Double check port. Might be different on differente OSs
-$ esptool.py --port /dev/ttyACM0 --baud 115200 --before no_reset write_flash 0x1000 ./build/bootloader/bootloader.bin 0x10000 ./build/bluepad32-airlift.bin 0x8000 ./build/partitions_singleapp.bin
+# Only valid for:
+#   * Nano RP2040 Connect
+
+# Port might be different
+$ export ESPPORT=/dev/ttyACM0
+
+$ esptool.py --port ${ESPPORT} --baud 115200 --before no_reset write_flash 0x1000 ./build/bootloader/bootloader.bin 0x10000 ./build/bluepad32-airlift.bin 0x8000 ./build/partitions_singleapp.bin
 ```
+
+[readme]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/README.md
 
 ## Example
 

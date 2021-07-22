@@ -11,7 +11,8 @@
 
 ### Flash SerialNINAPassthrough sketch
 
-Open Arduino IDE, and open the SerialNINAPassthrough sketch
+Open Arduino IDE, make sure `WiFiNINA` library is installed,
+and open the `SerialNINAPassthrough` sketch:
 
 - File -> Examples -> WiFiNINA -> Tools -> SerialNINAPassthrough
 
@@ -27,6 +28,13 @@ $ export ESPPORT=/dev/cu.usbmodem14121301
 # Windows
 $ export ESPPORT=COM??  #??? Try different ones
 
+# Only valid for:
+#   * the Nano 33 IoT
+#   * MKR WIFI 1010
+$ esptool.py --port ${ESPPORT} --baud 115200 --before default_reset write_flash 0x0000 bluepad32-nina-full.bin
+
+# Only valid for:
+#   * Nano RP2040 Connect
 $ esptool.py --port ${ESPPORT} --baud 115200 --before no_reset write_flash 0x0000 bluepad32-nina-full.bin
 ```
 

@@ -11,7 +11,13 @@
 
 ### Enable "Passthrough" AirLift module
 
-See: https://learn.adafruit.com/adafruit-airlift-breakout/upgrade-external-esp32-airlift-firmware
+Might slightly vary from board to board, but basically what you have to do is:
+
+1. Put the board in "boot" mode, usually by double pressing the "reset" button.
+2. Flash the right "Passthrough" firmware for your board.
+   - Details here: [Adafruit's Upgrade AirLift firmware][adafruit-airlift-upgrade]
+
+[adafruit-airlift-upgrade]: https://learn.adafruit.com/upgrading-esp32-firmware/upgrade-an-airlift-all-in-one-board
 
 ### Flash the firmware
 
