@@ -59,13 +59,13 @@ limitations under the License.
 //#define GPIO_MOSI GPIO_NUM_23
 //#define GPIO_MISO GPIO_NUM_19
 
-// The only difference between NINA and Airlift, seems to be the MOSI pin.
+// The only difference between NINA and AirLift, seems to be the MOSI pin.
 #ifdef UNI_PLATFORM_AIRLIFT
 #define GPIO_MOSI GPIO_NUM_14
 #elif defined(UNI_PLATFORM_NINA)
 #define GPIO_MOSI GPIO_NUM_12
 #else
-// FIXME: This file should not be compiled when NINA/Airlift is not used.
+// FIXME: This file should not be compiled when NINA/AirLift is not used.
 #define GPIO_MOSI GPIO_NUM_0
 #endif
 #define GPIO_MISO GPIO_NUM_23
@@ -111,11 +111,11 @@ typedef struct __attribute__((packed)) {
 // Globals
 //
 #ifdef UNI_PLATFORM_AIRLIFT
-static const char FIRMWARE_VERSION[] = "Bluepad32 for Airlift v" UNI_VERSION;
+static const char FIRMWARE_VERSION[] = "Bluepad32 for AirLift v" UNI_VERSION;
 #elif defined(UNI_PLATFORM_NINA)
 static const char FIRMWARE_VERSION[] = "Bluepad32 for NINA v" UNI_VERSION;
 #else
-// FIXME: This file should not be compiled when NINA/Airlift is not used.
+// FIXME: This file should not be compiled when NINA/AirLift is not used.
 static const char FIRMWARE_VERSION[] = "";
 #endif
 
@@ -242,6 +242,21 @@ static int request_set_debug(const uint8_t command[], uint8_t response[]) {
   response[2] = 1;           // total params
   response[3] = 1;           // param len
   response[4] = command[4];  // return the value requested
+
+  return 5;
+}
+
+// Command 0x20
+// This is to make the default "CheckFirmwareVersion" sketch happy.
+// Taken from wl_definitions.h
+// See:
+// https://github.com/arduino-libraries/WiFiNINA/blob/master/src/utility/wl_definitions.h
+enum { WL_IDLE_STATUS = 0 };
+static int request_get_conn_status(const uint8_t command[],
+                                   uint8_t response[]) {
+  response[2] = 1;  // total params
+  response[3] = 1;  // param len
+  response[4] = WL_IDLE_STATUS;
 
   return 5;
 }
@@ -485,22 +500,22 @@ const command_handler_t command_handlers[] = {
     NULL,
 
     // 0x20 -> 0x2f
-    NULL,  // getConnStatus,
-    NULL,  // getIPaddr,
-    NULL,  // getMACaddr,
-    NULL,  // getCurrSSID,
-    NULL,  // getCurrBSSID,
-    NULL,  // getCurrRSSI,
-    NULL,  // getCurrEnct,
-    NULL,  // scanNetworks,
-    NULL,  // startServerTcp,
-    NULL,  // getStateTcp,
-    NULL,  // dataSentTcp,
-    NULL,  // availDataTcp,
-    NULL,  // getDataTcp,
-    NULL,  // startClientTcp,
-    NULL,  // stopClientTcp,
-    NULL,  // getClientStateTcp,
+    request_get_conn_status,  // getConnStatus (0x20)
+    NULL,                     // getIPaddr,
+    NULL,                     // getMACaddr,
+    NULL,                     // getCurrSSID,
+    NULL,                     // getCurrBSSID,
+    NULL,                     // getCurrRSSI,
+    NULL,                     // getCurrEnct,
+    NULL,                     // scanNetworks,
+    NULL,                     // startServerTcp,
+    NULL,                     // getStateTcp,
+    NULL,                     // dataSentTcp,
+    NULL,                     // availDataTcp,
+    NULL,                     // getDataTcp,
+    NULL,                     // startClientTcp,
+    NULL,                     // stopClientTcp,
+    NULL,                     // getClientStateTcp,
 
     // 0x30 -> 0x3f
     NULL,  // disconnect,
@@ -910,11 +925,11 @@ struct uni_platform* uni_platform_nina_create(void) {
   return &plat;
 }
 
-// Airlift and NINA are identical with the exception of the MOSI pin.
+// AirLift and NINA are identical with the exception of the MOSI pin.
 struct uni_platform* uni_platform_airlift_create(void) {
   static struct uni_platform plat;
 
-  plat.name = "Adafruit Airlift";
+  plat.name = "Adafruit AirLift";
   plat.init = nina_init;
   plat.on_init_complete = nina_on_init_complete;
   plat.on_device_connected = nina_on_device_connected;

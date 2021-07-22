@@ -63,6 +63,7 @@ static const int MOUSE_DELAY_BETWEEN_EVENT_US = 1200;  // microseconds
 static const int GPIO_LED_J1 = GPIO_NUM_5;
 static const int GPIO_LED_J2 = GPIO_NUM_13;
 static const int GPIO_PUSH_BUTTON = GPIO_NUM_10;
+// static const int GPIO_PUSH_BUTTON = GPIO_NUM_15;
 
 enum {
   GPIO_JOY_A_UP = GPIO_NUM_26,
