@@ -5,9 +5,9 @@
 NINA is a family of [ESP32 modules][nina-esp32].
 These modules are present on some Arduino boards like:
 
-- Arduino Nano RP2040 Connect
-- Arduino Nano 33 IoT
-- Arduino MKR WiFi 1010
+- [Arduino Nano RP2040 Connect][nano_rp2040]
+- [Arduino Nano 33 IoT][nano_33_iot]
+- [Arduino MKR WiFi 1010][mkr_wifi]
 
 NINA modules are co-processors, usually used only to bring WiFi or BLE to the main processor.
 
@@ -17,8 +17,10 @@ and can be "undone" at any time.
 
 ![how-does-it-work](bluepad32-nina-how-does-it-work.png)
 
+This is how it works:
+
 - Gamepad (A) talks to NINA module (B)
-- NINA module (B) talks to main processor
+- NINA module (B) talks to main processor (C)
 
 Bluepad32 firmware is "compatible-enough" with the original firmware:
 
@@ -29,6 +31,9 @@ Bluepad32 firmware is "compatible-enough" with the original firmware:
 
 [nina-esp32]: https://www.u-blox.com/en/product/nina-w10-series-open-cpu
 [nina-fw]: https://github.com/arduino/nina-fw
+[nano_rp2040]: https://store.arduino.cc/usa/nano-rp2040-connect-with-headers
+[nano_33_iot]: https://store.arduino.cc/usa/nano-33-iot
+[mkr_wifi]: https://store.arduino.cc/usa/mkr-wifi-1010
 
 ## Flashing Bluepad32 firmware
 

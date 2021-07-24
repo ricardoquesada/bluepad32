@@ -2,24 +2,24 @@
 
 ## What is AirLift
 
-AirLift is an [ESP32][esp32] module created by [Adafruit][adafruit].
-This module is a "co-processor", usually used to bring WiFi or BLE to the main processor.
+AirLift is an [ESP32][esp32] module. This module is a "co-processor",
+usually used to bring WiFi or BLE to the main processor.
 
-AirLift modules and bundled in some boards, like in:
+AirLift modules are present in some [Adafruit][adafruit] boards, like in:
 
 * [MatrixPortal M4][matrixportal-m4]
 * [PyPortal][pyportal]
 * [PyBadge][pybadge]
 * [Metro M4 Express AirLift][metro-m4-airlift]
 
-Or can be standalone boards:
+Or it can be a standalone board:
 
 * [AirLift module][airlift-module]
 
 AirLift modules come pre-installed with [Adafruit's NINA firmware][nina-fw].
 
 **NOTE**: [Adafruit's NINA][nina-fw] firmware is a fork of [Arduino's NINA][arduino-nina] firmware.
-They are pretty similar, but not exactly the same.
+They are pretty similar, but they are not compatible since they use different SPI pins.
 
 In order to have gamepad support, the original AirLift firmware must be replaced
 with Bluepad32 firmware. This is a simple step that needs to be done just once,
@@ -27,8 +27,10 @@ and can be "undone" at any time.
 
 ![how-does-it-work](bluepad32-airlift-how-does-it-work.png)
 
+This is how it works:
+
 * Gamepad (A) talks to AirLift module (B)
-* AirLift module (B) talks to main processor
+* AirLift module (B) talks to main processor (C)
 
 Bluepad32 firmware is "compatible-enough" with the original firmware:
 
