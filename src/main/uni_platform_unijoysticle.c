@@ -61,9 +61,9 @@ static const int MOUSE_DELAY_BETWEEN_EVENT_US = 1200;  // microseconds
 
 // GPIO map for MH-ET Live mini-kit board.
 static const int GPIO_LED_J1 = GPIO_NUM_5;
-static const int GPIO_LED_J2 = GPIO_NUM_13;
-static const int GPIO_PUSH_BUTTON = GPIO_NUM_10;
-// static const int GPIO_PUSH_BUTTON = GPIO_NUM_15;
+static int g_gpio_led_j2 = -1;
+static int g_gpio_push_button = -1;
+static int g_gpio_joy_b_fire = -1;
 
 enum {
   GPIO_JOY_A_UP = GPIO_NUM_26,
@@ -84,7 +84,6 @@ enum {
   GPIO_JOY_B_DOWN = GPIO_NUM_25,
   GPIO_JOY_B_LEFT = GPIO_NUM_32,
   GPIO_JOY_B_RIGHT = GPIO_NUM_17,
-  GPIO_JOY_B_FIRE = GPIO_NUM_12,
 };
 
 // GPIO_NUM_12 (input) used as input for Pot in esp32.
@@ -97,6 +96,14 @@ enum {
 
   // Autofire Group
   EVENT_BIT_AUTOFIRE = (1 << 0),
+};
+
+enum {
+  // Unijosyticle 2: Through hole version
+  HW_UNIJOYSTICLE2,
+
+  // Unijoysticle 2 plus: SMT version
+  HW_UNIJOYSTICLE2_PLUS,
 };
 
 // Different emulation modes
@@ -121,9 +128,14 @@ _Static_assert(sizeof(unijoysticle_instance_t) < HID_DEVICE_MAX_PLATFORM_DATA,
 static const gpio_num_t JOY_A_PORTS[] = {
     GPIO_JOY_A_UP,   GPIO_JOY_A_DOWN,  GPIO_JOY_A_LEFT, GPIO_JOY_A_RIGHT,
     GPIO_JOY_A_FIRE, GPIO_JOY_A_POT_X, GPIO_JOY_A_POT_Y};
-static const gpio_num_t JOY_B_PORTS[] = {
-    GPIO_JOY_B_UP,   GPIO_JOY_B_DOWN,  GPIO_JOY_B_LEFT, GPIO_JOY_B_RIGHT,
-    GPIO_JOY_B_FIRE, GPIO_JOY_A_POT_X, GPIO_JOY_A_POT_Y};
+static gpio_num_t JOY_B_PORTS[] = {
+    GPIO_JOY_B_UP,
+    GPIO_JOY_B_DOWN,
+    GPIO_JOY_B_LEFT,
+    GPIO_JOY_B_RIGHT,
+    0, /* g_gpio_joy_b_fire, gets updated at init time */
+    GPIO_JOY_A_POT_X,
+    GPIO_JOY_A_POT_Y};
 
 static const bd_addr_t zero_addr = {0, 0, 0, 0, 0, 0};
 
@@ -146,6 +158,8 @@ static uint8_t g_autofire_a_enabled = 0;
 static uint8_t g_autofire_b_enabled = 0;
 
 // --- Code
+
+static int detect_hardware_version();
 
 static unijoysticle_instance_t* get_unijoysticle_instance(uni_hid_device_t* d);
 static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat);
@@ -204,6 +218,23 @@ static void unijoysticle_init(int argc, const char** argv) {
   logi("unijoysticle: Dual port / 1-button mode enabled\n");
 #endif
 
+#define JOY_FIRE_IDX 4
+  if (detect_hardware_version() == HW_UNIJOYSTICLE2) {
+    logi("Hardware detected: Unijoysticle 2\n");
+    g_gpio_push_button = GPIO_NUM_10;
+    g_gpio_led_j2 = GPIO_NUM_13;
+    g_gpio_joy_b_fire = GPIO_NUM_12;
+    JOY_B_PORTS[JOY_FIRE_IDX] = GPIO_NUM_12;
+
+  } else {
+    // Assuming HW_UNIJOYSTICLE2_PLUS
+    logi("Hardware detected: Unijoysticle 2+\n");
+    g_gpio_push_button = GPIO_NUM_15;
+    g_gpio_led_j2 = GPIO_NUM_12;
+    g_gpio_joy_b_fire = GPIO_NUM_13;
+    JOY_B_PORTS[JOY_FIRE_IDX] = GPIO_NUM_13;
+  }
+
   gpio_config_t io_conf;
   io_conf.intr_type = GPIO_INTR_DISABLE;
   io_conf.mode = GPIO_MODE_OUTPUT;
@@ -219,11 +250,11 @@ static void unijoysticle_init(int argc, const char** argv) {
   io_conf.pin_bit_mask |=
       ((1ULL << GPIO_JOY_B_UP) | (1ULL << GPIO_JOY_B_DOWN) |
        (1ULL << GPIO_JOY_B_LEFT) | (1ULL << GPIO_JOY_B_RIGHT) |
-       (1ULL << GPIO_JOY_B_FIRE));
+       (1ULL << g_gpio_joy_b_fire));
 
   // Leds
   io_conf.pin_bit_mask |= (1ULL << GPIO_LED_J1);
-  io_conf.pin_bit_mask |= (1ULL << GPIO_LED_J2);
+  io_conf.pin_bit_mask |= (1ULL << g_gpio_led_j2);
 
   // Pot feeder
   // io_conf.pin_bit_mask |= (1ULL << GPIO_NUM_13);
@@ -239,18 +270,18 @@ static void unijoysticle_init(int argc, const char** argv) {
 
   // Turn On LED
   gpio_set_level(GPIO_LED_J1, 1);
-  gpio_set_level(GPIO_LED_J2, 1);
+  gpio_set_level(g_gpio_led_j2, 1);
 
   // Pull-up for button
   io_conf.intr_type = GPIO_INTR_ANYEDGE;
   io_conf.mode = GPIO_MODE_INPUT;
   io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
   io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
-  io_conf.pin_bit_mask = (1ULL << GPIO_PUSH_BUTTON);
+  io_conf.pin_bit_mask = (1ULL << g_gpio_push_button);
   ESP_ERROR_CHECK(gpio_config(&io_conf));
   ESP_ERROR_CHECK(gpio_install_isr_service(0));
   ESP_ERROR_CHECK(gpio_isr_handler_add(
-      GPIO_PUSH_BUTTON, gpio_isr_handler_button, (void*)GPIO_PUSH_BUTTON));
+      g_gpio_push_button, gpio_isr_handler_button, (void*)g_gpio_push_button));
 
 // C64 POT related
 #if PLAT_UNIJOYSTICLE_ENABLE_POT
@@ -278,7 +309,7 @@ static void unijoysticle_init(int argc, const char** argv) {
 static void unijoysticle_on_init_complete(void) {
   // Turn Off LEDs
   gpio_set_level(GPIO_LED_J1, 0);
-  gpio_set_level(GPIO_LED_J2, 0);
+  gpio_set_level(g_gpio_led_j2, 0);
 }
 
 static void unijoysticle_on_device_connected(uni_hid_device_t* d) {
@@ -393,7 +424,7 @@ static int32_t unijoysticle_get_property(uni_platform_property_t key) {
   if (key != UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS) return -1;
 
   // Hi-released, Low-pressed
-  return !gpio_get_level(GPIO_PUSH_BUTTON);
+  return !gpio_get_level(g_gpio_push_button);
 }
 
 static void unijoysticle_on_device_oob_event(uni_hid_device_t* d,
@@ -461,6 +492,22 @@ static void unijoysticle_on_device_oob_event(uni_hid_device_t* d,
 // Helpers
 //
 
+static int detect_hardware_version() {
+  // Detect hardware version based on GPIO 4.
+  // If 0, we can safely assume it is Unijosyticle2+ since it has GPIO 4
+  // grounded.
+
+  gpio_set_direction(GPIO_NUM_4, GPIO_MODE_INPUT);
+  gpio_set_pull_mode(GPIO_NUM_4, GPIO_PULLUP_ONLY);
+
+  int ret = (gpio_get_level(GPIO_NUM_4) == 0) ? HW_UNIJOYSTICLE2_PLUS
+                                              : HW_UNIJOYSTICLE2;
+
+  // After detection, to reduce current consuption, remove the pullup.
+  gpio_set_pull_mode(GPIO_NUM_4, GPIO_FLOATING);
+  return ret;
+}
+
 static unijoysticle_instance_t* get_unijoysticle_instance(uni_hid_device_t* d) {
   return (unijoysticle_instance_t*)&d->platform_data[0];
 }
@@ -525,7 +572,7 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
   bool status_a = ((all_seats & GAMEPAD_SEAT_A) != 0);
   bool status_b = ((all_seats & GAMEPAD_SEAT_B) != 0);
   gpio_set_level(GPIO_LED_J1, status_a);
-  gpio_set_level(GPIO_LED_J2, status_b);
+  gpio_set_level(g_gpio_led_j2, status_b);
 
   if (d->report_parser.set_lightbar_color != NULL) {
     // First try with color LED (best experience)
@@ -707,7 +754,7 @@ static void handle_event_pot() {
 
 static void IRAM_ATTR gpio_isr_handler_button(void* arg) {
   // button released ?
-  if (gpio_get_level(GPIO_PUSH_BUTTON)) {
+  if (gpio_get_level(g_gpio_push_button)) {
     g_last_time_pressed_us = esp_timer_get_time();
     return;
   }
@@ -745,7 +792,7 @@ static void handle_event_button() {
   g_last_time_pressed_us = now;
 
   // "up" button is released. Ignore event.
-  if (gpio_get_level(GPIO_PUSH_BUTTON)) {
+  if (gpio_get_level(g_gpio_push_button)) {
     return;
   }
 
