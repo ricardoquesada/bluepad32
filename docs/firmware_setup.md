@@ -63,11 +63,11 @@ Development can be done locally or using Vagrant for convenience. It's recommend
 ### ESP-IDF
 
 From the [CHANGELOG.md][changelog], see what is the latest supported ESP-IDF
-version. As of this writing it is `v4.1`
+version. As of this writing it is `v4.2`
 
 ```sh
 $ cd esp/esp-idf
-$ git checkout v4.1
+$ git checkout v4.2
 $ git submodule update --init
 $ ./install.sh
 $ source ./export.sh
