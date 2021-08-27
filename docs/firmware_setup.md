@@ -48,34 +48,40 @@ A tutorial that explains how to use and from where to download is here:
 
 ## Compiling + flashing firmware
 
-Development can be done locally or using Vagrant for convenience. It's recommended to read the local instructions once (or the bootstrap.sh script) before using Vagrant.
-
-### Local development
-
-- Download Bluepad32 code: https://gitlab.com/ricardoquesada/bluepad32
-- Get a bluetooth gamepad
-- For ESP32:
-  - Download ESP-IDF: https://github.com/espressif/esp-idf
-  - Get an ESP32 module, like [the MH-ET Live][1] which is pin-compatible with [Wemos D1 Mini][2] (used by Unijoysticle v0.4.2 PCB).
-- For PC/Linux/Mac (optional, and for development only):
-  - Download libusb: https://libusb.info/
-
-### ESP-IDF
-
-From the [CHANGELOG.md][changelog], see what is the latest supported ESP-IDF
-version. As of this writing it is `v4.2`
+### Download Bluepad32
 
 ```sh
-$ cd esp/esp-idf
-$ git checkout v4.2
-$ git submodule update --init
+$ git clone --recursive https://gitlab.com/ricardoquesada/bluepad32.git
+```
+
+### Download ESP-IDF
+
+Make sure to check latest info from here: https://docs.espressif.com/projects/esp-idf/en/stable/esp32/get-started/index.html
+
+```sh
+# Needs to be done just once
+$ mkdir -p ~/esp
+$ cd ~/esp
+$ git clone -b v4.2 --recursive https://github.com/espressif/esp-idf.git
+```
+
+```sh
+# Needs to be done every time you want to compile Bluepad32
+$ cd esp-idf
 $ ./install.sh
 $ source ./export.sh
 ```
 
-### Compile BTstack
+### Optional
 
-#### For ESP32 development
+- Get an ESP32 module, like [the MH-ET Live][1] which is pin-compatible with [Wemos D1 Mini][2] (used by Unijoysticle v0.4.2 PCB).
+
+- For PC/Linux/Mac (optional, and for development only):
+  - Download libusb: https://libusb.info/
+
+## Compile BTstack
+
+### For ESP32 development
 
 ```sh
 $ cd bluepad32/external/btstack/port/esp32
@@ -84,7 +90,7 @@ $ ./integrate_btstack.py
 
 Optional (to make sure that BTStack + ESP32 works as expected):
 
-```
+```sh
 $ cd example/gap_inquiry
 $ make menuconfig
 $ make flash monitor
@@ -94,7 +100,7 @@ And just in case, read the [README.md][3] that is in the `src/btstack/port/esp32
 
 Put your gamepad in Bluetooth discovery mode and you should see it.
 
-#### For PC/Linux/Mac development
+### For PC/Linux/Mac development
 
 - Install the Bluetooth USB dongle on your PC/Mac/Linux
 - libusb: Compile and install. Don't use `master` tip-of-tree if you are on macOS. Use 1.0.22 or earlier
@@ -108,7 +114,7 @@ $ ./gap_inquiry
 
 Put your gamepad in bluetooth discovery mode and you should see it.
 
-### Compile Bluepad32
+## Compile Bluepad32
 
 Once you know that BTStack is working as expected, you can try with the
 Bluepad32 code.
