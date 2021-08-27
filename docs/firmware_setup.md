@@ -60,16 +60,19 @@ Make sure to check latest info from here: https://docs.espressif.com/projects/es
 
 ```sh
 # Needs to be done just once
+# 1. Clone the ESP-IDF git repo
 $ mkdir -p ~/esp
 $ cd ~/esp
 $ git clone -b v4.2 --recursive https://github.com/espressif/esp-idf.git
+
+# 2. And then install the toolchain
+$ cd ~/esp/esp-idf
+$ ./install.sh
 ```
 
 ```sh
-# Needs to be done every time you want to compile Bluepad32
-$ cd esp-idf
-$ ./install.sh
-$ source ./export.sh
+# Needs to be done every time you open a new terminal and want to compile Bluepad32
+$ source ~/esp/esp-idf/export.sh
 ```
 
 ### Optional
