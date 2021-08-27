@@ -46,12 +46,13 @@ A tutorial that explains how to use and from where to download is here:
 
 # Compiling + flashing firmware
 
-[Windows is NOT SUPPORTED. If you are on Windows, install [Linux Subsystem for Windows](https://docs.microsoft.com/en-us/windows/wsl/install-win10), and follow the Linux instructions].
+**Linux**: Supported. Keep reading.
 
-The instructiosn are split in two:
+**macOS**: The Linux instructions should work, but not %100 sure.
 
-* Download: Download the different components
-* Compile: And compile the different components
+**Windows**:
+NOT supported. Install [Linux Subsystem for Windows](https://docs.microsoft.com/en-us/windows/wsl/install-win10) and do the compilation/flashing from Linux.
+
 
 ## 1. Download
 
