@@ -57,13 +57,13 @@ enum {
 
 enum {
   // Unijosyticle 2: Through hole version
-  HW_UNIJOYSTICLE2,
+  BOARD_MODEL_UNIJOYSTICLE2,
 
   // Unijoysticle 2 plus: SMT version
-  HW_UNIJOYSTICLE2_PLUS,
+  BOARD_MODEL_UNIJOYSTICLE2_PLUS,
 
   // Unijosyticle Single port, like Arananet's Unijoy2Amiga
-  HW_UNIJOYSTICLE2_SINGLE_PORT,
+  BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT,
 };
 
 // Different emulation modes
@@ -146,13 +146,13 @@ const struct uni_gpio_config uni_gpio_config_v2plus = {
 // Arananet's Unijoy2Amiga
 const struct uni_gpio_config uni_gpio_config_unijoy2amiga = {
     // Only has one port. Just mirror Port A with Port B.
-    .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14,
+    .port_a = {GPIO_NUM_27, GPIO_NUM_25, GPIO_NUM_32, GPIO_NUM_17, GPIO_NUM_12,
                GPIO_NUM_33, GPIO_NUM_16},
-    .port_b = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14,
+    .port_b = {GPIO_NUM_27, GPIO_NUM_25, GPIO_NUM_32, GPIO_NUM_17, GPIO_NUM_12,
                GPIO_NUM_33, GPIO_NUM_16},
 
     // Not sure whether the LEDs and Push button are correct.
-    .led_j1 = GPIO_NUM_5,
+    .led_j1 = GPIO_NUM_12,
     .led_j2 = GPIO_NUM_12,
     .push_button = GPIO_NUM_15,
 };
@@ -172,12 +172,12 @@ static int32_t g_delta_x = 0;
 static int32_t g_delta_y = 0;
 
 // Autofire
-static uint8_t g_autofire_a_enabled = 0;
-static uint8_t g_autofire_b_enabled = 0;
+static _Bool g_autofire_a_enabled = 0;
+static _Bool g_autofire_b_enabled = 0;
 
 // --- Code
 
-static int detect_hardware_version();
+static int detect_board_model();
 
 static unijoysticle_instance_t* get_unijoysticle_instance(
     const uni_hid_device_t* d);
@@ -212,25 +212,24 @@ static void unijoysticle_init(int argc, const char** argv) {
   UNUSED(argc);
   UNUSED(argv);
 
-#if PLAT_UNIJOYSTICLE_SINGLE_PORT
-  logi(
-      "unijoysticle: Single port / 3-button mode enabled "
-      "(Amiga/Atari ST "
-      "compatible)\n");
-  g_uni_config = &uni_gpio_config_unijoy2amiga;
-#else
   logi("unijoysticle: Dual port / 1-button mode enabled\n");
 
-  if (detect_hardware_version() == HW_UNIJOYSTICLE2) {
-    logi("Hardware detected: Unijoysticle 2\n");
-    g_uni_config = &uni_gpio_config_v2;
+  int model = detect_board_model();
 
-  } else {
-    // Assuming HW_UNIJOYSTICLE2_PLUS
-    logi("Hardware detected: Unijoysticle 2+\n");
-    g_uni_config = &uni_gpio_config_v2plus;
+  switch (model) {
+    case BOARD_MODEL_UNIJOYSTICLE2:
+      logi("Hardware detected: Unijoysticle 2\n");
+      g_uni_config = &uni_gpio_config_v2;
+      break;
+    case BOARD_MODEL_UNIJOYSTICLE2_PLUS:
+      logi("Hardware detected: Unijoysticle 2+\n");
+      g_uni_config = &uni_gpio_config_v2plus;
+      break;
+    case BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT:
+      logi("Hardware detected: Unijoysticle 2 single port\n");
+      g_uni_config = &uni_gpio_config_unijoy2amiga;
+      break;
   }
-#endif  // !PLAT_UNIJOYSTICLE_SINGLE_PORT
 
   gpio_config_t io_conf;
   io_conf.intr_type = GPIO_INTR_DISABLE;
@@ -340,7 +339,7 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
 #if UNIJOYSTICLE_SINGLE_PORT
   int wanted_seat = GAMEPAD_SEAT_A;
   ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
-#else   // UNIJOYSTICLE_SINGLE_PORT  == 0
+#else   // UNIJOYSTICLE_SINGLE_PORT == 0
         // Try with Port B, assume it is a joystick
   int wanted_seat = GAMEPAD_SEAT_B;
   ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
@@ -360,7 +359,7 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
     logi("unijoysticle: Port already assigned, trying another one\n");
     wanted_seat = (~wanted_seat) & GAMEPAD_SEAT_AB_MASK;
   }
-#endif  // UNIJOYSTICLE_SINGLE_PORT  == 0
+#endif  // UNIJOYSTICLE_SINGLE_PORT == 0
 
   set_gamepad_seat(d, wanted_seat);
 
@@ -476,20 +475,29 @@ static void unijoysticle_on_device_oob_event(uni_hid_device_t* d,
 // Helpers
 //
 
-static int detect_hardware_version() {
-  // Detect hardware version based on GPIO 4.
-  // If 0, we can safely assume it is Unijosyticle2+ since it has
-  // GPIO 4 grounded.
+static int detect_board_model() {
+  // Detect hardware version based on GPIO 4 and 5.
+  // GPIO 4 grounded: Unijoysticle 2+
+  // GPIO 5 grounded: Single port
+  // else: Unijoysticle 2
+
+  int ret = BOARD_MODEL_UNIJOYSTICLE2;
 
   gpio_set_direction(GPIO_NUM_4, GPIO_MODE_INPUT);
   gpio_set_pull_mode(GPIO_NUM_4, GPIO_PULLUP_ONLY);
 
-  int ret = (gpio_get_level(GPIO_NUM_4) == 0) ? HW_UNIJOYSTICLE2_PLUS
-                                              : HW_UNIJOYSTICLE2;
+  gpio_set_direction(GPIO_NUM_5, GPIO_MODE_INPUT);
+  gpio_set_pull_mode(GPIO_NUM_5, GPIO_PULLUP_ONLY);
 
-  // After detection, to reduce current consuption, remove the
-  // pullup.
+  int gpio_4 = gpio_get_level(GPIO_NUM_4);
+  int gpio_5 = gpio_get_level(GPIO_NUM_5);
+
+  if (gpio_4 == 0) ret = BOARD_MODEL_UNIJOYSTICLE2_PLUS;
+  if (gpio_5 == 0) ret = BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT;
+
+  // After detection, to reduce current consuption, remove the pullup.
   gpio_set_pull_mode(GPIO_NUM_4, GPIO_FLOATING);
+  gpio_set_pull_mode(GPIO_NUM_5, GPIO_FLOATING);
   return ret;
 }
 
