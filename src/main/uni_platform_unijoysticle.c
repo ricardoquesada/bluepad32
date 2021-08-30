@@ -33,15 +33,7 @@ limitations under the License.
 #include "uni_hid_device.h"
 #include "uni_joystick.h"
 
-// --- Defines
-
-// Enable C64 POT support. Currently not implemented
-// Enabled if 1
-#define PLAT_UNIJOYSTICLE_ENABLE_POT 0
-
-// Enable Amiga/Atari ST mouse support.
-// Enabled if 1
-#define PLAT_UNIJOYSTICLE_ENABLE_MOUSE 1
+// --- Defines / Enums
 
 // To be used with Unijoysticle devices that only connect to one port.
 // For exmaple, the Amiga device made by https://arananet.net/
@@ -50,49 +42,14 @@ limitations under the License.
 // Enabled if 1
 #define PLAT_UNIJOYSTICLE_SINGLE_PORT 0
 
-// --- Consts
+// Number of usable ports in the DB9 joystick
+// Up, down, left, right, fire, pot x, pot y
+#define DB9_TOTAL_USABLE_PORTS 7
 
-// 20 milliseconds ~= 1 frame in PAL
-// 17 milliseconds ~= 1 frame in NTSC
-static const int AUTOFIRE_FREQ_MS = 20 * 4;  // change every ~4 frames
-
-static const int MOUSE_DELAY_BETWEEN_EVENT_US = 1200;  // microseconds
-// static const int MOUSE_MAX_DELTA = 32;
-
-// GPIO map for MH-ET Live mini-kit board.
-static const int GPIO_LED_J1 = GPIO_NUM_5;
-static int g_gpio_led_j2 = -1;
-static int g_gpio_push_button = -1;
-static int g_gpio_joy_b_fire = -1;
-
-enum {
-  GPIO_JOY_A_UP = GPIO_NUM_26,
-  GPIO_JOY_A_DOWN = GPIO_NUM_18,
-  GPIO_JOY_A_LEFT = GPIO_NUM_19,
-  GPIO_JOY_A_RIGHT = GPIO_NUM_23,
-
-  GPIO_JOY_A_FIRE = GPIO_NUM_14,
-  GPIO_MOUSE_BUTTON_L = GPIO_NUM_14,
-
-  GPIO_JOY_A_POT_Y = GPIO_NUM_16,
-  GPIO_MOUSE_BUTTON_M = GPIO_NUM_16,
-
-  GPIO_JOY_A_POT_X = GPIO_NUM_33,
-  GPIO_MOUSE_BUTTON_R = GPIO_NUM_33,
-
-  GPIO_JOY_B_UP = GPIO_NUM_27,
-  GPIO_JOY_B_DOWN = GPIO_NUM_25,
-  GPIO_JOY_B_LEFT = GPIO_NUM_32,
-  GPIO_JOY_B_RIGHT = GPIO_NUM_17,
-};
-
-// GPIO_NUM_12 (input) used as input for Pot in esp32.
-// GPIO_NUM_13 (output) used to feed the Pot in the c64
 enum {
   // Event group
   EVENT_BIT_MOUSE = (1 << 0),
-  EVENT_BIT_POT = (1 << 1),
-  EVENT_BIT_BUTTON = (1 << 2),
+  EVENT_BIT_BUTTON = (1 << 1),  // Push button
 
   // Autofire Group
   EVENT_BIT_AUTOFIRE = (1 << 0),
@@ -104,6 +61,9 @@ enum {
 
   // Unijoysticle 2 plus: SMT version
   HW_UNIJOYSTICLE2_PLUS,
+
+  // Unijosyticle Single port, like Arananet's Unijoy2Amiga
+  HW_UNIJOYSTICLE2_SINGLE_PORT,
 };
 
 // Different emulation modes
@@ -113,6 +73,32 @@ typedef enum {
   EMULATION_MODE_COMBO_JOY_JOY,
   EMULATION_MODE_COMBO_JOY_MOUSE,
 } emulation_mode_t;
+
+// --- Structs / Typedefs
+
+struct uni_gpio_config_joy {
+  gpio_num_t up;
+  gpio_num_t down;
+  gpio_num_t left;
+  gpio_num_t right;
+  gpio_num_t fire;
+  gpio_num_t pot_x;
+  gpio_num_t pot_y;
+};
+
+struct uni_gpio_config {
+  union {
+    struct uni_gpio_config_joy port_a_named;
+    gpio_num_t port_a[DB9_TOTAL_USABLE_PORTS];
+  };
+  union {
+    struct uni_gpio_config_joy port_b_named;
+    gpio_num_t port_b[DB9_TOTAL_USABLE_PORTS];
+  };
+  gpio_num_t led_j1;  // Green
+  gpio_num_t led_j2;  // Red
+  gpio_num_t push_button;
+};
 
 // C64 "instance"
 typedef struct unijoysticle_instance_s {
@@ -124,22 +110,58 @@ typedef struct unijoysticle_instance_s {
 _Static_assert(sizeof(unijoysticle_instance_t) < HID_DEVICE_MAX_PLATFORM_DATA,
                "Unijoysticle intance too big");
 
-// --- Constants
-static const gpio_num_t JOY_A_PORTS[] = {
-    GPIO_JOY_A_UP,   GPIO_JOY_A_DOWN,  GPIO_JOY_A_LEFT, GPIO_JOY_A_RIGHT,
-    GPIO_JOY_A_FIRE, GPIO_JOY_A_POT_X, GPIO_JOY_A_POT_Y};
-static gpio_num_t JOY_B_PORTS[] = {
-    GPIO_JOY_B_UP,
-    GPIO_JOY_B_DOWN,
-    GPIO_JOY_B_LEFT,
-    GPIO_JOY_B_RIGHT,
-    0, /* g_gpio_joy_b_fire, gets updated at init time */
-    GPIO_JOY_A_POT_X,
-    GPIO_JOY_A_POT_Y};
+// --- Consts
+
+// 20 milliseconds ~= 1 frame in PAL
+// 17 milliseconds ~= 1 frame in NTSC
+static const int AUTOFIRE_FREQ_MS = 20 * 4;  // change every ~4 frames
+
+static const int MOUSE_DELAY_BETWEEN_EVENT_US = 1200;  // microseconds
+
+// Unijoysticle v2: Through-hole version
+const struct uni_gpio_config uni_gpio_config_v2 = {
+    .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14,
+               -1, -1},
+    .port_b = {GPIO_NUM_27, GPIO_NUM_25, GPIO_NUM_32, GPIO_NUM_17, GPIO_NUM_12,
+               -1, -1},
+    .led_j1 = GPIO_NUM_5,
+    .led_j2 = GPIO_NUM_13,
+    .push_button = GPIO_NUM_10,
+};
+_Static_assert(sizeof(uni_gpio_config_v2.port_a) ==
+                   sizeof(uni_gpio_config_v2.port_a_named),
+               "Check uni_gpio_config union size");
+
+// Unijoysticle v2+: SMD version
+const struct uni_gpio_config uni_gpio_config_v2plus = {
+    .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14,
+               GPIO_NUM_33, GPIO_NUM_16},
+    .port_b = {GPIO_NUM_27, GPIO_NUM_25, GPIO_NUM_32, GPIO_NUM_17, GPIO_NUM_13,
+               GPIO_NUM_21, GPIO_NUM_22},
+    .led_j1 = GPIO_NUM_5,
+    .led_j2 = GPIO_NUM_12,
+    .push_button = GPIO_NUM_15,
+};
+
+// Arananet's Unijoy2Amiga
+const struct uni_gpio_config uni_gpio_config_unijoy2amiga = {
+    // Only has one port. Just mirror Port A with Port B.
+    .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14,
+               GPIO_NUM_33, GPIO_NUM_16},
+    .port_b = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14,
+               GPIO_NUM_33, GPIO_NUM_16},
+
+    // Not sure whether the LEDs and Push button are correct.
+    .led_j1 = GPIO_NUM_5,
+    .led_j2 = GPIO_NUM_12,
+    .push_button = GPIO_NUM_15,
+};
 
 static const bd_addr_t zero_addr = {0, 0, 0, 0, 0, 0};
 
 // --- Globals
+
+const struct uni_gpio_config* g_uni_config = NULL;
 
 static int64_t g_last_time_pressed_us = 0;  // in microseconds
 static EventGroupHandle_t g_event_group;
@@ -149,10 +171,6 @@ static EventGroupHandle_t g_auto_fire_group;
 static int32_t g_delta_x = 0;
 static int32_t g_delta_y = 0;
 
-// Pot "shared data from main task to pot task.
-static uint8_t g_pot_x = 0;
-static uint8_t g_pot_y = 0;
-
 // Autofire
 static uint8_t g_autofire_a_enabled = 0;
 static uint8_t g_autofire_b_enabled = 0;
@@ -161,19 +179,20 @@ static uint8_t g_autofire_b_enabled = 0;
 
 static int detect_hardware_version();
 
-static unijoysticle_instance_t* get_unijoysticle_instance(uni_hid_device_t* d);
+static unijoysticle_instance_t* get_unijoysticle_instance(
+    const uni_hid_device_t* d);
 static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat);
-static void process_joystick(uni_joystick_t* joy, uni_gamepad_seat_t seat);
+static void process_joystick(const uni_joystick_t* joy,
+                             uni_gamepad_seat_t seat);
 static void process_mouse(uni_hid_device_t* d, int32_t delta_x, int32_t delta_y,
                           uint16_t buttons);
 
 // Interrupt handlers
 static void handle_event_mouse();
-static void handle_event_pot();
 static void handle_event_button();
 
 // Mouse related
-static void joy_update_port(uni_joystick_t* joy, const gpio_num_t* gpios);
+static void joy_update_port(const uni_joystick_t* joy, const gpio_num_t* gpios);
 static void mouse_send_move(int pin_a, int pin_b, uint32_t delay);
 static void mouse_move_x(int dir, uint32_t delay);
 static void mouse_move_y(int dir, uint32_t delay);
@@ -182,26 +201,9 @@ static void delay_us(uint32_t delay);
 
 // GPIO Interrupt handlers
 static void IRAM_ATTR gpio_isr_handler_button(void* arg);
-#if PLAT_UNIJOYSTICLE_ENABLE_POT
-static void IRAM_ATTR gpio_isr_handler_pot(void* arg);
-#endif  // PLAT_UNIJOYSTICLE_ENABLE_POT
 
 static void event_loop(void* arg);
 static void auto_fire_loop(void* arg);
-
-#define MAX(a, b)           \
-  ({                        \
-    __typeof__(a) _a = (a); \
-    __typeof__(b) _b = (b); \
-    _a > _b ? _a : _b;      \
-  })
-
-#define MIN(a, b)           \
-  ({                        \
-    __typeof__(a) _a = (a); \
-    __typeof__(b) _b = (b); \
-    _a < _b ? _a : _b;      \
-  })
 
 //
 // Platform Overrides
@@ -212,28 +214,23 @@ static void unijoysticle_init(int argc, const char** argv) {
 
 #if PLAT_UNIJOYSTICLE_SINGLE_PORT
   logi(
-      "unijoysticle: Single port / 3-button mode enabled (Amiga/Atari ST "
+      "unijoysticle: Single port / 3-button mode enabled "
+      "(Amiga/Atari ST "
       "compatible)\n");
+  g_uni_config = &uni_gpio_config_unijoy2amiga;
 #else
   logi("unijoysticle: Dual port / 1-button mode enabled\n");
-#endif
 
-#define JOY_FIRE_IDX 4
   if (detect_hardware_version() == HW_UNIJOYSTICLE2) {
     logi("Hardware detected: Unijoysticle 2\n");
-    g_gpio_push_button = GPIO_NUM_10;
-    g_gpio_led_j2 = GPIO_NUM_13;
-    g_gpio_joy_b_fire = GPIO_NUM_12;
-    JOY_B_PORTS[JOY_FIRE_IDX] = GPIO_NUM_12;
+    g_uni_config = &uni_gpio_config_v2;
 
   } else {
     // Assuming HW_UNIJOYSTICLE2_PLUS
     logi("Hardware detected: Unijoysticle 2+\n");
-    g_gpio_push_button = GPIO_NUM_15;
-    g_gpio_led_j2 = GPIO_NUM_12;
-    g_gpio_joy_b_fire = GPIO_NUM_13;
-    JOY_B_PORTS[JOY_FIRE_IDX] = GPIO_NUM_13;
+    g_uni_config = &uni_gpio_config_v2plus;
   }
+#endif  // !PLAT_UNIJOYSTICLE_SINGLE_PORT
 
   gpio_config_t io_conf;
   io_conf.intr_type = GPIO_INTR_DISABLE;
@@ -242,74 +239,63 @@ static void unijoysticle_init(int argc, const char** argv) {
   io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
   // Port A.
   io_conf.pin_bit_mask =
-      ((1ULL << GPIO_JOY_A_UP) | (1ULL << GPIO_JOY_A_DOWN) |
-       (1ULL << GPIO_JOY_A_LEFT) | (1ULL << GPIO_JOY_A_RIGHT) |
-       (1ULL << GPIO_JOY_A_FIRE) | (1ULL << GPIO_JOY_A_POT_X) |
-       (1ULL << GPIO_JOY_A_POT_Y));
+      ((1ULL << g_uni_config->port_a[0]) | (1ULL << g_uni_config->port_a[1]) |
+       (1ULL << g_uni_config->port_a[2]) | (1ULL << g_uni_config->port_a[3]) |
+       (1ULL << g_uni_config->port_a[4]) | (1ULL << g_uni_config->port_a[5]) |
+       (1ULL << g_uni_config->port_a[6]));
+
   // Port B.
   io_conf.pin_bit_mask |=
-      ((1ULL << GPIO_JOY_B_UP) | (1ULL << GPIO_JOY_B_DOWN) |
-       (1ULL << GPIO_JOY_B_LEFT) | (1ULL << GPIO_JOY_B_RIGHT) |
-       (1ULL << g_gpio_joy_b_fire));
+      ((1ULL << g_uni_config->port_b[0]) | (1ULL << g_uni_config->port_b[1]) |
+       (1ULL << g_uni_config->port_b[2]) | (1ULL << g_uni_config->port_b[3]) |
+       (1ULL << g_uni_config->port_b[4]) | (1ULL << g_uni_config->port_b[5]) |
+       (1ULL << g_uni_config->port_b[6]));
 
-  // Leds
-  io_conf.pin_bit_mask |= (1ULL << GPIO_LED_J1);
-  io_conf.pin_bit_mask |= (1ULL << g_gpio_led_j2);
-
-  // Pot feeder
-  // io_conf.pin_bit_mask |= (1ULL << GPIO_NUM_13);
+  // LEDs
+  io_conf.pin_bit_mask |= (1ULL << g_uni_config->led_j1);
+  io_conf.pin_bit_mask |= (1ULL << g_uni_config->led_j2);
 
   ESP_ERROR_CHECK(gpio_config(&io_conf));
 
   // Set low all GPIOs... just in case.
-  const int MAX_GPIOS = sizeof(JOY_A_PORTS) / sizeof(JOY_A_PORTS[0]);
+  const int MAX_GPIOS =
+      sizeof(g_uni_config->port_a) / sizeof(g_uni_config->port_a[0]);
   for (int i = 0; i < MAX_GPIOS; i++) {
-    ESP_ERROR_CHECK(gpio_set_level(JOY_A_PORTS[i], 0));
-    ESP_ERROR_CHECK(gpio_set_level(JOY_B_PORTS[i], 0));
+    ESP_ERROR_CHECK(gpio_set_level(g_uni_config->port_a[i], 0));
+    ESP_ERROR_CHECK(gpio_set_level(g_uni_config->port_b[i], 0));
   }
 
-  // Turn On LED
-  gpio_set_level(GPIO_LED_J1, 1);
-  gpio_set_level(g_gpio_led_j2, 1);
+  // Turn On LEDs
+  gpio_set_level(g_uni_config->led_j1, 1);
+  gpio_set_level(g_uni_config->led_j2, 1);
 
   // Pull-up for button
   io_conf.intr_type = GPIO_INTR_ANYEDGE;
   io_conf.mode = GPIO_MODE_INPUT;
   io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
   io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
-  io_conf.pin_bit_mask = (1ULL << g_gpio_push_button);
+  io_conf.pin_bit_mask = (1ULL << g_uni_config->push_button);
   ESP_ERROR_CHECK(gpio_config(&io_conf));
   ESP_ERROR_CHECK(gpio_install_isr_service(0));
-  ESP_ERROR_CHECK(gpio_isr_handler_add(
-      g_gpio_push_button, gpio_isr_handler_button, (void*)g_gpio_push_button));
+  ESP_ERROR_CHECK(gpio_isr_handler_add(g_uni_config->push_button,
+                                       gpio_isr_handler_button,
+                                       (void*)g_uni_config->push_button));
 
-// C64 POT related
-#if PLAT_UNIJOYSTICLE_ENABLE_POT
-  io_conf.intr_type = GPIO_INTR_POSEDGE;  // GPIO_INTR_NEGEDGE
-  io_conf.mode = GPIO_MODE_INPUT;
-  io_conf.pin_bit_mask = 1ULL << GPIO_NUM_12;
-  io_conf.pull_down_en = false;
-  io_conf.pull_up_en = true;
-  ESP_ERROR_CHECK(gpio_config(&io_conf));
-  ESP_ERROR_CHECK(gpio_install_isr_service(0));
-  ESP_ERROR_CHECK(gpio_isr_handler_add(GPIO_NUM_12, gpio_isr_handler_pot,
-                                       (void*)GPIO_NUM_12));
-#endif  // PLAT_UNIJOYSTICLE_ENABLE_POT
-
-  // Split "events" from "auto_fire", since auto-fire is an on-going event.
+  // Split "events" from "auto_fire", since auto-fire is an
+  // on-going event.
   g_event_group = xEventGroupCreate();
   xTaskCreate(event_loop, "event_loop", 2048, NULL, 10, NULL);
 
   g_auto_fire_group = xEventGroupCreate();
   xTaskCreate(auto_fire_loop, "auto_fire_loop", 2048, NULL, 10, NULL);
-  // xTaskCreatePinnedToCore(event_loop, "event_loop", 2048, NULL,
-  // portPRIVILEGE_BIT, NULL, 1);
+  // xTaskCreatePinnedToCore(event_loop, "event_loop", 2048,
+  // NULL, portPRIVILEGE_BIT, NULL, 1);
 }
 
 static void unijoysticle_on_init_complete(void) {
-  // Turn Off LEDs
-  gpio_set_level(GPIO_LED_J1, 0);
-  gpio_set_level(g_gpio_led_j2, 0);
+  // Turn off LEDs
+  gpio_set_level(g_uni_config->led_j1, 0);
+  gpio_set_level(g_uni_config->led_j2, 0);
 }
 
 static void unijoysticle_on_device_connected(uni_hid_device_t* d) {
@@ -355,14 +341,14 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
   int wanted_seat = GAMEPAD_SEAT_A;
   ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
 #else   // UNIJOYSTICLE_SINGLE_PORT  == 0
-  // Try with Port B, assume it is a joystick
+        // Try with Port B, assume it is a joystick
   int wanted_seat = GAMEPAD_SEAT_B;
   ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
   // d->emu_mode = EMULATION_MODE_COMBO_JOY_JOY;
 
-  // ... unless it is a mouse which should try with PORT A. Amiga/Atari ST use
-  // mice in PORT A. Undefined on the C64, but most apps use it in PORT A as
-  // well.
+  // ... unless it is a mouse which should try with PORT A.
+  // Amiga/Atari ST use mice in PORT A. Undefined on the C64, but
+  // most apps use it in PORT A as well.
   uint32_t mouse_cod = MASK_COD_MAJOR_PERIPHERAL | MASK_COD_MINOR_POINT_DEVICE;
   if ((d->cod & mouse_cod) == mouse_cod) {
     wanted_seat = GAMEPAD_SEAT_A;
@@ -424,7 +410,7 @@ static int32_t unijoysticle_get_property(uni_platform_property_t key) {
   if (key != UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS) return -1;
 
   // Hi-released, Low-pressed
-  return !gpio_get_level(g_gpio_push_button);
+  return !gpio_get_level(g_uni_config->push_button);
 }
 
 static void unijoysticle_on_device_oob_event(uni_hid_device_t* d,
@@ -453,8 +439,7 @@ static void unijoysticle_on_device_oob_event(uni_hid_device_t* d,
   if (ins->gamepad_seat == (GAMEPAD_SEAT_A | GAMEPAD_SEAT_B)) {
     logi(
         "unijoysticle: cannot swap port since has more than one port "
-        "associated with. "
-        "Leave emu mode and try again.\n");
+        "associated with. Leave emu mode and try again.\n");
     return;
   }
 
@@ -468,8 +453,7 @@ static void unijoysticle_on_device_oob_event(uni_hid_device_t* d,
       if (num_devices > 1) {
         logi(
             "unijoysticle: cannot swap joystick ports when more than one "
-            "device is "
-            "attached\n");
+            "device is attached\n");
         uni_hid_device_dump_all();
         return;
       }
@@ -494,8 +478,8 @@ static void unijoysticle_on_device_oob_event(uni_hid_device_t* d,
 
 static int detect_hardware_version() {
   // Detect hardware version based on GPIO 4.
-  // If 0, we can safely assume it is Unijosyticle2+ since it has GPIO 4
-  // grounded.
+  // If 0, we can safely assume it is Unijosyticle2+ since it has
+  // GPIO 4 grounded.
 
   gpio_set_direction(GPIO_NUM_4, GPIO_MODE_INPUT);
   gpio_set_pull_mode(GPIO_NUM_4, GPIO_PULLUP_ONLY);
@@ -503,12 +487,14 @@ static int detect_hardware_version() {
   int ret = (gpio_get_level(GPIO_NUM_4) == 0) ? HW_UNIJOYSTICLE2_PLUS
                                               : HW_UNIJOYSTICLE2;
 
-  // After detection, to reduce current consuption, remove the pullup.
+  // After detection, to reduce current consuption, remove the
+  // pullup.
   gpio_set_pull_mode(GPIO_NUM_4, GPIO_FLOATING);
   return ret;
 }
 
-static unijoysticle_instance_t* get_unijoysticle_instance(uni_hid_device_t* d) {
+static unijoysticle_instance_t* get_unijoysticle_instance(
+    const uni_hid_device_t* d) {
   return (unijoysticle_instance_t*)&d->platform_data[0];
 }
 
@@ -520,9 +506,9 @@ static void process_mouse(uni_hid_device_t* d, int32_t delta_x, int32_t delta_y,
        buttons);
 
   // Mouse is implemented using a quadrature encoding
-  // FIXME: Passing values to mouse task using global variables. This is, of
-  // course, error-prone to races and what not, but seeems to be good enough for
-  // our purpose.
+  // FIXME: Passing values to mouse task using global variables.
+  // This is, of course, error-prone to races and what not, but
+  // seeems to be good enough for our purpose.
   if (delta_x || delta_y) {
     g_delta_x = delta_x;
     g_delta_y = delta_y;
@@ -530,18 +516,19 @@ static void process_mouse(uni_hid_device_t* d, int32_t delta_x, int32_t delta_y,
   }
   if (buttons != prev_buttons) {
     prev_buttons = buttons;
-    gpio_set_level(GPIO_MOUSE_BUTTON_L, (buttons & BUTTON_A));
-    gpio_set_level(GPIO_MOUSE_BUTTON_R, (buttons & BUTTON_B));
-    gpio_set_level(GPIO_MOUSE_BUTTON_M, (buttons & BUTTON_X));
+    gpio_set_level(g_uni_config->port_a_named.fire, (buttons & BUTTON_A));
+    gpio_set_level(g_uni_config->port_a_named.pot_x, (buttons & BUTTON_B));
+    gpio_set_level(g_uni_config->port_a_named.pot_y, (buttons & BUTTON_X));
   }
 }
 
-static void process_joystick(uni_joystick_t* joy, uni_gamepad_seat_t seat) {
+static void process_joystick(const uni_joystick_t* joy,
+                             uni_gamepad_seat_t seat) {
   if (seat == GAMEPAD_SEAT_A) {
-    joy_update_port(joy, JOY_A_PORTS);
+    joy_update_port(joy, g_uni_config->port_a);
     g_autofire_a_enabled = joy->auto_fire;
   } else if (seat == GAMEPAD_SEAT_B) {
-    joy_update_port(joy, JOY_B_PORTS);
+    joy_update_port(joy, g_uni_config->port_b);
     g_autofire_b_enabled = joy->auto_fire;
   } else {
     loge("unijoysticle: process_joystick: invalid gamepad seat: %d\n", seat);
@@ -571,8 +558,8 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
 
   bool status_a = ((all_seats & GAMEPAD_SEAT_A) != 0);
   bool status_b = ((all_seats & GAMEPAD_SEAT_B) != 0);
-  gpio_set_level(GPIO_LED_J1, status_a);
-  gpio_set_level(g_gpio_led_j2, status_b);
+  gpio_set_level(g_uni_config->led_j1, status_a);
+  gpio_set_level(g_uni_config->led_j2, status_b);
 
   if (d->report_parser.set_lightbar_color != NULL) {
     // First try with color LED (best experience)
@@ -581,48 +568,45 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
     if (seat & 0x01) green = 0xff;
     if (seat & 0x02) red = 0xff;
     d->report_parser.set_lightbar_color(d, red, green, 0x00 /* blue*/);
+
   } else if (d->report_parser.set_player_leds != NULL) {
     // 2nd best option: set player LEDs
     d->report_parser.set_player_leds(d, all_seats);
+
   } else if (d->report_parser.set_rumble != NULL) {
     // Finally, as last resort, rumble
     d->report_parser.set_rumble(d, 0x80 /* value */, 0x04 /* duration */);
   }
 }
 
-static void joy_update_port(uni_joystick_t* joy, const gpio_num_t* gpios) {
+static void joy_update_port(const uni_joystick_t* joy,
+                            const gpio_num_t* gpios) {
   logd("up=%d, down=%d, left=%d, right=%d, fire=%d, potx=%d, poty=%d\n",
        joy->up, joy->down, joy->left, joy->right, joy->fire, joy->pot_x,
        joy->pot_y);
-
-  g_pot_x = joy->pot_x;
-  g_pot_y = joy->pot_y;
 
   gpio_set_level(gpios[0], !!joy->up);
   gpio_set_level(gpios[1], !!joy->down);
   gpio_set_level(gpios[2], !!joy->left);
   gpio_set_level(gpios[3], !!joy->right);
 
-  // only update fire if auto-fire is off. otherwise it will conflict.
+  // Only update fire if auto-fire is off. Otherwise it will conflict.
   if (!joy->auto_fire) {
     gpio_set_level(gpios[4], !!joy->fire);
   }
 
-#if PLAT_UNIJOYSTICLE_SINGLE_PORT == 1
-  // Diginal buttons B and C for Amiga/Atari ST (pot X and pot Y on C64) are
-  // enabled only on "unijoysticle single port" mode.
-  gpio_set_level(gpios[5], !!joy->pot_x);
-  gpio_set_level(gpios[6], !!joy->pot_y);
-#endif  // PLAT_UNIJOYSTICLE_SINGLE_PORT == 1
+  // Check for valid GPIO values since some models might have it disabled.
+  if (gpios[5] != -1) gpio_set_level(gpios[5], !!joy->pot_x);
+  if (gpios[6] != -1) gpio_set_level(gpios[6], !!joy->pot_y);
 }
 
 static void event_loop(void* arg) {
   // timeout of 10s
   const TickType_t xTicksToWait = 10000 / portTICK_PERIOD_MS;
   while (1) {
-    EventBits_t uxBits = xEventGroupWaitBits(
-        g_event_group, (EVENT_BIT_MOUSE | EVENT_BIT_BUTTON | EVENT_BIT_POT),
-        pdTRUE, pdFALSE, xTicksToWait);
+    EventBits_t uxBits =
+        xEventGroupWaitBits(g_event_group, (EVENT_BIT_MOUSE | EVENT_BIT_BUTTON),
+                            pdTRUE, pdFALSE, xTicksToWait);
 
     // timeout ?
     if (uxBits == 0) continue;
@@ -630,8 +614,6 @@ static void event_loop(void* arg) {
     if (uxBits & EVENT_BIT_MOUSE) handle_event_mouse();
 
     if (uxBits & EVENT_BIT_BUTTON) handle_event_button();
-
-    if (uxBits & EVENT_BIT_POT) handle_event_pot();
   }
 }
 
@@ -647,13 +629,17 @@ static void auto_fire_loop(void* arg) {
     if (uxBits == 0) continue;
 
     while (g_autofire_a_enabled || g_autofire_b_enabled) {
-      if (g_autofire_a_enabled) gpio_set_level(JOY_A_PORTS[4], 1);
-      if (g_autofire_b_enabled) gpio_set_level(JOY_B_PORTS[4], 1);
+      if (g_autofire_a_enabled)
+        gpio_set_level(g_uni_config->port_a_named.fire, 1);
+      if (g_autofire_b_enabled)
+        gpio_set_level(g_uni_config->port_b_named.fire, 1);
 
       vTaskDelay(delayTicks);
 
-      if (g_autofire_a_enabled) gpio_set_level(JOY_A_PORTS[4], 0);
-      if (g_autofire_b_enabled) gpio_set_level(JOY_B_PORTS[4], 0);
+      if (g_autofire_a_enabled)
+        gpio_set_level(g_uni_config->port_a_named.fire, 0);
+      if (g_autofire_b_enabled)
+        gpio_set_level(g_uni_config->port_b_named.fire, 0);
 
       vTaskDelay(delayTicks);
     }
@@ -718,22 +704,22 @@ static void mouse_send_move(int pin_a, int pin_b, uint32_t delay) {
 static void mouse_move_x(int dir, uint32_t delay) {
   // up, down, left, right, fire
   if (dir < 0)
-    mouse_send_move(JOY_A_PORTS[0], JOY_A_PORTS[1], delay);
+    mouse_send_move(g_uni_config->port_a[0], g_uni_config->port_a[1], delay);
   else
-    mouse_send_move(JOY_A_PORTS[1], JOY_A_PORTS[0], delay);
+    mouse_send_move(g_uni_config->port_a[1], g_uni_config->port_a[0], delay);
 }
 
 static void mouse_move_y(int dir, uint32_t delay) {
   // up, down, left, right, fire
   if (dir < 0)
-    mouse_send_move(JOY_A_PORTS[2], JOY_A_PORTS[3], delay);
+    mouse_send_move(g_uni_config->port_a[2], g_uni_config->port_a[3], delay);
   else
-    mouse_send_move(JOY_A_PORTS[3], JOY_A_PORTS[2], delay);
+    mouse_send_move(g_uni_config->port_a[3], g_uni_config->port_a[2], delay);
 }
 
-// Delay in microseconds. Anything bigger than 1000 microseconds (1 millisecond)
-// should be scheduled using vTaskDelay(), which will allow context-switch and
-// allow other tasks to run.
+// Delay in microseconds. Anything bigger than 1000 microseconds
+// (1 millisecond) should be scheduled using vTaskDelay(), which
+// will allow context-switch and allow other tasks to run.
 static void delay_us(uint32_t delay) {
   if (delay > 1000)
     vTaskDelay(delay / 1000);
@@ -741,20 +727,9 @@ static void delay_us(uint32_t delay) {
     ets_delay_us(delay);
 }
 
-static void handle_event_pot() {
-  // gpio_set_level(GPIO_NUM_13, 1);
-  // ets_delay_us(50 /*223*/);
-  // gpio_set_level(GPIO_NUM_13, 0);
-
-  // gpio_set_level(GPIO_NUM_13, 0);
-  // ets_delay_us(200 /*235*/);
-  // ets_delay_us(g_pot_y);
-  // gpio_set_level(GPIO_NUM_13, 1);
-}
-
 static void IRAM_ATTR gpio_isr_handler_button(void* arg) {
   // button released ?
-  if (gpio_get_level(g_gpio_push_button)) {
+  if (gpio_get_level(g_uni_config->push_button)) {
     g_last_time_pressed_us = esp_timer_get_time();
     return;
   }
@@ -766,33 +741,22 @@ static void IRAM_ATTR gpio_isr_handler_button(void* arg) {
   if (xHigherPriorityTaskWoken == pdTRUE) portYIELD_FROM_ISR();
 }
 
-#if PLAT_UNIJOYSTICLE_ENABLE_POT
-static void IRAM_ATTR gpio_isr_handler_pot(void* arg) {
-  uint32_t gpio_num = (uint32_t)arg;
-  (void)gpio_num;
-
-  BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-  xEventGroupSetBitsFromISR(g_event_group, EVENT_BIT_POT,
-                            &xHigherPriorityTaskWoken);
-  if (xHigherPriorityTaskWoken == pdTRUE) portYIELD_FROM_ISR();
-}
-#endif  // PLAT_UNIJOYSTICLE_ENABLE_POT
-
 static void handle_event_button() {
-  // FIXME: Debouncer might fail when releasing the button. Implement something
-  // like this one:
+  // FIXME: Debouncer might fail when releasing the button.
+  // Implement something like this one:
   // https://hackaday.com/2015/12/10/embed-with-elliot-debounce-your-noisy-buttons-part-ii/
   const int64_t button_threshold_time_us = 300 * 1000;  // 300ms
   static int enabled = 0;
 
-  // Regardless of the state, ignore the event if not enough time passed.
+  // Regardless of the state, ignore the event if not enough time
+  // passed.
   int64_t now = esp_timer_get_time();
   if ((now - g_last_time_pressed_us) < button_threshold_time_us) return;
 
   g_last_time_pressed_us = now;
 
   // "up" button is released. Ignore event.
-  if (gpio_get_level(g_gpio_push_button)) {
+  if (gpio_get_level(g_uni_config->push_button)) {
     return;
   }
 
@@ -830,11 +794,13 @@ static void handle_event_button() {
     ins->prev_gamepad_seat = ins->gamepad_seat;
     set_gamepad_seat(d, GAMEPAD_SEAT_A | GAMEPAD_SEAT_B);
     logi("unijoysticle: Emulation mode = Combo Joy Joy\n");
+
   } else if (ins->emu_mode == EMULATION_MODE_COMBO_JOY_JOY) {
     ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
     set_gamepad_seat(d, ins->prev_gamepad_seat);
     // Turn on only the valid one
     logi("unijoysticle: Emulation mode = Single Joy\n");
+
   } else {
     loge("unijoysticle: Cannot switch emu mode. Current mode: %d\n",
          ins->emu_mode);
