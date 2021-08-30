@@ -19,6 +19,8 @@ limitations under the License.
 
 #include "uni_joystick.h"
 
+#include "uni_gamepad.h"
+
 static void to_single_joy(const uni_gamepad_t* gp, uni_joystick_t* out_joy) {
   // Button A is "fire"
   if (gp->updated_states & GAMEPAD_STATE_BUTTON_A) {
@@ -36,10 +38,10 @@ static void to_single_joy(const uni_gamepad_t* gp, uni_joystick_t* out_joy) {
 
   // Dpad
   if (gp->updated_states & GAMEPAD_STATE_DPAD) {
-    if (gp->dpad & 0x01) out_joy->up |= 1;
-    if (gp->dpad & 0x02) out_joy->down |= 1;
-    if (gp->dpad & 0x04) out_joy->right |= 1;
-    if (gp->dpad & 0x08) out_joy->left |= 1;
+    if (gp->dpad & DPAD_UP) out_joy->up |= 1;
+    if (gp->dpad & DPAD_DOWN) out_joy->down |= 1;
+    if (gp->dpad & DPAD_RIGHT) out_joy->right |= 1;
+    if (gp->dpad & DPAD_LEFT) out_joy->left |= 1;
   }
 
   // Axis: X and Y
@@ -65,19 +67,21 @@ void uni_joy_to_single_joy_from_gamepad(const uni_gamepad_t* gp,
                                         uni_joystick_t* out_joy) {
   to_single_joy(gp, out_joy);
 
-#if UNIJOYSTICLE_SINGLE_PORT == 0
-  // Buttom B is "jump"
+  // Buttom B is "jump". Good for C64 games
   if (gp->updated_states & GAMEPAD_STATE_BUTTON_B) {
     out_joy->up |= ((gp->buttons & BUTTON_B) != 0);
   }
-#else   // UNIJOYSTICLE_SINGLE_PORT == 1
-  if (gp->updated_states & GAMEPAD_STATE_BUTTON_B) {
-    out_joy->pot_y |= ((gp->buttons & BUTTON_B) != 0);
-  }
+
+  // 2nd and 3rd buttons supportd in Amiga/Atari/ST
+  // FIXME: Perhaps X & Y are not the best candidates and they should be
+  // buttons B and X instead?
   if (gp->updated_states & GAMEPAD_STATE_BUTTON_X) {
     out_joy->pot_x |= ((gp->buttons & BUTTON_X) != 0);
   }
-#endif  // UNIJOYSTICLE_SINGLE_PORT == 1
+
+  if (gp->updated_states & GAMEPAD_STATE_BUTTON_Y) {
+    out_joy->pot_y |= ((gp->buttons & BUTTON_Y) != 0);
+  }
 }
 
 void uni_joy_to_combo_joy_joy_from_gamepad(const uni_gamepad_t* gp,
