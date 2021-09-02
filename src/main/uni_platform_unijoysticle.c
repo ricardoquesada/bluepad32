@@ -246,21 +246,12 @@ static void unijoysticle_init(int argc, const char** argv) {
   io_conf.mode = GPIO_MODE_OUTPUT;
   io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
   io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
-  // Port A.
-  io_conf.pin_bit_mask =
-      (1ULL << g_uni_config->port_a[0]) | (1ULL << g_uni_config->port_a[1]) |
-      (1ULL << g_uni_config->port_a[2]) | (1ULL << g_uni_config->port_a[3]) |
-      (1ULL << g_uni_config->port_a[4]);
-  io_conf.pin_bit_mask |= SAFE_SET_BIT(g_uni_config->port_a[5]);
-  io_conf.pin_bit_mask |= SAFE_SET_BIT(g_uni_config->port_a[6]);
-
-  // Port B.
-  io_conf.pin_bit_mask |=
-      (1ULL << g_uni_config->port_b[0]) | (1ULL << g_uni_config->port_b[1]) |
-      (1ULL << g_uni_config->port_b[2]) | (1ULL << g_uni_config->port_b[3]) |
-      (1ULL << g_uni_config->port_b[4]);
-  io_conf.pin_bit_mask |= SAFE_SET_BIT(g_uni_config->port_b[5]);
-  io_conf.pin_bit_mask |= SAFE_SET_BIT(g_uni_config->port_b[6]);
+  io_conf.pin_bit_mask = 0;
+  // Port A & B
+  for (int i = 0; i < DB9_TOTAL_USABLE_PORTS; i++) {
+    io_conf.pin_bit_mask |= SAFE_SET_BIT(g_uni_config->port_a[i]);
+    io_conf.pin_bit_mask |= SAFE_SET_BIT(g_uni_config->port_b[i]);
+  }
 
   // LEDs
   io_conf.pin_bit_mask |= SAFE_SET_BIT(g_uni_config->led_j1);
@@ -269,9 +260,7 @@ static void unijoysticle_init(int argc, const char** argv) {
   ESP_ERROR_CHECK(gpio_config(&io_conf));
 
   // Set low all GPIOs... just in case.
-  const int MAX_GPIOS =
-      sizeof(g_uni_config->port_a) / sizeof(g_uni_config->port_a[0]);
-  for (int i = 0; i < MAX_GPIOS; i++) {
+  for (int i = 0; i < DB9_TOTAL_USABLE_PORTS; i++) {
     ESP_ERROR_CHECK(safe_gpio_set_level(g_uni_config->port_a[i], 0));
     ESP_ERROR_CHECK(safe_gpio_set_level(g_uni_config->port_b[i], 0));
   }
@@ -556,9 +545,9 @@ static void process_mouse(uni_hid_device_t* d, int32_t delta_x, int32_t delta_y,
   }
   if (buttons != prev_buttons) {
     prev_buttons = buttons;
-    gpio_set_level(g_uni_config->port_a_named.fire, (buttons & BUTTON_A));
-    gpio_set_level(g_uni_config->port_a_named.pot_x, (buttons & BUTTON_B));
-    gpio_set_level(g_uni_config->port_a_named.pot_y, (buttons & BUTTON_X));
+    safe_gpio_set_level(g_uni_config->port_a_named.fire, (buttons & BUTTON_A));
+    safe_gpio_set_level(g_uni_config->port_a_named.pot_x, (buttons & BUTTON_B));
+    safe_gpio_set_level(g_uni_config->port_a_named.pot_y, (buttons & BUTTON_X));
   }
 }
 
@@ -625,14 +614,14 @@ static void joy_update_port(const uni_joystick_t* joy,
        joy->up, joy->down, joy->left, joy->right, joy->fire, joy->pot_x,
        joy->pot_y);
 
-  gpio_set_level(gpios[0], !!joy->up);
-  gpio_set_level(gpios[1], !!joy->down);
-  gpio_set_level(gpios[2], !!joy->left);
-  gpio_set_level(gpios[3], !!joy->right);
+  safe_gpio_set_level(gpios[0], !!joy->up);
+  safe_gpio_set_level(gpios[1], !!joy->down);
+  safe_gpio_set_level(gpios[2], !!joy->left);
+  safe_gpio_set_level(gpios[3], !!joy->right);
 
   // Only update fire if auto-fire is off. Otherwise it will conflict.
   if (!joy->auto_fire) {
-    gpio_set_level(gpios[4], !!joy->fire);
+    safe_gpio_set_level(gpios[4], !!joy->fire);
   }
 
   // Check for valid GPIO values since some models might have it disabled.
@@ -670,16 +659,16 @@ static void auto_fire_loop(void* arg) {
 
     while (g_autofire_a_enabled || g_autofire_b_enabled) {
       if (g_autofire_a_enabled)
-        gpio_set_level(g_uni_config->port_a_named.fire, 1);
+        safe_gpio_set_level(g_uni_config->port_a_named.fire, 1);
       if (g_autofire_b_enabled)
-        gpio_set_level(g_uni_config->port_b_named.fire, 1);
+        safe_gpio_set_level(g_uni_config->port_b_named.fire, 1);
 
       vTaskDelay(delayTicks);
 
       if (g_autofire_a_enabled)
-        gpio_set_level(g_uni_config->port_a_named.fire, 0);
+        safe_gpio_set_level(g_uni_config->port_a_named.fire, 0);
       if (g_autofire_b_enabled)
-        gpio_set_level(g_uni_config->port_b_named.fire, 0);
+        safe_gpio_set_level(g_uni_config->port_b_named.fire, 0);
 
       vTaskDelay(delayTicks);
     }
@@ -728,14 +717,14 @@ void handle_event_mouse() {
 }
 
 static void mouse_send_move(int pin_a, int pin_b, uint32_t delay) {
-  gpio_set_level(pin_a, 1);
+  safe_gpio_set_level(pin_a, 1);
   delay_us(delay);
-  gpio_set_level(pin_b, 1);
+  safe_gpio_set_level(pin_b, 1);
   delay_us(delay);
 
-  gpio_set_level(pin_a, 0);
+  safe_gpio_set_level(pin_a, 0);
   delay_us(delay);
-  gpio_set_level(pin_b, 0);
+  safe_gpio_set_level(pin_b, 0);
   delay_us(delay);
 
   vTaskDelay(0);
