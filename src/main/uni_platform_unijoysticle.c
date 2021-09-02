@@ -46,6 +46,9 @@ limitations under the License.
 // Up, down, left, right, fire, pot x, pot y
 #define DB9_TOTAL_USABLE_PORTS 7
 
+// In some board models not all GPIOs are set. Macro to simplify code for that.
+#define SAFE_SET_BIT(__value) (__value == -1) ? 0 : (1LL << __value)
+
 enum {
   // Event group
   EVENT_BIT_MOUSE = (1 << 0),
@@ -156,7 +159,7 @@ const struct uni_gpio_config uni_gpio_config_singleport = {
 
     // Not sure whether the LEDs and Push button are correct.
     .led_j1 = GPIO_NUM_12,
-    .led_j2 = GPIO_NUM_12,
+    .led_j2 = -1,
     .push_button = GPIO_NUM_15,
 };
 
@@ -208,6 +211,8 @@ static void IRAM_ATTR gpio_isr_handler_button(void* arg);
 static void event_loop(void* arg);
 static void auto_fire_loop(void* arg);
 
+static esp_err_t safe_gpio_set_level(gpio_num_t gpio, int value);
+
 //
 // Platform Overrides
 //
@@ -246,24 +251,20 @@ static void unijoysticle_init(int argc, const char** argv) {
       (1ULL << g_uni_config->port_a[0]) | (1ULL << g_uni_config->port_a[1]) |
       (1ULL << g_uni_config->port_a[2]) | (1ULL << g_uni_config->port_a[3]) |
       (1ULL << g_uni_config->port_a[4]);
-  if (g_uni_config->port_a[5] != -1)
-    io_conf.pin_bit_mask |= (1ULL << g_uni_config->port_a[5]);
-  if (g_uni_config->port_a[6] != -1)
-    io_conf.pin_bit_mask |= (1ULL << g_uni_config->port_a[6]);
+  io_conf.pin_bit_mask |= SAFE_SET_BIT(g_uni_config->port_a[5]);
+  io_conf.pin_bit_mask |= SAFE_SET_BIT(g_uni_config->port_a[6]);
 
   // Port B.
   io_conf.pin_bit_mask |=
       (1ULL << g_uni_config->port_b[0]) | (1ULL << g_uni_config->port_b[1]) |
       (1ULL << g_uni_config->port_b[2]) | (1ULL << g_uni_config->port_b[3]) |
       (1ULL << g_uni_config->port_b[4]);
-  if (g_uni_config->port_b[5] != -1)
-    io_conf.pin_bit_mask |= (1ULL << g_uni_config->port_b[5]);
-  if (g_uni_config->port_b[6] != -1)
-    io_conf.pin_bit_mask |= (1ULL << g_uni_config->port_b[6]);
+  io_conf.pin_bit_mask |= SAFE_SET_BIT(g_uni_config->port_b[5]);
+  io_conf.pin_bit_mask |= SAFE_SET_BIT(g_uni_config->port_b[6]);
 
   // LEDs
-  io_conf.pin_bit_mask |= (1ULL << g_uni_config->led_j1);
-  io_conf.pin_bit_mask |= (1ULL << g_uni_config->led_j2);
+  io_conf.pin_bit_mask |= SAFE_SET_BIT(g_uni_config->led_j1);
+  io_conf.pin_bit_mask |= SAFE_SET_BIT(g_uni_config->led_j2);
 
   ESP_ERROR_CHECK(gpio_config(&io_conf));
 
@@ -271,15 +272,13 @@ static void unijoysticle_init(int argc, const char** argv) {
   const int MAX_GPIOS =
       sizeof(g_uni_config->port_a) / sizeof(g_uni_config->port_a[0]);
   for (int i = 0; i < MAX_GPIOS; i++) {
-    if (g_uni_config->port_a[i] != -1)
-      ESP_ERROR_CHECK(gpio_set_level(g_uni_config->port_a[i], 0));
-    if (g_uni_config->port_b[i] != -1)
-      ESP_ERROR_CHECK(gpio_set_level(g_uni_config->port_b[i], 0));
+    ESP_ERROR_CHECK(safe_gpio_set_level(g_uni_config->port_a[i], 0));
+    ESP_ERROR_CHECK(safe_gpio_set_level(g_uni_config->port_b[i], 0));
   }
 
   // Turn On LEDs
-  gpio_set_level(g_uni_config->led_j1, 1);
-  gpio_set_level(g_uni_config->led_j2, 1);
+  safe_gpio_set_level(g_uni_config->led_j1, 1);
+  safe_gpio_set_level(g_uni_config->led_j2, 1);
 
   // Pull-up for button
   io_conf.intr_type = GPIO_INTR_ANYEDGE;
@@ -305,8 +304,8 @@ static void unijoysticle_init(int argc, const char** argv) {
 
 static void unijoysticle_on_init_complete(void) {
   // Turn off LEDs
-  gpio_set_level(g_uni_config->led_j1, 0);
-  gpio_set_level(g_uni_config->led_j2, 0);
+  safe_gpio_set_level(g_uni_config->led_j1, 0);
+  safe_gpio_set_level(g_uni_config->led_j2, 0);
 }
 
 static void unijoysticle_on_device_connected(uni_hid_device_t* d) {
@@ -438,6 +437,13 @@ static void unijoysticle_on_device_oob_event(uni_hid_device_t* d,
   if (event != UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON) {
     loge("ERROR: unijoysticle_on_device_oob_event: unsupported event: 0x%04x\n",
          event);
+    return;
+  }
+
+  if (get_board_model() == BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT) {
+    logi(
+        "INFO: unijoysticle_on_device_oob_event: No effect in single port "
+        "boards\n");
     return;
   }
 
@@ -592,8 +598,8 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
 
   bool status_a = ((all_seats & GAMEPAD_SEAT_A) != 0);
   bool status_b = ((all_seats & GAMEPAD_SEAT_B) != 0);
-  gpio_set_level(g_uni_config->led_j1, status_a);
-  gpio_set_level(g_uni_config->led_j2, status_b);
+  safe_gpio_set_level(g_uni_config->led_j1, status_a);
+  safe_gpio_set_level(g_uni_config->led_j2, status_b);
 
   if (d->report_parser.set_lightbar_color != NULL) {
     // First try with color LED (best experience)
@@ -630,8 +636,8 @@ static void joy_update_port(const uni_joystick_t* joy,
   }
 
   // Check for valid GPIO values since some models might have it disabled.
-  if (gpios[5] != -1) gpio_set_level(gpios[5], !!joy->pot_x);
-  if (gpios[6] != -1) gpio_set_level(gpios[6], !!joy->pot_y);
+  safe_gpio_set_level(gpios[5], !!joy->pot_x);
+  safe_gpio_set_level(gpios[6], !!joy->pot_y);
 }
 
 static void event_loop(void* arg) {
@@ -839,6 +845,12 @@ static void handle_event_button() {
     loge("unijoysticle: Cannot switch emu mode. Current mode: %d\n",
          ins->emu_mode);
   }
+}
+
+// In some boards, not all GPIOs are set. If so, don't try change their values.
+static esp_err_t safe_gpio_set_level(gpio_num_t gpio, int value) {
+  if (gpio == -1) return ESP_OK;
+  return gpio_set_level(gpio, value);
 }
 
 //
