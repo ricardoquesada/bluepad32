@@ -74,9 +74,9 @@ typedef enum {
 
 // Different emulation modes
 typedef enum {
-  EMULATION_MODE_SINGLE_JOY,
+  EMULATION_MODE_SINGLE_JOY,  // Basic mode
   EMULATION_MODE_SINGLE_MOUSE,
-  EMULATION_MODE_COMBO_JOY_JOY,
+  EMULATION_MODE_COMBO_JOY_JOY,  // Enhanced mode
   EMULATION_MODE_COMBO_JOY_MOUSE,
 } emulation_mode_t;
 

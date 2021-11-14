@@ -63,6 +63,7 @@ static void to_single_joy(const uni_gamepad_t* gp, uni_joystick_t* out_joy) {
   }
 }
 
+// Basic Mode: One gamepad controls one joystick
 void uni_joy_to_single_joy_from_gamepad(const uni_gamepad_t* gp,
                                         uni_joystick_t* out_joy) {
   to_single_joy(gp, out_joy);
@@ -72,18 +73,18 @@ void uni_joy_to_single_joy_from_gamepad(const uni_gamepad_t* gp,
     out_joy->up |= ((gp->buttons & BUTTON_B) != 0);
   }
 
-  // 2nd and 3rd buttons supportd in Amiga/Atari/ST
-  // FIXME: Perhaps X & Y are not the best candidates and they should be
-  // buttons B and X instead?
+  // 2nd Button for Atari ST / Amiga
   if (gp->updated_states & GAMEPAD_STATE_BUTTON_X) {
-    out_joy->pot_x |= ((gp->buttons & BUTTON_X) != 0);
+    out_joy->pot_y |= ((gp->buttons & BUTTON_X) != 0);
   }
 
+  // 3rd Button for Amiga
   if (gp->updated_states & GAMEPAD_STATE_BUTTON_Y) {
-    out_joy->pot_y |= ((gp->buttons & BUTTON_Y) != 0);
+    out_joy->pot_x |= ((gp->buttons & BUTTON_Y) != 0);
   }
 }
 
+// Enhanced mode: One gamepad controls two joysticks
 void uni_joy_to_combo_joy_joy_from_gamepad(const uni_gamepad_t* gp,
                                            uni_joystick_t* out_joy1,
                                            uni_joystick_t* out_joy2) {
@@ -118,11 +119,13 @@ void uni_joy_to_combo_joy_joy_from_gamepad(const uni_gamepad_t* gp,
   }
 }
 
+// One gamepad controls one mouse: Unfinished
 void uni_joy_to_single_mouse_from_gamepad(const uni_gamepad_t* gp,
                                           uni_joystick_t* out_mouse) {
   to_single_joy(gp, out_mouse);
 }
 
+// One gamepad controls one mouse and one joystick: Unfinished
 void uni_joy_to_combo_joy_mouse_from_gamepad(const uni_gamepad_t* gp,
                                              uni_joystick_t* out_joy,
                                              uni_joystick_t* out_mouse) {
