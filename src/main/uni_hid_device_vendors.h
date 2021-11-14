@@ -170,7 +170,7 @@ static const uni_controller_description_t arrControllers[] = {
 	{ MAKE_CONTROLLER_ID( 0x1532, 0x1009 ), CONTROLLER_TYPE_PS4Controller, NULL },	// Razer Raiju 2 Ultimate BT
 	{ MAKE_CONTROLLER_ID( 0x1532, 0x100A ), CONTROLLER_TYPE_PS4Controller, NULL },	// Razer Raiju 2 Tournament edition BT
 	{ MAKE_CONTROLLER_ID( 0x1532, 0x1100 ), CONTROLLER_TYPE_PS4Controller, NULL },	// Razer RAION Fightpad - Trackpad, no gyro, lightbar hardcoded to green
-	{ MAKE_CONTROLLER_ID( 0x20d6, 0x792a ), CONTROLLER_TYPE_PS4Controller, NULL },	// PowerA - Fusion Fight Pad
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0x792a ), CONTROLLER_TYPE_PS4Controller, NULL },	// PowerA Fusion Fight Pad
 	{ MAKE_CONTROLLER_ID( 0x7545, 0x0104 ), CONTROLLER_TYPE_PS4Controller, NULL },	// Armor 3 or Level Up Cobra - At least one variant has gyro
 	{ MAKE_CONTROLLER_ID( 0x9886, 0x0025 ), CONTROLLER_TYPE_PS4Controller, NULL },	// Astro C40
 	{ MAKE_CONTROLLER_ID( 0x0e6f, 0x0207 ), CONTROLLER_TYPE_PS4Controller, NULL },	// Victrix Pro Fightstick w/ Touchpad for PS4
@@ -185,6 +185,7 @@ static const uni_controller_description_t arrControllers[] = {
 	{ MAKE_CONTROLLER_ID( 0x146b, 0x1103 ), CONTROLLER_TYPE_PS4Controller, NULL },	// NACON Asymetrical Controller -- on windows this doesn't enumerate
 	{ MAKE_CONTROLLER_ID( 0x0f0d, 0x0123 ), CONTROLLER_TYPE_PS4Controller, NULL },	// HORI Wireless Controller Light (Japan only) - only over bt- over usb is xbox and pid 0x0124
 	{ MAKE_CONTROLLER_ID( 0x146b, 0x0d13 ), CONTROLLER_TYPE_PS4Controller, NULL },	// NACON Revolution 3
+	{ MAKE_CONTROLLER_ID( 0x0c12, 0x0e20 ), CONTROLLER_TYPE_PS4Controller, NULL },	// Brook Mars Controller - needs FW update to show up as Ps4 controller on PC. Has Gyro but touchpad is a single button.
 
 	{ MAKE_CONTROLLER_ID( 0x054c, 0x0ce6 ), CONTROLLER_TYPE_PS5Controller, NULL },	// Sony PS5 Controller
 
@@ -197,7 +198,7 @@ static const uni_controller_description_t arrControllers[] = {
 	{ MAKE_CONTROLLER_ID( 0x045e, 0x028f ), CONTROLLER_TYPE_XBox360Controller, "Xbox 360 Controller" },	// Microsoft X-Box 360 pad v2
 	{ MAKE_CONTROLLER_ID( 0x045e, 0x0291 ), CONTROLLER_TYPE_XBox360Controller, "Xbox 360 Wireless Controller" },	// Xbox 360 Wireless Receiver (XBOX)
 	{ MAKE_CONTROLLER_ID( 0x045e, 0x02a0 ), CONTROLLER_TYPE_XBox360Controller, NULL },	// Microsoft X-Box 360 Big Button IR
-	{ MAKE_CONTROLLER_ID( 0x045e, 0x02a1 ), CONTROLLER_TYPE_XBox360Controller, NULL },	// Microsoft X-Box 360 pad
+	{ MAKE_CONTROLLER_ID( 0x045e, 0x02a1 ), CONTROLLER_TYPE_XBox360Controller, NULL },	// Microsoft X-Box 360 Wireless Controller with XUSB driver on Windows
 	{ MAKE_CONTROLLER_ID( 0x045e, 0x02a9 ), CONTROLLER_TYPE_XBox360Controller, "Xbox 360 Wireless Controller" },	// Xbox 360 Wireless Receiver (third party knockoff)
 	{ MAKE_CONTROLLER_ID( 0x045e, 0x0719 ), CONTROLLER_TYPE_XBox360Controller, "Xbox 360 Wireless Controller" },	// Xbox 360 Wireless Receiver
 	{ MAKE_CONTROLLER_ID( 0x046d, 0xc21d ), CONTROLLER_TYPE_XBox360Controller, NULL },	// Logitech Gamepad F310
@@ -265,6 +266,7 @@ static const uni_controller_description_t arrControllers[] = {
 	{ MAKE_CONTROLLER_ID( 0x1689, 0xfd00 ), CONTROLLER_TYPE_XBox360Controller, NULL },	// Razer Onza Tournament Edition
 	{ MAKE_CONTROLLER_ID( 0x1689, 0xfd01 ), CONTROLLER_TYPE_XBox360Controller, NULL },	// Razer Onza Classic Edition
 	{ MAKE_CONTROLLER_ID( 0x1689, 0xfe00 ), CONTROLLER_TYPE_XBox360Controller, NULL },	// Razer Sabertooth
+	{ MAKE_CONTROLLER_ID( 0x1949, 0x041a ), CONTROLLER_TYPE_XBox360Controller, "Amazon Luna Controller" },	// Amazon Luna Controller
 	{ MAKE_CONTROLLER_ID( 0x1bad, 0x0002 ), CONTROLLER_TYPE_XBox360Controller, NULL },	// Harmonix Rock Band Guitar
 	{ MAKE_CONTROLLER_ID( 0x1bad, 0x0003 ), CONTROLLER_TYPE_XBox360Controller, NULL },	// Harmonix Rock Band Drumkit
 	{ MAKE_CONTROLLER_ID( 0x1bad, 0xf016 ), CONTROLLER_TYPE_XBox360Controller, NULL },	// Mad Catz Xbox 360 Controller
@@ -331,11 +333,17 @@ static const uni_controller_description_t arrControllers[] = {
 	{ MAKE_CONTROLLER_ID( 0x045e, 0x02e3 ), CONTROLLER_TYPE_XBoxOneController, "Xbox One Elite Controller" },	// Microsoft X-Box One Elite pad
 	{ MAKE_CONTROLLER_ID( 0x045e, 0x02ea ), CONTROLLER_TYPE_XBoxOneController, "Xbox One S Controller" },	// Microsoft X-Box One S pad
 	{ MAKE_CONTROLLER_ID( 0x045e, 0x02fd ), CONTROLLER_TYPE_XBoxOneController, "Xbox One S Controller" },	// Microsoft X-Box One S pad (Bluetooth)
-	{ MAKE_CONTROLLER_ID( 0x045e, 0x02ff ), CONTROLLER_TYPE_XBoxOneController, NULL },	// Microsoft X-Box One controller with the RAWINPUT driver on Windows
+	{ MAKE_CONTROLLER_ID( 0x045e, 0x02ff ), CONTROLLER_TYPE_XBoxOneController, NULL },	// Microsoft X-Box One controller with XBOXGIP driver on Windows
 	{ MAKE_CONTROLLER_ID( 0x045e, 0x0b00 ), CONTROLLER_TYPE_XBoxOneController, "Xbox One Elite 2 Controller" },	// Microsoft X-Box One Elite Series 2 pad
+	{ MAKE_CONTROLLER_ID( 0x045e, 0x0b02 ), CONTROLLER_TYPE_XBoxOneController, "Xbox One Elite 2 Controller" },	// Microsoft X-Box One Elite Series 2 pad (Bluetooth)
 	{ MAKE_CONTROLLER_ID( 0x045e, 0x0b05 ), CONTROLLER_TYPE_XBoxOneController, "Xbox One Elite 2 Controller" },	// Microsoft X-Box One Elite Series 2 pad (Bluetooth)
-	{ MAKE_CONTROLLER_ID( 0x045e, 0x0b12 ), CONTROLLER_TYPE_XBoxOneController, "Xbox One Series X Controller" },	// Microsoft X-Box One Elite Series X pad
-	{ MAKE_CONTROLLER_ID( 0x045e, 0x0b13 ), CONTROLLER_TYPE_XBoxOneController, "Xbox One Series X Controller" },	// Microsoft X-Box One Elite Series X pad (Bluetooth)
+	{ MAKE_CONTROLLER_ID( 0x045e, 0x0b0a ), CONTROLLER_TYPE_XBoxOneController, "Xbox Adaptive Controller" },	// Microsoft X-Box Adaptive pad
+	{ MAKE_CONTROLLER_ID( 0x045e, 0x0b0c ), CONTROLLER_TYPE_XBoxOneController, "Xbox Adaptive Controller" },	// Microsoft X-Box Adaptive pad (Bluetooth)
+	{ MAKE_CONTROLLER_ID( 0x045e, 0x0b12 ), CONTROLLER_TYPE_XBoxOneController, "Xbox Series X Controller" },	// Microsoft X-Box Series X pad
+	{ MAKE_CONTROLLER_ID( 0x045e, 0x0b13 ), CONTROLLER_TYPE_XBoxOneController, "Xbox Series X Controller" },	// Microsoft X-Box Series X pad (BLE)
+	{ MAKE_CONTROLLER_ID( 0x045e, 0x0b20 ), CONTROLLER_TYPE_XBoxOneController, "Xbox One S Controller" },	// Microsoft X-Box One S pad (BLE)
+	{ MAKE_CONTROLLER_ID( 0x045e, 0x0b21 ), CONTROLLER_TYPE_XBoxOneController, "Xbox Adaptive Controller" },	// Microsoft X-Box Adaptive pad (BLE)
+	{ MAKE_CONTROLLER_ID( 0x045e, 0x0b22 ), CONTROLLER_TYPE_XBoxOneController, "Xbox One Elite 2 Controller" },	// Microsoft X-Box One Elite Series 2 pad (BLE)
 	{ MAKE_CONTROLLER_ID( 0x0738, 0x4a01 ), CONTROLLER_TYPE_XBoxOneController, NULL },	// Mad Catz FightStick TE 2
 	{ MAKE_CONTROLLER_ID( 0x0e6f, 0x0139 ), CONTROLLER_TYPE_XBoxOneController, "PDP Xbox One Afterglow" },	// PDP Afterglow Wired Controller for Xbox One
 	{ MAKE_CONTROLLER_ID( 0x0e6f, 0x013B ), CONTROLLER_TYPE_XBoxOneController, "PDP Xbox One Face-Off Controller" },	// PDP Face-Off Gamepad for Xbox One
@@ -401,6 +409,9 @@ static const uni_controller_description_t arrControllers[] = {
 	{ MAKE_CONTROLLER_ID( 0x0e6f, 0x02d5 ), CONTROLLER_TYPE_XBoxOneController, "PDP Xbox One Red Camo" },	// PDP Wired Controller for Xbox One - Red Camo
 	{ MAKE_CONTROLLER_ID( 0x0e6f, 0x0346 ), CONTROLLER_TYPE_XBoxOneController, "PDP Xbox One RC Gamepad" },	// PDP RC Gamepad for Xbox One
 	{ MAKE_CONTROLLER_ID( 0x0e6f, 0x0446 ), CONTROLLER_TYPE_XBoxOneController, "PDP Xbox One RC Gamepad" },	// PDP RC Gamepad for Xbox One
+	{ MAKE_CONTROLLER_ID( 0x0e6f, 0x02da ), CONTROLLER_TYPE_XBoxOneController, "PDP Xbox Series X Afterglow" },	// PDP Xbox Series X Afterglow
+	{ MAKE_CONTROLLER_ID( 0x0e6f, 0x02d6 ), CONTROLLER_TYPE_XBoxOneController, "Victrix Gambit Tournament Controller" },	// Victrix Gambit Tournament Controller
+	{ MAKE_CONTROLLER_ID( 0x0e6f, 0x02d9 ), CONTROLLER_TYPE_XBoxOneController, "PDP Xbox Series X Midnight Blue" },	// PDP Xbox Series X Midnight Blue
 	{ MAKE_CONTROLLER_ID( 0x0f0d, 0x0063 ), CONTROLLER_TYPE_XBoxOneController, NULL },	// Hori Real Arcade Pro Hayabusa (USA) Xbox One
 	{ MAKE_CONTROLLER_ID( 0x0f0d, 0x0067 ), CONTROLLER_TYPE_XBoxOneController, NULL },	// HORIPAD ONE
 	{ MAKE_CONTROLLER_ID( 0x0f0d, 0x0078 ), CONTROLLER_TYPE_XBoxOneController, NULL },	// Hori Real Arcade Pro V Kai Xbox One
@@ -408,9 +419,33 @@ static const uni_controller_description_t arrControllers[] = {
 	{ MAKE_CONTROLLER_ID( 0x1532, 0x0a00 ), CONTROLLER_TYPE_XBoxOneController, NULL },	// Razer Atrox Arcade Stick
 	{ MAKE_CONTROLLER_ID( 0x1532, 0x0a03 ), CONTROLLER_TYPE_XBoxOneController, NULL },	// Razer Wildcat
 	{ MAKE_CONTROLLER_ID( 0x1532, 0x0a14 ), CONTROLLER_TYPE_XBoxOneController, NULL },	// Razer Wolverine Ultimate
+	{ MAKE_CONTROLLER_ID( 0x1532, 0x0a15 ), CONTROLLER_TYPE_XBoxOneController, NULL },	// Razer Wolverine Tournament Edition
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0x2001 ), CONTROLLER_TYPE_XBoxOneController, "PowerA Xbox Series X Controller" },       // PowerA Xbox Series X EnWired Controller - Black Inline
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0x2002 ), CONTROLLER_TYPE_XBoxOneController, "PowerA Xbox Series X Controller" },       // PowerA Xbox Series X EnWired Controller Gray/White Inline
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0x2003 ), CONTROLLER_TYPE_XBoxOneController, "PowerA Xbox Series X Controller" },       // PowerA Xbox Series X EnWired Controller Green Inline
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0x2004 ), CONTROLLER_TYPE_XBoxOneController, "PowerA Xbox Series X Controller" },       // PowerA Xbox Series X EnWired Controller Pink inline
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0x2005 ), CONTROLLER_TYPE_XBoxOneController, "PowerA Xbox Series X Controller" },       // PowerA Xbox Series X Wired Controller Core - Black
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0x2006 ), CONTROLLER_TYPE_XBoxOneController, "PowerA Xbox Series X Controller" },       // PowerA Xbox Series X Wired Controller Core - White
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0x2009 ), CONTROLLER_TYPE_XBoxOneController, "PowerA Xbox Series X Controller" },       // PowerA Xbox Series X EnWired Controller Red inline
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0x200a ), CONTROLLER_TYPE_XBoxOneController, "PowerA Xbox Series X Controller" },       // PowerA Xbox Series X EnWired Controller Blue inline
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0x200b ), CONTROLLER_TYPE_XBoxOneController, "PowerA Xbox Series X Controller" },       // PowerA Xbox Series X EnWired Controller Camo Metallic Red
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0x200c ), CONTROLLER_TYPE_XBoxOneController, "PowerA Xbox Series X Controller" },       // PowerA Xbox Series X EnWired Controller Camo Metallic Blue
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0x200d ), CONTROLLER_TYPE_XBoxOneController, "PowerA Xbox Series X Controller" },       // PowerA Xbox Series X EnWired Controller Seafoam Fade
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0x200e ), CONTROLLER_TYPE_XBoxOneController, "PowerA Xbox Series X Controller" },       // PowerA Xbox Series X EnWired Controller Midnight Blue
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0x200f ), CONTROLLER_TYPE_XBoxOneController, "PowerA Xbox Series X Controller" },       // PowerA Xbox Series X EnWired Soldier Green
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0x2011 ), CONTROLLER_TYPE_XBoxOneController, "PowerA Xbox Series X Controller" },       // PowerA Xbox Series X EnWired - Metallic Ice
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0x2012 ), CONTROLLER_TYPE_XBoxOneController, "PowerA Xbox Series X Controller" },       // PowerA Xbox Series X Cuphead EnWired Controller - Mugman
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0x2015 ), CONTROLLER_TYPE_XBoxOneController, "PowerA Xbox Series X Controller" },       // PowerA Xbox Series X EnWired Controller - Blue Hint
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0x2016 ), CONTROLLER_TYPE_XBoxOneController, "PowerA Xbox Series X Controller" },       // PowerA Xbox Series X EnWired Controller - Green Hint
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0x2017 ), CONTROLLER_TYPE_XBoxOneController, "PowerA Xbox Series X Controller" },       // PowerA Xbox Series X EnWired Cntroller - Arctic Camo
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0x2018 ), CONTROLLER_TYPE_XBoxOneController, "PowerA Xbox Series X Controller" },       // PowerA Xbox Series X EnWired Controller Arc Lightning
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0x2019 ), CONTROLLER_TYPE_XBoxOneController, "PowerA Xbox Series X Controller" },       // PowerA Xbox Series X EnWired Controller Royal Purple
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0x201a ), CONTROLLER_TYPE_XBoxOneController, "PowerA Xbox Series X Controller" },       // PowerA Xbox Series X EnWired Controller Nebula
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0x4001 ), CONTROLLER_TYPE_XBoxOneController, "PowerA Fusion Pro 2 Controller" },	// PowerA Fusion Pro 2 Wired Controller (Xbox Series X style)
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0x4002 ), CONTROLLER_TYPE_XBoxOneController, "PowerA Spectra Infinity Controller" },	// PowerA Spectra Infinity Wired Controller (Xbox Series X style)
 	{ MAKE_CONTROLLER_ID( 0x24c6, 0x541a ), CONTROLLER_TYPE_XBoxOneController, NULL },	// PowerA Xbox One Mini Wired Controller
 	{ MAKE_CONTROLLER_ID( 0x24c6, 0x542a ), CONTROLLER_TYPE_XBoxOneController, NULL },	// Xbox ONE spectra
-	{ MAKE_CONTROLLER_ID( 0x24c6, 0x543a ), CONTROLLER_TYPE_XBoxOneController, "PowerA XBox One Controller" },	// PowerA Xbox ONE liquid metal controller
+	{ MAKE_CONTROLLER_ID( 0x24c6, 0x543a ), CONTROLLER_TYPE_XBoxOneController, "PowerA Xbox One Controller" },	// PowerA Xbox ONE liquid metal controller
 	{ MAKE_CONTROLLER_ID( 0x24c6, 0x551a ), CONTROLLER_TYPE_XBoxOneController, NULL },	// PowerA FUSION Pro Controller
 	{ MAKE_CONTROLLER_ID( 0x24c6, 0x561a ), CONTROLLER_TYPE_XBoxOneController, NULL },	// PowerA FUSION Controller
 	{ MAKE_CONTROLLER_ID( 0x24c6, 0x581a ), CONTROLLER_TYPE_XBoxOneController, NULL },	// BDA XB1 Classic Controller
@@ -526,6 +561,10 @@ static const uni_controller_description_t arrControllers[] = {
 	{ MAKE_CONTROLLER_ID( 0xf0d,	0xd8 ), CONTROLLER_TYPE_XBoxOneController, NULL },	// Unknown Controller
 	{ MAKE_CONTROLLER_ID( 0xfff,	0x2a1 ), CONTROLLER_TYPE_XBoxOneController, NULL },	// Unknown Controller
 	{ MAKE_CONTROLLER_ID( 0x45e,	0x867 ), CONTROLLER_TYPE_XBoxOneController, NULL },	// Unknown Controller
+	// Added 12-17-2020
+	{ MAKE_CONTROLLER_ID( 0x16d0,	0xf3f ), CONTROLLER_TYPE_XBoxOneController, NULL },	// Unknown Controller
+	{ MAKE_CONTROLLER_ID( 0x2f24,	0x8f ), CONTROLLER_TYPE_XBoxOneController, NULL },	// Unknown Controller
+	{ MAKE_CONTROLLER_ID( 0xe6f,	0xf501 ), CONTROLLER_TYPE_XBoxOneController, NULL },	// Unknown Controller
 
 	//{ MAKE_CONTROLLER_ID( 0x1949, 0x0402 ), /*android*/, NULL },	// Unknown Controller
 
@@ -552,19 +591,22 @@ static const uni_controller_description_t arrControllers[] = {
 #else
 	{ MAKE_CONTROLLER_ID( 0x0f0d, 0x00dc ), CONTROLLER_TYPE_SwitchProController, "HORI Fighting Commander" },
 #endif
-	{ MAKE_CONTROLLER_ID( 0x0e6f, 0x0185 ), CONTROLLER_TYPE_SwitchInputOnlyController, NULL },  // PDP Wired Fight Pad Pro for Nintendo Switch
 	{ MAKE_CONTROLLER_ID( 0x0e6f, 0x0180 ), CONTROLLER_TYPE_SwitchInputOnlyController, NULL },  // PDP Faceoff Wired Pro Controller for Nintendo Switch
 	{ MAKE_CONTROLLER_ID( 0x0e6f, 0x0181 ), CONTROLLER_TYPE_SwitchInputOnlyController, NULL },  // PDP Faceoff Deluxe Wired Pro Controller for Nintendo Switch
-	{ MAKE_CONTROLLER_ID( 0x20d6, 0xa711 ), CONTROLLER_TYPE_SwitchInputOnlyController, NULL },  // PowerA Wired Controller Plus/PowerA Wired Controller Nintendo GameCube Style
-	{ MAKE_CONTROLLER_ID( 0x20d6, 0xa712 ), CONTROLLER_TYPE_SwitchInputOnlyController, NULL },  // PowerA - Fusion Fight Pad
-	{ MAKE_CONTROLLER_ID( 0x20d6, 0xa713 ), CONTROLLER_TYPE_SwitchInputOnlyController, NULL },  // PowerA - Super Mario Controller
-	{ MAKE_CONTROLLER_ID( 0x0e6f, 0x0186 ), CONTROLLER_TYPE_SwitchProController, NULL },  // PDP Afterglow Wireless Switch Controller - working gyro. USB doesn't work
 	{ MAKE_CONTROLLER_ID( 0x0e6f, 0x0184 ), CONTROLLER_TYPE_SwitchInputOnlyController, NULL },  // PDP Faceoff Wired Deluxe+ Audio Controller
-	{ MAKE_CONTROLLER_ID( 0x0f0d, 0x00aa ), CONTROLLER_TYPE_SwitchInputOnlyController, NULL },  // HORI Real Arcade Pro V Hayabusa in Switch Mode
-	{ MAKE_CONTROLLER_ID( 0x0e6f, 0x0188 ), CONTROLLER_TYPE_SwitchInputOnlyController, NULL },  // PDP Afterglow Wired Deluxe+ Audio Controller
+	{ MAKE_CONTROLLER_ID( 0x0e6f, 0x0185 ), CONTROLLER_TYPE_SwitchInputOnlyController, NULL },  // PDP Wired Fight Pad Pro for Nintendo Switch
+	{ MAKE_CONTROLLER_ID( 0x0e6f, 0x0186 ), CONTROLLER_TYPE_SwitchProController, NULL },        // PDP Afterglow Wireless Switch Controller - working gyro. USB is for charging only. Many later "Wireless" line devices w/ gyro also use this vid/pid
 	{ MAKE_CONTROLLER_ID( 0x0e6f, 0x0187 ), CONTROLLER_TYPE_SwitchInputOnlyController, NULL },  // PDP Rockcandy Wired Controller
+	{ MAKE_CONTROLLER_ID( 0x0e6f, 0x0188 ), CONTROLLER_TYPE_SwitchInputOnlyController, NULL },  // PDP Afterglow Wired Deluxe+ Audio Controller
+	{ MAKE_CONTROLLER_ID( 0x0f0d, 0x00aa ), CONTROLLER_TYPE_SwitchInputOnlyController, NULL },  // HORI Real Arcade Pro V Hayabusa in Switch Mode
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0xa711 ), CONTROLLER_TYPE_SwitchInputOnlyController, NULL },  // PowerA Wired Controller Plus/PowerA Wired Controller Nintendo GameCube Style
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0xa712 ), CONTROLLER_TYPE_SwitchInputOnlyController, NULL },  // PowerA Nintendo Switch Fusion Fight Pad
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0xa713 ), CONTROLLER_TYPE_SwitchInputOnlyController, NULL },  // PowerA Super Mario Controller
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0xa714 ), CONTROLLER_TYPE_SwitchInputOnlyController, NULL },  // PowerA Nintendo Switch Spectra Controller
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0xa715 ), CONTROLLER_TYPE_SwitchInputOnlyController, NULL },  // Power A Fusion Wireless Arcade Stick (USB Mode) Over BT is shows up as 057e 2009
+	{ MAKE_CONTROLLER_ID( 0x20d6, 0xa716 ), CONTROLLER_TYPE_SwitchInputOnlyController, NULL },  // PowerA Nintendo Switch Fusion Pro Controller - USB requires toggling switch on back of device
 
-	// Valve products - don't add to public list
+	// Valve products
 	{ MAKE_CONTROLLER_ID( 0x0000, 0x11fb ), CONTROLLER_TYPE_MobileTouch, NULL },	// Streaming mobile touch virtual controls
 	{ MAKE_CONTROLLER_ID( 0x28de, 0x1101 ), CONTROLLER_TYPE_SteamController, NULL },	// Valve Legacy Steam Controller (CHELL)
 	{ MAKE_CONTROLLER_ID( 0x28de, 0x1102 ), CONTROLLER_TYPE_SteamController, NULL },	// Valve wired Steam Controller (D0G)
@@ -576,18 +618,12 @@ static const uni_controller_description_t arrControllers[] = {
 
 	// Bluepad32 addons from here:
 
-	// MFi gamepads unsupported (Bluepad32).
-	{ MAKE_CONTROLLER_ID(0x05ac, 0x0001), CONTROLLER_TYPE_AppleController, NULL},  // MFI Extended Gamepad (generic entry for iOS/tvOS)
-	{ MAKE_CONTROLLER_ID(0x05ac, 0x0002), CONTROLLER_TYPE_AppleController, NULL},  // MFI Standard Gamepad (generic entry for iOS/tvOS)
-
 	// OUYA
 	{ MAKE_CONTROLLER_ID(0x2836, 0x0001), CONTROLLER_TYPE_OUYAController, NULL},  // OUYA 1st Controller
 
 	// ION iCade
 	{ MAKE_CONTROLLER_ID(0x15e4, 0x0132), CONTROLLER_TYPE_iCadeController, NULL},  // ION iCade
 	{ MAKE_CONTROLLER_ID(0x0a5c, 0x8502), CONTROLLER_TYPE_iCadeController, NULL},  // iCade 8-bitty
-	// {MAKE_CONTROLLER_ID(0x0a5c, 0x4502), CONTROLLER_TYPE_iCadeController, NULL},  // White-label mini gamepad received as gift in conference
-											 // Device can be put in gamepad or iCade mode.
 
 	// Android
 	{ MAKE_CONTROLLER_ID(0x20d6, 0x6271), CONTROLLER_TYPE_AndroidController, NULL},  // MOGA Controller, using HID mode
@@ -612,9 +648,6 @@ static const uni_controller_description_t arrControllers[] = {
 	// Nintendo
 	{ MAKE_CONTROLLER_ID(0x057e, 0x0330), CONTROLLER_TYPE_WiiController, NULL},  // Nintendo Wii U Pro
 	{ MAKE_CONTROLLER_ID(0x057e, 0x0306), CONTROLLER_TYPE_WiiController, NULL},  // Nintendo Wii Remote
-
-	// PS4
-	{ MAKE_CONTROLLER_ID( 0x054c, 0x05c4 ), CONTROLLER_TYPE_PS4Controller, NULL },  // Model 8951 - TUTUO - https://www.amazon.it/gp/product/B07V2KWTH6/
 
 	// Bluepad32 addons to here.
 };

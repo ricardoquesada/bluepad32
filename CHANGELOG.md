@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2021-11-13
+### Changed
+
+- Unijoysticle: Gamepad 2nd & 3rd buttons swap. "X" is 2nd button, and "Y" is 3rd button
+- Update gamepad database from SDL. Using hash: 7dfd22ac5ef60c730d7900053b64e8430e08a29d
+- Update BTStack. Using hash: 4ac37295456dc9203a99c17ee4649b7e06238983
+- Update ESP-IDF to latest v4.2 version. Using hash: 047a5bf2f7e121077740e7ea59e616718d417fed
+
 ## [2.2.1] - 2021-07-24
 ### Added
 
