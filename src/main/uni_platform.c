@@ -19,6 +19,7 @@ limitations under the License.
 #include "uni_platform.h"
 
 #include "uni_debug.h"
+#include "uni_platform_arduino.h"
 #include "uni_platform_mightymiggy.h"
 #include "uni_platform_nina.h"
 #include "uni_platform_pc_debug.h"
@@ -38,8 +39,10 @@ void uni_platform_init(int argc, const char** argv) {
   g_platform = uni_platform_mightymiggy_create();
 #elif defined(UNI_PLATFORM_NINA)
   g_platform = uni_platform_nina_create();
+#elif defined(UNI_PLATFORM_ARDUINO)
+  g_platform = uni_platform_arduino_create();
 #else
-#error "Platform not defined"
+#error "Platform not defined. Set PLATFORM environment variable"
 #endif
 
   g_platform->init(argc, argv);

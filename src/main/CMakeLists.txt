@@ -23,10 +23,11 @@ set(COMPONENT_SRCS "uni_bluetooth.c"
                    "uni_main.c"
                    "uni_main_esp32.c"
                    "uni_platform.c"
+                   "uni_platform_arduino.c"
+                   "uni_platform_mightymiggy.c"
                    "uni_platform_nina.c"
                    "uni_platform_pc_debug.c"
                    "uni_platform_unijoysticle.c"
-                   "uni_platform_mightymiggy.c"
                    )
 set(COMPONENT_ADD_INCLUDEDIRS ".")
 
