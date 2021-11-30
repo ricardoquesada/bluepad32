@@ -21,9 +21,9 @@ limitations under the License.
 // Only compile this file when Arduino is selected.
 // Requires the Arduino.h file which is only avaiable when the Arduino component
 // is included in the ESP-IDF as a component.
-// #ifndef UNI_PLATFORM_ARDUINO
-// #define UNI_PLATFORM_ARDUINO
-// #endif
+#ifndef UNI_PLATFORM_ARDUINO
+#define UNI_PLATFORM_ARDUINO
+#endif
 
 #ifndef UNI_PLATFORM_ARDUINO
 struct uni_platform* uni_platform_arduino_create(void) {
@@ -75,13 +75,34 @@ typedef struct arduino_instance_s {
 _Static_assert(sizeof(arduino_instance_t) < HID_DEVICE_MAX_PLATFORM_DATA,
                "Arduino intance too big");
 
-static TaskHandle_t loopTaskHandle = NULL;
-static arduino_gamepad_t _gamepads[ARDUINO_MAX_GAMEPADS];
+static TaskHandle_t _loop_task = NULL;
+static QueueHandle_t _pending_queue = NULL;
 static SemaphoreHandle_t _gamepad_mutex = NULL;
+static arduino_gamepad_t _gamepads[ARDUINO_MAX_GAMEPADS];
 static volatile uni_gamepad_seat_t _gamepad_seats;
 
 static arduino_instance_t* get_arduino_instance(uni_hid_device_t* d);
 static uint8_t predicate_arduino_index(uni_hid_device_t* d, void* data);
+
+//
+// Shared by CPU 0 (bluetooth) / CPU1 (Arduino)
+//
+// BTStack / Bluepad32 are not thread safe.
+// This code is the bridge between CPU1 and CPU0.
+//
+
+enum {
+  PENDING_REQUEST_CMD_NONE = 0,
+  PENDING_REQUEST_CMD_LIGHTBAR_COLOR = 1,
+  PENDING_REQUEST_CMD_PLAYER_LEDS = 2,
+  PENDING_REQUEST_CMD_RUMBLE = 3,
+};
+
+typedef struct {
+  uint8_t gamepad_idx;
+  uint8_t cmd;
+  uint8_t args[3];
+} pending_request_t;
 
 //
 // CPU 0 - Bluepad32 process
@@ -92,14 +113,10 @@ static uint8_t predicate_arduino_index(uni_hid_device_t* d, void* data);
 //
 //
 
-//
-// Platform Overrides
-//
-
 static void setup(void) {}
 static void loop(void) {}
 
-void loopTask(void* pvParameters) {
+static void loop_task(void* pvParameters) {
   setup();
   for (;;) {
     loop();
@@ -109,16 +126,65 @@ void loopTask(void* pvParameters) {
 static void arduino_init(int argc, const char** argv) {
   UNUSED(argc);
   UNUSED(argv);
+  /* Empty */
 }
 
+static uint8_t predicate_arduino_index(uni_hid_device_t* d, void* data) {
+  int wanted_idx = (int)data;
+  arduino_instance_t* ins = get_arduino_instance(d);
+  if (ins->gamepad_idx != wanted_idx) return 0;
+  return 1;
+}
+
+static void process_pending_requests(void) {
+  pending_request_t request;
+
+  while (xQueueReceive(_pending_queue, &request, (TickType_t)0) == pdTRUE) {
+    int idx = request.gamepad_idx;
+    uni_hid_device_t* d = uni_hid_device_get_instance_with_predicate(
+        predicate_arduino_index, (void*)idx);
+    if (d == NULL) {
+      loge(
+          "Arduino: device cannot be found while processing pending request\n");
+      return;
+    }
+    switch (request.cmd) {
+      case PENDING_REQUEST_CMD_LIGHTBAR_COLOR:
+        if (d->report_parser.set_lightbar_color != NULL)
+          d->report_parser.set_lightbar_color(d, request.args[0],
+                                              request.args[1], request.args[2]);
+        break;
+      case PENDING_REQUEST_CMD_PLAYER_LEDS:
+        if (d->report_parser.set_player_leds != NULL)
+          d->report_parser.set_player_leds(d, request.args[0]);
+        break;
+
+      case PENDING_REQUEST_CMD_RUMBLE:
+        if (d->report_parser.set_rumble != NULL)
+          d->report_parser.set_rumble(d, request.args[0], request.args[1]);
+        break;
+
+      default:
+        loge("Arduino: Invalid pending command: %d\n", request.cmd);
+    }
+  }
+}
+
+//
+// Platform Overrides
+//
 static void arduino_on_init_complete(void) {
   initArduino();
 
   _gamepad_mutex = xSemaphoreCreateMutex();
   assert(_gamepad_mutex != NULL);
 
-  xTaskCreateUniversal(loopTask, "loopTask", CONFIG_ARDUINO_LOOP_STACK_SIZE,
-                       NULL, 1, &loopTaskHandle, CONFIG_ARDUINO_RUNNING_CORE);
+  _pending_queue = xQueueCreate(16, sizeof(pending_request_t));
+  assert(_pending_queue != NULL);
+
+  xTaskCreateUniversal(loop_task, "loopTask", CONFIG_ARDUINO_LOOP_STACK_SIZE,
+                       NULL, 1, &_loop_task, CONFIG_ARDUINO_RUNNING_CORE);
+  assert(_loop_task != NULL);
 }
 
 static void arduino_on_device_connected(uni_hid_device_t* d) {
@@ -174,6 +240,8 @@ static int arduino_on_device_ready(uni_hid_device_t* d) {
 }
 
 static void arduino_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
+  process_pending_requests();
+
   arduino_instance_t* ins = get_arduino_instance(d);
   if (ins->gamepad_idx < 0 || ins->gamepad_idx >= ARDUINO_MAX_GAMEPADS) {
     loge("Arduino: unexpected gamepad idx, got: %d, want: [0-%d]\n",
@@ -206,33 +274,64 @@ static int32_t arduino_get_property(uni_platform_property_t key) {
 //
 // CPU 1 - Application (Arduino) process
 //
-arduino_gamepad_t arduino_get_gamepad_data(int idx) { return _gamepads[idx]; }
+int arduino_get_gamepad_data(int idx, arduino_gamepad_t* out_gp) {
+  if (idx < 0 || idx >= ARDUINO_MAX_GAMEPADS) return -1;
+  if (_gamepads[idx].idx == -1) return -1;
 
-void arduino_set_player_leds(int idx, uint8_t leds) {
-  uni_hid_device_t* d = uni_hid_device_get_instance_with_predicate(
-      predicate_arduino_index, (void*)idx);
-  if (d == NULL) {
-    loge("Arduino: device cannot be found while processing pending requests\n");
-    return;
-  }
+  *out_gp = _gamepads[idx];
+  return 0;
 }
 
-void arduino_set_lightbar_color(int idx, uint8_t r, uint8_t g, uint8_t b) {}
+int arduino_set_player_leds(int idx, uint8_t leds) {
+  if (idx < 0 || idx >= ARDUINO_MAX_GAMEPADS) return -1;
+  if (_gamepads[idx].idx == -1) return -1;
 
-void arduino_set_rumble(int idx, uint8_t force, uint8_t duration) {}
+  pending_request_t request = (pending_request_t){
+      .gamepad_idx = idx,
+      .cmd = PENDING_REQUEST_CMD_PLAYER_LEDS,
+      .args[0] = leds,
+  };
+  xQueueSendToBack(_pending_queue, &request, (TickType_t)0);
+
+  return 0;
+}
+
+int arduino_set_lightbar_color(int idx, uint8_t r, uint8_t g, uint8_t b) {
+  if (idx < 0 || idx >= ARDUINO_MAX_GAMEPADS) return -1;
+  if (_gamepads[idx].idx == -1) return -1;
+
+  pending_request_t request = (pending_request_t){
+      .gamepad_idx = idx,
+      .cmd = PENDING_REQUEST_CMD_LIGHTBAR_COLOR,
+      .args[0] = r,
+      .args[1] = g,
+      .args[2] = b,
+  };
+  xQueueSendToBack(_pending_queue, &request, (TickType_t)0);
+
+  return 0;
+}
+
+int arduino_set_rumble(int idx, uint8_t force, uint8_t duration) {
+  if (idx < 0 || idx >= ARDUINO_MAX_GAMEPADS) return -1;
+  if (_gamepads[idx].idx == -1) return -1;
+
+  pending_request_t request = (pending_request_t){
+      .gamepad_idx = idx,
+      .cmd = PENDING_REQUEST_CMD_RUMBLE,
+      .args[0] = force,
+      .args[1] = duration,
+  };
+  xQueueSendToBack(_pending_queue, &request, (TickType_t)0);
+
+  return 0;
+}
 
 //
 // Helpers
 //
 static arduino_instance_t* get_arduino_instance(uni_hid_device_t* d) {
   return (arduino_instance_t*)&d->platform_data[0];
-}
-
-static uint8_t predicate_arduino_index(uni_hid_device_t* d, void* data) {
-  int wanted_idx = (int)data;
-  arduino_instance_t* ins = get_arduino_instance(d);
-  if (ins->gamepad_idx != wanted_idx) return 0;
-  return 1;
 }
 
 //

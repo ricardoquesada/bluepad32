@@ -26,7 +26,7 @@ limitations under the License.
 
 typedef struct {
   // Indicates which gamepad it is. Goes from 0 to 3.
-  uint8_t idx;
+  int8_t idx;
 
   // Type of gamepad: PS4, PS3, Xbox, etc..?
   uint8_t type;
@@ -37,9 +37,9 @@ typedef struct {
 
 struct uni_platform* uni_platform_arduino_create(void);
 
-arduino_gamepad_t arduino_get_gamepad_data(int idx);
-void arduino_set_player_leds(int idx, uint8_t leds);
-void arduino_set_lightbar_color(int idx, uint8_t r, uint8_t g, uint8_t b);
-void arduino_set_rumble(int idx, uint8_t force, uint8_t duration);
+int arduino_get_gamepad_data(int idx, arduino_gamepad_t* out_gp);
+int arduino_set_player_leds(int idx, uint8_t leds);
+int arduino_set_lightbar_color(int idx, uint8_t r, uint8_t g, uint8_t b);
+int arduino_set_rumble(int idx, uint8_t force, uint8_t duration);
 
 #endif  // UNI_PLATFORM_ARDUINO_H
