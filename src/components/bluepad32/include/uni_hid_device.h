@@ -19,10 +19,10 @@ limitations under the License.
 #ifndef UNI_HID_DEVICE_H
 #define UNI_HID_DEVICE_H
 
+#include <btstack.h>
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "btstack.h"
 #include "uni_circular_buffer.h"
 #include "uni_gamepad.h"
 #include "uni_hid_parser.h"

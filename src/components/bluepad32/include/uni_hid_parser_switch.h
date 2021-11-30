@@ -21,7 +21,6 @@ limitations under the License.
 
 #include <stdint.h>
 
-#include "btstack.h"
 #include "uni_hid_parser.h"
 
 // Nintendo Switch devices

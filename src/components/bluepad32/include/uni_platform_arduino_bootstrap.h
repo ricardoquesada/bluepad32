@@ -1,7 +1,7 @@
 /****************************************************************************
 http://retro.moe/unijoysticle2
 
-Copyright 2019 Ricardo Quesada
+Copyright 2021 Ricardo Quesada
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,19 +16,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
-#ifndef UNI_HID_PARSER_SMARTTVREMOTE_H
-#define UNI_HID_PARSER_SMARTTVREMOTE_H
+#ifndef UNI_PLATFORM_ARDUINO_BOOTSTRAP_H
+#define UNI_PLATFORM_ARDUINO_BOOTSTRAP_H
 
-#include <stdint.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#include "btstack.h"
-#include "uni_hid_parser.h"
+void arduino_bootstrap();
 
-// Android devices
-void uni_hid_parser_smarttvremote_init_report(struct uni_hid_device_s* d);
-void uni_hid_parser_smarttvremote_parse_usage(struct uni_hid_device_s* d,
-                                              hid_globals_t* globals,
-                                              uint16_t usage_page,
-                                              uint16_t usage, int32_t value);
+#ifdef __cplusplus
+}
+#endif
 
-#endif  // UNI_HID_PARSER_SMARTTVREMOTE_H
+#endif  // UNI_PLATFORM_ARDUINO_BOOTSTRAP_H

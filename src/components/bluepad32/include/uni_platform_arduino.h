@@ -1,7 +1,7 @@
 /****************************************************************************
 http://retro.moe/unijoysticle2
 
-Copyright 2020 Ricardo Quesada
+Copyright 2021 Ricardo Quesada
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +18,10 @@ limitations under the License.
 
 #ifndef UNI_PLATFORM_ARDUINO_H
 #define UNI_PLATFORM_ARDUINO_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <stdint.h>
 
@@ -41,5 +45,9 @@ int arduino_get_gamepad_data(int idx, arduino_gamepad_t* out_gp);
 int arduino_set_player_leds(int idx, uint8_t leds);
 int arduino_set_lightbar_color(int idx, uint8_t r, uint8_t g, uint8_t b);
 int arduino_set_rumble(int idx, uint8_t force, uint8_t duration);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // UNI_PLATFORM_ARDUINO_H

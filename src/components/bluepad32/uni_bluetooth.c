@@ -54,14 +54,14 @@
 
 #include "uni_bluetooth.h"
 
+#include <btstack.h>
+#include <btstack_config.h>
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "btstack.h"
-#include "btstack_config.h"
 #include "uni_config.h"
 #include "uni_debug.h"
 #include "uni_hid_device.h"

@@ -18,46 +18,16 @@ limitations under the License.
 
 #include "uni_platform_arduino.h"
 
-// Only compile this file when Arduino is selected.
-// Requires the Arduino.h file which is only avaiable when the Arduino component
-// is included in the ESP-IDF as a component.
-#ifndef UNI_PLATFORM_ARDUINO
-#define UNI_PLATFORM_ARDUINO
-#endif
-
-#ifndef UNI_PLATFORM_ARDUINO
-struct uni_platform* uni_platform_arduino_create(void) {
-  return NULL;
-}
-#else  // UNI_PLATFORM_ARDUINO
-
-// Sanity check. It seems that when Arduino is added as a component, this
-// define is present.
-#include <sdkconfig.h>
-#if !defined(CONFIG_ENABLE_ARDUINO_DEPENDS)
-#error \
-    "Arduino not enabled as a component. Check: https://docs.espressif.com/projects/arduino-esp32/en/latest/esp-idf_component.html"
-#endif
-
-#include <Arduino.h>
-#include <driver/gpio.h>
-#include <driver/uart.h>
-#include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
-#include <freertos/event_groups.h>
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
-#include <math.h>
 
-#include "uni_bluetooth.h"
 #include "uni_config.h"
 #include "uni_debug.h"
 #include "uni_gamepad.h"
 #include "uni_hid_device.h"
-#include "uni_hid_parser.h"
-#include "uni_main_esp32.h"
 #include "uni_platform.h"
-#include "uni_version.h"
+#include "uni_platform_arduino_bootstrap.h"
 
 //
 // Globals
@@ -75,7 +45,6 @@ typedef struct arduino_instance_s {
 _Static_assert(sizeof(arduino_instance_t) < HID_DEVICE_MAX_PLATFORM_DATA,
                "Arduino intance too big");
 
-static TaskHandle_t _loop_task = NULL;
 static QueueHandle_t _pending_queue = NULL;
 static SemaphoreHandle_t _gamepad_mutex = NULL;
 static arduino_gamepad_t _gamepads[ARDUINO_MAX_GAMEPADS];
@@ -91,16 +60,18 @@ static uint8_t predicate_arduino_index(uni_hid_device_t* d, void* data);
 // This code is the bridge between CPU1 and CPU0.
 //
 
-enum {
+typedef enum {
   PENDING_REQUEST_CMD_NONE = 0,
   PENDING_REQUEST_CMD_LIGHTBAR_COLOR = 1,
   PENDING_REQUEST_CMD_PLAYER_LEDS = 2,
   PENDING_REQUEST_CMD_RUMBLE = 3,
-};
+} pending_request_cmd_t;
 
 typedef struct {
+  // Gamepad index: from 0 to ARDUINO_MAX_GAMEPADS-1
   uint8_t gamepad_idx;
-  uint8_t cmd;
+  pending_request_cmd_t cmd;
+  // Must have enough space to hold at least 3 arguments: red, green, blue
   uint8_t args[3];
 } pending_request_t;
 
@@ -110,18 +81,6 @@ typedef struct {
 
 // BTStack / Bluepad32 are not thread safe.
 // Be extra careful when calling code that runs on the other CPU
-//
-//
-
-static void setup(void) {}
-static void loop(void) {}
-
-static void loop_task(void* pvParameters) {
-  setup();
-  for (;;) {
-    loop();
-  }
-}
 
 static void arduino_init(int argc, const char** argv) {
   UNUSED(argc);
@@ -174,17 +133,13 @@ static void process_pending_requests(void) {
 // Platform Overrides
 //
 static void arduino_on_init_complete(void) {
-  initArduino();
-
   _gamepad_mutex = xSemaphoreCreateMutex();
   assert(_gamepad_mutex != NULL);
 
   _pending_queue = xQueueCreate(16, sizeof(pending_request_t));
   assert(_pending_queue != NULL);
 
-  xTaskCreateUniversal(loop_task, "loopTask", CONFIG_ARDUINO_LOOP_STACK_SIZE,
-                       NULL, 1, &_loop_task, CONFIG_ARDUINO_RUNNING_CORE);
-  assert(_loop_task != NULL);
+  arduino_bootstrap();
 }
 
 static void arduino_on_device_connected(uni_hid_device_t* d) {
@@ -278,7 +233,9 @@ int arduino_get_gamepad_data(int idx, arduino_gamepad_t* out_gp) {
   if (idx < 0 || idx >= ARDUINO_MAX_GAMEPADS) return -1;
   if (_gamepads[idx].idx == -1) return -1;
 
+  xSemaphoreTake(_gamepad_mutex, portMAX_DELAY);
   *out_gp = _gamepads[idx];
+  xSemaphoreGive(_gamepad_mutex);
   return 0;
 }
 
@@ -352,5 +309,3 @@ struct uni_platform* uni_platform_arduino_create(void) {
 
   return &plat;
 }
-
-#endif  // UNI_PLATFORM_ARDUINO

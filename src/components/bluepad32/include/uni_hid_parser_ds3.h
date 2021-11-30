@@ -16,21 +16,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
-#ifndef UNI_HID_PARSER_ICADE_H
-#define UNI_HID_PARSER_ICADE_H
+#ifndef UNI_HID_PARSER_DS3_H
+#define UNI_HID_PARSER_DS3_H
 
 #include <stdint.h>
 
-#include "btstack.h"
 #include "uni_hid_parser.h"
 
-// ION iCade setup.
-void uni_hid_parser_icade_setup(struct uni_hid_device_s* d);
+// For DUALSHOCK 3 gamepads
+void uni_hid_parser_ds3_setup(struct uni_hid_device_s *d);
+void uni_hid_parser_ds3_init_report(struct uni_hid_device_s *d);
+void uni_hid_parser_ds3_parse_raw(struct uni_hid_device_s *d,
+                                  const uint8_t *report, uint16_t len);
+void uni_hid_parser_ds3_set_player_leds(struct uni_hid_device_s *d,
+                                        uint8_t leds);
+void uni_hid_parser_ds3_set_rumble(struct uni_hid_device_s *d, uint8_t value,
+                                   uint8_t duration);
 
-// ION iCade parser.
-void uni_hid_parser_icade_parse_usage(struct uni_hid_device_s* d,
-                                      hid_globals_t* globals,
-                                      uint16_t usage_page, uint16_t usage,
-                                      int32_t value);
-
-#endif  // UNI_HID_PARSER_ICADE_H
+#endif  // UNI_HID_PARSER_DS3_H

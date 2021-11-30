@@ -16,20 +16,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
-#ifndef UNI_HID_PARSER_GENERIC_H
-#define UNI_HID_PARSER_GENERIC_H
+#ifndef UNI_HID_PARSER_XBOXONE_H
+#define UNI_HID_PARSER_XBOXONE_H
 
 #include <stdint.h>
 
-#include "btstack.h"
-#include "uni_gamepad.h"
 #include "uni_hid_parser.h"
 
-// Android devices
-void uni_hid_parser_generic_init_report(struct uni_hid_device_s* d);
-void uni_hid_parser_generic_parse_usage(struct uni_hid_device_s* d,
+// For Xbox One S gamepads
+void uni_hid_parser_xboxone_setup(struct uni_hid_device_s* d);
+void uni_hid_parser_xboxone_init_report(struct uni_hid_device_s* d);
+void uni_hid_parser_xboxone_parse_usage(struct uni_hid_device_s* d,
                                         hid_globals_t* globals,
                                         uint16_t usage_page, uint16_t usage,
                                         int32_t value);
-
-#endif  // UNI_HID_PARSER_GENERIC_H
+void uni_hid_parser_xboxone_set_rumble(struct uni_hid_device_s* d,
+                                       uint8_t value, uint8_t duration);
+#endif  // UNI_HID_PARSER_XBOXONE_H
