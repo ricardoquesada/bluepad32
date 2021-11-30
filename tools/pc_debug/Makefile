@@ -1,6 +1,6 @@
 # Makefile for libusb based examples
 BTSTACK_ROOT = 	../../external/btstack
-BLUEPAD32_ROOT = ../../src/main
+BLUEPAD32_ROOT = ../../src/components/bluepad32
 
 CORE += main.c btstack_stdin_posix.c btstack_tlv_posix.c hci_dump_posix_fs.c
 
@@ -36,7 +36,7 @@ VPATH += ${BTSTACK_ROOT}/chipset/csr
 VPATH += ${BTSTACK_ROOT}/chipset/zephyr
 
 # use pkg-config
-CFLAGS  += $(shell pkg-config libusb-1.0 --cflags) -I${BLUEPAD32_ROOT}
+CFLAGS  += $(shell pkg-config libusb-1.0 --cflags) -I${BLUEPAD32_ROOT}/include
 LDFLAGS += $(shell pkg-config libusb-1.0 --libs)
 
 #EXAMPLES = ${EXAMPLES_DUAL_MODE} ${EXAMPLES_LE_ONLY}
