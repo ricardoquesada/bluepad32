@@ -148,13 +148,13 @@ Further reading:
 
 * [Arduino as a ESP-IDF component][esp-idf-component]
 
-TODO: Add detailed steps.
-
 [esp-idf-component]: https://docs.espressif.com/projects/arduino-esp32/en/latest/esp-idf_component.html
 
 ## Option C: Create an "Arduino Core for ESP32 + Bluepad32" library
 
 TODO.
+
+This option should allow you to use Arduino IDE.
 
 In the meantime read: [ESP-IDF Library Builder][lib-builder]
 
