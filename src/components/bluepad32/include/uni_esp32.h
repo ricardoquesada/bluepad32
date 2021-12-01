@@ -16,9 +16,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
-#ifndef UNI_MAIN_ESP32_H
-#define UNI_MAIN_ESP32_H
+#ifndef UNI_ESP32_H
+#define UNI_ESP32_H
 
 void uni_esp32_enable_uart_output(int enabled);
 
-#endif  // UNI_MAIN_ESP32_H
+#endif  // UNI_ESP32_H

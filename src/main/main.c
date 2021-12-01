@@ -16,28 +16,35 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
+#include <stddef.h>
+
+#include "btstack_port_esp32.h"
+#include "btstack_run_loop.h"
+#include "hci_dump.h"
+#include "uni_esp32.h"
 #include "uni_main.h"
 
-#include "uni_bluetooth.h"
-#include "uni_config.h"
-#include "uni_debug.h"
-#include "uni_hid_device.h"
-#include "uni_platform.h"
-#include "uni_version.h"
+int app_main(void) {
+  // hci_dump_open(NULL, HCI_DUMP_STDOUT);
 
-// Main entry point, runs forever
-int uni_main(int argc, const char** argv) {
-  logi("Bluepad32 (C) 2016-2021 Ricardo Quesada and contributors.\n");
-  logi("Version: v" UNI_VERSION "\n");
+#ifdef UNI_UART_OUTPUT_DISABLE
+  // Adafruit Airlift modules have the UART RX/TX (GPIO 1 / 3) wired with the
+  // controller so they can't be used for logging. In fact they can generate
+  // noise and can break the communication with the controller. That's why it is
+  // disabled by default.
+  uni_esp32_enable_uart_output(0);
+#else
+  uni_esp32_enable_uart_output(1);
+#endif
 
-  // Honoring with BT copyright
-  logi("BTStack: Copyright (C) 2017 BlueKitchen GmbH.\n");
+  // Configure BTstack for ESP32 VHCI Controller
+  btstack_init();
 
-  uni_platform_init(argc, argv);
-  uni_hid_device_init();
+  // Init Bluepad32
+  uni_main(0, NULL);
 
-  // Continue with bluetooth setup.
-  uni_bluetooth_init();
+  // BTStack loop (forever)
+  btstack_run_loop_execute();
 
   return 0;
 }

@@ -235,8 +235,11 @@ int main(int argc, const char *argv[]) {
   // handle CTRL-c
   signal(SIGINT, sigint_handler);
 
-  // Uni main (forever)
+  // Initialize Bluepad32
   uni_main(argc, argv);
+
+  // BTStack loop (forever)
+  btstack_run_loop_execute();
 
   return 0;
 }

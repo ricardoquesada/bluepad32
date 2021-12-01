@@ -78,7 +78,7 @@ struct uni_platform {
 
 void uni_platform_init(int argc, const char** argv);
 
-struct uni_platform* uni_get_platform();
+struct uni_platform* uni_get_platform(void);
 
 #ifdef __cplusplus
 }

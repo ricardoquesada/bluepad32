@@ -53,6 +53,6 @@ void uni_platform_init(int argc, const char** argv) {
   logi("Platform: %s\n", _platform->name);
 }
 
-struct uni_platform* uni_get_platform() {
+struct uni_platform* uni_get_platform(void) {
   return _platform;
 }

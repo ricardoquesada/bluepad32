@@ -45,10 +45,10 @@ limitations under the License.
 #include "uni_bluetooth.h"
 #include "uni_config.h"
 #include "uni_debug.h"
+#include "uni_esp32.h"
 #include "uni_gamepad.h"
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
-#include "uni_main_esp32.h"
 #include "uni_platform.h"
 #include "uni_version.h"
 
