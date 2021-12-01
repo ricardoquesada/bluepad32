@@ -66,14 +66,14 @@ void uni_platform_init(int argc, const char** argv) {
   // These UNI_PLATFORM_ defines are defined in the Makefile and CMakeLists.txt
 
 #ifdef UNI_PLATFORM_UNIJOYSTICLE
-  g_platform = uni_platform_unijoysticle_create();
+  _platform = uni_platform_unijoysticle_create();
 #elif defined(UNI_PLATFORM_PC_DEBUG)
-  g_platform = uni_platform_pc_debug_create();
+  _platform = uni_platform_pc_debug_create();
 #elif defined(UNI_PLATFORM_AIRLIFT)
-  g_platform = uni_platform_airlift_create();
+  _platform = uni_platform_airlift_create();
 #elif defined(UNI_PLATFORM_YOURPLATFORM)
  // Here goes your code
-  g_platform = uni_platform_yourplatform_create();
+  _platform = uni_platform_yourplatform_create();
 #endif
 }
 

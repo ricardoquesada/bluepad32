@@ -28,6 +28,9 @@ extern "C" {
 #include "uni_gamepad.h"
 #include "uni_platform.h"
 
+// Arbitrary max number of gamepads that can be connected at the same time
+#define ARDUINO_MAX_GAMEPADS 4
+
 typedef struct {
   // Indicates which gamepad it is. Goes from 0 to 3.
   int8_t idx;

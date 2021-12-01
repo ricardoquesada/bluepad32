@@ -269,7 +269,7 @@ static void packet_handler(uint8_t packet_type, uint16_t channel,
       switch (event) {
         case BTSTACK_EVENT_STATE:
           if (btstack_event_state_get_state(packet) == HCI_STATE_WORKING) {
-            g_platform->on_init_complete();
+            uni_get_platform()->on_init_complete();
             bt_ready = 1;
             gap_local_bd_addr(event_addr);
             logi("BTstack up and running on %s.\n", bd_addr_to_str(event_addr));
@@ -837,8 +837,8 @@ static void list_link_keys(void) {
     loge("Link key iterator not implemented\n");
     return;
   }
-  int32_t delete_keys =
-      g_platform->get_property(UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS);
+  int32_t delete_keys = uni_get_platform()->get_property(
+      UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS);
   if (delete_keys == 1)
     logi("Deleting stored link keys:\n");
   else

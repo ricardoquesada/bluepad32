@@ -155,7 +155,7 @@ void uni_hid_device_set_ready(uni_hid_device_t* d) {
   // platform might call the "HID device". E.g: to set the LEDs
   if (d->report_parser.setup) d->report_parser.setup(d);
 
-  if (g_platform->on_device_ready(d) == 0)
+  if (uni_get_platform()->on_device_ready(d) == 0)
     uni_hid_device_set_state(d, STATE_DEVICE_READY);
 }
 
@@ -188,14 +188,14 @@ void uni_hid_device_set_connected(uni_hid_device_t* d, bool connected) {
   if (connected) {
     // connected
     d->flags |= FLAGS_CONNECTED;
-    g_platform->on_device_connected(d);
+    uni_get_platform()->on_device_connected(d);
   } else {
     // disconnected
     d->flags &= ~(FLAGS_CONNECTED | FLAGS_INCOMING);
     d->hid_control_cid = 0;
     d->hid_interrupt_cid = 0;
 
-    g_platform->on_device_disconnected(d);
+    uni_get_platform()->on_device_disconnected(d);
   }
 }
 
@@ -541,7 +541,7 @@ void uni_hid_device_process_gamepad(uni_hid_device_t* d) {
   // data.
   if (d->gamepad.updated_states == 0) return;
 
-  g_platform->on_gamepad_data(d, &d->gamepad);
+  uni_get_platform()->on_gamepad_data(d, &d->gamepad);
 
   // FIXME: each backend should decide what to do with misc buttons
   process_misc_button_system(d);
@@ -568,7 +568,8 @@ static void process_misc_button_system(uni_hid_device_t* d) {
   if (d->wait_release_misc_button & MISC_BUTTON_SYSTEM) return;
   d->wait_release_misc_button |= MISC_BUTTON_SYSTEM;
 
-  g_platform->on_device_oob_event(d, UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON);
+  uni_get_platform()->on_device_oob_event(
+      d, UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON);
 }
 
 // process_misc_button_home dumps uni_hid_device debug info in the console.

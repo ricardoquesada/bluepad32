@@ -19,6 +19,10 @@ limitations under the License.
 #ifndef UNI_PLATFORM_H
 #define UNI_PLATFORM_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 
 #include "uni_hid_device.h"
@@ -72,9 +76,12 @@ struct uni_platform {
                               uni_platform_oob_event_t event);
 };
 
-// Global platform "object"
-struct uni_platform* g_platform;
-
 void uni_platform_init(int argc, const char** argv);
+
+struct uni_platform* uni_get_platform();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // UNI_PLATFORM_H

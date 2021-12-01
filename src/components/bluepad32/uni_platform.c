@@ -18,6 +18,9 @@ limitations under the License.
 
 #include "uni_platform.h"
 
+// Platform "object"
+static struct uni_platform* _platform;
+
 #include "uni_debug.h"
 #include "uni_platform_arduino.h"
 #include "uni_platform_mightymiggy.h"
@@ -30,22 +33,26 @@ void uni_platform_init(int argc, const char** argv) {
   // These UNI_PLATFORM_ defines are defined in the Makefile and CMakeLists.txt
 
 #ifdef UNI_PLATFORM_UNIJOYSTICLE
-  g_platform = uni_platform_unijoysticle_create();
+  _platform = uni_platform_unijoysticle_create();
 #elif defined(UNI_PLATFORM_PC_DEBUG)
-  g_platform = uni_platform_pc_debug_create();
+  _platform = uni_platform_pc_debug_create();
 #elif defined(UNI_PLATFORM_AIRLIFT)
-  g_platform = uni_platform_airlift_create();
+  _platform = uni_platform_airlift_create();
 #elif defined(UNI_PLATFORM_MIGHTYMIGGY)
-  g_platform = uni_platform_mightymiggy_create();
+  _platform = uni_platform_mightymiggy_create();
 #elif defined(UNI_PLATFORM_NINA)
-  g_platform = uni_platform_nina_create();
+  _platform = uni_platform_nina_create();
 #elif defined(UNI_PLATFORM_ARDUINO)
-  g_platform = uni_platform_arduino_create();
+  _platform = uni_platform_arduino_create();
 #else
 #error "Platform not defined. Set PLATFORM environment variable"
 #endif
 
-  g_platform->init(argc, argv);
+  _platform->init(argc, argv);
 
-  logi("Platform: %s\n", g_platform->name);
+  logi("Platform: %s\n", _platform->name);
+}
+
+struct uni_platform* uni_get_platform() {
+  return _platform;
 }

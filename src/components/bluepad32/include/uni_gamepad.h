@@ -19,6 +19,10 @@ limitations under the License.
 #ifndef UNI_GAMEPAD_H
 #define UNI_GAMEPAD_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 
 extern const int AXIS_NORMALIZE_RANGE;
@@ -155,5 +159,9 @@ typedef struct {
 } uni_gamepad_t;
 
 void uni_gamepad_dump(const uni_gamepad_t* gp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // UNI_GAMEPAD_H

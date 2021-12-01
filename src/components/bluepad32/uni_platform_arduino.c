@@ -33,9 +33,6 @@ limitations under the License.
 // Globals
 //
 
-// Arbitrary max number of gamepads that can be connected at the same time
-#define ARDUINO_MAX_GAMEPADS 4
-
 // Arduino device "instance"
 typedef struct arduino_instance_s {
   // Gamepad index, from 0 to ARDUINO_MAX_GAMEPADS
