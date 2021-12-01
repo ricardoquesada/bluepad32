@@ -1,22 +1,22 @@
 menu "Bluepad32 Configuration"
 
-choice TARGET_PLATFORM
+choice BLUEPAD32_PLATFORM
     bool "Which Bluepad32 target platform"
-    default BLUEPAD32_TARGET_PLATFORM_NONE
+    default BLUEPAD32_PLATFORM_NONE
     help
         Select the Bluepad32 target platform. Select "None" to define it via command line.
 
-    config BLUEPAD32_TARGET_PLATFORM_NONE
+    config BLUEPAD32_PLATFORM_NONE
         bool "None"
-    config BLUEPAD32_TARGET_PLATFORM_ARDUINO
+    config BLUEPAD32_PLATFORM_ARDUINO
         bool "Arduino"
-    config BLUEPAD32_TARGET_PLATFORM_NINA
+    config BLUEPAD32_PLATFORM_NINA
         bool "Nina"
-    config BLUEPAD32_TARGET_PLATFORM_AIRLIFT
+    config BLUEPAD32_PLATFORM_AIRLIFT
         bool "AirLift"
-    config BLUEPAD32_TARGET_PLATFORM_UNIJOYSTICLE
+    config BLUEPAD32_PLATFORM_UNIJOYSTICLE
         bool "Unijoysticle"
-    config BLUEPAD32_TARGET_PLATFORM_MIGHTYMIGGY
+    config BLUEPAD32_PLATFORM_MIGHTYMIGGY
         bool "MightyMiggy"
 
 endchoice

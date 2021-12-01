@@ -13,7 +13,7 @@ But there is catch:
 
 * It only works on ESP-IDF v4.4 or newer
 * Options **A** and **B** are driven from command line, using Makefile. Might not work from Arduino IDE.
-* Option **C** is not ready
+* Option **C** is not ready, and might not be ready for a while, if ever.
 
 Are you still interested ? Good, then you must follow these instructions:
 
@@ -23,54 +23,84 @@ Are you still interested ? Good, then you must follow these instructions:
 
 There are two ways to setup a Bluepad32 Arduino project:
 
-* Option A: Starting a project from scratch
-  * Requires a few extra steps
+* Option A: Clone the template repo
   * Recommended for new projects
-* Option B: Reuse the Bluepad32 git repo.
-  * Used internally for testing
+* Option B: Starting a project from scratch
+  * Recommened if you want to fine tune the project
 * Option C: Create a "Arduino Core for ESP32 + Bluepad32" library
-  * Probably what the "typical" Arduino user expects
   * Not ready... in fact, not even started. It will take time to have it ready.
 
-### Option A: Create your own repo
+## Option A: Clone the template project
 
-The idea is to setup a ESP-IDF project from scratch can include in your project the following components:
+```sh
+git clone --recursive https://gitlab.com/ricardoquesada/esp-idf-arduino-bluepad32-template.git my_project
+```
+
+... and that's it.
+
+To test it just do:
+
+```sh
+make flash monitor
+```
+
+## Option B: Create your a project from scratch
+
+Use this option if you want to understand how the "template" project (from Option A) was
+created.
+
+It is split in 3 parts:
+
+* Install the needed components (you have to do it just once)
+* Create an empty project (needed for each new project )
+* Copy the "Bluepad32-Arduino" API files to your project (needed for each new project)
+
+### Installing components
+
+Include the following components in `$IDF_PATH/components` folder (or in your project's `components` folder if you prefer)
 
 * arduino
 * bluepad32
 * btstack
 
-And in your *main* project, you must include the files that are located in `$BLUEPAD32_SRC/src/main/*`
+Arduino component:
 
-See:
-* [Arduino as a ESP-IDF component][esp-idf-component]
-* Option **B**, in particular how to setup the Arduino component
+```sh
+cd $IDF_PATH/components/
+git clone --recursive https://github.com/espressif/arduino-esp32.git arduino
+```
 
-TODO: Add detailed steps.
+Bluepad32 component:
 
-[esp-idf-component]: https://docs.espressif.com/projects/arduino-esp32/en/latest/esp-idf_component.html
+```sh
+# Just copy bluepad32 component to $IDF_PATH/components
+cp -r $BLUEPAD32_SRC/src/components/bluepad32 $IDF_PATH/components
+```
 
-### Option B: Reuse Bluepad32 git repo
+BTStack component:
 
-1. Follow the [Bluepad32 firmware setup instructions][bluepad32-fw-setup]
-   * But make sure to use ESP-IDF **v4.4** (or newer)
-2. Clone "Arduino Core for ESP32" in the `src/components`
+```sh
+cd $BLUEPAD32_SRC/external/btstack/port/esp32
+./integrate_btstack.py
+```
 
-    ```sh
-    cd $BLUEPAD32_SRC/src/components
-    git clone https://github.com/espressif/arduino-esp32.git arduino
-    cd arduino
-    git submodule update --init --recursive
-    ```
+### Create an empty ESP-IDF project
 
-3. Run `menuconfig`
+Create an ESP-IDF project:
 
-    ```sh
-    cd $BLUEPAD32_SRC/src
-    make menuconfig
-    ```
+```sh
+# One simiple way to start a new ESP-IDF project, is to clone the "template" project
+git clone --recursive https://github.com/espressif/esp-idf-template my_project
+```
 
-4. Set the right Arduino options:
+And then do:
+
+1. `make menuconfig`
+2. Select "Bluepad32 Configuration" and then select "Arduino"
+
+   ![bluepad32-arduino](https://lh3.googleusercontent.com/pw/AM-JKLXm9ZyIvTKiTUlFBCT9QSaduKrhGZTXrWdR7G7F6krTHjkHJhpeGTXek_MCV3ZcXHCA8wnhxFAdDvQ_MbbGVMQY2AD58DK3DyK-_Cxua7BKHbvp8zkjtkcr87czftE7ySiCCUEcb6uSuMr9KY96JjQe-g=-no)
+
+3. And set these Arduino options:
    * "Autostart Arduino setup and loop on boot" must be OFF
    * "Core on which Arduino's setup() and loop() are running" must be "Core 1"
      * Same for the remaining "Core" options
@@ -81,34 +111,48 @@ TODO: Add detailed steps.
 
     ![sdk-config](https://lh3.googleusercontent.com/pw/AM-JKLUC4p0Yf5fwxsmzBTqmisp09ElowiFvD06VZfVFeTe6qZZ7pavXZ3sOZ1qKe5wWvwCrnhZrvgOerIgb4XJcrX_fGQETiL2QObmE1u8KFn8wtRoO-vrLSJCRbQVgkC8_pnbyUQM4onrK6GXaaEf-Fuf4iQ=-no)
 
-5. Set "PLATFORM=arduino" environment variable
+4. Set these Bluetooth options:
+   * "Component Config" -> "Bluetooth" -> "Bluetooth Controller"
+     * "Bluetooth Controller Mode": Bluetooth Dual Mode
+     * "BLE Max Connections": 3
+     * "BR/EDR ACL Max Connections": 7
+     * "BR/EDR Sync (SCO/eSCO) Max Connections": 3
+   * "Component Config" -> "Bluetooth" -> "Bluetooth Host"
+     * "Controller only"
 
-    ```sh
-    export PLATFORM=arduino
-    ```
+     ![sdkconfig-bluetooth](https://lh3.googleusercontent.com/pw/AM-JKLVOfishwCTAmGZN2owF0TNiTNVOlCR0DZf7PqUZprM0ujp_iM1e-tYMqDbhZKSe5zvJD4K4PCZJ-SuqO4IGnamgQL79vanzfvpItspvztGlsl0t_FlEkDYmif6q0WgbS6XCH7qrS0iM5LtqNxDySAWJhg=-no)
 
-6. Add your custom code
+     ![sdkconfig-bluetooth2](https://lh3.googleusercontent.com/pw/AM-JKLUqEgrT5sF48hKUkmMsP2-9QzV6-JgyYyKwBfZA7GxjwOtQrDqYXvRE3R5tL7SQsAqRurXCiFqHoPU3k9noCtB-k_ZzJ4F_vqKqb9HVJXpI0ZkR5nJv8SzJ959LEmjjX9QaUteHpoJvbdHsiU-0TPoF8w=-no)
 
-    ```sh
-    cd BLUEPAD32_SRC/src/main
-    vim arduino_main.cpp
-    ```
 
-7. Compile it and flash it
+5. Set these ESP32 options:
+   * "Component Config" -> "ESP32-specific"
+      * "Main XTAL frequency": Autodetect
 
-    ```sh
-    cd BLUEPAD32_SRC/src
-    make flash
-    make monitor
-    ```
+     ![sdkconfig-esp32](https://lh3.googleusercontent.com/pw/AM-JKLVvcfEonqhFDIWH98KajzMGSADBgaNoCI2QjGHaVFLPeRRAQMcIlXFwRmhvDSmNo6kIX_TGtKRr3V6EerW4ngPEiWbBtJYQPSOe2fixKC-rb16m3hhAVirbH7VnVmFwE1EXvRZk3MnNj7Yu2ydFn9f5Gg=-no)
 
-Further info:
+6. Set Serial flasher config:
+   * "Serial flasher cofnig"
+      * "Flash size": 4MB (or choose the right for your module)
+
+### Copy Bluepad32-Arduino API files
+
+And in your *main* project, you must include the files that are located in `$BLUEPAD32_SRC/src/main/*`
+
+```sh
+cd my_project/main
+cp -r $BLUEPAD32_SRC/src/main/* .
+```
+
+Further reading:
+
 * [Arduino as a ESP-IDF component][esp-idf-component]
 
-[bluepad32-fw-setup]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/main/docs/firmware_setup.md#compiling-flashing-firmware
-[esp-idf-setup]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/
+TODO: Add detailed steps.
 
-### Option C: Create an "Arduino Core for ESP32 + Bluepad32" library
+[esp-idf-component]: https://docs.espressif.com/projects/arduino-esp32/en/latest/esp-idf_component.html
+
+## Option C: Create an "Arduino Core for ESP32 + Bluepad32" library
 
 TODO.
 
