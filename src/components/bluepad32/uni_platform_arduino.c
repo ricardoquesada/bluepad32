@@ -22,6 +22,7 @@ limitations under the License.
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
 
+#include "uni_bluetooth.h"
 #include "uni_config.h"
 #include "uni_debug.h"
 #include "uni_gamepad.h"
@@ -37,6 +38,7 @@ limitations under the License.
 typedef struct arduino_instance_s {
   // Gamepad index, from 0 to ARDUINO_MAX_GAMEPADS
   // -1 means gamepad was not assigned yet.
+  // It is used to map "_gamepads" to the uni_hid_device.
   int8_t gamepad_idx;
 } arduino_instance_t;
 _Static_assert(sizeof(arduino_instance_t) < HID_DEVICE_MAX_PLATFORM_DATA,
@@ -80,9 +82,9 @@ typedef struct {
 // Be extra careful when calling code that runs on the other CPU
 
 static void arduino_init(int argc, const char** argv) {
-  UNUSED(argc);
-  UNUSED(argv);
-  /* Empty */
+  memset(&_gamepads, 0, sizeof(_gamepads));
+  for (int i = 0; i < ARDUINO_MAX_GAMEPADS; i++)
+    _gamepads[i].idx = UNI_ARDUINO_GAMEPAD_INVALID;
 }
 
 static uint8_t predicate_arduino_index(uni_hid_device_t* d, void* data) {
@@ -142,13 +144,13 @@ static void arduino_on_init_complete(void) {
 static void arduino_on_device_connected(uni_hid_device_t* d) {
   arduino_instance_t* ins = get_arduino_instance(d);
   memset(ins, 0, sizeof(*ins));
-  ins->gamepad_idx = -1;
+  ins->gamepad_idx = UNI_ARDUINO_GAMEPAD_INVALID;
 }
 
 static void arduino_on_device_disconnected(uni_hid_device_t* d) {
   arduino_instance_t* ins = get_arduino_instance(d);
   // Only process it if the gamepad has been assigned before
-  if (ins->gamepad_idx != -1) {
+  if (ins->gamepad_idx != UNI_ARDUINO_GAMEPAD_INVALID) {
     if (ins->gamepad_idx < 0 || ins->gamepad_idx >= ARDUINO_MAX_GAMEPADS) {
       loge("Arduino: unexpected gamepad idx, got: %d, want: [0-%d]\n",
            ins->gamepad_idx, ARDUINO_MAX_GAMEPADS);
@@ -156,7 +158,7 @@ static void arduino_on_device_disconnected(uni_hid_device_t* d) {
     }
     _gamepad_seats &= ~(1 << ins->gamepad_idx);
 
-    ins->gamepad_idx = -1;
+    ins->gamepad_idx = UNI_ARDUINO_GAMEPAD_INVALID;
   }
 }
 
@@ -169,7 +171,7 @@ static int arduino_on_device_ready(uni_hid_device_t* d) {
   }
 
   arduino_instance_t* ins = get_arduino_instance(d);
-  if (ins->gamepad_idx != -1) {
+  if (ins->gamepad_idx != UNI_ARDUINO_GAMEPAD_INVALID) {
     loge("Arduino: unexpected value for on_device_ready; got: %d, want: -1\n",
          ins->gamepad_idx);
     return -1;
@@ -227,18 +229,21 @@ static int32_t arduino_get_property(uni_platform_property_t key) {
 // CPU 1 - Application (Arduino) process
 //
 int arduino_get_gamepad_data(int idx, arduino_gamepad_t* out_gp) {
-  if (idx < 0 || idx >= ARDUINO_MAX_GAMEPADS) return -1;
-  if (_gamepads[idx].idx == -1) return -1;
+  if (idx < 0 || idx >= ARDUINO_MAX_GAMEPADS) return UNI_ARDUINO_ERROR;
+  if (_gamepads[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID)
+    return UNI_ARDUINO_ERROR;
 
   xSemaphoreTake(_gamepad_mutex, portMAX_DELAY);
   *out_gp = _gamepads[idx];
   xSemaphoreGive(_gamepad_mutex);
-  return 0;
+
+  return UNI_ARDUINO_OK;
 }
 
 int arduino_set_player_leds(int idx, uint8_t leds) {
-  if (idx < 0 || idx >= ARDUINO_MAX_GAMEPADS) return -1;
-  if (_gamepads[idx].idx == -1) return -1;
+  if (idx < 0 || idx >= ARDUINO_MAX_GAMEPADS) return UNI_ARDUINO_ERROR;
+  if (_gamepads[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID)
+    return UNI_ARDUINO_ERROR;
 
   pending_request_t request = (pending_request_t){
       .gamepad_idx = idx,
@@ -247,12 +252,13 @@ int arduino_set_player_leds(int idx, uint8_t leds) {
   };
   xQueueSendToBack(_pending_queue, &request, (TickType_t)0);
 
-  return 0;
+  return UNI_ARDUINO_OK;
 }
 
 int arduino_set_lightbar_color(int idx, uint8_t r, uint8_t g, uint8_t b) {
-  if (idx < 0 || idx >= ARDUINO_MAX_GAMEPADS) return -1;
-  if (_gamepads[idx].idx == -1) return -1;
+  if (idx < 0 || idx >= ARDUINO_MAX_GAMEPADS) return UNI_ARDUINO_ERROR;
+  if (_gamepads[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID)
+    return UNI_ARDUINO_ERROR;
 
   pending_request_t request = (pending_request_t){
       .gamepad_idx = idx,
@@ -263,12 +269,13 @@ int arduino_set_lightbar_color(int idx, uint8_t r, uint8_t g, uint8_t b) {
   };
   xQueueSendToBack(_pending_queue, &request, (TickType_t)0);
 
-  return 0;
+  return UNI_ARDUINO_OK;
 }
 
 int arduino_set_rumble(int idx, uint8_t force, uint8_t duration) {
-  if (idx < 0 || idx >= ARDUINO_MAX_GAMEPADS) return -1;
-  if (_gamepads[idx].idx == -1) return -1;
+  if (idx < 0 || idx >= ARDUINO_MAX_GAMEPADS) return UNI_ARDUINO_ERROR;
+  if (_gamepads[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID)
+    return UNI_ARDUINO_ERROR;
 
   pending_request_t request = (pending_request_t){
       .gamepad_idx = idx,
@@ -278,7 +285,13 @@ int arduino_set_rumble(int idx, uint8_t force, uint8_t duration) {
   };
   xQueueSendToBack(_pending_queue, &request, (TickType_t)0);
 
-  return 0;
+  return UNI_ARDUINO_OK;
+}
+
+int arduino_forget_bluetooth_keys() {
+  // TODO: Not thread safe, but should be mostly Okish (?)
+  uni_bluetooth_del_keys();
+  return UNI_ARDUINO_OK;
 }
 
 //

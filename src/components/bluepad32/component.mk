@@ -7,6 +7,7 @@
 # please read the ESP-IDF documents if you need to do this.
 #
 CFLAGS += -Wno-format -Wall -Werror
+CPPFLAGS += -Wno-format -Wall -Werror
 
 COMPONENT_ADD_INCLUDEDIRS := include
 

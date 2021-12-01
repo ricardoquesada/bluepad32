@@ -9,7 +9,7 @@
 
 #include <functional>
 
-#include "arduino_gamepad.h"
+#include "ArduinoGamepad.h"
 
 typedef std::function<void(GamepadPtr gamepad)> GamepadCallback;
 
@@ -30,7 +30,7 @@ class Bluepad32 {
    * Get the firmware version
    * result: version as string with this format a.b.c
    */
-  const char* firmwareVersion();
+  const char* firmwareVersion() const;
   void setDebug(uint8_t on);
 
   // Gamepad

@@ -31,6 +31,15 @@ extern "C" {
 // Arbitrary max number of gamepads that can be connected at the same time
 #define ARDUINO_MAX_GAMEPADS 4
 
+enum {
+  UNI_ARDUINO_OK = 0,
+  UNI_ARDUINO_ERROR = -1,
+};
+
+enum {
+  UNI_ARDUINO_GAMEPAD_INVALID = -1,
+};
+
 typedef struct {
   // Indicates which gamepad it is. Goes from 0 to 3.
   int8_t idx;
@@ -48,6 +57,7 @@ int arduino_get_gamepad_data(int idx, arduino_gamepad_t* out_gp);
 int arduino_set_player_leds(int idx, uint8_t leds);
 int arduino_set_lightbar_color(int idx, uint8_t r, uint8_t g, uint8_t b);
 int arduino_set_rumble(int idx, uint8_t force, uint8_t duration);
+int arduino_forget_bluetooth_keys();
 
 #ifdef __cplusplus
 }

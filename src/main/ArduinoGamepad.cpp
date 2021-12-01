@@ -1,7 +1,7 @@
 // Copyright 2021 - 2021, Ricardo Quesada, http://retro.moe
 // SPDX-License-Identifier: Apache-2.0 or LGPL-2.1-or-later
 
-#include "arduino_gamepad.h"
+#include "ArduinoGamepad.h"
 
 #include <inttypes.h>
 #include <uni_debug.h>
