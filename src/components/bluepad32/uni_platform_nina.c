@@ -42,6 +42,7 @@ limitations under the License.
 #include <freertos/semphr.h>
 #include <math.h>
 
+#include "sdkconfig.h"
 #include "uni_bluetooth.h"
 #include "uni_config.h"
 #include "uni_debug.h"
@@ -60,9 +61,9 @@ limitations under the License.
 //#define GPIO_MISO GPIO_NUM_19
 
 // The only difference between NINA and AirLift, seems to be the MOSI pin.
-#ifdef UNI_PLATFORM_AIRLIFT
+#ifdef CONFIG_BLUEPAD32_PLATFORM_AIRLIFT
 #define GPIO_MOSI GPIO_NUM_14
-#elif defined(UNI_PLATFORM_NINA)
+#elif defined(CONFIG_BLUEPAD32_PLATFORM_NINA)
 #define GPIO_MOSI GPIO_NUM_12
 #else
 // FIXME: This file should not be compiled when NINA/AirLift is not used.
@@ -110,9 +111,9 @@ typedef struct __attribute__((packed)) {
 //
 // Globals
 //
-#ifdef UNI_PLATFORM_AIRLIFT
+#ifdef CONFIG_BLUEPAD32_PLATFORM_AIRLIFT
 static const char FIRMWARE_VERSION[] = "Bluepad32 for AirLift v" UNI_VERSION;
-#elif defined(UNI_PLATFORM_NINA)
+#elif defined(CONFIG_BLUEPAD32_PLATFORM_NINA)
 static const char FIRMWARE_VERSION[] = "Bluepad32 for NINA v" UNI_VERSION;
 #else
 // FIXME: This file should not be compiled when NINA/AirLift is not used.

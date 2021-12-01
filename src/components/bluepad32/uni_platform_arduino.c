@@ -288,7 +288,7 @@ int arduino_set_rumble(int idx, uint8_t force, uint8_t duration) {
   return UNI_ARDUINO_OK;
 }
 
-int arduino_forget_bluetooth_keys() {
+int arduino_forget_bluetooth_keys(void) {
   // TODO: Not thread safe, but should be mostly Okish (?)
   uni_bluetooth_del_keys();
   return UNI_ARDUINO_OK;

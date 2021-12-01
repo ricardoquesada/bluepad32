@@ -21,13 +21,14 @@ limitations under the License.
 #include "btstack_port_esp32.h"
 #include "btstack_run_loop.h"
 #include "hci_dump.h"
+#include "sdkconfig.h"
 #include "uni_esp32.h"
 #include "uni_main.h"
 
 int app_main(void) {
   // hci_dump_open(NULL, HCI_DUMP_STDOUT);
 
-#ifdef UNI_UART_OUTPUT_DISABLE
+#ifdef CONFIG_BLUEPAD32_UART_OUTPUT_DISABLE
   // Adafruit Airlift modules have the UART RX/TX (GPIO 1 / 3) wired with the
   // controller so they can't be used for logging. In fact they can generate
   // noise and can break the communication with the controller. That's why it is

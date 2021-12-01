@@ -1,9 +1,10 @@
 // Copyright 2021 - 2021, Ricardo Quesada, http://retro.moe
 // SPDX-License-Identifier: Apache-2.0 or LGPL-2.1-or-later
 
-#ifdef UNI_PLATFORM_ARDUINO
-
 #include "ArduinoBluepad32.h"
+
+#include "sdkconfig.h"
+#ifdef CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 
 #include <Arduino.h>
 #include <inttypes.h>
@@ -67,4 +68,4 @@ void Bluepad32::setup(const GamepadCallback& onConnect,
 
 Bluepad32 BP32;
 
-#endif  // UNI_PLATFORM_ARDUINO
+#endif  // CONFIG_BLUEPAD32_PLATFORM_ARDUINO

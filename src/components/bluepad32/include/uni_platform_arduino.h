@@ -57,7 +57,7 @@ int arduino_get_gamepad_data(int idx, arduino_gamepad_t* out_gp);
 int arduino_set_player_leds(int idx, uint8_t leds);
 int arduino_set_lightbar_color(int idx, uint8_t r, uint8_t g, uint8_t b);
 int arduino_set_rumble(int idx, uint8_t force, uint8_t duration);
-int arduino_forget_bluetooth_keys();
+int arduino_forget_bluetooth_keys(void);
 
 #ifdef __cplusplus
 }

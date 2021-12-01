@@ -9,7 +9,7 @@ COMMON += btstack_audio_portaudio.c btstack_chipset_zephyr.c rijndael.c
 
 include ${BTSTACK_ROOT}/example/Makefile.inc
 
-CFLAGS += -DUNI_PLATFORM_PC_DEBUG
+CFLAGS += -DCONFIG_BLUEPAD32_PLATFORM_PC_DEBUG
 CFLAGS += -DENABLE_PRINTF_HEXDUMP
 
 CC=clang

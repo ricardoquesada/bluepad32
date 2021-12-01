@@ -16,7 +16,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
-#ifdef UNI_PLATFORM_ARDUINO
+#include "sdkconfig.h"
+#ifdef CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 
 #include <Arduino.h>
 
@@ -130,4 +131,4 @@ void loop() {
   delay(150);
 }
 
-#endif  // UNI_PLATFORM_ARDUINO
+#endif  // CONFIG_BLUEPAD32_PLATFORM_ARDUINO

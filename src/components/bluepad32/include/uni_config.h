@@ -30,4 +30,7 @@ limitations under the License.
 // but it seems that this breaks Nintendo Switch gamepad support.
 #define UNI_ENABLE_DUALSHOCK3 0  // Enabled if 1
 
+// Platform can be defined via "Kconfig" or by setting the environment variable.
+// The environment variable has precedence.
+
 #endif  // UNI_CONFIG_H

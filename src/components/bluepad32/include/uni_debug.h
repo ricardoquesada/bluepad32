@@ -23,7 +23,7 @@ limitations under the License.
 
 #include "uni_config.h"
 
-#ifdef UNI_PLATFORM_PC_DEBUG
+#ifdef CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG
 
 // PC uses simple fprintf(stderr)
 

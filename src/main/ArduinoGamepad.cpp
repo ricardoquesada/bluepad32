@@ -1,13 +1,14 @@
 // Copyright 2021 - 2021, Ricardo Quesada, http://retro.moe
 // SPDX-License-Identifier: Apache-2.0 or LGPL-2.1-or-later
 
-#ifdef UNI_PLATFORM_ARDUINO
-
 #include "ArduinoGamepad.h"
 
 #include <inttypes.h>
 #include <uni_debug.h>
 #include <uni_platform_arduino.h>
+
+#include "sdkconfig.h"
+#ifdef CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 
 Gamepad::Gamepad() : _connected(false), _state() {}
 
@@ -43,4 +44,4 @@ void Gamepad::setRumble(uint8_t force, uint8_t duration) const {
     loge("error setting lightbar color");
 }
 
-#endif  // UNI_PLATFORM_ARDUINO
+#endif  // CONFIG_BLUEPAD32_PLATFORM_ARDUINO

@@ -18,9 +18,7 @@ limitations under the License.
 
 #include "uni_platform.h"
 
-// Platform "object"
-static struct uni_platform* _platform;
-
+#include "sdkconfig.h"
 #include "uni_debug.h"
 #include "uni_platform_arduino.h"
 #include "uni_platform_mightymiggy.h"
@@ -28,21 +26,24 @@ static struct uni_platform* _platform;
 #include "uni_platform_pc_debug.h"
 #include "uni_platform_unijoysticle.h"
 
+// Platform "object"
+static struct uni_platform* _platform;
+
 void uni_platform_init(int argc, const char** argv) {
   // Only one for the moment. Each vendor must create its own.
   // These UNI_PLATFORM_ defines are defined in the Makefile and CMakeLists.txt
 
-#ifdef UNI_PLATFORM_UNIJOYSTICLE
+#ifdef CONFIG_BLUEPAD32_PLATFORM_UNIJOYSTICLE
   _platform = uni_platform_unijoysticle_create();
-#elif defined(UNI_PLATFORM_PC_DEBUG)
+#elif defined(CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG)
   _platform = uni_platform_pc_debug_create();
-#elif defined(UNI_PLATFORM_AIRLIFT)
+#elif defined(CONFIG_BLUEPAD32_PLATFORM_AIRLIFT)
   _platform = uni_platform_airlift_create();
-#elif defined(UNI_PLATFORM_MIGHTYMIGGY)
+#elif defined(CONFIG_BLUEPDAD32_PLATFORM_MIGHTYMIGGY)
   _platform = uni_platform_mightymiggy_create();
-#elif defined(UNI_PLATFORM_NINA)
+#elif defined(CONFIG_BLUEPAD32_PLATFORM_NINA)
   _platform = uni_platform_nina_create();
-#elif defined(UNI_PLATFORM_ARDUINO)
+#elif defined(CONFIG_BLUEPAD32_PLATFORM_ARDUINO)
   _platform = uni_platform_arduino_create();
 #else
 #error "Platform not defined. Set PLATFORM environment variable"

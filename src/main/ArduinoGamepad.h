@@ -4,7 +4,8 @@
 #ifndef BP32_ARDUINO_GAMEPAD_H
 #define BP32_ARDUINO_GAMEPAD_H
 
-#ifdef UNI_PLATFORM_ARDUINO
+#include "sdkconfig.h"
+#ifdef CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 
 #include <inttypes.h>
 #include <uni_platform_arduino.h>
@@ -122,5 +123,5 @@ class Gamepad {
 
 typedef Gamepad* GamepadPtr;
 
-#endif  // UNI_PLATFORM_ARDUINO
+#endif  // CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 #endif  // BP32_ARDUINO_GAMEPAD_H

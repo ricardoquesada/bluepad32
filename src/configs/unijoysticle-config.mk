@@ -1,4 +1,4 @@
-CFLAGS += -DUNI_PLATFORM_UNIJOYSTICLE
+CFLAGS += -DCONFIG_BLUEPAD32_PLATFORM_UNIJOYSTICLE
 
 # Other platform specific defines could be added here (or in the platform file).
 # E.g:
