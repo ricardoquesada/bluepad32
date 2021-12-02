@@ -57,48 +57,46 @@ See: [Supported gamepads][gamepads]
 
 1. Install ESP-IDF
 
-Install the ESP32 toolchain. Use version **4.2**. Might work on newer / older
-ones, but not tested.
+    Install the ESP32 toolchain. Use version **4.2**. Might work on newer / older
+    ones, but not tested.
 
-* https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/
+    * https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/
 
 2. Clone repo
 
-```
-$ git clone https://gitlab.com/ricardoquesada/bluepad32.git
-$ cd bluepad32
-$ git submodule update --init
-```
+   ```sh
+   git clone --recursive https://gitlab.com/ricardoquesada/bluepad32.git
+   ```
 
 3. Integrate BTStack into ESP32
 
-```
-$ cd ${BLUEPAD32}/external/btstack/port/esp32
-$ ./integrate_btstack.py
-```
+   ```sh
+   cd ${BLUEPAD32}/external/btstack/port/esp32
+   ./integrate_btstack.py
+   ```
 
 4. Compile Bluepad32
 
-Choose target platform:
+    Choose target platform:
 
-```
-# Choose target platform: unijoysticle, airlift, nina, etc...
-$ export PLATFORM=unijoysticle
-```
+    ```sh
+    # Choose target platform: unijoysticle, airlift, nina, etc...
+    export PLATFORM=unijoysticle
+    ```
 
-And compile it:
+    And compile it:
 
-```
-$ cd ${BLUEPAD32}/src
-$ make -j
-```
+    ```sh
+    cd ${BLUEPAD32}/src
+    make -j
+    ```
 
 5. Flash it
 
-```
-$ cd ${BLUEPAD32}/src
-$ make flash monitor
-```
+    ```sh
+    cd ${BLUEPAD32}/src
+    make flash monitor
+    ```
 
 ## Support
 

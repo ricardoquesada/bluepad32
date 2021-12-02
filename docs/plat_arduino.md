@@ -12,8 +12,7 @@ In other words, if you already have Arduino working on ESP32 module, you can hav
 But there is catch:
 
 * It only works on ESP-IDF v4.4 or newer
-* Options **A** and **B** are driven from command line, using Makefile. Might not work from Arduino IDE.
-* Option **C** is not ready, and might not be ready for a while, if ever.
+* Arduino IDE is not supported yet. Only ESP-IDF makefile are supported.
 
 Are you still interested ? Good, then you must follow these instructions:
 
@@ -21,12 +20,12 @@ Are you still interested ? Good, then you must follow these instructions:
 
 ## Creating a Bluepad32 Arduino projects
 
-There are two ways to setup a Bluepad32 Arduino project:
+There are three ways to setup a Bluepad32 Arduino project:
 
 * Option A: Clone the template repo
-  * Recommended for new projects
+  * Recommended!
 * Option B: Starting a project from scratch
-  * Recommened if you want to fine tune the project
+  * Useful to fine-tune your project
 * Option C: Create a "Arduino Core for ESP32 + Bluepad32" library
   * Not ready... in fact, not even started. It will take time to have it ready.
 
@@ -74,13 +73,13 @@ Bluepad32 component:
 
 ```sh
 # Just copy bluepad32 component to $IDF_PATH/components
-cp -r $BLUEPAD32_SRC/src/components/bluepad32 $IDF_PATH/components
+cp -r ${BLUEPAD32}/src/components/bluepad32 $IDF_PATH/components
 ```
 
 BTStack component:
 
 ```sh
-cd $BLUEPAD32_SRC/external/btstack/port/esp32
+cd ${BLUEPAD32}/external/btstack/port/esp32
 ./integrate_btstack.py
 ```
 
@@ -137,11 +136,11 @@ And then do:
 
 ### Copy Bluepad32-Arduino API files
 
-And in your *main* project, you must include the files that are located in `$BLUEPAD32_SRC/src/main/*`
+And in your *main* project, you must include the files that are located in `${BLUEPAD32}/src/main/*`
 
 ```sh
 cd my_project/main
-cp -r $BLUEPAD32_SRC/src/main/* .
+cp -r ${BLUEPAD32}/src/main/* .
 ```
 
 Further reading:
