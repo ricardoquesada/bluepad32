@@ -44,7 +44,7 @@ List of supported gamepads with supported features, known bugs, etc.
 
 - Must be the *Xbox One S* and not the *Xbox One* gamepad. The *Xbox One S* supports Bluetooth, while the regular *Xbox One* doesn't.
 - Supports both "old" and "new" Xbox One mappings: supports firmware v3.1 as well as firmware v4.8.
-- Supported features: force Feedback
+- Supported features: rumble
 - Known Issues: [issue #1][issue_1]
 
 [xbox_one_s]: https://lh3.googleusercontent.com/YmONc-MhVZhnE8HVRgzH7FKSpT_29MLeIF70U5AfrcBuCtuNJ2Ln5xkmSpNqO0myrFpnDLbFvR2TRTRu0xcqvP3cLNaq1BBpruEAn-Z7vBbwzNtaXx7eQaLLF7aa8tt2Wa0IcYxeD08=-no
@@ -55,7 +55,7 @@ List of supported gamepads with supported features, known bugs, etc.
 [![ddualsense_gamepad][dualsense]][11]
 
 - [Must be in PC mode][25]. Clones might not work.
-- Supported features: force feedback, lightbar color, player LEDs
+- Supported features: rumble, lightbar color, player LEDs
 
 [dualsense]: https://lh3.googleusercontent.com/pw/ACtC-3d1CVA-e5srBTDhTD6D-3BSWYi7MncfECPj_9bQJfcGOAKIHrP6g6Ha7xAD0trE59eN-Qv_U33MklCFPskPWRLjfFI4ITHEol8RAmTYNHFNrA-gwhoXEn2ks_M7UDDbxiKhNdaPNXexxgj5zzOtpBjiyw=-no
 
@@ -65,7 +65,7 @@ List of supported gamepads with supported features, known bugs, etc.
 
 - [Must be in PC mode][25]. Clones might not work.
 - Supports both the 2013 and 2016 editions
-- Supported features: force feedback, lightbar color
+- Supported features: rumble, lightbar color
 
 [dualshock_4]: https://lh3.googleusercontent.com/_0sAxKXbSkk4g8rWJzTNxAirz2hD632jW4TGjGVOwjoac8sD4AfiN9PA1HdGWhm_ujcVygDlEG-LENPemF7IyFhqVsHgVHfCMVeFVjBbeDl-fUUjdMbRYAE8FiKdyWM_UBNUNmVy9Ro=-no
 
@@ -74,7 +74,7 @@ List of supported gamepads with supported features, known bugs, etc.
 [![ds3_gamepad][dualshock_3]][12]
 
 - Tested with genuine DS3. Clones might not work.
-- Supported features: force feedback, player LEDs
+- Supported features: rumble, player LEDs
 - Requires that the [DS3 is manually paired][pair_ds3] to the Unijoysticle device.
 - Disabled by default since it conflicts with Nintendo Switch. To enable it edit: [uni_config.h]
 
@@ -177,7 +177,7 @@ Classic Controller can be used.
 
 Clones and "licensed by Nintendo" controllers should also work supported Ok.
 
-- Supported features: force feedback, player LEDs
+- Supported features: rumble, player LEDs
 - Home Light turns on when connected
 
 [switch_pro]: https://en.wikipedia.org/wiki/Nintendo_Switch_Pro_Controller

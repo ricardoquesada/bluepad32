@@ -100,7 +100,7 @@ void loop() {
       // Duration: 255 is ~2 seconds
       // force: intensity
       // Some gamepads like DS3, DS4, DualSense, Switch, Xbox One S support
-      // force feedback.
+      // rumble.
       // It is possible to set it by calling:
       myGamepad->setRumble(0xc0 /* force */, 0xc0 /* duration */);
     }
