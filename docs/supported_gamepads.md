@@ -44,7 +44,7 @@ List of supported gamepads with supported features, known bugs, etc.
 
 - Must be the *Xbox One S* and not the *Xbox One* gamepad. The *Xbox One S* supports Bluetooth, while the regular *Xbox One* doesn't.
 - Supports both "old" and "new" Xbox One mappings: supports firmware v3.1 as well as firmware v4.8.
-- Supports Force Feedback
+- Supported features: force Feedback
 - Known Issues: [issue #1][issue_1]
 
 [xbox_one_s]: https://lh3.googleusercontent.com/YmONc-MhVZhnE8HVRgzH7FKSpT_29MLeIF70U5AfrcBuCtuNJ2Ln5xkmSpNqO0myrFpnDLbFvR2TRTRu0xcqvP3cLNaq1BBpruEAn-Z7vBbwzNtaXx7eQaLLF7aa8tt2Wa0IcYxeD08=-no
@@ -55,7 +55,7 @@ List of supported gamepads with supported features, known bugs, etc.
 [![ddualsense_gamepad][dualsense]][11]
 
 - [Must be in PC mode][25]. Clones might not work.
-- LED / color: Not supported at the moment
+- Supported features: force feedback, lightbar color, player LEDs
 
 [dualsense]: https://lh3.googleusercontent.com/pw/ACtC-3d1CVA-e5srBTDhTD6D-3BSWYi7MncfECPj_9bQJfcGOAKIHrP6g6Ha7xAD0trE59eN-Qv_U33MklCFPskPWRLjfFI4ITHEol8RAmTYNHFNrA-gwhoXEn2ks_M7UDDbxiKhNdaPNXexxgj5zzOtpBjiyw=-no
 
@@ -65,7 +65,7 @@ List of supported gamepads with supported features, known bugs, etc.
 
 - [Must be in PC mode][25]. Clones might not work.
 - Supports both the 2013 and 2016 editions
-- LED color: supported
+- Supported features: force feedback, lightbar color
 
 [dualshock_4]: https://lh3.googleusercontent.com/_0sAxKXbSkk4g8rWJzTNxAirz2hD632jW4TGjGVOwjoac8sD4AfiN9PA1HdGWhm_ujcVygDlEG-LENPemF7IyFhqVsHgVHfCMVeFVjBbeDl-fUUjdMbRYAE8FiKdyWM_UBNUNmVy9Ro=-no
 
@@ -74,7 +74,7 @@ List of supported gamepads with supported features, known bugs, etc.
 [![ds3_gamepad][dualshock_3]][12]
 
 - Tested with genuine DS3. Clones might not work.
-- LEDs: supported
+- Supported features: force feedback, player LEDs
 - Requires that the [DS3 is manually paired][pair_ds3] to the Unijoysticle device.
 - Disabled by default since it conflicts with Nintendo Switch. To enable it edit: [uni_config.h]
 
@@ -91,7 +91,7 @@ List of supported gamepads with supported features, known bugs, etc.
   - Sideways mode (default)
   - Accelerometer mode
   - Vertical mode
-- LEDs: supported
+- Supported features: player LEDs
 - To start pairing, use the "Sync" method (press "Sync" button).
 
 ### Sideways mode
@@ -167,7 +167,7 @@ Classic Controller can be used.
 
 [![Wii U Pro][wii_u_pro]][27]
 
-- LEDs: supported
+- Supported features: player LEDs
 
 [wii_u_pro]: https://lh3.googleusercontent.com/kfKAySKzV-lLG7VmQGfCES1KuhtjBcTIfMzo59FgABcL7Ir9Tp7fQqrTP2iFqf8UVIhce1JhIXyBN_EH9eXpjlf5Q4b9NhhyxrFX9H0yVVRF0_pghjjz3pVqmY4uxS-FMgr7FC7egNo=w360-no
 
@@ -177,7 +177,7 @@ Classic Controller can be used.
 
 Clones and "licensed by Nintendo" controllers should also work supported Ok.
 
-- LEDs: supported
+- Supported features: force feedback, player LEDs
 - Home Light turns on when connected
 
 [switch_pro]: https://en.wikipedia.org/wiki/Nintendo_Switch_Pro_Controller
@@ -189,7 +189,7 @@ Clones and "licensed by Nintendo" controllers should also work supported Ok.
 
 Both Left and Right JoyCon are supported.
 
-- LEDs: supported
+- Supported features: player LEDs
 - They must be used in "horizontal" mode.
 - Each JoyCon represents one gamepad. Cannot be used as a single/combined gamepad.
 
@@ -201,7 +201,6 @@ Both Left and Right JoyCon are supported.
 ![Android][android_gamepad]
 
 - Tested with: [ASUS][15], [Moga Pro 2][16], [Amazon Fire TV gamepads][17]
-- LEDs: Not supported
 
 [android_gamepad]: https://lh3.googleusercontent.com/S3H1pEGYGT5aVTwF3ySWHF7vqbonDYR0UxOLJBxFe5At6Q4AP_4TQUCaNOiEXD22U4H3C0lVP1E3m26H3QM4rIbgp1wysbQoSt1NpD61snlWES5N5zGUgx20c2sfFCKZL4w_Gl66Y1s=-no
 
@@ -218,7 +217,6 @@ Both Left and Right JoyCon are supported.
 [![OUYA 1st gen][ouya_1gen]][19]
 
 - Only 1st gen is supported. It is unknown the status on newer version. They might or might not work.
-- LEDs: Not supported
 - Known issues: [issue #7][issue_7]
 
 [ouya_1gen]: https://lh3.googleusercontent.com/FtbQLbt1QrzU59TTPQHIEarGZItlPik0bGWo40iDu0rnMwddCEwKMcy8LAe_fqzklaSKfMbt3-EvFJI4Vcoz3gSPTgC9MnTog3MyGfNWMc0Wq2Idq1kzjPOpRIS5OXeSqSSmIfGa5-w=-no
