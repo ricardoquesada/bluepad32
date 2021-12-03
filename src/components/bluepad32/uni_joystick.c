@@ -86,36 +86,36 @@ void uni_joy_to_single_joy_from_gamepad(const uni_gamepad_t* gp,
 
 // Enhanced mode: One gamepad controls two joysticks
 void uni_joy_to_combo_joy_joy_from_gamepad(const uni_gamepad_t* gp,
-                                           uni_joystick_t* out_joy1,
-                                           uni_joystick_t* out_joy2) {
-  to_single_joy(gp, out_joy1);
+                                           uni_joystick_t* out_joy2,
+                                           uni_joystick_t* out_joy1) {
+  to_single_joy(gp, out_joy2);
 
   // Buttom B is "fire"
   if (gp->updated_states & GAMEPAD_STATE_BUTTON_B) {
-    out_joy2->fire |= ((gp->buttons & BUTTON_B) != 0);
+    out_joy1->fire |= ((gp->buttons & BUTTON_B) != 0);
   }
   // Thumb right is "fire"
   if (gp->updated_states & GAMEPAD_STATE_BUTTON_THUMB_R) {
-    out_joy2->fire |= ((gp->buttons & BUTTON_THUMB_R) != 0);
+    out_joy1->fire |= ((gp->buttons & BUTTON_THUMB_R) != 0);
   }
 
   // Swap "auto fire" in Combo Joy Joy.
   // "left" belongs to joy1 while "right" to joy2.
   if (gp->updated_states & GAMEPAD_STATE_BUTTON_SHOULDER_L) {
-    out_joy1->auto_fire = ((gp->buttons & BUTTON_SHOULDER_L) != 0);
+    out_joy2->auto_fire = ((gp->buttons & BUTTON_SHOULDER_L) != 0);
   }
   if (gp->updated_states & GAMEPAD_STATE_BUTTON_SHOULDER_R) {
-    out_joy2->auto_fire = ((gp->buttons & BUTTON_SHOULDER_R) != 0);
+    out_joy1->auto_fire = ((gp->buttons & BUTTON_SHOULDER_R) != 0);
   }
 
   // Axis: RX and RY
   if (gp->updated_states & GAMEPAD_STATE_AXIS_RX) {
-    out_joy2->left |= (gp->axis_rx < -AXIS_THRESHOLD);
-    out_joy2->right |= (gp->axis_rx > AXIS_THRESHOLD);
+    out_joy1->left |= (gp->axis_rx < -AXIS_THRESHOLD);
+    out_joy1->right |= (gp->axis_rx > AXIS_THRESHOLD);
   }
   if (gp->updated_states & GAMEPAD_STATE_AXIS_RY) {
-    out_joy2->up |= (gp->axis_ry < -AXIS_THRESHOLD);
-    out_joy2->down |= (gp->axis_ry > AXIS_THRESHOLD);
+    out_joy1->up |= (gp->axis_ry < -AXIS_THRESHOLD);
+    out_joy1->down |= (gp->axis_ry > AXIS_THRESHOLD);
   }
 }
 
