@@ -20,8 +20,7 @@ limitations under the License.
 #ifdef CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 
 #include <Arduino.h>
-
-#include "ArduinoBluepad32.h"
+#include <Bluepad32.h>
 
 GamepadPtr myGamepad;
 

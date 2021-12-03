@@ -1,7 +1,3 @@
-# Define which platform
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUNI_PLATFORM_UNIJOYSTICLE")
-set(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} -DUNI_PLATFORM_UNIJOYSTICLE")
-
 set(COMPONENT_ADD_INCLUDEDIRS "include")
 
 set(COMPONENT_SRCS "uni_bluetooth.c"
@@ -33,5 +29,7 @@ set(COMPONENT_SRCS "uni_bluetooth.c"
                    "uni_platform_pc_debug.c"
                    "uni_platform_unijoysticle.c"
                    )
+
+set(COMPONENT_REQURIES "btstack")
 
 register_component()

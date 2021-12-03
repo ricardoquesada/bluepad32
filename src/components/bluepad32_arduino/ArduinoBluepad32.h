@@ -1,8 +1,8 @@
 // Copyright 2021 - 2021, Ricardo Quesada, http://retro.moe
 // SPDX-License-Identifier: Apache 2.0 or LGPL-2.1-or-later
 
-#ifndef BP32_BLUEPAD32_H
-#define BP32_BLUEPAD32_H
+#ifndef BP32_ARDUINO_BLUEPAD32_H
+#define BP32_ARDUINO_BLUEPAD32_H
 
 #include "sdkconfig.h"
 #ifdef CONFIG_BLUEPAD32_PLATFORM_ARDUINO
@@ -55,4 +55,4 @@ class Bluepad32 {
 extern Bluepad32 BP32;
 
 #endif  // CONFIG_BLUEPAD32_PLATFORM_ARDUINO
-#endif  // BP32_BLUEPAD32_H
+#endif  // BP32_ARDUINO_BLUEPAD32_H
