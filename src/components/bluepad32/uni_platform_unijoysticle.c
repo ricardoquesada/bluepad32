@@ -395,8 +395,8 @@ static void unijoysticle_on_gamepad_data(uni_hid_device_t* d,
       break;
     case EMULATION_MODE_COMBO_JOY_JOY:
       uni_joy_to_combo_joy_joy_from_gamepad(gp, &joy, &joy_ext);
-      process_joystick(&joy, GAMEPAD_SEAT_B);
-      process_joystick(&joy_ext, GAMEPAD_SEAT_A);
+      process_joystick(&joy, GAMEPAD_SEAT_A);
+      process_joystick(&joy_ext, GAMEPAD_SEAT_B);
       break;
     case EMULATION_MODE_COMBO_JOY_MOUSE:
       uni_joy_to_combo_joy_mouse_from_gamepad(gp, &joy, &joy_ext);

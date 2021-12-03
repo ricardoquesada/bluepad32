@@ -86,8 +86,8 @@ void uni_joy_to_single_joy_from_gamepad(const uni_gamepad_t* gp,
 
 // Enhanced mode: One gamepad controls two joysticks
 void uni_joy_to_combo_joy_joy_from_gamepad(const uni_gamepad_t* gp,
-                                           uni_joystick_t* out_joy2,
-                                           uni_joystick_t* out_joy1) {
+                                           uni_joystick_t* out_joy1,
+                                           uni_joystick_t* out_joy2) {
   to_single_joy(gp, out_joy2);
 
   // Buttom B is "fire"
