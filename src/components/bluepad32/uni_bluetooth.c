@@ -433,9 +433,12 @@ static void packet_handler(uint8_t packet_type, uint16_t channel,
                little_endian_read_32(packet, 8));
           logi("SSP User Confirmation Auto accept\n");
           break;
-        case HCI_EVENT_HID_META:
+        case HCI_EVENT_HID_META: {
           logi("UNSUPPORTED ---> HCI_EVENT_HID_META <---\n");
+          uint8_t code = hci_event_hid_meta_get_subevent_code(packet);
+          logi("HCI HID META SUBEVENT: 0x%02x\n", code);
           break;
+        }
         case HCI_EVENT_INQUIRY_RESULT:
           // logi("--> HCI_EVENT_INQUIRY_RESULT <--\n");
           break;
@@ -937,6 +940,7 @@ static void on_l2cap_data_packet(uint16_t channel, uint8_t* packet,
   uni_hid_device_process_gamepad(d);
 }
 
+// BLE only
 static void hog_connection_timeout(btstack_timer_source_t* ts) {
   UNUSED(ts);
   logi("Timeout - abort connection\n");
@@ -945,6 +949,7 @@ static void hog_connection_timeout(btstack_timer_source_t* ts) {
 
 /**
  * Connect to remote device but set timer for timeout
+ * BLE only
  */
 static void hog_connect(bd_addr_t addr, bd_addr_type_t addr_type) {
   // set timer
@@ -962,6 +967,7 @@ static void hog_connect(bd_addr_t addr, bd_addr_type_t addr_type) {
   uni_hid_device_set_state(device, STATE_DEVICE_DISCOVERED);
 }
 
+// BLE only
 static bool adv_event_contains_hid_service(const uint8_t* packet) {
   const uint8_t* ad_data = gap_event_advertising_report_get_data(packet);
   uint16_t ad_len = gap_event_advertising_report_get_data_length(packet);
