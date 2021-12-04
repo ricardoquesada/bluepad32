@@ -108,6 +108,7 @@ struct uni_hid_device_s {
   // Channels
   uint16_t hid_control_cid;
   uint16_t hid_interrupt_cid;
+  uint16_t hids_cid;  // BLE only
   enum DEVICE_STATE state;
 
   // Gamepad
@@ -147,6 +148,8 @@ uni_hid_device_t* uni_hid_device_create(bd_addr_t address);
 // Insteaad use: get_instance_with_predicate()
 uni_hid_device_t* uni_hid_device_get_instance_for_address(bd_addr_t addr);
 uni_hid_device_t* uni_hid_device_get_instance_for_cid(uint16_t cid);
+// BLE only
+uni_hid_device_t* uni_hid_device_get_instance_for_hids_cid(uint16_t cid);
 uni_hid_device_t* uni_hid_device_get_instance_for_connection_handle(
     hci_con_handle_t handle);
 uni_hid_device_t* uni_hid_device_get_first_device_with_state(

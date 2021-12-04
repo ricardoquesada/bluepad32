@@ -63,20 +63,21 @@ static void process_misc_button_home(uni_hid_device_t* d);
 void uni_hid_device_init(void) { memset(g_devices, 0, sizeof(g_devices)); }
 
 uni_hid_device_t* uni_hid_device_create(bd_addr_t address) {
-  for (int j = 0; j < UNI_HID_DEVICE_MAX_DEVICES; j++) {
-    if (bd_addr_cmp(g_devices[j].address, zero_addr) == 0) {
-      memset(&g_devices[j], 0, sizeof(g_devices[j]));
-      memcpy(g_devices[j].address, address, 6);
-      return &g_devices[j];
+  for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
+    if (bd_addr_cmp(g_devices[i].address, zero_addr) == 0) {
+      memset(&g_devices[i], 0, sizeof(g_devices[i]));
+      memcpy(g_devices[i].address, address, 6);
+      g_devices[i].hids_cid = -1;
+      return &g_devices[i];
     }
   }
   return NULL;
 }
 
 uni_hid_device_t* uni_hid_device_get_instance_for_address(bd_addr_t addr) {
-  for (int j = 0; j < UNI_HID_DEVICE_MAX_DEVICES; j++) {
-    if (bd_addr_cmp(addr, g_devices[j].address) == 0) {
-      return &g_devices[j];
+  for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
+    if (bd_addr_cmp(addr, g_devices[i].address) == 0) {
+      return &g_devices[i];
     }
   }
   return NULL;
@@ -89,6 +90,14 @@ uni_hid_device_t* uni_hid_device_get_instance_for_cid(uint16_t cid) {
         g_devices[i].hid_control_cid == cid) {
       return &g_devices[i];
     }
+  }
+  return NULL;
+}
+
+uni_hid_device_t* uni_hid_device_get_instance_for_hids_cid(uint16_t cid) {
+  if (cid == 0) return NULL;
+  for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
+    if (g_devices[i].hids_cid == cid) return &g_devices[i];
   }
   return NULL;
 }
