@@ -79,6 +79,7 @@ static const unsigned int attribute_value_buffer_size =
     MAX_ATTRIBUTE_VALUE_SIZE;
 
 static btstack_packet_callback_registration_t hci_event_callback_registration;
+static btstack_packet_callback_registration_t sm_event_callback_registration;
 
 static void packet_handler(uint8_t packet_type, uint16_t channel,
                            uint8_t* packet, uint16_t size);
@@ -87,6 +88,7 @@ static void handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel,
 static void handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel,
                                         uint8_t* packet, uint16_t size);
 static void continue_remote_names(void);
+static bool adv_event_contains_hid_service(const uint8_t* packet);
 static void start_scan(void);
 static void sdp_query_hid_descriptor(uni_hid_device_t* device);
 static void sdp_query_product_id(uni_hid_device_t* device);
@@ -102,6 +104,8 @@ static void on_l2cap_data_packet(uint16_t channel, uint8_t* packet,
                                  uint16_t sizel);
 static void on_gap_inquiry_result(uint16_t channel, uint8_t* packet,
                                   uint16_t size);
+static void on_gap_event_advertising_report(uint16_t channel, uint8_t* packet,
+                                            uint16_t size);
 static void on_hci_connection_complete(uint16_t channel, uint8_t* packet,
                                        uint16_t size);
 static void on_hci_connection_request(uint16_t channel, uint8_t* packet,
@@ -167,8 +171,8 @@ static void handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel,
         }
       } else {
         loge(
-            "SDP attribute value buffer size exceeded: available %d, required "
-            "%d\n",
+            "SDP attribute value buffer size exceeded: available %d, "
+            "required %d\n",
             attribute_value_buffer_size,
             sdp_event_query_attribute_byte_get_attribute_length(packet));
       }
@@ -227,8 +231,8 @@ static void handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel,
         }
       } else {
         loge(
-            "SDP attribute value buffer size exceeded: available %d, required "
-            "%d\n",
+            "SDP attribute value buffer size exceeded: available %d, "
+            "required %d\n",
             attribute_value_buffer_size,
             sdp_event_query_attribute_byte_get_attribute_length(packet));
       }
@@ -254,8 +258,8 @@ static void packet_handler(uint8_t packet_type, uint16_t channel,
   uni_hid_device_t* device;
   uint8_t status;
 
-  // Ignore all packet events if bt is not ready, with the exception of the "bt
-  // is ready" event.
+  // Ignore all packet events if BT is not ready, with the exception of the
+  // "BT is ready" event.
   if ((!bt_ready) &&
       !((packet_type == HCI_EVENT_PACKET) &&
         (hci_event_packet_get_type(packet) == BTSTACK_EVENT_STATE))) {
@@ -279,6 +283,13 @@ static void packet_handler(uint8_t packet_type, uint16_t channel,
           break;
 
         // HCI EVENTS
+        case HCI_EVENT_LE_META:  // BLE only
+          // wait for connection complete
+          // XXX: FIXME
+          if (hci_event_le_meta_get_subevent_code(packet) !=
+              HCI_SUBEVENT_LE_CONNECTION_COMPLETE)
+            break;
+          break;
         case HCI_EVENT_COMMAND_COMPLETE: {
           uint16_t opcode =
               hci_event_command_complete_get_command_opcode(packet);
@@ -300,8 +311,8 @@ static void packet_handler(uint8_t packet_type, uint16_t channel,
           break;
         }
         case HCI_EVENT_PIN_CODE_REQUEST: {
-          // gap_pin_code_response_binary does not copy the data, and data must
-          // be valid until the next hci_send_cmd is called.
+          // gap_pin_code_response_binary does not copy the data, and data
+          // must be valid until the next hci_send_cmd is called.
           static bd_addr_t pin_code;
           bd_addr_t local_addr;
           logi("--> HCI_EVENT_PIN_CODE_REQUEST\n");
@@ -408,12 +419,67 @@ static void packet_handler(uint8_t packet_type, uint16_t channel,
           uni_hid_device_request_inquire();
           continue_remote_names();
           break;
+        case GAP_EVENT_ADVERTISING_REPORT:  // BLE only
+          on_gap_event_advertising_report(channel, packet, size);
+          break;
         default:
           break;
       }
       break;
     case L2CAP_DATA_PACKET:
       on_l2cap_data_packet(channel, packet, size);
+      break;
+    default:
+      break;
+  }
+}
+
+/* HCI packet handler
+ *
+ * text The SM packet handler receives Security Manager Events required for
+ * pairing. It also receives events generated during Identity Resolving see
+ * Listing SMPacketHandler.
+ */
+static void sm_packet_handler(uint8_t packet_type, uint16_t channel,
+                              uint8_t* packet, uint16_t size) {
+  UNUSED(channel);
+  UNUSED(size);
+
+  if (packet_type != HCI_EVENT_PACKET) return;
+
+  switch (hci_event_packet_get_type(packet)) {
+    case SM_EVENT_JUST_WORKS_REQUEST:
+      logi("Just works requested\n");
+      sm_just_works_confirm(sm_event_just_works_request_get_handle(packet));
+      break;
+    case SM_EVENT_NUMERIC_COMPARISON_REQUEST:
+      logi("Confirming numeric comparison: %" PRIu32 "\n",
+           sm_event_numeric_comparison_request_get_passkey(packet));
+      sm_numeric_comparison_confirm(
+          sm_event_passkey_display_number_get_handle(packet));
+      break;
+    case SM_EVENT_PASSKEY_DISPLAY_NUMBER:
+      logi("Display Passkey: %" PRIu32 "\n",
+           sm_event_passkey_display_number_get_passkey(packet));
+      break;
+    case SM_EVENT_PAIRING_COMPLETE:
+      switch (sm_event_pairing_complete_get_status(packet)) {
+        case ERROR_CODE_SUCCESS:
+          logi("Pairing complete, success\n");
+          break;
+        case ERROR_CODE_CONNECTION_TIMEOUT:
+          logi("Pairing failed, timeout\n");
+          break;
+        case ERROR_CODE_REMOTE_USER_TERMINATED_CONNECTION:
+          logi("Pairing faileed, disconnected\n");
+          break;
+        case ERROR_CODE_AUTHENTICATION_FAILURE:
+          logi("Pairing failed, reason = %u\n",
+               sm_event_pairing_complete_get_reason(packet));
+          break;
+        default:
+          break;
+      }
       break;
     default:
       break;
@@ -548,6 +614,25 @@ static void on_gap_inquiry_result(uint16_t channel, uint8_t* packet,
   } else {
     logi("\n");
   }
+}
+
+static void on_gap_event_advertising_report(uint16_t channel, uint8_t* packet,
+                                            uint16_t size) {
+  bd_addr_t addr;
+  bd_addr_type_t addr_type;
+
+  UNUSED(channel);
+  UNUSED(size);
+
+  if (adv_event_contains_hid_service(packet) == false) return;
+
+  // store remote device address and type
+  gap_event_advertising_report_get_address(packet, addr);
+  addr_type = gap_event_advertising_report_get_address_type(packet);
+  // connect
+  logi("Found, connect to device with %s address %s ...\n",
+       addr_type == 0 ? "public" : "random", bd_addr_to_str(addr));
+  // hog_connect();
 }
 
 static void on_l2cap_channel_opened(uint16_t channel, uint8_t* packet,
@@ -757,6 +842,13 @@ static void on_l2cap_data_packet(uint16_t channel, uint8_t* packet,
   uni_hid_device_process_gamepad(d);
 }
 
+static bool adv_event_contains_hid_service(const uint8_t* packet) {
+  const uint8_t* ad_data = gap_event_advertising_report_get_data(packet);
+  uint16_t ad_len = gap_event_advertising_report_get_data_length(packet);
+  return ad_data_contains_uuid16(ad_len, ad_data,
+                                 ORG_BLUETOOTH_SERVICE_HUMAN_INTERFACE_DEVICE);
+}
+
 static void continue_remote_names(void) {
   uni_hid_device_t* d =
       uni_hid_device_get_first_device_with_state(STATE_REMOTE_NAME_REQUEST);
@@ -773,13 +865,20 @@ static void continue_remote_names(void) {
 
 static void start_scan(void) {
   logi("--> Scanning for new devices...\n");
+  // Passive scanning, 100% (scan interval = scan window)
+  // Start BLE GAP scan
+  gap_set_scan_parameters(0 /* type */, 48 /* interval */, 48 /* window */);
+  gap_start_scan();
+
+  // Start GAP Classic inquiry
   gap_inquiry_start(INQUIRY_INTERVAL);
 }
 
 static void sdp_query_hid_descriptor(uni_hid_device_t* device) {
   logi("Starting SDP query for HID descriptor for: %s\n",
        bd_addr_to_str(device->address));
-  // Needed for the SDP query since it only supports one SDP query at the time.
+  // Needed for the SDP query since it only supports one SDP query at the
+  // time.
   uint64_t elapsed;
   uni_hid_device_t* sdp_dev = uni_hid_device_get_sdp_device(&elapsed);
   if (sdp_dev != NULL) {
@@ -882,8 +981,9 @@ static void fsm_process(uni_hid_device_t* d) {
   if (d == NULL) {
     loge("fsm_process: Invalid device\n");
   }
-  // Two flows: Incoming (initiated by gamepad) vs. discovered (initiated by
-  // Unijoysticle).
+  // Two possible flows:
+  // - Incoming (initiated by gamepad)
+  // - Or discovered (initiated by Bluepad32).
 
   // Incoming connections might have the HID already pre-fecthed, or not.
   if (uni_hid_device_is_incoming(d)) {
@@ -946,9 +1046,6 @@ static void fsm_process(uni_hid_device_t* d) {
 }
 
 int uni_bluetooth_init(void) {
-  // Initialize L2CAP
-  l2cap_init();
-
   // enabled EIR
   hci_set_inquiry_mode(INQUIRY_MODE_RSSI_AND_EIR);
 
@@ -956,8 +1053,13 @@ int uni_bluetooth_init(void) {
   hci_event_callback_registration.callback = &packet_handler;
   hci_add_event_handler(&hci_event_callback_registration);
 
+  // register for events from Security Manager
+  sm_event_callback_registration.callback = &sm_packet_handler;
+  sm_add_event_handler(&sm_event_callback_registration);
+
   // It seems that with gap_security_level(0) all gamepads work except
   // Nintendo Switch Pro controller.
+  // XXX: Must be moved to Kconfig
 #if UNI_ENABLE_DUALSHOCK3
   gap_set_security_level(0);
 #endif
@@ -974,13 +1076,22 @@ int uni_bluetooth_init(void) {
   // See: https://github.com/bluekitchen/btstack/issues/299
   gap_set_required_encryption_key_size(7);
 
+  // setup LE device db
+  le_device_db_init();
+
+  l2cap_init();
+  sm_init();
+  gatt_client_init();
+
   // btstack_stdin_setup(stdin_process);
-  // Turn on the device
   hci_set_master_slave_policy(HCI_ROLE_MASTER);
-  hci_power_control(HCI_POWER_ON);
 
   // Disable stdout buffering
   setbuf(stdout, NULL);
+
+  // Turn on the device
+  hci_power_control(HCI_POWER_ON);
+
   return 0;
 }
 
