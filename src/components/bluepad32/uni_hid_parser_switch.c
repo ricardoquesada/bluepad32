@@ -34,6 +34,7 @@ limitations under the License.
 #endif  // ENABLE_SPI_FLASH_DUMP
 
 #include "hid_usage.h"
+#include "uni_bt_conn.h"
 #include "uni_debug.h"
 #include "uni_gamepad.h"
 #include "uni_hid_device.h"
@@ -916,7 +917,8 @@ static struct switch_rumble_freq_data find_rumble_freq(uint16_t freq) {
     unsigned int i = 0;
     if (freq > rumble_freqs[0].freq) {
         for (i = 1; i < TOTAL_RUMBLE_FREQS - 1; i++) {
-            if (freq > rumble_freqs[i - 1].freq && freq <= rumble_freqs[i].freq) break;
+            if (freq > rumble_freqs[i - 1].freq && freq <= rumble_freqs[i].freq)
+                break;
         }
     }
 
@@ -927,7 +929,8 @@ static struct switch_rumble_amp_data find_rumble_amp(uint16_t amp) {
     unsigned int i = 0;
     if (amp > rumble_amps[0].amp) {
         for (i = 1; i < TOTAL_RUMBLE_AMPS - 1; i++) {
-            if (amp > rumble_amps[i - 1].amp && amp <= rumble_amps[i].amp) break;
+            if (amp > rumble_amps[i - 1].amp && amp <= rumble_amps[i].amp)
+                break;
         }
     }
 
@@ -955,7 +958,8 @@ void uni_hid_parser_switch_set_player_leds(uni_hid_device_t* d, uint8_t leds) {
     // seat and set the correct LEDs values.
     ins->gamepad_seat = leds;
 
-    if (ins->state < STATE_READY) return;
+    if (ins->state < STATE_READY)
+        return;
 
     set_led(d, leds);
 }
@@ -977,7 +981,8 @@ void uni_hid_parser_switch_set_rumble(struct uni_hid_device_s* d, uint8_t value,
 
     // set timer to turn off rumble
     switch_instance_t* ins = get_switch_instance(d);
-    if (ins->rumble_in_progress) return;
+    if (ins->rumble_in_progress)
+        return;
 
     ins->ts.process = &switch_rumble_off;
     ins->rumble_in_progress = 1;
@@ -999,7 +1004,7 @@ uint8_t uni_hid_parser_switch_does_packet_match(struct uni_hid_device_s* d, cons
     uni_hid_device_set_product_id(d, SWITCH_PID);
     uni_hid_device_guess_controller_type_from_pid_vid(d);
     uni_hid_device_set_sdp_device(NULL);
-    uni_hid_device_set_state(d, STATE_SDP_VENDOR_FETCHED);
+    uni_bt_conn_set_state(&d->connection, UNI_BT_CONN_STATE_SDP_VENDOR_FETCHED);
     logi(
         "Switch: Device detected as Nintendo Switch Pro controller using "
         "heuristics\n");
@@ -1009,7 +1014,9 @@ uint8_t uni_hid_parser_switch_does_packet_match(struct uni_hid_device_s* d, cons
 //
 // Helpers
 //
-static switch_instance_t* get_switch_instance(uni_hid_device_t* d) { return (switch_instance_t*)&d->parser_data[0]; }
+static switch_instance_t* get_switch_instance(uni_hid_device_t* d) {
+    return (switch_instance_t*)&d->parser_data[0];
+}
 
 static void set_led(uni_hid_device_t* d, uint8_t leds) {
     switch_instance_t* ins = get_switch_instance(d);
@@ -1033,7 +1040,8 @@ static void set_led(uni_hid_device_t* d, uint8_t leds) {
 static void send_subcmd(uni_hid_device_t* d, struct switch_subcmd_request* r, int len) {
     static uint8_t packet_num = 0;
     r->packet_num = packet_num++;
-    if (packet_num > 0x0f) packet_num = 0;
+    if (packet_num > 0x0f)
+        packet_num = 0;
     uni_hid_device_send_intr_report(d, (const uint8_t*)r, len);
 }
 

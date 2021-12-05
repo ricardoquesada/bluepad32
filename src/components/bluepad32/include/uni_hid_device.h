@@ -23,6 +23,7 @@ limitations under the License.
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "uni_bt_conn.h"
 #include "uni_circular_buffer.h"
 #include "uni_gamepad.h"
 #include "uni_hid_parser.h"
@@ -45,22 +46,6 @@ limitations under the License.
 #define MASK_COD_MINOR_JOYSTICK     0x0004  //             0000_0100
 #define MASK_COD_MINOR_HANDS_FREE   0x0008  //             0000_1000
 // clang-format on
-
-enum DEVICE_STATE {
-    STATE_DEVICE_DISCOVERED,
-    STATE_REMOTE_NAME_REQUEST,
-    STATE_REMOTE_NAME_INQUIRED,
-    STATE_REMOTE_NAME_FETCHED,
-    STATE_SDP_HID_DESCRIPTOR_REQUESTED,
-    STATE_SDP_HID_DESCRIPTOR_FETCHED,
-    STATE_SDP_VENDOR_REQUESTED,
-    STATE_SDP_VENDOR_FETCHED,
-    STATE_L2CAP_CONTROL_CONNECTION_REQUESTED,
-    STATE_L2CAP_CONTROL_CONNECTED,
-    STATE_L2CAP_INTERRUPT_CONNECTION_REQUESTED,
-    STATE_L2CAP_INTERRUPT_CONNECTED,
-    STATE_DEVICE_READY,
-};
 
 typedef enum {
     CONTROLLER_SUBTYPE_NONE = 0,
@@ -109,7 +94,6 @@ struct uni_hid_device_s {
     uint16_t hid_control_cid;
     uint16_t hid_interrupt_cid;
     uint16_t hids_cid;  // BLE only
-    enum DEVICE_STATE state;
 
     // Gamepad
     uint8_t controller_type;                      // type of controller attached
@@ -133,6 +117,9 @@ struct uni_hid_device_s {
     // Bytes reserved to different platforms.
     // E.g: C64 or Airlift might use it to store different values.
     uint8_t platform_data[HID_DEVICE_MAX_PLATFORM_DATA];
+
+    // Bluetooth connection info.
+    uni_bt_conn_t connection;
 };
 typedef struct uni_hid_device_s uni_hid_device_t;
 
@@ -150,7 +137,7 @@ uni_hid_device_t* uni_hid_device_get_instance_for_cid(uint16_t cid);
 // BLE only
 uni_hid_device_t* uni_hid_device_get_instance_for_hids_cid(uint16_t cid);
 uni_hid_device_t* uni_hid_device_get_instance_for_connection_handle(hci_con_handle_t handle);
-uni_hid_device_t* uni_hid_device_get_first_device_with_state(enum DEVICE_STATE state);
+uni_hid_device_t* uni_hid_device_get_first_device_with_state(uni_bt_conn_state_t state);
 uni_hid_device_t* uni_hid_device_get_instance_for_idx(int idx);
 uni_hid_device_t* uni_hid_device_get_instance_with_predicate(uni_hid_device_predicate_t predicate, void* data);
 
@@ -202,9 +189,6 @@ bool uni_hid_device_has_controller_type(uni_hid_device_t* d);
 void uni_hid_device_process_gamepad(uni_hid_device_t* d);
 
 void uni_hid_device_set_connection_handle(uni_hid_device_t* d, hci_con_handle_t handle);
-
-void uni_hid_device_set_state(uni_hid_device_t* d, enum DEVICE_STATE s);
-enum DEVICE_STATE uni_hid_device_get_state(uni_hid_device_t* d);
 
 void uni_hid_device_send_report(uni_hid_device_t* d, uint16_t cid, const uint8_t* report, uint16_t len);
 void uni_hid_device_send_intr_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
