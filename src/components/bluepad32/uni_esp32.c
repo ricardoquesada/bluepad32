@@ -31,29 +31,29 @@ limitations under the License.
 // Bluepad32 is compiled with UART RX/TX disabled by default.
 // But can be enabled/disabled in runtime by calling this function.
 void uni_esp32_enable_uart_output(int enabled) {
-  if (enabled) {
-    PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[1], 0);
-    PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[3], 0);
+    if (enabled) {
+        PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[1], 0);
+        PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[3], 0);
 
-    const char* default_uart_dev = "/dev/uart/0";
-    _GLOBAL_REENT->_stdin = fopen(default_uart_dev, "r");
-    _GLOBAL_REENT->_stdout = fopen(default_uart_dev, "w");
-    _GLOBAL_REENT->_stderr = fopen(default_uart_dev, "w");
+        const char* default_uart_dev = "/dev/uart/0";
+        _GLOBAL_REENT->_stdin = fopen(default_uart_dev, "r");
+        _GLOBAL_REENT->_stdout = fopen(default_uart_dev, "w");
+        _GLOBAL_REENT->_stderr = fopen(default_uart_dev, "w");
 
-    uart_div_modify(CONFIG_ESP_CONSOLE_UART_NUM, (APB_CLK_FREQ << 4) / 115200);
+        uart_div_modify(CONFIG_ESP_CONSOLE_UART_NUM, (APB_CLK_FREQ << 4) / 115200);
 
-    // uartAttach();
-    ets_install_uart_printf();
-    uart_tx_switch(CONFIG_ESP_CONSOLE_UART_NUM);
-  } else {
-    PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[1], PIN_FUNC_GPIO);
-    PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[3], PIN_FUNC_GPIO);
+        // uartAttach();
+        ets_install_uart_printf();
+        uart_tx_switch(CONFIG_ESP_CONSOLE_UART_NUM);
+    } else {
+        PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[1], PIN_FUNC_GPIO);
+        PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[3], PIN_FUNC_GPIO);
 
-    _GLOBAL_REENT->_stdin = (FILE*)&__sf_fake_stdin;
-    _GLOBAL_REENT->_stdout = (FILE*)&__sf_fake_stdout;
-    _GLOBAL_REENT->_stderr = (FILE*)&__sf_fake_stderr;
+        _GLOBAL_REENT->_stdin = (FILE*)&__sf_fake_stdin;
+        _GLOBAL_REENT->_stdout = (FILE*)&__sf_fake_stdout;
+        _GLOBAL_REENT->_stderr = (FILE*)&__sf_fake_stderr;
 
-    ets_install_putc1(NULL);
-    ets_install_putc2(NULL);
-  }
+        ets_install_putc1(NULL);
+        ets_install_putc2(NULL);
+    }
 }

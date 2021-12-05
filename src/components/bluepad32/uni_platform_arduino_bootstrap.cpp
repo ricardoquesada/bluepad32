@@ -40,19 +40,18 @@ static TaskHandle_t _arduino_task = NULL;
 
 extern "C" {
 static void arduino_task(void* params) {
-  setup();
-  for (;;) {
-    loop();
-  }
+    setup();
+    for (;;) {
+        loop();
+    }
 }
 
 void arduino_bootstrap() {
-  initArduino();
+    initArduino();
 
-  xTaskCreateUniversal(arduino_task, "ArduinoTask",
-                       CONFIG_ARDUINO_LOOP_STACK_SIZE, NULL, 1, &_arduino_task,
-                       CONFIG_ARDUINO_RUNNING_CORE);
-  assert(_arduino_task != NULL);
+    xTaskCreateUniversal(arduino_task, "ArduinoTask", CONFIG_ARDUINO_LOOP_STACK_SIZE, NULL, 1, &_arduino_task,
+                         CONFIG_ARDUINO_RUNNING_CORE);
+    assert(_arduino_task != NULL);
 }
 }
 #endif  // CONFIG_BLUEPAD32_PLATFORM_ARDUINO

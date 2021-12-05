@@ -21,18 +21,18 @@ limitations under the License.
 // This is a well-known function. No need to add the "uni_" prefix.
 #define CRCPOLY 0xedb88320
 uint32_t crc32_le(uint32_t seed, const void* data, size_t len) {
-  uint32_t crc = seed;
-  const uint8_t* src = data;
-  uint32_t mult;
-  int i;
+    uint32_t crc = seed;
+    const uint8_t* src = data;
+    uint32_t mult;
+    int i;
 
-  while (len--) {
-    crc ^= *src++;
-    for (i = 0; i < 8; i++) {
-      mult = (crc & 1) ? CRCPOLY : 0;
-      crc = (crc >> 1) ^ mult;
+    while (len--) {
+        crc ^= *src++;
+        for (i = 0; i < 8; i++) {
+            mult = (crc & 1) ? CRCPOLY : 0;
+            crc = (crc >> 1) ^ mult;
+        }
     }
-  }
 
-  return crc;
+    return crc;
 }

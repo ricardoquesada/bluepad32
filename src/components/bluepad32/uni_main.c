@@ -27,17 +27,17 @@ limitations under the License.
 
 // Main entry point, runs forever
 int uni_main(int argc, const char** argv) {
-  logi("Bluepad32 (C) 2016-2021 Ricardo Quesada and contributors.\n");
-  logi("Version: v" UNI_VERSION "\n");
+    logi("Bluepad32 (C) 2016-2021 Ricardo Quesada and contributors.\n");
+    logi("Version: v" UNI_VERSION "\n");
 
-  // Honoring with BT copyright
-  logi("BTStack: Copyright (C) 2017 BlueKitchen GmbH.\n");
+    // Honoring with BT copyright
+    logi("BTStack: Copyright (C) 2017 BlueKitchen GmbH.\n");
 
-  uni_platform_init(argc, argv);
-  uni_hid_device_init();
+    uni_platform_init(argc, argv);
+    uni_hid_device_init();
 
-  // Continue with bluetooth setup.
-  uni_bluetooth_init();
+    // Continue with bluetooth setup.
+    uni_bluetooth_init();
 
-  return 0;
+    return 0;
 }

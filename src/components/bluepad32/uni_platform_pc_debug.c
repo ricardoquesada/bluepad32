@@ -35,7 +35,7 @@ static int g_delete_keys = 0;
 
 // PC Debug "instance"
 typedef struct pc_debug_instance_s {
-  uni_gamepad_seat_t gamepad_seat;  // which "seat" is being used
+    uni_gamepad_seat_t gamepad_seat;  // which "seat" is being used
 } pc_debug_instance_t;
 
 // Declarations
@@ -46,48 +46,42 @@ static pc_debug_instance_t* get_pc_debug_instance(uni_hid_device_t* d);
 // Platform Overrides
 //
 static void pc_debug_init(int argc, const char** argv) {
-  logi("pc_debug: init()\n");
-  for (int i = 1; i < argc; i++) {
-    if (strcmp(argv[i], "--enhanced") == 0 || strcmp(argv[i], "-e") == 0) {
-      g_enhanced_mode = 1;
-      logi("Enhanced mode enabled\n");
+    logi("pc_debug: init()\n");
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--enhanced") == 0 || strcmp(argv[i], "-e") == 0) {
+            g_enhanced_mode = 1;
+            logi("Enhanced mode enabled\n");
+        }
+        if (strcmp(argv[i], "--delete") == 0 || strcmp(argv[i], "-d") == 0) {
+            g_delete_keys = 1;
+            logi("Stored keys will be deleted\n");
+        }
     }
-    if (strcmp(argv[i], "--delete") == 0 || strcmp(argv[i], "-d") == 0) {
-      g_delete_keys = 1;
-      logi("Stored keys will be deleted\n");
-    }
-  }
 }
 
-static void pc_debug_on_init_complete(void) {
-  logi("pc_debug: on_init_complete()\n");
-}
+static void pc_debug_on_init_complete(void) { logi("pc_debug: on_init_complete()\n"); }
 
-static void pc_debug_on_device_connected(uni_hid_device_t* d) {
-  logi("pc_debug: device connected: %p\n", d);
-}
+static void pc_debug_on_device_connected(uni_hid_device_t* d) { logi("pc_debug: device connected: %p\n", d); }
 
-static void pc_debug_on_device_disconnected(uni_hid_device_t* d) {
-  logi("pc_debug: device disconnected: %p\n", d);
-}
+static void pc_debug_on_device_disconnected(uni_hid_device_t* d) { logi("pc_debug: device disconnected: %p\n", d); }
 
 static int pc_debug_on_device_ready(uni_hid_device_t* d) {
-  logi("pc_debug: device ready: %p\n", d);
-  pc_debug_instance_t* ins = get_pc_debug_instance(d);
-  ins->gamepad_seat = GAMEPAD_SEAT_A;
+    logi("pc_debug: device ready: %p\n", d);
+    pc_debug_instance_t* ins = get_pc_debug_instance(d);
+    ins->gamepad_seat = GAMEPAD_SEAT_A;
 
-  trigger_event_on_gamepad(d);
-  return 0;
+    trigger_event_on_gamepad(d);
+    return 0;
 }
 
 static void pc_debug_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
-  UNUSED(d);
-  static uni_gamepad_t prev = {0};
-  if (memcmp(&prev, gp, sizeof(*gp)) == 0) {
-    return;
-  }
-  prev = *gp;
-  uni_gamepad_dump(gp);
+    UNUSED(d);
+    static uni_gamepad_t prev = {0};
+    if (memcmp(&prev, gp, sizeof(*gp)) == 0) {
+        return;
+    }
+    prev = *gp;
+    uni_gamepad_dump(gp);
 
 #if 0
   // Debugging
@@ -111,73 +105,70 @@ static void pc_debug_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
 }
 
 static int32_t pc_debug_get_property(uni_platform_property_t key) {
-  logi("pc_debug: get_property(): %d\n", key);
-  if (key != UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS) return -1;
-  return g_delete_keys;
+    logi("pc_debug: get_property(): %d\n", key);
+    if (key != UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS) return -1;
+    return g_delete_keys;
 }
 
-static void pc_debug_on_device_oob_event(uni_hid_device_t* d,
-                                         uni_platform_oob_event_t event) {
-  if (d == NULL) {
-    loge("ERROR: pc_debug_on_device_gamepad_event: Invalid NULL device\n");
-    return;
-  }
-  logi("pc_debug: on_device_oob_event(): %d\n", event);
+static void pc_debug_on_device_oob_event(uni_hid_device_t* d, uni_platform_oob_event_t event) {
+    if (d == NULL) {
+        loge("ERROR: pc_debug_on_device_gamepad_event: Invalid NULL device\n");
+        return;
+    }
+    logi("pc_debug: on_device_oob_event(): %d\n", event);
 
-  if (event != UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON) {
-    loge("ERROR: pc_debug_on_device_gamepad_event: unsupported event: 0x%04x\n",
-         event);
-    return;
-  }
+    if (event != UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON) {
+        loge("ERROR: pc_debug_on_device_gamepad_event: unsupported event: 0x%04x\n", event);
+        return;
+    }
 
-  pc_debug_instance_t* ins = get_pc_debug_instance(d);
-  ins->gamepad_seat =
-      ins->gamepad_seat == GAMEPAD_SEAT_A ? GAMEPAD_SEAT_B : GAMEPAD_SEAT_A;
+    pc_debug_instance_t* ins = get_pc_debug_instance(d);
+    ins->gamepad_seat = ins->gamepad_seat == GAMEPAD_SEAT_A ? GAMEPAD_SEAT_B : GAMEPAD_SEAT_A;
 
-  trigger_event_on_gamepad(d);
+    trigger_event_on_gamepad(d);
 }
 
 //
 // Helpers
 //
 static pc_debug_instance_t* get_pc_debug_instance(uni_hid_device_t* d) {
-  return (pc_debug_instance_t*)&d->platform_data[0];
+    return (pc_debug_instance_t*)&d->platform_data[0];
 }
 
 static void trigger_event_on_gamepad(uni_hid_device_t* d) {
-  pc_debug_instance_t* ins = get_pc_debug_instance(d);
+    pc_debug_instance_t* ins = get_pc_debug_instance(d);
 
-  if (d->report_parser.set_rumble != NULL) {
-    d->report_parser.set_rumble(d, 0x80 /* value */, 15 /* duration */);
-  }
+    if (d->report_parser.set_rumble != NULL) {
+        d->report_parser.set_rumble(d, 0x80 /* value */, 15 /* duration */);
+    }
 
-  if (d->report_parser.set_player_leds != NULL) {
-    d->report_parser.set_player_leds(d, ins->gamepad_seat);
-  }
+    if (d->report_parser.set_player_leds != NULL) {
+        d->report_parser.set_player_leds(d, ins->gamepad_seat);
+    }
 
-  if (d->report_parser.set_lightbar_color != NULL) {
-    uint8_t red = (ins->gamepad_seat & 0x01) ? 0xff : 0;
-    uint8_t green = (ins->gamepad_seat & 0x02) ? 0xff : 0;
-    uint8_t blue = (ins->gamepad_seat & 0x04) ? 0xff : 0;
-    d->report_parser.set_lightbar_color(d, red, green, blue);
-  }
+    if (d->report_parser.set_lightbar_color != NULL) {
+        uint8_t red = (ins->gamepad_seat & 0x01) ? 0xff : 0;
+        uint8_t green = (ins->gamepad_seat & 0x02) ? 0xff : 0;
+        uint8_t blue = (ins->gamepad_seat & 0x04) ? 0xff : 0;
+        d->report_parser.set_lightbar_color(d, red, green, blue);
+    }
 }
 
 //
 // Entry Point
 //
 struct uni_platform* uni_platform_pc_debug_create(void) {
-  static struct uni_platform plat;
+    static struct uni_platform plat;
 
-  plat.name = "PC Debug";
-  plat.init = pc_debug_init;
-  plat.on_init_complete = pc_debug_on_init_complete;
-  plat.on_device_connected = pc_debug_on_device_connected;
-  plat.on_device_disconnected = pc_debug_on_device_disconnected;
-  plat.on_device_ready = pc_debug_on_device_ready;
-  plat.on_device_oob_event = pc_debug_on_device_oob_event;
-  plat.on_gamepad_data = pc_debug_on_gamepad_data;
-  plat.get_property = pc_debug_get_property;
+    plat.name = "PC Debug";
+    plat.init = pc_debug_init;
+    plat.on_init_complete = pc_debug_on_init_complete;
+    plat.on_device_connected = pc_debug_on_device_connected;
+    plat.on_device_disconnected = pc_debug_on_device_disconnected;
+    plat.on_device_ready = pc_debug_on_device_ready;
+    plat.on_device_oob_event = pc_debug_on_device_oob_event;
+    plat.on_gamepad_data = pc_debug_on_gamepad_data;
+    plat.get_property = pc_debug_get_property;
 
-  return &plat;
+    return &plat;
 }

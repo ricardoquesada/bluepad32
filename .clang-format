@@ -1,3 +1,5 @@
 # Defines the Chromium style for automatic reformatting.
 # http://clang.llvm.org/docs/ClangFormatStyleOptions.html
-BasedOnStyle: Google
+BasedOnStyle: Chromium
+ColumnLimit: 120
+IndentWidth: 4

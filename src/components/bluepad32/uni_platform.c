@@ -30,30 +30,30 @@ limitations under the License.
 static struct uni_platform* _platform;
 
 void uni_platform_init(int argc, const char** argv) {
-  // Only one for the moment. Each vendor must create its own.
-  // These UNI_PLATFORM_ defines are defined in the Makefile and CMakeLists.txt
+    // Only one for the moment. Each vendor must create its own.
+    // These UNI_PLATFORM_ defines are defined in the Makefile and CMakeLists.txt
 
 #ifdef CONFIG_BLUEPAD32_PLATFORM_UNIJOYSTICLE
-  _platform = uni_platform_unijoysticle_create();
+    _platform = uni_platform_unijoysticle_create();
 #elif defined(CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG)
-  _platform = uni_platform_pc_debug_create();
+    _platform = uni_platform_pc_debug_create();
 #elif defined(CONFIG_BLUEPAD32_PLATFORM_AIRLIFT)
-  _platform = uni_platform_airlift_create();
+    _platform = uni_platform_airlift_create();
 #elif defined(CONFIG_BLUEPDAD32_PLATFORM_MIGHTYMIGGY)
-  _platform = uni_platform_mightymiggy_create();
+    _platform = uni_platform_mightymiggy_create();
 #elif defined(CONFIG_BLUEPAD32_PLATFORM_NINA)
-  _platform = uni_platform_nina_create();
+    _platform = uni_platform_nina_create();
 #elif defined(CONFIG_BLUEPAD32_PLATFORM_ARDUINO)
-  _platform = uni_platform_arduino_create();
+    _platform = uni_platform_arduino_create();
 #else
 #error "Platform not defined. Set PLATFORM environment variable"
 #endif
 
-  _platform->init(argc, argv);
+    _platform->init(argc, argv);
 
-  logi("Platform: %s\n", _platform->name);
+    logi("Platform: %s\n", _platform->name);
 }
 
 struct uni_platform* uni_get_platform(void) {
-  return _platform;
+    return _platform;
 }

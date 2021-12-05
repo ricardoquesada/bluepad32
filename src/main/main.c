@@ -26,26 +26,26 @@ limitations under the License.
 #include "uni_main.h"
 
 int app_main(void) {
-  // hci_dump_open(NULL, HCI_DUMP_STDOUT);
+    // hci_dump_open(NULL, HCI_DUMP_STDOUT);
 
 #ifdef CONFIG_BLUEPAD32_UART_OUTPUT_DISABLE
-  // Adafruit Airlift modules have the UART RX/TX (GPIO 1 / 3) wired with the
-  // controller so they can't be used for logging. In fact they can generate
-  // noise and can break the communication with the controller. That's why it is
-  // disabled by default.
-  uni_esp32_enable_uart_output(0);
+    // Adafruit Airlift modules have the UART RX/TX (GPIO 1 / 3) wired with the
+    // controller so they can't be used for logging. In fact they can generate
+    // noise and can break the communication with the controller. That's why it is
+    // disabled by default.
+    uni_esp32_enable_uart_output(0);
 #else
-  uni_esp32_enable_uart_output(1);
+    uni_esp32_enable_uart_output(1);
 #endif
 
-  // Configure BTstack for ESP32 VHCI Controller
-  btstack_init();
+    // Configure BTstack for ESP32 VHCI Controller
+    btstack_init();
 
-  // Init Bluepad32
-  uni_main(0, NULL);
+    // Init Bluepad32
+    uni_main(0, NULL);
 
-  // BTStack loop (forever)
-  btstack_run_loop_execute();
+    // BTStack loop (forever)
+    btstack_run_loop_execute();
 
-  return 0;
+    return 0;
 }
