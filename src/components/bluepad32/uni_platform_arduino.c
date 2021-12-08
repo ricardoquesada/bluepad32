@@ -82,13 +82,15 @@ typedef struct {
 
 static void arduino_init(int argc, const char** argv) {
     memset(&_gamepads, 0, sizeof(_gamepads));
-    for (int i = 0; i < ARDUINO_MAX_GAMEPADS; i++) _gamepads[i].idx = UNI_ARDUINO_GAMEPAD_INVALID;
+    for (int i = 0; i < ARDUINO_MAX_GAMEPADS; i++)
+        _gamepads[i].idx = UNI_ARDUINO_GAMEPAD_INVALID;
 }
 
 static uint8_t predicate_arduino_index(uni_hid_device_t* d, void* data) {
     int wanted_idx = (int)data;
     arduino_instance_t* ins = get_arduino_instance(d);
-    if (ins->gamepad_idx != wanted_idx) return 0;
+    if (ins->gamepad_idx != wanted_idx)
+        return 0;
     return 1;
 }
 
@@ -108,7 +110,8 @@ static void process_pending_requests(void) {
                     d->report_parser.set_lightbar_color(d, request.args[0], request.args[1], request.args[2]);
                 break;
             case PENDING_REQUEST_CMD_PLAYER_LEDS:
-                if (d->report_parser.set_player_leds != NULL) d->report_parser.set_player_leds(d, request.args[0]);
+                if (d->report_parser.set_player_leds != NULL)
+                    d->report_parser.set_player_leds(d, request.args[0]);
                 break;
 
             case PENDING_REQUEST_CMD_RUMBLE:
@@ -204,7 +207,8 @@ static void arduino_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
 }
 
 static void arduino_on_device_oob_event(uni_hid_device_t* d, uni_platform_oob_event_t event) {
-    if (event != UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON) return;
+    if (event != UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON)
+        return;
 
     // TODO: Do something ?
 }
@@ -218,8 +222,10 @@ static int32_t arduino_get_property(uni_platform_property_t key) {
 // CPU 1 - Application (Arduino) process
 //
 int arduino_get_gamepad_data(int idx, arduino_gamepad_t* out_gp) {
-    if (idx < 0 || idx >= ARDUINO_MAX_GAMEPADS) return UNI_ARDUINO_ERROR;
-    if (_gamepads[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID) return UNI_ARDUINO_ERROR;
+    if (idx < 0 || idx >= ARDUINO_MAX_GAMEPADS)
+        return UNI_ARDUINO_ERROR;
+    if (_gamepads[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID)
+        return UNI_ARDUINO_ERROR;
 
     xSemaphoreTake(_gamepad_mutex, portMAX_DELAY);
     *out_gp = _gamepads[idx];
@@ -229,8 +235,10 @@ int arduino_get_gamepad_data(int idx, arduino_gamepad_t* out_gp) {
 }
 
 int arduino_set_player_leds(int idx, uint8_t leds) {
-    if (idx < 0 || idx >= ARDUINO_MAX_GAMEPADS) return UNI_ARDUINO_ERROR;
-    if (_gamepads[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID) return UNI_ARDUINO_ERROR;
+    if (idx < 0 || idx >= ARDUINO_MAX_GAMEPADS)
+        return UNI_ARDUINO_ERROR;
+    if (_gamepads[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID)
+        return UNI_ARDUINO_ERROR;
 
     pending_request_t request = (pending_request_t){
         .gamepad_idx = idx,
@@ -243,8 +251,10 @@ int arduino_set_player_leds(int idx, uint8_t leds) {
 }
 
 int arduino_set_lightbar_color(int idx, uint8_t r, uint8_t g, uint8_t b) {
-    if (idx < 0 || idx >= ARDUINO_MAX_GAMEPADS) return UNI_ARDUINO_ERROR;
-    if (_gamepads[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID) return UNI_ARDUINO_ERROR;
+    if (idx < 0 || idx >= ARDUINO_MAX_GAMEPADS)
+        return UNI_ARDUINO_ERROR;
+    if (_gamepads[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID)
+        return UNI_ARDUINO_ERROR;
 
     pending_request_t request = (pending_request_t){
         .gamepad_idx = idx,
@@ -259,8 +269,10 @@ int arduino_set_lightbar_color(int idx, uint8_t r, uint8_t g, uint8_t b) {
 }
 
 int arduino_set_rumble(int idx, uint8_t force, uint8_t duration) {
-    if (idx < 0 || idx >= ARDUINO_MAX_GAMEPADS) return UNI_ARDUINO_ERROR;
-    if (_gamepads[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID) return UNI_ARDUINO_ERROR;
+    if (idx < 0 || idx >= ARDUINO_MAX_GAMEPADS)
+        return UNI_ARDUINO_ERROR;
+    if (_gamepads[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID)
+        return UNI_ARDUINO_ERROR;
 
     pending_request_t request = (pending_request_t){
         .gamepad_idx = idx,

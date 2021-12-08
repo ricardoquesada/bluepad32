@@ -93,9 +93,9 @@ static const gpio_num_t PIN_INTERRUPT_TIMING = GPIO_NUM_0;
 static const gpio_num_t PIN_CD32MODE = GPIO_NUM_4;
 #endif
 
-const char *STORAGE_NAMESPACE = "storage";
+const char* STORAGE_NAMESPACE = "storage";
 
-const char *NVS_KEY_CONFIG = "config";
+const char* NVS_KEY_CONFIG = "config";
 
 // GPIO map is based on the MH-ET Live mini-kit board
 
@@ -456,10 +456,10 @@ typedef struct RuntimeControllerInfo_s RuntimeControllerInfo;
  * pressed on the PSX controller and somehow map them to a #TwoButtonJoystick to
  * be sent to the DB-9 port.
  */
-typedef void (*JoyMappingFunc)(const RuntimeControllerInfo *cinfo, TwoButtonJoystick *j);
+typedef void (*JoyMappingFunc)(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j);
 
 // Default button mapping function prototype for initialization of the following
-void mapJoystickNormal(const RuntimeControllerInfo *cinfo, TwoButtonJoystick *j);
+void mapJoystickNormal(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j);
 
 // We have 128 bytes available here (HID_DEVICE_MAX_PLATFORM_DATA)
 typedef struct RuntimeControllerInfo_s {
@@ -470,10 +470,10 @@ typedef struct RuntimeControllerInfo_s {
     gpio_num_t ledPin;
 
     //! \brief Array of GPIOs connected to the Amiga joystick port (Port 2)
-    const gpio_num_t *joyPins;
+    const gpio_num_t* joyPins;
 
     //! \brief Array of GPIOs connected to the Amiga mouse port (Port 1)
-    const gpio_num_t *mousePins;
+    const gpio_num_t* mousePins;
 
     /** \brief Current state of the internal state machine
      *
@@ -506,7 +506,7 @@ typedef struct RuntimeControllerInfo_s {
     JoyMappingFunc joyMappingFunc;
 
     //! \brief Custom controller configuration currently selected
-    ControllerConfiguration *currentCustomConfig;
+    ControllerConfiguration* currentCustomConfig;
 
     /** \brief Button register for CD32 mode being updated
      *
@@ -578,7 +578,9 @@ static xQueueHandle controllerUpdateQueue = NULL;
 //! \name Stuff for Arduino compatibility
 //! @{
 
-uint32_t millis() { return esp_timer_get_time() / 1000; }
+uint32_t millis() {
+    return esp_timer_get_time() / 1000;
+}
 
 long map(long x, long in_min, long in_max, long out_min, long out_max) {
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
@@ -604,7 +606,7 @@ int16_t constrain16(const int16_t x, const int16_t min, const int16_t max) {
  * These are only used for debugging and will not show up in the executable if
  * it is not enabled
  */
-const char *const padButtonNames[PAD_BUTTONS_NO] = {"Back", "ThumbL", "ThumbR",   "Home",     "Up",        "Right",
+const char* const padButtonNames[PAD_BUTTONS_NO] = {"Back", "ThumbL", "ThumbR",   "Home",     "Up",        "Right",
                                                     "Down", "Left",   "TriggerL", "TriggerR", "ShoulderL", "ShoulderR",
                                                     "Y",    "B",      "A",        "X",        "System"};
 
@@ -637,8 +639,8 @@ int padButtonToIndex(PadButtons buttons) {
  * \param[in] buttons Button to be converted
  * \return A string (in flash) containing the name of the "first" buton pressed
  */
-const char *getButtonName(PadButtons psxButton) {
-    const char *ret = "";
+const char* getButtonName(PadButtons psxButton) {
+    const char* ret = "";
 
     int b = padButtonToIndex(psxButton);
     if (b < PAD_BUTTONS_NO) {
@@ -691,9 +693,13 @@ bool buttonChanged(const PadButtons buttonWord, const PadButtons previousButtonW
     return ((previousButtonWord ^ buttonWord) & button) > 0;
 }
 
-bool buttonPressed(const PadButtons buttonWord, const PadButton button) { return buttonWord & ((PadButtons)button); }
+bool buttonPressed(const PadButtons buttonWord, const PadButton button) {
+    return buttonWord & ((PadButtons)button);
+}
 
-bool noButtonPressed(const PadButtons buttonWord) { return buttonWord == BTN_NONE; }
+bool noButtonPressed(const PadButtons buttonWord) {
+    return buttonWord == BTN_NONE;
+}
 
 /** \brief Check if a button has just been pressed
  *
@@ -716,7 +722,8 @@ bool buttonJustPressed(const PadButtons buttonWord, const PadButtons previousBut
  * \param[in] holdTime Time the button/combo must be stable for
  */
 // FIXME: Use previousButtons?
-PadButtons debounceButtons(const PadButtons buttonWord, const PadButtons previousButtonWord,
+PadButtons debounceButtons(const PadButtons buttonWord,
+                           const PadButtons previousButtonWord,
                            const unsigned long holdTime) {
     static PadButtons oldButtons = BTN_NONE;
     static unsigned long pressedOn = 0;
@@ -746,7 +753,7 @@ PadButtons debounceButtons(const PadButtons buttonWord, const PadButtons previou
  * CD32 mode is entered automatically whenever a HIGH level is detected on
  * #PIN_PADMODE, after this function has been called.
  */
-void enableCD32Trigger(const RuntimeControllerInfo *cinfo) {
+void enableCD32Trigger(const RuntimeControllerInfo* cinfo) {
 #ifdef ENABLE_CD32_SUPPORT
     if (cinfo->seat == GAMEPAD_SEAT_A) {
         xEventGroupSetBits(evGrpCd32, EVENT_ENABLE_CD32_SEAT_A);
@@ -763,7 +770,7 @@ void enableCD32Trigger(const RuntimeControllerInfo *cinfo) {
  * CD32 mode will no longer be entered automatically after this function has
  * been called.
  */
-void disableCD32Trigger(const RuntimeControllerInfo *cinfo) {
+void disableCD32Trigger(const RuntimeControllerInfo* cinfo) {
 #ifdef ENABLE_CD32_SUPPORT
     if (cinfo->seat == GAMEPAD_SEAT_A) {
         xEventGroupSetBits(evGrpCd32, EVENT_DISABLE_CD32_SEAT_A);
@@ -788,7 +795,7 @@ void clearConfigurations() {
     mmlogi("Clearing controllerConfigs\n");
     memset(controllerConfigs, 0x00, sizeof(controllerConfigs));
     for (uint8_t i = 0; i < PAD_BUTTONS_NO; ++i) {
-        ControllerConfiguration *config = &controllerConfigs[i];
+        ControllerConfiguration* config = &controllerConfigs[i];
         //~ memset (&config, 0x00, sizeof (ControllerConfiguration));
         config->buttonMappings[padButtonToIndex(BTN_X)].b1 = true;
         config->buttonMappings[padButtonToIndex(BTN_A)].b2 = true;
@@ -886,7 +893,9 @@ void buttonPress(const gpio_num_t pin) {
  *
  * \param[in] pin Pin corresponding to the button to be pressed
  */
-void buttonRelease(const gpio_num_t pin) { ESP_ERROR_CHECK(gpio_set_level(pin, 0)); }
+void buttonRelease(const gpio_num_t pin) {
+    ESP_ERROR_CHECK(gpio_set_level(pin, 0));
+}
 
 /** \brief Map horizontal movements of the left analog stick to a
  *         #TwoButtonJoystick
@@ -895,7 +904,7 @@ void buttonRelease(const gpio_num_t pin) { ESP_ERROR_CHECK(gpio_set_level(pin, 0
  *
  * \param[out] j Mapped joystick status
  */
-void mapAnalogStickHorizontal(const RuntimeControllerInfo *cinfo, TwoButtonJoystick *j) {
+void mapAnalogStickHorizontal(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j) {
     // Bluepad analog range is [-512, 511] - But it seems to be 1024+ on Wii U Pro
     // Controller!
     j->left = cinfo->leftAnalog.x < -ANALOG_DEAD_ZONE;
@@ -918,7 +927,7 @@ void mapAnalogStickHorizontal(const RuntimeControllerInfo *cinfo, TwoButtonJoyst
  *
  * \param[out] j Mapped joystick status
  */
-void mapAnalogStickVertical(const RuntimeControllerInfo *cinfo, TwoButtonJoystick *j) {
+void mapAnalogStickVertical(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j) {
     j->up = cinfo->leftAnalog.y < -ANALOG_DEAD_ZONE;
     j->down = cinfo->leftAnalog.y > +ANALOG_DEAD_ZONE;
 
@@ -942,7 +951,7 @@ void mapAnalogStickVertical(const RuntimeControllerInfo *cinfo, TwoButtonJoystic
  *
  * \param[out] j Mapped joystick status
  */
-void mapJoystickNormal(const RuntimeControllerInfo *cinfo, TwoButtonJoystick *j) {
+void mapJoystickNormal(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j) {
     // Use both analog axes
     mapAnalogStickHorizontal(cinfo, j);
     mapAnalogStickVertical(cinfo, j);
@@ -965,7 +974,7 @@ void mapJoystickNormal(const RuntimeControllerInfo *cinfo, TwoButtonJoystick *j)
  *
  * \param[out] j Mapped joystick status
  */
-void mapJoystickRacing1(const RuntimeControllerInfo *cinfo, TwoButtonJoystick *j) {
+void mapJoystickRacing1(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j) {
     // Use analog's horizontal axis to steer, ignore vertical
     mapAnalogStickHorizontal(cinfo, j);
 
@@ -980,7 +989,8 @@ void mapJoystickRacing1(const RuntimeControllerInfo *cinfo, TwoButtonJoystick *j
     /* Games probably did not expect up + down at the same time, so when
      * braking, don't accelerate
      */
-    if (j->down) j->up = false;
+    if (j->down)
+        j->up = false;
 
     // Button Y/Shoulder R/Trigger R are button 1
     j->b1 = buttonPressed(cinfo->buttonWord, BTN_Y | BTN_SHOULDER_R | BTN_TRIGGER_R);
@@ -994,7 +1004,7 @@ void mapJoystickRacing1(const RuntimeControllerInfo *cinfo, TwoButtonJoystick *j
  *
  * \param[out] j Mapped joystick status
  */
-void mapJoystickRacing2(const RuntimeControllerInfo *cinfo, TwoButtonJoystick *j) {
+void mapJoystickRacing2(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j) {
     // Use analog's horizontal axis to steer, ignore vertical
     mapAnalogStickHorizontal(cinfo, j);
 
@@ -1010,7 +1020,8 @@ void mapJoystickRacing2(const RuntimeControllerInfo *cinfo, TwoButtonJoystick *j
     /* Games probably did not expect up + down at the same time, so when
      * braking, don't accelerate
      */
-    if (j->down) j->up = false;
+    if (j->down)
+        j->up = false;
 
     // X is button 1
     j->b1 = buttonPressed(cinfo->buttonWord, BTN_X);
@@ -1024,7 +1035,7 @@ void mapJoystickRacing2(const RuntimeControllerInfo *cinfo, TwoButtonJoystick *j
  *
  * \param[out] j Mapped joystick status
  */
-void mapJoystickPlatform(const RuntimeControllerInfo *cinfo, TwoButtonJoystick *j) {
+void mapJoystickPlatform(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j) {
     // Use horizontal analog axis fully, but only down on vertical
     mapAnalogStickHorizontal(cinfo, j);
     mapAnalogStickVertical(cinfo, j);
@@ -1082,7 +1093,7 @@ bool isButtonMappable(PadButtons b) {
  * \param[inout] dest Destination
  * \param[in] src Source
  */
-void mergeButtons(TwoButtonJoystick *dest, const TwoButtonJoystick *src) {
+void mergeButtons(TwoButtonJoystick* dest, const TwoButtonJoystick* src) {
     /* This is what we need to do:
      * dest.up |= src.up;
      * dest.down |= src.down;
@@ -1093,8 +1104,8 @@ void mergeButtons(TwoButtonJoystick *dest, const TwoButtonJoystick *src) {
      *
      * And this is the way we're doing it to be faaaast and save flash:
      */
-    uint8_t *bd = (uint8_t *)(dest);
-    const uint8_t *sd = (const uint8_t *)(src);
+    uint8_t* bd = (uint8_t*)(dest);
+    const uint8_t* sd = (const uint8_t*)(src);
     *bd |= *sd;
 }
 
@@ -1103,7 +1114,7 @@ void mergeButtons(TwoButtonJoystick *dest, const TwoButtonJoystick *src) {
  *
  * \param[out] j Mapped joystick status
  */
-void mapJoystickCustom(const RuntimeControllerInfo *cinfo, TwoButtonJoystick *j) {
+void mapJoystickCustom(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j) {
     // Use both analog axes fully
     mapAnalogStickHorizontal(cinfo, j);
     mapAnalogStickVertical(cinfo, j);
@@ -1126,22 +1137,24 @@ void mapJoystickCustom(const RuntimeControllerInfo *cinfo, TwoButtonJoystick *j)
 //! \name Helper functions
 //! @{
 
-static RuntimeControllerInfo *getControllerInstance(uni_hid_device_t *d) {
-    return (RuntimeControllerInfo *)&d->platform_data[0];
+static RuntimeControllerInfo* getControllerInstance(uni_hid_device_t* d) {
+    return (RuntimeControllerInfo*)&d->platform_data[0];
 }
 
-static void setSeat(uni_hid_device_t *d, uni_gamepad_seat_t seat) {
-    RuntimeControllerInfo *cinfo = getControllerInstance(d);
+static void setSeat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
+    RuntimeControllerInfo* cinfo = getControllerInstance(d);
     cinfo->seat = seat;
 
-    mmlogi("unijoysticle: device %s has new gamepad seat: %d\n", bd_addr_to_str(d->address), seat);
+    mmlogi("unijoysticle: device %s has new gamepad seat: %d\n", bd_addr_to_str(d->conn.remote_addr), seat);
 
     if (d->report_parser.set_lightbar_color != NULL) {
         // First try with color LED (best experience)
         uint8_t red = 0;
         uint8_t green = 0;
-        if (seat & 0x01) green = 0xff;
-        if (seat & 0x02) red = 0xff;
+        if (seat & 0x01)
+            green = 0xff;
+        if (seat & 0x02)
+            red = 0xff;
         d->report_parser.set_lightbar_color(d, red, green, 0x00 /* blue*/);
     } else if (d->report_parser.set_player_leds != NULL) {
         // 2nd best option: set player LEDs
@@ -1173,14 +1186,15 @@ void flashLed(gpio_num_t pin, int n) {
  * \param[out] y Movement on the vertical axis [-511 ... 511]
  * \return True if the stick is not in the center position, false otherwise
  */
-bool rightAnalogMoved(const RuntimeControllerInfo *cinfo, int16_t *x, int16_t *y) {
+bool rightAnalogMoved(const RuntimeControllerInfo* cinfo, int16_t* x, int16_t* y) {
     bool ret = false;
 
     // Bluepad analog range is [-512, 511]
     uint16_t deltaRXabs = abs(cinfo->rightAnalog.x);
     if (deltaRXabs > ANALOG_DEAD_ZONE) {
         *x = cinfo->rightAnalog.x;
-        if (*x == -512) *x = -511;
+        if (*x == -512)
+            *x = -511;
         ret = true;
     } else {
         *x = 0;
@@ -1189,7 +1203,8 @@ bool rightAnalogMoved(const RuntimeControllerInfo *cinfo, int16_t *x, int16_t *y
     uint16_t deltaRYabs = abs(cinfo->rightAnalog.y);
     if (deltaRYabs > ANALOG_DEAD_ZONE) {
         *y = cinfo->rightAnalog.y;
-        if (*y == -512) *y = -511;
+        if (*y == -512)
+            *y = -511;
         ret = true;
     } else {
         *y = 0;
@@ -1220,7 +1235,7 @@ bool rightAnalogMoved(const RuntimeControllerInfo *cinfo, int16_t *x, int16_t *y
  *
  * \param[in] j Two-button joystick to be dumped
  */
-void dumpJoy(const TwoButtonJoystick *j) {
+void dumpJoy(const TwoButtonJoystick* j) {
     if (j->up) {
         mmlogi("Up ");
     }
@@ -1252,7 +1267,7 @@ void dumpJoy(const TwoButtonJoystick *j) {
  *
  * \param[out] j Mapped joystick status
  */
-void handleJoystickDirections(RuntimeControllerInfo *cinfo, TwoButtonJoystick *j) {
+void handleJoystickDirections(RuntimeControllerInfo* cinfo, TwoButtonJoystick* j) {
     if (cinfo->joyPins != NULL) {
 #ifdef ENABLE_SERIAL_DEBUG
         static TwoButtonJoystick oldJoy = {false, false, false, false, false, false};
@@ -1364,7 +1379,7 @@ void handleJoystickDirections(RuntimeControllerInfo *cinfo, TwoButtonJoystick *j
  * \param[in] j Mapped joystick status, as returned by
  *              handleJoystickDirections().
  */
-void handleJoystickButtons(const RuntimeControllerInfo *cinfo, const TwoButtonJoystick *j) {
+void handleJoystickButtons(const RuntimeControllerInfo* cinfo, const TwoButtonJoystick* j) {
     /* If the interrupt that switches us to CD32 mode is
      * triggered while we are here we might end up setting pin states after
      * we should have relinquished control of the pins, so let's avoid this
@@ -1430,7 +1445,7 @@ void handleJoystickButtons(const RuntimeControllerInfo *cinfo, const TwoButtonJo
  *
  * Of course, this function shall only be called when state is ST_CD32.
  */
-void handleJoystickButtonsTemp(const RuntimeControllerInfo *cinfo) {
+void handleJoystickButtonsTemp(const RuntimeControllerInfo* cinfo) {
     // Use the same logic as in handleJoystickButtons()
     taskDISABLE_INTERRUPTS();
 
@@ -1461,7 +1476,7 @@ void handleJoystickButtonsTemp(const RuntimeControllerInfo *cinfo) {
  * This function updates all the output pins as necessary to emulate mouse
  * movements and button presses. It shall only be called when state is ST_MOUSE.
  */
-void handleMouse(const RuntimeControllerInfo *cinfo) {
+void handleMouse(const RuntimeControllerInfo* cinfo) {
     static unsigned long tx = 0, ty = 0;
 
     if (cinfo->mousePins != NULL) {
@@ -1557,7 +1572,7 @@ void handleMouse(const RuntimeControllerInfo *cinfo) {
  * \param[out] j Two-button joystick configuration corresponding to input
  * \return True if the output contains at least one pressed button
  */
-bool psxButton2Amiga(const PadButtons buttons, TwoButtonJoystick *j) {
+bool psxButton2Amiga(const PadButtons buttons, TwoButtonJoystick* j) {
     memset(j, 0x00, sizeof(TwoButtonJoystick));
 
     j->up = buttonPressed(buttons, BTN_PAD_UP);
@@ -1567,7 +1582,7 @@ bool psxButton2Amiga(const PadButtons buttons, TwoButtonJoystick *j) {
     j->b1 = buttonPressed(buttons, BTN_X);
     j->b2 = buttonPressed(buttons, BTN_A);
 
-    return *((uint8_t *)j);
+    return *((uint8_t*)j);
 }
 
 /** \brief Check if a PSX button is programmable
@@ -1589,7 +1604,7 @@ bool isButtonProgrammable(const PadButtons b) {
  *          v
  *          A
  */
-void stateMachine(RuntimeControllerInfo *cinfo) {
+void stateMachine(RuntimeControllerInfo* cinfo) {
     PadButtons buttons = BTN_NONE;
     TwoButtonJoystick j;  // = {false, false, false, false, false, false};
 
@@ -1797,7 +1812,7 @@ void stateMachine(RuntimeControllerInfo *cinfo) {
                 if (configIdx < PAD_BUTTONS_NO) {
                     mmlogi("Storing to controllerConfig %u\n", (unsigned int)configIdx);
 
-                    ControllerConfiguration *config = &controllerConfigs[configIdx];
+                    ControllerConfiguration* config = &controllerConfigs[configIdx];
 
                     // Then look up the mapping according to the programmed button
                     uint8_t buttonIdx = padButtonToIndex(cinfo->programmedButton);
@@ -1825,7 +1840,7 @@ void stateMachine(RuntimeControllerInfo *cinfo) {
     cinfo->previousButtonWord = cinfo->buttonWord;
 }
 
-static void IRAM_ATTR gpio_isr_handler_button(void *arg) {
+static void IRAM_ATTR gpio_isr_handler_button(void* arg) {
     mmlogd("Button ISR running on core %d\n", xPortGetCoreID());
 
     // Button released?
@@ -1855,8 +1870,8 @@ static void IRAM_ATTR gpio_isr_handler_button(void *arg) {
  *
  * Called on clock pin rising, this function shall shift out next bit.
  */
-static void IRAM_ATTR onClockEdge(void *arg) {
-    RuntimeControllerInfo *cinfo = (RuntimeControllerInfo *)arg;
+static void IRAM_ATTR onClockEdge(void* arg) {
+    RuntimeControllerInfo* cinfo = (RuntimeControllerInfo*)arg;
 
 #ifdef ENABLE_INSTRUMENTATION
     gpio_set_level(PIN_INTERRUPT_TIMING, 1);
@@ -1883,8 +1898,8 @@ static void IRAM_ATTR onClockEdge(void *arg) {
  * for CD32 mode, sample buttons and shift out the first bit on FALLING edges,
  * and restore Atari-style signals on RISING edges.
  */
-static void IRAM_ATTR onPadModeChange(void *arg) {
-    RuntimeControllerInfo *cinfo = (RuntimeControllerInfo *)arg;
+static void IRAM_ATTR onPadModeChange(void* arg) {
+    RuntimeControllerInfo* cinfo = (RuntimeControllerInfo*)arg;
 
     if (gpio_get_level(cinfo->joyPins[PIN_NO_MODE]) == 0) {
         // Switch to CD32 mode
@@ -1915,7 +1930,7 @@ static void IRAM_ATTR onPadModeChange(void *arg) {
         cinfo->isrButtons = cinfo->buttonsLive >> 1U;
 
         // Enable interrupt on clock edges
-        ESP_ERROR_CHECK(gpio_isr_handler_add(cinfo->joyPins[PIN_NO_CLOCK], onClockEdge, (void *)cinfo));
+        ESP_ERROR_CHECK(gpio_isr_handler_add(cinfo->joyPins[PIN_NO_CLOCK], onClockEdge, (void*)cinfo));
 
         // Set state to ST_CD32
         if (cinfo->state != ST_CD32 && cinfo->state != ST_JOYSTICK_TEMP) {
@@ -1965,13 +1980,13 @@ static void IRAM_ATTR onPadModeChange(void *arg) {
 
 #endif
 
-static uni_hid_device_t *getControllerForSeat(const uni_gamepad_seat_t seat) {
-    uni_hid_device_t *ret = NULL;
+static uni_hid_device_t* getControllerForSeat(const uni_gamepad_seat_t seat) {
+    uni_hid_device_t* ret = NULL;
 
     for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES && ret == NULL; i++) {
-        uni_hid_device_t *dev = uni_hid_device_get_instance_for_idx(i);
-        if (dev && bd_addr_cmp(dev->address, zero_addr) != 0) {
-            RuntimeControllerInfo *cinfo = getControllerInstance(dev);
+        uni_hid_device_t* dev = uni_hid_device_get_instance_for_idx(i);
+        if (dev && bd_addr_cmp(dev->conn.remote_addr, zero_addr) != 0) {
+            RuntimeControllerInfo* cinfo = getControllerInstance(dev);
             if (cinfo && cinfo->seat == seat) {
                 ret = dev;
             }
@@ -1997,8 +2012,8 @@ void updateLeds() {
             pin = PIN_LED_P2;
         }
 
-        uni_hid_device_t *dev = getControllerForSeat(seat);
-        RuntimeControllerInfo *cinfo;
+        uni_hid_device_t* dev = getControllerForSeat(seat);
+        RuntimeControllerInfo* cinfo;
         if (dev && (cinfo = getControllerInstance(dev))) {
             switch (cinfo->state) {
                 case ST_FIRST_READ:
@@ -2031,8 +2046,8 @@ void updateLeds() {
     }
 }
 
-static void loopCore0(void *arg) {
-    RuntimeControllerInfo *cinfo = NULL;
+static void loopCore0(void* arg) {
+    RuntimeControllerInfo* cinfo = NULL;
 
     mmlogi("loopCore0() running on core %d\n", xPortGetCoreID());
 
@@ -2046,7 +2061,7 @@ static void loopCore0(void *arg) {
              * since some transitions are time-driven
              */
             for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
-                uni_hid_device_t *dev = uni_hid_device_get_instance_for_idx(i);
+                uni_hid_device_t* dev = uni_hid_device_get_instance_for_idx(i);
                 cinfo = getControllerInstance(dev);
                 if (cinfo->seat == GAMEPAD_SEAT_A || cinfo->seat == GAMEPAD_SEAT_B) {
                     stateMachine(cinfo);
@@ -2059,7 +2074,7 @@ static void loopCore0(void *arg) {
 }
 
 // This task will run on core 1
-static void loopCore1(void *arg) {
+static void loopCore1(void* arg) {
     gpio_config_t io_conf;
 
     mmlogi("loopCore1() running on core %d\n", xPortGetCoreID());
@@ -2135,12 +2150,12 @@ static void loopCore1(void *arg) {
     }
 
     // OK, we can enable the button interrupt now
-    ESP_ERROR_CHECK(gpio_isr_handler_add(GPIO_PUSH_BUTTON, gpio_isr_handler_button, (void *)GPIO_PUSH_BUTTON));
+    ESP_ERROR_CHECK(gpio_isr_handler_add(GPIO_PUSH_BUTTON, gpio_isr_handler_button, (void*)GPIO_PUSH_BUTTON));
 
     // Actual task loop
     while (true) {
 #ifdef ENABLE_CD32_SUPPORT
-        RuntimeControllerInfo *cinfo;
+        RuntimeControllerInfo* cinfo;
 #endif
 
         EventBits_t uxBits = xEventGroupWaitBits(evGrpCd32,
@@ -2152,9 +2167,9 @@ static void loopCore1(void *arg) {
 #ifdef ENABLE_CD32_SUPPORT
             // Enable interrupt watching for changes of the MODE pin of the Joy Port
             mmlogi("Enabling CD32 trigger for Seat A on core %d\n", xPortGetCoreID());
-            uni_hid_device_t *dev = getControllerForSeat(GAMEPAD_SEAT_A);
+            uni_hid_device_t* dev = getControllerForSeat(GAMEPAD_SEAT_A);
             if (dev && (cinfo = getControllerInstance(dev))) {
-                ESP_ERROR_CHECK(gpio_isr_handler_add(cinfo->joyPins[PIN_NO_MODE], onPadModeChange, (void *)cinfo));
+                ESP_ERROR_CHECK(gpio_isr_handler_add(cinfo->joyPins[PIN_NO_MODE], onPadModeChange, (void*)cinfo));
             }
 #endif
         }
@@ -2163,7 +2178,7 @@ static void loopCore1(void *arg) {
 #ifdef ENABLE_CD32_SUPPORT
             // Disable both interrupts, as this might happen halfway during a shift
             mmlogi("Disabling CD32 trigger for Seat A on core %d\n", xPortGetCoreID());
-            uni_hid_device_t *dev = getControllerForSeat(GAMEPAD_SEAT_A);
+            uni_hid_device_t* dev = getControllerForSeat(GAMEPAD_SEAT_A);
             if (dev && (cinfo = getControllerInstance(dev))) {
                 //~ taskDISABLE_INTERRUPTS ();
                 gpio_isr_handler_remove(cinfo->joyPins[PIN_NO_CLOCK]);
@@ -2176,9 +2191,9 @@ static void loopCore1(void *arg) {
         if (uxBits & EVENT_ENABLE_CD32_SEAT_B) {
 #ifdef ENABLE_CD32_SUPPORT
             mmlogi("Enabling CD32 trigger for Seat B on core %d\n", xPortGetCoreID());
-            uni_hid_device_t *dev = getControllerForSeat(GAMEPAD_SEAT_B);
+            uni_hid_device_t* dev = getControllerForSeat(GAMEPAD_SEAT_B);
             if (dev && (cinfo = getControllerInstance(dev))) {
-                ESP_ERROR_CHECK(gpio_isr_handler_add(cinfo->joyPins[PIN_NO_MODE], onPadModeChange, (void *)cinfo));
+                ESP_ERROR_CHECK(gpio_isr_handler_add(cinfo->joyPins[PIN_NO_MODE], onPadModeChange, (void*)cinfo));
             }
 #endif
         }
@@ -2187,7 +2202,7 @@ static void loopCore1(void *arg) {
 #ifdef ENABLE_CD32_SUPPORT
             // Disable both interrupts, as this might happen halfway during a shift
             mmlogi("Disabling CD32 trigger for Seat B on core %d\n", xPortGetCoreID());
-            uni_hid_device_t *dev = getControllerForSeat(GAMEPAD_SEAT_B);
+            uni_hid_device_t* dev = getControllerForSeat(GAMEPAD_SEAT_B);
             if (dev && (cinfo = getControllerInstance(dev))) {
                 //~ taskDISABLE_INTERRUPTS ();
                 gpio_isr_handler_remove(cinfo->joyPins[PIN_NO_CLOCK]);
@@ -2202,7 +2217,7 @@ static void loopCore1(void *arg) {
 //! \name Platform implementation overrides
 //! @{
 
-static void mightymiggy_init(int argc, const char **argv) {
+static void mightymiggy_init(int argc, const char** argv) {
     UNUSED(argc);
     UNUSED(argv);
 
@@ -2269,7 +2284,7 @@ static void mightymiggy_init(int argc, const char **argv) {
     }
 
     // Create task stuff
-    controllerUpdateQueue = xQueueCreate(3, sizeof(RuntimeControllerInfo *));
+    controllerUpdateQueue = xQueueCreate(3, sizeof(RuntimeControllerInfo*));
     xTaskCreatePinnedToCore(loopCore0, "loopCore0", 2048, NULL, 10, NULL, 0);
 
     // This other task sets up GPIO interrupts before starting its loop
@@ -2293,19 +2308,19 @@ static void mightymiggy_on_init_complete(void) {
     // Nothing to do
 }
 
-static void mightymiggy_on_device_connected(uni_hid_device_t *d) {
+static void mightymiggy_on_device_connected(uni_hid_device_t* d) {
     if (d == NULL) {
         mmloge("ERROR: mightymiggy_on_device_connected: Invalid NULL device\n");
     }
 }
 
-static void mightymiggy_on_device_disconnected(uni_hid_device_t *d) {
+static void mightymiggy_on_device_disconnected(uni_hid_device_t* d) {
     if (d == NULL) {
         mmloge("ERROR: mightymiggy_on_device_disconnected: Invalid NULL device\n");
         return;
     }
 
-    RuntimeControllerInfo *cinfo = getControllerInstance(d);
+    RuntimeControllerInfo* cinfo = getControllerInstance(d);
 
     mmlogi("Controller at seat %c disconnected\n", cinfo->seat == GAMEPAD_SEAT_A ? 'A' : 'B');
 
@@ -2327,9 +2342,9 @@ static void mightymiggy_on_device_disconnected(uni_hid_device_t *d) {
             // Two controllers connected, see which one we lost
             if (cinfo->seat == GAMEPAD_SEAT_A) {
                 // Make joystick in port B control the mouse again
-                uni_hid_device_t *dev = getControllerForSeat(GAMEPAD_SEAT_B);
+                uni_hid_device_t* dev = getControllerForSeat(GAMEPAD_SEAT_B);
                 if (dev) {
-                    RuntimeControllerInfo *cinfoB = getControllerInstance(dev);
+                    RuntimeControllerInfo* cinfoB = getControllerInstance(dev);
                     cinfoB->mousePins = PINS_PORT_A;
                 }
 
@@ -2350,9 +2365,9 @@ static bool seatInUse(uni_gamepad_seat_t seat) {
     bool inUse = false;
 
     for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES && !inUse; i++) {
-        uni_hid_device_t *dev = uni_hid_device_get_instance_for_idx(i);
-        if (dev && bd_addr_cmp(dev->address, zero_addr) != 0) {
-            RuntimeControllerInfo *cinfo = getControllerInstance(dev);
+        uni_hid_device_t* dev = uni_hid_device_get_instance_for_idx(i);
+        if (dev && bd_addr_cmp(dev->conn.remote_addr, zero_addr) != 0) {
+            RuntimeControllerInfo* cinfo = getControllerInstance(dev);
             if (cinfo && cinfo->seat == seat) {
                 inUse = true;
             }
@@ -2371,7 +2386,7 @@ static bool seatInUse(uni_gamepad_seat_t seat) {
     return inUse;
 }
 
-static int mightymiggy_on_device_ready(uni_hid_device_t *d) {
+static int mightymiggy_on_device_ready(uni_hid_device_t* d) {
     int ret = 0;
 
     if (d == NULL) {
@@ -2379,7 +2394,7 @@ static int mightymiggy_on_device_ready(uni_hid_device_t *d) {
         return -1;
     }
 
-    RuntimeControllerInfo *cinfo = getControllerInstance(d);
+    RuntimeControllerInfo* cinfo = getControllerInstance(d);
 
     // Some safety checks. These conditions should not happen
     if ((cinfo->seat != GAMEPAD_SEAT_NONE) || (!uni_hid_device_has_controller_type(d))) {
@@ -2418,9 +2433,9 @@ static int mightymiggy_on_device_ready(uni_hid_device_t *d) {
                 cinfo->mousePins = NULL;
 
                 // We also need to disconnect the joystick in port B from the mouse
-                uni_hid_device_t *dev = getControllerForSeat(GAMEPAD_SEAT_B);
+                uni_hid_device_t* dev = getControllerForSeat(GAMEPAD_SEAT_B);
                 if (dev) {
-                    RuntimeControllerInfo *cinfoB = getControllerInstance(dev);
+                    RuntimeControllerInfo* cinfoB = getControllerInstance(dev);
                     cinfoB->mousePins = NULL;
                 }
 
@@ -2476,7 +2491,7 @@ static int mightymiggy_on_device_ready(uni_hid_device_t *d) {
     return ret;
 }
 
-static void mightymiggy_on_device_oob_event(uni_hid_device_t *d, uni_platform_oob_event_t event) {
+static void mightymiggy_on_device_oob_event(uni_hid_device_t* d, uni_platform_oob_event_t event) {
     if (d == NULL) {
         mmloge("ERROR: mightymiggy_on_device_gamepad_event: Invalid NULL device\n");
         return;
@@ -2508,7 +2523,7 @@ static void mightymiggy_on_device_oob_event(uni_hid_device_t *d, uni_platform_oo
     //~ int num_devices = 0;
     //~ for (int j = 0; j < UNI_HID_DEVICE_MAX_DEVICES; j++) {
     //~ uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
-    //~ if ((bd_addr_cmp(tmp_d->address, zero_addr) != 0) &&
+    //~ if ((bd_addr_cmp(tmp_d->conn.remote_addr, zero_addr) != 0) &&
     //~ (get_mightymiggy_instance(tmp_d)->gamepad_seat > 0)) {
     //~ num_devices++;
     //~ if (num_devices > 1) {
@@ -2534,13 +2549,13 @@ static void mightymiggy_on_device_oob_event(uni_hid_device_t *d, uni_platform_oo
     //~ process_joystick(&joy, GAMEPAD_SEAT_B);
 }
 
-static void mightymiggy_on_gamepad_data(uni_hid_device_t *d, uni_gamepad_t *gp) {
+static void mightymiggy_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
     if (d == NULL) {
         mmloge("ERROR: mightymiggy_on_device_gamepad_data: Invalid NULL device\n");
         return;
     }
 
-    RuntimeControllerInfo *cinfo = getControllerInstance(d);
+    RuntimeControllerInfo* cinfo = getControllerInstance(d);
 
     // Convert data to our internal representation, starting with analog sticks
     if (gp->updated_states & GAMEPAD_STATE_AXIS_X) {
@@ -2758,9 +2773,9 @@ static void mightymiggy_on_gamepad_data(uni_hid_device_t *d, uni_gamepad_t *gp) 
 
                     // First we need to disconnect the joystick in port A from the other
                     // controller
-                    uni_hid_device_t *dev = getControllerForSeat(GAMEPAD_SEAT_A);
+                    uni_hid_device_t* dev = getControllerForSeat(GAMEPAD_SEAT_A);
                     if (dev) {
-                        RuntimeControllerInfo *cinfoA = getControllerInstance(dev);
+                        RuntimeControllerInfo* cinfoA = getControllerInstance(dev);
 
                         // Disable CD32 interrupt first
                         disableCD32Trigger(cinfoA);
@@ -2783,9 +2798,9 @@ static void mightymiggy_on_gamepad_data(uni_hid_device_t *d, uni_gamepad_t *gp) 
                     adapterState = AST_TWO_JOYS;
 
                     // First we need to disconnect the mouse from the other controller
-                    uni_hid_device_t *dev = getControllerForSeat(GAMEPAD_SEAT_B);
+                    uni_hid_device_t* dev = getControllerForSeat(GAMEPAD_SEAT_B);
                     if (dev) {
-                        RuntimeControllerInfo *cinfoB = getControllerInstance(dev);
+                        RuntimeControllerInfo* cinfoB = getControllerInstance(dev);
                         cinfoB->mousePins = NULL;
                     }
 
@@ -2806,7 +2821,8 @@ static void mightymiggy_on_gamepad_data(uni_hid_device_t *d, uni_gamepad_t *gp) 
 }
 
 static int32_t mightymiggy_get_property(uni_platform_property_t key) {
-    if (key != UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS) return -1;
+    if (key != UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS)
+        return -1;
 
     // Hi-released, Low-pressed
     return !gpio_get_level(GPIO_PUSH_BUTTON);
@@ -2815,7 +2831,7 @@ static int32_t mightymiggy_get_property(uni_platform_property_t key) {
 //
 // MightyMiggy platform entry point
 //
-struct uni_platform *uni_platform_mightymiggy_create(void) {
+struct uni_platform* uni_platform_mightymiggy_create(void) {
     static struct uni_platform plat;
 
     plat.name = "MightyMiggy by SukkoPera <software@sukkology.net>";

@@ -44,8 +44,11 @@ void uni_hid_parser_android_init_report(uni_hid_device_t* d) {
         GAMEPAD_STATE_MISC_BUTTON_BACK | GAMEPAD_STATE_MISC_BUTTON_HOME | GAMEPAD_STATE_MISC_BUTTON_SYSTEM;
 }
 
-void uni_hid_parser_android_parse_usage(uni_hid_device_t* d, hid_globals_t* globals, uint16_t usage_page,
-                                        uint16_t usage, int32_t value) {
+void uni_hid_parser_android_parse_usage(uni_hid_device_t* d,
+                                        hid_globals_t* globals,
+                                        uint16_t usage_page,
+                                        uint16_t usage,
+                                        int32_t value) {
     // print_parser_globals(globals);
     uint8_t hat;
     uni_gamepad_t* gp = &d->gamepad;
@@ -119,53 +122,66 @@ void uni_hid_parser_android_parse_usage(uni_hid_device_t* d, hid_globals_t* glob
         case HID_USAGE_PAGE_BUTTON: {
             switch (usage) {
                 case 0x01:  // Button A
-                    if (value) gp->buttons |= BUTTON_A;
+                    if (value)
+                        gp->buttons |= BUTTON_A;
                     break;
                 case 0x02:  // Button B
-                    if (value) gp->buttons |= BUTTON_B;
+                    if (value)
+                        gp->buttons |= BUTTON_B;
                     break;
                 case 0x03:  // non-existant button C?
                     // unmapped
                     break;
                 case 0x04:  // Button X
-                    if (value) gp->buttons |= BUTTON_X;
+                    if (value)
+                        gp->buttons |= BUTTON_X;
                     break;
                 case 0x05:  // Button Y
-                    if (value) gp->buttons |= BUTTON_Y;
+                    if (value)
+                        gp->buttons |= BUTTON_Y;
                     break;
                 case 0x06:  // non-existant button Z?
                     // unmapped
                     break;
                 case 0x07:
-                    if (value) gp->buttons |= BUTTON_SHOULDER_L;
+                    if (value)
+                        gp->buttons |= BUTTON_SHOULDER_L;
                     break;
                 case 0x08:
-                    if (value) gp->buttons |= BUTTON_SHOULDER_R;
+                    if (value)
+                        gp->buttons |= BUTTON_SHOULDER_R;
                     break;
                 case 0x09:
                     // Available on some Android gamepads like SteelSeries Stratus Duo.
-                    if (value) gp->buttons |= BUTTON_TRIGGER_L;
+                    if (value)
+                        gp->buttons |= BUTTON_TRIGGER_L;
                     break;
                 case 0x0a:
                     // Available on some Android gamepads like SteelSeries Stratus Duo.
-                    if (value) gp->buttons |= BUTTON_TRIGGER_R;
+                    if (value)
+                        gp->buttons |= BUTTON_TRIGGER_R;
                     break;
                 case 0x0b:
                     // Available on some Android gamepads like SteelSeries Stratus Duo.
-                    if (value) gp->misc_buttons |= MISC_BUTTON_BACK;
+                    if (value)
+                        gp->misc_buttons |= MISC_BUTTON_BACK;
                     break;
                 case 0x0c:
                     // Available on some Android gamepads like SteelSeries Stratus Duo.
-                    if (value) gp->misc_buttons |= MISC_BUTTON_HOME;
+                    if (value)
+                        gp->misc_buttons |= MISC_BUTTON_HOME;
                     break;
                 case 0x0d:
-                    if (value) gp->misc_buttons |= MISC_BUTTON_SYSTEM;
+                    if (value)
+                        gp->misc_buttons |= MISC_BUTTON_SYSTEM;
                     break;
                 case 0x0e:
-                    if (value) gp->buttons |= BUTTON_THUMB_L;
+                    if (value)
+                        gp->buttons |= BUTTON_THUMB_L;
                     break;
                 case 0x0f:
-                    if (value) gp->buttons |= BUTTON_THUMB_R;
+                    if (value)
+                        gp->buttons |= BUTTON_THUMB_R;
                     break;
                 default:
                     // Only report unsupported values if they are 1.
@@ -186,10 +202,12 @@ void uni_hid_parser_android_parse_usage(uni_hid_device_t* d, hid_globals_t* glob
                     // BUTTON_HOME. Instead of having a parser for Android / OUYA /
                     // 8Bitdo, we should have a HID parser and then mapping files for each
                     // VID / PID (similar to Android .kl files).
-                    if (value) gp->misc_buttons |= MISC_BUTTON_HOME;
+                    if (value)
+                        gp->misc_buttons |= MISC_BUTTON_HOME;
                     break;
                 case HID_USAGE_AC_BACK:
-                    if (value) gp->misc_buttons |= MISC_BUTTON_BACK;
+                    if (value)
+                        gp->misc_buttons |= MISC_BUTTON_BACK;
                     break;
                 default:
                     // Only report unsupported values if they are 1.
@@ -205,12 +223,14 @@ void uni_hid_parser_android_parse_usage(uni_hid_device_t* d, hid_globals_t* glob
         case 0xff01:
             // Ignore this report. Used by some Moga devices, where page 0xff01,
             // usage: 0x0001 is always 1.
-            if (usage == 0x01) break;
+            if (usage == 0x01)
+                break;
             break;
 
         default:
             // Only report unsupported values if they are 1.
-            if (value) logi("Android: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
+            if (value)
+                logi("Android: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
             break;
     }
 }

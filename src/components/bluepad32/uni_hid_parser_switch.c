@@ -1004,7 +1004,7 @@ uint8_t uni_hid_parser_switch_does_packet_match(struct uni_hid_device_s* d, cons
     uni_hid_device_set_product_id(d, SWITCH_PID);
     uni_hid_device_guess_controller_type_from_pid_vid(d);
     uni_hid_device_set_sdp_device(NULL);
-    uni_bt_conn_set_state(&d->connection, UNI_BT_CONN_STATE_SDP_VENDOR_FETCHED);
+    uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_SDP_VENDOR_FETCHED);
     logi(
         "Switch: Device detected as Nintendo Switch Pro controller using "
         "heuristics\n");

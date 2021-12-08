@@ -395,7 +395,8 @@ static void unijoysticle_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp)
 }
 
 static int32_t unijoysticle_get_property(uni_platform_property_t key) {
-    if (key != UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS) return -1;
+    if (key != UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS)
+        return -1;
 
     // Hi-released, Low-pressed
     return !gpio_get_level(g_uni_config->push_button);
@@ -440,7 +441,8 @@ static void unijoysticle_on_device_oob_event(uni_hid_device_t* d, uni_platform_o
     int num_devices = 0;
     for (int j = 0; j < UNI_HID_DEVICE_MAX_DEVICES; j++) {
         uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
-        if ((bd_addr_cmp(tmp_d->address, zero_addr) != 0) && (get_unijoysticle_instance(tmp_d)->gamepad_seat > 0)) {
+        if ((bd_addr_cmp(tmp_d->conn.remote_addr, zero_addr) != 0) &&
+            (get_unijoysticle_instance(tmp_d)->gamepad_seat > 0)) {
             num_devices++;
             if (num_devices > 1) {
                 logi(
@@ -475,7 +477,8 @@ static board_model_t get_board_model() {
 #else
     static board_model_t _model = BOARD_MODEL_UNK;
 
-    if (_model != BOARD_MODEL_UNK) return _model;
+    if (_model != BOARD_MODEL_UNK)
+        return _model;
     // Detect hardware version based on GPIO 4 and 5.
     // GPIO 4 grounded: Unijoysticle 2+
     // GPIO 5 grounded: Single port
@@ -492,8 +495,10 @@ static board_model_t get_board_model() {
     int gpio_4 = gpio_get_level(GPIO_NUM_4);
     int gpio_5 = gpio_get_level(GPIO_NUM_5);
 
-    if (gpio_4 == 0) _model = BOARD_MODEL_UNIJOYSTICLE2_PLUS;
-    if (gpio_5 == 0) _model = BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT;
+    if (gpio_4 == 0)
+        _model = BOARD_MODEL_UNIJOYSTICLE2_PLUS;
+    if (gpio_5 == 0)
+        _model = BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT;
 
     // After detection, to reduce current consuption, remove the pullup.
     gpio_set_pull_mode(GPIO_NUM_4, GPIO_FLOATING);
@@ -549,14 +554,15 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
     unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
     ins->gamepad_seat = seat;
 
-    logi("unijoysticle: device %s has new gamepad seat: %d\n", bd_addr_to_str(d->address), seat);
+    logi("unijoysticle: device %s has new gamepad seat: %d\n", bd_addr_to_str(d->conn.remote_addr), seat);
 
     // Fetch all enabled ports
     uni_gamepad_seat_t all_seats = GAMEPAD_SEAT_NONE;
     for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
         uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(i);
-        if (tmp_d == NULL) continue;
-        if (bd_addr_cmp(tmp_d->address, zero_addr) != 0) {
+        if (tmp_d == NULL)
+            continue;
+        if (bd_addr_cmp(tmp_d->conn.remote_addr, zero_addr) != 0) {
             all_seats |= get_unijoysticle_instance(tmp_d)->gamepad_seat;
         }
     }
@@ -570,8 +576,10 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
         // First try with color LED (best experience)
         uint8_t red = 0;
         uint8_t green = 0;
-        if (seat & 0x01) green = 0xff;
-        if (seat & 0x02) red = 0xff;
+        if (seat & 0x01)
+            green = 0xff;
+        if (seat & 0x02)
+            red = 0xff;
         d->report_parser.set_lightbar_color(d, red, green, 0x00 /* blue*/);
 
     } else if (d->report_parser.set_player_leds != NULL) {
@@ -611,11 +619,14 @@ static void event_loop(void* arg) {
             xEventGroupWaitBits(g_event_group, (EVENT_BIT_MOUSE | EVENT_BIT_BUTTON), pdTRUE, pdFALSE, xTicksToWait);
 
         // timeout ?
-        if (uxBits == 0) continue;
+        if (uxBits == 0)
+            continue;
 
-        if (uxBits & EVENT_BIT_MOUSE) handle_event_mouse();
+        if (uxBits & EVENT_BIT_MOUSE)
+            handle_event_mouse();
 
-        if (uxBits & EVENT_BIT_BUTTON) handle_event_button();
+        if (uxBits & EVENT_BIT_BUTTON)
+            handle_event_button();
     }
 }
 
@@ -627,16 +638,21 @@ static void auto_fire_loop(void* arg) {
         EventBits_t uxBits = xEventGroupWaitBits(g_auto_fire_group, EVENT_BIT_AUTOFIRE, pdTRUE, pdFALSE, xTicksToWait);
 
         // timeout ?
-        if (uxBits == 0) continue;
+        if (uxBits == 0)
+            continue;
 
         while (g_autofire_a_enabled || g_autofire_b_enabled) {
-            if (g_autofire_a_enabled) safe_gpio_set_level(g_uni_config->port_a_named.fire, 1);
-            if (g_autofire_b_enabled) safe_gpio_set_level(g_uni_config->port_b_named.fire, 1);
+            if (g_autofire_a_enabled)
+                safe_gpio_set_level(g_uni_config->port_a_named.fire, 1);
+            if (g_autofire_b_enabled)
+                safe_gpio_set_level(g_uni_config->port_b_named.fire, 1);
 
             vTaskDelay(delayTicks);
 
-            if (g_autofire_a_enabled) safe_gpio_set_level(g_uni_config->port_a_named.fire, 0);
-            if (g_autofire_b_enabled) safe_gpio_set_level(g_uni_config->port_b_named.fire, 0);
+            if (g_autofire_a_enabled)
+                safe_gpio_set_level(g_uni_config->port_a_named.fire, 0);
+            if (g_autofire_b_enabled)
+                safe_gpio_set_level(g_uni_config->port_b_named.fire, 0);
 
             vTaskDelay(delayTicks);
         }
@@ -650,7 +666,8 @@ void handle_event_mouse() {
     int delta_y = g_delta_y;
 
     // Should not happen, but better safe than sorry
-    if (delta_x == 0 && delta_y == 0) return;
+    if (delta_x == 0 && delta_y == 0)
+        return;
 
     int dir_x = 0;
     int dir_y = 0;
@@ -734,7 +751,8 @@ static void IRAM_ATTR gpio_isr_handler_button(void* arg) {
     // button pressed
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     xEventGroupSetBitsFromISR(g_event_group, EVENT_BIT_BUTTON, &xHigherPriorityTaskWoken);
-    if (xHigherPriorityTaskWoken == pdTRUE) portYIELD_FROM_ISR();
+    if (xHigherPriorityTaskWoken == pdTRUE)
+        portYIELD_FROM_ISR();
 }
 
 static void handle_event_button() {
@@ -747,7 +765,8 @@ static void handle_event_button() {
     // Regardless of the state, ignore the event if not enough time
     // passed.
     int64_t now = esp_timer_get_time();
-    if ((now - g_last_time_pressed_us) < button_threshold_time_us) return;
+    if ((now - g_last_time_pressed_us) < button_threshold_time_us)
+        return;
 
     g_last_time_pressed_us = now;
 
@@ -765,8 +784,8 @@ static void handle_event_button() {
     uni_hid_device_t* d = NULL;
     for (int j = 0; j < UNI_HID_DEVICE_MAX_DEVICES; j++) {
         uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
-        if (bd_addr_cmp(tmp_d->address, zero_addr) != 0 && tmp_d->hid_control_cid != 0 &&
-            tmp_d->hid_interrupt_cid != 0) {
+        if (bd_addr_cmp(tmp_d->conn.remote_addr, zero_addr) != 0 && tmp_d->conn.control_cid != 0 &&
+            tmp_d->conn.interrupt_cid != 0) {
             num_devices++;
             d = tmp_d;
         }
@@ -802,7 +821,8 @@ static void handle_event_button() {
 
 // In some boards, not all GPIOs are set. If so, don't try change their values.
 static esp_err_t safe_gpio_set_level(gpio_num_t gpio, int value) {
-    if (gpio == -1) return ESP_OK;
+    if (gpio == -1)
+        return ESP_OK;
     return gpio_set_level(gpio, value);
 }
 

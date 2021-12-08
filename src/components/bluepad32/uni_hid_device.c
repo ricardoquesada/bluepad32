@@ -18,6 +18,7 @@ limitations under the License.
 
 #include "uni_hid_device.h"
 
+#include <stdbool.h>
 #include <sys/time.h>
 
 #include "uni_circular_buffer.h"
@@ -41,9 +42,6 @@ limitations under the License.
 #include "uni_platform.h"
 
 enum {
-    FLAGS_INCOMING = (1 << 0),
-    FLAGS_CONNECTED = (1 << 1),
-
     FLAGS_HAS_COD = (1 << 8),
     FLAGS_HAS_NAME = (1 << 9),
     FLAGS_HAS_HID_DESCRIPTOR = (1 << 10),
@@ -66,9 +64,9 @@ void uni_hid_device_init(void) {
 
 uni_hid_device_t* uni_hid_device_create(bd_addr_t address) {
     for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
-        if (bd_addr_cmp(g_devices[i].address, zero_addr) == 0) {
+        if (bd_addr_cmp(g_devices[i].conn.remote_addr, zero_addr) == 0) {
             memset(&g_devices[i], 0, sizeof(g_devices[i]));
-            memcpy(g_devices[i].address, address, 6);
+            memcpy(g_devices[i].conn.remote_addr, address, 6);
             g_devices[i].hids_cid = -1;
             return &g_devices[i];
         }
@@ -78,7 +76,7 @@ uni_hid_device_t* uni_hid_device_create(bd_addr_t address) {
 
 uni_hid_device_t* uni_hid_device_get_instance_for_address(bd_addr_t addr) {
     for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
-        if (bd_addr_cmp(addr, g_devices[i].address) == 0) {
+        if (bd_addr_cmp(addr, g_devices[i].conn.remote_addr) == 0) {
             return &g_devices[i];
         }
     }
@@ -89,7 +87,7 @@ uni_hid_device_t* uni_hid_device_get_instance_for_cid(uint16_t cid) {
     if (cid == 0)
         return NULL;
     for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
-        if (g_devices[i].hid_interrupt_cid == cid || g_devices[i].hid_control_cid == cid)
+        if (g_devices[i].conn.interrupt_cid == cid || g_devices[i].conn.control_cid == cid)
             return &g_devices[i];
     }
     return NULL;
@@ -109,7 +107,7 @@ uni_hid_device_t* uni_hid_device_get_instance_for_connection_handle(hci_con_hand
     if (handle == 0)
         return NULL;
     for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
-        if (g_devices[i].con_handle == handle) {
+        if (g_devices[i].conn.handle == handle) {
             return &g_devices[i];
         }
     }
@@ -125,7 +123,7 @@ uni_hid_device_t* uni_hid_device_get_instance_for_idx(int idx) {
 uni_hid_device_t* uni_hid_device_get_instance_with_predicate(uni_hid_device_predicate_t predicate, void* data) {
     for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
         // Only "ready" devices are propagated
-        if (uni_bt_conn_get_state(&g_devices[i].connection) != UNI_BT_CONN_STATE_DEVICE_READY)
+        if (uni_bt_conn_get_state(&g_devices[i].conn) != UNI_BT_CONN_STATE_DEVICE_READY)
             continue;
         if (predicate(&g_devices[i], data))
             return &g_devices[i];
@@ -135,8 +133,8 @@ uni_hid_device_t* uni_hid_device_get_instance_with_predicate(uni_hid_device_pred
 
 uni_hid_device_t* uni_hid_device_get_first_device_with_state(uni_bt_conn_state_t state) {
     for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
-        if ((bd_addr_cmp(g_devices[i].address, zero_addr) != 0) &&
-            uni_bt_conn_get_state(&g_devices[i].connection) == state)
+        if ((bd_addr_cmp(g_devices[i].conn.remote_addr, zero_addr) != 0) &&
+            uni_bt_conn_get_state(&g_devices[i].conn) == state)
             return &g_devices[i];
     }
     return NULL;
@@ -170,14 +168,14 @@ void uni_hid_device_set_ready(uni_hid_device_t* d) {
         d->report_parser.setup(d);
 
     if (uni_get_platform()->on_device_ready(d) == 0)
-        uni_bt_conn_set_state(&d->connection, UNI_BT_CONN_STATE_DEVICE_READY);
+        uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_READY);
 }
 
 void uni_hid_device_remove_entry_with_channel(uint16_t channel) {
     if (channel == 0)
         return;
     for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
-        if (g_devices[i].hid_control_cid == channel || g_devices[i].hid_interrupt_cid == channel) {
+        if (g_devices[i].conn.control_cid == channel || g_devices[i].conn.interrupt_cid == channel) {
             memset(&g_devices[i], 0, sizeof(g_devices[i]));
             break;
         }
@@ -187,8 +185,8 @@ void uni_hid_device_remove_entry_with_channel(uint16_t channel) {
 void uni_hid_device_request_inquire(void) {
     for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
         // retry remote name request
-        if (uni_bt_conn_get_state(&g_devices[i].connection) == UNI_BT_CONN_STATE_REMOTE_NAME_INQUIRED)
-            uni_bt_conn_set_state(&g_devices[i].connection, UNI_BT_CONN_STATE_REMOTE_NAME_REQUEST);
+        if (uni_bt_conn_get_state(&g_devices[i].conn) == UNI_BT_CONN_STATE_REMOTE_NAME_INQUIRED)
+            uni_bt_conn_set_state(&g_devices[i].conn, UNI_BT_CONN_STATE_REMOTE_NAME_REQUEST);
     }
 }
 
@@ -198,15 +196,15 @@ void uni_hid_device_set_connected(uni_hid_device_t* d, bool connected) {
         return;
     }
 
+    d->conn.connected = connected;
     if (connected) {
         // connected
-        d->flags |= FLAGS_CONNECTED;
         uni_get_platform()->on_device_connected(d);
     } else {
         // disconnected
-        d->flags &= ~(FLAGS_CONNECTED | FLAGS_INCOMING);
-        d->hid_control_cid = 0;
-        d->hid_interrupt_cid = 0;
+        d->conn.control_cid = 0;
+        d->conn.interrupt_cid = 0;
+        d->conn.incoming = false;
 
         uni_get_platform()->on_device_disconnected(d);
     }
@@ -242,7 +240,7 @@ bool uni_hid_device_is_cod_supported(uint32_t cod) {
     if ((cod & MASK_COD_MAJOR_AUDIO) == MASK_COD_MAJOR_AUDIO) {
         return (cod == 0x400408);
     }
-    return 0;
+    return false;
 }
 
 void uni_hid_device_set_incoming(uni_hid_device_t* d, bool incoming) {
@@ -251,14 +249,11 @@ void uni_hid_device_set_incoming(uni_hid_device_t* d, bool incoming) {
         return;
     }
 
-    if (incoming)
-        d->flags |= FLAGS_INCOMING;
-    else
-        d->flags &= ~FLAGS_INCOMING;
+    d->conn.incoming = incoming;
 }
 
 bool uni_hid_device_is_incoming(uni_hid_device_t* d) {
-    return !!(d->flags & FLAGS_INCOMING);
+    return d->conn.incoming;
 }
 
 void uni_hid_device_set_name(uni_hid_device_t* d, const uint8_t* name, int name_len) {
@@ -277,7 +272,7 @@ void uni_hid_device_set_name(uni_hid_device_t* d, const uint8_t* name, int name_
         d->name[min] = 0;
 
         d->flags |= FLAGS_HAS_NAME;
-        uni_bt_conn_set_state(&d->connection, UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED);
+        uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED);
     }
 }
 
@@ -333,20 +328,21 @@ uint16_t uni_hid_device_get_vendor_id(uni_hid_device_t* d) {
     return d->vendor_id;
 }
 
+// XXX: Replace it with a timed-ballback
 bool uni_hid_device_auto_delete(uni_hid_device_t* d) {
     if (d == NULL) {
         loge("Invalid hid device: NULL\n");
         return false;
     }
 
-    // 15 is an arbitrary number that seems to work Ok.
+    // 10 is an arbitrary number that seems to work Ok.
     if (++d->auto_delete < 10)
         return false;
 
     logi("Autodeleting device:\n");
     uni_hid_device_dump_device(d);
 
-    if (uni_bt_conn_get_state(&d->connection) == UNI_BT_CONN_STATE_DEVICE_READY) {
+    if (uni_bt_conn_get_state(&d->conn) == UNI_BT_CONN_STATE_DEVICE_READY) {
         loge("Disconnecting device before deleting it\n");
         // Might call platform callbacks.
         uni_hid_device_set_connected(d, false);
@@ -361,17 +357,16 @@ bool uni_hid_device_auto_delete(uni_hid_device_t* d) {
 
 void uni_hid_device_dump_device(uni_hid_device_t* d) {
     logi(
-        "%s, handle=%d, ctrl_cid=0x%04x, intr_cid=0x%04x, cod=0x%08x, "
-        "vid=0x%04x, pid=0x%04x, flags=0x%08x, "
-        "ctrl_type=0x%02x, name='%s', (del:%d)\n",
-        bd_addr_to_str(d->address), d->con_handle, d->hid_control_cid, d->hid_interrupt_cid, d->cod, d->vendor_id,
-        d->product_id, d->flags, d->controller_type, d->name, d->auto_delete);
+        "%s, handle=%d, ctrl_cid=0x%04x, intr_cid=0x%04x, cod=0x%08x, vid=0x%04x, pid=0x%04x, "
+        "flags=0x%08x, ctrl_type=0x%02x, name='%s', (del:%d)\n",
+        bd_addr_to_str(d->conn.remote_addr), d->conn.handle, d->conn.control_cid, d->conn.interrupt_cid, d->cod,
+        d->vendor_id, d->product_id, d->flags, d->controller_type, d->name, d->auto_delete);
 }
 
 void uni_hid_device_dump_all(void) {
     logi("Connected devices:\n");
     for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
-        if (bd_addr_cmp(g_devices[i].address, zero_addr) == 0)
+        if (bd_addr_cmp(g_devices[i].conn.remote_addr, zero_addr) == 0)
             continue;
         uni_hid_device_dump_device(&g_devices[i]);
     }
@@ -531,11 +526,11 @@ bool uni_hid_device_has_controller_type(uni_hid_device_t* d) {
 }
 
 void uni_hid_device_set_connection_handle(uni_hid_device_t* d, hci_con_handle_t handle) {
-    d->con_handle = handle;
+    d->conn.handle = handle;
 }
 
 void uni_hid_device_process_gamepad(uni_hid_device_t* d) {
-    if (uni_bt_conn_get_state(&d->connection) != UNI_BT_CONN_STATE_DEVICE_READY) {
+    if (uni_bt_conn_get_state(&d->conn) != UNI_BT_CONN_STATE_DEVICE_READY) {
         return;
     }
 
@@ -635,7 +630,7 @@ void uni_hid_device_send_intr_report(uni_hid_device_t* d, const uint8_t* report,
         loge("Invalid device\n");
         return;
     }
-    uni_hid_device_send_report(d, d->hid_interrupt_cid, report, len);
+    uni_hid_device_send_report(d, d->conn.interrupt_cid, report, len);
 }
 
 // Queue a control-report and send it the report in the next event loop.
@@ -645,7 +640,7 @@ void uni_hid_device_send_ctrl_report(uni_hid_device_t* d, const uint8_t* report,
         loge("Invalid device\n");
         return;
     }
-    uni_hid_device_send_report(d, d->hid_control_cid, report, len);
+    uni_hid_device_send_report(d, d->conn.control_cid, report, len);
 }
 
 // Send the reports that are already queued. Uses the "intr" channel.

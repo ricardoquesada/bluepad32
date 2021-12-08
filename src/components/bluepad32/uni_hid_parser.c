@@ -32,7 +32,8 @@ void uni_hid_parser(uni_hid_device_t* d, const uint8_t* report, uint16_t report_
     uni_report_parser_t* rp = &d->report_parser;
 
     // Certain devices like iCade might not set "init_report".
-    if (rp->init_report) rp->init_report(d);
+    if (rp->init_report)
+        rp->init_report(d);
 
     // Certain devices like Nintendo Wii U Pro doesn't support HID descriptor.
     // For those kind of devices, just send the raw report.
@@ -129,7 +130,8 @@ int32_t uni_hid_parser_process_pedal(hid_globals_t* globals, uint32_t value) {
 uint8_t uni_hid_parser_process_hat(hid_globals_t* globals, uint32_t value) {
     int32_t v = (int32_t)value;
     // Assumes if value is outside valid range, then it is a "null value"
-    if (v < globals->logical_minimum || v > globals->logical_maximum) return 0xff;
+    if (v < globals->logical_minimum || v > globals->logical_maximum)
+        return 0xff;
     // 0 should be the first value for hat, meaning that 0 is the "up" position.
     return v - globals->logical_minimum;
 }

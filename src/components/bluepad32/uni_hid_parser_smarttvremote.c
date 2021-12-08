@@ -30,8 +30,11 @@ void uni_hid_parser_smarttvremote_init_report(uni_hid_device_t* d) {
     // Reset old state. Each report contains a full-state.
     d->gamepad.updated_states = 0;
 }
-void uni_hid_parser_smarttvremote_parse_usage(uni_hid_device_t* d, hid_globals_t* globals, uint16_t usage_page,
-                                              uint16_t usage, int32_t value) {
+void uni_hid_parser_smarttvremote_parse_usage(uni_hid_device_t* d,
+                                              hid_globals_t* globals,
+                                              uint16_t usage_page,
+                                              uint16_t usage,
+                                              int32_t value) {
     UNUSED(globals);
     uni_gamepad_t* gp = &d->gamepad;
     // print_parser_globals(globals);

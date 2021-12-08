@@ -59,11 +59,17 @@ static void pc_debug_init(int argc, const char** argv) {
     }
 }
 
-static void pc_debug_on_init_complete(void) { logi("pc_debug: on_init_complete()\n"); }
+static void pc_debug_on_init_complete(void) {
+    logi("pc_debug: on_init_complete()\n");
+}
 
-static void pc_debug_on_device_connected(uni_hid_device_t* d) { logi("pc_debug: device connected: %p\n", d); }
+static void pc_debug_on_device_connected(uni_hid_device_t* d) {
+    logi("pc_debug: device connected: %p\n", d);
+}
 
-static void pc_debug_on_device_disconnected(uni_hid_device_t* d) { logi("pc_debug: device disconnected: %p\n", d); }
+static void pc_debug_on_device_disconnected(uni_hid_device_t* d) {
+    logi("pc_debug: device disconnected: %p\n", d);
+}
 
 static int pc_debug_on_device_ready(uni_hid_device_t* d) {
     logi("pc_debug: device ready: %p\n", d);
@@ -106,7 +112,8 @@ static void pc_debug_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
 
 static int32_t pc_debug_get_property(uni_platform_property_t key) {
     logi("pc_debug: get_property(): %d\n", key);
-    if (key != UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS) return -1;
+    if (key != UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS)
+        return -1;
     return g_delete_keys;
 }
 

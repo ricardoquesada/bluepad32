@@ -45,9 +45,15 @@ typedef struct wii_instance_s {
 _Static_assert(sizeof(xboxone_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "Xbox one intance too big");
 
 static xboxone_instance_t* get_xboxone_instance(uni_hid_device_t* d);
-static void parse_usage_firmware_v3_1(uni_hid_device_t* d, hid_globals_t* globals, uint16_t usage_page, uint16_t usage,
+static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
+                                      hid_globals_t* globals,
+                                      uint16_t usage_page,
+                                      uint16_t usage,
                                       int32_t value);
-static void parse_usage_firmware_v4_8(uni_hid_device_t* d, hid_globals_t* globals, uint16_t usage_page, uint16_t usage,
+static void parse_usage_firmware_v4_8(uni_hid_device_t* d,
+                                      hid_globals_t* globals,
+                                      uint16_t usage_page,
+                                      uint16_t usage,
                                       int32_t value);
 
 void uni_hid_parser_xboxone_setup(uni_hid_device_t* d) {
@@ -69,8 +75,11 @@ void uni_hid_parser_xboxone_init_report(uni_hid_device_t* d) {
     d->gamepad.updated_states = 0;
 }
 
-void uni_hid_parser_xboxone_parse_usage(uni_hid_device_t* d, hid_globals_t* globals, uint16_t usage_page,
-                                        uint16_t usage, int32_t value) {
+void uni_hid_parser_xboxone_parse_usage(uni_hid_device_t* d,
+                                        hid_globals_t* globals,
+                                        uint16_t usage_page,
+                                        uint16_t usage,
+                                        int32_t value) {
     // print_parser_globals(globals);
     xboxone_instance_t* ins = get_xboxone_instance(d);
     if (ins->version == XBOXONE_FIRMWARE_V3_1) {
@@ -80,7 +89,10 @@ void uni_hid_parser_xboxone_parse_usage(uni_hid_device_t* d, hid_globals_t* glob
     }
 }
 
-static void parse_usage_firmware_v3_1(uni_hid_device_t* d, hid_globals_t* globals, uint16_t usage_page, uint16_t usage,
+static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
+                                      hid_globals_t* globals,
+                                      uint16_t usage_page,
+                                      uint16_t usage,
                                       int32_t value) {
     uint8_t hat;
     uni_gamepad_t* gp = &d->gamepad;
@@ -262,7 +274,10 @@ static void parse_usage_firmware_v3_1(uni_hid_device_t* d, hid_globals_t* global
 }
 
 // v4.8 is almost identical to the Android mappings.
-static void parse_usage_firmware_v4_8(uni_hid_device_t* d, hid_globals_t* globals, uint16_t usage_page, uint16_t usage,
+static void parse_usage_firmware_v4_8(uni_hid_device_t* d,
+                                      hid_globals_t* globals,
+                                      uint16_t usage_page,
+                                      uint16_t usage,
                                       int32_t value) {
     uint8_t hat;
     uni_gamepad_t* gp = &d->gamepad;
@@ -510,4 +525,6 @@ void uni_hid_parser_xboxone_set_rumble(uni_hid_device_t* d, uint8_t value, uint8
 //
 // Helpers
 //
-xboxone_instance_t* get_xboxone_instance(uni_hid_device_t* d) { return (xboxone_instance_t*)&d->parser_data[0]; }
+xboxone_instance_t* get_xboxone_instance(uni_hid_device_t* d) {
+    return (xboxone_instance_t*)&d->parser_data[0];
+}

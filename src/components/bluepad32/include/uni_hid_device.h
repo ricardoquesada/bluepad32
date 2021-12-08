@@ -60,16 +60,12 @@ typedef enum {
 } uni_controller_subtype_t;
 
 struct uni_hid_device_s {
-    bd_addr_t address;
-    hci_con_handle_t con_handle;
-    uint8_t page_scan_repetition_mode;
-    uint16_t clock_offset;
-    uint32_t cod;
+    uint32_t cod;  // class of device
     uint16_t vendor_id;
     uint16_t product_id;
     char name[HID_MAX_NAME_LEN];
 
-    // incoming, connected, hid, cod, etc...
+    // hid, cod, etc...
     uint32_t flags;
 
     // Times the device was discovered while also failed to establish a connection
@@ -91,8 +87,6 @@ struct uni_hid_device_s {
     uint8_t sdp_query_before_connect;
 
     // Channels
-    uint16_t hid_control_cid;
-    uint16_t hid_interrupt_cid;
     uint16_t hids_cid;  // BLE only
 
     // Gamepad
@@ -119,7 +113,7 @@ struct uni_hid_device_s {
     uint8_t platform_data[HID_DEVICE_MAX_PLATFORM_DATA];
 
     // Bluetooth connection info.
-    uni_bt_conn_t connection;
+    uni_bt_conn_t conn;
 };
 typedef struct uni_hid_device_s uni_hid_device_t;
 

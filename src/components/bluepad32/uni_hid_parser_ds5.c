@@ -183,24 +183,38 @@ void uni_hid_parser_ds5_parse_raw(uni_hid_device_t* d, const uint8_t* report, ui
 
     // Hat
     uint8_t value = r->buttons[0] & 0xf;
-    if (value > 7) value = 0xff; /* Center 0, 0 */
+    if (value > 7)
+        value = 0xff; /* Center 0, 0 */
     gp->dpad = uni_hid_parser_hat_to_dpad(value);
 
     // Buttons
     // TODO: ds4, ds5 have these buttons in common. Refactor.
-    if (r->buttons[0] & 0x10) gp->buttons |= BUTTON_X;                 // West
-    if (r->buttons[0] & 0x20) gp->buttons |= BUTTON_A;                 // South
-    if (r->buttons[0] & 0x40) gp->buttons |= BUTTON_B;                 // East
-    if (r->buttons[0] & 0x80) gp->buttons |= BUTTON_Y;                 // North
-    if (r->buttons[1] & 0x01) gp->buttons |= BUTTON_SHOULDER_L;        // L1
-    if (r->buttons[1] & 0x02) gp->buttons |= BUTTON_SHOULDER_R;        // R1
-    if (r->buttons[1] & 0x04) gp->buttons |= BUTTON_TRIGGER_L;         // L2
-    if (r->buttons[1] & 0x08) gp->buttons |= BUTTON_TRIGGER_R;         // R2
-    if (r->buttons[1] & 0x10) gp->misc_buttons |= MISC_BUTTON_BACK;    // Share
-    if (r->buttons[1] & 0x20) gp->misc_buttons |= MISC_BUTTON_HOME;    // Options
-    if (r->buttons[1] & 0x40) gp->buttons |= BUTTON_THUMB_L;           // Thumb L
-    if (r->buttons[1] & 0x80) gp->buttons |= BUTTON_THUMB_R;           // Thumb R
-    if (r->buttons[2] & 0x01) gp->misc_buttons |= MISC_BUTTON_SYSTEM;  // PS
+    if (r->buttons[0] & 0x10)
+        gp->buttons |= BUTTON_X;  // West
+    if (r->buttons[0] & 0x20)
+        gp->buttons |= BUTTON_A;  // South
+    if (r->buttons[0] & 0x40)
+        gp->buttons |= BUTTON_B;  // East
+    if (r->buttons[0] & 0x80)
+        gp->buttons |= BUTTON_Y;  // North
+    if (r->buttons[1] & 0x01)
+        gp->buttons |= BUTTON_SHOULDER_L;  // L1
+    if (r->buttons[1] & 0x02)
+        gp->buttons |= BUTTON_SHOULDER_R;  // R1
+    if (r->buttons[1] & 0x04)
+        gp->buttons |= BUTTON_TRIGGER_L;  // L2
+    if (r->buttons[1] & 0x08)
+        gp->buttons |= BUTTON_TRIGGER_R;  // R2
+    if (r->buttons[1] & 0x10)
+        gp->misc_buttons |= MISC_BUTTON_BACK;  // Share
+    if (r->buttons[1] & 0x20)
+        gp->misc_buttons |= MISC_BUTTON_HOME;  // Options
+    if (r->buttons[1] & 0x40)
+        gp->buttons |= BUTTON_THUMB_L;  // Thumb L
+    if (r->buttons[1] & 0x80)
+        gp->buttons |= BUTTON_THUMB_R;  // Thumb R
+    if (r->buttons[2] & 0x01)
+        gp->misc_buttons |= MISC_BUTTON_SYSTEM;  // PS
 }
 
 // uni_hid_parser_ds5_parse_usage() was removed since "stream" mode is the only
@@ -230,7 +244,8 @@ void uni_hid_parser_ds5_set_lightbar_color(struct uni_hid_device_s* d, uint8_t r
 
 void uni_hid_parser_ds5_set_rumble(struct uni_hid_device_s* d, uint8_t value, uint8_t duration) {
     ds5_instance_t* ins = get_ds5_instance(d);
-    if (ins->rumble_in_progress) return;
+    if (ins->rumble_in_progress)
+        return;
 
     ds5_output_report_t out = {0};
 
@@ -253,7 +268,9 @@ void uni_hid_parser_ds5_set_rumble(struct uni_hid_device_s* d, uint8_t value, ui
 //
 // Helpers
 //
-static ds5_instance_t* get_ds5_instance(uni_hid_device_t* d) { return (ds5_instance_t*)&d->parser_data[0]; }
+static ds5_instance_t* get_ds5_instance(uni_hid_device_t* d) {
+    return (ds5_instance_t*)&d->parser_data[0];
+}
 
 static void ds5_send_output_report(uni_hid_device_t* d, ds5_output_report_t* out) {
     ds5_instance_t* ins = get_ds5_instance(d);
@@ -265,7 +282,8 @@ static void ds5_send_output_report(uni_hid_device_t* d, ds5_output_report_t* out
     // Highest 4-bit is a sequence number, which needs to be increased every
     // report. Lowest 4-bit is tag and can be zero for now.
     out->seq_tag = (ins->output_seq << 4) | 0x0;
-    if (++ins->output_seq == 15) ins->output_seq = 0;
+    if (++ins->output_seq == 15)
+        ins->output_seq = 0;
 
     /* CRC generation */
     uint8_t bthdr = 0xa2;

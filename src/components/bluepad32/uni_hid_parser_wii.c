@@ -1019,7 +1019,8 @@ void uni_hid_parser_wii_init_report(uni_hid_device_t* d) {
 }
 
 void uni_hid_parser_wii_parse_raw(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
-    if (len == 0) return;
+    if (len == 0)
+        return;
     switch (report[0]) {
         case WIIPROTO_REQ_STATUS:
             process_req_status(d, report, len);
@@ -1064,7 +1065,8 @@ void uni_hid_parser_wii_set_player_leds(uni_hid_device_t* d, uint8_t leds) {
     // Always update gamepad_seat regarless of the state
     ins->gamepad_seat = leds;
 
-    if (ins->state < WII_FSM_LED_UPDATED) return;
+    if (ins->state < WII_FSM_LED_UPDATED)
+        return;
 
     set_led(d, leds);
 }
@@ -1072,7 +1074,9 @@ void uni_hid_parser_wii_set_player_leds(uni_hid_device_t* d, uint8_t leds) {
 //
 // Helpers
 //
-static wii_instance_t* get_wii_instance(uni_hid_device_t* d) { return (wii_instance_t*)&d->parser_data[0]; }
+static wii_instance_t* get_wii_instance(uni_hid_device_t* d) {
+    return (wii_instance_t*)&d->parser_data[0];
+}
 
 static void set_led(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
     wii_instance_t* ins = get_wii_instance(d);

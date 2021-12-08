@@ -213,13 +213,15 @@ static int spi_transfer(uint8_t out[], uint8_t in[], size_t len) {
     spi_slave_transaction_t slv_trans = {.length = len * 8, .trans_len = 0, .tx_buffer = out, .rx_buffer = in};
 
     esp_err_t ret = spi_slave_queue_trans(VSPI_HOST, &slv_trans, portMAX_DELAY);
-    if (ret != ESP_OK) return -1;
+    if (ret != ESP_OK)
+        return -1;
 
     xSemaphoreTake(_ready_semaphore, portMAX_DELAY);
     gpio_set_level(GPIO_READY, 0);
 
     ret = spi_slave_get_trans_result(VSPI_HOST, &slv_ret_trans, portMAX_DELAY);
-    if (ret != ESP_OK) return -1;
+    if (ret != ESP_OK)
+        return -1;
 
     assert(slv_ret_trans == &slv_trans);
 
@@ -637,7 +639,9 @@ static void IRAM_ATTR spi_post_setup_cb(spi_slave_transaction_t* trans) {
     xSemaphoreGiveFromISR(_ready_semaphore, NULL);
 }
 
-static void IRAM_ATTR isr_handler_on_chip_select(void* arg) { gpio_set_level(GPIO_READY, 1); }
+static void IRAM_ATTR isr_handler_on_chip_select(void* arg) {
+    gpio_set_level(GPIO_READY, 1);
+}
 
 static void spi_main_loop(void* arg) {
     _gamepad_mutex = xSemaphoreCreateMutex();
@@ -693,7 +697,8 @@ static void spi_main_loop(void* arg) {
     while (1) {
         memset(command_buf, 0, SPI_BUFFER_LEN);
         int command_len = spi_transfer(NULL, command_buf, SPI_BUFFER_LEN);
-        if (command_len == 0) continue;
+        if (command_len == 0)
+            continue;
 
         // process request
         memset(response_buf, 0, SPI_BUFFER_LEN);
@@ -795,7 +800,8 @@ static int nina_on_device_ready(uni_hid_device_t* d) {
 static uint8_t predicate_nina_index(uni_hid_device_t* d, void* data) {
     int wanted_idx = (int)data;
     nina_instance_t* ins = get_nina_instance(d);
-    if (ins->gamepad_idx != wanted_idx) return 0;
+    if (ins->gamepad_idx != wanted_idx)
+        return 0;
     return 1;
 }
 
@@ -813,11 +819,13 @@ static void process_pending(pending_request_t* pending) {
                 d->report_parser.set_lightbar_color(d, pending->args[0], pending->args[1], pending->args[2]);
             break;
         case PENDING_REQUEST_CMD_PLAYER_LEDS:
-            if (d->report_parser.set_player_leds != NULL) d->report_parser.set_player_leds(d, pending->args[0]);
+            if (d->report_parser.set_player_leds != NULL)
+                d->report_parser.set_player_leds(d, pending->args[0]);
             break;
 
         case PENDING_REQUEST_CMD_RUMBLE:
-            if (d->report_parser.set_rumble != NULL) d->report_parser.set_rumble(d, pending->args[0], pending->args[1]);
+            if (d->report_parser.set_rumble != NULL)
+                d->report_parser.set_rumble(d, pending->args[0], pending->args[1]);
             break;
 
         default:
@@ -861,7 +869,8 @@ static void nina_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
 }
 
 static void nina_on_device_oob_event(uni_hid_device_t* d, uni_platform_oob_event_t event) {
-    if (event != UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON) return;
+    if (event != UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON)
+        return;
 
     // TODO: Do something ?
 }
@@ -874,7 +883,9 @@ static int32_t nina_get_property(uni_platform_property_t key) {
 //
 // Helpers
 //
-static nina_instance_t* get_nina_instance(uni_hid_device_t* d) { return (nina_instance_t*)&d->platform_data[0]; }
+static nina_instance_t* get_nina_instance(uni_hid_device_t* d) {
+    return (nina_instance_t*)&d->platform_data[0];
+}
 
 //
 // Entry Point

@@ -171,23 +171,40 @@ void uni_hid_parser_ds3_parse_raw(uni_hid_device_t* d, const uint8_t* report, ui
     gp->throttle = r->throttle * 4;
 
     // Buttons
-    if (r->buttons[0] & 0x01) gp->misc_buttons |= MISC_BUTTON_BACK;    // Select
-    if (r->buttons[0] & 0x02) gp->buttons |= BUTTON_THUMB_L;           // Thumb L
-    if (r->buttons[0] & 0x04) gp->buttons |= BUTTON_THUMB_R;           // Thumb R
-    if (r->buttons[0] & 0x08) gp->misc_buttons |= MISC_BUTTON_HOME;    // Start
-    if (r->buttons[0] & 0x10) gp->dpad |= DPAD_UP;                     // Dpad up
-    if (r->buttons[0] & 0x20) gp->dpad |= DPAD_RIGHT;                  // Dpad right
-    if (r->buttons[0] & 0x40) gp->dpad |= DPAD_DOWN;                   // Dpad down
-    if (r->buttons[0] & 0x80) gp->dpad |= DPAD_LEFT;                   // Dpad left
-    if (r->buttons[1] & 0x01) gp->buttons |= BUTTON_TRIGGER_L;         // L2
-    if (r->buttons[1] & 0x02) gp->buttons |= BUTTON_TRIGGER_R;         // R2
-    if (r->buttons[1] & 0x04) gp->buttons |= BUTTON_SHOULDER_L;        // L1
-    if (r->buttons[1] & 0x08) gp->buttons |= BUTTON_SHOULDER_R;        // R1
-    if (r->buttons[1] & 0x10) gp->buttons |= BUTTON_Y;                 // West
-    if (r->buttons[1] & 0x20) gp->buttons |= BUTTON_B;                 // South
-    if (r->buttons[1] & 0x40) gp->buttons |= BUTTON_A;                 // East
-    if (r->buttons[1] & 0x80) gp->buttons |= BUTTON_X;                 // North
-    if (r->buttons[2] & 0x01) gp->misc_buttons |= MISC_BUTTON_SYSTEM;  // PS
+    if (r->buttons[0] & 0x01)
+        gp->misc_buttons |= MISC_BUTTON_BACK;  // Select
+    if (r->buttons[0] & 0x02)
+        gp->buttons |= BUTTON_THUMB_L;  // Thumb L
+    if (r->buttons[0] & 0x04)
+        gp->buttons |= BUTTON_THUMB_R;  // Thumb R
+    if (r->buttons[0] & 0x08)
+        gp->misc_buttons |= MISC_BUTTON_HOME;  // Start
+    if (r->buttons[0] & 0x10)
+        gp->dpad |= DPAD_UP;  // Dpad up
+    if (r->buttons[0] & 0x20)
+        gp->dpad |= DPAD_RIGHT;  // Dpad right
+    if (r->buttons[0] & 0x40)
+        gp->dpad |= DPAD_DOWN;  // Dpad down
+    if (r->buttons[0] & 0x80)
+        gp->dpad |= DPAD_LEFT;  // Dpad left
+    if (r->buttons[1] & 0x01)
+        gp->buttons |= BUTTON_TRIGGER_L;  // L2
+    if (r->buttons[1] & 0x02)
+        gp->buttons |= BUTTON_TRIGGER_R;  // R2
+    if (r->buttons[1] & 0x04)
+        gp->buttons |= BUTTON_SHOULDER_L;  // L1
+    if (r->buttons[1] & 0x08)
+        gp->buttons |= BUTTON_SHOULDER_R;  // R1
+    if (r->buttons[1] & 0x10)
+        gp->buttons |= BUTTON_Y;  // West
+    if (r->buttons[1] & 0x20)
+        gp->buttons |= BUTTON_B;  // South
+    if (r->buttons[1] & 0x40)
+        gp->buttons |= BUTTON_A;  // East
+    if (r->buttons[1] & 0x80)
+        gp->buttons |= BUTTON_X;  // North
+    if (r->buttons[2] & 0x01)
+        gp->misc_buttons |= MISC_BUTTON_SYSTEM;  // PS
 }
 
 void uni_hid_parser_ds3_set_player_leds(uni_hid_device_t* d, uint8_t leds) {
@@ -206,7 +223,8 @@ void uni_hid_parser_ds3_set_player_leds(uni_hid_device_t* d, uint8_t leds) {
 }
 
 void uni_hid_parser_ds3_set_rumble(uni_hid_device_t* d, uint8_t value, uint8_t duration) {
-    if (duration == 0xff) duration = 0xfe;
+    if (duration == 0xff)
+        duration = 0xfe;
     uint8_t right = !!value;
     uint8_t left = value;
 
@@ -237,7 +255,9 @@ void uni_hid_parser_ds3_setup(struct uni_hid_device_s* d) {
 //
 // Helpers
 //
-static ds3_instance_t* get_ds3_instance(uni_hid_device_t* d) { return (ds3_instance_t*)&d->parser_data[0]; }
+static ds3_instance_t* get_ds3_instance(uni_hid_device_t* d) {
+    return (ds3_instance_t*)&d->parser_data[0];
+}
 
 static void ds3_update_led(uni_hid_device_t* d, uint8_t player_leds) {
     ds3_instance_t* ins = get_ds3_instance(d);

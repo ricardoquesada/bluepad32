@@ -32,8 +32,11 @@ void uni_hid_parser_generic_init_report(uni_hid_device_t* d) {
     d->gamepad.updated_states = 0;
 }
 
-void uni_hid_parser_generic_parse_usage(uni_hid_device_t* d, hid_globals_t* globals, uint16_t usage_page,
-                                        uint16_t usage, int32_t value) {
+void uni_hid_parser_generic_parse_usage(uni_hid_device_t* d,
+                                        hid_globals_t* globals,
+                                        uint16_t usage_page,
+                                        uint16_t usage,
+                                        int32_t value) {
     // print_parser_globals(globals);
     uint8_t hat;
     uni_gamepad_t* gp = &d->gamepad;

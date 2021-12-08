@@ -38,10 +38,14 @@ static void to_single_joy(const uni_gamepad_t* gp, uni_joystick_t* out_joy) {
 
     // Dpad
     if (gp->updated_states & GAMEPAD_STATE_DPAD) {
-        if (gp->dpad & DPAD_UP) out_joy->up |= 1;
-        if (gp->dpad & DPAD_DOWN) out_joy->down |= 1;
-        if (gp->dpad & DPAD_RIGHT) out_joy->right |= 1;
-        if (gp->dpad & DPAD_LEFT) out_joy->left |= 1;
+        if (gp->dpad & DPAD_UP)
+            out_joy->up |= 1;
+        if (gp->dpad & DPAD_DOWN)
+            out_joy->down |= 1;
+        if (gp->dpad & DPAD_RIGHT)
+            out_joy->right |= 1;
+        if (gp->dpad & DPAD_LEFT)
+            out_joy->left |= 1;
     }
 
     // Axis: X and Y
@@ -84,7 +88,8 @@ void uni_joy_to_single_joy_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t*
 }
 
 // Enhanced mode: One gamepad controls two joysticks
-void uni_joy_to_combo_joy_joy_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t* out_joy1,
+void uni_joy_to_combo_joy_joy_from_gamepad(const uni_gamepad_t* gp,
+                                           uni_joystick_t* out_joy1,
                                            uni_joystick_t* out_joy2) {
     to_single_joy(gp, out_joy2);
 
@@ -123,7 +128,8 @@ void uni_joy_to_single_mouse_from_gamepad(const uni_gamepad_t* gp, uni_joystick_
 }
 
 // One gamepad controls one mouse and one joystick: Unfinished
-void uni_joy_to_combo_joy_mouse_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t* out_joy,
+void uni_joy_to_combo_joy_mouse_from_gamepad(const uni_gamepad_t* gp,
+                                             uni_joystick_t* out_joy,
                                              uni_joystick_t* out_mouse) {
     to_single_joy(gp, out_joy);
 

@@ -31,3 +31,15 @@ void uni_bt_conn_set_state(uni_bt_conn_t* conn, uni_bt_conn_state_t state) {
 uni_bt_conn_state_t uni_bt_conn_get_state(uni_bt_conn_t* conn) {
     return conn->state;
 }
+
+void uni_bt_conn_get_address(uni_bt_conn_t* conn, bd_addr_t out_addr) {
+    memcpy(out_addr, conn->remote_addr, 6);
+}
+
+bool uni_bt_conn_is_incoming(uni_bt_conn_t* conn) {
+    return conn->incoming;
+}
+
+bool uni_bt_conn_is_connected(uni_bt_conn_t* conn) {
+    return conn->connected;
+}

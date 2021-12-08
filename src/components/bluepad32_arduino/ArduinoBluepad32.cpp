@@ -14,18 +14,23 @@
 
 Bluepad32::Bluepad32() : _prevConnectedGamepads(0), _gamepads(), _onConnect(), _onDisconnect() {}
 
-const char* Bluepad32::firmwareVersion() const { return "Bluepad32 for Arduino v" UNI_VERSION; }
+const char* Bluepad32::firmwareVersion() const {
+    return "Bluepad32 for Arduino v" UNI_VERSION;
+}
 
 void Bluepad32::update() {
     int connectedGamepads = 0;
     for (int i = 0; i < ARDUINO_MAX_GAMEPADS; i++) {
-        if (arduino_get_gamepad_data(i, &_gamepads[i]._state) == -1) continue;
-        if (_gamepads[i]._state.idx != -1) connectedGamepads |= (1 << i);
+        if (arduino_get_gamepad_data(i, &_gamepads[i]._state) == -1)
+            continue;
+        if (_gamepads[i]._state.idx != -1)
+            connectedGamepads |= (1 << i);
     }
 
     // No changes in connected gamepads. No need to call onConnected or
     // onDisconnected.
-    if (connectedGamepads == _prevConnectedGamepads) return;
+    if (connectedGamepads == _prevConnectedGamepads)
+        return;
 
     logi("connected in total: %d\n", connectedGamepads);
 
@@ -37,7 +42,8 @@ void Bluepad32::update() {
         int prev = _prevConnectedGamepads & bit;
 
         // No changes in this gamepad, skip
-        if (current == prev) continue;
+        if (current == prev)
+            continue;
 
         if (current) {
             _gamepads[i]._connected = true;
