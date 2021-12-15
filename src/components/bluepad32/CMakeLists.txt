@@ -1,35 +1,50 @@
-set(COMPONENT_ADD_INCLUDEDIRS "include")
+set(srcs "uni_bt_conn.c"
+         "uni_bluetooth.c"
+         "uni_circular_buffer.c"
+         "uni_esp32.c"
+         "uni_gamepad.c"
+         "uni_hid_device.c"
+         "uni_hid_parser.c"
+         "uni_hid_parser_8bitdo.c"
+         "uni_hid_parser_android.c"
+         "uni_hid_parser_ds3.c"
+         "uni_hid_parser_ds4.c"
+         "uni_hid_parser_ds5.c"
+         "uni_hid_parser_generic.c"
+         "uni_hid_parser_icade.c"
+         "uni_hid_parser_nimbus.c"
+         "uni_hid_parser_ouya.c"
+         "uni_hid_parser_smarttvremote.c"
+         "uni_hid_parser_switch.c"
+         "uni_hid_parser_wii.c"
+         "uni_hid_parser_xboxone.c"
+         "uni_joystick.c"
+         "uni_main.c"
+         "uni_platform.c"
+         "uni_platform_arduino.c"
+         "uni_platform_arduino_bootstrap.cpp"
+         "uni_platform_mightymiggy.c"
+         "uni_platform_nina.c"
+         "uni_platform_pc_debug.c"
+         "uni_platform_unijoysticle.c")
 
-set(COMPONENT_SRCS "uni_bt_conn.c" "uni_bluetooth.c"
-                   "uni_circular_buffer.c"
-                   "uni_esp32.c"
-                   "uni_gamepad.c"
-                   "uni_hid_device.c"
-                   "uni_hid_parser.c"
-                   "uni_hid_parser_8bitdo.c"
-                   "uni_hid_parser_android.c"
-                   "uni_hid_parser_ds3.c"
-                   "uni_hid_parser_ds4.c"
-                   "uni_hid_parser_ds5.c"
-                   "uni_hid_parser_generic.c"
-                   "uni_hid_parser_icade.c"
-                   "uni_hid_parser_nimbus.c"
-                   "uni_hid_parser_ouya.c"
-                   "uni_hid_parser_smarttvremote.c"
-                   "uni_hid_parser_switch.c"
-                   "uni_hid_parser_wii.c"
-                   "uni_hid_parser_xboxone.c"
-                   "uni_joystick.c"
-                   "uni_main.c"
-                   "uni_platform.c"
-                   "uni_platform_arduino.c"
-                   "uni_platform_arduino_bootstrap.cpp"
-                   "uni_platform_mightymiggy.c"
-                   "uni_platform_nina.c"
-                   "uni_platform_pc_debug.c"
-                   "uni_platform_unijoysticle.c"
-                   )
+set(requires "nvs_flash" "btstack")
 
-set(COMPONENT_REQURIES "btstack")
+if(CONFIG_BLUEPAD32_PLATFORM_ARDUINO)
+    list(APPEND requires "arduino")
+endif()
 
-register_component()
+idf_component_register(SRCS "${srcs}"
+                    INCLUDE_DIRS "include"
+                    REQUIRES ${requires})
+
+if(CONFIG_BLUEPAD32_PLATFORM_ARDUINO)
+    # Bluepad32 contains reference to setup() and loop().  If we add main
+    # component to priv_requires then we create a large circular dependency
+    # (bluepad32 -> main -> bluepad32) and can get linker errors, so
+    # instead we add setup() and loop() to the undefined symbols list so the
+    # linker will always include them.
+    #
+    # (As they are C++ symbol, we need to add the C++ mangled names.)
+    target_link_libraries(${COMPONENT_LIB} INTERFACE "-u _Z6setupv -u _Z4loopv")
+endif()
