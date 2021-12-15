@@ -19,8 +19,8 @@ limitations under the License.
 #ifndef UNI_CONFIG_H
 #define UNI_CONFIG_H
 
-// For more configurations, please look at the Kconfig file, or jsut do:
-// "idf.py menuconfig"
+// For more configurations, please look at the Kconfig file, or just do:
+// "idf.py menuconfig" -> "Component config" -> "Bluepad32"
 
 // How verbose the logging should be.
 // It is safe to leave UNI_LOG_DEBUG disabled (unless you are a developer).

@@ -1,21 +1,38 @@
-menu "Bluepad32 Configuration"
+menu "Bluepad32"
 
     choice BLUEPAD32_PLATFORM
-        bool "Which Bluepad32 target platform"
+        bool "Target platform"
         default BLUEPAD32_PLATFORM_UNIJOYSTICLE
         help
-            Select the Bluepad32 target platform. Select "None" to define it via command line.
+            Select the Bluepad32 target platform.
 
         config BLUEPAD32_PLATFORM_ARDUINO
             bool "Arduino"
+            help
+                Targets ESP32 devices, like the ESP32 Mini Dev Kit.
+                To be used with ESP32 Core for Arduino component.
+
         config BLUEPAD32_PLATFORM_NINA
             bool "Nina"
+            help
+                Targets Arduino devices that have the NINA co-processor,
+                like the Arduino Nano RP2040 Connect.
+
         config BLUEPAD32_PLATFORM_AIRLIFT
             bool "AirLift"
+            help
+                Targets Adafruit devices that have an AirLift co-processor,
+                like the Adafruit Metro M4 Express AirLift.
+
         config BLUEPAD32_PLATFORM_UNIJOYSTICLE
             bool "Unijoysticle"
+            help
+                Targets Unijoysticle 2 / Unijoysticle 2+ devices.
+
         config BLUEPAD32_PLATFORM_MIGHTYMIGGY
             bool "MightyMiggy"
+            help
+                Targets MightyMiggy device.
     endchoice
 
     config BLUEPAD32_GAP_SECURITY
