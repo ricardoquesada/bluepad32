@@ -5,7 +5,9 @@
 #define BP32_ARDUINO_BLUEPAD32_H
 
 #include "sdkconfig.h"
-#ifdef CONFIG_BLUEPAD32_PLATFORM_ARDUINO
+#ifndef CONFIG_BLUEPAD32_PLATFORM_ARDUINO
+#error "Must only be compiled when using Bluepad32 Arduino platform"
+#endif // !CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 
 #include <inttypes.h>
 #include <uni_platform_arduino.h>
@@ -53,5 +55,4 @@ class Bluepad32 {
 
 extern Bluepad32 BP32;
 
-#endif  // CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 #endif  // BP32_ARDUINO_BLUEPAD32_H

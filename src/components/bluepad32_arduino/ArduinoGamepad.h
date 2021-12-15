@@ -5,7 +5,9 @@
 #define BP32_ARDUINO_GAMEPAD_H
 
 #include "sdkconfig.h"
-#ifdef CONFIG_BLUEPAD32_PLATFORM_ARDUINO
+#ifndef CONFIG_BLUEPAD32_PLATFORM_ARDUINO
+#error "Must only be compiled when using Bluepad32 Arduino platform"
+#endif // !CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 
 #include <inttypes.h>
 #include <uni_platform_arduino.h>
@@ -120,5 +122,4 @@ class Gamepad {
 
 typedef Gamepad* GamepadPtr;
 
-#endif  // CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 #endif  // BP32_ARDUINO_GAMEPAD_H

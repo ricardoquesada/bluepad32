@@ -8,7 +8,9 @@
 #include <uni_platform_arduino.h>
 
 #include "sdkconfig.h"
-#ifdef CONFIG_BLUEPAD32_PLATFORM_ARDUINO
+#ifndef CONFIG_BLUEPAD32_PLATFORM_ARDUINO
+#error "Must only be compiled when using Bluepad32 Arduino platform"
+#endif // !CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 
 Gamepad::Gamepad() : _connected(false), _state() {}
 
@@ -45,5 +47,3 @@ void Gamepad::setRumble(uint8_t force, uint8_t duration) const {
     if (arduino_set_rumble(_state.idx, force, duration) == -1)
         loge("error setting lightbar color");
 }
-
-#endif  // CONFIG_BLUEPAD32_PLATFORM_ARDUINO

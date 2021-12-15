@@ -17,7 +17,9 @@ limitations under the License.
 ****************************************************************************/
 
 #include "sdkconfig.h"
-#ifdef CONFIG_BLUEPAD32_PLATFORM_ARDUINO
+#ifndef CONFIG_BLUEPAD32_PLATFORM_ARDUINO
+#error "Must only be compiled when using Bluepad32 Arduino platform"
+#endif // !CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 
 #include <Arduino.h>
 #include <Bluepad32.h>
@@ -129,5 +131,3 @@ void loop() {
 
     delay(150);
 }
-
-#endif  // CONFIG_BLUEPAD32_PLATFORM_ARDUINO
