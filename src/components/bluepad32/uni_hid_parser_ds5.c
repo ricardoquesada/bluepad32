@@ -295,7 +295,6 @@ static void ds5_send_output_report(uni_hid_device_t* d, ds5_output_report_t* out
 }
 
 static void ds5_set_rumble_off(btstack_timer_source_t* ts) {
-    loge("DS5: rumble-off\n");
     ds5_instance_t* ins = (ds5_instance_t*)ts;
 
     // No need to protect it with a mutex since it runs in the same main thread
