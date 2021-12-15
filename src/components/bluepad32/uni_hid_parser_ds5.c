@@ -162,7 +162,6 @@ void uni_hid_parser_ds5_setup(uni_hid_device_t* d) {
 void uni_hid_parser_ds5_parse_raw(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
     if (report[0] != 0x31) {
         loge("DS5: Unexpected report type: got 0x%02x, want: 0x31\n", report[0]);
-        printf_hexdump(report, len);
         return;
     }
     if (len != 78) {
