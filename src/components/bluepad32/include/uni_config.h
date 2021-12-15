@@ -19,18 +19,13 @@ limitations under the License.
 #ifndef UNI_CONFIG_H
 #define UNI_CONFIG_H
 
+// For more configurations, please look at the Kconfig file, or jsut do:
+// "idf.py menuconfig"
+
 // How verbose the logging should be.
 // It is safe to leave UNI_LOG_DEBUG disabled (unless you are a developer).
 #define UNI_LOG_ERROR 1
 #define UNI_LOG_INFO 1
 #define UNI_LOG_DEBUG 0
-
-// Enable DualShock3 support.
-// To enable it, gat_set_security_level(0) must be called (by default it is 2)
-// but it seems that this breaks Nintendo Switch gamepad support.
-#define UNI_ENABLE_DUALSHOCK3 0  // Enabled if 1
-
-// Platform can be defined via "Kconfig" or by setting the environment variable.
-// The environment variable has precedence.
 
 #endif  // UNI_CONFIG_H

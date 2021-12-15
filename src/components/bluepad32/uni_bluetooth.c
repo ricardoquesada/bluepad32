@@ -62,6 +62,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "sdkconfig.h"
 #include "uni_config.h"
 #include "uni_debug.h"
 #include "uni_hid_device.h"
@@ -1120,8 +1121,7 @@ int uni_bluetooth_init(void) {
 
     // It seems that with gap_security_level(0) all gamepads work except
     // Nintendo Switch Pro controller.
-    // XXX: Must be moved to Kconfig
-#if UNI_ENABLE_DUALSHOCK3
+#ifndef CONFIG_BLUEPAD32_GAP_SECURITY
     gap_set_security_level(0);
 #endif
 

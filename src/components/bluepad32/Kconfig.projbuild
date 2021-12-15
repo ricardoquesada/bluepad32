@@ -2,12 +2,10 @@ menu "Bluepad32 Configuration"
 
     choice BLUEPAD32_PLATFORM
         bool "Which Bluepad32 target platform"
-        default BLUEPAD32_PLATFORM_NONE
+        default BLUEPAD32_PLATFORM_UNIJOYSTICLE
         help
             Select the Bluepad32 target platform. Select "None" to define it via command line.
 
-        config BLUEPAD32_PLATFORM_NONE
-            bool "None"
         config BLUEPAD32_PLATFORM_ARDUINO
             bool "Arduino"
         config BLUEPAD32_PLATFORM_NINA
@@ -18,8 +16,16 @@ menu "Bluepad32 Configuration"
             bool "Unijoysticle"
         config BLUEPAD32_PLATFORM_MIGHTYMIGGY
             bool "MightyMiggy"
-
     endchoice
 
+    config BLUEPAD32_GAP_SECURITY
+        bool "Enable GAP Security"
+        default y
+        help
+            When enabled, it will set GAP Security level to 2.
+            This allows Nintendo Switch Pro controller to connect successfully.
 
+            But when enabled, DualShock 3 gamepad fails to connect.
+
+            Only disable it if you want to use DualShock 3 gamepads.
 endmenu
