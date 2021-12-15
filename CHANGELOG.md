@@ -6,8 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] -
 ### Changed
-- Update BTStack. Using hash: 2f087acc68f19b1fee97df775f5432b4b910f55d
+- Update BTStack. Using hash: 0f2a810173d1d70943d1c915bffd6f9b1171e8f6
 - Update ESP-IDF to latest v4.4 version. Using hash: ddc44956bf718540d5451e17e1becf6c7dffe5b8
+- CMake: uses new ESP-IDF cmake functions
 
 ## [2.3.0] - 2021-11-13
 ### Changed
