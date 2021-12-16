@@ -18,9 +18,9 @@ limitations under the License.
 
 #include "uni_utils.h"
 
-// This is a well-known function. No need to add the "uni_" prefix.
 #define CRCPOLY 0xedb88320
-uint32_t crc32_le(uint32_t seed, const void* data, size_t len) {
+
+uint32_t uni_crc32_le(uint32_t seed, const void* data, size_t len) {
     uint32_t crc = seed;
     const uint8_t* src = data;
     uint32_t mult;

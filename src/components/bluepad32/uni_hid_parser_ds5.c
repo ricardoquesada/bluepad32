@@ -285,9 +285,8 @@ static void ds5_send_output_report(uni_hid_device_t* d, ds5_output_report_t* out
         ins->output_seq = 0;
 
     /* CRC generation */
-    uint8_t bthdr = 0xa2;
-    uint32_t crc32 = crc32_le(0xffffffff, &bthdr, 1);
-    crc32 = ~crc32_le(crc32, (uint8_t*)&out->report_id, sizeof(*out) - 5);
+    uint32_t crc32 = uni_crc32_le(0xffffffff, &out->transaction_type, 1);
+    crc32 = ~uni_crc32_le(crc32, (uint8_t*)&out->report_id, sizeof(*out) - 5);
     out->crc32 = crc32;
 
     uni_hid_device_send_intr_report(d, (uint8_t*)out, sizeof(*out));
