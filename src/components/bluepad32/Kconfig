@@ -2,15 +2,28 @@ menu "Bluepad32"
 
     choice BLUEPAD32_PLATFORM
         bool "Target platform"
-        default BLUEPAD32_PLATFORM_UNIJOYSTICLE
+        default BLUEPAD32_PLATFORM_MAKEFILE
         help
             Select the Bluepad32 target platform.
 
+        config BLUEPAD32_PLATFORM_AIRLIFT
+            bool "AirLift"
+            help
+                Targets Adafruit devices that have an AirLift co-processor,
+                like the Adafruit Metro M4 Express AirLift.
+
         config BLUEPAD32_PLATFORM_ARDUINO
             bool "Arduino"
+            depends on ENABLE_ARDUINO_DEPENDS
             help
                 Targets ESP32 devices, like the ESP32 Mini Dev Kit.
                 To be used with ESP32 Core for Arduino component.
+
+        config BLUEPAD32_PLATFORM_MIGHTYMIGGY
+            bool "MightyMiggy"
+            help
+                Targets MightyMiggy device.
+
 
         config BLUEPAD32_PLATFORM_NINA
             bool "Nina"
@@ -20,21 +33,17 @@ menu "Bluepad32"
                 like the Arduino Nano RP2040 Connect.
                 Requires "Component config" -> "Spi Flasher Driver" -> "Use the legacy..." to be enabled.
 
-        config BLUEPAD32_PLATFORM_AIRLIFT
-            bool "AirLift"
-            help
-                Targets Adafruit devices that have an AirLift co-processor,
-                like the Adafruit Metro M4 Express AirLift.
-
         config BLUEPAD32_PLATFORM_UNIJOYSTICLE
             bool "Unijoysticle"
             help
                 Targets Unijoysticle 2 / Unijoysticle 2+ devices.
 
-        config BLUEPAD32_PLATFORM_MIGHTYMIGGY
-            bool "MightyMiggy"
+        config BLUEPAD32_PLATFORM_MAKEFILE
+            bool "Decided by Makefile"
             help
-                Targets MightyMiggy device.
+                Legacy option. Defined by PLATFORM environment variable.
+                Used when compiling Bluepad32 using Makefile.
+
     endchoice
 
     config BLUEPAD32_GAP_SECURITY
