@@ -926,8 +926,10 @@ static void start_scan(void) {
     logi("--> Scanning for new devices...\n");
     // Passive scanning, 100% (scan interval = scan window)
     // Start GAP BLE scan
+#ifdef ENABLE_BLE
     gap_set_scan_parameters(0 /* type */, 48 /* interval */, 48 /* window */);
     gap_start_scan();
+#endif  // ENABLE_BLE
 
     // Start GAP Classic inquiry
     gap_inquiry_start(INQUIRY_INTERVAL);
@@ -1108,42 +1110,44 @@ static void fsm_process(uni_hid_device_t* d) {
 // Public functions
 //
 int uni_bluetooth_init(void) {
-    // enabled EIR
-    hci_set_inquiry_mode(INQUIRY_MODE_RSSI_AND_EIR);
-
     // register for HCI events
     hci_event_callback_registration.callback = &packet_handler;
     hci_add_event_handler(&hci_event_callback_registration);
 
-    // register for events from Security Manager
-    sm_event_callback_registration.callback = &sm_packet_handler;
-    sm_add_event_handler(&sm_event_callback_registration);
+    // enabled EIR
+    hci_set_inquiry_mode(INQUIRY_MODE_RSSI_AND_EIR);
 
-    // It seems that with gap_security_level(0) all gamepads work except
-    // Nintendo Switch Pro controller.
+    // btstack_stdin_setup(stdin_process);
+    hci_set_master_slave_policy(HCI_ROLE_MASTER);
+
+    // It seems that with gap_security_level(0) all gamepads work except Nintendo Switch Pro controller.
 #ifndef CONFIG_BLUEPAD32_GAP_SECURITY
     gap_set_security_level(0);
 #endif
+    // Allow sniff mode requests by HID device and support role switch
+    gap_set_default_link_policy_settings(LM_LINK_POLICY_ENABLE_SNIFF_MODE | LM_LINK_POLICY_ENABLE_ROLE_SWITCH);
+
+    // Using a minimum of 7 bytes needed for Nintendo Wii / Wii U controllers.
+    // See: https://github.com/bluekitchen/btstack/issues/299
+    gap_set_required_encryption_key_size(7);
 
     int security_level = gap_get_security_level();
     logi("Gap security level: %d\n", security_level);
 
     l2cap_register_service(packet_handler, PSM_HID_INTERRUPT, L2CAP_CHANNEL_MTU, security_level);
     l2cap_register_service(packet_handler, PSM_HID_CONTROL, L2CAP_CHANNEL_MTU, security_level);
+    l2cap_init();
 
-    // Using a minimum of 7 bytes needed for Nintendo Wii / Wii U controllers.
-    // See: https://github.com/bluekitchen/btstack/issues/299
-    gap_set_required_encryption_key_size(7);
+#ifdef ENABLE_BLE
+    // register for events from Security Manager
+    sm_event_callback_registration.callback = &sm_packet_handler;
+    sm_add_event_handler(&sm_event_callback_registration);
 
     // setup LE device db
     le_device_db_init();
-
-    l2cap_init();
     sm_init();
     gatt_client_init();
-
-    // btstack_stdin_setup(stdin_process);
-    hci_set_master_slave_policy(HCI_ROLE_MASTER);
+#endif  // ENABLE_BLE
 
     // Disable stdout buffering
     setbuf(stdout, NULL);
