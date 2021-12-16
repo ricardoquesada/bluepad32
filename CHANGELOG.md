@@ -4,11 +4,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] -
+## [Unreleased] - XX
+### New
+
+- Arduino platform:
+  This time for real. Generic ESP32 modules are supported.
+  It is possible to have Bluepad32 + Arduino in a generic ESP32 module.
+  Supported via ESP-IDF toolchain.
+  A "bluepad32_arduino" ESP-IDF component was added as a helper classes.
+- Bluepad32 is a ESP-IDF "component":
+  It makes easier to embed Bluepad32 in other projects.
+- BLE: WIP. For the moment it is disabled.
+
 ### Changed
+
 - Update BTStack. Using hash: 0f2a810173d1d70943d1c915bffd6f9b1171e8f6
 - Update ESP-IDF to latest v4.4 version. Using hash: ddc44956bf718540d5451e17e1becf6c7dffe5b8
-- CMake: uses new ESP-IDF cmake functions
+- idf.py: uses new ESP-IDF cmake functions, works as intented
+- sdkconfig: removed. Using sdkconfig.defauls now. Easier to mantain.
+- Kconfig: Moved most uni_config.h defines to Kconfig
+- uni_conn: Placed connection variables in uni_conn instead of having them in uni_device.
+  uni_device has a uni_conn_t now.
+- clang-format: switched to 4-space indent, 120-column-width
+
+### Fixed
+
+- crc32_le() fixed. ESP32 does not call our code. Fixes core dumps and other related crc32 features.
 
 ## [2.3.0] - 2021-11-13
 ### Changed
