@@ -14,9 +14,11 @@ menu "Bluepad32"
 
         config BLUEPAD32_PLATFORM_NINA
             bool "Nina"
+            depends on SPI_FLASH_USE_LEGACY_IMPL
             help
                 Targets Arduino devices that have the NINA co-processor,
                 like the Arduino Nano RP2040 Connect.
+                Requires "Component config" -> "Spi Flasher Driver" -> "Use the legacy..." to be enabled.
 
         config BLUEPAD32_PLATFORM_AIRLIFT
             bool "AirLift"
