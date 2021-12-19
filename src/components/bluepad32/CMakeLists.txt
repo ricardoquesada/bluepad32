@@ -31,7 +31,7 @@ set(srcs "uni_bt_conn.c"
 
 set(requires "nvs_flash" "btstack")
 
-if(CONFIG_BLUEPAD32_PLATFORM_ARDUINO)
+if(DEFINED ENV{BLUEPAD32_ARDUINO})
     list(APPEND requires "arduino")
 endif()
 
@@ -39,7 +39,7 @@ idf_component_register(SRCS "${srcs}"
                     INCLUDE_DIRS "include"
                     REQUIRES ${requires})
 
-if(CONFIG_BLUEPAD32_PLATFORM_ARDUINO)
+if(DEFINED ENV{BLUEPAD32_ARDUINO})
     # Bluepad32 contains reference to setup() and loop().  If we add main
     # component to priv_requires then we create a large circular dependency
     # (bluepad32 -> main -> bluepad32) and can get linker errors, so
