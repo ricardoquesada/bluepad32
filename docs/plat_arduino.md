@@ -94,12 +94,13 @@ git clone --recursive https://github.com/espressif/esp-idf-template my_project
 
 And then do:
 
-1. `make menuconfig`
-2. Select "Bluepad32 Configuration" and then select "Arduino"
+1. Add `set(ENV{BLUEPAD32_ARDUINO} TRUE)` to your main CMakelists.txt
+2. `make menuconfig`
+3. Select "Bluepad32 Configuration" and then select "Arduino"
 
    ![bluepad32-arduino](https://lh3.googleusercontent.com/pw/AM-JKLXm9ZyIvTKiTUlFBCT9QSaduKrhGZTXrWdR7G7F6krTHjkHJhpeGTXek_MCV3ZcXHCA8wnhxFAdDvQ_MbbGVMQY2AD58DK3DyK-_Cxua7BKHbvp8zkjtkcr87czftE7ySiCCUEcb6uSuMr9KY96JjQe-g=-no)
 
-3. And set these Arduino options:
+4. And set these Arduino options:
    * "Autostart Arduino setup and loop on boot" must be OFF
    * "Core on which Arduino's setup() and loop() are running" must be "Core 1"
      * Same for the remaining "Core" options
@@ -110,7 +111,7 @@ And then do:
 
     ![sdk-config](https://lh3.googleusercontent.com/pw/AM-JKLUC4p0Yf5fwxsmzBTqmisp09ElowiFvD06VZfVFeTe6qZZ7pavXZ3sOZ1qKe5wWvwCrnhZrvgOerIgb4XJcrX_fGQETiL2QObmE1u8KFn8wtRoO-vrLSJCRbQVgkC8_pnbyUQM4onrK6GXaaEf-Fuf4iQ=-no)
 
-4. Set these Bluetooth options:
+5. Set these Bluetooth options:
    * "Component Config" -> "Bluetooth" -> "Bluetooth Controller"
      * "Bluetooth Controller Mode": Bluetooth Dual Mode
      * "BLE Max Connections": 3
@@ -124,13 +125,13 @@ And then do:
      ![sdkconfig-bluetooth2](https://lh3.googleusercontent.com/pw/AM-JKLUqEgrT5sF48hKUkmMsP2-9QzV6-JgyYyKwBfZA7GxjwOtQrDqYXvRE3R5tL7SQsAqRurXCiFqHoPU3k9noCtB-k_ZzJ4F_vqKqb9HVJXpI0ZkR5nJv8SzJ959LEmjjX9QaUteHpoJvbdHsiU-0TPoF8w=-no)
 
 
-5. Set these ESP32 options:
+6. Set these ESP32 options:
    * "Component Config" -> "ESP32-specific"
       * "Main XTAL frequency": Autodetect
 
      ![sdkconfig-esp32](https://lh3.googleusercontent.com/pw/AM-JKLVvcfEonqhFDIWH98KajzMGSADBgaNoCI2QjGHaVFLPeRRAQMcIlXFwRmhvDSmNo6kIX_TGtKRr3V6EerW4ngPEiWbBtJYQPSOe2fixKC-rb16m3hhAVirbH7VnVmFwE1EXvRZk3MnNj7Yu2ydFn9f5Gg=-no)
 
-6. Set Serial flasher config:
+7. Set Serial flasher config:
    * "Serial flasher cofnig"
       * "Flash size": 4MB (or choose the right for your module)
 
