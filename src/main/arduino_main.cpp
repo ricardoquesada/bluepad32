@@ -24,7 +24,7 @@ limitations under the License.
 #include <Arduino.h>
 #include <Bluepad32.h>
 
-GamepadPtr myGamepad;
+static GamepadPtr myGamepad;
 
 // This callback gets called any time a new gamepad is connected.
 // Up to 4 gamepads can be connected at the same time.

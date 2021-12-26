@@ -153,7 +153,8 @@ static void arduino_on_device_disconnected(uni_hid_device_t* d) {
             return;
         }
         _gamepad_seats &= ~(1 << ins->gamepad_idx);
-
+        memset(&_gamepads[ins->gamepad_idx], 0, sizeof(_gamepads[ins->gamepad_idx]));
+        _gamepads[ins->gamepad_idx].idx = UNI_ARDUINO_GAMEPAD_INVALID;
         ins->gamepad_idx = UNI_ARDUINO_GAMEPAD_INVALID;
     }
 }
