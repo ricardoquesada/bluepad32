@@ -39,7 +39,7 @@ void uni_platform_init(int argc, const char** argv) {
     _platform = uni_platform_pc_debug_create();
 #elif defined(CONFIG_BLUEPAD32_PLATFORM_AIRLIFT)
     _platform = uni_platform_airlift_create();
-#elif defined(CONFIG_BLUEPDAD32_PLATFORM_MIGHTYMIGGY)
+#elif defined(CONFIG_BLUEPAD32_PLATFORM_MIGHTYMIGGY)
     _platform = uni_platform_mightymiggy_create();
 #elif defined(CONFIG_BLUEPAD32_PLATFORM_NINA)
     _platform = uni_platform_nina_create();

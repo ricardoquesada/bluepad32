@@ -12,7 +12,8 @@ class Distro:
     def __init__(self, platform, version=""):
         # List of platforms to build
         if platform == "all":
-            self._platforms = ("unijoysticle", "airlift", "mightymiggy", "nina")
+            self._platforms = ("unijoysticle", "airlift",
+                               "mightymiggy", "nina")
         else:
             self._platforms = (platform,)
 
@@ -66,9 +67,10 @@ class Distro:
             os.path.join(path, "bootloader/bootloader.bin"), "rb"
         ).read()
         partitionData = open(
-            os.path.join(path, "partitions_singleapp.bin"), "rb"
+            os.path.join(path, "partitions_singleapp_coredump.bin"), "rb"
         ).read()
-        appData = open(os.path.join(path, f"bluepad32-{platform}.bin"), "rb").read()
+        appData = open(os.path.join(
+            path, f"bluepad32-{platform}.bin"), "rb").read()
 
         # calculate the output binary size, app offset
         outputSize = 0x10000 + len(appData)

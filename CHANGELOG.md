@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update ESP-IDF to latest v4.4 version. Using hash: ddc44956bf718540d5451e17e1becf6c7dffe5b8
 - idf.py: uses new ESP-IDF cmake functions, works as intented
 - sdkconfig: removed. Using sdkconfig.defauls now. Easier to mantain.
+- sdkconfig: coredump is stored in flash, and not dumped in UART console.
 - Kconfig: Moved most uni_config.h defines to Kconfig
 - uni_conn: Placed connection variables in uni_conn instead of having them in uni_device.
   uni_device has a uni_conn_t now.
@@ -31,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - crc32_le() fixed. ESP32 does not call our code. Fixes core dumps and other related crc32 features.
 - Unijoysticle: Turn off LEDs when gamepad disconnects.
-- core: When a gamepad disconnects, it resets it state, allowing re-connecting it again.
+- core: When a gamepad disconnects, it resets it state, allowing re-connecting it again (issue #1)
 
 ## [2.3.0] - 2021-11-13
 ### Changed
