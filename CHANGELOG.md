@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   This time for real. Generic ESP32 modules are supported.
   It is possible to have Bluepad32 + Arduino in a generic ESP32 module.
   Supported via ESP-IDF toolchain.
-  A "bluepad32_arduino" ESP-IDF component was added as a helper classes.
+  A "bluepad32_arduino" ESP-IDF component was added with helper classes.
 - Bluepad32 is a ESP-IDF "component":
   It makes easier to embed Bluepad32 in other projects.
 - BLE: WIP. For the moment it is disabled.
@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - crc32_le() fixed. ESP32 does not call our code. Fixes core dumps and other related crc32 features.
 - Unijoysticle: Turn off LEDs when gamepad disconnects.
+- core: When a gamepad disconnects, it resets it state, allowing re-connecting it again.
 
 ## [2.3.0] - 2021-11-13
 ### Changed
