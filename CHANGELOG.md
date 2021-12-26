@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - crc32_le() fixed. ESP32 does not call our code. Fixes core dumps and other related crc32 features.
+- Unijoysticle: Turn off LEDs when gamepad disconnects.
 
 ## [2.3.0] - 2021-11-13
 ### Changed

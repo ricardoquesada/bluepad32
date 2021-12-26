@@ -299,6 +299,12 @@ static void unijoysticle_on_device_disconnected(uni_hid_device_t* d) {
     unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
 
     if (ins->gamepad_seat != GAMEPAD_SEAT_NONE) {
+        // Turn off the LEDs
+        if (ins->gamepad_seat == GAMEPAD_SEAT_A || ins->emu_mode == EMULATION_MODE_COMBO_JOY_JOY)
+            safe_gpio_set_level(g_uni_config->led_j1, 0);
+        if (ins->gamepad_seat == GAMEPAD_SEAT_B || ins->emu_mode == EMULATION_MODE_COMBO_JOY_JOY)
+            safe_gpio_set_level(g_uni_config->led_j2, 0);
+
         ins->gamepad_seat = GAMEPAD_SEAT_NONE;
         ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
     }

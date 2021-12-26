@@ -758,8 +758,7 @@ static void on_l2cap_channel_closed(uint16_t channel, uint8_t* packet, uint16_t 
     logi("L2CAP_EVENT_CHANNEL_CLOSED: 0x%04x (channel=0x%04x)\n", local_cid, channel);
     device = uni_hid_device_get_instance_for_cid(local_cid);
     if (device == NULL) {
-        // Device might already been closed if the Control or Interrupt PSM was
-        // closed first.
+        // Device might already been closed if the Control or Interrupt PSM was closed first.
         logi("Couldn't not find hid_device for cid = 0x%04x\n", local_cid);
         return;
     }

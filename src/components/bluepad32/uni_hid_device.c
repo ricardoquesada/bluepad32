@@ -328,7 +328,7 @@ uint16_t uni_hid_device_get_vendor_id(uni_hid_device_t* d) {
     return d->vendor_id;
 }
 
-// XXX: Replace it with a timed-ballback
+// XXX: Replace it with a timed-callback
 bool uni_hid_device_auto_delete(uni_hid_device_t* d) {
     if (d == NULL) {
         loge("Invalid hid device: NULL\n");
