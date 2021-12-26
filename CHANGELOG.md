@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Update BTStack. Using hash: 0f2a810173d1d70943d1c915bffd6f9b1171e8f6
-- Update ESP-IDF to latest v4.4 version. Using hash: ddc44956bf718540d5451e17e1becf6c7dffe5b8
+- Update ESP-IDF to latest v4.3 version. Using hash: da6c5be6c15e1c1854d91787fa166f426568d678
 - idf.py: uses new ESP-IDF cmake functions, works as intented
 - sdkconfig: removed. Using sdkconfig.defauls now. Easier to mantain.
 - sdkconfig: coredump is stored in flash, and not dumped in UART console.
