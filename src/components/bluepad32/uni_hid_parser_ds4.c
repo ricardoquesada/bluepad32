@@ -244,11 +244,7 @@ static void ds4_send_output_report(uni_hid_device_t* d, ds4_output_report_t* out
     out->transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
     out->report_id = 0x11;         // taken from HID descriptor
     out->unk0[0] = 0xc4;           // HID alone + poll interval
-
-    /* CRC generation */
-    uint32_t crc32 = uni_crc32_le(0xffffffff, &out->transaction_type, 1);
-    crc32 = ~uni_crc32_le(crc32, &out->report_id, sizeof(*out) - 5);
-    out->crc32 = crc32;
+    out->crc32 = ~uni_crc32_le(0xffffffff, (uint8_t*)out, sizeof(*out) - 4);
 
     uni_hid_device_send_intr_report(d, (uint8_t*)out, sizeof(*out));
 }
