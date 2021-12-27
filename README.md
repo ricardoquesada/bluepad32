@@ -12,6 +12,7 @@ Add Bluetooth gamepad support to your projects easily.
 * Or play games in Commodore Amiga ([Unijoysticle2 for the Amiga][amiga])
 * Or play games using [CircuitPython][bp32-circuitpython] in a [MatrixPortal M4][matrixportal] (or any Adafruit board with an AirLift co-processor)
 * Or control a robot using [Arduino][bp32-arduino] in a [Nano RP2040 Connect][rp2040] (or any Arduino board with a NINA co-processor)
+* Or start any Arduino project from this [template][esp-idf-bluepad32-arduino]
 * Or play games in a FPGA console ([ULX3S][ulx3s])
 * etc.
 
@@ -22,6 +23,7 @@ Add Bluetooth gamepad support to your projects easily.
 [rp2040]: https://docs.arduino.cc/hardware/nano-rp2040-connect
 [bp32-arduino]: https://gitlab.com/ricardoquesada/bluepad32-arduino
 [bp32-circuitpython]: https://gitlab.com/ricardoquesada/bluepad32-circuitpython
+[esp-idf-bluepad32-arduino]: https://gitlab.com/ricardoquesada/esp-idf-arduino-bluepad32-template
 
 ## Features
 
