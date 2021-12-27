@@ -1,9 +1,5 @@
 # Bluepad32 firmware for Arduino
 
-**EXPERIMENTAL FEATURE**
-
-These instructions are "volatile". Might significately change in the future.
-
 ## Supported boards
 
 It works on **any ESP32 module** where the [Arduino Core for ESP32][arduino-core] runs.
@@ -12,11 +8,12 @@ In other words, if you already have Arduino working on ESP32 module, you can hav
 But there is catch:
 
 * It only works on ESP-IDF v4.4 or newer
-* Arduino IDE is not supported yet. Only ESP-IDF makefile are supported.
+* Arduino IDE is not supported yet, but you can use [Visual Studio Code + ESP-IDF plugin][vscode-plugin] (highly recommended!)
 
 Are you still interested ? Good, then you must follow these instructions:
 
 [arduino-core]: https://github.com/espressif/arduino-esp32
+[vscode-plugin]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/vscode-setup.html
 
 ## Creating a Bluepad32 Arduino projects
 
