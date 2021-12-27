@@ -6,24 +6,28 @@
 
 A Bluetooth gamepad "host" for the ESP32.
 
-Add Bluetooth gamepad support to your projects easily.
+Add Bluetooth gamepad support to your projects easily. Supported platforms:
 
-* Use gamepads to play games in the Commodore 64 ([Unijoysticle2][unijoysticle2])
-* Or play games in Commodore Amiga ([Unijoysticle2 for the Amiga][amiga])
-* Or play games using [CircuitPython][bp32-circuitpython] in a [MatrixPortal M4][matrixportal] (or any Adafruit board with an AirLift co-processor)
-* Or control a robot using [Arduino][bp32-arduino] in a [Nano RP2040 Connect][rp2040] (or any Arduino board with a NINA co-processor)
-* Or start any Arduino project from this [template][esp-idf-bluepad32-arduino]
-* Or play games in a FPGA console ([ULX3S][ulx3s])
-* etc.
+* Arduino + ESP32 boards:
+  [further info][plat_arduino], [template project][esp-idf-bluepad32-arduino]
+* Arduino + boards with the NINA coprocessor:
+  [further info][plat_nina], [library][bp32-arduino]
+* CircuitPython + boards with the AirLift coprocessor:
+  [further info][plat_airlift], [library][bp32-circuitpython]
+* Or in custom boards like:
+  * [Unijoysticle v2, to play games on the C64][unijoysticle2]
+  * [Unijoysticle v2 for the Amiga][amiga]
+  * [ULX3S][ulx3s], an FPGA console
 
-[unijoysticle2]: https://retro.moe/unijoysticle2/
 [amiga]: https://gitlab.com/SukkoPera/unijoysticle2
-[ulx3s]: https://www.crowdsupply.com/radiona/ulx3s
-[matrixportal]: https://learn.adafruit.com/adafruit-matrixportal-m4
-[rp2040]: https://docs.arduino.cc/hardware/nano-rp2040-connect
 [bp32-arduino]: https://gitlab.com/ricardoquesada/bluepad32-arduino
 [bp32-circuitpython]: https://gitlab.com/ricardoquesada/bluepad32-circuitpython
 [esp-idf-bluepad32-arduino]: https://gitlab.com/ricardoquesada/esp-idf-arduino-bluepad32-template
+[plat_airlift]: docs/plat_airlift.md
+[plat_arduino]: docs/plat_arduino.md
+[plat_nina]: docs/plat_nina.md
+[ulx3s]: https://www.crowdsupply.com/radiona/ulx3s
+[unijoysticle2]: https://retro.moe/unijoysticle2/
 
 ## Features
 
