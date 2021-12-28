@@ -79,6 +79,10 @@ limitations under the License.
 // Arbitrary max number of gamepads that can be connected at the same time
 #define NINA_MAX_GAMEPADS 4
 
+enum {
+    NINA_GAMEPAD_INVALID = -1,
+};
+
 // Instead of using the uni_gamepad, we create one.
 // This is because this "struct" is sent via the wire and the format, padding,
 // etc. must not change.
@@ -120,20 +124,22 @@ static const char FIRMWARE_VERSION[] = "Bluepad32 for NINA v" UNI_VERSION;
 static const char FIRMWARE_VERSION[] = "";
 #endif
 
-static SemaphoreHandle_t _ready_semaphore = NULL;
-static SemaphoreHandle_t _gamepad_mutex = NULL;
-static nina_gamepad_t _gamepads[NINA_MAX_GAMEPADS];
-static volatile uni_gamepad_seat_t _gamepad_seats;
-
 // NINA device "instance"
 typedef struct nina_instance_s {
     // Gamepad index, from 0 to NINA_MAX_GAMEPADS
-    // -1 means gamepad was not assigned yet.
+    // NINA_GAMEPAD_INVALID means gamepad was not assigned yet.
     int8_t gamepad_idx;
 } nina_instance_t;
 _Static_assert(sizeof(nina_instance_t) < HID_DEVICE_MAX_PLATFORM_DATA, "NINA intance too big");
 
+static SemaphoreHandle_t _ready_semaphore = NULL;
+static QueueHandle_t _pending_queue = NULL;
+static SemaphoreHandle_t _gamepad_mutex = NULL;
+static nina_gamepad_t _gamepads[NINA_MAX_GAMEPADS];
+static volatile uni_gamepad_seat_t _gamepad_seats;
+
 static nina_instance_t* get_nina_instance(uni_hid_device_t* d);
+static uint8_t predicate_nina_index(uni_hid_device_t* d, void* data);
 
 //
 //
@@ -158,41 +164,7 @@ typedef struct {
     uint8_t args[8];
 } pending_request_t;
 
-// TODO: Replace this ad-hoc code with xQueue?
-static SemaphoreHandle_t _pending_request_mutex = NULL;
 #define MAX_PENDING_REQUESTS 16
-static pending_request_t _pending_requests[MAX_PENDING_REQUESTS];
-static volatile int _pending_request_tail_idx = 0;
-
-void pending_request_queue(uint8_t device_idx, uint8_t cmd, int args_len, const uint8_t* args) {
-    xSemaphoreTake(_pending_request_mutex, portMAX_DELAY);
-    if (_pending_request_tail_idx >= MAX_PENDING_REQUESTS) {
-        loge("NINA: could not queue pending request. Stack full\n");
-        goto exit;
-    }
-    pending_request_t* request = &_pending_requests[_pending_request_tail_idx];
-    request->device_idx = device_idx;
-    request->cmd = cmd;
-    memcpy(request->args, args, args_len);
-    _pending_request_tail_idx++;
-
-exit:
-    xSemaphoreGive(_pending_request_mutex);
-    return;
-}
-
-// Iterates all over the pending requests, calling the callback with the
-// request, one at the time. And then resets the pending requests.
-typedef void (*pending_request_fn_t)(pending_request_t* r);
-void pending_request_map_and_reset(pending_request_fn_t func) {
-    xSemaphoreTake(_pending_request_mutex, portMAX_DELAY);
-    for (int i = 0; i < _pending_request_tail_idx; i++) {
-        func(&_pending_requests[i]);
-    }
-    // Reset pending requests
-    _pending_request_tail_idx = 0;
-    xSemaphoreGive(_pending_request_mutex);
-}
 
 //
 //
@@ -391,7 +363,12 @@ static int request_set_gamepad_player_leds(const uint8_t command[], uint8_t resp
     // command[5]: param len
     // command[6]: leds
 
-    pending_request_queue(idx, PENDING_REQUEST_CMD_PLAYER_LEDS, 1 /* len */, &command[6]);
+    pending_request_t request = (pending_request_t){
+        .device_idx = idx,
+        .cmd = PENDING_REQUEST_CMD_PLAYER_LEDS,
+        .args[0] = command[6],
+    };
+    xQueueSendToBack(_pending_queue, &request, (TickType_t)0);
 
     // TODO: We really don't know whether this request will succeed
     response[2] = 1;  // Number of parameters
@@ -409,7 +386,14 @@ static int request_set_gamepad_color_led(const uint8_t command[], uint8_t respon
     // command[5]: param len
     // command[6-8]: RGB
 
-    pending_request_queue(idx, PENDING_REQUEST_CMD_LIGHTBAR_COLOR, 3 /* len */, &command[6]);
+    pending_request_t request = (pending_request_t){
+        .device_idx = idx,
+        .cmd = PENDING_REQUEST_CMD_LIGHTBAR_COLOR,
+        .args[0] = command[6],
+        .args[1] = command[7],
+        .args[2] = command[8],
+    };
+    xQueueSendToBack(_pending_queue, &request, (TickType_t)0);
 
     // TODO: We really don't know whether this request will succeed
     response[2] = 1;  // Number of parameters
@@ -427,7 +411,13 @@ static int request_set_gamepad_rumble(const uint8_t command[], uint8_t response[
     // command[5]: param len
     // command[6,7]: force, duration
 
-    pending_request_queue(idx, PENDING_REQUEST_CMD_RUMBLE, 2 /* len */, &command[6]);
+    pending_request_t request = (pending_request_t){
+        .device_idx = idx,
+        .cmd = PENDING_REQUEST_CMD_RUMBLE,
+        .args[0] = command[6],
+        .args[1] = command[7],
+    };
+    xQueueSendToBack(_pending_queue, &request, (TickType_t)0);
 
     // TODO: We really don't know whether this request will succeed
     response[2] = 1;  // Number of parameters
@@ -715,7 +705,37 @@ static void spi_main_loop(void* arg) {
 // BTStack / Bluepad32 are not thread safe.
 // Be extra careful when calling code that runs on the other CPU
 //
-//
+
+static void process_pending_requests(void) {
+    pending_request_t request;
+
+    while (xQueueReceive(_pending_queue, &request, (TickType_t)0) == pdTRUE) {
+        int idx = request.device_idx;
+        uni_hid_device_t* d = uni_hid_device_get_instance_with_predicate(predicate_nina_index, (void*)idx);
+        if (d == NULL) {
+            loge("NINA: device cannot be found while processing pending request\n");
+            return;
+        }
+        switch (request.cmd) {
+            case PENDING_REQUEST_CMD_LIGHTBAR_COLOR:
+                if (d->report_parser.set_lightbar_color != NULL)
+                    d->report_parser.set_lightbar_color(d, request.args[0], request.args[1], request.args[2]);
+                break;
+            case PENDING_REQUEST_CMD_PLAYER_LEDS:
+                if (d->report_parser.set_player_leds != NULL)
+                    d->report_parser.set_player_leds(d, request.args[0]);
+                break;
+
+            case PENDING_REQUEST_CMD_RUMBLE:
+                if (d->report_parser.set_rumble != NULL)
+                    d->report_parser.set_rumble(d, request.args[0], request.args[1]);
+                break;
+
+            default:
+                loge("NINA: Invalid pending command: %d\n", request.cmd);
+        }
+    }
+}
 
 //
 // Platform Overrides
@@ -735,13 +755,15 @@ static void nina_init(int argc, const char** argv) {
 
     // Arduino: digitalWrite(_readyPin, HIGH);
     gpio_set_level(GPIO_READY, 1);
-
-    // Mutex that protects "bridge" between CPU0 and CPU1
-    _pending_request_mutex = xSemaphoreCreateMutex();
-    assert(_pending_request_mutex != NULL);
 }
 
 static void nina_on_init_complete(void) {
+    _gamepad_mutex = xSemaphoreCreateMutex();
+    assert(_gamepad_mutex != NULL);
+
+    _pending_queue = xQueueCreate(MAX_PENDING_REQUESTS, sizeof(pending_request_t));
+    assert(_pending_queue != NULL);
+
     // Create SPI main loop thread
     // In order to not interfere with Bluetooth that runs in CPU0, SPI code
     // should run in CPU1
@@ -751,20 +773,21 @@ static void nina_on_init_complete(void) {
 static void nina_on_device_connected(uni_hid_device_t* d) {
     nina_instance_t* ins = get_nina_instance(d);
     memset(ins, 0, sizeof(*ins));
-    ins->gamepad_idx = -1;
+    ins->gamepad_idx = NINA_GAMEPAD_INVALID;
 }
 
 static void nina_on_device_disconnected(uni_hid_device_t* d) {
     nina_instance_t* ins = get_nina_instance(d);
     // Only process it if the gamepad has been assigned before
-    if (ins->gamepad_idx != -1) {
+    if (ins->gamepad_idx != NINA_GAMEPAD_INVALID) {
         if (ins->gamepad_idx < 0 || ins->gamepad_idx >= NINA_MAX_GAMEPADS) {
             loge("NINA: unexpected gamepad idx, got: %d, want: [0-%d]\n", ins->gamepad_idx, NINA_MAX_GAMEPADS);
             return;
         }
         _gamepad_seats &= ~(1 << ins->gamepad_idx);
-
-        ins->gamepad_idx = -1;
+        memset(&_gamepads[ins->gamepad_idx], 0, sizeof(_gamepads[ins->gamepad_idx]));
+        _gamepads[ins->gamepad_idx].idx = NINA_GAMEPAD_INVALID;
+        ins->gamepad_idx = NINA_GAMEPAD_INVALID;
     }
 }
 
@@ -805,34 +828,6 @@ static uint8_t predicate_nina_index(uni_hid_device_t* d, void* data) {
     return 1;
 }
 
-static void process_pending(pending_request_t* pending) {
-    int idx = pending->device_idx;
-    // FIXME: Not thread safe
-    uni_hid_device_t* d = uni_hid_device_get_instance_with_predicate(predicate_nina_index, (void*)idx);
-    if (d == NULL) {
-        loge("NINA: device cannot be found while processing pending requests\n");
-        return;
-    }
-    switch (pending->cmd) {
-        case PENDING_REQUEST_CMD_LIGHTBAR_COLOR:
-            if (d->report_parser.set_lightbar_color != NULL)
-                d->report_parser.set_lightbar_color(d, pending->args[0], pending->args[1], pending->args[2]);
-            break;
-        case PENDING_REQUEST_CMD_PLAYER_LEDS:
-            if (d->report_parser.set_player_leds != NULL)
-                d->report_parser.set_player_leds(d, pending->args[0]);
-            break;
-
-        case PENDING_REQUEST_CMD_RUMBLE:
-            if (d->report_parser.set_rumble != NULL)
-                d->report_parser.set_rumble(d, pending->args[0], pending->args[1]);
-            break;
-
-        default:
-            loge("NINA: Invalid pending command: %d\n", pending->cmd);
-    }
-}
-
 static void nina_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
     // FIXME:
     // When SPI-slave (CPU1) receives a request that cannot be fulfilled
@@ -840,7 +835,7 @@ static void nina_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
     // this callback. This works because a "gamepad_data" event is generated
     // almost immediately after the SPI-slave request was made. Although unlikely,
     // it could happen that "gamepad_data" gets called after a delay.
-    pending_request_map_and_reset(process_pending);
+    process_pending_requests();
 
     nina_instance_t* ins = get_nina_instance(d);
     if (ins->gamepad_idx < 0 || ins->gamepad_idx >= NINA_MAX_GAMEPADS) {

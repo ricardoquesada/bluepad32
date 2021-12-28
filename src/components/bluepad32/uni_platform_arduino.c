@@ -33,6 +33,7 @@ limitations under the License.
 //
 // Globals
 //
+#define MAX_PENDING_REQUESTS 16
 
 // Arduino device "instance"
 typedef struct arduino_instance_s {
@@ -132,7 +133,7 @@ static void arduino_on_init_complete(void) {
     _gamepad_mutex = xSemaphoreCreateMutex();
     assert(_gamepad_mutex != NULL);
 
-    _pending_queue = xQueueCreate(16, sizeof(pending_request_t));
+    _pending_queue = xQueueCreate(MAX_PENDING_REQUESTS, sizeof(pending_request_t));
     assert(_pending_queue != NULL);
 
     arduino_bootstrap();
