@@ -1,24 +1,22 @@
 build-debian-pc-debug-gcc:
   image: gcc
+  variables:
+    GIT_SUBMODULE_STRATEGY: normal
   stage: build
   before_script:
     - export DEBIAN_FRONTEND=noninteractive
     - apt update
     - apt -y install tzdata
-    - apt -y install make pkg-config libusb-1.0-0-dev git
-    - git submodule update --init
+    - apt -y install make pkg-config libusb-1.0-0-dev
   script:
     - cd tools/pc_debug && make
 
 build-esp-idf-4.4:
   image: espressif/idf:release-v4.4
+  variables:
+    GIT_SUBMODULE_STRATEGY: normal
   stage: build
   before_script:
-    - export DEBIAN_FRONTEND=noninteractive
-    - apt update
-    - apt -y install tzdata
-    - apt -y install git
-    - git submodule update --init
     - pushd .
     - cd external/btstack/port/esp32
     - IDF_PATH=../../../../src/ ./integrate_btstack.py
