@@ -26,5 +26,6 @@ build-esp-idf-4.4:
   script:
     - pushd .
     - cd src
+    - idf.py -DCONFIG_BLUEPAD32_PLATFORM_UNIJOYSTICLE=y reconfigure
     - idf.py build
     - popd
