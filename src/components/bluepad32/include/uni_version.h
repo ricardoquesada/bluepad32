@@ -22,5 +22,3 @@ limitations under the License.
 #define UNI_VERSION "2.4.0"
 
 #endif  // UNI_VERSION_H
-
-xxx must fail on purpose
