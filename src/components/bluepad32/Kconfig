@@ -2,7 +2,7 @@ menu "Bluepad32"
 
     choice BLUEPAD32_PLATFORM
         bool "Target platform"
-        default BLUEPAD32_PLATFORM_MAKEFILE
+        default BLUEPAD32_PLATFORM_UNIJOYSTICLE
         help
             Select the Bluepad32 target platform.
 
