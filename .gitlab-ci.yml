@@ -12,6 +12,7 @@ build-debian-pc-debug-gcc:
 
 build-esp-idf-4.4:
   image: espressif/idf:release-v4.4
+  stage: build
   script:
     - cd src
     - idf.py build
