@@ -26,6 +26,7 @@ build-esp-idf-4.4:
   script:
     - pushd .
     - cd src
-    - idf.py -DCONFIG_BLUEPAD32_PLATFORM_UNIJOYSTICLE=y reconfigure
-    - idf.py build
+    # For more complex examples, see:
+    # https://github.com/espressif/esp-idf/blob/master/examples/build_system/cmake/multi_config/README.md
+    - idf.py -B build_plat_uni -D SDKCONFIG_DEFAULTS="sdkconfig.ci.plat_unijoysticle" build
     - popd
