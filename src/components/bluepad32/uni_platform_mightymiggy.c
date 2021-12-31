@@ -308,8 +308,7 @@ const uint8_t BTN32_START = 1U << 6U;    //!< \a Start/Pause Button
 typedef enum {
     ST_FIRST_READ,  //!< First time the controller is read
 
-    // Main functioning modes - All of these include mouse control with right
-    // stick
+    // Main functioning modes - All of these include mouse control with right stick
     ST_JOYSTICK,       //!< Two-button joystick mode
     ST_CD32,           //!< CD32-controller mode
     ST_JOYSTICK_TEMP,  //!< Just come out of CD32 mode, will it last?
@@ -325,8 +324,7 @@ typedef enum {
     ST_WAIT_BUTTON_RELEASE,           //!< Programmable button released
     ST_WAIT_COMBO_PRESS,              //!< Combo pressed
     ST_WAIT_COMBO_RELEASE,            //!< Combo released
-    ST_WAIT_SELECT_RELEASE_FOR_EXIT,  //!< Wait for select to be released to go
-                                      //!< back to joystick mode
+    ST_WAIT_SELECT_RELEASE_FOR_EXIT,  //!< Wait for select to be released to go back to joystick mode
 } ControllerState;
 
 /** \brief Controller State machine states
@@ -336,13 +334,11 @@ typedef enum {
  */
 typedef enum {
     AST_IDLE,            //!< No controller connected
-    AST_JOY2_ONLY,       //!< One controller connected, controls joystick in port 2 and
-                         //!< mouse in port 1
-    AST_JOY1_ONLY,       //!< We had two controllers, we lost one and we're left with
-                         //!< port 1 only
+    AST_JOY2_ONLY,       //!< One controller connected, controls joystick in port 2 and mouse in port 1
+    AST_JOY1_ONLY,       //!< We had two controllers, we lost one and we're left with port 1 only
     AST_TWO_JOYS,        //!< We have two controllers, both working as joysticks
-    AST_TWO_JOYS_2IDLE,  //!< We have two controllers, the first controls joystick
-                         //!< in port 2 and mouse in port 1, the second is idle
+    AST_TWO_JOYS_2IDLE,  //!< We have two controllers, the first controls joystick in port 2 and mouse in port 1, the
+                         //!< second is idle
 
     // States for factory reset
     AST_FACTORY_RESET_WAIT_1,
@@ -510,8 +506,8 @@ typedef struct RuntimeControllerInfo_s {
 
     /** \brief Button register for CD32 mode being updated
      *
-     * This shall be updated as often as possible, and is what gets sampled when
-     * we get a falling edge on #PIN_PADMODE.
+     * This shall be updated as often as possible, and is what gets sampled when we
+     * get a falling edge on #PIN_PADMODE.
      *
      * 0 means pressed, MSB must be 1 for the ID sequence.
      */
@@ -527,8 +523,8 @@ typedef struct RuntimeControllerInfo_s {
 
     /** \brief Commodore 64 mode
      *
-     * Button 2 on the C64 is usually expected to behave differently from the
-     * other buttons, so that it is HIGH when pressed and LOW when released.
+     * Button 2 on the C64 is usually expected to behave differently from the other
+     * buttons, so that it is HIGH when pressed and LOW when released.
      *
      * If this flag is true, we'll do exactly that.
      */
@@ -536,10 +532,10 @@ typedef struct RuntimeControllerInfo_s {
 
     /** \brief Use alternative CD32 mapping
      *
-     * To me the Red button maps naturally to Square, Blue to Cross and so on.
-     * Some people feel this way buttons are "rotated" with regard to the original
-     * CD32 controller, hence let's give them the possibility to "counter-rotate"
-     * the mapping so that Cross is Red, Circle is Blue and so on.
+     * To me the Red button maps naturally to Square, Blue to Cross and so on. Some
+     * people feel this way buttons are "rotated" with regard to the original CD32
+     * controller, hence let's give them the possibility to "counter-rotate" the
+     * mapping so that Cross is Red, Circle is Blue and so on.
      */
     bool useAlternativeCd32Mapping;
 
@@ -905,8 +901,7 @@ void buttonRelease(const gpio_num_t pin) {
  * \param[out] j Mapped joystick status
  */
 void mapAnalogStickHorizontal(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j) {
-    // Bluepad analog range is [-512, 511] - But it seems to be 1024+ on Wii U Pro
-    // Controller!
+    // Bluepad analog range is [-512, 511] - But it seems to be 1024+ on Wii U Pro Controller!
     j->left = cinfo->leftAnalog.x < -ANALOG_DEAD_ZONE;
     j->right = cinfo->leftAnalog.x > +ANALOG_DEAD_ZONE;
 
@@ -1012,8 +1007,7 @@ void mapJoystickRacing2(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j
     j->right |= buttonPressed(cinfo->buttonWord, BTN_PAD_RIGHT);
     j->left |= buttonPressed(cinfo->buttonWord, BTN_PAD_LEFT);
 
-    // Use D-Pad Up/Shoulder R/Trigger R to accelerate and Down/A/Shoulder
-    // L/Trigger L to brake
+    // Use D-Pad Up/Shoulder R/Trigger R to accelerate and Down/A/Shoulder L/Trigger L to brake
     j->up = buttonPressed(cinfo->buttonWord, BTN_PAD_UP | BTN_SHOULDER_R | BTN_TRIGGER_R);
     j->down = buttonPressed(cinfo->buttonWord, BTN_PAD_DOWN | BTN_A | BTN_SHOULDER_L | BTN_TRIGGER_L);
 
@@ -1041,8 +1035,7 @@ void mapJoystickPlatform(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* 
     mapAnalogStickVertical(cinfo, j);
 
     // D-Pad is fully functional, and A doubles as up/jump
-    j->up = buttonPressed(cinfo->buttonWord,
-                          BTN_PAD_UP | BTN_A);  // Note the '=', will override analog UP
+    j->up = buttonPressed(cinfo->buttonWord, BTN_PAD_UP | BTN_A);  // Note the '=', will override analog UP
     j->down |= buttonPressed(cinfo->buttonWord, BTN_PAD_DOWN);
     j->right |= buttonPressed(cinfo->buttonWord, BTN_PAD_RIGHT);
     j->left |= buttonPressed(cinfo->buttonWord, BTN_PAD_LEFT);
@@ -1317,8 +1310,7 @@ void handleJoystickDirections(RuntimeControllerInfo* cinfo, TwoButtonJoystick* j
     // FIXME: No better place for this? It prevents us from keeping cinfo const
     if (buttonJustPressed(cinfo->buttonWord, cinfo->previousButtonWord, BTN_BACK)) {
         cinfo->useAlternativeCd32Mapping = !cinfo->useAlternativeCd32Mapping;
-        flashLed(cinfo->ledPin,
-                 ((uint8_t)cinfo->useAlternativeCd32Mapping) + 1);  // Flash-saving hack
+        flashLed(cinfo->ledPin, ((uint8_t)cinfo->useAlternativeCd32Mapping) + 1);  // Flash-saving hack
     }
 
     if (cinfo->useAlternativeCd32Mapping) {
@@ -1782,8 +1774,7 @@ void stateMachine(RuntimeControllerInfo* cinfo) {
             if (buttonPressed(cinfo->buttonWord, BTN_BACK)) {
                 // Exit programming mode
                 mmlogi("Leaving programming mode\n");
-                saveConfigurations();  // No need to check for changes as this uses
-                                       // EEPROM.update()
+                saveConfigurations();  // No need to check for changes as this uses EEPROM.update()
                 cinfo->state = ST_WAIT_SELECT_RELEASE_FOR_EXIT;
             } else {
                 buttons = debounceButtons(cinfo->buttonWord, cinfo->previousButtonWord, DEBOUNCE_TIME_BUTTON);
@@ -2262,8 +2253,7 @@ static void mightymiggy_init(int argc, const char** argv) {
     // Init Port GPIOs - All Outputs
     io_conf.intr_type = GPIO_INTR_DISABLE;
     //~ io_conf.mode = GPIO_MODE_OUTPUT;
-    io_conf.mode = GPIO_MODE_INPUT_OUTPUT;  // We need to be able to read the pins
-                                            // in handleMouse()
+    io_conf.mode = GPIO_MODE_INPUT_OUTPUT;  // We need to be able to read the pins in handleMouse()
     io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
     io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
 
@@ -2374,11 +2364,10 @@ static bool seatInUse(uni_gamepad_seat_t seat) {
         }
     }
 
-    //~ ... unless it is a mouse which should try with PORT A. Amiga/Atari ST use
-    //~ mice in PORT A. Undefined on the C64, but most apps use it in PORT A as
-    //~ well.
-    //~ uint32_t mouse_cod = MASK_COD_MAJOR_PERIPHERAL |
-    //~                      MASK_COD_MINOR_POINT_DEVICE;
+    //~ // ... unless it is a mouse which should try with PORT A. Amiga/Atari ST use
+    //~ // mice in PORT A. Undefined on the C64, but most apps use it in PORT A as
+    //~ // well.
+    //~ uint32_t mouse_cod = MASK_COD_MAJOR_PERIPHERAL | MASK_COD_MINOR_POINT_DEVICE;
     //~ if ((d->cod & mouse_cod) == mouse_cod) {
     //~ wanted_seat = GAMEPAD_SEAT_A;
     //~ }
@@ -2771,8 +2760,7 @@ static void mightymiggy_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) 
 
                     adapterState = AST_TWO_JOYS_2IDLE;
 
-                    // First we need to disconnect the joystick in port A from the other
-                    // controller
+                    // First we need to disconnect the joystick in port A from the other controller
                     uni_hid_device_t* dev = getControllerForSeat(GAMEPAD_SEAT_A);
                     if (dev) {
                         RuntimeControllerInfo* cinfoA = getControllerInstance(dev);
@@ -2792,8 +2780,7 @@ static void mightymiggy_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) 
         case AST_TWO_JOYS_2IDLE:
             if (cinfo->seat == GAMEPAD_SEAT_A) {
                 if (buttonPressed(cinfo->buttonWord, BTN_PAD_UP | BTN_PAD_DOWN | BTN_PAD_LEFT | BTN_PAD_RIGHT)) {
-                    // D-Pad pressed on second controller, take over control of joystick
-                    // in port A
+                    // D-Pad pressed on second controller, take over control of joystick in port A
                     mmlogi("Controller 1 taking over second joystick\n");
                     adapterState = AST_TWO_JOYS;
 
