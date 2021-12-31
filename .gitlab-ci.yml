@@ -8,7 +8,7 @@
 # can use verions as well, like gcc:5.2
 # see https://hub.docker.com/_/gcc/
 
-image: gcc
+image: espressif/idf
 
 build:
   stage: build
