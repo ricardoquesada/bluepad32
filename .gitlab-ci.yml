@@ -15,7 +15,7 @@ build:
   # instead of calling g++ directly you can also use some build toolkit like make
   # install the necessary build tools when needed
   before_script:
-    - apt update && apt -y install make pkg-config libusb-dev git
+    - apt update && apt -y install make pkg-config libusb-1.0-0-dev git
     - git submodule update --init
   script:
     - cd tools/pc_debug && make
