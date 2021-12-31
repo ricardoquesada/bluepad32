@@ -8,14 +8,15 @@
 # can use verions as well, like gcc:5.2
 # see https://hub.docker.com/_/gcc/
 
-image: espressif/idf
+image: espressif/idf:release-v4.4
 
 build:
   stage: build
   # instead of calling g++ directly you can also use some build toolkit like make
   # install the necessary build tools when needed
   before_script:
-    - apt update && apt -y install make pkg-config libusb-1.0-0-dev git
+    - DEBIAN_FRONTEND=noninteractive apt update && apt -y install tzdata
+    - apt -y install make pkg-config libusb-1.0-0-dev git
     - git submodule update --init
   script:
     - cd tools/pc_debug && make
