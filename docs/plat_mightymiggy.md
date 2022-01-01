@@ -142,10 +142,12 @@ And download the `bluepad32-mightymiggy.zip`. It includes a README with instruct
 Read [README.md][readme] for the ESP-IDF requirements. And choose `mightymiggy` as the target platform:
 
 ```sh
-$ export PLATFORM=mightymiggy
+# Select MightyMiggy platform:
+# Components config -> Bluepad32 -> Target Platform -> MightyMiggy
+idf.py menuconfig
 
-# And then compile it
-$ make -j
+# Compile it
+idf.py build
 ```
 
 Please refer to the [general instructions][flashing] for more information on compiling and flashing.

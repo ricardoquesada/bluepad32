@@ -77,17 +77,19 @@ Unzip it, and follow the instructions described in the `README.md` file.
 
 ### 3. Or compile it yourself and flash it
 
-Make sure you have installed the requirements described here: [README.md][readme].
+Install the requirements described here: [README.md][readme].
 
 Chose `airlift` as the target platform:
 
 ```sh
-$ cd {BLUEPAD32}/src/
+cd {BLUEPAD32}/src/
 
-$ export PLATFORM=airlift
+# Select AirLift platform:
+# Components config -> Bluepad32 -> Target Platform -> AirLift
+idf.py menuconfig
 
 # And then compile it!
-$ make -j
+idf.py build
 ```
 
 To flash it, you have to use the `--before no_reset` option:
@@ -96,9 +98,9 @@ To flash it, you have to use the `--before no_reset` option:
 # Flash it!
 
 # Port might be different
-$ export ESPPORT=/dev/ttyACM0
+export ESPPORT=/dev/ttyACM0
 
-$ esptool.py --port ${ESPPORT} --baud 115200 --before no_reset write_flash 0x1000 ./build/bootloader/bootloader.bin 0x10000 ./build/bluepad32-airlift.bin 0x8000 ./build/partitions_singleapp.bin
+esptool.py --port ${ESPPORT} --baud 115200 --before no_reset write_flash 0x1000 ./build/bootloader/bootloader.bin 0x10000 ./build/bluepad32-airlift.bin 0x8000 ./build/partitions_singleapp.bin
 ```
 
 [readme]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/README.md

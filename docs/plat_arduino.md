@@ -28,6 +28,8 @@ There are three ways to setup a Bluepad32 Arduino project:
 
 ## Option A: Clone the template project
 
+This is the **RECOMMENDED OPTION**.
+
 ```sh
 git clone --recursive https://gitlab.com/ricardoquesada/esp-idf-arduino-bluepad32-template.git my_project
 ```
@@ -37,7 +39,11 @@ git clone --recursive https://gitlab.com/ricardoquesada/esp-idf-arduino-bluepad3
 To test it just do:
 
 ```sh
-make flash monitor
+# To compile it do:
+idf.py make
+
+# To flash it do:
+idf.py flash monitor
 ```
 
 ## Option B: Create your a project from scratch
@@ -45,32 +51,44 @@ make flash monitor
 Use this option if you want to understand how the "template" project (from Option A) was
 created.
 
-It is split in 3 parts:
+It is split in 4 parts:
 
-* Install the needed components (you have to do it just once)
-* Create an empty project (needed for each new project )
-* Copy the "Bluepad32-Arduino" API files to your project (needed for each new project)
+* Create an empty project
+* Install the needed components
+* Update configuration
+* Copy the "main Arduino" files to your project
+
+### Create an empty ESP-IDF project
+
+Create an ESP-IDF project from template:
+
+```sh
+# One simiple way to start a new ESP-IDF project, is to clone the "template" project
+git clone --recursive https://github.com/espressif/esp-idf-template my_project
+```
 
 ### Installing components
 
-Include the following components in `$IDF_PATH/components` folder (or in your project's `components` folder if you prefer)
+Include the following components in your project's `components` folder:
 
 * arduino
 * bluepad32
+* bluepad32_arduino
 * btstack
 
 Arduino component:
 
 ```sh
-cd $IDF_PATH/components/
+cd ${MYPROJECT}/components/
 git clone --recursive https://github.com/espressif/arduino-esp32.git arduino
 ```
 
-Bluepad32 component:
+Bluepad32 / Bluepad32_arduino component:
 
 ```sh
-# Just copy bluepad32 component to $IDF_PATH/components
-cp -r ${BLUEPAD32}/src/components/bluepad32 $IDF_PATH/components
+# Just copy bluepad32 component to your project's component folder
+cp -r ${BLUEPAD32}/src/components/bluepad32 ${MYPROJECT}/components
+cp -r ${BLUEPAD32}/src/components/bluepad32_arduino ${MYPROJECT}/components
 ```
 
 BTStack component:
@@ -80,20 +98,13 @@ cd ${BLUEPAD32}/external/btstack/port/esp32
 ./integrate_btstack.py
 ```
 
-### Create an empty ESP-IDF project
-
-Create an ESP-IDF project:
-
-```sh
-# One simiple way to start a new ESP-IDF project, is to clone the "template" project
-git clone --recursive https://github.com/espressif/esp-idf-template my_project
-```
+### Update configuration
 
 And then do:
 
-1. Add `set(ENV{BLUEPAD32_ARDUINO} TRUE)` to your main CMakelists.txt
-2. `make menuconfig`
-3. Select "Bluepad32 Configuration" and then select "Arduino"
+1. Add `set(ENV{BLUEPAD32_ARDUINO} TRUE)` to your main `CMakelists.txt`
+2. `idf.py menuconfig`
+3. Select "Components config" -> "Bluepad32" -> "Target platform" -> "Arduino"
 
    ![bluepad32-arduino](https://lh3.googleusercontent.com/pw/AM-JKLXm9ZyIvTKiTUlFBCT9QSaduKrhGZTXrWdR7G7F6krTHjkHJhpeGTXek_MCV3ZcXHCA8wnhxFAdDvQ_MbbGVMQY2AD58DK3DyK-_Cxua7BKHbvp8zkjtkcr87czftE7ySiCCUEcb6uSuMr9KY96JjQe-g=-no)
 
@@ -120,7 +131,6 @@ And then do:
      ![sdkconfig-bluetooth](https://lh3.googleusercontent.com/pw/AM-JKLVOfishwCTAmGZN2owF0TNiTNVOlCR0DZf7PqUZprM0ujp_iM1e-tYMqDbhZKSe5zvJD4K4PCZJ-SuqO4IGnamgQL79vanzfvpItspvztGlsl0t_FlEkDYmif6q0WgbS6XCH7qrS0iM5LtqNxDySAWJhg=-no)
 
      ![sdkconfig-bluetooth2](https://lh3.googleusercontent.com/pw/AM-JKLUqEgrT5sF48hKUkmMsP2-9QzV6-JgyYyKwBfZA7GxjwOtQrDqYXvRE3R5tL7SQsAqRurXCiFqHoPU3k9noCtB-k_ZzJ4F_vqKqb9HVJXpI0ZkR5nJv8SzJ959LEmjjX9QaUteHpoJvbdHsiU-0TPoF8w=-no)
-
 
 6. Set these ESP32 options:
    * "Component Config" -> "ESP32-specific"
