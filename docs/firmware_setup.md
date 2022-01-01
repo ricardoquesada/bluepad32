@@ -23,13 +23,13 @@ And:
 
 ```sh
 # macOS
-$ export ESPPORT=/dev/cu.SLAB_USBtoUART
+export ESPPORT=/dev/cu.SLAB_USBtoUART
 # Linux
-$ export ESPPORT=/dev/ttyUSB0
+export ESPPORT=/dev/ttyUSB0
 # Windows
-$ export ESPPORT=COM??  #??? Try different ones
+set ESPPORT=COM??  #??? Try different ones
 
-$ esptool.py --port ${ESPPORT} --baud 115200 --before default_reset --after hard_reset write_flash 0x0000 bluepad32-unijoysticle-full.bin
+esptool.py --port ${ESPPORT} --baud 115200 --before default_reset --after hard_reset write_flash 0x0000 bluepad32-unijoysticle-full.bin
 ```
 
 ## GUI (ESP32 Flash Tool)
@@ -50,28 +50,28 @@ A tutorial that explains how to use and from where to download is here:
 
 **macOS**: The Linux instructions should work, but not %100 sure.
 
-**Windows**:
-NOT supported. Install [Linux Subsystem for Windows](https://docs.microsoft.com/en-us/windows/wsl/install-win10) and do the compilation/flashing from Linux.
+**Windows**:  Follow these instructions: [ESP-IDF for Windows][esp-idf-windows]
 
+[esp-idf-windows]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/windows-setup.html
 
 ## 1. Download
 
 ### Download Bluepad32
 
 ```sh
-$ git clone --recursive https://gitlab.com/ricardoquesada/bluepad32.git
+git clone --recursive https://gitlab.com/ricardoquesada/bluepad32.git
 ```
 
 ### Download ESP-IDF
 
-Make sure to check latest info from here: https://docs.espressif.com/projects/esp-idf/en/stable/esp32/get-started/index.html
+Check latest info from here: https://docs.espressif.com/projects/esp-idf/en/stable/esp32/get-started/index.html
 
 ```sh
 # Needs to be done just once
 # 1. Clone the ESP-IDF git repo
 $ mkdir -p ~/esp
 $ cd ~/esp
-$ git clone -b v4.2 --recursive https://github.com/espressif/esp-idf.git
+$ git clone -b release/v4.3 --recursive https://github.com/espressif/esp-idf.git
 
 # 2. And then install the toolchain
 $ cd ~/esp/esp-idf
@@ -86,8 +86,9 @@ $ source ~/esp/esp-idf/export.sh
 ### Optional: Download libusb
 
 Only if you target Linux as a device (not a ESP32 device):
+
 ```sh
-$ sudo apt install libusb-1.0.0-dev
+sudo apt install libusb-1.0.0-dev
 ```
 
 ## 2. Compile
@@ -95,15 +96,15 @@ $ sudo apt install libusb-1.0.0-dev
 ### Integrate BTstack for ESP32
 
 ```sh
-$ cd bluepad32/external/btstack/port/esp32
-$ ./integrate_btstack.py
+cd ${BLUEPAD32}/external/btstack/port/esp32
+./integrate_btstack.py
 ```
 
 ### Optional: Compile BTStack for Linux as target
 
 ```sh
-$ cd bluepad32/external/btstack/port/libusb
-$ make
+cd ${BLUEPAD32}/external/btstack/port/libusb
+make
 ```
 
 ### Compile Bluepad32
@@ -113,22 +114,24 @@ $ make
 #### Bluepad32 for ESP32 as target
 
 ```sh
-$ cd bluepad32/src
+cd ${BLUEPAD32}/src
 # Choose target platform: unijoysticle, airlift, etc.
-$ export PLATFORM=unijoysticle
+# Go to: Components config -> Bluepad32 (find it at the very bottom) -> Target platform
+idf.py menuconfig
+ 
 # Choose the correct port. Might vary.
-$ export ESPPORT=/dev/ttyUSB0
-$ make -j
-$ make flash monitor
+export ESPPORT=/dev/ttyUSB0
+idf.py build
+idf.py flash monitor
 ```
 
 #### Optional: Bluepad32 for Linux as target
 
 ```sh
-# Optional: Only if you are targeting Linux as a device
-$ cd bluepad32/tools/pc_debug
-$ make -j
-$ sudo ./bluepad32
+# Optional: Only if you are targeting Linux as a device (this is not for the ESP32!)
+cd ${BLUEPAD32}/tools/pc_debug
+make
+sudo ./bluepad32
 ```
 
 Put the gamepad in discovery mode. The gamepad should be recognized and when you press buttons, you should see them on the console.

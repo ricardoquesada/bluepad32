@@ -91,7 +91,7 @@ See: [Supported gamepads][gamepads]
     ```
 
     The Bluepad32 options are in:
-    `Components config` -> `Bluepad32` (usually it is at the very bottom) -> `Target platform`
+    `Components config` -> `Bluepad32` (find it at the very bottom) -> `Target platform`
 
     And compile it:
 
