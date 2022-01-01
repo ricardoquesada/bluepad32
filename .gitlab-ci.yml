@@ -15,7 +15,7 @@ build-debian-pc-debug-gcc:
     - cd tools/pc_debug && make
 
 build-ubuntu-pc-debug-clang:
-  image: ubuntu
+  image: espressif/idf
   variables:
     GIT_SUBMODULE_STRATEGY: normal
   stage: build
@@ -23,7 +23,7 @@ build-ubuntu-pc-debug-clang:
     - export DEBIAN_FRONTEND=noninteractive
     - apt update
     - apt -y install tzdata
-    - apt -y install clang --install-suggests
+    - apt -y install clang
     - apt -y install make pkg-config libusb-1.0-0-dev
   script:
     - cd tools/pc_debug && CC=clang make
