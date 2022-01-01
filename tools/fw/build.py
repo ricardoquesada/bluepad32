@@ -9,7 +9,7 @@ import subprocess
 
 
 class Distro:
-    def __init__(self, platform, version=""):
+    def __init__(self, platform, version="", clean=False):
         # List of platforms to build
         if platform == "all":
             # "arduino" platform is not added since it doesn't make sense to
@@ -20,11 +20,13 @@ class Distro:
             self._platforms = (platform,)
 
         self._version = version
+        self._do_clean = clean
 
     def build(self) -> None:
 
         for p in self._platforms:
-            self._clean(p)
+            if self._do_clean:
+                self._clean(p)
             self._build(p)
             self._combine(p)
             self._dist(p)
@@ -134,13 +136,19 @@ $ %(prog)s --set-version v2.0.0 unijoysticle
         help="Platform to build for",
     )
 
+    parser.add_argument(
+        "--clean",
+        action="store_true",
+        help="Perform an 'idf.py clean' before building"
+    )
+
     args = parser.parse_args()
     return args
 
 
 def main():
     args = parse_args()
-    Distro(args.platform, version=args.set_version).build()
+    Distro(args.platform, version=args.set_version, clean=args.clean).build()
 
 
 if __name__ == "__main__":

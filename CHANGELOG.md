@@ -7,16 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] - 2022-??
 ### New
 - tools/pc_debug: Integrate into Gitlab CI
+- tools/fw: add --clean argument to build.py
 
 ### Changed
 
 - Update BTStack to 1.5.1. Using hash: d778e7488c62d361fc176e8ae40c0d6bc8b00089
+- Doc: Updated to use idf.py instead of make
+- tools/fw: build.py uses idf.py instead of make
 
 ### Fixed
-- NINA/AirLift:
-    - Disconnect works as expected.
-    - Replaced custom "queue" code with FreeRTOS xQueue
 
+- NINA/AirLift:
+  - Disconnect works as expected.
+  - Replaced custom "queue" code with FreeRTOS xQueue
 
 ## [2.4.0] - 2021-12-26
 ### New
