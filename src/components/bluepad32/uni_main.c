@@ -39,5 +39,8 @@ int uni_main(int argc, const char** argv) {
     // Continue with bluetooth setup.
     uni_bluetooth_init();
 
+    // Does not return.
+    btstack_run_loop_execute();
+
     return 0;
 }
