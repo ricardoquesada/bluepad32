@@ -22,6 +22,7 @@ limitations under the License.
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
 
+#include "sdkconfig.h"
 #include "uni_bluetooth.h"
 #include "uni_config.h"
 #include "uni_debug.h"
@@ -37,7 +38,7 @@ limitations under the License.
 
 // Arduino device "instance"
 typedef struct arduino_instance_s {
-    // Gamepad index, from 0 to ARDUINO_MAX_GAMEPADS
+    // Gamepad index, from 0 to CONFIG_BLUEPAD32_MAX_DEVICES
     // -1 means gamepad was not assigned yet.
     // It is used to map "_gamepads" to the uni_hid_device.
     int8_t gamepad_idx;
@@ -46,7 +47,7 @@ _Static_assert(sizeof(arduino_instance_t) < HID_DEVICE_MAX_PLATFORM_DATA, "Ardui
 
 static QueueHandle_t _pending_queue = NULL;
 static SemaphoreHandle_t _gamepad_mutex = NULL;
-static arduino_gamepad_t _gamepads[ARDUINO_MAX_GAMEPADS];
+static arduino_gamepad_t _gamepads[CONFIG_BLUEPAD32_MAX_DEVICES];
 static volatile uni_gamepad_seat_t _gamepad_seats;
 
 static arduino_instance_t* get_arduino_instance(uni_hid_device_t* d);
@@ -67,7 +68,7 @@ typedef enum {
 } pending_request_cmd_t;
 
 typedef struct {
-    // Gamepad index: from 0 to ARDUINO_MAX_GAMEPADS-1
+    // Gamepad index: from 0 to CONFIG_BLUEPAD32_MAX_DEVICES-1
     uint8_t gamepad_idx;
     pending_request_cmd_t cmd;
     // Must have enough space to hold at least 3 arguments: red, green, blue
@@ -83,7 +84,7 @@ typedef struct {
 
 static void arduino_init(int argc, const char** argv) {
     memset(&_gamepads, 0, sizeof(_gamepads));
-    for (int i = 0; i < ARDUINO_MAX_GAMEPADS; i++)
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++)
         _gamepads[i].idx = UNI_ARDUINO_GAMEPAD_INVALID;
 }
 
@@ -149,8 +150,9 @@ static void arduino_on_device_disconnected(uni_hid_device_t* d) {
     arduino_instance_t* ins = get_arduino_instance(d);
     // Only process it if the gamepad has been assigned before
     if (ins->gamepad_idx != UNI_ARDUINO_GAMEPAD_INVALID) {
-        if (ins->gamepad_idx < 0 || ins->gamepad_idx >= ARDUINO_MAX_GAMEPADS) {
-            loge("Arduino: unexpected gamepad idx, got: %d, want: [0-%d]\n", ins->gamepad_idx, ARDUINO_MAX_GAMEPADS);
+        if (ins->gamepad_idx < 0 || ins->gamepad_idx >= CONFIG_BLUEPAD32_MAX_DEVICES) {
+            loge("Arduino: unexpected gamepad idx, got: %d, want: [0-%d]\n", ins->gamepad_idx,
+                 CONFIG_BLUEPAD32_MAX_DEVICES);
             return;
         }
         _gamepad_seats &= ~(1 << ins->gamepad_idx);
@@ -174,7 +176,7 @@ static int arduino_on_device_ready(uni_hid_device_t* d) {
     }
 
     // Find first available gamepad
-    for (int i = 0; i < ARDUINO_MAX_GAMEPADS; i++) {
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         if ((_gamepad_seats & (1 << i)) == 0) {
             ins->gamepad_idx = i;
             _gamepad_seats |= (1 << i);
@@ -193,8 +195,9 @@ static void arduino_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
     process_pending_requests();
 
     arduino_instance_t* ins = get_arduino_instance(d);
-    if (ins->gamepad_idx < 0 || ins->gamepad_idx >= ARDUINO_MAX_GAMEPADS) {
-        loge("Arduino: unexpected gamepad idx, got: %d, want: [0-%d]\n", ins->gamepad_idx, ARDUINO_MAX_GAMEPADS);
+    if (ins->gamepad_idx < 0 || ins->gamepad_idx >= CONFIG_BLUEPAD32_MAX_DEVICES) {
+        loge("Arduino: unexpected gamepad idx, got: %d, want: [0-%d]\n", ins->gamepad_idx,
+             CONFIG_BLUEPAD32_MAX_DEVICES);
         return;
     }
 
@@ -224,7 +227,7 @@ static int32_t arduino_get_property(uni_platform_property_t key) {
 // CPU 1 - Application (Arduino) process
 //
 int arduino_get_gamepad_data(int idx, arduino_gamepad_t* out_gp) {
-    if (idx < 0 || idx >= ARDUINO_MAX_GAMEPADS)
+    if (idx < 0 || idx >= CONFIG_BLUEPAD32_MAX_DEVICES)
         return UNI_ARDUINO_ERROR;
     if (_gamepads[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID)
         return UNI_ARDUINO_ERROR;
@@ -237,7 +240,7 @@ int arduino_get_gamepad_data(int idx, arduino_gamepad_t* out_gp) {
 }
 
 int arduino_set_player_leds(int idx, uint8_t leds) {
-    if (idx < 0 || idx >= ARDUINO_MAX_GAMEPADS)
+    if (idx < 0 || idx >= CONFIG_BLUEPAD32_MAX_DEVICES)
         return UNI_ARDUINO_ERROR;
     if (_gamepads[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID)
         return UNI_ARDUINO_ERROR;
@@ -253,7 +256,7 @@ int arduino_set_player_leds(int idx, uint8_t leds) {
 }
 
 int arduino_set_lightbar_color(int idx, uint8_t r, uint8_t g, uint8_t b) {
-    if (idx < 0 || idx >= ARDUINO_MAX_GAMEPADS)
+    if (idx < 0 || idx >= CONFIG_BLUEPAD32_MAX_DEVICES)
         return UNI_ARDUINO_ERROR;
     if (_gamepads[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID)
         return UNI_ARDUINO_ERROR;
@@ -271,7 +274,7 @@ int arduino_set_lightbar_color(int idx, uint8_t r, uint8_t g, uint8_t b) {
 }
 
 int arduino_set_rumble(int idx, uint8_t force, uint8_t duration) {
-    if (idx < 0 || idx >= ARDUINO_MAX_GAMEPADS)
+    if (idx < 0 || idx >= CONFIG_BLUEPAD32_MAX_DEVICES)
         return UNI_ARDUINO_ERROR;
     if (_gamepads[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID)
         return UNI_ARDUINO_ERROR;

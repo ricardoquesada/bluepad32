@@ -46,6 +46,15 @@ menu "Bluepad32"
 
     endchoice
 
+    config BLUEPAD32_MAX_DEVICES
+        int  "Maximum of connected gamepads"
+        default 4
+        help
+        The maximum number of gamepads that can be connected at the same time.
+
+        This limit is defined at compile-time because Bluepad32 tries not to use malloc.
+        The higher the number, the more RAM it will take.
+
     config BLUEPAD32_GAP_SECURITY
         bool "Enable GAP Security"
         default y

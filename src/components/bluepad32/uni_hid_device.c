@@ -21,6 +21,7 @@ limitations under the License.
 #include <stdbool.h>
 #include <sys/time.h>
 
+#include "sdkconfig.h"
 #include "uni_circular_buffer.h"
 #include "uni_config.h"
 #include "uni_debug.h"
@@ -50,7 +51,7 @@ enum {
     FLAGS_HAS_CONTROLLER_TYPE = (1 << 13),
 };
 
-static uni_hid_device_t g_devices[UNI_HID_DEVICE_MAX_DEVICES];
+static uni_hid_device_t g_devices[CONFIG_BLUEPAD32_MAX_DEVICES];
 static uni_hid_device_t* g_sdp_device = NULL;
 static struct timeval g_sdp_start_time;
 static const bd_addr_t zero_addr = {0, 0, 0, 0, 0, 0};
@@ -63,7 +64,7 @@ void uni_hid_device_init(void) {
 }
 
 uni_hid_device_t* uni_hid_device_create(bd_addr_t address) {
-    for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         if (bd_addr_cmp(g_devices[i].conn.remote_addr, zero_addr) == 0) {
             memset(&g_devices[i], 0, sizeof(g_devices[i]));
             memcpy(g_devices[i].conn.remote_addr, address, 6);
@@ -75,7 +76,7 @@ uni_hid_device_t* uni_hid_device_create(bd_addr_t address) {
 }
 
 uni_hid_device_t* uni_hid_device_get_instance_for_address(bd_addr_t addr) {
-    for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         if (bd_addr_cmp(addr, g_devices[i].conn.remote_addr) == 0) {
             return &g_devices[i];
         }
@@ -86,7 +87,7 @@ uni_hid_device_t* uni_hid_device_get_instance_for_address(bd_addr_t addr) {
 uni_hid_device_t* uni_hid_device_get_instance_for_cid(uint16_t cid) {
     if (cid == 0)
         return NULL;
-    for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         if (g_devices[i].conn.interrupt_cid == cid || g_devices[i].conn.control_cid == cid)
             return &g_devices[i];
     }
@@ -96,7 +97,7 @@ uni_hid_device_t* uni_hid_device_get_instance_for_cid(uint16_t cid) {
 uni_hid_device_t* uni_hid_device_get_instance_for_hids_cid(uint16_t cid) {
     if (cid == 0)
         return NULL;
-    for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         if (g_devices[i].hids_cid == cid)
             return &g_devices[i];
     }
@@ -106,7 +107,7 @@ uni_hid_device_t* uni_hid_device_get_instance_for_hids_cid(uint16_t cid) {
 uni_hid_device_t* uni_hid_device_get_instance_for_connection_handle(hci_con_handle_t handle) {
     if (handle == 0)
         return NULL;
-    for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         if (g_devices[i].conn.handle == handle) {
             return &g_devices[i];
         }
@@ -115,13 +116,13 @@ uni_hid_device_t* uni_hid_device_get_instance_for_connection_handle(hci_con_hand
 }
 
 uni_hid_device_t* uni_hid_device_get_instance_for_idx(int idx) {
-    if (idx < 0 || idx >= UNI_HID_DEVICE_MAX_DEVICES)
+    if (idx < 0 || idx >= CONFIG_BLUEPAD32_MAX_DEVICES)
         return NULL;
     return &g_devices[idx];
 }
 
 uni_hid_device_t* uni_hid_device_get_instance_with_predicate(uni_hid_device_predicate_t predicate, void* data) {
-    for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         // Only "ready" devices are propagated
         if (uni_bt_conn_get_state(&g_devices[i].conn) != UNI_BT_CONN_STATE_DEVICE_READY)
             continue;
@@ -132,7 +133,7 @@ uni_hid_device_t* uni_hid_device_get_instance_with_predicate(uni_hid_device_pred
 }
 
 uni_hid_device_t* uni_hid_device_get_first_device_with_state(uni_bt_conn_state_t state) {
-    for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         if ((bd_addr_cmp(g_devices[i].conn.remote_addr, zero_addr) != 0) &&
             uni_bt_conn_get_state(&g_devices[i].conn) == state)
             return &g_devices[i];
@@ -174,7 +175,7 @@ void uni_hid_device_set_ready(uni_hid_device_t* d) {
 void uni_hid_device_remove_entry_with_channel(uint16_t channel) {
     if (channel == 0)
         return;
-    for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         if (g_devices[i].conn.control_cid == channel || g_devices[i].conn.interrupt_cid == channel) {
             memset(&g_devices[i], 0, sizeof(g_devices[i]));
             break;
@@ -183,7 +184,7 @@ void uni_hid_device_remove_entry_with_channel(uint16_t channel) {
 }
 
 void uni_hid_device_request_inquire(void) {
-    for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         // retry remote name request
         if (uni_bt_conn_get_state(&g_devices[i].conn) == UNI_BT_CONN_STATE_REMOTE_NAME_INQUIRED)
             uni_bt_conn_set_state(&g_devices[i].conn, UNI_BT_CONN_STATE_REMOTE_NAME_REQUEST);
@@ -365,7 +366,7 @@ void uni_hid_device_dump_device(uni_hid_device_t* d) {
 
 void uni_hid_device_dump_all(void) {
     logi("Connected devices:\n");
-    for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         if (bd_addr_cmp(g_devices[i].conn.remote_addr, zero_addr) == 0)
             continue;
         uni_hid_device_dump_device(&g_devices[i]);

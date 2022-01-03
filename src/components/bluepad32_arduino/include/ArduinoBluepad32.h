@@ -24,7 +24,7 @@ class Bluepad32 {
     int _prevConnectedGamepads;
 
     // This is what the user receives
-    Gamepad _gamepads[ARDUINO_MAX_GAMEPADS];
+    Gamepad _gamepads[CONFIG_BLUEPAD32_MAX_DEVICES];
 
     GamepadCallback _onConnect;
     GamepadCallback _onDisconnect;

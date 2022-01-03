@@ -75,10 +75,6 @@ limitations under the License.
 #define GPIO_READY GPIO_NUM_33
 #define DMA_CHANNEL 1
 
-// Gamepad related
-// Arbitrary max number of gamepads that can be connected at the same time
-#define NINA_MAX_GAMEPADS 4
-
 enum {
     NINA_GAMEPAD_INVALID = -1,
 };
@@ -126,7 +122,7 @@ static const char FIRMWARE_VERSION[] = "";
 
 // NINA device "instance"
 typedef struct nina_instance_s {
-    // Gamepad index, from 0 to NINA_MAX_GAMEPADS
+    // Gamepad index, from 0 to CONFIG_BLUEPAD32_MAX_DEVICES
     // NINA_GAMEPAD_INVALID means gamepad was not assigned yet.
     int8_t gamepad_idx;
 } nina_instance_t;
@@ -135,7 +131,7 @@ _Static_assert(sizeof(nina_instance_t) < HID_DEVICE_MAX_PLATFORM_DATA, "NINA int
 static SemaphoreHandle_t _ready_semaphore = NULL;
 static QueueHandle_t _pending_queue = NULL;
 static SemaphoreHandle_t _gamepad_mutex = NULL;
-static nina_gamepad_t _gamepads[NINA_MAX_GAMEPADS];
+static nina_gamepad_t _gamepads[CONFIG_BLUEPAD32_MAX_DEVICES];
 static volatile uni_gamepad_seat_t _gamepad_seats;
 
 static nina_instance_t* get_nina_instance(uni_hid_device_t* d);
@@ -336,7 +332,7 @@ static int request_gamepads_data(const uint8_t command[], uint8_t response[]) {
 
     int total_gamepads = 0;
     int offset = 3;
-    for (int i = 0; i < NINA_MAX_GAMEPADS; i++) {
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         if (_gamepad_seats & (1 << i)) {
             total_gamepads++;
             // Update param len
@@ -780,8 +776,9 @@ static void nina_on_device_disconnected(uni_hid_device_t* d) {
     nina_instance_t* ins = get_nina_instance(d);
     // Only process it if the gamepad has been assigned before
     if (ins->gamepad_idx != NINA_GAMEPAD_INVALID) {
-        if (ins->gamepad_idx < 0 || ins->gamepad_idx >= NINA_MAX_GAMEPADS) {
-            loge("NINA: unexpected gamepad idx, got: %d, want: [0-%d]\n", ins->gamepad_idx, NINA_MAX_GAMEPADS);
+        if (ins->gamepad_idx < 0 || ins->gamepad_idx >= CONFIG_BLUEPAD32_MAX_DEVICES) {
+            loge("NINA: unexpected gamepad idx, got: %d, want: [0-%d]\n", ins->gamepad_idx,
+                 CONFIG_BLUEPAD32_MAX_DEVICES);
             return;
         }
         _gamepad_seats &= ~(1 << ins->gamepad_idx);
@@ -805,7 +802,7 @@ static int nina_on_device_ready(uni_hid_device_t* d) {
     }
 
     // Find first available gamepad
-    for (int i = 0; i < NINA_MAX_GAMEPADS; i++) {
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         if ((_gamepad_seats & (1 << i)) == 0) {
             ins->gamepad_idx = i;
             _gamepad_seats |= (1 << i);
@@ -838,8 +835,8 @@ static void nina_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
     process_pending_requests();
 
     nina_instance_t* ins = get_nina_instance(d);
-    if (ins->gamepad_idx < 0 || ins->gamepad_idx >= NINA_MAX_GAMEPADS) {
-        loge("NINA: unexpected gamepad idx, got: %d, want: [0-%d]\n", ins->gamepad_idx, NINA_MAX_GAMEPADS);
+    if (ins->gamepad_idx < 0 || ins->gamepad_idx >= CONFIG_BLUEPAD32_MAX_DEVICES) {
+        loge("NINA: unexpected gamepad idx, got: %d, want: [0-%d]\n", ins->gamepad_idx, CONFIG_BLUEPAD32_MAX_DEVICES);
         return;
     }
 

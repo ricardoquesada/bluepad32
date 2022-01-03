@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update BTStack to 1.5.1. Using hash: d778e7488c62d361fc176e8ae40c0d6bc8b00089
 - Doc: Updated to use idf.py instead of make
 - tools/fw: build.py uses idf.py instead of make
+- Kconfig: The max number of connected gamepads can be changed from menuconfig
 
 ### Fixed
 
