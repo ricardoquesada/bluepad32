@@ -19,7 +19,10 @@ limitations under the License.
 #ifndef UNI_BLUETOOTH_H
 #define UNI_BLUETOOTH_H
 
+#include <stdbool.h>
+
 int uni_bluetooth_init(void);
 void uni_bluetooth_del_keys(void);
+void uni_bluetooth_set_enable_new_connections(bool enabled);
 
 #endif  // UNI_BLUETOOTH_H

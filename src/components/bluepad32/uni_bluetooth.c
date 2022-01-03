@@ -85,6 +85,8 @@ static btstack_packet_callback_registration_t hci_event_callback_registration;
 static btstack_packet_callback_registration_t sm_event_callback_registration;
 static hid_protocol_mode_t protocol_mode = HID_PROTOCOL_MODE_REPORT;
 
+static bool accept_incoming_connections = true;
+
 static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
 static void handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
 static void handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
@@ -93,6 +95,7 @@ static void continue_remote_names(void);
 static bool adv_event_contains_hid_service(const uint8_t* packet);
 static void hog_connect(bd_addr_t addr, bd_addr_type_t addr_type);
 static void start_scan(void);
+static void stop_scan(void);
 static void sdp_query_hid_descriptor(uni_hid_device_t* device);
 static void sdp_query_product_id(uni_hid_device_t* device);
 static void list_link_keys(void);
@@ -229,6 +232,10 @@ static void handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, u
             uni_bt_conn_set_state(&device->conn, UNI_BT_CONN_STATE_SDP_VENDOR_FETCHED);
             fsm_process(device);
             break;
+        default:
+            // TODO: xxx
+            logd("TODO: handle_sdp_pid_query_result. switch->default triggered\n");
+            break;
     }
 }
 
@@ -276,7 +283,7 @@ static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint
 }
 
 static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
-    static uint8_t bt_ready = 0;
+    static bool bt_ready = false;
 
     uint8_t event;
     bd_addr_t event_addr;
@@ -300,7 +307,7 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
                 case BTSTACK_EVENT_STATE:
                     if (btstack_event_state_get_state(packet) == HCI_STATE_WORKING) {
                         uni_get_platform()->on_init_complete();
-                        bt_ready = 1;
+                        bt_ready = true;
                         gap_local_bd_addr(event_addr);
                         logi("BTstack up and running on %s.\n", bd_addr_to_str(event_addr));
                         list_link_keys();
@@ -774,6 +781,12 @@ static void on_l2cap_incoming_connection(uint16_t channel, uint8_t* packet, uint
 
     UNUSED(size);
 
+    if (!accept_incoming_connections) {
+        logi("Declining incoming conneciton\n");
+        l2cap_decline_connection(channel);
+        return;
+    }
+
     psm = l2cap_event_incoming_connection_get_psm(packet);
     handle = l2cap_event_incoming_connection_get_handle(packet);
     local_cid = l2cap_event_incoming_connection_get_local_cid(packet);
@@ -922,7 +935,7 @@ static void continue_remote_names(void) {
 }
 
 static void start_scan(void) {
-    logi("--> Scanning for new devices...\n");
+    logi("--> Scanning for new gamepads...\n");
     // Passive scanning, 100% (scan interval = scan window)
     // Start GAP BLE scan
 #ifdef ENABLE_BLE
@@ -932,6 +945,14 @@ static void start_scan(void) {
 
     // Start GAP Classic inquiry
     gap_inquiry_start(INQUIRY_INTERVAL);
+}
+
+static void stop_scan() {
+    logi("--> Stop scanning for new gamepads\n");
+#ifdef ENABLE_BLE
+    gap_stop_scan();
+#endif
+    gap_inquiry_stop();
 }
 
 static void sdp_query_hid_descriptor(uni_hid_device_t* device) {
@@ -1175,4 +1196,13 @@ void uni_bluetooth_del_keys(void) {
         gap_drop_link_key_for_bd_addr(addr);
     }
     gap_link_key_iterator_done(&it);
+}
+
+void uni_bluetooth_set_enable_new_connections(bool enabled) {
+    accept_incoming_connections = enabled;
+
+    if (enabled)
+        start_scan();
+    else
+        stop_scan();
 }

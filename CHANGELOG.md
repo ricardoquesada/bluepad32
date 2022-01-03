@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### New
 - tools/pc_debug: Integrate into Gitlab CI
 - tools/fw: add --clean argument to build.py
+- uni_bluetooth: add uni_bluetooth_set_enabled().
+  Allows users to enable/disable accepting new gamepads in runtime.
 
 ### Changed
 
@@ -15,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Doc: Updated to use idf.py instead of make
 - tools/fw: build.py uses idf.py instead of make
 - Kconfig: The max number of connected gamepads can be changed from menuconfig
+  Default changed from 8 to 4.
 
 ### Fixed
 
