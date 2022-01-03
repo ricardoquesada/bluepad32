@@ -1198,7 +1198,7 @@ void uni_bluetooth_del_keys(void) {
     gap_link_key_iterator_done(&it);
 }
 
-void uni_bluetooth_set_enable_new_connections(bool enabled) {
+void uni_bluetooth_enable_new_connections(bool enabled) {
     accept_incoming_connections = enabled;
 
     if (enabled)
