@@ -22,6 +22,7 @@ limitations under the License.
 
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 #include "uni_debug.h"
 #include "uni_gamepad.h"
@@ -57,6 +58,21 @@ static void pc_debug_init(int argc, const char** argv) {
             logi("Stored keys will be deleted\n");
         }
     }
+
+    uni_gamepad_mappings_t mappings = uni_gamepad_default_mappings;
+
+    // Inverted axis with inverted Y in RY.
+    mappings.axis_x = UNI_GAMEPAD_MAPPINGS_AXIS_RX;
+    mappings.axis_y = UNI_GAMEPAD_MAPPINGS_AXIS_RY;
+    mappings.axis_ry_inverted = true;
+    mappings.axis_rx = UNI_GAMEPAD_MAPPINGS_AXIS_X;
+    mappings.axis_ry = UNI_GAMEPAD_MAPPINGS_AXIS_Y;
+
+    // Invert A & B
+    mappings.button_a = log2(BUTTON_B);
+    mappings.button_b = log2(BUTTON_A);
+
+    uni_gamepad_set_mappings(&mappings);
 }
 
 static void pc_debug_on_init_complete(void) {

@@ -20,10 +20,42 @@ limitations under the License.
 #include "uni_gamepad.h"
 
 #include <stdbool.h>
+#include <math.h>
 
 #include "uni_common.h"
 #include "uni_config.h"
 #include "uni_debug.h"
+
+const uni_gamepad_mappings_t uni_gamepad_default_mappings = {
+    .dpad_up = log2(DPAD_UP),
+    .dpad_down = log2(DPAD_DOWN),
+    .dpad_left = log2(DPAD_LEFT),
+    .dpad_right = log2(DPAD_RIGHT),
+
+    .button_a = log2(BUTTON_A),
+    .button_b = log2(BUTTON_B),
+    .button_x = log2(BUTTON_X),
+    .button_y = log2(BUTTON_Y),
+
+    .button_shoulder_l = log2(BUTTON_SHOULDER_L),
+    .button_shoulder_r = log2(BUTTON_SHOULDER_R),
+    .button_trigger_l = log2(BUTTON_TRIGGER_L),
+    .button_trigger_r = log2(BUTTON_TRIGGER_R),
+    .button_thumb_l = log2(BUTTON_THUMB_L),
+    .button_thumb_r = log2(BUTTON_THUMB_R),
+
+    .brake = UNI_GAMEPAD_MAPPINGS_PEDAL_BRAKE,
+    .throttle = UNI_GAMEPAD_MAPPINGS_PEDAL_THROTTLE,
+
+    .axis_x = UNI_GAMEPAD_MAPPINGS_AXIS_X,
+    .axis_y = UNI_GAMEPAD_MAPPINGS_AXIS_Y,
+    .axis_rx = UNI_GAMEPAD_MAPPINGS_AXIS_RX,
+    .axis_ry = UNI_GAMEPAD_MAPPINGS_AXIS_RY,
+
+    .misc_button_back = log2(MISC_BUTTON_BACK),
+    .misc_button_home = log2(MISC_BUTTON_HOME),
+    .misc_button_system = log2(MISC_BUTTON_SYSTEM),
+};
 
 static uni_gamepad_mappings_t map;
 static bool mappings_enabled = false;
@@ -93,6 +125,7 @@ uni_gamepad_t uni_gamepad_remap(const uni_gamepad_t* gp) {
         new_gp.buttons |= BIT(map.button_thumb_l);
     if (gp->buttons & BUTTON_THUMB_R)
         new_gp.buttons |= BIT(map.button_thumb_r);
+
     if (gp->dpad & DPAD_UP)
         new_gp.dpad |= BIT(map.dpad_up);
     if (gp->dpad & DPAD_DOWN)
@@ -101,6 +134,7 @@ uni_gamepad_t uni_gamepad_remap(const uni_gamepad_t* gp) {
         new_gp.dpad |= BIT(map.dpad_left);
     if (gp->dpad & DPAD_RIGHT)
         new_gp.dpad |= BIT(map.dpad_right);
+
     if (gp->misc_buttons & MISC_BUTTON_BACK)
         new_gp.misc_buttons |= BIT(map.misc_button_back);
     if (gp->misc_buttons & MISC_BUTTON_HOME)
@@ -108,13 +142,21 @@ uni_gamepad_t uni_gamepad_remap(const uni_gamepad_t* gp) {
     if (gp->misc_buttons & MISC_BUTTON_SYSTEM)
         new_gp.misc_buttons |= BIT(map.misc_button_system);
 
-    new_gp.axis_x = get_mappings_value_for_axis(UNI_GAMEPAD_MAPPINGS_AXIS_X, gp);
-    new_gp.axis_y = get_mappings_value_for_axis(UNI_GAMEPAD_MAPPINGS_AXIS_Y, gp);
-    new_gp.axis_rx = get_mappings_value_for_axis(UNI_GAMEPAD_MAPPINGS_AXIS_RX, gp);
-    new_gp.axis_ry = get_mappings_value_for_axis(UNI_GAMEPAD_MAPPINGS_AXIS_RY, gp);
+    new_gp.axis_x = get_mappings_value_for_axis(map.axis_x, gp);
+    if (map.axis_x_inverted)
+        new_gp.axis_x = -new_gp.axis_x;
+    new_gp.axis_y = get_mappings_value_for_axis(map.axis_y, gp);
+    if (map.axis_y_inverted)
+        new_gp.axis_y = -new_gp.axis_y;
+    new_gp.axis_rx = get_mappings_value_for_axis(map.axis_rx, gp);
+    if (map.axis_rx_inverted)
+        new_gp.axis_rx = -new_gp.axis_rx;
+    new_gp.axis_ry = get_mappings_value_for_axis(map.axis_ry, gp);
+    if (map.axis_ry_inverted)
+        new_gp.axis_ry = -new_gp.axis_ry;
 
-    new_gp.brake = get_mappings_value_for_pedal(UNI_GAMEPAD_MAPPINGS_PEDAL_BRAKE, gp);
-    new_gp.throttle = get_mappings_value_for_pedal(UNI_GAMEPAD_MAPPINGS_PEDAL_THROTTLE, gp);
+    new_gp.brake = get_mappings_value_for_pedal(map.brake, gp);
+    new_gp.throttle = get_mappings_value_for_pedal(map.throttle, gp);
 
     return new_gp;
 }

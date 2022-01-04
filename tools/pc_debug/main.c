@@ -234,7 +234,7 @@ int main(int argc, const char* argv[]) {
     // handle CTRL-c
     signal(SIGINT, sigint_handler);
 
-    // Initialize Bluepad32
+    // Initialize Bluepad32. Does not return.
     uni_main(argc, argv);
 
     return 0;

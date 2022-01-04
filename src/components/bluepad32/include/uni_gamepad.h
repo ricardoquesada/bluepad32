@@ -163,11 +163,13 @@ typedef struct {
 // Represents the mapping. Each entry contains the new button to be used,
 // and not the value of the buttons.
 typedef struct {
+    // Remaps for Dpad
     uint8_t dpad_up;
     uint8_t dpad_down;
     uint8_t dpad_left;
     uint8_t dpad_right;
 
+    // Remaps for the buttons
     uint8_t button_a;
     uint8_t button_b;
     uint8_t button_x;
@@ -184,6 +186,22 @@ typedef struct {
     uint8_t misc_button_back;
     uint8_t misc_button_home;
     uint8_t misc_button_system;
+
+    // Remaps for axis
+    uint8_t axis_x;
+    uint8_t axis_y;
+    uint8_t axis_rx;
+    uint8_t axis_ry;
+
+    // Whether the axis should be inverted
+    uint8_t axis_x_inverted;
+    uint8_t axis_y_inverted;
+    uint8_t axis_rx_inverted;
+    uint8_t axis_ry_inverted;
+
+    // Remaps for brake / throttle
+    uint8_t brake;
+    uint8_t throttle;
 } uni_gamepad_mappings_t;
 
 typedef enum {
@@ -198,6 +216,8 @@ typedef enum {
     UNI_GAMEPAD_MAPPINGS_PEDAL_BRAKE,
     UNI_GAMEPAD_MAPPINGS_PEDAL_THROTTLE,
 } uni_gamepad_mappings_pedal_t;
+
+extern const uni_gamepad_mappings_t uni_gamepad_default_mappings;
 
 void uni_gamepad_dump(const uni_gamepad_t* gp);
 
