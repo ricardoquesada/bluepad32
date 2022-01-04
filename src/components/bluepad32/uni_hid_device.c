@@ -531,6 +531,8 @@ void uni_hid_device_set_connection_handle(uni_hid_device_t* d, hci_con_handle_t 
 }
 
 void uni_hid_device_process_gamepad(uni_hid_device_t* d) {
+    uni_gamepad_t gp;
+
     if (uni_bt_conn_get_state(&d->conn) != UNI_BT_CONN_STATE_DEVICE_READY) {
         return;
     }
@@ -541,7 +543,9 @@ void uni_hid_device_process_gamepad(uni_hid_device_t* d) {
     if (d->gamepad.updated_states == 0)
         return;
 
-    uni_get_platform()->on_gamepad_data(d, &d->gamepad);
+    gp = uni_gamepad_remap(&d->gamepad);
+
+    uni_get_platform()->on_gamepad_data(d, &gp);
 
     // FIXME: each backend should decide what to do with misc buttons
     process_misc_button_system(d);
