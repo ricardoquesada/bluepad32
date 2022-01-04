@@ -20,29 +20,32 @@ limitations under the License.
 #include "uni_gamepad.h"
 
 #include <stdbool.h>
-#include <math.h>
 
 #include "uni_common.h"
 #include "uni_config.h"
 #include "uni_debug.h"
 
-const uni_gamepad_mappings_t uni_gamepad_default_mappings = {
-    .dpad_up = log2(DPAD_UP),
-    .dpad_down = log2(DPAD_DOWN),
-    .dpad_left = log2(DPAD_LEFT),
-    .dpad_right = log2(DPAD_RIGHT),
+static uni_gamepad_mappings_t map;
+static bool mappings_enabled = false;
 
-    .button_a = log2(BUTTON_A),
-    .button_b = log2(BUTTON_B),
-    .button_x = log2(BUTTON_X),
-    .button_y = log2(BUTTON_Y),
+// extern
+const uni_gamepad_mappings_t GAMEPAD_DEFAULT_MAPPINGS = {
+    .dpad_up = UNI_GAMEPAD_MAPPINGS_DPAD_UP,
+    .dpad_down = UNI_GAMEPAD_MAPPINGS_DPAD_DOWN,
+    .dpad_left = UNI_GAMEPAD_MAPPINGS_DPAD_LEFT,
+    .dpad_right = UNI_GAMEPAD_MAPPINGS_DPAD_RIGHT,
 
-    .button_shoulder_l = log2(BUTTON_SHOULDER_L),
-    .button_shoulder_r = log2(BUTTON_SHOULDER_R),
-    .button_trigger_l = log2(BUTTON_TRIGGER_L),
-    .button_trigger_r = log2(BUTTON_TRIGGER_R),
-    .button_thumb_l = log2(BUTTON_THUMB_L),
-    .button_thumb_r = log2(BUTTON_THUMB_R),
+    .button_a = UNI_GAMEPAD_MAPPINGS_BUTTON_A,
+    .button_b = UNI_GAMEPAD_MAPPINGS_BUTTON_B,
+    .button_x = UNI_GAMEPAD_MAPPINGS_BUTTON_X,
+    .button_y = UNI_GAMEPAD_MAPPINGS_BUTTON_Y,
+
+    .button_shoulder_l = UNI_GAMEPAD_MAPPINGS_BUTTON_SHOULDER_L,
+    .button_shoulder_r = UNI_GAMEPAD_MAPPINGS_BUTTON_SHOULDER_R,
+    .button_trigger_l = UNI_GAMEPAD_MAPPINGS_BUTTON_TRIGGER_L,
+    .button_trigger_r = UNI_GAMEPAD_MAPPINGS_BUTTON_TRIGGER_R,
+    .button_thumb_l = UNI_GAMEPAD_MAPPINGS_BUTTON_THUMB_L,
+    .button_thumb_r = UNI_GAMEPAD_MAPPINGS_BUTTON_THUMB_R,
 
     .brake = UNI_GAMEPAD_MAPPINGS_PEDAL_BRAKE,
     .throttle = UNI_GAMEPAD_MAPPINGS_PEDAL_THROTTLE,
@@ -52,15 +55,10 @@ const uni_gamepad_mappings_t uni_gamepad_default_mappings = {
     .axis_rx = UNI_GAMEPAD_MAPPINGS_AXIS_RX,
     .axis_ry = UNI_GAMEPAD_MAPPINGS_AXIS_RY,
 
-    .misc_button_back = log2(MISC_BUTTON_BACK),
-    .misc_button_home = log2(MISC_BUTTON_HOME),
-    .misc_button_system = log2(MISC_BUTTON_SYSTEM),
+    .misc_button_back = UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_BACK,
+    .misc_button_home = UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_HOME,
+    .misc_button_system = UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_SYSTEM,
 };
-
-static uni_gamepad_mappings_t map;
-static bool mappings_enabled = false;
-
-// extern
 const int AXIS_NORMALIZE_RANGE = 1024;  // 10-bit resolution (1024)
 const int AXIS_THRESHOLD = (1024 / 8);
 

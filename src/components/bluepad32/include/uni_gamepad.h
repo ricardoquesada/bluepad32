@@ -30,34 +30,72 @@ extern "C" {
 extern const int AXIS_NORMALIZE_RANGE;
 extern const int AXIS_THRESHOLD;
 
+typedef enum {
+    UNI_GAMEPAD_MAPPINGS_DPAD_UP,
+    UNI_GAMEPAD_MAPPINGS_DPAD_DOWN,
+    UNI_GAMEPAD_MAPPINGS_DPAD_RIGHT,
+    UNI_GAMEPAD_MAPPINGS_DPAD_LEFT,
+} uni_gamepad_mappings_dpad_t;
+
+typedef enum {
+    UNI_GAMEPAD_MAPPINGS_BUTTON_A,
+    UNI_GAMEPAD_MAPPINGS_BUTTON_B,
+    UNI_GAMEPAD_MAPPINGS_BUTTON_X,
+    UNI_GAMEPAD_MAPPINGS_BUTTON_Y,
+    UNI_GAMEPAD_MAPPINGS_BUTTON_SHOULDER_L,
+    UNI_GAMEPAD_MAPPINGS_BUTTON_SHOULDER_R,
+    UNI_GAMEPAD_MAPPINGS_BUTTON_TRIGGER_L,
+    UNI_GAMEPAD_MAPPINGS_BUTTON_TRIGGER_R,
+    UNI_GAMEPAD_MAPPINGS_BUTTON_THUMB_L,
+    UNI_GAMEPAD_MAPPINGS_BUTTON_THUMB_R,
+} uni_gamepad_mappings_button_t;
+
+typedef enum {
+    UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_SYSTEM,
+    UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_BACK,
+    UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_HOME,
+} uni_gamepad_mappings_misc_button_t;
+
+typedef enum {
+    UNI_GAMEPAD_MAPPINGS_AXIS_X,
+    UNI_GAMEPAD_MAPPINGS_AXIS_Y,
+    UNI_GAMEPAD_MAPPINGS_AXIS_RX,
+    UNI_GAMEPAD_MAPPINGS_AXIS_RY,
+} uni_gamepad_mappings_axis_t;
+
+typedef enum {
+    UNI_GAMEPAD_MAPPINGS_PEDAL_BRAKE,
+    UNI_GAMEPAD_MAPPINGS_PEDAL_THROTTLE,
+} uni_gamepad_mappings_pedal_t;
+
 // DPAD constants.
 enum {
-    DPAD_UP = BIT(0),
-    DPAD_DOWN = BIT(1),
-    DPAD_RIGHT = BIT(2),
-    DPAD_LEFT = BIT(3),
+    DPAD_UP = BIT(UNI_GAMEPAD_MAPPINGS_DPAD_UP),
+    DPAD_DOWN = BIT(UNI_GAMEPAD_MAPPINGS_DPAD_DOWN),
+    DPAD_RIGHT = BIT(UNI_GAMEPAD_MAPPINGS_DPAD_RIGHT),
+    DPAD_LEFT = BIT(UNI_GAMEPAD_MAPPINGS_DPAD_LEFT),
 };
 
 // BUTTON_ are the main gamepad buttons, like X, Y, A, B, etc.
 enum {
-    BUTTON_A = BIT(0),
-    BUTTON_B = BIT(1),
-    BUTTON_X = BIT(2),
-    BUTTON_Y = BIT(3),
-    BUTTON_SHOULDER_L = BIT(4),
-    BUTTON_SHOULDER_R = BIT(5),
-    BUTTON_TRIGGER_L = BIT(6),
-    BUTTON_TRIGGER_R = BIT(7),
-    BUTTON_THUMB_L = BIT(8),
-    BUTTON_THUMB_R = BIT(9),
+    BUTTON_A = BIT(UNI_GAMEPAD_MAPPINGS_BUTTON_A),
+    BUTTON_B = BIT(UNI_GAMEPAD_MAPPINGS_BUTTON_B),
+    BUTTON_X = BIT(UNI_GAMEPAD_MAPPINGS_BUTTON_X),
+    BUTTON_Y = BIT(UNI_GAMEPAD_MAPPINGS_BUTTON_Y),
+    BUTTON_SHOULDER_L = BIT(UNI_GAMEPAD_MAPPINGS_BUTTON_SHOULDER_L),
+    BUTTON_SHOULDER_R = BIT(UNI_GAMEPAD_MAPPINGS_BUTTON_SHOULDER_R),
+    BUTTON_TRIGGER_L = BIT(UNI_GAMEPAD_MAPPINGS_BUTTON_TRIGGER_L),
+    BUTTON_TRIGGER_R = BIT(UNI_GAMEPAD_MAPPINGS_BUTTON_TRIGGER_R),
+    BUTTON_THUMB_L = BIT(UNI_GAMEPAD_MAPPINGS_BUTTON_THUMB_L),
+    BUTTON_THUMB_R = BIT(UNI_GAMEPAD_MAPPINGS_BUTTON_THUMB_R),
 };
 
 // MISC_BUTTONS_ are buttons that are usually not used in the game, but are
 // helpers like "back", "home", etc.
 enum {
-    MISC_BUTTON_SYSTEM = BIT(0),  // AKA: PS, Xbox, etc.
-    MISC_BUTTON_BACK = BIT(1),    // AKA: Select, Share, -
-    MISC_BUTTON_HOME = BIT(2),    // AKA: Start, Options, +
+    MISC_BUTTON_SYSTEM = BIT(UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_SYSTEM),  // AKA: PS, Xbox, etc.
+    MISC_BUTTON_BACK = BIT(UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_BACK),      // AKA: Select, Share, -
+    MISC_BUTTON_HOME = BIT(UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_HOME),      // AKA: Start, Options, +
 };
 
 // GAMEPAD_STATE_ are used internally to determine which button event
@@ -204,20 +242,7 @@ typedef struct {
     uint8_t throttle;
 } uni_gamepad_mappings_t;
 
-typedef enum {
-    UNI_GAMEPAD_MAPPINGS_AXIS_X,
-    UNI_GAMEPAD_MAPPINGS_AXIS_Y,
-    UNI_GAMEPAD_MAPPINGS_AXIS_RX,
-    UNI_GAMEPAD_MAPPINGS_AXIS_RY,
-
-} uni_gamepad_mappings_axis_t;
-
-typedef enum {
-    UNI_GAMEPAD_MAPPINGS_PEDAL_BRAKE,
-    UNI_GAMEPAD_MAPPINGS_PEDAL_THROTTLE,
-} uni_gamepad_mappings_pedal_t;
-
-extern const uni_gamepad_mappings_t uni_gamepad_default_mappings;
+extern const uni_gamepad_mappings_t GAMEPAD_DEFAULT_MAPPINGS;
 
 void uni_gamepad_dump(const uni_gamepad_t* gp);
 
