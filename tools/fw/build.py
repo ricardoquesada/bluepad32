@@ -14,8 +14,7 @@ class Distro:
         if platform == "all":
             # "arduino" platform is not added since it doesn't make sense to
             # have a prebuilt firmware for Arduino.
-            self._platforms = ("unijoysticle", "airlift",
-                               "mightymiggy", "nina")
+            self._platforms = ("unijoysticle", "airlift", "mightymiggy", "nina")
         else:
             self._platforms = (platform,)
 
@@ -23,7 +22,6 @@ class Distro:
         self._do_clean = clean
 
     def build(self) -> None:
-
         for p in self._platforms:
             if self._do_clean:
                 self._clean(p)
@@ -43,10 +41,12 @@ class Distro:
 
         # For more complex examples, see:
         # https://github.com/espressif/esp-idf/blob/master/examples/build_system/cmake/multi_config/README.md
-        cmd = ('idf.py '
-               f'-B build_plat_{platform} '
-               f'-D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.plat_{platform}" '
-               'build')
+        cmd = (
+            "idf.py "
+            f"-B build_plat_{platform} "
+            f'-D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.plat_{platform}" '
+            "build"
+        )
         self._exe(cmd)
 
     def _exe(self, cmd) -> None:
@@ -84,8 +84,7 @@ class Distro:
         partitionData = open(
             os.path.join(path, "partition_table/partition-table.bin"), "rb"
         ).read()
-        appData = open(os.path.join(
-            path, f"bluepad32-app.bin"), "rb").read()
+        appData = open(os.path.join(path, f"bluepad32-app.bin"), "rb").read()
 
         # calculate the output binary size, app offset
         outputSize = 0x10000 + len(appData)
@@ -141,9 +140,7 @@ $ %(prog)s --set-version v2.0.0 unijoysticle
     )
 
     parser.add_argument(
-        "--clean",
-        action="store_true",
-        help="Perform an 'idf.py clean' before building"
+        "--clean", action="store_true", help="Perform an 'idf.py clean' before building"
     )
 
     args = parser.parse_args()
