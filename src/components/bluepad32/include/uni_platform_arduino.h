@@ -28,9 +28,6 @@ extern "C" {
 #include "uni_gamepad.h"
 #include "uni_platform.h"
 
-// Arbitrary max number of gamepads that can be connected at the same time
-#define ARDUINO_MAX_GAMEPADS 4
-
 enum {
   UNI_ARDUINO_OK = 0,
   UNI_ARDUINO_ERROR = -1,

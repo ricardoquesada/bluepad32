@@ -9,31 +9,44 @@ import subprocess
 
 
 class Distro:
-    def __init__(self, platform, version=""):
+    def __init__(self, platform, version="", clean=False):
         # List of platforms to build
         if platform == "all":
-            self._platforms = ("unijoysticle", "airlift",
-                               "mightymiggy", "nina")
+            # "arduino" platform is not added since it doesn't make sense to
+            # have a prebuilt firmware for Arduino.
+            self._platforms = ("unijoysticle", "airlift", "mightymiggy", "nina")
         else:
             self._platforms = (platform,)
 
         self._version = version
+        self._do_clean = clean
 
     def build(self) -> None:
-
         for p in self._platforms:
-            self._clean(p)
+            if self._do_clean:
+                self._clean(p)
             self._build(p)
             self._combine(p)
             self._dist(p)
 
     def _clean(self, platform) -> None:
         print(f"Clean: {platform}")
-        cmd = f"PLATFORM={platform} make clean"
+        cmd = f"idf.py -B build_plat_{platform} clean"
         self._exe(cmd)
 
     def _build(self, platform) -> None:
-        cmd = f"PLATFORM={platform} make -j"
+        # GH issue #4: Remove sdkconfig, otherwise it won't be regenerated.
+        if os.path.exists("../../src/sdkconfig"):
+            os.remove("../../src/sdkconfig")
+
+        # For more complex examples, see:
+        # https://github.com/espressif/esp-idf/blob/master/examples/build_system/cmake/multi_config/README.md
+        cmd = (
+            "idf.py "
+            f"-B build_plat_{platform} "
+            f'-D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.plat_{platform}" '
+            "build"
+        )
         self._exe(cmd)
 
     def _exe(self, cmd) -> None:
@@ -42,6 +55,8 @@ class Distro:
     def _dist(self, platform) -> None:
         # Create folder
         dest_dir = f"dist/bluepad32-{platform}-{self._version}"
+
+        shutil.rmtree(dest_dir, ignore_errors=True)
         os.makedirs(dest_dir)
 
         # Copy README + firmware
@@ -62,15 +77,14 @@ class Distro:
         )
 
     def _combine(self, platform) -> None:
-        path = "../../src/build/"
+        path = f"../../src/build_plat_{platform}"
         booloaderData = open(
             os.path.join(path, "bootloader/bootloader.bin"), "rb"
         ).read()
         partitionData = open(
-            os.path.join(path, "partitions_singleapp_coredump.bin"), "rb"
+            os.path.join(path, "partition_table/partition-table.bin"), "rb"
         ).read()
-        appData = open(os.path.join(
-            path, f"bluepad32-{platform}.bin"), "rb").read()
+        appData = open(os.path.join(path, f"bluepad32-app.bin"), "rb").read()
 
         # calculate the output binary size, app offset
         outputSize = 0x10000 + len(appData)
@@ -108,11 +122,15 @@ $ %(prog)s --set-version v2.0.0 unijoysticle
 """,
     )
 
+    cmd = ("git", "rev-parse", "--short", "HEAD")
+    out = subprocess.run(cmd, capture_output=True)
+    commit_hash = out.stdout.decode("utf-8").strip()
+
     parser.add_argument(
         "--set-version",
         metavar="<version>",
-        default="dirty",
-        help="Version of Bluepad32. Default: dirty",
+        default=commit_hash,
+        help="Version of Bluepad32. Default: latest-commit-hash",
     )
 
     parser.add_argument(
@@ -121,13 +139,17 @@ $ %(prog)s --set-version v2.0.0 unijoysticle
         help="Platform to build for",
     )
 
+    parser.add_argument(
+        "--clean", action="store_true", help="Perform an 'idf.py clean' before building"
+    )
+
     args = parser.parse_args()
     return args
 
 
 def main():
     args = parse_args()
-    Distro(args.platform, version=args.set_version).build()
+    Distro(args.platform, version=args.set_version, clean=args.clean).build()
 
 
 if __name__ == "__main__":

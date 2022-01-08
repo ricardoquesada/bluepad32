@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2022-01/08
+### New
+- tools/pc_debug: Integrate into Gitlab CI
+- tools/fw: add --clean argument to build.py
+- uni_bluetooth: add uni_bluetooth_set_enabled().
+  Allows users to enable/disable accepting new gamepads in runtime.
+
+### Changed
+
+- Update BTStack to 1.5.1. Using hash: d778e7488c62d361fc176e8ae40c0d6bc8b00089
+- Doc: Updated to use idf.py instead of make
+- tools/fw: build.py uses idf.py instead of make
+- Kconfig: The max number of connected gamepads can be changed from menuconfig
+  Default changed from 8 to 4.
+
+### Fixed
+
+- NINA/AirLift:
+  - Disconnect works as expected.
+  - Replaced custom "queue" code with FreeRTOS xQueue
+- tools/fw: Remove sdkconfig before building another platform
+
 ## [2.4.0] - 2021-12-26
 ### New
 

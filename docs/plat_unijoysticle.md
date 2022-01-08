@@ -14,15 +14,18 @@ Detailed information about the project can be found here:
 ## How to compile it & flash it
 
 ```sh
-# Compile it...
+cd {BLUEPAD32}/src
 
-$ cd {BLUEPAD32}/src
-$ export PLATFORM=unijoysticle
-$ make -j
+# Select Unijoysticle platform:
+# Components config -> Bluepad32 -> Target Platform -> Unijoysticle
+idf.py menuconfig
+
+# Compile it
+idf.py build
 
 # ... and flash it!
 
 # Port my vary
-$ export ESPPORT=/dev/ttyUSB0
-$ make flash
+export ESPPORT=/dev/ttyUSB0
+idf.py flash
 ```

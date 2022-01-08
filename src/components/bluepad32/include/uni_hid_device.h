@@ -33,9 +33,6 @@ limitations under the License.
 #define HID_DEVICE_MAX_PARSER_DATA 128
 #define HID_DEVICE_MAX_PLATFORM_DATA 128
 
-// Max number of devices that can be connected at the same time.
-#define UNI_HID_DEVICE_MAX_DEVICES 8
-
 // clang-format off
 #define MASK_COD_MAJOR_PERIPHERAL   0x0500  // 0b0000_0101_0000_0000
 #define MASK_COD_MAJOR_AUDIO        0x0400  // 0b0000_0100_0000_0000

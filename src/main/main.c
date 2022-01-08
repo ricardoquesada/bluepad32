@@ -41,11 +41,8 @@ int app_main(void) {
     // Configure BTstack for ESP32 VHCI Controller
     btstack_init();
 
-    // Init Bluepad32
+    // Init Bluepad32, and does not return.
     uni_main(0, NULL);
-
-    // BTStack loop (forever)
-    btstack_run_loop_execute();
 
     return 0;
 }

@@ -83,25 +83,26 @@ See: [Supported gamepads][gamepads]
 
 4. Compile Bluepad32
 
-    Choose target platform:
+    Choose target platform (default is Unijoysticle):
 
     ```sh
-    # Choose target platform: unijoysticle, airlift, nina, etc...
-    export PLATFORM=unijoysticle
+    cd ${BLUEPAD32}/src
+    idf.py menuconfig
     ```
+
+    The Bluepad32 options are in:
+    `Components config` -> `Bluepad32` (find it at the very bottom) -> `Target platform`
 
     And compile it:
 
     ```sh
-    cd ${BLUEPAD32}/src
-    make -j
+    idf.py build
     ```
 
 5. Flash it
 
     ```sh
-    cd ${BLUEPAD32}/src
-    make flash monitor
+    idf.py flash monitor
     ```
 
 ## Support

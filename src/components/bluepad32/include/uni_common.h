@@ -1,7 +1,7 @@
 /****************************************************************************
 http://retro.moe/unijoysticle2
 
-Copyright 2021 Ricardo Quesada
+Copyright 2022 Ricardo Quesada
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,9 +16,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
-#ifndef UNI_VERSION_H
-#define UNI_VERSION_H
+#ifndef UNI_COMMON_H
+#define UNI_COMMON_H
 
-#define UNI_VERSION "2.5.0"
+// Some common macros
 
-#endif  // UNI_VERSION_H
+#ifndef BIT
+#define BIT(nr) (1U << (nr))
+#endif  // BIT
+
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
+#endif  // ARRAY_SIZE
+
+#endif  // UNI_COMMON_H

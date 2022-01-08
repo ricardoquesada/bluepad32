@@ -13,7 +13,7 @@ include ${BTSTACK_ROOT}/example/Makefile.inc
 CFLAGS += -DCONFIG_BLUEPAD32_PLATFORM_PC_DEBUG
 CFLAGS += -DENABLE_PRINTF_HEXDUMP
 
-CC=clang
+CC ?= clang
 CFLAGS  += -g -std=c99 -Wall -Wmissing-prototypes -Wstrict-prototypes -Wshadow -Wunused-parameter -Wredundant-decls -Wsign-compare -Wswitch-default
 # CFLAGS += -Werror
 # CFLAGS += -pedantic

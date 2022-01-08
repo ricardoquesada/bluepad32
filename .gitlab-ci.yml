@@ -1,0 +1,54 @@
+stages:
+  - build
+
+build-debian-pc-debug-gcc:
+  image: gcc
+  variables:
+    GIT_SUBMODULE_STRATEGY: normal
+  stage: build
+  before_script:
+    - export DEBIAN_FRONTEND=noninteractive
+    - apt update
+    - apt -y install tzdata
+    - apt -y install make pkg-config libusb-1.0-0-dev
+  script:
+    - cd tools/pc_debug && make
+
+build-ubuntu-pc-debug-clang:
+  image: espressif/idf
+  variables:
+    GIT_SUBMODULE_STRATEGY: normal
+  stage: build
+  before_script:
+    - export DEBIAN_FRONTEND=noninteractive
+    - apt update
+    - apt -y install tzdata
+    - apt -y install clang
+    - apt -y install make pkg-config libusb-1.0-0-dev
+  script:
+    - cd tools/pc_debug && CC=clang make
+
+build-esp-idf-4.4:
+  image: espressif/idf:release-v4.4
+  variables:
+    GIT_SUBMODULE_STRATEGY: normal
+  stage: build
+  before_script:
+    - pushd .
+    - cd external/btstack/port/esp32
+    - IDF_PATH=../../../../src/ ./integrate_btstack.py
+    - popd
+  script:
+    - pushd .
+    - cd tools/fw
+    - ./build.py all
+    - popd
+  after_script:
+    - pushd .
+    - cd tools/fw
+    - mkdir artifacts
+    - cp bluepad32*.tar.gz artifacts/
+    - popd
+  artifacts:
+    paths:
+      - tools/fw/artifacts

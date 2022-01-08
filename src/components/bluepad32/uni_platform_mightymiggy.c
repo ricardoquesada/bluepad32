@@ -26,6 +26,7 @@ limitations under the License.
 #include <nvs.h>
 #include <nvs_flash.h>
 
+#include "sdkconfig.h"
 #include "uni_bluetooth.h"
 #include "uni_config.h"
 #include "uni_debug.h"
@@ -1974,7 +1975,7 @@ static void IRAM_ATTR onPadModeChange(void* arg) {
 static uni_hid_device_t* getControllerForSeat(const uni_gamepad_seat_t seat) {
     uni_hid_device_t* ret = NULL;
 
-    for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES && ret == NULL; i++) {
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES && ret == NULL; i++) {
         uni_hid_device_t* dev = uni_hid_device_get_instance_for_idx(i);
         if (dev && bd_addr_cmp(dev->conn.remote_addr, zero_addr) != 0) {
             RuntimeControllerInfo* cinfo = getControllerInstance(dev);
@@ -2051,7 +2052,7 @@ static void loopCore0(void* arg) {
             /* Force the state machine to run even if no update was received,
              * since some transitions are time-driven
              */
-            for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
+            for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
                 uni_hid_device_t* dev = uni_hid_device_get_instance_for_idx(i);
                 cinfo = getControllerInstance(dev);
                 if (cinfo->seat == GAMEPAD_SEAT_A || cinfo->seat == GAMEPAD_SEAT_B) {
@@ -2354,7 +2355,7 @@ static void mightymiggy_on_device_disconnected(uni_hid_device_t* d) {
 static bool seatInUse(uni_gamepad_seat_t seat) {
     bool inUse = false;
 
-    for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES && !inUse; i++) {
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES && !inUse; i++) {
         uni_hid_device_t* dev = uni_hid_device_get_instance_for_idx(i);
         if (dev && bd_addr_cmp(dev->conn.remote_addr, zero_addr) != 0) {
             RuntimeControllerInfo* cinfo = getControllerInstance(dev);
@@ -2510,7 +2511,7 @@ static void mightymiggy_on_device_oob_event(uni_hid_device_t* d, uni_platform_oo
 
     //~ // Swap joysticks iff one device is attached.
     //~ int num_devices = 0;
-    //~ for (int j = 0; j < UNI_HID_DEVICE_MAX_DEVICES; j++) {
+    //~ for (int j = 0; j < CONFIG_BLUEPAD32_MAX_DEVICES; j++) {
     //~ uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
     //~ if ((bd_addr_cmp(tmp_d->conn.remote_addr, zero_addr) != 0) &&
     //~ (get_mightymiggy_instance(tmp_d)->gamepad_seat > 0)) {

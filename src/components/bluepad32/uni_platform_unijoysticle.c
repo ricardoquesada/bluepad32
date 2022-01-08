@@ -27,6 +27,7 @@ limitations under the License.
 #include <freertos/queue.h>
 #include <math.h>
 
+#include "sdkconfig.h"
 #include "uni_config.h"
 #include "uni_debug.h"
 #include "uni_gamepad.h"
@@ -324,7 +325,7 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
     }
 
     uint32_t used_joystick_ports = 0;
-    for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(i);
         used_joystick_ports |= get_unijoysticle_instance(tmp_d)->gamepad_seat;
     }
@@ -445,7 +446,7 @@ static void unijoysticle_on_device_oob_event(uni_hid_device_t* d, uni_platform_o
 
     // Swap joysticks iff one device is attached.
     int num_devices = 0;
-    for (int j = 0; j < UNI_HID_DEVICE_MAX_DEVICES; j++) {
+    for (int j = 0; j < CONFIG_BLUEPAD32_MAX_DEVICES; j++) {
         uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
         if ((bd_addr_cmp(tmp_d->conn.remote_addr, zero_addr) != 0) &&
             (get_unijoysticle_instance(tmp_d)->gamepad_seat > 0)) {
@@ -564,7 +565,7 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
 
     // Fetch all enabled ports
     uni_gamepad_seat_t all_seats = GAMEPAD_SEAT_NONE;
-    for (int i = 0; i < UNI_HID_DEVICE_MAX_DEVICES; i++) {
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(i);
         if (tmp_d == NULL)
             continue;
@@ -788,7 +789,7 @@ static void handle_event_button() {
     // Change emulation mode
     int num_devices = 0;
     uni_hid_device_t* d = NULL;
-    for (int j = 0; j < UNI_HID_DEVICE_MAX_DEVICES; j++) {
+    for (int j = 0; j < CONFIG_BLUEPAD32_MAX_DEVICES; j++) {
         uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
         if (bd_addr_cmp(tmp_d->conn.remote_addr, zero_addr) != 0 && tmp_d->conn.control_cid != 0 &&
             tmp_d->conn.interrupt_cid != 0) {
