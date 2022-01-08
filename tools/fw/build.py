@@ -37,6 +37,10 @@ class Distro:
         self._exe(cmd)
 
     def _build(self, platform) -> None:
+        # GH issue #4: Remove sdkconfig, otherwise it won't be regenerated.
+        if os.path.exists("../../src/sdkconfig"):
+            os.remove("../../src/sdkconfig")
+
         # For more complex examples, see:
         # https://github.com/espressif/esp-idf/blob/master/examples/build_system/cmake/multi_config/README.md
         cmd = ('idf.py '
