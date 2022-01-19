@@ -48,7 +48,7 @@ _Static_assert(sizeof(arduino_instance_t) < HID_DEVICE_MAX_PLATFORM_DATA, "Ardui
 static QueueHandle_t _pending_queue = NULL;
 static SemaphoreHandle_t _gamepad_mutex = NULL;
 static arduino_gamepad_t _gamepads[CONFIG_BLUEPAD32_MAX_DEVICES];
-static volatile uni_gamepad_seat_t _gamepad_seats;
+static int _used_gamepads = 0;
 
 static arduino_instance_t* get_arduino_instance(uni_hid_device_t* d);
 static uint8_t predicate_arduino_index(uni_hid_device_t* d, void* data);
@@ -155,7 +155,7 @@ static void arduino_on_device_disconnected(uni_hid_device_t* d) {
                  CONFIG_BLUEPAD32_MAX_DEVICES);
             return;
         }
-        _gamepad_seats &= ~(1 << ins->gamepad_idx);
+        _used_gamepads--;
         memset(&_gamepads[ins->gamepad_idx], 0, sizeof(_gamepads[ins->gamepad_idx]));
         _gamepads[ins->gamepad_idx].idx = UNI_ARDUINO_GAMEPAD_INVALID;
         ins->gamepad_idx = UNI_ARDUINO_GAMEPAD_INVALID;
@@ -163,7 +163,7 @@ static void arduino_on_device_disconnected(uni_hid_device_t* d) {
 }
 
 static int arduino_on_device_ready(uni_hid_device_t* d) {
-    if (_gamepad_seats == (GAMEPAD_SEAT_A | GAMEPAD_SEAT_B | GAMEPAD_SEAT_C | GAMEPAD_SEAT_D)) {
+    if (_used_gamepads == CONFIG_BLUEPAD32_MAX_DEVICES) {
         // No more available seats, reject connection
         logi("Arduino: More available seats\n");
         return -1;
@@ -177,16 +177,16 @@ static int arduino_on_device_ready(uni_hid_device_t* d) {
 
     // Find first available gamepad
     for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
-        if ((_gamepad_seats & (1 << i)) == 0) {
+        if (ins->gamepad_idx != UNI_ARDUINO_GAMEPAD_INVALID) {
             ins->gamepad_idx = i;
-            _gamepad_seats |= (1 << i);
+            _used_gamepads++;
             break;
         }
     }
 
     if (d->report_parser.set_player_leds != NULL) {
         arduino_instance_t* ins = get_arduino_instance(d);
-        d->report_parser.set_player_leds(d, (1 << ins->gamepad_idx));
+        d->report_parser.set_player_leds(d, BIT(ins->gamepad_idx));
     }
     return 0;
 }
