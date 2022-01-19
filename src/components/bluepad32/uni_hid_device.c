@@ -554,12 +554,10 @@ void uni_hid_device_process_gamepad(uni_hid_device_t* d) {
 
 // Helpers
 
-// process_mic_button_system swaps joystick port A and B only if there is one
-// device attached.
+// process_mic_button_system swaps joystick port A and B only if there is one device attached.
 static void process_misc_button_system(uni_hid_device_t* d) {
     if ((d->gamepad.updated_states & GAMEPAD_STATE_MISC_BUTTON_SYSTEM) == 0) {
-        // System button released (or never have been pressed). Return, and clean
-        // wait_release button.
+        // System button released (or never have been pressed). Return, and clean wait_release button.
         return;
     }
 
@@ -571,6 +569,7 @@ static void process_misc_button_system(uni_hid_device_t* d) {
 
     if (d->wait_release_misc_button & MISC_BUTTON_SYSTEM)
         return;
+
     d->wait_release_misc_button |= MISC_BUTTON_SYSTEM;
 
     uni_get_platform()->on_device_oob_event(d, UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON);
@@ -593,10 +592,10 @@ static void process_misc_button_home(uni_hid_device_t* d) {
     if (d->wait_release_misc_button & MISC_BUTTON_HOME)
         return;
 
-    uni_hid_device_dump_all();
-
     // Update "wait" flag.
     d->wait_release_misc_button |= MISC_BUTTON_HOME;
+
+    uni_hid_device_dump_all();
 }
 
 // Try to send the report now. If it can't, queue it and send it in the next
