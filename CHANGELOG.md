@@ -4,7 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.5.0] - 2022-01/08
+## [Unreleased - 2022-??-??
+### Fixed
+
+- Bluetooth: add log about Feature Report not being supported ATM.
+- DualSense: doesn't not disconnect randomly
+
+## [2.5.0] - 2022-01-08
 ### New
 - tools/pc_debug: Integrate into Gitlab CI
 - tools/fw: add --clean argument to build.py
