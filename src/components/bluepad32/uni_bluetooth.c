@@ -491,6 +491,7 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
             on_l2cap_data_packet(channel, packet, size);
             break;
         default:
+            loge("unhandled packet type: 0x%02x\n", packet_type);
             break;
     }
 }
@@ -841,8 +842,17 @@ static void on_l2cap_data_packet(uint16_t channel, uint8_t* packet, uint16_t siz
         return;
     }
 
-    if (channel != d->conn.interrupt_cid)
+    if (channel == d->conn.control_cid) {
+        // TODO: Most probably a feature report, do something.
+        loge("Unsupported transaction type: 0x%02x\n", packet[0]);
+        printf_hexdump(packet, size);
         return;
+    }
+
+    if (channel != d->conn.interrupt_cid) {
+        loge("Invalid interrupt CID: got 0x%02x, want: 0x%02x\n", channel, d->conn.interrupt_cid);
+        return;
+    }
 
     if (!uni_hid_device_has_hid_descriptor(d) || !uni_hid_device_has_controller_type(d)) {
         sdp_d = uni_hid_device_get_sdp_device(&elapsed);
@@ -875,13 +885,17 @@ static void on_l2cap_data_packet(uint16_t channel, uint8_t* packet, uint16_t siz
     int report_len = size;
     uint8_t* report = packet;
 
-    // printf_hexdump(packet, size);
-
     // check if HID Input Report
     if (report_len < 1)
         return;
-    if (*report != 0xa1)
+
+    // DATA | INPUT_REPORT: 0xa1
+    if (report[0] != ((HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_INPUT)) {
+        loge("Unexpected transaction type: got 0x%02x, want: 0x0a1\n", report[0]);
+        printf_hexdump(packet, size);
         return;
+    }
+
     report++;
     report_len--;
 

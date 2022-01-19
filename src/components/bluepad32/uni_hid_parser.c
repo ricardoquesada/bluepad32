@@ -41,8 +41,7 @@ void uni_hid_parser(uni_hid_device_t* d, const uint8_t* report, uint16_t report_
         rp->parse_raw(d, report, report_len);
     }
 
-    // Devices that suport regular HID reports. Basically everyone except the
-    // Nintendo Wii U.
+    // Devices that suport regular HID reports. Basically everyone except the Nintendo Wii U.
     if (rp->parse_usage) {
         btstack_hid_parser_init(&parser, d->hid_descriptor, d->hid_descriptor_len, HID_REPORT_TYPE_INPUT, report,
                                 report_len);

@@ -507,8 +507,8 @@ void uni_hid_parser_xboxone_set_rumble(uni_hid_device_t* d, uint8_t value, uint8
     value /= 2;
 
     struct ff_report ff = {
-        .transaction_type = 0xa2,  // HIDP_TRANS_DATA | HIDP_DATA_RTYPE_OUPUT
-        .report_id = 0x03,         // taken from HID descriptor
+        .transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT,
+        .report_id = 0x03,  // taken from HID descriptor
         .enable_actuators = FF_RIGHT | FF_LEFT | FF_TRIGGER_LEFT | FF_TRIGGER_RIGHT,
         .force_left_trigger = value,
         .force_right_trigger = value,

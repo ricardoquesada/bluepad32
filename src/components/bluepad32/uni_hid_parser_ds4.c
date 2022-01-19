@@ -102,8 +102,8 @@ void uni_hid_parser_ds4_setup(struct uni_hid_device_s* d) {
     // Enable stream mode. Some models, like the CUH-ZCT2G require to explicitly
     // request stream mode.
     static uint8_t calibration_report[] = {
-        0x43,  // Get report type
-        0x02   // Report to request
+        ((HID_MESSAGE_TYPE_GET_REPORT << 4) | HID_REPORT_TYPE_FEATURE),
+        0x02  // Request calibration report
     };
     uni_hid_device_send_ctrl_report(d, (uint8_t*)calibration_report, sizeof(calibration_report));
 
@@ -241,9 +241,9 @@ static ds4_instance_t* get_ds4_instance(uni_hid_device_t* d) {
 }
 
 static void ds4_send_output_report(uni_hid_device_t* d, ds4_output_report_t* out) {
-    out->transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
-    out->report_id = 0x11;         // taken from HID descriptor
-    out->unk0[0] = 0xc4;           // HID alone + poll interval
+    out->transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT;
+    out->report_id = 0x11;  // taken from HID descriptor
+    out->unk0[0] = 0xc4;    // HID alone + poll interval
     out->crc32 = ~uni_crc32_le(0xffffffff, (uint8_t*)out, sizeof(*out) - 4);
 
     uni_hid_device_send_intr_report(d, (uint8_t*)out, sizeof(*out));

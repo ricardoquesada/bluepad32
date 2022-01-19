@@ -786,8 +786,7 @@ static void fsm_dump_rom(struct uni_hid_device_s* d) {
 
     uint8_t out[sizeof(struct switch_subcmd_request) + 5] = {0};
     struct switch_subcmd_request* req = (struct switch_subcmd_request*)&out[0];
-    req->transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
-    req->report_id = 0x01;         // 0x01 for sub commands
+    req->report_id = 0x01;  // 0x01 for sub commands
     req->subcmd_id = SUBCMD_SPI_FLASH_READ;
     // Address to read from: stick calibration
     req->data[0] = addr & 0xff;
@@ -809,10 +808,10 @@ static void fsm_request_device_info(struct uni_hid_device_s* d) {
     switch_instance_t* ins = get_switch_instance(d);
     ins->state = STATE_REQ_DEV_INFO;
 
-    struct switch_subcmd_request req = {0};
-    req.transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
-    req.report_id = 0x01;         // 0x01 for sub commands
-    req.subcmd_id = SUBCMD_REQ_DEV_INFO;
+    struct switch_subcmd_request req = {
+        .report_id = 0x01,  // 0x01 for sub commands
+        .subcmd_id = SUBCMD_REQ_DEV_INFO,
+    };
     send_subcmd(d, &req, sizeof(req));
 }
 
@@ -822,8 +821,7 @@ static void fsm_read_factory_calibration(struct uni_hid_device_s* d) {
 
     uint8_t out[sizeof(struct switch_subcmd_request) + 5] = {0};
     struct switch_subcmd_request* req = (struct switch_subcmd_request*)&out[0];
-    req->transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
-    req->report_id = 0x01;         // 0x01 for sub commands
+    req->report_id = 0x01;  // 0x01 for sub commands
     req->subcmd_id = SUBCMD_SPI_FLASH_READ;
     // Address to read from: stick calibration
     req->data[0] = SWITCH_FACTORY_CAL_DATA_ADDR & 0xff;
@@ -840,8 +838,7 @@ static void fsm_read_user_calibration(struct uni_hid_device_s* d) {
 
     uint8_t out[sizeof(struct switch_subcmd_request) + 5] = {0};
     struct switch_subcmd_request* req = (struct switch_subcmd_request*)&out[0];
-    req->transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
-    req->report_id = 0x01;         // 0x01 for sub commands
+    req->report_id = 0x01;  // 0x01 for sub commands
     req->subcmd_id = SUBCMD_SPI_FLASH_READ;
     // Address to read from: stick calibration
     req->data[0] = SWITCH_USER_CAL_DATA_ADDR & 0xff;
@@ -858,8 +855,7 @@ static void fsm_set_full_report(struct uni_hid_device_s* d) {
 
     uint8_t out[sizeof(struct switch_subcmd_request) + 1] = {0};
     struct switch_subcmd_request* req = (struct switch_subcmd_request*)&out[0];
-    req->transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
-    req->report_id = 0x01;         // 0x01 for sub commands
+    req->report_id = 0x01;  // 0x01 for sub commands
     req->subcmd_id = SUBCMD_SET_REPORT_MODE;
     req->data[0] = 0x30; /* type of report: standard, full */
     send_subcmd(d, req, sizeof(out));
@@ -871,8 +867,7 @@ static void fsm_enable_imu(struct uni_hid_device_s* d) {
 
     uint8_t out[sizeof(struct switch_subcmd_request) + 1] = {0};
     struct switch_subcmd_request* req = (struct switch_subcmd_request*)&out[0];
-    req->transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
-    req->report_id = 0x01;         // 0x01 for sub commands
+    req->report_id = 0x01;  // 0x01 for sub commands
     req->subcmd_id = SUBCMD_ENABLE_IMU;
     req->data[0] = (ins->mode == SWITCH_MODE_ACCEL);
     send_subcmd(d, req, sizeof(out));
@@ -890,13 +885,11 @@ static void fsm_set_home_light(struct uni_hid_device_s* d) {
 
     uint8_t out[sizeof(struct switch_subcmd_request) + 3] = {0};
     struct switch_subcmd_request* req = (struct switch_subcmd_request*)&out[0];
-    req->transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
-    req->report_id = 0x01;         // 0x01 for sub commands
+    req->report_id = 0x01;  // 0x01 for sub commands
     req->subcmd_id = SUBCMD_SET_HOME_LIGHT;
     req->data[0] = 0x01;  // No mini cycles | duration of each cycle.
     req->data[1] = 0x80;  // LED medium intensity | total mini cycles=0
     req->data[2] = 0x80;  // 1st mini cycle intensity: medium | ignore
-
     send_subcmd(d, req, sizeof(out));
 }
 
@@ -968,10 +961,9 @@ void uni_hid_parser_switch_set_rumble(struct uni_hid_device_s* d, uint8_t value,
     // FIXME: timer that cancels rumble after duration
     UNUSED(duration);
 
-    struct switch_rumble_only_request req = {0};
-
-    req.transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
-    req.report_id = OUTPUT_RUMBLE_ONLY;
+    struct switch_rumble_only_request req = {
+        .report_id = OUTPUT_RUMBLE_ONLY,
+    };
     switch_encode_rumble(req.rumble_left, value << 2, value, 500);
     switch_encode_rumble(req.rumble_right, value << 2, value, 500);
 
@@ -1026,7 +1018,6 @@ static void set_led(uni_hid_device_t* d, uint8_t leds) {
     uint8_t report[sizeof(struct switch_subcmd_request) + 1] = {0};
 
     struct switch_subcmd_request* req = (struct switch_subcmd_request*)&report[0];
-    req->transaction_type = 0xa2;               // DATA | TYPE_OUTPUT
     req->report_id = OUTPUT_RUMBLE_AND_SUBCMD;  // 0x01 for sub commands
     req->subcmd_id = SUBCMD_SET_PLAYER_LEDS;
     // LSB: turn on LEDs, MSB: flash LEDs
@@ -1042,6 +1033,7 @@ static void send_subcmd(uni_hid_device_t* d, struct switch_subcmd_request* r, in
     r->packet_num = packet_num++;
     if (packet_num > 0x0f)
         packet_num = 0;
+    r->transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT;
     uni_hid_device_send_intr_report(d, (const uint8_t*)r, len);
 }
 
@@ -1068,7 +1060,6 @@ static void switch_rumble_off(btstack_timer_source_t* ts) {
 
     struct switch_rumble_only_request req = {0};
 
-    req.transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
     req.report_id = OUTPUT_RUMBLE_ONLY;
     uint8_t rumble_default[4] = {0x00, 0x01, 0x40, 0x40};
     memcpy(req.rumble_left, rumble_default, sizeof(req.rumble_left));

@@ -24,6 +24,7 @@ limitations under the License.
 #include <assert.h>
 
 #include "hid_usage.h"
+#include "uni_common.h"
 #include "uni_config.h"
 #include "uni_debug.h"
 #include "uni_hid_device.h"
@@ -32,18 +33,18 @@ limitations under the License.
 
 enum {
     // Values for flag 0
-    DS5_FLAG0_COMPATIBLE_VIBRATION = 1 << 0,
-    DS5_FLAG0_HAPTICS_SELECT = 1 << 1,
+    DS5_FLAG0_COMPATIBLE_VIBRATION = BIT(0),
+    DS5_FLAG0_HAPTICS_SELECT = BIT(1),
 
     // Values for flag 1
-    DS5_FLAG1_LIGHTBAR = 1 << 2,
-    DS5_FLAG1_PLAYER_LED = 1 << 4,
+    DS5_FLAG1_LIGHTBAR = BIT(2),
+    DS5_FLAG1_PLAYER_LED = BIT(4),
 
     // Values for flag 2
-    DS5_FLAG2_LIGHTBAR_SETUP_CONTROL_ENABLE = 1 << 1,
+    DS5_FLAG2_LIGHTBAR_SETUP_CONTROL_ENABLE = BIT(1),
 
     // Values for lightbar_setup
-    DS5_LIGHTBAR_SETUP_LIGHT_OUT = 1 << 1,
+    DS5_LIGHTBAR_SETUP_LIGHT_OUT = BIT(1),  // Fade light out
 };
 
 typedef struct {
@@ -57,8 +58,8 @@ _Static_assert(sizeof(ds5_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "DS5 intance
 
 typedef struct __attribute((packed)) {
     // Bluetooth only
-    uint8_t transaction_type; /* 0xa2 */
-    uint8_t report_id;        /* 0x31 */
+    uint8_t transaction_type;
+    uint8_t report_id; /* 0x31 */
     uint8_t seq_tag;
     uint8_t tag;
 
@@ -149,6 +150,14 @@ void uni_hid_parser_ds5_setup(uni_hid_device_t* d) {
     ds5_instance_t* ins = get_ds5_instance(d);
     memset(ins, 0, sizeof(*ins));
     ins->hid_device = d;  // Used by rumble callbacks
+
+    // Mimic kernel behavior: request calibration report
+    // Hopefully fixes: https://gitlab.com/ricardoquesada/bluepad32/-/issues/2
+    static uint8_t calibration_report[] = {
+        ((HID_MESSAGE_TYPE_GET_REPORT << 4) | HID_REPORT_TYPE_FEATURE),
+        0x05  // Report to request: FEATURE_REPORT_CALIBRATION
+    };
+    uni_hid_device_send_ctrl_report(d, (uint8_t*)calibration_report, sizeof(calibration_report));
 
     // Enable lightbar.
     // Also, sending an output report enables input report 0x31.
@@ -274,9 +283,9 @@ static ds5_instance_t* get_ds5_instance(uni_hid_device_t* d) {
 static void ds5_send_output_report(uni_hid_device_t* d, ds5_output_report_t* out) {
     ds5_instance_t* ins = get_ds5_instance(d);
 
-    out->transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
-    out->report_id = 0x31;         // taken from HID descriptor
-    out->tag = 0x10;               // Magic number must be set to 0x10
+    out->transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT;
+    out->report_id = 0x31;  // taken from HID descriptor
+    out->tag = 0x10;        // Magic number must be set to 0x10
 
     // Highest 4-bit is a sequence number, which needs to be increased every
     // report. Lowest 4-bit is tag and can be zero for now.
