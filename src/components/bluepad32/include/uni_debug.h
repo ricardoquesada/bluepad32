@@ -27,18 +27,21 @@ limitations under the License.
 
 // PC uses simple fprintf(stderr)
 
-#define loge(fmt, ...)                                      \
-  do {                                                      \
-    if (UNI_LOG_ERROR) fprintf(stderr, fmt, ##__VA_ARGS__); \
-  } while (0)
-#define logi(fmt, ...)                                     \
-  do {                                                     \
-    if (UNI_LOG_INFO) fprintf(stderr, fmt, ##__VA_ARGS__); \
-  } while (0)
-#define logd(fmt, ...)                                      \
-  do {                                                      \
-    if (UNI_LOG_DEBUG) fprintf(stderr, fmt, ##__VA_ARGS__); \
-  } while (0)
+#define loge(fmt, ...)                           \
+    do {                                         \
+        if (UNI_LOG_ERROR)                       \
+            fprintf(stderr, fmt, ##__VA_ARGS__); \
+    } while (0)
+#define logi(fmt, ...)                           \
+    do {                                         \
+        if (UNI_LOG_INFO)                        \
+            fprintf(stderr, fmt, ##__VA_ARGS__); \
+    } while (0)
+#define logd(fmt, ...)                           \
+    do {                                         \
+        if (UNI_LOG_DEBUG)                       \
+            fprintf(stderr, fmt, ##__VA_ARGS__); \
+    } while (0)
 
 #else  // ESP32 platforms
 
@@ -46,18 +49,21 @@ limitations under the License.
 
 // ESP32 uses ets_printf()
 
-#define loge(fmt, ...)                                 \
-  do {                                                 \
-    if (UNI_LOG_ERROR) ets_printf(fmt, ##__VA_ARGS__); \
-  } while (0)
-#define logi(fmt, ...)                                \
-  do {                                                \
-    if (UNI_LOG_INFO) ets_printf(fmt, ##__VA_ARGS__); \
-  } while (0)
-#define logd(fmt, ...)                                 \
-  do {                                                 \
-    if (UNI_LOG_DEBUG) ets_printf(fmt, ##__VA_ARGS__); \
-  } while (0)
+#define loge(fmt, ...)                      \
+    do {                                    \
+        if (UNI_LOG_ERROR)                  \
+            ets_printf(fmt, ##__VA_ARGS__); \
+    } while (0)
+#define logi(fmt, ...)                      \
+    do {                                    \
+        if (UNI_LOG_INFO)                   \
+            ets_printf(fmt, ##__VA_ARGS__); \
+    } while (0)
+#define logd(fmt, ...)                      \
+    do {                                    \
+        if (UNI_LOG_DEBUG)                  \
+            ets_printf(fmt, ##__VA_ARGS__); \
+    } while (0)
 
 #endif  // ! UNI_PLATFORM_PC_DEBUG
 
