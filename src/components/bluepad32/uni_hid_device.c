@@ -263,7 +263,7 @@ bool uni_hid_device_is_incoming(uni_hid_device_t* d) {
     return d->conn.incoming;
 }
 
-void uni_hid_device_set_name(uni_hid_device_t* d, const uint8_t* name, int name_len) {
+void uni_hid_device_set_name(uni_hid_device_t* d, const char* name) {
     if (d == NULL) {
         log_error("ERROR: Invalid device\n");
         return;
@@ -273,14 +273,11 @@ void uni_hid_device_set_name(uni_hid_device_t* d, const uint8_t* name, int name_
         return;
     }
 
-    if (name != NULL) {
-        int min = btstack_min(HID_MAX_NAME_LEN - 1, name_len);
-        memcpy(d->name, name, min);
-        d->name[min] = 0;
+    strncpy(d->name, name, sizeof(d->name) - 1);
+    d->name[sizeof(d->name) - 1] = 0;
 
-        d->flags |= FLAGS_HAS_NAME;
-        uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED);
-    }
+    d->flags |= FLAGS_HAS_NAME;
+    uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED);
 }
 
 bool uni_hid_device_has_name(uni_hid_device_t* d) {
@@ -335,10 +332,17 @@ uint16_t uni_hid_device_get_vendor_id(uni_hid_device_t* d) {
     return d->vendor_id;
 }
 
+void uni_hid_device_delete(uni_hid_device_t* d) {
+    if (d == NULL) {
+        loge("uni_hid_device_delete: invalid hid device: NULL\n");
+        return;
+    }
+    memset(d, 0, sizeof(*d));
+}
 // XXX: Replace it with a timed-callback
 bool uni_hid_device_auto_delete(uni_hid_device_t* d) {
     if (d == NULL) {
-        loge("Invalid hid device: NULL\n");
+        loge("uni_hid_device_auto_delete: invalid hid device: NULL\n");
         return false;
     }
 
@@ -357,7 +361,7 @@ bool uni_hid_device_auto_delete(uni_hid_device_t* d) {
 
     // And if auto-delete was called, that means that something went wrong.
     // So, just clean the entire entry
-    memset(d, 0, sizeof(*d));
+    uni_hid_device_delete(d);
 
     return true;
 }

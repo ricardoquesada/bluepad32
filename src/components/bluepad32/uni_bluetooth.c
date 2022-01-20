@@ -69,10 +69,16 @@
 #include "uni_hid_parser.h"
 #include "uni_platform.h"
 
+// Was needed for DualShock4 version1, on previous versions.
+// It is working now. Perhaps it was fixed in esp-idf or in btstack. Who knows.
+// #define UNI_ENABLE_SDP_QUERY_BEFORE_CONNECT 1
+// Experiment feature. Disabled until it is ready.
+// #define UNI_ENABLE_BLE 1
+
 #define GAP_INQUIRY_INTERVAL 1          // Measured in in 1.28s units
 #define GAP_INQUIRY_PAUSE_TIME_MS 1000  // "pause" has similar time as GAP_INQUIRY_INTERVAL
 #define MAX_ATTRIBUTE_VALUE_SIZE 512    // Apparently PS4 has a 470-bytes report
-#define L2CAP_CHANNEL_MTU 128           // PS4 requires a 79-byte packet
+#define L2CAP_CHANNEL_MTU 0xffff        // PS4 requires a 79-byte packet
 
 // globals
 // SDP
@@ -80,20 +86,24 @@ static uint8_t attribute_value[MAX_ATTRIBUTE_VALUE_SIZE];
 static const unsigned int attribute_value_buffer_size = MAX_ATTRIBUTE_VALUE_SIZE;
 
 // Used to implement connection timeout and reconnect timer
-static btstack_timer_source_t hog_connection_timer;
+static btstack_timer_source_t hog_connection_timer;  // BLE only
 static btstack_timer_source_t gap_inquiry_timer;
 
 static btstack_packet_callback_registration_t hci_event_callback_registration;
+#ifdef UNI_ENABLE_BLE
 static btstack_packet_callback_registration_t sm_event_callback_registration;
 static hid_protocol_mode_t protocol_mode = HID_PROTOCOL_MODE_REPORT;
+#endif  // UNI_ENABLE_BLE
 
 static bool accept_incoming_connections = true;
 
 static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
 static void handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
 static void handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
+#ifdef UNI_ENABLE_BLE
 static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
-static void continue_remote_names(void);
+#endif  // UNI_ENABLE_BLE
+static void maybe_inquiry_remote_names_or_scan(void);
 static bool adv_event_contains_hid_service(const uint8_t* packet);
 static void hog_connect(bd_addr_t addr, bd_addr_type_t addr_type);
 static void start_scan(void);
@@ -242,6 +252,7 @@ static void handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, u
 }
 
 // BLE only
+#ifdef UNI_ENABLE_BLE
 static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     UNUSED(packet_type);
     UNUSED(channel);
@@ -283,6 +294,7 @@ static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint
             break;
     }
 }
+#endif  // UNI_ENABLE_BLE
 
 static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     static bool bt_ready = false;
@@ -291,8 +303,10 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
     bd_addr_t event_addr;
     uni_hid_device_t* device;
     uint8_t status;
+#ifdef UNI_ENABLE_BLE
     hci_con_handle_t con_handle;
     uint16_t hids_cid;
+#endif  // UNI_ENABLE_BLE
 
     // Ignore all packet events if BT is not ready, with the exception of the "BT is ready" event.
     if ((!bt_ready) &&
@@ -316,7 +330,8 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
                     }
                     break;
 
-                // HCI EVENTS
+                    // HCI EVENTS
+#ifdef UNI_ENABLE_BLE
                 case HCI_EVENT_LE_META:  // BLE only
                     // wait for connection complete
                     // XXX: FIXME
@@ -335,6 +350,9 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
                     uni_hid_device_set_connection_handle(device, con_handle);
                     break;
                 case HCI_EVENT_ENCRYPTION_CHANGE:  // BLE only
+                    // XXX, TODO, WARNING: This event is also triggered by Classic,
+                    // and might crash the stack. Real case:
+                    // Connect a Wii , disconnect it, and try re-connection
                     con_handle = hci_event_encryption_change_get_connection_handle(packet);
                     device = uni_hid_device_get_instance_for_connection_handle(con_handle);
                     if (!device) {
@@ -355,6 +373,7 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
                     }
                     device->hids_cid = hids_cid;
                     break;
+#endif  //  UNI_ENABLE_BLE
                 case HCI_EVENT_COMMAND_COMPLETE: {
                     uint16_t opcode = hci_event_command_complete_get_command_opcode(packet);
                     const uint8_t* param = hci_event_command_complete_get_return_parameters(packet);
@@ -436,18 +455,20 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
                     break;
                 case HCI_EVENT_REMOTE_NAME_REQUEST_COMPLETE:
                     logi("--> HCI_EVENT_REMOTE_NAME_REQUEST_COMPLETE\n");
-                    reverse_bd_addr(&packet[3], event_addr);
+                    if (hci_event_remote_name_request_complete_get_status(packet) != 0) {
+                        maybe_inquiry_remote_names_or_scan();
+                        break;
+                    }
+                    hci_event_remote_name_request_complete_get_bd_addr(packet, event_addr);
                     device = uni_hid_device_get_instance_for_address(event_addr);
                     if (device != NULL) {
-                        if (packet[2] == 0) {
-                            logi("Name: '%s'\n", &packet[9]);
-                            uni_hid_device_set_name(device, &packet[9], strlen((const char*)&packet[9]));
-                            fsm_process(device);
-                        } else {
-                            logi("Failed to get name: page timeout\n");
-                        }
+                        const char* name = hci_event_remote_name_request_complete_get_remote_name(packet);
+                        logi("Name: '%s'\n", name);
+                        uni_hid_device_set_name(device, name);
+                        fsm_process(device);
+                    } else {
+                        maybe_inquiry_remote_names_or_scan();
                     }
-                    continue_remote_names();
                     break;
                 // L2CAP EVENTS
                 case L2CAP_EVENT_CAN_SEND_NOW:
@@ -507,6 +528,7 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
  * pairing. It also receives events generated during Identity Resolving see
  * Listing SMPacketHandler.
  */
+#ifdef UNI_ENABLE_BLE
 static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     UNUSED(channel);
     UNUSED(size);
@@ -549,6 +571,7 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
             break;
     }
 }
+#endif  // UNI_ENABLE_BLE
 
 static void on_hci_connection_request(uint16_t channel, const uint8_t* packet, uint16_t size) {
     bd_addr_t event_addr;
@@ -612,11 +635,10 @@ static void on_hci_connection_complete(uint16_t channel, const uint8_t* packet, 
 }
 
 static void on_gap_inquiry_result(uint16_t channel, const uint8_t* packet, uint16_t size) {
-    const int NAME_LEN_MAX = 240;
     bd_addr_t addr;
     uni_hid_device_t* device;
-    uint8_t name_buffer[NAME_LEN_MAX];
-    int name_len = -1;
+    char name_buffer[HID_MAX_NAME_LEN + 1];
+    int name_len = 0;
 
     UNUSED(channel);
     UNUSED(size);
@@ -634,7 +656,7 @@ static void on_gap_inquiry_result(uint16_t channel, const uint8_t* packet, uint1
         logi(", rssi %d dBm", (int8_t)gap_event_inquiry_result_get_rssi(packet));
     }
     if (gap_event_inquiry_result_get_name_available(packet)) {
-        name_len = btstack_min(NAME_LEN_MAX - 1, gap_event_inquiry_result_get_name_len(packet));
+        name_len = gap_event_inquiry_result_get_name_len(packet);
         memcpy(name_buffer, gap_event_inquiry_result_get_name(packet), name_len);
         name_buffer[name_len] = 0;
         logi(", name '%s'", name_buffer);
@@ -661,7 +683,7 @@ static void on_gap_inquiry_result(uint16_t channel, const uint8_t* packet, uint1
             device->conn.page_scan_repetition_mode = page_scan_repetition_mode;
             device->conn.clock_offset = clock_offset;
             if (name_len != -1 && !uni_hid_device_has_name(device)) {
-                uni_hid_device_set_name(device, name_buffer, name_len);
+                uni_hid_device_set_name(device, name_buffer);
             }
         }
         logi("\n");
@@ -939,33 +961,35 @@ static bool adv_event_contains_hid_service(const uint8_t* packet) {
     return ad_data_contains_uuid16(ad_len, ad_data, ORG_BLUETOOTH_SERVICE_HUMAN_INTERFACE_DEVICE);
 }
 
-static void continue_remote_names(void) {
+static void maybe_inquiry_remote_names_or_scan(void) {
     uni_hid_device_t* d = uni_hid_device_get_first_device_with_state(UNI_BT_CONN_STATE_REMOTE_NAME_REQUEST);
-    if (!d) {
-        // No device ready? Continue scanning
-        start_scan();
+    if (d) {
+        // A device without name, then fetch the name
+        logi("Fetching remote name of %s\n", bd_addr_to_str(d->conn.remote_addr));
+        uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_REMOTE_NAME_INQUIRED);
+        gap_remote_name_request(d->conn.remote_addr, d->conn.page_scan_repetition_mode, d->conn.clock_offset | 0x8000);
         return;
     }
-    uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_REMOTE_NAME_INQUIRED);
-    logi("Fetching remote name of %s\n", bd_addr_to_str(d->conn.remote_addr));
-    gap_remote_name_request(d->conn.remote_addr, d->conn.page_scan_repetition_mode, d->conn.clock_offset | 0x8000);
+
+    // Else, continue with the scan
+    start_scan();
 }
 
 static void gap_inquiry_pause_timeout(btstack_timer_source_t* ts) {
     UNUSED(ts);
     // Continue with the scanning after pausing.
     uni_hid_device_request_inquire();
-    continue_remote_names();
+    maybe_inquiry_remote_names_or_scan();
 }
 
 static void start_scan(void) {
     logd("--> Scanning for new gamepads...\n");
     // Passive scanning, 100% (scan interval = scan window)
     // Start GAP BLE scan
-#ifdef ENABLE_BLE
+#ifdef UNI_ENABLE_BLE
     gap_set_scan_parameters(0 /* type */, 48 /* interval */, 48 /* window */);
     gap_start_scan();
-#endif  // ENABLE_BLE
+#endif  // UNI_ENABLE_BLE
 
     // Start GAP Classic inquiry
     if (gap_inquiry_start(GAP_INQUIRY_INTERVAL) != 0)
@@ -974,9 +998,9 @@ static void start_scan(void) {
 
 static void stop_scan() {
     logi("--> Stop scanning for new gamepads\n");
-#ifdef ENABLE_BLE
+#ifdef UNI_ENABLE_BLE
     gap_stop_scan();
-#endif
+#endif  // UNI_ENABLE_BLE
     gap_inquiry_stop();
 }
 
@@ -1005,8 +1029,7 @@ static void sdp_query_hid_descriptor(uni_hid_device_t* device) {
     if (status != 0) {
         loge("Failed to perform SDP query for %s. Removing it...\n", bd_addr_to_str(device->conn.remote_addr));
         uni_hid_device_set_sdp_device(NULL);
-        // TODO: Add a function in uni_hid_device for this
-        memset(device, 0, sizeof(*device));
+        uni_hid_device_delete(device);
     }
 }
 
@@ -1057,8 +1080,8 @@ static void list_link_keys(void) {
 }
 
 static void l2cap_create_control_connection(uni_hid_device_t* d) {
-    uint8_t status = l2cap_create_channel(packet_handler, d->conn.remote_addr, PSM_HID_CONTROL, L2CAP_CHANNEL_MTU,
-                                          &d->conn.control_cid);
+    uint8_t status = l2cap_create_channel(packet_handler, d->conn.remote_addr, BLUETOOTH_PSM_HID_CONTROL,
+                                          L2CAP_CHANNEL_MTU, &d->conn.control_cid);
     if (status) {
         loge("\nConnecting or Auth to HID Control failed: 0x%02x", status);
     } else {
@@ -1067,8 +1090,8 @@ static void l2cap_create_control_connection(uni_hid_device_t* d) {
 }
 
 static void l2cap_create_interrupt_connection(uni_hid_device_t* d) {
-    uint8_t status = l2cap_create_channel(packet_handler, d->conn.remote_addr, PSM_HID_INTERRUPT, L2CAP_CHANNEL_MTU,
-                                          &d->conn.interrupt_cid);
+    uint8_t status = l2cap_create_channel(packet_handler, d->conn.remote_addr, BLUETOOTH_PSM_HID_INTERRUPT,
+                                          L2CAP_CHANNEL_MTU, &d->conn.interrupt_cid);
     if (status) {
         loge("\nConnecting or Auth to HID Interrupt failed: 0x%02x", status);
     } else {
@@ -1116,15 +1139,21 @@ static void fsm_process(uni_hid_device_t* d) {
             l2cap_create_control_connection(d);
         } else if (state == UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED) {
             logd("STATE_REMOTE_NAME_FETCHED\n");
+#if ENABLE_SDP_QUERY_BEFORE_CONNECT
             if (strncmp(d->name, "Wireless Controller", strlen(d->name)) == 0) {
-                logi("Detected DualShock 4. Doing SDP query before connect.\n");
-                d->sdp_query_before_connect = 1;
+                // This is needed for DualShock4 version 1.
+                logi("Device %s seems to be a Sony Playstation, doing SDP query before connect.\n",
+                     bd_addr_to_str(d->conn.remote_addr));
+                d->sdp_query_before_connect = true;
             }
             if (d->sdp_query_before_connect) {
                 sdp_query_hid_descriptor(d);
             } else {
                 l2cap_create_control_connection(d);
             }
+#else   // !ENABLE_SDP_QUERY_BEFORE_CONNECT
+            l2cap_create_control_connection(d);
+#endif  // !ENABLE_SDP_QUERY_BEFORE_CONNECT
         } else if (state == UNI_BT_CONN_STATE_L2CAP_CONTROL_CONNECTED) {
             logd("STATE_L2CAP_CONTROL_CONNECTED\n");
             l2cap_create_interrupt_connection(d);
@@ -1168,8 +1197,8 @@ int uni_bluetooth_init(void) {
     int security_level = gap_get_security_level();
     logi("Gap security level: %d\n", security_level);
 
-    l2cap_register_service(packet_handler, PSM_HID_INTERRUPT, 0xffff, security_level);
-    l2cap_register_service(packet_handler, PSM_HID_CONTROL, 0xffff, security_level);
+    l2cap_register_service(packet_handler, BLUETOOTH_PSM_HID_INTERRUPT, L2CAP_CHANNEL_MTU, security_level);
+    l2cap_register_service(packet_handler, BLUETOOTH_PSM_HID_CONTROL, L2CAP_CHANNEL_MTU, security_level);
 
     // register for HCI events
     hci_event_callback_registration.callback = &packet_handler;
@@ -1184,7 +1213,7 @@ int uni_bluetooth_init(void) {
     // btstack_stdin_setup(stdin_process);
     hci_set_master_slave_policy(HCI_ROLE_MASTER);
 
-#ifdef ENABLE_BLE
+#ifdef UNI_ENABLE_BLE
     // register for events from Security Manager
     sm_event_callback_registration.callback = &sm_packet_handler;
     sm_add_event_handler(&sm_event_callback_registration);
@@ -1193,7 +1222,7 @@ int uni_bluetooth_init(void) {
     le_device_db_init();
     sm_init();
     gatt_client_init();
-#endif  // ENABLE_BLE
+#endif  // UNI_ENABLE_BLE
 
     // Disable stdout buffering
     setbuf(stdout, NULL);

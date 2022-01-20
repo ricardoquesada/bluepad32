@@ -81,7 +81,7 @@ struct uni_hid_device_s {
     // Unijoysticle + btstack + libusb in Linux. The correct thing to do is to
     // debug the Linux connection and see what packets are sent before the
     // connection.
-    uint8_t sdp_query_before_connect;
+    bool sdp_query_before_connect;
 
     // Channels
     uint16_t hids_cid;  // BLE only
@@ -156,11 +156,12 @@ bool uni_hid_device_has_hid_descriptor(uni_hid_device_t* d);
 // Returns true if the device was deleted.
 // The device will be deleted after call "auto_delete" gets calls N times.
 bool uni_hid_device_auto_delete(uni_hid_device_t* d);
+void uni_hid_device_delete(uni_hid_device_t* d);
 
 void uni_hid_device_set_incoming(uni_hid_device_t* d, bool incoming);
 bool uni_hid_device_is_incoming(uni_hid_device_t* d);
 
-void uni_hid_device_set_name(uni_hid_device_t* d, const uint8_t* name, int name_len);
+void uni_hid_device_set_name(uni_hid_device_t* d, const char* name);
 bool uni_hid_device_has_name(uni_hid_device_t* d);
 
 void uni_hid_device_set_product_id(uni_hid_device_t* d, uint16_t product_id);
