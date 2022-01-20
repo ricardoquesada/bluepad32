@@ -69,9 +69,10 @@
 #include "uni_hid_parser.h"
 #include "uni_platform.h"
 
-// Was needed for DualShock4 version1, on previous versions.
-// It is working now. Perhaps it was fixed in esp-idf or in btstack. Who knows.
-// #define UNI_ENABLE_SDP_QUERY_BEFORE_CONNECT 1
+// Needed for DualShock4 version1.
+// It seems that when UNI_ENABLE_BLE is enabled, it doesn't need it.
+// Probably related to one of the HCI events handled by the BLE code.
+#define UNI_ENABLE_SDP_QUERY_BEFORE_CONNECT 1
 // Experiment feature. Disabled until it is ready.
 // #define UNI_ENABLE_BLE 1
 
@@ -1139,7 +1140,7 @@ static void fsm_process(uni_hid_device_t* d) {
             l2cap_create_control_connection(d);
         } else if (state == UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED) {
             logd("STATE_REMOTE_NAME_FETCHED\n");
-#if ENABLE_SDP_QUERY_BEFORE_CONNECT
+#if UNI_ENABLE_SDP_QUERY_BEFORE_CONNECT
             if (strncmp(d->name, "Wireless Controller", strlen(d->name)) == 0) {
                 // This is needed for DualShock4 version 1.
                 logi("Device %s seems to be a Sony Playstation, doing SDP query before connect.\n",
@@ -1151,9 +1152,9 @@ static void fsm_process(uni_hid_device_t* d) {
             } else {
                 l2cap_create_control_connection(d);
             }
-#else   // !ENABLE_SDP_QUERY_BEFORE_CONNECT
+#else   // !UNI_ENABLE_SDP_QUERY_BEFORE_CONNECT
             l2cap_create_control_connection(d);
-#endif  // !ENABLE_SDP_QUERY_BEFORE_CONNECT
+#endif  // !UNI_ENABLE_SDP_QUERY_BEFORE_CONNECT
         } else if (state == UNI_BT_CONN_STATE_L2CAP_CONTROL_CONNECTED) {
             logd("STATE_L2CAP_CONTROL_CONNECTED\n");
             l2cap_create_interrupt_connection(d);
