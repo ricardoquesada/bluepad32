@@ -137,7 +137,7 @@ void uni_hid_parser_ds3_init_report(uni_hid_device_t* d) {
         GAMEPAD_STATE_MISC_BUTTON_BACK | GAMEPAD_STATE_MISC_BUTTON_HOME | GAMEPAD_STATE_MISC_BUTTON_SYSTEM;
 }
 
-void uni_hid_parser_ds3_parse_raw(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
+void uni_hid_parser_ds3_parse_input_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
     ds3_instance_t* ins = get_ds3_instance(d);
     if (ins->state == DS3_FSM_REQUIRES_LED_UPDATE) {
         ds3_update_led(d, ins->player_leds);

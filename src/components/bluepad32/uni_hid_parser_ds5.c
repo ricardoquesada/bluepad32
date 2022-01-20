@@ -31,6 +31,11 @@ limitations under the License.
 #include "uni_hid_parser.h"
 #include "uni_utils.h"
 
+#define DS5_FEATURE_REPORT_FIRMWARE_VERSION 0x20
+#define DS5_FEATURE_REPORT_FIRMWARE_VERSION_SIZE 64
+#define DS5_FEATURE_REPORT_CALIBRATION 0x05
+#define DS5_FEATURE_REPORT_CALIBRATION_SIZE 41
+
 enum {
     // Values for flag 0
     DS5_FLAG0_COMPATIBLE_VIBRATION = BIT(0),
@@ -47,12 +52,22 @@ enum {
     DS5_LIGHTBAR_SETUP_LIGHT_OUT = BIT(1),  // Fade light out
 };
 
+typedef enum {
+    DS5_STATE_INITIAL,
+    DS5_STATE_FIRMWARE_VERSION_REQUEST,
+    DS5_STATE_CALIBRATION_REQUEST,
+    DS5_STATE_READY,
+} ds5_state_t;
+
 typedef struct {
     // Must be first element
     btstack_timer_source_t ts;
     uni_hid_device_t* hid_device;
     bool rumble_in_progress;
     uint8_t output_seq;
+    ds5_state_t state;
+    uint32_t hw_version;
+    uint32_t fw_version;
 } ds5_instance_t;
 _Static_assert(sizeof(ds5_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "DS5 intance too big");
 
@@ -126,6 +141,9 @@ typedef struct __attribute((packed)) {
 
 static ds5_instance_t* get_ds5_instance(uni_hid_device_t* d);
 static void ds5_send_output_report(uni_hid_device_t* d, ds5_output_report_t* out);
+static void ds5_send_enable_lightbar_report(uni_hid_device_t* d);
+static void ds5_request_firmware_version_report(uni_hid_device_t* d);
+static void ds5_request_calibration_report(uni_hid_device_t* d);
 static void ds5_set_rumble_off(btstack_timer_source_t* ts);
 
 void uni_hid_parser_ds5_init_report(uni_hid_device_t* d) {
@@ -150,25 +168,40 @@ void uni_hid_parser_ds5_setup(uni_hid_device_t* d) {
     ds5_instance_t* ins = get_ds5_instance(d);
     memset(ins, 0, sizeof(*ins));
     ins->hid_device = d;  // Used by rumble callbacks
-
-    // Mimic kernel behavior: request calibration report
-    // Hopefully fixes: https://gitlab.com/ricardoquesada/bluepad32/-/issues/2
-    static uint8_t calibration_report[] = {
-        ((HID_MESSAGE_TYPE_GET_REPORT << 4) | HID_REPORT_TYPE_FEATURE),
-        0x05  // Report to request: FEATURE_REPORT_CALIBRATION
-    };
-    uni_hid_device_send_ctrl_report(d, (uint8_t*)calibration_report, sizeof(calibration_report));
-
-    // Enable lightbar.
-    // Also, sending an output report enables input report 0x31.
-    ds5_output_report_t out = {0};
-
-    out.valid_flag2 = DS5_FLAG2_LIGHTBAR_SETUP_CONTROL_ENABLE;
-    out.lightbar_setup = DS5_LIGHTBAR_SETUP_LIGHT_OUT;
-    ds5_send_output_report(d, &out);
+    ds5_request_firmware_version_report(d);
 }
 
-void uni_hid_parser_ds5_parse_raw(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
+void uni_hid_parser_ds5_parse_feature_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
+    ds5_instance_t* ins = get_ds5_instance(d);
+    uint8_t report_id = report[0];
+    switch (report_id) {
+        case DS5_FEATURE_REPORT_CALIBRATION:
+            /* TODO: Don't ignore calibration */
+            if (len != DS5_FEATURE_REPORT_CALIBRATION_SIZE) {
+                loge("DS5: Unexpected calibration size: got %d, want: %d\n", len, DS5_FEATURE_REPORT_CALIBRATION_SIZE);
+                /* fallthrough */
+            }
+            ds5_send_enable_lightbar_report(d);
+            break;
+        case DS5_FEATURE_REPORT_FIRMWARE_VERSION:
+            if (len != DS5_FEATURE_REPORT_FIRMWARE_VERSION_SIZE) {
+                loge("DS5: Unexpected firmware version size: got %d, want: %d\n", len,
+                     DS5_FEATURE_REPORT_FIRMWARE_VERSION_SIZE);
+                /* fallthrough */
+            }
+            ds5_request_calibration_report(d);
+            ins->hw_version = *(uint32_t*)&report[24];
+            ins->fw_version = *(uint32_t*)&report[28];
+            printf_hexdump(report, len);
+            logi("DS5: fw version: 0x%08x, hw version: 0x%08x\n", ins->fw_version, ins->hw_version);
+            break;
+        default:
+            loge("DS5: Unexpected report id in feature report: 0x%02x\n", report_id);
+            break;
+    }
+}
+
+void uni_hid_parser_ds5_parse_input_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
     if (report[0] != 0x31) {
         loge("DS5: Unexpected report type: got 0x%02x, want: 0x31\n", report[0]);
         return;
@@ -309,4 +342,43 @@ static void ds5_set_rumble_off(btstack_timer_source_t* ts) {
     out.valid_flag0 = DS5_FLAG0_COMPATIBLE_VIBRATION | DS5_FLAG0_HAPTICS_SELECT;
 
     ds5_send_output_report(ins->hid_device, &out);
+}
+
+static void ds5_request_calibration_report(uni_hid_device_t* d) {
+    ds5_instance_t* ins = get_ds5_instance(d);
+    ins->state = DS5_STATE_CALIBRATION_REQUEST;
+
+    // Mimic kernel behavior: request calibration report
+    // Hopefully fixes: https://gitlab.com/ricardoquesada/bluepad32/-/issues/2
+    static uint8_t calibration_report[] = {
+        ((HID_MESSAGE_TYPE_GET_REPORT << 4) | HID_REPORT_TYPE_FEATURE),
+        DS5_FEATURE_REPORT_CALIBRATION,
+    };
+    uni_hid_device_send_ctrl_report(d, (uint8_t*)calibration_report, sizeof(calibration_report));
+}
+
+static void ds5_request_firmware_version_report(uni_hid_device_t* d) {
+    ds5_instance_t* ins = get_ds5_instance(d);
+    ins->state = DS5_STATE_FIRMWARE_VERSION_REQUEST;
+
+    // Mimic kernel behavior: request calibration report
+    // Hopefully fixes: https://gitlab.com/ricardoquesada/bluepad32/-/issues/2
+    static uint8_t calibration_report[] = {
+        ((HID_MESSAGE_TYPE_GET_REPORT << 4) | HID_REPORT_TYPE_FEATURE),
+        DS5_FEATURE_REPORT_FIRMWARE_VERSION,
+    };
+    uni_hid_device_send_ctrl_report(d, (uint8_t*)calibration_report, sizeof(calibration_report));
+}
+
+static void ds5_send_enable_lightbar_report(uni_hid_device_t* d) {
+    ds5_instance_t* ins = get_ds5_instance(d);
+    ins->state = DS5_STATE_READY;
+
+    // Enable lightbar.
+    // Also, sending an output report enables input report 0x31.
+    ds5_output_report_t out = {
+        .valid_flag2 = DS5_FLAG2_LIGHTBAR_SETUP_CONTROL_ENABLE,
+        .lightbar_setup = DS5_LIGHTBAR_SETUP_LIGHT_OUT,
+    };
+    ds5_send_output_report(d, &out);
 }

@@ -100,14 +100,14 @@ static void sdp_query_hid_descriptor(uni_hid_device_t* device);
 static void sdp_query_product_id(uni_hid_device_t* device);
 static void list_link_keys(void);
 
-static void on_l2cap_channel_closed(uint16_t channel, uint8_t* packet, uint16_t size);
-static void on_l2cap_channel_opened(uint16_t channel, uint8_t* packet, uint16_t size);
-static void on_l2cap_incoming_connection(uint16_t channel, uint8_t* packet, uint16_t size);
-static void on_l2cap_data_packet(uint16_t channel, uint8_t* packet, uint16_t sizel);
-static void on_gap_inquiry_result(uint16_t channel, uint8_t* packet, uint16_t size);
-static void on_gap_event_advertising_report(uint16_t channel, uint8_t* packet, uint16_t size);
-static void on_hci_connection_complete(uint16_t channel, uint8_t* packet, uint16_t size);
-static void on_hci_connection_request(uint16_t channel, uint8_t* packet, uint16_t size);
+static void on_l2cap_channel_closed(uint16_t channel, const uint8_t* packet, uint16_t size);
+static void on_l2cap_channel_opened(uint16_t channel, const uint8_t* packet, uint16_t size);
+static void on_l2cap_incoming_connection(uint16_t channel, const uint8_t* packet, uint16_t size);
+static void on_l2cap_data_packet(uint16_t channel, const uint8_t* packet, uint16_t sizel);
+static void on_gap_inquiry_result(uint16_t channel, const uint8_t* packet, uint16_t size);
+static void on_gap_event_advertising_report(uint16_t channel, const uint8_t* packet, uint16_t size);
+static void on_hci_connection_complete(uint16_t channel, const uint8_t* packet, uint16_t size);
+static void on_hci_connection_request(uint16_t channel, const uint8_t* packet, uint16_t size);
 static void fsm_process(uni_hid_device_t* d);
 static void l2cap_create_control_connection(uni_hid_device_t* d);
 static void l2cap_create_interrupt_connection(uni_hid_device_t* d);
@@ -292,8 +292,7 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
     hci_con_handle_t con_handle;
     uint16_t hids_cid;
 
-    // Ignore all packet events if BT is not ready, with the exception of the
-    // "BT is ready" event.
+    // Ignore all packet events if BT is not ready, with the exception of the "BT is ready" event.
     if ((!bt_ready) &&
         !((packet_type == HCI_EVENT_PACKET) && (hci_event_packet_get_type(packet) == BTSTACK_EVENT_STATE))) {
         // printf("Ignoring packet. BT not ready yet\n");
@@ -545,7 +544,7 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
     }
 }
 
-static void on_hci_connection_request(uint16_t channel, uint8_t* packet, uint16_t size) {
+static void on_hci_connection_request(uint16_t channel, const uint8_t* packet, uint16_t size) {
     bd_addr_t event_addr;
     uint32_t cod;
     uni_hid_device_t* device;
@@ -569,7 +568,7 @@ static void on_hci_connection_request(uint16_t channel, uint8_t* packet, uint16_
     logi("on_hci_connection_request from: address = %s, cod=0x%04x\n", bd_addr_to_str(event_addr), cod);
 }
 
-static void on_hci_connection_complete(uint16_t channel, uint8_t* packet, uint16_t size) {
+static void on_hci_connection_complete(uint16_t channel, const uint8_t* packet, uint16_t size) {
     bd_addr_t event_addr;
     uni_hid_device_t* d;
     hci_con_handle_t handle;
@@ -606,7 +605,7 @@ static void on_hci_connection_complete(uint16_t channel, uint8_t* packet, uint16
     }
 }
 
-static void on_gap_inquiry_result(uint16_t channel, uint8_t* packet, uint16_t size) {
+static void on_gap_inquiry_result(uint16_t channel, const uint8_t* packet, uint16_t size) {
     const int NAME_LEN_MAX = 240;
     bd_addr_t addr;
     uni_hid_device_t* device;
@@ -667,7 +666,7 @@ static void on_gap_inquiry_result(uint16_t channel, uint8_t* packet, uint16_t si
 }
 
 // BLE only
-static void on_gap_event_advertising_report(uint16_t channel, uint8_t* packet, uint16_t size) {
+static void on_gap_event_advertising_report(uint16_t channel, const uint8_t* packet, uint16_t size) {
     bd_addr_t addr;
     bd_addr_type_t addr_type;
 
@@ -686,7 +685,7 @@ static void on_gap_event_advertising_report(uint16_t channel, uint8_t* packet, u
     hog_connect(addr, addr_type);
 }
 
-static void on_l2cap_channel_opened(uint16_t channel, uint8_t* packet, uint16_t size) {
+static void on_l2cap_channel_opened(uint16_t channel, const uint8_t* packet, uint16_t size) {
     uint16_t psm;
     uint8_t status;
     uint16_t local_cid, remote_cid;
@@ -756,7 +755,7 @@ static void on_l2cap_channel_opened(uint16_t channel, uint8_t* packet, uint16_t 
     fsm_process(device);
 }
 
-static void on_l2cap_channel_closed(uint16_t channel, uint8_t* packet, uint16_t size) {
+static void on_l2cap_channel_closed(uint16_t channel, const uint8_t* packet, uint16_t size) {
     uint16_t local_cid;
     uni_hid_device_t* device;
 
@@ -773,7 +772,7 @@ static void on_l2cap_channel_closed(uint16_t channel, uint8_t* packet, uint16_t 
     uni_hid_device_set_connected(device, false);
 }
 
-static void on_l2cap_incoming_connection(uint16_t channel, uint8_t* packet, uint16_t size) {
+static void on_l2cap_incoming_connection(uint16_t channel, const uint8_t* packet, uint16_t size) {
     bd_addr_t event_addr;
     uni_hid_device_t* device;
     uint16_t local_cid, remote_cid;
@@ -831,28 +830,37 @@ static void on_l2cap_incoming_connection(uint16_t channel, uint8_t* packet, uint
     }
 }
 
-static void on_l2cap_data_packet(uint16_t channel, uint8_t* packet, uint16_t size) {
+static void on_l2cap_data_packet(uint16_t channel, const uint8_t* packet, uint16_t size) {
     uni_hid_device_t *d, *sdp_d;
     uint64_t elapsed;
 
     d = uni_hid_device_get_instance_for_cid(channel);
     if (d == NULL) {
-        loge("Invalid cid: 0x%04x\n", channel);
+        loge("on_l2cap_data_packet: invalid cid: 0x%04x\n", channel);
         // printf_hexdump(packet, size);
         return;
     }
 
+    // Sanity check. It must have at least a transaction type and a report id.
+    if (size < 2) {
+        loge("on_l2cap_data_packet: invalid packet size\n");
+        return;
+    }
+
     if (channel == d->conn.control_cid) {
-        // TODO: Most probably a feature report, do something.
-        loge("Unsupported transaction type: 0x%02x\n", packet[0]);
-        printf_hexdump(packet, size);
+        // Feature report
+        if (d->report_parser.parse_feature_report)
+            // Skip the first byte which must be 0xa3
+            d->report_parser.parse_feature_report(d, &packet[1], size - 1);
         return;
     }
 
     if (channel != d->conn.interrupt_cid) {
-        loge("Invalid interrupt CID: got 0x%02x, want: 0x%02x\n", channel, d->conn.interrupt_cid);
+        loge("on_l2cap_data_packet: invalid interrupt CID: got 0x%02x, want: 0x%02x\n", channel, d->conn.interrupt_cid);
         return;
     }
+
+    // It must be an input report
 
     if (!uni_hid_device_has_hid_descriptor(d) || !uni_hid_device_has_controller_type(d)) {
         sdp_d = uni_hid_device_get_sdp_device(&elapsed);
@@ -874,32 +882,21 @@ static void on_l2cap_data_packet(uint16_t channel, uint8_t* packet, uint16_t siz
                 }
             }
         } else {
-            logi(
-                "Another SDP query in progress. Disconnect gamepad and try "
-                "again.\n");
+            logi("Another SDP query in progress. Disconnect gamepad and try again.\n");
             uni_hid_device_dump_device(d);
             return;
         }
     }
 
-    int report_len = size;
-    uint8_t* report = packet;
-
-    // check if HID Input Report
-    if (report_len < 1)
-        return;
-
     // DATA | INPUT_REPORT: 0xa1
-    if (report[0] != ((HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_INPUT)) {
-        loge("Unexpected transaction type: got 0x%02x, want: 0x0a1\n", report[0]);
+    if (packet[0] != ((HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_INPUT)) {
+        loge("on_l2cap_data_packet: unexpected transaction type: got 0x%02x, want: 0x0a1\n", packet[0]);
         printf_hexdump(packet, size);
         return;
     }
 
-    report++;
-    report_len--;
-
-    uni_hid_parser(d, report, report_len);
+    // Skip the first byte, which is always 0xa1
+    uni_hid_parse_input_report(d, &packet[1], size - 1);
     uni_hid_device_process_gamepad(d);
 }
 

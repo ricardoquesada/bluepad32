@@ -1018,7 +1018,7 @@ void uni_hid_parser_wii_init_report(uni_hid_device_t* d) {
     d->gamepad.misc_buttons = 0;
 }
 
-void uni_hid_parser_wii_parse_raw(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
+void uni_hid_parser_wii_parse_input_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
     if (len == 0)
         return;
     switch (report[0]) {

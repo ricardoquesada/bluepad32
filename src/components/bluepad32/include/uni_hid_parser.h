@@ -45,11 +45,13 @@ typedef void (*report_parse_usage_fn_t)(struct uni_hid_device_s* d,
                                         uint16_t usage_page,
                                         uint16_t usage,
                                         int32_t value);
-// "parse_raw" receives uni_hid_device_s instead of gamepad since it is needed
+// "parse_input_report" receives uni_hid_device_s instead of gamepad since it is needed
 // for devices like Nintendo. If needed, the same thing should be done for
 // "parse_usage".
-typedef void (*report_parse_raw_fn_t)(struct uni_hid_device_s* d, const uint8_t* report, uint16_t report_len);
-
+typedef void (*report_parse_input_report_fn_t)(struct uni_hid_device_s* d, const uint8_t* report, uint16_t report_len);
+typedef void (*report_parse_feature_report_fn_t)(struct uni_hid_device_s* d,
+                                                 const uint8_t* report,
+                                                 uint16_t report_len);
 typedef void (*report_set_player_leds_fn_t)(struct uni_hid_device_s* d, uint8_t leds);
 typedef void (*report_set_lightbar_color_fn_t)(struct uni_hid_device_s* d, uint8_t r, uint8_t g, uint8_t b);
 typedef void (*report_set_rumble_fn_t)(struct uni_hid_device_s* d, uint8_t force, uint8_t duration);
@@ -62,8 +64,10 @@ typedef struct {
     report_init_report_fn_t init_report;
     // Called for each usage in the report: usage page + usage + value
     report_parse_usage_fn_t parse_usage;
-    // Called with the raw report
-    report_parse_raw_fn_t parse_raw;
+    // Called with the raw input report
+    report_parse_input_report_fn_t parse_input_report;
+    // Called with the feature report
+    report_parse_feature_report_fn_t parse_feature_report;
     // If implemented, turns on/off the different gamepad LEDs
     report_set_player_leds_fn_t set_player_leds;
     // If implemented, changes the lightbar color (e.g: in DS4 and DualSense)
@@ -72,7 +76,7 @@ typedef struct {
     report_set_rumble_fn_t set_rumble;
 } uni_report_parser_t;
 
-void uni_hid_parser(struct uni_hid_device_s* d, const uint8_t* report, uint16_t report_len);
+void uni_hid_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t report_len);
 int32_t uni_hid_parser_process_axis(hid_globals_t* globals, uint32_t value);
 int32_t uni_hid_parser_process_pedal(hid_globals_t* globals, uint32_t value);
 uint8_t uni_hid_parser_process_hat(hid_globals_t* globals, uint32_t value);

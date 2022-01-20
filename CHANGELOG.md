@@ -4,7 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased - 2022-??-??
+## [Unreleased] - 2022-??-??
+### New
+
+- Devices: Support for feature reports.
+  - For the moment only implemented in DualSense to get calibration and firmware info...
+  - ... although calibration is ignored ATM.
+
+### Changed
+
+- API: renamed some functions / typedefs
+  - uni_hid_parser() -> uni_hid_parse_input_report()
+  - report_parse_raw_fn_t -> report_parse_input_report_fn_t
+
 ### Fixed
 
 - Bluetooth: add log about Feature Report not being supported ATM.
@@ -12,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.5.0] - 2022-01-08
 ### New
+
 - tools/pc_debug: Integrate into Gitlab CI
 - tools/fw: add --clean argument to build.py
 - uni_bluetooth: add uni_bluetooth_set_enabled().

@@ -26,7 +26,7 @@ limitations under the License.
 // HID Usage Tables:
 // https://www.usb.org/sites/default/files/documents/hut1_12v2.pdf
 
-void uni_hid_parser(uni_hid_device_t* d, const uint8_t* report, uint16_t report_len) {
+void uni_hid_parse_input_report(uni_hid_device_t* d, const uint8_t* report, uint16_t report_len) {
     btstack_hid_parser_t parser;
 
     uni_report_parser_t* rp = &d->report_parser;
@@ -37,8 +37,8 @@ void uni_hid_parser(uni_hid_device_t* d, const uint8_t* report, uint16_t report_
 
     // Certain devices like Nintendo Wii U Pro doesn't support HID descriptor.
     // For those kind of devices, just send the raw report.
-    if (rp->parse_raw) {
-        rp->parse_raw(d, report, report_len);
+    if (rp->parse_input_report) {
+        rp->parse_input_report(d, report, report_len);
     }
 
     // Devices that suport regular HID reports. Basically everyone except the Nintendo Wii U.
