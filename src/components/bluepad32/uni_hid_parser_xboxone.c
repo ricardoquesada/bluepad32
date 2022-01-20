@@ -68,6 +68,8 @@ void uni_hid_parser_xboxone_setup(uni_hid_device_t* d) {
         logi("Xbox one: Assuming it is firmware 3.1\n");
         ins->version = XBOXONE_FIRMWARE_V3_1;
     }
+
+    uni_hid_device_set_ready_complete(d);
 }
 
 void uni_hid_parser_xboxone_init_report(uni_hid_device_t* d) {

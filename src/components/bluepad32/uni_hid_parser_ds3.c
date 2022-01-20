@@ -243,13 +243,18 @@ void uni_hid_parser_ds3_set_rumble(uni_hid_device_t* d, uint8_t value, uint8_t d
 }
 
 void uni_hid_parser_ds3_setup(struct uni_hid_device_s* d) {
-    // Dual Shock 3 Sixasis requires a magic packet to be sent in order to
-    // enable reports. Taken from:
-    // https://github.com/ros-drivers/joystick_drivers/blob/52e8fcfb5619382a04756207b228fbc569f9a3ca/ps3joy/scripts/ps3joy_node.py#L299
-    static uint8_t sixaxisEnableReports[] = {0x53,  // Transaction type: SET_REPORT Feature
+    // Dual Shock 3 Sixasis requires a magic packet to be sent in order to enable reports. Taken from:
+    // https://github.com/torvalds/linux/blob/1d1df41c5a33359a00e919d54eaebfb789711fdc/drivers/hid/hid-sony.c#L1684
+    static uint8_t sixaxisEnableReports[] = {(HID_MESSAGE_TYPE_SET_REPORT << 4) | HID_REPORT_TYPE_FEATURE,
                                              0xf4,  // Report ID
-                                             0x42, 0x03, 0x00, 0x00};
+                                             0x42,
+                                             0x03,
+                                             0x00,
+                                             0x00};
     uni_hid_device_send_ctrl_report(d, (uint8_t*)&sixaxisEnableReports, sizeof(sixaxisEnableReports));
+
+    // TODO: should set "ready_complete" once we receive an ack from DS3 regaring report id 0xf4 (???)
+    uni_hid_device_set_ready_complete(d);
 }
 
 //

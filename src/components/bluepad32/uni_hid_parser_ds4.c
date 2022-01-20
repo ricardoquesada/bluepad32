@@ -34,11 +34,26 @@ limitations under the License.
 #include "uni_hid_parser.h"
 #include "uni_utils.h"
 
+#define DS4_FEATURE_REPORT_FIRMWARE_VERSION 0xa3
+#define DS4_FEATURE_REPORT_FIRMWARE_VERSION_SIZE 49
+#define DS4_FEATURE_REPORT_CALIBRATION 0x02
+#define DS4_FEATURE_REPORT_CALIBRATION_SIZE 37
+
+typedef enum {
+    DS4_STATE_INITIAL,
+    DS4_STATE_FIRMWARE_VERSION_REQUEST,
+    DS4_STATE_CALIBRATION_REQUEST,
+    DS4_STATE_READY,
+} ds4_state_t;
+
 typedef struct {
     // Must be first element
     btstack_timer_source_t ts;
     uni_hid_device_t* hid_device;
     bool rumble_in_progress;
+    ds4_state_t state;
+    uint16_t fw_version;
+    uint16_t hw_version;
 } ds4_instance_t;
 _Static_assert(sizeof(ds4_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "DS4 intance too big");
 
@@ -86,6 +101,9 @@ enum {
 
 static ds4_instance_t* get_ds4_instance(uni_hid_device_t* d);
 static void ds4_send_output_report(uni_hid_device_t* d, ds4_output_report_t* out);
+static void ds4_request_calibration_report(uni_hid_device_t* d);
+static void ds4_request_firmware_version_report(uni_hid_device_t* d);
+static void ds4_send_enable_lightbar_report(uni_hid_device_t* d);
 static void ds4_set_rumble_off(btstack_timer_source_t* ts);
 
 void uni_hid_parser_ds4_setup(struct uni_hid_device_s* d) {
@@ -93,31 +111,7 @@ void uni_hid_parser_ds4_setup(struct uni_hid_device_s* d) {
     memset(ins, 0, sizeof(*ins));
     ins->hid_device = d;  // Used by rumble callbacks
 
-    // From Linux drivers/hid/hid-sony.c:
-    // The default behavior of the DUALSHOCK 4 is to send reports using
-    // report type 1 when running over Bluetooth. However, when feature
-    // report 2 is requested during the controller initialization it starts
-    // sending input reports in report 17.
-
-    // Enable stream mode. Some models, like the CUH-ZCT2G require to explicitly
-    // request stream mode.
-    static uint8_t calibration_report[] = {
-        ((HID_MESSAGE_TYPE_GET_REPORT << 4) | HID_REPORT_TYPE_FEATURE),
-        0x02  // Request calibration report
-    };
-    uni_hid_device_send_ctrl_report(d, (uint8_t*)calibration_report, sizeof(calibration_report));
-
-    // Also turns off blinking, LED and rumble.
-    ds4_output_report_t out = {0};
-
-    out.flags = DS4_FF_FLAG_RUMBLE | DS4_FF_FLAG_LED_COLOR | DS4_FF_FLAG_LED_BLINK;  // blink + LED + motor
-
-    // Default LED color: Blue
-    out.led_red = 0x00;
-    out.led_green = 0x00;
-    out.led_blue = 0x40;
-
-    ds4_send_output_report(d, &out);
+    ds4_request_firmware_version_report(d);
 }
 
 void uni_hid_parser_ds4_init_report(uni_hid_device_t* d) {
@@ -136,6 +130,35 @@ void uni_hid_parser_ds4_init_report(uni_hid_device_t* d) {
     gp->updated_states |= GAMEPAD_STATE_BUTTON_THUMB_L | GAMEPAD_STATE_BUTTON_THUMB_R;
     gp->updated_states |=
         GAMEPAD_STATE_MISC_BUTTON_BACK | GAMEPAD_STATE_MISC_BUTTON_HOME | GAMEPAD_STATE_MISC_BUTTON_SYSTEM;
+}
+
+void uni_hid_parser_ds4_parse_feature_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
+    ds4_instance_t* ins = get_ds4_instance(d);
+    uint8_t report_id = report[0];
+    switch (report_id) {
+        case DS4_FEATURE_REPORT_CALIBRATION:
+            /* TODO: Don't ignore calibration */
+            if (len != DS4_FEATURE_REPORT_CALIBRATION_SIZE) {
+                loge("DS4: Unexpected calibration size: got %d, want: %d\n", len, DS4_FEATURE_REPORT_CALIBRATION_SIZE);
+                /* fallthrough */
+            }
+            ds4_send_enable_lightbar_report(d);
+            break;
+        case DS4_FEATURE_REPORT_FIRMWARE_VERSION:
+            if (len != DS4_FEATURE_REPORT_FIRMWARE_VERSION_SIZE) {
+                loge("DS4: Unexpected firmware version size: got %d, want: %d\n", len,
+                     DS4_FEATURE_REPORT_FIRMWARE_VERSION_SIZE);
+                /* fallthrough */
+            }
+            ds4_request_calibration_report(d);
+            ins->hw_version = *(uint16_t*)&report[35];
+            ins->fw_version = *(uint16_t*)&report[41];
+            logi("DS4: fw version: 0x%04x, hw version: 0x%04x\n", ins->fw_version, ins->hw_version);
+            break;
+        default:
+            loge("DS4: Unexpected report id in feature report: 0x%02x\n", report_id);
+            break;
+    }
 }
 
 void uni_hid_parser_ds4_parse_input_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
@@ -258,4 +281,50 @@ static void ds4_set_rumble_off(btstack_timer_source_t* ts) {
     ds4_output_report_t out = {0};
     out.flags = DS4_FF_FLAG_RUMBLE;  // motor
     ds4_send_output_report(ins->hid_device, &out);
+}
+
+static void ds4_request_calibration_report(uni_hid_device_t* d) {
+    // From Linux drivers/hid/hid-sony.c:
+    // The default behavior of the DUALSHOCK 4 is to send reports using
+    // report type 1 when running over Bluetooth. However, when feature
+    // report 2 (CALIBRATION_REQUEST) is requested during the controller initialization, it starts
+    // sending input reports in report 17.
+
+    // Enable stream mode. Some models, like the CUH-ZCT2G require to explicitly request stream mode.
+    ds4_instance_t* ins = get_ds4_instance(d);
+    ins->state = DS4_STATE_CALIBRATION_REQUEST;
+
+    static uint8_t report[] = {
+        ((HID_MESSAGE_TYPE_GET_REPORT << 4) | HID_REPORT_TYPE_FEATURE),
+        DS4_FEATURE_REPORT_CALIBRATION,
+    };
+    uni_hid_device_send_ctrl_report(d, (uint8_t*)report, sizeof(report));
+}
+
+static void ds4_request_firmware_version_report(uni_hid_device_t* d) {
+    ds4_instance_t* ins = get_ds4_instance(d);
+    ins->state = DS4_STATE_FIRMWARE_VERSION_REQUEST;
+
+    static uint8_t report[] = {
+        ((HID_MESSAGE_TYPE_GET_REPORT << 4) | HID_REPORT_TYPE_FEATURE),
+        DS4_FEATURE_REPORT_FIRMWARE_VERSION,
+    };
+    uni_hid_device_send_ctrl_report(d, (uint8_t*)report, sizeof(report));
+}
+
+static void ds4_send_enable_lightbar_report(uni_hid_device_t* d) {
+    // Also turns off blinking, LED and rumble.
+    ds4_output_report_t out = {
+        .flags = DS4_FF_FLAG_RUMBLE | DS4_FF_FLAG_LED_COLOR | DS4_FF_FLAG_LED_BLINK,  // blink + LED + motor
+
+        // Default LED color: Blue
+        .led_red = 0x00,
+        .led_green = 0x00,
+        .led_blue = 0x40,
+    };
+    ds4_send_output_report(d, &out);
+
+    ds4_instance_t* ins = get_ds4_instance(d);
+    ins->state = DS4_STATE_READY;
+    uni_hid_device_set_ready_complete(d);
 }

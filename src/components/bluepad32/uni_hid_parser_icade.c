@@ -93,6 +93,8 @@ void uni_hid_parser_icade_setup(uni_hid_device_t* d) {
     } else {
         logi("Unknown iCade device: v_id=0x%02x, p_id=0x%02x, File a bug.\n", d->vendor_id, d->product_id);
     }
+
+    uni_hid_device_set_ready_complete(d);
 }
 
 void uni_hid_parser_icade_parse_usage(uni_hid_device_t* d,

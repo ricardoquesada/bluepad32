@@ -69,9 +69,10 @@
 #include "uni_hid_parser.h"
 #include "uni_platform.h"
 
-#define INQUIRY_INTERVAL 5
-#define MAX_ATTRIBUTE_VALUE_SIZE 512  // Apparently PS4 has a 470-bytes report
-#define L2CAP_CHANNEL_MTU 128         // PS4 requires a 79-byte packet
+#define GAP_INQUIRY_INTERVAL 1          // Measured in in 1.28s units
+#define GAP_INQUIRY_PAUSE_TIME_MS 1000  // "pause" has similar time as GAP_INQUIRY_INTERVAL
+#define MAX_ATTRIBUTE_VALUE_SIZE 512    // Apparently PS4 has a 470-bytes report
+#define L2CAP_CHANNEL_MTU 128           // PS4 requires a 79-byte packet
 
 // globals
 // SDP
@@ -79,7 +80,8 @@ static uint8_t attribute_value[MAX_ATTRIBUTE_VALUE_SIZE];
 static const unsigned int attribute_value_buffer_size = MAX_ATTRIBUTE_VALUE_SIZE;
 
 // Used to implement connection timeout and reconnect timer
-static btstack_timer_source_t connection_timer;
+static btstack_timer_source_t hog_connection_timer;
+static btstack_timer_source_t gap_inquiry_timer;
 
 static btstack_packet_callback_registration_t hci_event_callback_registration;
 static btstack_packet_callback_registration_t sm_event_callback_registration;
@@ -295,7 +297,7 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
     // Ignore all packet events if BT is not ready, with the exception of the "BT is ready" event.
     if ((!bt_ready) &&
         !((packet_type == HCI_EVENT_PACKET) && (hci_event_packet_get_type(packet) == BTSTACK_EVENT_STATE))) {
-        // printf("Ignoring packet. BT not ready yet\n");
+        logd("Ignoring packet. BT not ready yet\n");
         return;
     }
 
@@ -320,7 +322,7 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
                     // XXX: FIXME
                     if (hci_event_le_meta_get_subevent_code(packet) != HCI_SUBEVENT_LE_CONNECTION_COMPLETE)
                         break;
-                    btstack_run_loop_remove_timer(&connection_timer);
+                    btstack_run_loop_remove_timer(&hog_connection_timer);
                     hci_subevent_le_connection_complete_get_peer_address(packet, event_addr);
                     device = uni_hid_device_get_instance_for_address(event_addr);
                     if (!device) {
@@ -349,7 +351,7 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
                     logi("Search for HID service.\n");
                     status = hids_client_connect(con_handle, handle_gatt_client_event, protocol_mode, &hids_cid);
                     if (status != ERROR_CODE_SUCCESS) {
-                        printf("HID client connection failed, status 0x%02x\n", status);
+                        logi("HID client connection failed, status 0x%02x\n", status);
                     }
                     device->hids_cid = hids_cid;
                     break;
@@ -357,7 +359,7 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
                     uint16_t opcode = hci_event_command_complete_get_command_opcode(packet);
                     const uint8_t* param = hci_event_command_complete_get_return_parameters(packet);
                     status = param[0];
-                    logi("--> HCI_EVENT_COMMAND_COMPLETE: opcode = 0x%04x - status=%d\n", opcode, status);
+                    logd("--> HCI_EVENT_COMMAND_COMPLETE: opcode = 0x%04x - status=%d\n", opcode, status);
                     break;
                 }
                 case HCI_EVENT_AUTHENTICATION_COMPLETE_EVENT: {
@@ -475,9 +477,13 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
                     on_gap_inquiry_result(channel, packet, size);
                     break;
                 case GAP_EVENT_INQUIRY_COMPLETE:
-                    logi("--> GAP_EVENT_INQUIRY_COMPLETE\n");
-                    uni_hid_device_request_inquire();
-                    continue_remote_names();
+                    logd("--> GAP_EVENT_INQUIRY_COMPLETE\n");
+
+                    // Pause for 1 second before doing the scan again.
+                    // Might be a bug on BTstack, but when the scan is on, it prevents
+                    // incoming connections.
+                    btstack_run_loop_set_timer(&gap_inquiry_timer, GAP_INQUIRY_PAUSE_TIME_MS);
+                    btstack_run_loop_add_timer(&gap_inquiry_timer);
                     break;
                 case GAP_EVENT_ADVERTISING_REPORT:  // BLE only
                     on_gap_event_advertising_report(channel, packet, size);
@@ -913,9 +919,9 @@ static void hog_connection_timeout(btstack_timer_source_t* ts) {
  */
 static void hog_connect(bd_addr_t addr, bd_addr_type_t addr_type) {
     // set timer
-    btstack_run_loop_set_timer(&connection_timer, 10000);
-    btstack_run_loop_set_timer_handler(&connection_timer, &hog_connection_timeout);
-    btstack_run_loop_add_timer(&connection_timer);
+    btstack_run_loop_set_timer(&hog_connection_timer, 10000);
+    btstack_run_loop_set_timer_handler(&hog_connection_timer, &hog_connection_timeout);
+    btstack_run_loop_add_timer(&hog_connection_timer);
     gap_connect(addr, addr_type);
 
     uni_hid_device_t* d = uni_hid_device_create(addr);
@@ -945,8 +951,15 @@ static void continue_remote_names(void) {
     gap_remote_name_request(d->conn.remote_addr, d->conn.page_scan_repetition_mode, d->conn.clock_offset | 0x8000);
 }
 
+static void gap_inquiry_pause_timeout(btstack_timer_source_t* ts) {
+    UNUSED(ts);
+    // Continue with the scanning after pausing.
+    uni_hid_device_request_inquire();
+    continue_remote_names();
+}
+
 static void start_scan(void) {
-    logi("--> Scanning for new gamepads...\n");
+    logd("--> Scanning for new gamepads...\n");
     // Passive scanning, 100% (scan interval = scan window)
     // Start GAP BLE scan
 #ifdef ENABLE_BLE
@@ -955,7 +968,8 @@ static void start_scan(void) {
 #endif  // ENABLE_BLE
 
     // Start GAP Classic inquiry
-    gap_inquiry_start(INQUIRY_INTERVAL);
+    if (gap_inquiry_start(GAP_INQUIRY_INTERVAL) != 0)
+        loge("start_scan: failed to do gap_inquiry_start()\n");
 }
 
 static void stop_scan() {
@@ -975,10 +989,8 @@ static void sdp_query_hid_descriptor(uni_hid_device_t* device) {
     if (sdp_dev != NULL) {
         // If an SDP query didn't finish in 3 seconds, we can override it.
         if (elapsed < (3 * 1000000)) {
-            loge(
-                "Error: Another SDP query is in progress (%s). Elapsed time: "
-                "%" PRId64 "\n",
-                bd_addr_to_str(sdp_dev->conn.remote_addr), elapsed);
+            loge("Error: Another SDP query is in progress (%s). Elapsed time: %" PRId64 "\n",
+                 bd_addr_to_str(sdp_dev->conn.remote_addr), elapsed);
             return;
         } else {
             logi("Overriding old SDP query (%s). Elapsed time: %" PRId64 "\n",
@@ -991,8 +1003,10 @@ static void sdp_query_hid_descriptor(uni_hid_device_t* device) {
     uint8_t status = sdp_client_query_uuid16(&handle_sdp_hid_query_result, device->conn.remote_addr,
                                              BLUETOOTH_SERVICE_CLASS_HUMAN_INTERFACE_DEVICE_SERVICE);
     if (status != 0) {
+        loge("Failed to perform SDP query for %s. Removing it...\n", bd_addr_to_str(device->conn.remote_addr));
         uni_hid_device_set_sdp_device(NULL);
-        loge("Failed to perform sdp query\n");
+        // TODO: Add a function in uni_hid_device for this
+        memset(device, 0, sizeof(*device));
     }
 }
 
@@ -1141,33 +1155,34 @@ static void fsm_process(uni_hid_device_t* d) {
 // Public functions
 //
 int uni_bluetooth_init(void) {
-    // register for HCI events
-    hci_event_callback_registration.callback = &packet_handler;
-    hci_add_event_handler(&hci_event_callback_registration);
-
-    // enabled EIR
-    hci_set_inquiry_mode(INQUIRY_MODE_RSSI_AND_EIR);
-
-    // btstack_stdin_setup(stdin_process);
-    hci_set_master_slave_policy(HCI_ROLE_MASTER);
+    // Initialize L2CAP
+    l2cap_init();
 
     // It seems that with gap_security_level(0) all gamepads work except Nintendo Switch Pro controller.
 #ifndef CONFIG_BLUEPAD32_GAP_SECURITY
     gap_set_security_level(0);
-#endif
-    // Allow sniff mode requests by HID device and support role switch
-    gap_set_default_link_policy_settings(LM_LINK_POLICY_ENABLE_SNIFF_MODE | LM_LINK_POLICY_ENABLE_ROLE_SWITCH);
-
-    // Using a minimum of 7 bytes needed for Nintendo Wii / Wii U controllers.
-    // See: https://github.com/bluekitchen/btstack/issues/299
+#else
     gap_set_required_encryption_key_size(7);
+#endif
 
     int security_level = gap_get_security_level();
     logi("Gap security level: %d\n", security_level);
 
-    l2cap_register_service(packet_handler, PSM_HID_INTERRUPT, L2CAP_CHANNEL_MTU, security_level);
-    l2cap_register_service(packet_handler, PSM_HID_CONTROL, L2CAP_CHANNEL_MTU, security_level);
-    l2cap_init();
+    l2cap_register_service(packet_handler, PSM_HID_INTERRUPT, 0xffff, security_level);
+    l2cap_register_service(packet_handler, PSM_HID_CONTROL, 0xffff, security_level);
+
+    // register for HCI events
+    hci_event_callback_registration.callback = &packet_handler;
+    hci_add_event_handler(&hci_event_callback_registration);
+
+    // Enable EIR for gap_inquiry
+    hci_set_inquiry_mode(INQUIRY_MODE_RSSI_AND_EIR);
+
+    // Allow sniff mode requests by HID device and support role switch
+    gap_set_default_link_policy_settings(LM_LINK_POLICY_ENABLE_SNIFF_MODE | LM_LINK_POLICY_ENABLE_ROLE_SWITCH);
+
+    // btstack_stdin_setup(stdin_process);
+    hci_set_master_slave_policy(HCI_ROLE_MASTER);
 
 #ifdef ENABLE_BLE
     // register for events from Security Manager
@@ -1182,6 +1197,9 @@ int uni_bluetooth_init(void) {
 
     // Disable stdout buffering
     setbuf(stdout, NULL);
+
+    // Timer init
+    btstack_run_loop_set_timer_handler(&gap_inquiry_timer, &gap_inquiry_pause_timeout);
 
     // Turn on the device
     hci_power_control(HCI_POWER_ON);

@@ -163,14 +163,17 @@ void uni_hid_device_set_ready(uni_hid_device_t* d) {
         return;
     }
 
-    // The "HID device" should be ready before calling the platform since the
-    // platform might call the "HID device". E.g: to set the LEDs
+    // Each "parser" is responsible to call uni_hid_device_set_ready() once the
+    // "parser" is ready.
     if (d->report_parser.setup)
         d->report_parser.setup(d);
-
-    // TODO: if setup() is present, then the "report_parser" should call
-    // platform->on_device_ready() since report_parser.setup() might not
-    // setup the device immediately.
+    else {
+        // If parser.setup() is not present, it is safe to assume that the setup is complete
+        uni_hid_device_set_ready_complete(d);
+    }
+}
+void uni_hid_device_set_ready_complete(uni_hid_device_t* d) {
+    // This is called once the "parser" is ready.
     if (uni_get_platform()->on_device_ready(d) == 0)
         uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_READY);
 }
@@ -469,6 +472,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             d->report_parser.setup = uni_hid_parser_ds4_setup;
             d->report_parser.init_report = uni_hid_parser_ds4_init_report;
             d->report_parser.parse_input_report = uni_hid_parser_ds4_parse_input_report;
+            d->report_parser.parse_feature_report = uni_hid_parser_ds4_parse_feature_report;
             d->report_parser.set_lightbar_color = uni_hid_parser_ds4_set_lightbar_color;
             d->report_parser.set_rumble = uni_hid_parser_ds4_set_rumble;
             logi("Device detected as DUALSHOCK4: 0x%02x\n", type);

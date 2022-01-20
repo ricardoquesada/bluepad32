@@ -192,7 +192,6 @@ void uni_hid_parser_ds5_parse_feature_report(uni_hid_device_t* d, const uint8_t*
             ds5_request_calibration_report(d);
             ins->hw_version = *(uint32_t*)&report[24];
             ins->fw_version = *(uint32_t*)&report[28];
-            printf_hexdump(report, len);
             logi("DS5: fw version: 0x%08x, hw version: 0x%08x\n", ins->fw_version, ins->hw_version);
             break;
         default:
@@ -350,30 +349,25 @@ static void ds5_request_calibration_report(uni_hid_device_t* d) {
 
     // Mimic kernel behavior: request calibration report
     // Hopefully fixes: https://gitlab.com/ricardoquesada/bluepad32/-/issues/2
-    static uint8_t calibration_report[] = {
+    static uint8_t report[] = {
         ((HID_MESSAGE_TYPE_GET_REPORT << 4) | HID_REPORT_TYPE_FEATURE),
         DS5_FEATURE_REPORT_CALIBRATION,
     };
-    uni_hid_device_send_ctrl_report(d, (uint8_t*)calibration_report, sizeof(calibration_report));
+    uni_hid_device_send_ctrl_report(d, (uint8_t*)report, sizeof(report));
 }
 
 static void ds5_request_firmware_version_report(uni_hid_device_t* d) {
     ds5_instance_t* ins = get_ds5_instance(d);
     ins->state = DS5_STATE_FIRMWARE_VERSION_REQUEST;
 
-    // Mimic kernel behavior: request calibration report
-    // Hopefully fixes: https://gitlab.com/ricardoquesada/bluepad32/-/issues/2
-    static uint8_t calibration_report[] = {
+    static uint8_t report[] = {
         ((HID_MESSAGE_TYPE_GET_REPORT << 4) | HID_REPORT_TYPE_FEATURE),
         DS5_FEATURE_REPORT_FIRMWARE_VERSION,
     };
-    uni_hid_device_send_ctrl_report(d, (uint8_t*)calibration_report, sizeof(calibration_report));
+    uni_hid_device_send_ctrl_report(d, (uint8_t*)report, sizeof(report));
 }
 
 static void ds5_send_enable_lightbar_report(uni_hid_device_t* d) {
-    ds5_instance_t* ins = get_ds5_instance(d);
-    ins->state = DS5_STATE_READY;
-
     // Enable lightbar.
     // Also, sending an output report enables input report 0x31.
     ds5_output_report_t out = {
@@ -381,4 +375,8 @@ static void ds5_send_enable_lightbar_report(uni_hid_device_t* d) {
         .lightbar_setup = DS5_LIGHTBAR_SETUP_LIGHT_OUT,
     };
     ds5_send_output_report(d, &out);
+
+    ds5_instance_t* ins = get_ds5_instance(d);
+    ins->state = DS5_STATE_READY;
+    uni_hid_device_set_ready_complete(d);
 }

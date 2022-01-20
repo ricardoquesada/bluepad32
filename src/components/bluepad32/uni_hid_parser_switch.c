@@ -904,6 +904,7 @@ static void fsm_ready(struct uni_hid_device_s* d) {
     switch_instance_t* ins = get_switch_instance(d);
     ins->state = STATE_READY;
     logi("Switch: gamepad is ready!\n");
+    uni_hid_device_set_ready_complete(d);
 }
 
 static struct switch_rumble_freq_data find_rumble_freq(uint16_t freq) {

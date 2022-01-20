@@ -139,6 +139,7 @@ void uni_hid_device_set_sdp_device(uni_hid_device_t* d);
 uni_hid_device_t* uni_hid_device_get_sdp_device(uint64_t* elapsed /*out*/);
 
 void uni_hid_device_set_ready(uni_hid_device_t* d);
+void uni_hid_device_set_ready_complete(uni_hid_device_t* d);
 
 void uni_hid_device_remove_entry_with_channel(uint16_t channel);
 

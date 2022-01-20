@@ -2,3 +2,4 @@
 // Empty on purpose
 //
 #define CONFIG_BLUEPAD32_MAX_DEVICES 4
+#define CONFIG_BLUEPAD32_GAP_SECURITY 1

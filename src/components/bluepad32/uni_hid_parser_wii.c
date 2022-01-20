@@ -924,6 +924,8 @@ static void wii_fsm_update_led(uni_hid_device_t* d) {
     set_led(d, ins->gamepad_seat);
     ins->state = WII_FSM_LED_UPDATED;
     wii_process_fsm(d);
+
+    uni_hid_device_set_ready_complete(d);
 }
 
 static void wii_fsm_dump_eeprom(struct uni_hid_device_s* d) {
