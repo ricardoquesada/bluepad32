@@ -1198,7 +1198,8 @@ int uni_bluetooth_init(void) {
     gap_set_required_encryption_key_size(7);
 #endif
     gap_connectable_control(1);
-    gap_discoverable_control(1);
+    // Enable discoverability once we our "BP32 BLE service"
+    gap_discoverable_control(0);
 
     int security_level = gap_get_security_level();
     logi("Gap security level: %d\n", security_level);
