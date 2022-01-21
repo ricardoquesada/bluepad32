@@ -26,8 +26,10 @@ extern "C" {
 #include <stdbool.h>
 
 int uni_bluetooth_init(void);
-void uni_bluetooth_del_keys(void);
-void uni_bluetooth_enable_new_connections(bool enabled);
+
+// Safe to call these functions from another task and/or CPU
+void uni_bluetooth_del_keys_safe(void);
+void uni_bluetooth_enable_new_connections_safe(bool enabled);
 
 #ifdef __cplusplus
 }

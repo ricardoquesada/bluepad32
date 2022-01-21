@@ -990,17 +990,15 @@ uint8_t uni_hid_parser_switch_does_packet_match(struct uni_hid_device_s* d, cons
     if (len != 13 || packet[0] != 0xa1 || packet[1] != 0x3f) {
         return 0;
     }
-    // TODO: don't set the HID descriptor. It is faster to parse the raw
-    // packet. It seems that Nintendo Switch has a stable packet format.
+    // TODO: don't set the HID descriptor. It is faster to parse the raw packet.
+    // It seems that Nintendo Switch has a stable packet format.
     uni_hid_device_set_hid_descriptor(d, SWITCH_HID_DESCRIPTOR, sizeof(SWITCH_HID_DESCRIPTOR));
     uni_hid_device_set_vendor_id(d, SWITCH_VID);
     uni_hid_device_set_product_id(d, SWITCH_PID);
     uni_hid_device_guess_controller_type_from_pid_vid(d);
     uni_hid_device_set_sdp_device(NULL);
     uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_SDP_VENDOR_FETCHED);
-    logi(
-        "Switch: Device detected as Nintendo Switch Pro controller using "
-        "heuristics\n");
+    logi("Switch: Device detected as Nintendo Switch Pro controller using heuristics\n");
     return 1;
 }
 

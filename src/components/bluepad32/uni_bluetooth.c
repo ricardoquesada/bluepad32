@@ -89,7 +89,8 @@ static const unsigned int attribute_value_buffer_size = MAX_ATTRIBUTE_VALUE_SIZE
 // Used to implement connection timeout and reconnect timer
 static btstack_timer_source_t hog_connection_timer;  // BLE only
 static btstack_timer_source_t gap_inquiry_timer;
-
+static btstack_context_callback_registration_t enable_bt_callback_registration;
+static btstack_context_callback_registration_t del_keys_callback_registration;
 static btstack_packet_callback_registration_t hci_event_callback_registration;
 #ifdef UNI_ENABLE_BLE
 static btstack_packet_callback_registration_t sm_event_callback_registration;
@@ -112,6 +113,8 @@ static void stop_scan(void);
 static void sdp_query_hid_descriptor(uni_hid_device_t* device);
 static void sdp_query_product_id(uni_hid_device_t* device);
 static void list_link_keys(void);
+static void enable_new_connections_callback(void* context);
+static void bluetooth_del_keys_callback(void* context);
 
 static void on_l2cap_channel_closed(uint16_t channel, const uint8_t* packet, uint16_t size);
 static void on_l2cap_channel_opened(uint16_t channel, const uint8_t* packet, uint16_t size);
@@ -1238,11 +1241,13 @@ int uni_bluetooth_init(void) {
 }
 
 // Deletes Bluetooth stored keys
-void uni_bluetooth_del_keys(void) {
+static void bluetooth_del_keys_callback(void* context) {
     bd_addr_t addr;
     link_key_t link_key;
     link_key_type_t type;
     btstack_link_key_iterator_t it;
+
+    UNUSED(context);
 
     int ok = gap_link_key_iterator_init(&it);
     if (!ok) {
@@ -1257,11 +1262,28 @@ void uni_bluetooth_del_keys(void) {
     gap_link_key_iterator_done(&it);
 }
 
-void uni_bluetooth_enable_new_connections(bool enabled) {
+void uni_bluetooth_del_keys_safe(void) {
+    del_keys_callback_registration.callback = &bluetooth_del_keys_callback;
+    btstack_run_loop_execute_on_main_thread(&del_keys_callback_registration);
+}
+
+static void enable_new_connections_callback(void* context) {
+    bool enabled = (bool)context;
+    if (accept_incoming_connections == enabled)
+        return;
+
     accept_incoming_connections = enabled;
 
     if (enabled)
-        start_scan();
+        maybe_inquiry_remote_names_or_scan();
     else
         stop_scan();
+}
+
+void uni_bluetooth_enable_new_connections_safe(bool enabled) {
+    if (enabled == accept_incoming_connections)
+        return;
+    enable_bt_callback_registration.callback = &enable_new_connections_callback;
+    enable_bt_callback_registration.context = (void*)(uintptr_t)enabled;
+    btstack_run_loop_execute_on_main_thread(&enable_bt_callback_registration);
 }

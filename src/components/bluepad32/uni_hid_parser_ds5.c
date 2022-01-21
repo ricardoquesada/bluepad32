@@ -257,8 +257,8 @@ void uni_hid_parser_ds5_parse_input_report(uni_hid_device_t* d, const uint8_t* r
         gp->misc_buttons |= MISC_BUTTON_SYSTEM;  // PS
 }
 
-// uni_hid_parser_ds5_parse_usage() was removed since "stream" mode is the only
-// one supported. If needed, the function is preserved in git history:
+// uni_hid_parser_ds5_parse_usage() was removed since "stream" mode is the only one supported.
+// If needed, the function is preserved in git history:
 // https://gitlab.com/ricardoquesada/bluepad32/-/blob/c32598f39831fd8c2fa2f73ff3c1883049caafc2/src/main/uni_hid_parser_ds5.c#L213
 
 void uni_hid_parser_ds5_set_player_leds(struct uni_hid_device_s* d, uint8_t value) {
