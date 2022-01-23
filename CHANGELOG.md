@@ -8,18 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### New
 
 - Devices: Support for feature reports.
-  - For the moment only implemented in DualSense to get calibration and firmware info...
-  - ... although calibration is ignored ATM.
+  - For the moment only implemented in DualSense and DualShock 4 to get calibration
+    and firmware info although calibration is ignored ATM.
 
 ### Changed
 
 - API: renamed some functions / typedefs
   - uni_hid_parser() -> uni_hid_parse_input_report()
   - report_parse_raw_fn_t -> report_parse_input_report_fn_t
+- These functions are "safe". Can be called from another task and/or CPU.
+  The suffix "_safe" were added to their names:
+  - uni_bluetooth_del_keys()
+  - uni_bluetooth_enable_new_connections()
 
 ### Fixed
 
 - Bluetooth: add log about Feature Report not being supported ATM.
+- Bluetooth: Incoming connections are more reliable.
+  Scan inquiry is only done for 1.28secs, then a "wait" for 1 second, that
+  allows incoming connections to be received.
 - DualSense: doesn't not disconnect randomly
 
 ## [2.5.0] - 2022-01-08
