@@ -176,7 +176,15 @@ static int arduino_on_device_ready(uni_hid_device_t* d) {
     }
 
     // Find first available gamepad
-    ins->gamepad_idx = _used_gamepads++;
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
+        if (_gamepads[i].idx == UNI_ARDUINO_GAMEPAD_INVALID) {
+            _gamepads[i].idx = i;
+            ins->gamepad_idx = i;
+            _used_gamepads++;
+            break;
+        }
+    }
+
     logd("Arduino: assigned gampead idx is: %d\n", ins->gamepad_idx);
 
     if (d->report_parser.set_player_leds != NULL) {
