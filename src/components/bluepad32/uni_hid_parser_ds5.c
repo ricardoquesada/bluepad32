@@ -144,7 +144,8 @@ typedef struct __attribute((packed)) {
 
 typedef struct __attribute((packed)) {
     uint8_t report_id;  // Must be DS5_FEATURE_REPORT_FIRMWARE_VERSION
-    char description[19];
+    char string_date[11];
+    char string_time[8];
     char unk_0[4];
     uint32_t hw_version;
     uint32_t fw_version;
@@ -218,8 +219,15 @@ void uni_hid_parser_ds5_parse_feature_report(uni_hid_device_t* d, const uint8_t*
             ins->hw_version = r->hw_version;
             ins->fw_version = r->fw_version;
 
+            // ASCII-z strings
+            char date_z[sizeof(r->string_date) + 1] = {0};
+            char time_z[sizeof(r->string_time) + 1] = {0};
+
+            strncpy(date_z, r->string_date, sizeof(date_z) - 1);
+            strncpy(time_z, r->string_time, sizeof(time_z) - 1);
+
             logi("DS5: fw version: 0x%08x, hw version: 0x%08x\n", ins->fw_version, ins->hw_version);
-            logi("DS5: Firmware build date: %s\n", r->description);
+            logi("DS5: Firmware build date: %s, %s\n", date_z, time_z);
 
             ds5_request_calibration_report(d);
             break;
@@ -232,6 +240,7 @@ void uni_hid_parser_ds5_parse_feature_report(uni_hid_device_t* d, const uint8_t*
             }
             ds5_send_enable_lightbar_report(d);
             break;
+
         default:
             loge("DS5: Unexpected report id in feature report: 0x%02x\n", report_id);
             break;
@@ -302,8 +311,8 @@ void uni_hid_parser_ds5_parse_input_report(uni_hid_device_t* d, const uint8_t* r
 void uni_hid_parser_ds5_set_player_leds(struct uni_hid_device_s* d, uint8_t value) {
     // PS5 has 5 player LEDS (instead of 4).
     // The player number is indicated by how many LEDs are on.
-    // E.g: if two LEDs are On, it means gamepad is assigned ot player 2.
-    // And for player two, these LEDs should be ON: -X-X-
+    // E.g: if two LEDs are On, it means gamepad is assigned to player 2.
+    // And for player two, these are the LEDs that should be ON: -X-X-
 
     static const char led_values[] = {
         0x00,                               // No player
@@ -322,13 +331,12 @@ void uni_hid_parser_ds5_set_player_leds(struct uni_hid_device_s* d, uint8_t valu
 }
 
 void uni_hid_parser_ds5_set_lightbar_color(struct uni_hid_device_s* d, uint8_t r, uint8_t g, uint8_t b) {
-    ds5_output_report_t out = {0};
-
-    out.lightbar_red = r;
-    out.lightbar_green = g;
-    out.lightbar_blue = b;
-
-    out.valid_flag1 = DS5_FLAG1_LIGHTBAR;
+    ds5_output_report_t out = {
+        .lightbar_red = r,
+        .lightbar_green = g,
+        .lightbar_blue = b,
+        .valid_flag1 = DS5_FLAG1_LIGHTBAR,
+    };
 
     ds5_send_output_report(d, &out);
 }
@@ -338,13 +346,13 @@ void uni_hid_parser_ds5_set_rumble(struct uni_hid_device_s* d, uint8_t value, ui
     if (ins->rumble_in_progress)
         return;
 
-    ds5_output_report_t out = {0};
+    ds5_output_report_t out = {
+        .valid_flag0 = DS5_FLAG0_HAPTICS_SELECT | DS5_FLAG0_COMPATIBLE_VIBRATION,
 
-    out.valid_flag0 = DS5_FLAG0_HAPTICS_SELECT | DS5_FLAG0_COMPATIBLE_VIBRATION;
-
-    // Right motor: small force; left motor: big force
-    out.motor_right = value;
-    out.motor_left = value;
+        // Right motor: small force; left motor: big force
+        .motor_right = value,
+        .motor_left = value,
+    };
 
     ds5_send_output_report(d, &out);
 
@@ -388,8 +396,9 @@ static void ds5_set_rumble_off(btstack_timer_source_t* ts) {
     assert(ins->rumble_in_progress);
     ins->rumble_in_progress = 0;
 
-    ds5_output_report_t out = {0};
-    out.valid_flag0 = DS5_FLAG0_COMPATIBLE_VIBRATION | DS5_FLAG0_HAPTICS_SELECT;
+    ds5_output_report_t out = {
+        .valid_flag0 = DS5_FLAG0_COMPATIBLE_VIBRATION | DS5_FLAG0_HAPTICS_SELECT,
+    };
 
     ds5_send_output_report(ins->hid_device, &out);
 }

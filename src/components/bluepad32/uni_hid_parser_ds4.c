@@ -92,6 +92,22 @@ typedef struct __attribute((packed)) {
     // Add missing data
 } ds4_input_report_t;
 
+typedef struct __attribute((packed)) {
+    uint8_t report_id;  // Must be DS4_FEATURE_REPORT_FIRMWARE_VERSION
+    char string_date[11];
+    uint8_t unk_0[5];  // All zeroes apparenlty
+    char string_time[8];
+    uint8_t unk_1[9];  // All zeroes apparenlty
+    uint8_t unk_2;     // Value 1
+    uint16_t hw_version;
+    uint32_t unk_3;
+    uint16_t fw_version;
+    uint16_t unk_4;
+    uint32_t crc32;
+} ds4_feature_report_firmware_version_t;
+_Static_assert(sizeof(ds4_feature_report_firmware_version_t) == DS4_FEATURE_REPORT_FIRMWARE_VERSION_SIZE,
+               "Invalid size");
+
 // When sending the FF report, which "features" should be set.
 enum {
     DS4_FF_FLAG_RUMBLE = 1 << 0,
@@ -150,10 +166,14 @@ void uni_hid_parser_ds4_parse_feature_report(uni_hid_device_t* d, const uint8_t*
                      DS4_FEATURE_REPORT_FIRMWARE_VERSION_SIZE);
                 /* fallthrough */
             }
-            ds4_request_calibration_report(d);
-            ins->hw_version = *(uint16_t*)&report[35];
-            ins->fw_version = *(uint16_t*)&report[41];
+            ds4_feature_report_firmware_version_t* r = (ds4_feature_report_firmware_version_t*)report;
+
+            ins->hw_version = r->hw_version;
+            ins->fw_version = r->fw_version;
             logi("DS4: fw version: 0x%04x, hw version: 0x%04x\n", ins->fw_version, ins->hw_version);
+            logi("DS4: Firmware build date: %s, %s\n", r->string_date, r->string_time);
+
+            ds4_request_calibration_report(d);
             break;
         default:
             loge("DS4: Unexpected report id in feature report: 0x%02x\n", report_id);
@@ -225,12 +245,12 @@ void uni_hid_parser_ds4_parse_input_report(uni_hid_device_t* d, const uint8_t* r
 // https://gitlab.com/ricardoquesada/bluepad32/-/blob/c32598f39831fd8c2fa2f73ff3c1883049caafc2/src/main/uni_hid_parser_ds4.c#L185
 
 void uni_hid_parser_ds4_set_lightbar_color(uni_hid_device_t* d, uint8_t r, uint8_t g, uint8_t b) {
-    ds4_output_report_t out = {0};
-
-    out.flags = DS4_FF_FLAG_LED_COLOR;  // blink + LED + motor
-    out.led_red = r;
-    out.led_green = g;
-    out.led_blue = b;
+    ds4_output_report_t out = {
+        .flags = DS4_FF_FLAG_LED_COLOR,  // blink + LED + motor
+        .led_red = r,
+        .led_green = g,
+        .led_blue = b,
+    };
 
     ds4_send_output_report(d, &out);
 }
@@ -240,12 +260,12 @@ void uni_hid_parser_ds4_set_rumble(uni_hid_device_t* d, uint8_t value, uint8_t d
     if (ins->rumble_in_progress)
         return;
 
-    ds4_output_report_t out = {0};
-
-    out.flags = DS4_FF_FLAG_RUMBLE;  // motor
-    // Right motor: small force; left motor: big force
-    out.motor_right = value;
-    out.motor_left = value;
+    ds4_output_report_t out = {
+        .flags = DS4_FF_FLAG_RUMBLE,
+        // Right motor: small force; left motor: big force
+        .motor_right = value,
+        .motor_left = value,
+    };
     ds4_send_output_report(d, &out);
 
     // Set timer to turn off rumble
@@ -278,8 +298,9 @@ static void ds4_set_rumble_off(btstack_timer_source_t* ts) {
     assert(ins->rumble_in_progress);
     ins->rumble_in_progress = 0;
 
-    ds4_output_report_t out = {0};
-    out.flags = DS4_FF_FLAG_RUMBLE;  // motor
+    ds4_output_report_t out = {
+        .flags = DS4_FF_FLAG_RUMBLE,
+    };
     ds4_send_output_report(ins->hid_device, &out);
 }
 
@@ -315,7 +336,8 @@ static void ds4_request_firmware_version_report(uni_hid_device_t* d) {
 static void ds4_send_enable_lightbar_report(uni_hid_device_t* d) {
     // Also turns off blinking, LED and rumble.
     ds4_output_report_t out = {
-        .flags = DS4_FF_FLAG_RUMBLE | DS4_FF_FLAG_LED_COLOR | DS4_FF_FLAG_LED_BLINK,  // blink + LED + motor
+        // blink + LED + motor
+        .flags = DS4_FF_FLAG_RUMBLE | DS4_FF_FLAG_LED_COLOR | DS4_FF_FLAG_LED_BLINK,
 
         // Default LED color: Blue
         .led_red = 0x00,
