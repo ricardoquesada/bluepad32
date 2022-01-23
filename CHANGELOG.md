@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Devices: Support for feature reports.
   - For the moment only implemented in DualSense and DualShock 4 to get calibration
     and firmware info although calibration is ignored ATM.
+- DualShock3: Add partial support for DualShock 3 clones, like PANHAI.
 
 ### Changed
 

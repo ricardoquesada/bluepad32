@@ -894,7 +894,10 @@ static void on_l2cap_data_packet(uint16_t channel, const uint8_t* packet, uint16
 
     // It must be an input report
 
-    if (!uni_hid_device_has_hid_descriptor(d) || !uni_hid_device_has_controller_type(d)) {
+    // Not every device require SDP. If the device is "READY", we don't care whether the
+    // HID descriptor is missing.
+    if ((d->conn.state != UNI_BT_CONN_STATE_DEVICE_READY) &&
+        (!uni_hid_device_has_hid_descriptor(d) || !uni_hid_device_has_controller_type(d))) {
         sdp_d = uni_hid_device_get_sdp_device(&elapsed);
         if (sdp_d == d) {
             logi("Device without HID descriptor or Product/Vendor ID yet.\n");
@@ -1121,8 +1124,23 @@ static void fsm_process(uni_hid_device_t* d) {
     // Incoming connections might have the HID already pre-fecthed, or not.
     if (uni_hid_device_is_incoming(d)) {
         if (state == UNI_BT_CONN_STATE_L2CAP_INTERRUPT_CONNECTED) {
-            if (uni_hid_device_has_hid_descriptor(d)) {
-                /* done */
+            if (!uni_hid_device_has_name(d)) {
+                // TODO: Double check. But it seems that I with these hardcoded repetition modes
+                // and clock offset, it works Ok. Taken from Bluez in Linux.
+                gap_remote_name_request(d->conn.remote_addr, 0x02, 0x0000);
+            } else {
+                loge("Unexpected, incoming connections should not have a name\n");
+            }
+        } else if (state == UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED) {
+            // Depending or their name, we might need to do SDP query.
+            // Original PLAYSTATION(R)3 controllers have SDP.
+            // But clones like PANHAI don't have it. It is safe to just ignore them.
+            // TODO: Move this code to the ds3.c file
+            if (strncmp(d->name, "PLAYSTATION(R)3", 15) == 0) {
+                // Fake PID/VID
+                uni_hid_device_set_product_id(d, 0x0268);  // Dualshock 3
+                uni_hid_device_set_vendor_id(d, 0x054c);   // Sony
+                uni_hid_device_guess_controller_type_from_pid_vid(d);
                 uni_hid_device_set_ready(d);
             } else {
                 sdp_query_hid_descriptor(d);
