@@ -8,12 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### New
 
 - Devices: Support for feature reports.
-  - For the moment only implemented in DualSense and DualShock 4 to get calibration
-    and firmware info although calibration is ignored ATM.
+- DualSense / DualShock 4: add support for get firmware version and calibration values.
+  Although calibration is ignored ATM.
 - DualShock3: Add partial support for DualShock 3 clones, like PANHAI.
+- 8BitDo Arcade Stick: Add support for it.
+  It keeps responding to inquiries even after the device is connected.
 
 ### Changed
 
+- DualSense: Player LEDs are reported in the same way as PlayStation 5.
+- Switch: Don't turn ON Home Light. 
+  8BitDo devices don't support it. And might break the gamepad setup sequence.
 - API: renamed some functions / typedefs
   - uni_hid_parser() -> uni_hid_parse_input_report()
   - report_parse_raw_fn_t -> report_parse_input_report_fn_t
@@ -21,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The suffix "_safe" were added to their names:
   - uni_bluetooth_del_keys()
   - uni_bluetooth_enable_new_connections()
+- Arduino: Seat assignment simplified.
 
 ### Fixed
 
@@ -29,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Scan inquiry is only done for 1.28secs, then a "wait" for 1 second, that
   allows incoming connections to be received.
 - DualSense: doesn't not disconnect randomly
+- Switch: Don't enable "home light" at setup time.
+  8BitDo gamepads don't implement it and might not be able to finish setup.
 
 ## [2.5.0] - 2022-01-08
 ### New

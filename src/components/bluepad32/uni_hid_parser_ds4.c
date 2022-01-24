@@ -47,9 +47,8 @@ typedef enum {
 } ds4_state_t;
 
 typedef struct {
-    // Must be first element
-    btstack_timer_source_t ts;
-    uni_hid_device_t* hid_device;
+    btstack_timer_source_t rumble_timer;
+    btstack_timer_source_t setup_timer;
     bool rumble_in_progress;
     ds4_state_t state;
     uint16_t fw_version;
@@ -121,13 +120,21 @@ static void ds4_request_calibration_report(uni_hid_device_t* d);
 static void ds4_request_firmware_version_report(uni_hid_device_t* d);
 static void ds4_send_enable_lightbar_report(uni_hid_device_t* d);
 static void ds4_set_rumble_off(btstack_timer_source_t* ts);
+static void ds4_setup_timeout(btstack_timer_source_t* ts);
 
 void uni_hid_parser_ds4_setup(struct uni_hid_device_s* d) {
     ds4_instance_t* ins = get_ds4_instance(d);
     memset(ins, 0, sizeof(*ins));
-    ins->hid_device = d;  // Used by rumble callbacks
 
     ds4_request_firmware_version_report(d);
+
+    // If setup cannot finish within one second (probably a clone), just skip
+    // the optional setup, and jump right into the required part.
+    // E.g: This is true for 8BitDo gamepads when in Mac (PS4) mode.
+    ins->setup_timer.context = d;
+    ins->setup_timer.process = &ds4_setup_timeout;
+    btstack_run_loop_set_timer(&ins->setup_timer, 1000);
+    btstack_run_loop_add_timer(&ins->setup_timer);
 }
 
 void uni_hid_parser_ds4_init_report(uni_hid_device_t* d) {
@@ -158,6 +165,9 @@ void uni_hid_parser_ds4_parse_feature_report(uni_hid_device_t* d, const uint8_t*
                 loge("DS4: Unexpected calibration size: got %d, want: %d\n", len, DS4_FEATURE_REPORT_CALIBRATION_SIZE);
                 /* fallthrough */
             }
+            // Optional part finished, turn off setup timer.
+            btstack_run_loop_remove_timer(&ins->setup_timer);
+
             ds4_send_enable_lightbar_report(d);
             break;
         case DS4_FEATURE_REPORT_FIRMWARE_VERSION:
@@ -269,11 +279,12 @@ void uni_hid_parser_ds4_set_rumble(uni_hid_device_t* d, uint8_t value, uint8_t d
     ds4_send_output_report(d, &out);
 
     // Set timer to turn off rumble
-    ins->ts.process = &ds4_set_rumble_off;
+    ins->rumble_timer.process = &ds4_set_rumble_off;
+    ins->rumble_timer.context = d;
     ins->rumble_in_progress = 1;
     int ms = duration * 4;  // duration: 256 ~= 1 second
-    btstack_run_loop_set_timer(&ins->ts, ms);
-    btstack_run_loop_add_timer(&ins->ts);
+    btstack_run_loop_set_timer(&ins->rumble_timer, ms);
+    btstack_run_loop_add_timer(&ins->rumble_timer);
 }
 
 //
@@ -293,7 +304,8 @@ static void ds4_send_output_report(uni_hid_device_t* d, ds4_output_report_t* out
 }
 
 static void ds4_set_rumble_off(btstack_timer_source_t* ts) {
-    ds4_instance_t* ins = (ds4_instance_t*)ts;
+    uni_hid_device_t* d = ts->context;
+    ds4_instance_t* ins = get_ds4_instance(d);
     // No need to protect it with a mutex since it runs in the same main thread
     assert(ins->rumble_in_progress);
     ins->rumble_in_progress = 0;
@@ -301,7 +313,7 @@ static void ds4_set_rumble_off(btstack_timer_source_t* ts) {
     ds4_output_report_t out = {
         .flags = DS4_FF_FLAG_RUMBLE,
     };
-    ds4_send_output_report(ins->hid_device, &out);
+    ds4_send_output_report(d, &out);
 }
 
 static void ds4_request_calibration_report(uni_hid_device_t* d) {
@@ -349,4 +361,12 @@ static void ds4_send_enable_lightbar_report(uni_hid_device_t* d) {
     ds4_instance_t* ins = get_ds4_instance(d);
     ins->state = DS4_STATE_READY;
     uni_hid_device_set_ready_complete(d);
+}
+
+static void ds4_setup_timeout(btstack_timer_source_t* ts) {
+    // If the optional parts of the setup were not fullfilled, just
+    // jump straight to the required parts
+    logi("DS4: optional setup could not finish in time, skipping it\n");
+    uni_hid_device_t* d = ts->context;
+    ds4_send_enable_lightbar_report(d);
 }

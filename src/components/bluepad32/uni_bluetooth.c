@@ -669,6 +669,14 @@ static void on_gap_inquiry_result(uint16_t channel, const uint8_t* packet, uint1
     if (uni_hid_device_is_cod_supported(cod)) {
         device = uni_hid_device_get_instance_for_address(addr);
         if (device != NULL && !uni_hid_device_is_orphan(device)) {
+            // Could happen that the device is already connected (E.g: 8BitDo Arcade Stick in Switch mode).
+            // If so, just ignore the inquiry result
+            if (device->conn.state == UNI_BT_CONN_STATE_DEVICE_READY) {
+                // And for the sake of having a nice output, just print \n
+                logi("\n");
+                return;
+            }
+
             logi("... device already added (state=%d)\n", uni_bt_conn_get_state(&device->conn));
             uni_hid_device_dump_device(device);
             bool deleted = uni_hid_device_auto_delete(device);

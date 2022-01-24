@@ -63,9 +63,7 @@ typedef enum {
 } ds5_state_t;
 
 typedef struct {
-    // Must be first element
-    btstack_timer_source_t ts;
-    uni_hid_device_t* hid_device;
+    btstack_timer_source_t rumble_timer;
     bool rumble_in_progress;
     uint8_t output_seq;
     ds5_state_t state;
@@ -184,7 +182,6 @@ void uni_hid_parser_ds5_init_report(uni_hid_device_t* d) {
 void uni_hid_parser_ds5_setup(uni_hid_device_t* d) {
     ds5_instance_t* ins = get_ds5_instance(d);
     memset(ins, 0, sizeof(*ins));
-    ins->hid_device = d;  // Used by rumble callbacks
     ds5_request_pairing_info_report(d);
 }
 
@@ -357,11 +354,12 @@ void uni_hid_parser_ds5_set_rumble(struct uni_hid_device_s* d, uint8_t value, ui
     ds5_send_output_report(d, &out);
 
     // Set timer to turn off rumble
-    ins->ts.process = &ds5_set_rumble_off;
+    ins->rumble_timer.process = &ds5_set_rumble_off;
+    ins->rumble_timer.context = d;
     ins->rumble_in_progress = 1;
     int ms = duration * 4;  // duration: 256 ~= 1 second
-    btstack_run_loop_set_timer(&ins->ts, ms);
-    btstack_run_loop_add_timer(&ins->ts);
+    btstack_run_loop_set_timer(&ins->rumble_timer, ms);
+    btstack_run_loop_add_timer(&ins->rumble_timer);
 }
 
 //
@@ -390,7 +388,8 @@ static void ds5_send_output_report(uni_hid_device_t* d, ds5_output_report_t* out
 }
 
 static void ds5_set_rumble_off(btstack_timer_source_t* ts) {
-    ds5_instance_t* ins = (ds5_instance_t*)ts;
+    uni_hid_device_t* d = ts->context;
+    ds5_instance_t* ins = get_ds5_instance(d);
 
     // No need to protect it with a mutex since it runs in the same main thread
     assert(ins->rumble_in_progress);
@@ -400,7 +399,7 @@ static void ds5_set_rumble_off(btstack_timer_source_t* ts) {
         .valid_flag0 = DS5_FLAG0_COMPATIBLE_VIBRATION | DS5_FLAG0_HAPTICS_SELECT,
     };
 
-    ds5_send_output_report(ins->hid_device, &out);
+    ds5_send_output_report(d, &out);
 }
 
 static void ds5_request_calibration_report(uni_hid_device_t* d) {

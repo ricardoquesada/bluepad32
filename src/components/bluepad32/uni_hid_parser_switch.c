@@ -415,7 +415,11 @@ static void process_fsm(struct uni_hid_device_s* d) {
             break;
         case STATE_ENABLE_IMU:
             logd("STATE_ENABLE_IMU\n");
-            fsm_set_home_light(d);
+            // TODO: Setting the Home Light should be optional.
+            // In fact, some Switch clones, like 8Bitdo's don't respondo to
+            // enabling Home Light.
+            // fsm_set_home_light(d);
+            fsm_update_led(d);
             break;
         case STATE_SET_HOME_LIGHT:
             logd("STATE_SET_HOME_LIGHT\n");
