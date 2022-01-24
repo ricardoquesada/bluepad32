@@ -58,6 +58,7 @@ static void pc_debug_init(int argc, const char** argv) {
         }
     }
 
+#if 0
     uni_gamepad_mappings_t mappings = GAMEPAD_DEFAULT_MAPPINGS;
 
     // Inverted axis with inverted Y in RY.
@@ -72,6 +73,7 @@ static void pc_debug_init(int argc, const char** argv) {
     mappings.button_b = UNI_GAMEPAD_MAPPINGS_BUTTON_A;
 
     uni_gamepad_set_mappings(&mappings);
+#endif
 }
 
 static void pc_debug_on_init_complete(void) {

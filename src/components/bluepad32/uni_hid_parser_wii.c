@@ -913,6 +913,8 @@ static void wii_fsm_assign_device(uni_hid_device_t* d) {
             uni_hid_device_send_intr_report(d, reportKee, sizeof(reportKee));
             break;
         }
+        default:
+            loge("Wii: wii_fsm_assign_device() unexpected device type: %d\n", ins->dev_type);
     }
     ins->state = WII_FSM_DEV_ASSIGNED;
     wii_process_fsm(d);
@@ -986,6 +988,8 @@ static void wii_process_fsm(uni_hid_device_t* d) {
             break;
         case WII_FSM_LED_UPDATED:
             break;
+        default:
+            loge("Wii: wii_process_fsm() unexpected state: %d\n", ins->state);
     }
 }
 
