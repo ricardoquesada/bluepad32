@@ -641,7 +641,7 @@ static void on_hci_connection_complete(uint16_t channel, const uint8_t* packet, 
 static void on_gap_inquiry_result(uint16_t channel, const uint8_t* packet, uint16_t size) {
     bd_addr_t addr;
     uni_hid_device_t* device;
-    char name_buffer[HID_MAX_NAME_LEN + 1];
+    char name_buffer[HID_MAX_NAME_LEN + 1] = {0};
     int name_len = 0;
 
     UNUSED(channel);
@@ -1170,7 +1170,9 @@ static void fsm_process(uni_hid_device_t* d) {
         } else if (state == UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED) {
             logd("STATE_REMOTE_NAME_FETCHED\n");
 #if UNI_ENABLE_SDP_QUERY_BEFORE_CONNECT
-            if (strncmp(d->name, "Wireless Controller", strlen(d->name)) == 0) {
+            // TODO: Comparing for DualShock name should be moved to one of the parsers.
+            int l = strlen(d->name);
+            if (l && strncmp(d->name, "Wireless Controller", l) == 0) {
                 // This is needed for DualShock4 version 1.
                 logi("Device %s seems to be a Sony Playstation, doing SDP query before connect.\n",
                      bd_addr_to_str(d->conn.remote_addr));

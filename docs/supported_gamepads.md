@@ -8,7 +8,6 @@
 
 List of supported Bluetooth Classic controller
 
-- Xbox One S controller
 - DualSense (PS5)
 - DUALSHOCK 4 (PS4) controller, both 2013 and 2016 editions
 - DUALSHOCK 3 (PS3) controller
@@ -16,6 +15,7 @@ List of supported Bluetooth Classic controller
 - Nintendo Switch JoyCons
 - Nintendo Wii U Pro controller
 - Nintendo Wii Remote and Remote Motion Plus, including Nunchuk and Classic Controller
+- Xbox Wireless controller (model 1708)
 - 8BitDo controllers
 - Android controllers
 - iCade controllers
@@ -38,11 +38,11 @@ Not every Bluetooth HID controller is "Classic". Some of them are "BLE" (low ene
 
 List of supported gamepads with supported features, known bugs, etc.
 
-## Xbox One S
+## Xbox Wireless (model 1708)
 
 [![Xbox One S][xbox_one_s]][13]
 
-- Must be the *Xbox One S* and not the *Xbox One* gamepad. The *Xbox One S* supports Bluetooth, while the regular *Xbox One* doesn't.
+- Must be the *model 1708* (released in 2016) and not earlier. *Model 1797* might work. Newer models, like 1914, are not supported ATM.
 - Supports both "old" and "new" Xbox One mappings: supports firmware v3.1 as well as firmware v4.8.
 - Supported features: rumble
 - Known Issues: [issue #1][issue_1]
@@ -64,7 +64,7 @@ List of supported gamepads with supported features, known bugs, etc.
 [![ds4_gamepad][dualshock_4]][14]
 
 - [Must be in PC mode][25]. Clones might not work.
-- Supports both the 2013 and 2016 editions
+- Supports both the 2013 (CUH-ZCT1) and 2016 (CUH-ZCT2) editions
 - Supported features: rumble, lightbar color
 
 [dualshock_4]: https://lh3.googleusercontent.com/_0sAxKXbSkk4g8rWJzTNxAirz2hD632jW4TGjGVOwjoac8sD4AfiN9PA1HdGWhm_ujcVygDlEG-LENPemF7IyFhqVsHgVHfCMVeFVjBbeDl-fUUjdMbRYAE8FiKdyWM_UBNUNmVy9Ro=-no
@@ -76,17 +76,16 @@ List of supported gamepads with supported features, known bugs, etc.
 - Tested with genuine DS3. Clones might not work.
 - Supported features: rumble, player LEDs
 - Requires that the [DS3 is manually paired][pair_ds3] to the Unijoysticle device.
-- Disabled by default since it conflicts with Nintendo Switch. To enable it edit: [uni_config.h]
+- Disabled by default since it conflicts with Nintendo Switch. Enable it via `idf.py menuconfig`
 
 [dualshock_3]: https://lh3.googleusercontent.com/pw/ACtC-3dEBJYkdIpF5_icFUY7n7otgw5LPpLyviKS14JL2EJtuiDBt6Kk-XcKlIIP9JCgT0yxJVN1KuW-JICpilYKhMGfDxQt6vjJm8r_lRS1R9IyOX4iBlUQoIrflt9KmSjXBjcJlS81cmKaGB166HF608v5MA=-no
 [pair_ds3]: pair_ds3.md
-[uni_config.h]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/src/main/uni_config.h
 
 ## Nintendo Wii Remote
 
 [![Wii Remote][wii_remote]][29]
 
-- Supports both Wii Remote and Wii Remote Motion Plus.
+- Supports both Wii Remote (RVL-003) and Wii Remote Motion Plus (RVL-036)
 - Supports 3 modes:
   - Sideways mode (default)
   - Accelerometer mode
@@ -178,7 +177,6 @@ Classic Controller can be used.
 Clones and "licensed by Nintendo" controllers should also work supported Ok.
 
 - Supported features: rumble, player LEDs
-- Home Light turns on when connected
 
 [switch_pro]: https://en.wikipedia.org/wiki/Nintendo_Switch_Pro_Controller
 [switch_pro_img]: https://lh3.googleusercontent.com/33hrGYM117T9pPrW0L-wr7bl0trLXooqmp4I78XV9vWkumHE8mK8Z_5KJZFzWKNpJg31gvrxHC0agF5BUgVr2f6awNYb98R-xPIWaawG6b0XwxHzm8hzz39Wnnv6qLmeEXsRaeoybsA=-no
@@ -226,7 +224,8 @@ Both Left and Right JoyCon are supported.
 
 [![8bitdo SN30 Pro][8bitdo_sn30_pro_img]][8bitdo_sn30_pro]
 
-- Tested with: [8BitDo SN30 Pro][8bitdo_sn30_pro], [8BitDo Lite][8bitdo_lite], [8BitDo NES30][8bitdo_nes30]
+- Tested with: [8BitDo SN30 Pro][8bitdo_sn30_pro], [8BitDo Arcade Stick][8bitdo_arcadestick],
+  [8BitDo Lite][8bitdo_lite], [8BitDo NES30][8bitdo_nes30]
 - All 8BitDo modes are supported: *Switch*, *Android*, *Windows* and *macOS*.
 - Known issues: [issue #10][issue_10]
 
@@ -234,6 +233,7 @@ Both Left and Right JoyCon are supported.
 [8bitdo_nes30]: https://www.google.com/search?q=8bitdo+nes30
 [8bitdo_lite]: https://www.8bitdo.com/lite/
 [8bitdo_sn30_pro]: https://www.8bitdo.com/sn30-pro-g-classic-or-sn30-pro-sn/
+[8bitdo_arcade_stick]: https://www.8bitdo.com/arcade-stick/
 [issue_10]: https://gitlab.com/ricardoquesada/unijoysticle2/issues/10
 
 ## iCade Family
