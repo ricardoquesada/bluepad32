@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - uni_bluetooth_del_keys()
   - uni_bluetooth_enable_new_connections()
 - Arduino: Seat assignment simplified.
+- Bluetooth: request device name for incoming connections.
 
 ### Fixed
 
@@ -34,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bluetooth: Incoming connections are more reliable.
   Scan inquiry is only done for 1.28secs, then a "wait" for 1 second, that
   allows incoming connections to be received.
+- Bluetooth: fix when parsing device name. Does not reuse previous discovered device.
 - DualSense: doesn't not disconnect randomly
 - Switch: Don't enable "home light" at setup time.
   8BitDo gamepads don't implement it and might not be able to finish setup.
