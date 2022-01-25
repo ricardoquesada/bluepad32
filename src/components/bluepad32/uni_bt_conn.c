@@ -43,3 +43,15 @@ bool uni_bt_conn_is_incoming(uni_bt_conn_t* conn) {
 bool uni_bt_conn_is_connected(uni_bt_conn_t* conn) {
     return conn->connected;
 }
+
+void uni_bt_conn_disconnect(uni_bt_conn_t* conn) {
+    if (conn->control_cid) {
+        l2cap_disconnect(conn->control_cid);
+        conn->control_cid = 0;
+    }
+    if (conn->interrupt_cid) {
+        l2cap_disconnect(conn->interrupt_cid);
+        conn->interrupt_cid = 0;
+    }
+    conn->connected = false;
+}

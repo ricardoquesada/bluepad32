@@ -58,6 +58,7 @@ static const bd_addr_t zero_addr = {0, 0, 0, 0, 0, 0};
 
 static void process_misc_button_system(uni_hid_device_t* d);
 static void process_misc_button_home(uni_hid_device_t* d);
+static void device_connection_timeout(btstack_timer_source_t* ts);
 
 void uni_hid_device_init(void) {
     memset(g_devices, 0, sizeof(g_devices));
@@ -69,6 +70,9 @@ uni_hid_device_t* uni_hid_device_create(bd_addr_t address) {
             memset(&g_devices[i], 0, sizeof(g_devices[i]));
             memcpy(g_devices[i].conn.remote_addr, address, 6);
             g_devices[i].hids_cid = -1;
+
+            // Delete device if it doesn't have a connection
+            uni_hid_device_start_connection_timeout(&g_devices[i]);
             return &g_devices[i];
         }
     }
@@ -163,6 +167,9 @@ void uni_hid_device_set_ready(uni_hid_device_t* d) {
         return;
     }
 
+    // Remove the timer once the connection was established.
+    btstack_run_loop_remove_timer(&d->connection_timer);
+
     // Each "parser" is responsible to call uni_hid_device_set_ready() once the
     // "parser" is ready.
     if (d->report_parser.setup)
@@ -176,17 +183,6 @@ void uni_hid_device_set_ready_complete(uni_hid_device_t* d) {
     // This is called once the "parser" is ready.
     if (uni_get_platform()->on_device_ready(d) == 0)
         uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_READY);
-}
-
-void uni_hid_device_remove_entry_with_channel(uint16_t channel) {
-    if (channel == 0)
-        return;
-    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
-        if (g_devices[i].conn.control_cid == channel || g_devices[i].conn.interrupt_cid == channel) {
-            memset(&g_devices[i], 0, sizeof(g_devices[i]));
-            break;
-        }
-    }
 }
 
 void uni_hid_device_request_inquire(void) {
@@ -211,9 +207,8 @@ void uni_hid_device_set_connected(uni_hid_device_t* d, bool connected) {
         // disconnected
         uni_get_platform()->on_device_disconnected(d);
 
-        // When disconnected, to simplify code and possible bugs, better to just "reset" the
-        // device state.
-        memset(d, 0, sizeof(*d));
+        // When disconnected, to simplify code and possible bugs, better to just delete it.
+        uni_hid_device_delete(d);
     }
 }
 
@@ -339,39 +334,24 @@ void uni_hid_device_delete(uni_hid_device_t* d) {
     }
     memset(d, 0, sizeof(*d));
 }
-// XXX: Replace it with a timed-callback
-bool uni_hid_device_auto_delete(uni_hid_device_t* d) {
-    if (d == NULL) {
-        loge("uni_hid_device_auto_delete: invalid hid device: NULL\n");
-        return false;
+
+void uni_hid_device_delete_entry_with_channel(uint16_t channel) {
+    if (channel == 0)
+        return;
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
+        if (g_devices[i].conn.control_cid == channel || g_devices[i].conn.interrupt_cid == channel) {
+            uni_hid_device_delete(&g_devices[i]);
+            break;
+        }
     }
-
-    // 10 is an arbitrary number that seems to work Ok.
-    if (++d->auto_delete < 10)
-        return false;
-
-    logi("Autodeleting device:\n");
-    uni_hid_device_dump_device(d);
-
-    if (uni_bt_conn_get_state(&d->conn) == UNI_BT_CONN_STATE_DEVICE_READY) {
-        loge("Disconnecting device before deleting it\n");
-        // Might call platform callbacks.
-        uni_hid_device_set_connected(d, false);
-    }
-
-    // And if auto-delete was called, that means that something went wrong.
-    // So, just clean the entire entry
-    uni_hid_device_delete(d);
-
-    return true;
 }
 
 void uni_hid_device_dump_device(uni_hid_device_t* d) {
     logi(
         "%s, handle=%d, ctrl_cid=0x%04x, intr_cid=0x%04x, cod=0x%08x, vid=0x%04x, pid=0x%04x, "
-        "flags=0x%08x, ctrl_type=0x%02x, name='%s', (del:%d)\n",
+        "flags=0x%08x, ctrl_type=0x%02x, name='%s'\n",
         bd_addr_to_str(d->conn.remote_addr), d->conn.handle, d->conn.control_cid, d->conn.interrupt_cid, d->cod,
-        d->vendor_id, d->product_id, d->flags, d->controller_type, d->name, d->auto_delete);
+        d->vendor_id, d->product_id, d->flags, d->controller_type, d->name);
 }
 
 void uni_hid_device_dump_all(void) {
@@ -381,16 +361,6 @@ void uni_hid_device_dump_all(void) {
             continue;
         uni_hid_device_dump_device(&g_devices[i]);
     }
-}
-
-bool uni_hid_device_is_orphan(uni_hid_device_t* d) {
-    // There is a case with the Apple mouse, and possibly other devices, sends
-    // the on_hci_connection_request but doesn't complete the connection.
-    // The device gets added into the DB at on_hci_connection_request time, and
-    // if you later put the device in discovery mode, we won't start a connection
-    // because it is already added to the DB.
-    // This prevents that scenario.
-    return (d->flags == FLAGS_HAS_COD);
 }
 
 uint8_t uni_hid_device_guess_controller_type_from_packet(uni_hid_device_t* d, const uint8_t* packet, int len) {
@@ -679,4 +649,27 @@ void uni_hid_device_send_queued_reports(uni_hid_device_t* d) {
         return;
     }
     uni_hid_device_send_report(d, cid, data, data_len);
+}
+
+static void device_connection_timeout(btstack_timer_source_t* ts) {
+    uni_hid_device_t* d = btstack_run_loop_get_timer_context(ts);
+
+    if (d->conn.state == UNI_BT_CONN_STATE_DEVICE_READY) {
+        // Nothing. Device is ready. Good.
+        return;
+    }
+    logi("Device cannot connect in time, deleting:\n");
+    uni_hid_device_dump_device(d);
+    // Close possible open connections
+    uni_bt_conn_disconnect(&d->conn);
+    // Remove "key" just in case
+    gap_drop_link_key_for_bd_addr(d->conn.remote_addr);
+    uni_hid_device_delete(d);
+}
+
+void uni_hid_device_start_connection_timeout(uni_hid_device_t* d) {
+    btstack_run_loop_set_timer_context(&d->connection_timer, d);
+    btstack_run_loop_set_timer_handler(&d->connection_timer, &device_connection_timeout);
+    btstack_run_loop_set_timer(&d->connection_timer, HID_DEVICE_CONNECTION_TIMEOUT_MS);
+    btstack_run_loop_add_timer(&d->connection_timer);
 }

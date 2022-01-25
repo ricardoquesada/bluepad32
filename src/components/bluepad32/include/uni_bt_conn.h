@@ -57,7 +57,6 @@ typedef struct {
     bool connected;
 
     uni_bt_conn_state_t state;
-
 } uni_bt_conn_t;
 
 void uni_bt_conn_init(uni_bt_conn_t* conn);
@@ -66,5 +65,6 @@ uni_bt_conn_state_t uni_bt_conn_get_state(uni_bt_conn_t* conn);
 void uni_bt_conn_get_address(uni_bt_conn_t* conn, bd_addr_t out_addr);
 bool uni_bt_conn_is_incoming(uni_bt_conn_t* conn);
 bool uni_bt_conn_is_connected(uni_bt_conn_t* conn);
+void uni_bt_conn_disconnect(uni_bt_conn_t* conn);
 
 #endif  // UNI_BT_CONN_H

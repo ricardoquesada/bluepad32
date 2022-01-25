@@ -76,8 +76,11 @@
 // Experiment feature. Disabled until it is ready.
 // #define UNI_ENABLE_BLE 1
 
-#define GAP_INQUIRY_INTERVAL 1          // Measured in in 1.28s units
-#define GAP_INQUIRY_PAUSE_TIME_MS 1000  // "pause" has similar time as GAP_INQUIRY_INTERVAL
+// Delicate balance between INQUIRY_INTERVAL and INQUIRY_PAUSE
+// If the interval is too short, some devices won't get discovered (e.g: 8BitDo SN30 Pro in dinput/xinput modes)
+// If the interval is too big, some devices won't be able to re-connect (e.g: Wii Remotes)
+#define GAP_INQUIRY_INTERVAL 3          // Measured in in 1.28s units
+#define GAP_INQUIRY_PAUSE_TIME_MS 1280  // "pause" is one-third of GAP_INQUIRY_INTERVAL
 #define MAX_ATTRIBUTE_VALUE_SIZE 512    // Apparently PS4 has a 470-bytes report
 #define L2CAP_CHANNEL_MTU 0xffff        // PS4 requires a 79-byte packet
 
@@ -668,21 +671,15 @@ static void on_gap_inquiry_result(uint16_t channel, const uint8_t* packet, uint1
 
     if (uni_hid_device_is_cod_supported(cod)) {
         device = uni_hid_device_get_instance_for_address(addr);
-        if (device != NULL && !uni_hid_device_is_orphan(device)) {
-            // Could happen that the device is already connected (E.g: 8BitDo Arcade Stick in Switch mode).
-            // If so, just ignore the inquiry result
+        if (device) {
             if (device->conn.state == UNI_BT_CONN_STATE_DEVICE_READY) {
+                // Could happen that the device is already connected (E.g: 8BitDo Arcade Stick in Switch mode).
+                // If so, just ignore the inquiry result.
                 // And for the sake of having a nice output, just print \n
                 logi("\n");
                 return;
             }
-
-            logi("... device already added (state=%d)\n", uni_bt_conn_get_state(&device->conn));
-            uni_hid_device_dump_device(device);
-            bool deleted = uni_hid_device_auto_delete(device);
-            if (!deleted)
-                return;
-            // If it was not deleted, fallthrough, and let it create it again.
+            logi("...waiting (state=0x%02x)\n", device->conn.state);
         }
         if (!device) {
             device = uni_hid_device_create(addr);
@@ -748,7 +745,7 @@ static void on_l2cap_channel_opened(uint16_t channel, const uint8_t* packet, uin
         // not on theory.
         if (status == L2CAP_CONNECTION_RESPONSE_RESULT_RTX_TIMEOUT || status == L2CAP_CONNECTION_BASEBAND_DISCONNECT) {
             logi("Removing previous link key for address=%s.\n", bd_addr_to_str(address));
-            uni_hid_device_remove_entry_with_channel(channel);
+            uni_hid_device_delete_entry_with_channel(channel);
             // Just in case the key is outdated we remove it. If fixes some
             // l2cap_channel_opened issues. It proves that it works when the status
             // is 0x6a (L2CAP_CONNECTION_BASEBAND_DISCONNECT).
@@ -772,7 +769,7 @@ static void on_l2cap_channel_opened(uint16_t channel, const uint8_t* packet, uin
     device = uni_hid_device_get_instance_for_address(address);
     if (device == NULL) {
         loge("could not find device for address\n");
-        uni_hid_device_remove_entry_with_channel(channel);
+        uni_hid_device_delete_entry_with_channel(channel);
         return;
     }
 

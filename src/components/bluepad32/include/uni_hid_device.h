@@ -32,6 +32,7 @@ limitations under the License.
 #define HID_MAX_DESCRIPTOR_LEN 512
 #define HID_DEVICE_MAX_PARSER_DATA 128
 #define HID_DEVICE_MAX_PLATFORM_DATA 128
+#define HID_DEVICE_CONNECTION_TIMEOUT_MS 10000
 
 // clang-format off
 #define MASK_COD_MAJOR_PERIPHERAL   0x0500  // 0b0000_0101_0000_0000
@@ -65,10 +66,8 @@ struct uni_hid_device_s {
     // hid, cod, etc...
     uint32_t flags;
 
-    // Times the device was discovered while also failed to establish a connection
-    // If it reaches a certain threshold, then the discovered devices should be
-    // start the connection process again.
-    int auto_delete;
+    // Will abort connection if the connection was not established after timeout.
+    btstack_timer_source_t connection_timer;
 
     // SDP
     uint8_t hid_descriptor[HID_MAX_DESCRIPTOR_LEN];
@@ -87,7 +86,7 @@ struct uni_hid_device_s {
     uint16_t hids_cid;  // BLE only
 
     // Gamepad
-    uint8_t controller_type;                      // type of controller attached
+    uint8_t controller_type;                      // type of controller. E.g: DualShock4, Switch ,etc.
     uni_controller_subtype_t controller_subtype;  // sub-type of controller attached
     uni_gamepad_t gamepad;                        // gamepad state
 
@@ -141,8 +140,6 @@ uni_hid_device_t* uni_hid_device_get_sdp_device(uint64_t* elapsed /*out*/);
 void uni_hid_device_set_ready(uni_hid_device_t* d);
 void uni_hid_device_set_ready_complete(uni_hid_device_t* d);
 
-void uni_hid_device_remove_entry_with_channel(uint16_t channel);
-
 void uni_hid_device_request_inquire(void);
 
 void uni_hid_device_set_connected(uni_hid_device_t* d, bool connected);
@@ -153,10 +150,8 @@ bool uni_hid_device_is_cod_supported(uint32_t cod);
 void uni_hid_device_set_hid_descriptor(uni_hid_device_t* d, const uint8_t* descriptor, int len);
 bool uni_hid_device_has_hid_descriptor(uni_hid_device_t* d);
 
-// Returns true if the device was deleted.
-// The device will be deleted after call "auto_delete" gets calls N times.
-bool uni_hid_device_auto_delete(uni_hid_device_t* d);
 void uni_hid_device_delete(uni_hid_device_t* d);
+void uni_hid_device_delete_entry_with_channel(uint16_t channel);
 
 void uni_hid_device_set_incoming(uni_hid_device_t* d, bool incoming);
 bool uni_hid_device_is_incoming(uni_hid_device_t* d);
@@ -173,8 +168,6 @@ uint16_t uni_hid_device_get_vendor_id(uni_hid_device_t* d);
 void uni_hid_device_dump_device(uni_hid_device_t* d);
 void uni_hid_device_dump_all(void);
 
-bool uni_hid_device_is_orphan(uni_hid_device_t* d);
-
 uint8_t uni_hid_device_guess_controller_type_from_packet(uni_hid_device_t* d, const uint8_t* packet, int len);
 void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d);
 bool uni_hid_device_has_controller_type(uni_hid_device_t* d);
@@ -182,6 +175,8 @@ bool uni_hid_device_has_controller_type(uni_hid_device_t* d);
 void uni_hid_device_process_gamepad(uni_hid_device_t* d);
 
 void uni_hid_device_set_connection_handle(uni_hid_device_t* d, hci_con_handle_t handle);
+
+void uni_hid_device_start_connection_timeout(uni_hid_device_t* d);
 
 void uni_hid_device_send_report(uni_hid_device_t* d, uint16_t cid, const uint8_t* report, uint16_t len);
 void uni_hid_device_send_intr_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len);

@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DualSense: Player LEDs are reported in the same way as PlayStation 5.
 - Switch: Don't turn ON Home Light. 
   8BitDo devices don't support it. And might break the gamepad setup sequence.
+- Xbox: Improved reliability (based on the new auto delete code)
 - API: renamed some functions / typedefs
   - uni_hid_parser() -> uni_hid_parse_input_report()
   - report_parse_raw_fn_t -> report_parse_input_report_fn_t
@@ -28,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - uni_bluetooth_enable_new_connections()
 - Arduino: Seat assignment simplified.
 - Bluetooth: request device name for incoming connections.
+- Bluetooth: Replaced the old "auto_delete" code, which used "counts", with
+  one based on a timer. New code includes incoming connections.
+
 
 ### Fixed
 
