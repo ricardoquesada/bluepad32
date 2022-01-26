@@ -31,7 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bluetooth: request device name for incoming connections.
 - Bluetooth: Replaced the old "auto_delete" code, which used "counts", with
   one based on a timer. New code includes incoming connections.
-- Bluetooth: Refactor SDP query timeout. Code is easier to mantain.
+- Bluetooth: SDP query refactor
+  SDP query timeout using btstack timers instead of ad-hoc one.
+  Perform VID/PID query before HID-descriptor.
+  If HID-descriptor is not needed, don't do the query. Reduces connection latency.
+  Overall, cleaner code.
 
 ### Fixed
 

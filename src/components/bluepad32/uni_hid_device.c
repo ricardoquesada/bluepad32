@@ -57,6 +57,7 @@ static const bd_addr_t zero_addr = {0, 0, 0, 0, 0, 0};
 static void process_misc_button_system(uni_hid_device_t* d);
 static void process_misc_button_home(uni_hid_device_t* d);
 static void device_connection_timeout(btstack_timer_source_t* ts);
+static void start_connection_timeout(uni_hid_device_t* d);
 
 void uni_hid_device_init(void) {
     memset(g_devices, 0, sizeof(g_devices));
@@ -70,7 +71,7 @@ uni_hid_device_t* uni_hid_device_create(bd_addr_t address) {
             g_devices[i].hids_cid = -1;
 
             // Delete device if it doesn't have a connection
-            uni_hid_device_start_connection_timeout(&g_devices[i]);
+            start_connection_timeout(&g_devices[i]);
             return &g_devices[i];
         }
     }
@@ -310,6 +311,18 @@ uint16_t uni_hid_device_get_vendor_id(uni_hid_device_t* d) {
     return d->vendor_id;
 }
 
+void uni_hid_device_disconnect(uni_hid_device_t* d) {
+    if (d == NULL) {
+        loge("uni_hid_device_disconnect: invalid hid device: NULL\n");
+        return;
+    }
+    // Close possible open connections
+    uni_bt_conn_disconnect(&d->conn);
+    // Remove "key" just in case
+    // TODO: Should be documented somehow
+    gap_drop_link_key_for_bd_addr(d->conn.remote_addr);
+}
+
 void uni_hid_device_delete(uni_hid_device_t* d) {
     if (d == NULL) {
         loge("uni_hid_device_delete: invalid hid device: NULL\n");
@@ -522,52 +535,6 @@ void uni_hid_device_process_gamepad(uni_hid_device_t* d) {
     process_misc_button_home(d);
 }
 
-// Helpers
-
-// process_mic_button_system swaps joystick port A and B only if there is one device attached.
-static void process_misc_button_system(uni_hid_device_t* d) {
-    if ((d->gamepad.updated_states & GAMEPAD_STATE_MISC_BUTTON_SYSTEM) == 0) {
-        // System button released (or never have been pressed). Return, and clean wait_release button.
-        return;
-    }
-
-    if ((d->gamepad.misc_buttons & MISC_BUTTON_SYSTEM) == 0) {
-        // System button released ?
-        d->wait_release_misc_button &= ~MISC_BUTTON_SYSTEM;
-        return;
-    }
-
-    if (d->wait_release_misc_button & MISC_BUTTON_SYSTEM)
-        return;
-
-    d->wait_release_misc_button |= MISC_BUTTON_SYSTEM;
-
-    uni_get_platform()->on_device_oob_event(d, UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON);
-}
-
-// process_misc_button_home dumps uni_hid_device debug info in the console.
-static void process_misc_button_home(uni_hid_device_t* d) {
-    if ((d->gamepad.updated_states & GAMEPAD_STATE_MISC_BUTTON_HOME) == 0) {
-        // Home button not available, not pressed or released.
-        return;
-    }
-
-    if ((d->gamepad.misc_buttons & MISC_BUTTON_HOME) == 0) {
-        // Home button released ? Clear "wait" flag.
-        d->wait_release_misc_button &= ~MISC_BUTTON_HOME;
-        return;
-    }
-
-    // "Wait" flag present? Return.
-    if (d->wait_release_misc_button & MISC_BUTTON_HOME)
-        return;
-
-    // Update "wait" flag.
-    d->wait_release_misc_button |= MISC_BUTTON_HOME;
-
-    uni_hid_device_dump_all();
-}
-
 // Try to send the report now. If it can't, queue it and send it in the next
 // event loop.
 void uni_hid_device_send_report(uni_hid_device_t* d, uint16_t cid, const uint8_t* report, uint16_t len) {
@@ -639,6 +606,63 @@ void uni_hid_device_send_queued_reports(uni_hid_device_t* d) {
     uni_hid_device_send_report(d, cid, data, data_len);
 }
 
+bool uni_hid_device_does_require_hid_descriptor(uni_hid_device_t* d) {
+    if (d == NULL) {
+        loge("uni_hid_device_does_require_hid_descriptor: failed, device is NULL\n");
+        return false;
+    }
+
+    // If the parser has a "parse_usage" functions, it is safe to assume that a HID descriptor
+    // is needed. "parse_usage" cannot work without a HID descriptor.
+    return (d->report_parser.parse_usage != NULL);
+}
+
+// Helpers
+
+// process_mic_button_system swaps joystick port A and B only if there is one device attached.
+static void process_misc_button_system(uni_hid_device_t* d) {
+    if ((d->gamepad.updated_states & GAMEPAD_STATE_MISC_BUTTON_SYSTEM) == 0) {
+        // System button released (or never have been pressed). Return, and clean wait_release button.
+        return;
+    }
+
+    if ((d->gamepad.misc_buttons & MISC_BUTTON_SYSTEM) == 0) {
+        // System button released ?
+        d->wait_release_misc_button &= ~MISC_BUTTON_SYSTEM;
+        return;
+    }
+
+    if (d->wait_release_misc_button & MISC_BUTTON_SYSTEM)
+        return;
+
+    d->wait_release_misc_button |= MISC_BUTTON_SYSTEM;
+
+    uni_get_platform()->on_device_oob_event(d, UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON);
+}
+
+// process_misc_button_home dumps uni_hid_device debug info in the console.
+static void process_misc_button_home(uni_hid_device_t* d) {
+    if ((d->gamepad.updated_states & GAMEPAD_STATE_MISC_BUTTON_HOME) == 0) {
+        // Home button not available, not pressed or released.
+        return;
+    }
+
+    if ((d->gamepad.misc_buttons & MISC_BUTTON_HOME) == 0) {
+        // Home button released ? Clear "wait" flag.
+        d->wait_release_misc_button &= ~MISC_BUTTON_HOME;
+        return;
+    }
+
+    // "Wait" flag present? Return.
+    if (d->wait_release_misc_button & MISC_BUTTON_HOME)
+        return;
+
+    // Update "wait" flag.
+    d->wait_release_misc_button |= MISC_BUTTON_HOME;
+
+    uni_hid_device_dump_all();
+}
+
 static void device_connection_timeout(btstack_timer_source_t* ts) {
     uni_hid_device_t* d = btstack_run_loop_get_timer_context(ts);
 
@@ -648,14 +672,12 @@ static void device_connection_timeout(btstack_timer_source_t* ts) {
     }
     logi("Device cannot connect in time, deleting:\n");
     uni_hid_device_dump_device(d);
-    // Close possible open connections
-    uni_bt_conn_disconnect(&d->conn);
-    // Remove "key" just in case
-    gap_drop_link_key_for_bd_addr(d->conn.remote_addr);
+
+    uni_hid_device_disconnect(d);
     uni_hid_device_delete(d);
 }
 
-void uni_hid_device_start_connection_timeout(uni_hid_device_t* d) {
+static void start_connection_timeout(uni_hid_device_t* d) {
     btstack_run_loop_set_timer_context(&d->connection_timer, d);
     btstack_run_loop_set_timer_handler(&d->connection_timer, &device_connection_timeout);
     btstack_run_loop_set_timer(&d->connection_timer, HID_DEVICE_CONNECTION_TIMEOUT_MS);

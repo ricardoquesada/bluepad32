@@ -147,6 +147,7 @@ bool uni_hid_device_is_cod_supported(uint32_t cod);
 void uni_hid_device_set_hid_descriptor(uni_hid_device_t* d, const uint8_t* descriptor, int len);
 bool uni_hid_device_has_hid_descriptor(uni_hid_device_t* d);
 
+void uni_hid_device_disconnect(uni_hid_device_t* d);
 void uni_hid_device_delete(uni_hid_device_t* d);
 void uni_hid_device_delete_entry_with_channel(uint16_t channel);
 
@@ -173,11 +174,11 @@ void uni_hid_device_process_gamepad(uni_hid_device_t* d);
 
 void uni_hid_device_set_connection_handle(uni_hid_device_t* d, hci_con_handle_t handle);
 
-void uni_hid_device_start_connection_timeout(uni_hid_device_t* d);
-
 void uni_hid_device_send_report(uni_hid_device_t* d, uint16_t cid, const uint8_t* report, uint16_t len);
 void uni_hid_device_send_intr_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
 void uni_hid_device_send_ctrl_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
 void uni_hid_device_send_queued_reports(uni_hid_device_t* d);
+
+bool uni_hid_device_does_require_hid_descriptor(uni_hid_device_t* d);
 
 #endif  // UNI_HID_DEVICE_H

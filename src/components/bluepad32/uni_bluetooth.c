@@ -110,8 +110,10 @@ static bool accept_incoming_connections = true;
 static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
 static void handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
 static void handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
-static void sdp_query_hid_descriptor(uni_hid_device_t* device);
-static void sdp_query_product_id(uni_hid_device_t* device);
+static void sdp_query_start(uni_hid_device_t* device);
+static void sdp_query_end(uni_hid_device_t* device);
+static void sdp_query_start_hid_descriptor(uni_hid_device_t* device);
+static void sdp_query_start_vid_pid(uni_hid_device_t* device);
 static void sdp_query_timeout(btstack_timer_source_t* ts);
 
 #ifdef UNI_ENABLE_BLE
@@ -191,8 +193,7 @@ static void handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel, u
             }
             break;
         case SDP_EVENT_QUERY_COMPLETE:
-            uni_bt_conn_set_state(&sdp_device->conn, UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_FETCHED);
-            fsm_process(sdp_device);
+            sdp_query_end(sdp_device);
             break;
         default:
             break;
@@ -248,10 +249,6 @@ static void handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, u
             uni_hid_device_guess_controller_type_from_pid_vid(sdp_device);
             uni_bt_conn_set_state(&sdp_device->conn, UNI_BT_CONN_STATE_SDP_VENDOR_FETCHED);
             fsm_process(sdp_device);
-
-            // After query is complete, cleanup
-            sdp_device = NULL;
-            btstack_run_loop_remove_timer(&sdp_query_timer);
             break;
         default:
             // TODO: xxx
@@ -884,14 +881,14 @@ static void on_l2cap_data_packet(uint16_t channel, const uint8_t* packet, uint16
 
     d = uni_hid_device_get_instance_for_cid(channel);
     if (d == NULL) {
-        loge("on_l2cap_data_packet: invalid cid: 0x%04x\n", channel);
+        loge("on_l2cap_data_packet: invalid cid: 0x%04x, ignoring packet\n", channel);
         // printf_hexdump(packet, size);
         return;
     }
 
     // Sanity check. It must have at least a transaction type and a report id.
     if (size < 2) {
-        loge("on_l2cap_data_packet: invalid packet size\n");
+        loge("on_l2cap_data_packet: invalid packet size, ignoring packet\n");
         return;
     }
 
@@ -913,7 +910,7 @@ static void on_l2cap_data_packet(uint16_t channel, const uint8_t* packet, uint16
     // Not every device require SDP. If the device is "READY", we don't care whether the
     // HID descriptor is missing.
     if ((d->conn.state != UNI_BT_CONN_STATE_DEVICE_READY) && d->try_heuristics) {
-        logi("SDP took too long. Trying heuristics.\n");
+        logi("Could not determine device using SDP, trying heuristics.\n");
         if (!uni_hid_device_guess_controller_type_from_packet(d, packet, size)) {
             logi("Heuristics failed. Ignoring report.\n");
             return;
@@ -921,7 +918,8 @@ static void on_l2cap_data_packet(uint16_t channel, const uint8_t* packet, uint16
             logi("Device was detected using heuristics.\n");
             d->try_heuristics = false;
             fsm_process(d);
-            return;
+
+            /* fallthrough, device was detected, it is safe to process the packet */
         }
     }
 
@@ -1013,21 +1011,13 @@ static void stop_scan() {
     gap_inquiry_stop();
 }
 
-static void sdp_query_hid_descriptor(uni_hid_device_t* device) {
-    logi("Starting SDP query for device: %s\n", bd_addr_to_str(device->conn.remote_addr));
-
+static void sdp_query_start(uni_hid_device_t* device) {
     // Needed for the SDP query since it only supports one SDP query at the time.
     if (sdp_device != NULL) {
-        logi("...But another SDP query is in progress (%s), waiting...\n",
-             bd_addr_to_str(sdp_device->conn.remote_addr));
-    }
-
-    uni_bt_conn_set_state(&device->conn, UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_REQUESTED);
-    uint8_t status = sdp_client_query_uuid16(&handle_sdp_hid_query_result, device->conn.remote_addr,
-                                             BLUETOOTH_SERVICE_CLASS_HUMAN_INTERFACE_DEVICE_SERVICE);
-    if (status != 0) {
-        loge("Failed to perform SDP query for %s. Removing it...\n", bd_addr_to_str(device->conn.remote_addr));
+        logi("Another SDP query is in progress (%s), disconnecting...\n", bd_addr_to_str(sdp_device->conn.remote_addr));
+        uni_hid_device_disconnect(device);
         uni_hid_device_delete(device);
+        return;
     }
 
     sdp_device = device;
@@ -1035,17 +1025,56 @@ static void sdp_query_hid_descriptor(uni_hid_device_t* device) {
     btstack_run_loop_set_timer_handler(&sdp_query_timer, &sdp_query_timeout);
     btstack_run_loop_set_timer(&sdp_query_timer, SDP_QUERY_TIMEOUT_MS);
     btstack_run_loop_add_timer(&sdp_query_timer);
+
+    sdp_query_start_vid_pid(device);
 }
 
-static void sdp_query_product_id(uni_hid_device_t* device) {
-    logi("Starting SDP query for product/vendor ID\n");
+static void sdp_query_end(uni_hid_device_t* device) {
+    uni_bt_conn_set_state(&device->conn, UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_FETCHED);
+    sdp_device = NULL;
+    btstack_run_loop_remove_timer(&sdp_query_timer);
+    fsm_process(device);
+}
+
+static void sdp_query_start_vid_pid(uni_hid_device_t* device) {
+    logi("Starting SDP VID/PID query for %s\n", bd_addr_to_str(device->conn.remote_addr));
+
     uni_bt_conn_set_state(&device->conn, UNI_BT_CONN_STATE_SDP_VENDOR_REQUESTED);
     uint8_t status = sdp_client_query_uuid16(&handle_sdp_pid_query_result, device->conn.remote_addr,
                                              BLUETOOTH_SERVICE_CLASS_PNP_INFORMATION);
     if (status != 0) {
-        loge("Failed to perform SDP DeviceID query\n");
+        loge("Failed to perform SDP VID/PID query\n");
+        uni_hid_device_disconnect(device);
+        uni_hid_device_delete(device);
+        return;
     }
 }
+
+static void sdp_query_start_hid_descriptor(uni_hid_device_t* device) {
+    if (!uni_hid_device_does_require_hid_descriptor(device)) {
+        logi("Device %s does not need a HID descriptor, skipping query.\n", bd_addr_to_str(device->conn.remote_addr));
+        sdp_query_end(device);
+        return;
+    }
+
+    logi("Starting SDP HID-descriptor query for %s\n", bd_addr_to_str(device->conn.remote_addr));
+
+    // Needed for the SDP query since it only supports one SDP query at the time.
+    if (sdp_device == NULL) {
+        logi("...but sdp_vendor was not set, aborting query for %s\n", bd_addr_to_str(device->conn.remote_addr));
+        return;
+    }
+
+    uni_bt_conn_set_state(&device->conn, UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_REQUESTED);
+    uint8_t status = sdp_client_query_uuid16(&handle_sdp_hid_query_result, device->conn.remote_addr,
+                                             BLUETOOTH_SERVICE_CLASS_HUMAN_INTERFACE_DEVICE_SERVICE);
+    if (status != 0) {
+        loge("Failed to perform SDP query for %s. Removing it...\n", bd_addr_to_str(device->conn.remote_addr));
+        uni_hid_device_disconnect(device);
+        uni_hid_device_delete(device);
+    }
+}
+
 static void sdp_query_timeout(btstack_timer_source_t* ts) {
     uni_hid_device_t* device = btstack_run_loop_get_timer_context(ts);
     if (!sdp_device) {
@@ -1125,87 +1154,105 @@ static void fsm_process(uni_hid_device_t* d) {
 
     state = uni_bt_conn_get_state(&d->conn);
 
-    // XXX: convert to "switch" statement
-
     // Incoming connections might have the HID already pre-fecthed, or not.
     if (uni_hid_device_is_incoming(d)) {
-        if (state == UNI_BT_CONN_STATE_L2CAP_INTERRUPT_CONNECTED) {
-            if (!uni_hid_device_has_name(d)) {
-                // TODO: Double check. But it seems that I with these hardcoded repetition modes
-                // and clock offset, it works Ok. Taken from Bluez in Linux.
-                gap_remote_name_request(d->conn.remote_addr, 0x02, 0x0000);
-            } else {
-                loge("Unexpected, incoming connections should not have a name\n");
-            }
-        } else if (state == UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED) {
-            // Depending or their name, we might need to do SDP query.
-            // Original PLAYSTATION(R)3 controllers have SDP.
-            // But clones like PANHAI don't have it. It is safe to just ignore them.
-            // TODO: Move this code to the ds3.c file
-            if (strncmp(d->name, "PLAYSTATION(R)3", 15) == 0) {
-                // Fake PID/VID
-                uni_hid_device_set_product_id(d, 0x0268);  // Dualshock 3
-                uni_hid_device_set_vendor_id(d, 0x054c);   // Sony
-                uni_hid_device_guess_controller_type_from_pid_vid(d);
+        switch (state) {
+            case UNI_BT_CONN_STATE_L2CAP_INTERRUPT_CONNECTED:
+                if (!uni_hid_device_has_name(d)) {
+                    // TODO: Double check. But it seems that I with these hardcoded repetition modes
+                    // and clock offset, it works Ok. Taken from Bluez in Linux.
+                    gap_remote_name_request(d->conn.remote_addr, 0x02, 0x0000);
+                } else {
+                    loge("Unexpected, incoming connections should not have a name\n");
+                }
+                break;
+            case UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED:
+                // Depending or their name, we might need to do SDP query.
+                // Original PLAYSTATION(R)3 controllers have SDP.
+                // But clones like PANHAI don't have it. It is safe to just ignore them.
+                // TODO: Move this code to the ds3.c file
+                if (strncmp(d->name, "PLAYSTATION(R)3", 15) == 0) {
+                    // Fake PID/VID
+                    uni_hid_device_set_product_id(d, 0x0268);  // Dualshock 3
+                    uni_hid_device_set_vendor_id(d, 0x054c);   // Sony
+                    uni_hid_device_guess_controller_type_from_pid_vid(d);
+                    uni_hid_device_set_ready(d);
+                } else {
+                    sdp_query_start(d);
+                }
+                break;
+            case UNI_BT_CONN_STATE_SDP_VENDOR_FETCHED:
+                sdp_query_start_hid_descriptor(d);
+                break;
+            case UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_FETCHED:
+                /* done */
                 uni_hid_device_set_ready(d);
-            } else {
-                sdp_query_hid_descriptor(d);
-            }
-        } else if (state == UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_FETCHED) {
-            sdp_query_product_id(d);
-        } else if (state == UNI_BT_CONN_STATE_SDP_VENDOR_FETCHED) {
-            /* done */
-            uni_hid_device_set_ready(d);
+                break;
+            default:
+                /* ignore */
+                break;
         }
     } else {
-        if (state == UNI_BT_CONN_STATE_DEVICE_DISCOVERED) {
-            logd("STATE_DEVICE_DISCOVERED\n");
-            // FIXME: Temporary skip name discovery
-            // uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_REMOTE_NAME_REQUEST);
+        /* Not incoming connection */
+        switch (state) {
+            case UNI_BT_CONN_STATE_DEVICE_DISCOVERED:
+                logd("STATE_DEVICE_DISCOVERED\n");
+                // FIXME: Temporary skip name discovery
+                // uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_REMOTE_NAME_REQUEST);
 
-            // No name? No problem, we do the SDP query after connect.
-            l2cap_create_control_connection(d);
-        } else if (state == UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED) {
-            logd("STATE_REMOTE_NAME_FETCHED\n");
+                // No name? No problem, we do the SDP query after connect.
+                l2cap_create_control_connection(d);
+                break;
+            case UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED:
+                logd("STATE_REMOTE_NAME_FETCHED\n");
 #if UNI_ENABLE_SDP_QUERY_BEFORE_CONNECT
-            // TODO: Comparing for DualShock name should be moved to one of the parsers.
-            int l = strlen(d->name);
-            if (l && strncmp(d->name, "Wireless Controller", l) == 0) {
-                // This is needed for DualShock4 version 1.
-                logi("Device %s seems to be a Sony Playstation, doing SDP query before connect.\n",
-                     bd_addr_to_str(d->conn.remote_addr));
-                d->sdp_query_before_connect = true;
-            }
-            if (d->sdp_query_before_connect) {
-                sdp_query_hid_descriptor(d);
-            } else {
-                l2cap_create_control_connection(d);
-            }
+                // TODO: Comparing for DualShock name should be moved to one of the parsers.
+                int l = strlen(d->name);
+                if (l && strncmp(d->name, "Wireless Controller", l) == 0) {
+                    // This is needed for DualShock4 version 1.
+                    logi("Device %s seems to be a Sony Playstation, doing SDP query before connect.\n",
+                         bd_addr_to_str(d->conn.remote_addr));
+                    d->sdp_query_before_connect = true;
+                }
+                if (d->sdp_query_before_connect) {
+                    sdp_query_start(d);
+                } else {
+                    l2cap_create_control_connection(d);
+                }
 #else   // !UNI_ENABLE_SDP_QUERY_BEFORE_CONNECT
-            l2cap_create_control_connection(d);
-#endif  // !UNI_ENABLE_SDP_QUERY_BEFORE_CONNECT
-        } else if (state == UNI_BT_CONN_STATE_L2CAP_CONTROL_CONNECTED) {
-            logd("STATE_L2CAP_CONTROL_CONNECTED\n");
-            l2cap_create_interrupt_connection(d);
-        } else if (state == UNI_BT_CONN_STATE_L2CAP_INTERRUPT_CONNECTED) {
-            logd("STATE_L2CAP_INTERRUPT_CONNECTED\n");
-            if (d->sdp_query_before_connect) {
-                /* done */
-                uni_hid_device_set_ready(d);
-            } else {
-                sdp_query_hid_descriptor(d);
-            }
-        } else if (state == UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_FETCHED) {
-            logd("STATE_SDP_HID_DESCRIPTOR_FETCHED\n");
-            sdp_query_product_id(d);
-        } else if (state == UNI_BT_CONN_STATE_SDP_VENDOR_FETCHED) {
-            logd("STATE_SDP_HID_VENDOR_FETCHED\n");
-            if (d->sdp_query_before_connect) {
                 l2cap_create_control_connection(d);
-            } else {
-                /* done */
-                uni_hid_device_set_ready(d);
-            }
+#endif  // !UNI_ENABLE_SDP_QUERY_BEFORE_CONNECT
+                break;
+            case UNI_BT_CONN_STATE_L2CAP_CONTROL_CONNECTED:
+                logd("STATE_L2CAP_CONTROL_CONNECTED\n");
+                l2cap_create_interrupt_connection(d);
+                break;
+            case UNI_BT_CONN_STATE_L2CAP_INTERRUPT_CONNECTED:
+                logd("STATE_L2CAP_INTERRUPT_CONNECTED\n");
+                if (d->sdp_query_before_connect) {
+                    /* done */
+                    uni_hid_device_set_ready(d);
+                } else {
+                    sdp_query_start(d);
+                }
+                break;
+            case UNI_BT_CONN_STATE_SDP_VENDOR_FETCHED:
+                logd("UNI_BT_CONN_STATE_SDP_VENDOR_FETCHED\n");
+                sdp_query_start_hid_descriptor(d);
+                break;
+
+            case UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_FETCHED:
+                logd("UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_FETCHED\n");
+                if (d->sdp_query_before_connect) {
+                    l2cap_create_control_connection(d);
+                } else {
+                    /* done */
+                    uni_hid_device_set_ready(d);
+                }
+                break;
+            default:
+                /* ignore */
+                break;
         }
     }
 }
