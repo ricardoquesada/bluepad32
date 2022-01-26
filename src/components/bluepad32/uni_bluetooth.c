@@ -828,16 +828,28 @@ static void on_l2cap_incoming_connection(uint16_t channel, const uint8_t* packet
     handle = l2cap_event_incoming_connection_get_handle(packet);
     local_cid = l2cap_event_incoming_connection_get_local_cid(packet);
     remote_cid = l2cap_event_incoming_connection_get_remote_cid(packet);
+    l2cap_event_incoming_connection_get_address(packet, event_addr);
 
     logi(
         "L2CAP_EVENT_INCOMING_CONNECTION (psm=0x%04x, local_cid=0x%04x, "
         "remote_cid=0x%04x, handle=0x%04x, "
-        "channel=0x%04x\n",
-        psm, local_cid, remote_cid, handle, channel);
+        "channel=0x%04x, addr=%s\n",
+        psm, local_cid, remote_cid, handle, channel, bd_addr_to_str(event_addr));
+
+    l2cap_event_incoming_connection_get_address(packet, event_addr);
+    device = uni_hid_device_get_instance_for_address(event_addr);
+
+    if (device && device->conn.state == UNI_BT_CONN_STATE_DEVICE_READY) {
+        // It could happen that a device with an already established connection tries
+        // to start a new incoming connection.
+        // Found in 8BitDo SN30 Pro controller
+        logi("Device %s with an existing connection, declining connection\n", bd_addr_to_str(event_addr));
+        l2cap_decline_connection(channel);
+        return;
+    }
+
     switch (psm) {
         case PSM_HID_CONTROL:
-            l2cap_event_incoming_connection_get_address(packet, event_addr);
-            device = uni_hid_device_get_instance_for_address(event_addr);
             if (device == NULL) {
                 device = uni_hid_device_create(event_addr);
                 if (device == NULL) {
@@ -849,11 +861,9 @@ static void on_l2cap_incoming_connection(uint16_t channel, const uint8_t* packet
             l2cap_accept_connection(channel);
             uni_hid_device_set_connection_handle(device, handle);
             device->conn.control_cid = channel;
-            uni_hid_device_set_incoming(device, 1);
+            uni_hid_device_set_incoming(device, true);
             break;
         case PSM_HID_INTERRUPT:
-            l2cap_event_incoming_connection_get_address(packet, event_addr);
-            device = uni_hid_device_get_instance_for_address(event_addr);
             if (device == NULL) {
                 loge("Could not find device for PSM_HID_INTERRUPT = 0x%04x\n", channel);
                 l2cap_decline_connection(channel);
