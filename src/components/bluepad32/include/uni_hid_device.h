@@ -32,7 +32,7 @@ limitations under the License.
 #define HID_MAX_DESCRIPTOR_LEN 512
 #define HID_DEVICE_MAX_PARSER_DATA 128
 #define HID_DEVICE_MAX_PLATFORM_DATA 128
-#define HID_DEVICE_CONNECTION_TIMEOUT_MS 10000
+#define HID_DEVICE_CONNECTION_TIMEOUT_MS 11000
 
 // clang-format off
 #define MASK_COD_MAJOR_PERIPHERAL   0x0500  // 0b0000_0101_0000_0000
@@ -81,6 +81,9 @@ struct uni_hid_device_s {
     // debug the Linux connection and see what packets are sent before the
     // connection.
     bool sdp_query_before_connect;
+    // Needed for some devices that don't respond to SDP queries, but we can guess
+    // their type by analyzing their input report, like some Nintendo Switch clones.
+    bool try_heuristics;
 
     // Channels
     uint16_t hids_cid;  // BLE only
@@ -130,12 +133,6 @@ uni_hid_device_t* uni_hid_device_get_instance_for_connection_handle(hci_con_hand
 uni_hid_device_t* uni_hid_device_get_first_device_with_state(uni_bt_conn_state_t state);
 uni_hid_device_t* uni_hid_device_get_instance_for_idx(int idx);
 uni_hid_device_t* uni_hid_device_get_instance_with_predicate(uni_hid_device_predicate_t predicate, void* data);
-
-// Which device is currently doing a SDP query.
-void uni_hid_device_set_sdp_device(uni_hid_device_t* d);
-// Returns which device is currently doing a SDP query, and also the elapsed
-// time since the last SDP query in microseconds.
-uni_hid_device_t* uni_hid_device_get_sdp_device(uint64_t* elapsed /*out*/);
 
 void uni_hid_device_set_ready(uni_hid_device_t* d);
 void uni_hid_device_set_ready_complete(uni_hid_device_t* d);

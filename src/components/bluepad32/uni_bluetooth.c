@@ -83,11 +83,16 @@
 #define GAP_INQUIRY_PAUSE_TIME_MS 1280  // "pause" is one-third of GAP_INQUIRY_INTERVAL
 #define MAX_ATTRIBUTE_VALUE_SIZE 512    // Apparently PS4 has a 470-bytes report
 #define L2CAP_CHANNEL_MTU 0xffff        // PS4 requires a 79-byte packet
+// SDP query timeout should be less the the total device connection timeout
+// since the SDP query is a subset of the DEVICE_CONNECTION_TIMEOUT.
+#define SDP_QUERY_TIMEOUT_MS (HID_DEVICE_CONNECTION_TIMEOUT_MS - 4500)
 
 // globals
 // SDP
-static uint8_t attribute_value[MAX_ATTRIBUTE_VALUE_SIZE];
-static const unsigned int attribute_value_buffer_size = MAX_ATTRIBUTE_VALUE_SIZE;
+static uint8_t sdp_attribute_value[MAX_ATTRIBUTE_VALUE_SIZE];
+static const unsigned int sdp_attribute_value_buffer_size = MAX_ATTRIBUTE_VALUE_SIZE;
+static uni_hid_device_t* sdp_device = NULL;
+static btstack_timer_source_t sdp_query_timer;
 
 // Used to implement connection timeout and reconnect timer
 static btstack_timer_source_t hog_connection_timer;  // BLE only
@@ -105,6 +110,10 @@ static bool accept_incoming_connections = true;
 static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
 static void handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
 static void handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
+static void sdp_query_hid_descriptor(uni_hid_device_t* device);
+static void sdp_query_product_id(uni_hid_device_t* device);
+static void sdp_query_timeout(btstack_timer_source_t* ts);
+
 #ifdef UNI_ENABLE_BLE
 static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
 #endif  // UNI_ENABLE_BLE
@@ -113,8 +122,6 @@ static bool adv_event_contains_hid_service(const uint8_t* packet);
 static void hog_connect(bd_addr_t addr, bd_addr_type_t addr_type);
 static void start_scan(void);
 static void stop_scan(void);
-static void sdp_query_hid_descriptor(uni_hid_device_t* device);
-static void sdp_query_product_id(uni_hid_device_t* device);
 static void list_link_keys(void);
 static void enable_new_connections_callback(void* context);
 static void bluetooth_del_keys_callback(void* context);
@@ -141,24 +148,22 @@ static void handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel, u
     des_iterator_t additional_des_it;
     uint8_t* des_element;
     uint8_t* element;
-    uni_hid_device_t* device;
 
-    device = uni_hid_device_get_sdp_device(NULL /*elapsed time*/);
-    if (device == NULL) {
-        loge("ERROR: handle_sdp_client_query_result. SDP device = NULL\n");
+    if (sdp_device == NULL) {
+        loge("ERROR: handle_sdp_hid_query_result. SDP device = NULL\n");
         return;
     }
 
     switch (hci_event_packet_get_type(packet)) {
         case SDP_EVENT_QUERY_ATTRIBUTE_VALUE:
-            if (sdp_event_query_attribute_byte_get_attribute_length(packet) <= attribute_value_buffer_size) {
-                attribute_value[sdp_event_query_attribute_byte_get_data_offset(packet)] =
+            if (sdp_event_query_attribute_byte_get_attribute_length(packet) <= sdp_attribute_value_buffer_size) {
+                sdp_attribute_value[sdp_event_query_attribute_byte_get_data_offset(packet)] =
                     sdp_event_query_attribute_byte_get_data(packet);
                 if ((uint16_t)(sdp_event_query_attribute_byte_get_data_offset(packet) + 1) ==
                     sdp_event_query_attribute_byte_get_attribute_length(packet)) {
                     switch (sdp_event_query_attribute_byte_get_attribute_id(packet)) {
                         case BLUETOOTH_ATTRIBUTE_HID_DESCRIPTOR_LIST:
-                            for (des_iterator_init(&attribute_list_it, attribute_value);
+                            for (des_iterator_init(&attribute_list_it, sdp_attribute_value);
                                  des_iterator_has_more(&attribute_list_it); des_iterator_next(&attribute_list_it)) {
                                 if (des_iterator_get_type(&attribute_list_it) != DE_DES)
                                     continue;
@@ -171,7 +176,7 @@ static void handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel, u
                                     const uint8_t* descriptor = de_get_string(element);
                                     int descriptor_len = de_get_data_size(element);
                                     logi("SDP HID Descriptor (%d):\n", descriptor_len);
-                                    uni_hid_device_set_hid_descriptor(device, descriptor, descriptor_len);
+                                    uni_hid_device_set_hid_descriptor(sdp_device, descriptor, descriptor_len);
                                     printf_hexdump(descriptor, descriptor_len);
                                 }
                             }
@@ -181,15 +186,13 @@ static void handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel, u
                     }
                 }
             } else {
-                loge(
-                    "SDP attribute value buffer size exceeded: available %d, "
-                    "required %d\n",
-                    attribute_value_buffer_size, sdp_event_query_attribute_byte_get_attribute_length(packet));
+                loge("SDP attribute value buffer size exceeded: available %d, required %d\n",
+                     sdp_attribute_value_buffer_size, sdp_event_query_attribute_byte_get_attribute_length(packet));
             }
             break;
         case SDP_EVENT_QUERY_COMPLETE:
-            uni_bt_conn_set_state(&device->conn, UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_FETCHED);
-            fsm_process(device);
+            uni_bt_conn_set_state(&sdp_device->conn, UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_FETCHED);
+            fsm_process(sdp_device);
             break;
         default:
             break;
@@ -202,33 +205,31 @@ static void handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, u
     UNUSED(channel);
     UNUSED(size);
 
-    uni_hid_device_t* device;
     uint16_t id16;
 
-    device = uni_hid_device_get_sdp_device(NULL /*elapsed time*/);
-    if (device == NULL) {
-        loge("ERROR: handle_sdp_client_query_result. SDP device = NULL\n");
+    if (sdp_device == NULL) {
+        loge("ERROR: handle_sdp_pid_query_result. SDP device = NULL\n");
         return;
     }
 
     switch (hci_event_packet_get_type(packet)) {
         case SDP_EVENT_QUERY_ATTRIBUTE_VALUE:
-            if (sdp_event_query_attribute_byte_get_attribute_length(packet) <= attribute_value_buffer_size) {
-                attribute_value[sdp_event_query_attribute_byte_get_data_offset(packet)] =
+            if (sdp_event_query_attribute_byte_get_attribute_length(packet) <= sdp_attribute_value_buffer_size) {
+                sdp_attribute_value[sdp_event_query_attribute_byte_get_data_offset(packet)] =
                     sdp_event_query_attribute_byte_get_data(packet);
                 if ((uint16_t)(sdp_event_query_attribute_byte_get_data_offset(packet) + 1) ==
                     sdp_event_query_attribute_byte_get_attribute_length(packet)) {
                     switch (sdp_event_query_attribute_byte_get_attribute_id(packet)) {
                         case BLUETOOTH_ATTRIBUTE_VENDOR_ID:
-                            if (de_element_get_uint16(attribute_value, &id16))
-                                uni_hid_device_set_vendor_id(device, id16);
+                            if (de_element_get_uint16(sdp_attribute_value, &id16))
+                                uni_hid_device_set_vendor_id(sdp_device, id16);
                             else
                                 loge("Error getting vendor id\n");
                             break;
 
                         case BLUETOOTH_ATTRIBUTE_PRODUCT_ID:
-                            if (de_element_get_uint16(attribute_value, &id16))
-                                uni_hid_device_set_product_id(device, id16);
+                            if (de_element_get_uint16(sdp_attribute_value, &id16))
+                                uni_hid_device_set_product_id(sdp_device, id16);
                             else
                                 loge("Error getting product id\n");
                             break;
@@ -237,19 +238,20 @@ static void handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, u
                     }
                 }
             } else {
-                loge(
-                    "SDP attribute value buffer size exceeded: available %d, required "
-                    "%d\n",
-                    attribute_value_buffer_size, sdp_event_query_attribute_byte_get_attribute_length(packet));
+                loge("SDP attribute value buffer size exceeded: available %d, required %d\n",
+                     sdp_attribute_value_buffer_size, sdp_event_query_attribute_byte_get_attribute_length(packet));
             }
             break;
         case SDP_EVENT_QUERY_COMPLETE:
-            logi("Vendor ID: 0x%04x - Product ID: 0x%04x\n", uni_hid_device_get_vendor_id(device),
-                 uni_hid_device_get_product_id(device));
-            uni_hid_device_guess_controller_type_from_pid_vid(device);
-            uni_hid_device_set_sdp_device(NULL);
-            uni_bt_conn_set_state(&device->conn, UNI_BT_CONN_STATE_SDP_VENDOR_FETCHED);
-            fsm_process(device);
+            logi("Vendor ID: 0x%04x - Product ID: 0x%04x\n", uni_hid_device_get_vendor_id(sdp_device),
+                 uni_hid_device_get_product_id(sdp_device));
+            uni_hid_device_guess_controller_type_from_pid_vid(sdp_device);
+            uni_bt_conn_set_state(&sdp_device->conn, UNI_BT_CONN_STATE_SDP_VENDOR_FETCHED);
+            fsm_process(sdp_device);
+
+            // After query is complete, cleanup
+            sdp_device = NULL;
+            btstack_run_loop_remove_timer(&sdp_query_timer);
             break;
         default:
             // TODO: xxx
@@ -747,8 +749,8 @@ static void on_l2cap_channel_opened(uint16_t channel, const uint8_t* packet, uin
             logi("Removing previous link key for address=%s.\n", bd_addr_to_str(address));
             uni_hid_device_delete_entry_with_channel(channel);
             // Just in case the key is outdated we remove it. If fixes some
-            // l2cap_channel_opened issues. It proves that it works when the status
-            // is 0x6a (L2CAP_CONNECTION_BASEBAND_DISCONNECT).
+            // l2cap_channel_opened issues. It works when the status is
+            // 0x6a (L2CAP_CONNECTION_BASEBAND_DISCONNECT).
             gap_drop_link_key_for_bd_addr(address);
         }
         return;
@@ -763,8 +765,8 @@ static void on_l2cap_channel_opened(uint16_t channel, const uint8_t* packet, uin
 
     logi(
         "PSM: 0x%04x, local CID=0x%04x, remote CID=0x%04x, handle=0x%04x, "
-        "incoming=%d, local MTU=%d, remote MTU=%d\n",
-        psm, local_cid, remote_cid, handle, incoming, local_mtu, remote_mtu);
+        "incoming=%d, local MTU=%d, remote MTU=%d, addr=%s\n",
+        psm, local_cid, remote_cid, handle, incoming, local_mtu, remote_mtu, bd_addr_to_str(address));
 
     device = uni_hid_device_get_instance_for_address(address);
     if (device == NULL) {
@@ -878,8 +880,7 @@ static void on_l2cap_incoming_connection(uint16_t channel, const uint8_t* packet
 }
 
 static void on_l2cap_data_packet(uint16_t channel, const uint8_t* packet, uint16_t size) {
-    uni_hid_device_t *d, *sdp_d;
-    uint64_t elapsed;
+    uni_hid_device_t* d;
 
     d = uni_hid_device_get_instance_for_cid(channel);
     if (d == NULL) {
@@ -911,29 +912,15 @@ static void on_l2cap_data_packet(uint16_t channel, const uint8_t* packet, uint16
 
     // Not every device require SDP. If the device is "READY", we don't care whether the
     // HID descriptor is missing.
-    if ((d->conn.state != UNI_BT_CONN_STATE_DEVICE_READY) &&
-        (!uni_hid_device_has_hid_descriptor(d) || !uni_hid_device_has_controller_type(d))) {
-        sdp_d = uni_hid_device_get_sdp_device(&elapsed);
-        if (sdp_d == d) {
-            logi("Device without HID descriptor or Product/Vendor ID yet.\n");
-            // 1 second
-            if (elapsed < (1 * 1000000)) {
-                logi("Waiting for SDP answer. Ignoring report.\n");
-                return;
-            } else {
-                logi("SDP answer taking too long. Trying heuristics.\n");
-                if (!uni_hid_device_guess_controller_type_from_packet(d, packet, size)) {
-                    logi("Heuristics failed. Ignoring report.\n");
-                    return;
-                } else {
-                    logi("Device was detected using heuristics.\n");
-                    fsm_process(d);
-                    return;
-                }
-            }
+    if ((d->conn.state != UNI_BT_CONN_STATE_DEVICE_READY) && d->try_heuristics) {
+        logi("SDP took too long. Trying heuristics.\n");
+        if (!uni_hid_device_guess_controller_type_from_packet(d, packet, size)) {
+            logi("Heuristics failed. Ignoring report.\n");
+            return;
         } else {
-            logi("Another SDP query in progress. Disconnect gamepad and try again.\n");
-            uni_hid_device_dump_device(d);
+            logi("Device was detected using heuristics.\n");
+            d->try_heuristics = false;
+            fsm_process(d);
             return;
         }
     }
@@ -1027,50 +1014,54 @@ static void stop_scan() {
 }
 
 static void sdp_query_hid_descriptor(uni_hid_device_t* device) {
-    logi("Starting SDP query for HID descriptor for: %s\n", bd_addr_to_str(device->conn.remote_addr));
-    // Needed for the SDP query since it only supports one SDP query at the
-    // time.
-    uint64_t elapsed;
-    uni_hid_device_t* sdp_dev = uni_hid_device_get_sdp_device(&elapsed);
-    if (sdp_dev != NULL) {
-        // If an SDP query didn't finish in 3 seconds, we can override it.
-        if (elapsed < (3 * 1000000)) {
-            loge("Error: Another SDP query is in progress (%s). Elapsed time: %" PRId64 "\n",
-                 bd_addr_to_str(sdp_dev->conn.remote_addr), elapsed);
-            return;
-        } else {
-            logi("Overriding old SDP query (%s). Elapsed time: %" PRId64 "\n",
-                 bd_addr_to_str(sdp_dev->conn.remote_addr), elapsed);
-        }
+    logi("Starting SDP query for device: %s\n", bd_addr_to_str(device->conn.remote_addr));
+
+    // Needed for the SDP query since it only supports one SDP query at the time.
+    if (sdp_device != NULL) {
+        logi("...But another SDP query is in progress (%s), waiting...\n",
+             bd_addr_to_str(sdp_device->conn.remote_addr));
     }
 
     uni_bt_conn_set_state(&device->conn, UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_REQUESTED);
-    uni_hid_device_set_sdp_device(device);
     uint8_t status = sdp_client_query_uuid16(&handle_sdp_hid_query_result, device->conn.remote_addr,
                                              BLUETOOTH_SERVICE_CLASS_HUMAN_INTERFACE_DEVICE_SERVICE);
     if (status != 0) {
         loge("Failed to perform SDP query for %s. Removing it...\n", bd_addr_to_str(device->conn.remote_addr));
-        uni_hid_device_set_sdp_device(NULL);
         uni_hid_device_delete(device);
     }
+
+    sdp_device = device;
+    btstack_run_loop_set_timer_context(&sdp_query_timer, device);
+    btstack_run_loop_set_timer_handler(&sdp_query_timer, &sdp_query_timeout);
+    btstack_run_loop_set_timer(&sdp_query_timer, SDP_QUERY_TIMEOUT_MS);
+    btstack_run_loop_add_timer(&sdp_query_timer);
 }
 
 static void sdp_query_product_id(uni_hid_device_t* device) {
     logi("Starting SDP query for product/vendor ID\n");
-    uni_hid_device_t* sdp_dev = uni_hid_device_get_sdp_device(NULL);
-    // This query runs after sdp_query_hid_descriptor() so
-    // uni_hid_device_get_sdp_device() must not be NULL
-    if (sdp_dev == NULL) {
-        loge("Error: SDP device is NULL. Should not happen\n");
-        return;
-    }
     uni_bt_conn_set_state(&device->conn, UNI_BT_CONN_STATE_SDP_VENDOR_REQUESTED);
     uint8_t status = sdp_client_query_uuid16(&handle_sdp_pid_query_result, device->conn.remote_addr,
                                              BLUETOOTH_SERVICE_CLASS_PNP_INFORMATION);
     if (status != 0) {
-        uni_hid_device_set_sdp_device(NULL);
         loge("Failed to perform SDP DeviceID query\n");
     }
+}
+static void sdp_query_timeout(btstack_timer_source_t* ts) {
+    uni_hid_device_t* device = btstack_run_loop_get_timer_context(ts);
+    if (!sdp_device) {
+        loge("sdp_query_timeout: unexpeced, sdp_device should not be NULL\n");
+        return;
+    }
+    if (device != sdp_device) {
+        loge("sdp_query_timeout: unexpected device values, they should be equal, got: %s != %s",
+             bd_addr_to_str(device->conn.remote_addr), bd_addr_to_str(sdp_device->conn.remote_addr));
+        return;
+    }
+
+    logi("Failed to query SDP for %s, timeout\n", bd_addr_to_str(device->conn.remote_addr));
+    device->try_heuristics = true;
+
+    sdp_device = NULL;
 }
 
 static void list_link_keys(void) {

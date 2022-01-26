@@ -52,8 +52,6 @@ enum {
 };
 
 static uni_hid_device_t g_devices[CONFIG_BLUEPAD32_MAX_DEVICES];
-static uni_hid_device_t* g_sdp_device = NULL;
-static struct timeval g_sdp_start_time;
 static const bd_addr_t zero_addr = {0, 0, 0, 0, 0, 0};
 
 static void process_misc_button_system(uni_hid_device_t* d);
@@ -145,22 +143,6 @@ uni_hid_device_t* uni_hid_device_get_first_device_with_state(uni_bt_conn_state_t
     return NULL;
 }
 
-void uni_hid_device_set_sdp_device(uni_hid_device_t* d) {
-    g_sdp_device = d;
-    gettimeofday(&g_sdp_start_time, NULL);
-}
-
-uni_hid_device_t* uni_hid_device_get_sdp_device(uint64_t* elapsed /*out*/) {
-    if (elapsed != NULL) {
-        struct timeval now;
-        gettimeofday(&now, NULL);
-        // Seconds
-        *elapsed = (now.tv_sec - g_sdp_start_time.tv_sec) * 1000000;
-        *elapsed += (now.tv_usec - g_sdp_start_time.tv_usec);
-    }
-    return g_sdp_device;
-}
-
 void uni_hid_device_set_ready(uni_hid_device_t* d) {
     if (d == NULL) {
         loge("ERROR: Invalid NULL device\n");
@@ -179,6 +161,7 @@ void uni_hid_device_set_ready(uni_hid_device_t* d) {
         uni_hid_device_set_ready_complete(d);
     }
 }
+
 void uni_hid_device_set_ready_complete(uni_hid_device_t* d) {
     // This is called once the "parser" is ready.
     if (uni_get_platform()->on_device_ready(d) == 0)
@@ -364,7 +347,12 @@ void uni_hid_device_dump_all(void) {
 }
 
 uint8_t uni_hid_device_guess_controller_type_from_packet(uni_hid_device_t* d, const uint8_t* packet, int len) {
-    return uni_hid_parser_switch_does_packet_match(d, packet, len);
+    uint8_t ret = uni_hid_parser_switch_does_packet_match(d, packet, len);
+    if (ret) {
+        uni_hid_device_guess_controller_type_from_pid_vid(d);
+        uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_SDP_VENDOR_FETCHED);
+    }
+    return ret;
 }
 
 void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
