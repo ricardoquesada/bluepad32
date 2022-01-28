@@ -862,6 +862,8 @@ static void fsm_ready(struct uni_hid_device_s* d) {
     switch_instance_t* ins = get_switch_instance(d);
     ins->state = STATE_READY;
     logi("Switch: gamepad is ready!\n");
+
+    btstack_run_loop_remove_timer(&ins->setup_timer);
     uni_hid_device_set_ready_complete(d);
 }
 
@@ -1023,6 +1025,7 @@ static void switch_rumble_off(btstack_timer_source_t* ts) {
 }
 
 void switch_setup_timeout_callback(btstack_timer_source_t* ts) {
+    logi("Switch: setup could not finish in time, forcing setup as complete\n");
     uni_hid_device_t* d = btstack_run_loop_get_timer_context(ts);
     fsm_ready(d);
 }
