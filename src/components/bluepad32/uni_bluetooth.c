@@ -476,7 +476,7 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
                         status = hci_event_remote_name_request_complete_get_status(packet);
                         if (status) {
                             // Failed to get the name, just fake one
-                            logi("Failed to fetch name for %s, error = 0x%02x\n", event_addr, status);
+                            logi("Failed to fetch name for %s, error = 0x%02x\n", bd_addr_to_str(event_addr), status);
                             name = "Controller without name";
                         } else {
                             name = (char*)hci_event_remote_name_request_complete_get_remote_name(packet);
