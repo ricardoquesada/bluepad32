@@ -150,8 +150,7 @@ void uni_hid_device_set_ready(uni_hid_device_t* d) {
         return;
     }
 
-    // Remove the timer once the connection was established.
-    btstack_run_loop_remove_timer(&d->connection_timer);
+    uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_PENDING_READY);
 
     // Each "parser" is responsible to call uni_hid_device_set_ready() once the
     // "parser" is ready.
@@ -165,6 +164,10 @@ void uni_hid_device_set_ready(uni_hid_device_t* d) {
 
 void uni_hid_device_set_ready_complete(uni_hid_device_t* d) {
     logi("Device setup (%s) is complete\n", bd_addr_to_str(d->conn.remote_addr));
+
+    // Remove the timer once the connection was established.
+    btstack_run_loop_remove_timer(&d->connection_timer);
+
     // This is called once the "parser" is ready.
     if (uni_get_platform()->on_device_ready(d) == 0) {
         uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_READY);

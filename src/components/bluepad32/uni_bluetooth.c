@@ -1212,6 +1212,12 @@ static void fsm_process(uni_hid_device_t* d) {
     }
 
     if (state == UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_FETCHED) {
+        if (uni_hid_device_is_incoming(d)) {
+            uni_hid_device_set_ready(d);
+            return;
+        }
+
+        // Not incoming
         if (d->sdp_query_type == SDP_QUERY_BEFORE_CONNECT) {
             logi("fsm_process: Starting L2CAP connection\n");
             l2cap_create_control_connection(d);

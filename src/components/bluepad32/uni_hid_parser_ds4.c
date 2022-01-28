@@ -39,18 +39,9 @@ limitations under the License.
 #define DS4_FEATURE_REPORT_CALIBRATION 0x02
 #define DS4_FEATURE_REPORT_CALIBRATION_SIZE 37
 
-typedef enum {
-    DS4_STATE_INITIAL,
-    DS4_STATE_FIRMWARE_VERSION_REQUEST,
-    DS4_STATE_CALIBRATION_REQUEST,
-    DS4_STATE_READY,
-} ds4_state_t;
-
 typedef struct {
     btstack_timer_source_t rumble_timer;
-    btstack_timer_source_t setup_timer;
     bool rumble_in_progress;
-    ds4_state_t state;
     uint16_t fw_version;
     uint16_t hw_version;
 } ds4_instance_t;
@@ -120,21 +111,20 @@ static void ds4_request_calibration_report(uni_hid_device_t* d);
 static void ds4_request_firmware_version_report(uni_hid_device_t* d);
 static void ds4_send_enable_lightbar_report(uni_hid_device_t* d);
 static void ds4_set_rumble_off(btstack_timer_source_t* ts);
-static void ds4_setup_timeout(btstack_timer_source_t* ts);
 
 void uni_hid_parser_ds4_setup(struct uni_hid_device_s* d) {
     ds4_instance_t* ins = get_ds4_instance(d);
     memset(ins, 0, sizeof(*ins));
 
-    ds4_request_firmware_version_report(d);
+    // Send in order:
+    // - enable lightbar: enables light and enables report 0x11 on most devices
+    // - calibration report: enbles report 0x11 on other reports
+    ds4_send_enable_lightbar_report(d);
+    ds4_request_calibration_report(d);
+    uni_hid_device_set_ready_complete(d);
 
-    // If setup cannot finish within one second (probably a clone), just skip
-    // the optional setup, and jump right into the required part.
-    // E.g: This is true for 8BitDo gamepads when in Mac (PS4) mode.
-    ins->setup_timer.context = d;
-    ins->setup_timer.process = &ds4_setup_timeout;
-    btstack_run_loop_set_timer(&ins->setup_timer, 1000);
-    btstack_run_loop_add_timer(&ins->setup_timer);
+    // Don't add any timer. If Calibration report is not supported,
+    // it is safe to asume that the fw_request won't be supported as well.
 }
 
 void uni_hid_parser_ds4_init_report(uni_hid_device_t* d) {
@@ -165,10 +155,7 @@ void uni_hid_parser_ds4_parse_feature_report(uni_hid_device_t* d, const uint8_t*
                 loge("DS4: Unexpected calibration size: got %d, want: %d\n", len, DS4_FEATURE_REPORT_CALIBRATION_SIZE);
                 /* fallthrough */
             }
-            // Optional part finished, turn off setup timer.
-            btstack_run_loop_remove_timer(&ins->setup_timer);
-
-            ds4_send_enable_lightbar_report(d);
+            ds4_request_firmware_version_report(d);
             break;
         case DS4_FEATURE_REPORT_FIRMWARE_VERSION:
             if (len != DS4_FEATURE_REPORT_FIRMWARE_VERSION_SIZE) {
@@ -182,8 +169,6 @@ void uni_hid_parser_ds4_parse_feature_report(uni_hid_device_t* d, const uint8_t*
             ins->fw_version = r->fw_version;
             logi("DS4: fw version: 0x%04x, hw version: 0x%04x\n", ins->fw_version, ins->hw_version);
             logi("DS4: Firmware build date: %s, %s\n", r->string_date, r->string_time);
-
-            ds4_request_calibration_report(d);
             break;
         default:
             loge("DS4: Unexpected report id in feature report: 0x%02x\n", report_id);
@@ -324,9 +309,6 @@ static void ds4_request_calibration_report(uni_hid_device_t* d) {
     // sending input reports in report 17.
 
     // Enable stream mode. Some models, like the CUH-ZCT2G require to explicitly request stream mode.
-    ds4_instance_t* ins = get_ds4_instance(d);
-    ins->state = DS4_STATE_CALIBRATION_REQUEST;
-
     static uint8_t report[] = {
         ((HID_MESSAGE_TYPE_GET_REPORT << 4) | HID_REPORT_TYPE_FEATURE),
         DS4_FEATURE_REPORT_CALIBRATION,
@@ -335,8 +317,7 @@ static void ds4_request_calibration_report(uni_hid_device_t* d) {
 }
 
 static void ds4_request_firmware_version_report(uni_hid_device_t* d) {
-    ds4_instance_t* ins = get_ds4_instance(d);
-    ins->state = DS4_STATE_FIRMWARE_VERSION_REQUEST;
+    logi("DS4: ds4_request_firmware_version_report()\n");
 
     static uint8_t report[] = {
         ((HID_MESSAGE_TYPE_GET_REPORT << 4) | HID_REPORT_TYPE_FEATURE),
@@ -346,6 +327,7 @@ static void ds4_request_firmware_version_report(uni_hid_device_t* d) {
 }
 
 static void ds4_send_enable_lightbar_report(uni_hid_device_t* d) {
+    logi("DS4: ds4_send_enable_lightbar_report()\n");
     // Also turns off blinking, LED and rumble.
     ds4_output_report_t out = {
         // blink + LED + motor
@@ -357,16 +339,4 @@ static void ds4_send_enable_lightbar_report(uni_hid_device_t* d) {
         .led_blue = 0x40,
     };
     ds4_send_output_report(d, &out);
-
-    ds4_instance_t* ins = get_ds4_instance(d);
-    ins->state = DS4_STATE_READY;
-    uni_hid_device_set_ready_complete(d);
-}
-
-static void ds4_setup_timeout(btstack_timer_source_t* ts) {
-    // If the optional parts of the setup were not fullfilled, just
-    // jump straight to the required parts
-    logi("DS4: optional setup could not finish in time, skipping it\n");
-    uni_hid_device_t* d = ts->context;
-    ds4_send_enable_lightbar_report(d);
 }
