@@ -363,7 +363,6 @@ bool uni_hid_device_guess_controller_type_from_name(uni_hid_device_t* d, const c
     ret = ret || uni_hid_parser_switch_does_name_match(d, name);
     if (ret) {
         uni_hid_device_guess_controller_type_from_pid_vid(d);
-        uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_SDP_VENDOR_FETCHED);
     }
     return ret;
 }

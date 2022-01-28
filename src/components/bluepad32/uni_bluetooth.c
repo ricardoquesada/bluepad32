@@ -66,6 +66,7 @@
 #include "uni_config.h"
 #include "uni_debug.h"
 #include "uni_hid_device.h"
+#include "uni_hid_device_vendors.h"
 #include "uni_hid_parser.h"
 #include "uni_platform.h"
 
@@ -80,13 +81,15 @@
 // If the interval is too short, some devices won't get discovered (e.g: 8BitDo SN30 Pro in dinput/xinput modes)
 // If the interval is too big, some devices won't be able to re-connect (e.g: Wii Remotes)
 #define GAP_INQUIRY_INTERVAL 3          // Measured in in 1.28s units
-#define GAP_INQUIRY_PAUSE_TIME_MS 1280  // "pause" is one-third of GAP_INQUIRY_INTERVAL
-#define MAX_ATTRIBUTE_VALUE_SIZE 512    // Apparently PS4 has a 470-bytes report
-#define L2CAP_CHANNEL_MTU 0xffff        // PS4 requires a 79-byte packet
+#define GAP_INQUIRY_PAUSE_TIME_MS 1800  // Window open for incoming connections
 
-// These defines should be less than HID_DEVICE_CONNECTION_TIMEOUT_MS
+#define MAX_ATTRIBUTE_VALUE_SIZE 512  // Apparently PS4 has a 470-bytes report
+#define L2CAP_CHANNEL_MTU 0xffff      // PS4 requires a 79-byte packet
+
 #define SDP_QUERY_TIMEOUT_MS 6500
+_Static_assert(SDP_QUERY_TIMEOUT_MS < HID_DEVICE_CONNECTION_TIMEOUT_MS, "Timeout too big");
 #define INQUIRY_REMOTE_NAME_TIMEOUT_MS 4500
+_Static_assert(INQUIRY_REMOTE_NAME_TIMEOUT_MS < HID_DEVICE_CONNECTION_TIMEOUT_MS, "Timeout too big");
 
 // globals
 // SDP
@@ -1150,7 +1153,9 @@ static void fsm_process(uni_hid_device_t* d) {
     logi("fsm_process, bd addr:%s,  state: %d, incoming:%d\n", bd_addr_to_str(d->conn.remote_addr), state,
          uni_hid_device_is_incoming(d));
 
-    // Does it have a name ? fetch the name
+    // Does it have a name?
+    // The name is fetched at the very beginning, when we initiate the connection,
+    // Or at the very end, when it is an incoming connection.
     if (!uni_hid_device_has_name(d) &&
         ((state == UNI_BT_CONN_STATE_DEVICE_DISCOVERED) || state == UNI_BT_CONN_STATE_L2CAP_INTERRUPT_CONNECTED)) {
         logi("fsm_process: requesting name\n");
@@ -1167,7 +1172,8 @@ static void fsm_process(uni_hid_device_t* d) {
     }
 
     if (state == UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED) {
-        if (strcmp(d->name, "Wireless Controller") == 0) {
+        // TODO: Move comparison to DS4 code
+        if (strcmp("Wireless Controller", d->name) == 0) {
             logi("fsm_process: gamepad is 'Wireless Controller', starting SDP query\n");
             d->sdp_query_type = SDP_QUERY_BEFORE_CONNECT;
             sdp_query_start(d);
@@ -1177,6 +1183,7 @@ static void fsm_process(uni_hid_device_t* d) {
         if (uni_hid_device_guess_controller_type_from_name(d, d->name)) {
             logi("fsm_process: Guess controller from name\n");
             d->sdp_query_type = SDP_QUERY_NOT_NEEDED;
+            uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_FETCHED);
         }
 
         if (uni_hid_device_is_incoming(d)) {

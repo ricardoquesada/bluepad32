@@ -944,9 +944,7 @@ void uni_hid_parser_switch_set_rumble(struct uni_hid_device_s* d, uint8_t value,
 }
 
 bool uni_hid_parser_switch_does_name_match(struct uni_hid_device_s* d, const char* name) {
-    // Some Switch clones don't respond to SDP query.
-    // So we identify them by name
-    if (strcmp(name, "Pro Controller") != 0)
+    if (strcmp("Pro Controller", name) != 0)
         return false;
 
     // Fake VID/PID
@@ -1026,7 +1024,5 @@ static void switch_rumble_off(btstack_timer_source_t* ts) {
 
 void switch_setup_timeout_callback(btstack_timer_source_t* ts) {
     uni_hid_device_t* d = btstack_run_loop_get_timer_context(ts);
-    switch_instance_t* ins = get_switch_instance(d);
-
     fsm_ready(d);
 }

@@ -261,9 +261,10 @@ void uni_hid_parser_ds3_setup(struct uni_hid_device_s* d) {
 }
 
 bool uni_hid_parser_ds3_does_name_match(struct uni_hid_device_s* d, const char* name) {
-    // Original PLAYSTATION(R)3 controllers have SDP.
-    // But clones like PANHAI don't have it. It is safe to just ignore them.
-    if (strcmp(name, "PLAYSTATION(R)3") != 0)
+    // Matching names like:
+    // - "PLAYSTATION(R)3 Controller"
+    // - "PLAYSTATION(R)3Conteroller-PANHAI"
+    if (strncmp("PLAYSTATION(R)3", name, 15) != 0)
         return false;
 
     // Fake PID/VID
