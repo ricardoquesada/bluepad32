@@ -51,6 +51,10 @@ enum {
     FLAGS_HAS_CONTROLLER_TYPE = (1 << 13),
 };
 
+// HID_DEVICE_CONNECTION_TIMEOUT_MS includes the time from when the device is created
+// until it is ready.
+#define HID_DEVICE_CONNECTION_TIMEOUT_MS 13000
+
 static uni_hid_device_t g_devices[CONFIG_BLUEPAD32_MAX_DEVICES];
 static const bd_addr_t zero_addr = {0, 0, 0, 0, 0, 0};
 
@@ -256,7 +260,6 @@ void uni_hid_device_set_name(uni_hid_device_t* d, const char* name) {
     d->name[sizeof(d->name) - 1] = 0;
 
     d->flags |= FLAGS_HAS_NAME;
-    uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED);
 }
 
 bool uni_hid_device_has_name(uni_hid_device_t* d) {
@@ -316,6 +319,9 @@ void uni_hid_device_disconnect(uni_hid_device_t* d) {
         loge("uni_hid_device_disconnect: invalid hid device: NULL\n");
         return;
     }
+
+    btstack_run_loop_remove_timer(&d->connection_timer);
+
     // Close possible open connections
     uni_bt_conn_disconnect(&d->conn);
     // Remove "key" just in case
@@ -329,17 +335,6 @@ void uni_hid_device_delete(uni_hid_device_t* d) {
         return;
     }
     memset(d, 0, sizeof(*d));
-}
-
-void uni_hid_device_delete_entry_with_channel(uint16_t channel) {
-    if (channel == 0)
-        return;
-    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
-        if (g_devices[i].conn.control_cid == channel || g_devices[i].conn.interrupt_cid == channel) {
-            uni_hid_device_delete(&g_devices[i]);
-            break;
-        }
-    }
 }
 
 void uni_hid_device_dump_device(uni_hid_device_t* d) {
@@ -359,8 +354,13 @@ void uni_hid_device_dump_all(void) {
     }
 }
 
-uint8_t uni_hid_device_guess_controller_type_from_packet(uni_hid_device_t* d, const uint8_t* packet, int len) {
-    uint8_t ret = uni_hid_parser_switch_does_packet_match(d, packet, len);
+bool uni_hid_device_guess_controller_type_from_name(uni_hid_device_t* d, const char* name) {
+    if (!name)
+        return false;
+
+    // Try with the different matchers.
+    bool ret = uni_hid_parser_ds3_does_name_match(d, name);
+    ret = ret || uni_hid_parser_switch_does_name_match(d, name);
     if (ret) {
         uni_hid_device_guess_controller_type_from_pid_vid(d);
         uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_SDP_VENDOR_FETCHED);

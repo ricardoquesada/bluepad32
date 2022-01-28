@@ -31,10 +31,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bluetooth: request device name for incoming connections.
 - Bluetooth: Replaced the old "auto_delete" code, which used "counts", with
   one based on a timer. New code includes incoming connections.
-- Bluetooth: SDP query refactor
+- Bluetooth: SDP query + state machine refactor
   SDP query timeout using btstack timers instead of ad-hoc one.
   Perform VID/PID query before HID-descriptor.
   If HID-descriptor is not needed, don't do the query. Reduces connection latency.
+  DualShock 3 and Nintendo Pro Controllers are guessed by their names
+  The state machine was rewritten. Although it is still complex, it is much
+  easier to understand. In the process, many bugs were fixed.
+  Gamepad name is requested to all gamepads. If it fails, a fake one is assigned.
+  This is because the "name" is now used to identify certain devices.
+  Switch Pro Controller clone improved.
+  Re-connection works in many devices, including Switch clones!
+  (but not all devices support reconnection yet).
   Overall, cleaner code.
 
 ### Fixed

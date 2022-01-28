@@ -34,6 +34,9 @@ limitations under the License.
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
 
+static const uint16_t DUALSHOCK3_VID = 0x054c;  // Sony
+static const uint16_t DUALSHOCK3_PID = 0x0268;  // DualShock 3
+
 // Required steps to determine what kind of extensions are supported.
 typedef enum ds3_fsm {
     DS3_FSM_0,                    // Uninitialized
@@ -255,6 +258,18 @@ void uni_hid_parser_ds3_setup(struct uni_hid_device_s* d) {
 
     // TODO: should set "ready_complete" once we receive an ack from DS3 regaring report id 0xf4 (???)
     uni_hid_device_set_ready_complete(d);
+}
+
+bool uni_hid_parser_ds3_does_name_match(struct uni_hid_device_s* d, const char* name) {
+    // Original PLAYSTATION(R)3 controllers have SDP.
+    // But clones like PANHAI don't have it. It is safe to just ignore them.
+    if (strcmp(name, "PLAYSTATION(R)3") != 0)
+        return false;
+
+    // Fake PID/VID
+    uni_hid_device_set_vendor_id(d, DUALSHOCK3_VID);
+    uni_hid_device_set_product_id(d, DUALSHOCK3_PID);
+    return true;
 }
 
 //
