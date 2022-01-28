@@ -51,10 +51,6 @@ enum {
     FLAGS_HAS_CONTROLLER_TYPE = (1 << 13),
 };
 
-// HID_DEVICE_CONNECTION_TIMEOUT_MS includes the time from when the device is created
-// until it is ready.
-#define HID_DEVICE_CONNECTION_TIMEOUT_MS 13000
-
 static uni_hid_device_t g_devices[CONFIG_BLUEPAD32_MAX_DEVICES];
 static const bd_addr_t zero_addr = {0, 0, 0, 0, 0, 0};
 
@@ -168,9 +164,15 @@ void uni_hid_device_set_ready(uni_hid_device_t* d) {
 }
 
 void uni_hid_device_set_ready_complete(uni_hid_device_t* d) {
+    logi("Device setup (%s) is complete\n", bd_addr_to_str(d->conn.remote_addr));
     // This is called once the "parser" is ready.
-    if (uni_get_platform()->on_device_ready(d) == 0)
+    if (uni_get_platform()->on_device_ready(d) == 0) {
         uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_READY);
+    } else {
+        loge("Platform declined the gamepad, deleting it");
+        uni_hid_device_disconnect(d);
+        uni_hid_device_delete(d);
+    }
 }
 
 void uni_hid_device_request_inquire(void) {

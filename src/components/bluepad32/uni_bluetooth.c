@@ -473,8 +473,10 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
                     if (device != NULL) {
                         // FIXME: This must be a const char*
                         char* name = NULL;
-                        if (hci_event_remote_name_request_complete_get_status(packet) != 0) {
+                        status = hci_event_remote_name_request_complete_get_status(packet);
+                        if (status) {
                             // Failed to get the name, just fake one
+                            logi("Failed to fetch name for %s, error = 0x%02x\n", event_addr, status);
                             name = "Controller without name";
                         } else {
                             name = (char*)hci_event_remote_name_request_complete_get_remote_name(packet);
@@ -1050,6 +1052,7 @@ static void sdp_query_start_hid_descriptor(uni_hid_device_t* device) {
                                              BLUETOOTH_SERVICE_CLASS_HUMAN_INTERFACE_DEVICE_SERVICE);
     if (status != 0) {
         loge("Failed to perform SDP query for %s. Removing it...\n", bd_addr_to_str(device->conn.remote_addr));
+        btstack_run_loop_remove_timer(&sdp_query_timer);
         uni_hid_device_disconnect(device);
         uni_hid_device_delete(device);
     }
