@@ -96,8 +96,8 @@ BTStack component:
 ```sh
 cd ${BLUEPAD32}/external/btstack/port/esp32
 # This will install BTstack as a component inside Bluepad32 source code (recommended).
-# Remove "ESP_IDF=${BLUEPAD32}/src/" if you want it installed in the ESP-IDF folder
-ESP_IDF=${BLUEPAD32}/src/ ./integrate_btstack.py
+# Remove "IDF_PATH=${BLUEPAD32}/src/" if you want it installed in the ESP-IDF folder
+IDF_PATH=${BLUEPAD32}/src/ ./integrate_btstack.py
 ```
 
 ### Update configuration

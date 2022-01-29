@@ -44,6 +44,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Re-connection works in many devices, including Switch clones!
   (but not all devices support reconnection yet).
   Overall, cleaner code.
+- Bluetooth: Add set_event_filter.
+  When doing the inquiry, only devices with a Class Of Device HID are shown.
+  This reduces the noise in the console
 
 ### Fixed
 

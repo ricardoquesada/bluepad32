@@ -150,6 +150,11 @@ void uni_hid_device_set_ready(uni_hid_device_t* d) {
         return;
     }
 
+    if (uni_bt_conn_get_state(&d->conn) == UNI_BT_CONN_STATE_DEVICE_PENDING_READY) {
+        loge("uni_hid_device_set_ready(): Error, device already in 'ready-pending' state, skipping\n");
+        return;
+    }
+
     uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_PENDING_READY);
 
     // Each "parser" is responsible to call uni_hid_device_set_ready() once the
@@ -163,6 +168,11 @@ void uni_hid_device_set_ready(uni_hid_device_t* d) {
 }
 
 void uni_hid_device_set_ready_complete(uni_hid_device_t* d) {
+    if (uni_bt_conn_get_state(&d->conn) == UNI_BT_CONN_STATE_DEVICE_READY) {
+        loge("uni_hid_device_set_ready_complete(): Error, device already in 'ready-complete' state, skipping\n");
+        return;
+    }
+
     logi("Device setup (%s) is complete\n", bd_addr_to_str(d->conn.remote_addr));
 
     // Remove the timer once the connection was established.

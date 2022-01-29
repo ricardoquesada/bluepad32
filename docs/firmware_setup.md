@@ -98,8 +98,8 @@ sudo apt install libusb-1.0.0-dev
 ```sh
 cd ${BLUEPAD32}/external/btstack/port/esp32
 # This will install BTstack as a component inside Bluepad32 source code (recommended).
-# Remove "ESP_IDF=../../../../src" if you want it installed in the ESP-IDF folder
-ESP_IDF=../../../../src ./integrate_btstack.py
+# Remove "IDF_PATH=../../../../src" if you want it installed in the ESP-IDF folder
+IDF_PATH=../../../../src ./integrate_btstack.py
 ```
 
 ### Optional: Compile BTStack for Linux as target

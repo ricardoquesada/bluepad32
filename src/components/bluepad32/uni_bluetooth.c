@@ -65,6 +65,7 @@
 #include "sdkconfig.h"
 #include "uni_config.h"
 #include "uni_debug.h"
+#include "uni_hci_cmd.h"
 #include "uni_hid_device.h"
 #include "uni_hid_device_vendors.h"
 #include "uni_hid_parser.h"
@@ -319,8 +320,8 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
 #endif  // UNI_ENABLE_BLE
 
     // Ignore all packet events if BT is not ready, with the exception of the "BT is ready" event.
-    if ((!bt_ready) &&
-        !((packet_type == HCI_EVENT_PACKET) && (hci_event_packet_get_type(packet) == BTSTACK_EVENT_STATE))) {
+    if (!bt_ready &&
+        ((packet_type != HCI_EVENT_PACKET) || (hci_event_packet_get_type(packet) != BTSTACK_EVENT_STATE))) {
         logd("Ignoring packet. BT not ready yet\n");
         return;
     }
@@ -337,7 +338,10 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
                         logi("BTstack up and running on %s.\n", bd_addr_to_str(event_addr));
                         list_link_keys();
 
-                        hci_send_cmd(&hci_write_simple_pairing_mode, true);
+                        // hci_send_cmd(&hci_write_simple_pairing_mode, true);
+
+                        // Filter out inquiry results before we start the inquiry
+                        hci_send_cmd(&hci_set_event_filter_inquiry_cod, 0x01, 0x01, 0x000500, 0x001f00);
 
                         start_scan();
                     }
