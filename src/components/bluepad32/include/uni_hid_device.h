@@ -35,17 +35,6 @@ limitations under the License.
 // HID_DEVICE_CONNECTION_TIMEOUT_MS includes the time from when the device is created until it is ready.
 #define HID_DEVICE_CONNECTION_TIMEOUT_MS 20000
 
-// clang-format off
-#define MASK_COD_MAJOR_PERIPHERAL   0x0500  // 0b0000_0101_0000_0000
-#define MASK_COD_MAJOR_AUDIO        0x0400  // 0b0000_0100_0000_0000
-#define MASK_COD_MINOR_MASK         0x00FC  //             1111_1100
-#define MASK_COD_MINOR_POINT_DEVICE 0x0080  //             1000_0000
-#define MASK_COD_MINOR_KEYBOARD     0x0040  //             0100_0000
-#define MASK_COD_MINOR_GAMEPAD      0x0008  //             0000_1000
-#define MASK_COD_MINOR_JOYSTICK     0x0004  //             0000_0100
-#define MASK_COD_MINOR_HANDS_FREE   0x0008  //             0000_1000
-// clang-format on
-
 typedef enum {
     CONTROLLER_SUBTYPE_NONE = 0,
     CONTROLLER_SUBTYPE_WIIMOTE_HORIZ,

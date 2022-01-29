@@ -63,6 +63,7 @@
 #include <string.h>
 
 #include "sdkconfig.h"
+#include "uni_bt_defines.h"
 #include "uni_config.h"
 #include "uni_debug.h"
 #include "uni_hci_cmd.h"
@@ -343,7 +344,8 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
                         // hci_send_cmd(&hci_write_simple_pairing_mode, true);
 
                         // Filter out inquiry results before we start the inquiry
-                        hci_send_cmd(&hci_set_event_filter_inquiry_cod, 0x01, 0x01, 0x000500, 0x001f00);
+                        hci_send_cmd(&hci_set_event_filter_inquiry_cod, 0x01, 0x01, UNI_BT_COD_MAJOR_PERIPHERAL,
+                                     0x001f00);
 
                         start_scan();
                     }
@@ -619,7 +621,7 @@ static void on_hci_connection_request(uint16_t channel, const uint8_t* packet, u
         }
     }
     uni_hid_device_set_cod(device, cod);
-    uni_hid_device_set_incoming(device, 1);
+    uni_hid_device_set_incoming(device, true);
     logi("on_hci_connection_request from: address = %s, cod=0x%04x\n", bd_addr_to_str(event_addr), cod);
 }
 
@@ -653,8 +655,8 @@ static void on_hci_connection_complete(uint16_t channel, const uint8_t* packet, 
     // }
 
     int cod = d->cod;
-    bool is_keyboard = ((cod & MASK_COD_MAJOR_PERIPHERAL) == MASK_COD_MAJOR_PERIPHERAL) &&
-                       ((cod & MASK_COD_MINOR_MASK) & MASK_COD_MINOR_KEYBOARD);
+    bool is_keyboard = ((cod & UNI_BT_COD_MAJOR_PERIPHERAL) == UNI_BT_COD_MAJOR_PERIPHERAL) &&
+                       ((cod & UNI_BT_COD_MINOR_MASK) & UNI_BT_COD_MINOR_KEYBOARD);
     if (is_keyboard) {
         // gap_request_security_level(handle, LEVEL_1);
     }

@@ -22,6 +22,7 @@ limitations under the License.
 #include <sys/time.h>
 
 #include "sdkconfig.h"
+#include "uni_bt_defines.h"
 #include "uni_circular_buffer.h"
 #include "uni_config.h"
 #include "uni_debug.h"
@@ -229,20 +230,20 @@ void uni_hid_device_set_cod(uni_hid_device_t* d, uint32_t cod) {
 }
 
 bool uni_hid_device_is_cod_supported(uint32_t cod) {
-    const uint32_t minor_cod = cod & MASK_COD_MINOR_MASK;
+    const uint32_t minor_cod = cod & UNI_BT_COD_MINOR_MASK;
 
     // Joysticks, mice, gamepads are valid.
-    if ((cod & MASK_COD_MAJOR_PERIPHERAL) == MASK_COD_MAJOR_PERIPHERAL) {
+    if (cod & UNI_BT_COD_MAJOR_PERIPHERAL) {
         // Device is a peripheral: keyboard, mouse, joystick, gamepad, etc.
         // We only care about joysticks, gamepads & mice. But some gamepads,
         // specially cheap ones are advertised as keyboards.
-        return !!(minor_cod & (MASK_COD_MINOR_GAMEPAD | MASK_COD_MINOR_JOYSTICK | MASK_COD_MINOR_POINT_DEVICE |
-                               MASK_COD_MINOR_KEYBOARD));
+        return !!(minor_cod & (UNI_BT_COD_MINOR_MICE | UNI_BT_COD_MINOR_KEYBOARD | UNI_BT_COD_MINOR_GAMEPAD |
+                               UNI_BT_COD_MINOR_JOYSTICK));
     }
 
     // Hack for Amazon Fire TV remote control: CoD: 0x00400408 (Audio + Telephony
     // Hands free)
-    if ((cod & MASK_COD_MAJOR_AUDIO) == MASK_COD_MAJOR_AUDIO) {
+    if (cod & UNI_BT_COD_MAJOR_AUDIO_VIDEO) {
         return (cod == 0x400408);
     }
     return false;
@@ -393,17 +394,15 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
     // If it fails, try to guess it from COD
     if (type == CONTROLLER_TYPE_Unknown) {
         logi("Device (vendor_id=0x%04x, product_id=0x%04x) not found in DB.\n", d->vendor_id, d->product_id);
-        uint32_t mouse_cod = MASK_COD_MAJOR_PERIPHERAL | MASK_COD_MINOR_POINT_DEVICE;
-        uint32_t keyboard_cod = MASK_COD_MAJOR_PERIPHERAL | MASK_COD_MINOR_KEYBOARD;
+        uint32_t mouse_cod = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE;
+        uint32_t keyboard_cod = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_KEYBOARD;
         if ((d->cod & mouse_cod) == mouse_cod) {
             type = CONTROLLER_TYPE_GenericMouse;
         } else if ((d->cod & keyboard_cod) == keyboard_cod) {
             type = CONTROLLER_TYPE_GenericKeyboard;
         } else {
             // FIXME: Default should be the most popular gamepad device.
-            loge(
-                "Failed to find gamepad profile for device. Fallback: using Android "
-                "profile.\n");
+            loge("Failed to find gamepad profile for device. Fallback: using Android profile.\n");
             type = CONTROLLER_TYPE_AndroidController;
         }
     }

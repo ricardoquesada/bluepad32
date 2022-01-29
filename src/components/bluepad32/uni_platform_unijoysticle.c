@@ -28,6 +28,7 @@ limitations under the License.
 #include <math.h>
 
 #include "sdkconfig.h"
+#include "uni_bt_defines.h"
 #include "uni_config.h"
 #include "uni_debug.h"
 #include "uni_gamepad.h"
@@ -345,7 +346,7 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
         // ... unless it is a mouse which should try with PORT A.
         // Amiga/Atari ST use mice in PORT A. Undefined on the C64, but
         // most apps use it in PORT A as well.
-        uint32_t mouse_cod = MASK_COD_MAJOR_PERIPHERAL | MASK_COD_MINOR_POINT_DEVICE;
+        uint32_t mouse_cod = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE;
         if ((d->cod & mouse_cod) == mouse_cod) {
             wanted_seat = GAMEPAD_SEAT_A;
             ins->emu_mode = EMULATION_MODE_SINGLE_MOUSE;

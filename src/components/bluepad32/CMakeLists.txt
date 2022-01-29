@@ -1,5 +1,5 @@
-set(srcs "uni_bt_conn.c"
-         "uni_bluetooth.c"
+set(srcs "uni_bluetooth.c"
+         "uni_bt_conn.c"
          "uni_circular_buffer.c"
          "uni_esp32.c"
          "uni_gamepad.c"
