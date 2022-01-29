@@ -17,8 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - DualSense: Player LEDs are reported in the same way as PlayStation 5.
-- Switch: Don't turn ON Home Light. 
-  8BitDo devices don't support it. And might break the gamepad setup sequence.
+- Switch: Don't turn ON Home Light,  8BitDo devices don't support it,
+  and might break the gamepad setup sequence.
+  Change order of setup commands.
+  Change mappings in JoyCons so that it is possible to press "System" button.
 - Xbox: Improved reliability (based on the new auto delete code)
 - API: renamed some functions / typedefs
   - uni_hid_parser() -> uni_hid_parse_input_report()
@@ -58,6 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DualSense: doesn't not disconnect randomly
 - Switch: Don't enable "home light" at setup time.
   8BitDo gamepads don't implement it and might not be able to finish setup.
+  Fixed mappings of button "+" in report 0x30.
 
 ## [2.5.0] - 2022-01-08
 ### New

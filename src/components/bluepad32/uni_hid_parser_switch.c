@@ -58,12 +58,12 @@ static const uint32_t SWITCH_DUMP_ROM_DATA_ADDR_END = 0x30000;
 enum switch_state {
     STATE_UNINIT,
     STATE_SETUP,
-    STATE_DUMP_FLASH,                // Dump SPI Flash memory
+    STATE_SET_FULL_REPORT,           // Request report 0x30
     STATE_REQ_DEV_INFO,              // What controller
     STATE_READ_FACTORY_CALIBRATION,  // Factory calibration info
     STATE_READ_USER_CALIBRATION,     // User calibration info
-    STATE_SET_FULL_REPORT,           // Request report 0x30
     STATE_ENABLE_IMU,                // Enable/Disable gyro/accel
+    STATE_DUMP_FLASH,                // Dump SPI Flash memory
     STATE_UPDATE_LED,                // Update LEDs
     STATE_READY,                     // Gamepad setup ready!
 };
@@ -308,6 +308,8 @@ void uni_hid_parser_switch_setup(struct uni_hid_device_s* d) {
 
     ins->state = STATE_SETUP;
     ins->mode = SWITCH_MODE_NONE;
+    // In case the controller doesn't answer to SUBCMD_REQ_DEV_INFO command, set a default one.
+    ins->controller_type = SWITCH_CONTROLLER_TYPE_PRO;
 
     // Setup default min,center,max calibration values for sticks.
     ins->cal_x.min = ins->cal_y.min = ins->cal_rx.min = ins->cal_ry.min = 512;
@@ -346,14 +348,14 @@ void uni_hid_parser_switch_init_report(uni_hid_device_t* d) {
     gp->updated_states |= GAMEPAD_STATE_BUTTON_TRIGGER_L | GAMEPAD_STATE_BUTTON_TRIGGER_R |
                           GAMEPAD_STATE_BUTTON_SHOULDER_L | GAMEPAD_STATE_BUTTON_SHOULDER_R;
     gp->updated_states |=
-        GAMEPAD_STATE_BUTTON_THUMB_L | GAMEPAD_STATE_MISC_BUTTON_BACK | GAMEPAD_STATE_MISC_BUTTON_HOME;
+        GAMEPAD_STATE_BUTTON_THUMB_L | GAMEPAD_STATE_MISC_BUTTON_SYSTEM | GAMEPAD_STATE_MISC_BUTTON_HOME;
 
     // Only valid for Pro Controller.
     switch_instance_t* ins = get_switch_instance(d);
     if (ins->controller_type == SWITCH_CONTROLLER_TYPE_PRO) {
         gp->updated_states |= GAMEPAD_STATE_AXIS_RX | GAMEPAD_STATE_AXIS_RY;
         gp->updated_states |= GAMEPAD_STATE_DPAD;
-        gp->updated_states |= GAMEPAD_STATE_BUTTON_THUMB_R | GAMEPAD_STATE_MISC_BUTTON_SYSTEM;
+        gp->updated_states |= GAMEPAD_STATE_BUTTON_THUMB_R | GAMEPAD_STATE_MISC_BUTTON_BACK;
     }
 }
 
@@ -380,13 +382,14 @@ void uni_hid_parser_switch_parse_input_report(struct uni_hid_device_s* d, const 
 
 static void process_fsm(struct uni_hid_device_s* d) {
     switch_instance_t* ins = get_switch_instance(d);
+    logd("Switch: fsm state = %d\n", ins->state);
     switch (ins->state) {
         case STATE_SETUP:
             logd("STATE_SETUP\n");
-            fsm_dump_rom(d);
+            fsm_set_full_report(d);
             break;
-        case STATE_DUMP_FLASH:
-            logd("STATE_DUMP_FLASH\n");
+        case STATE_SET_FULL_REPORT:
+            logd("STATE_SET_FULL_REPORT\n");
             fsm_request_device_info(d);
             break;
         case STATE_REQ_DEV_INFO:
@@ -399,14 +402,14 @@ static void process_fsm(struct uni_hid_device_s* d) {
             break;
         case STATE_READ_USER_CALIBRATION:
             logd("STATE_READ_USER_CALIBRATION\n");
-            fsm_set_full_report(d);
-            break;
-        case STATE_SET_FULL_REPORT:
-            logd("STATE_SET_FULL_REPORT\n");
             fsm_enable_imu(d);
             break;
         case STATE_ENABLE_IMU:
             logd("STATE_ENABLE_IMU\n");
+            fsm_dump_rom(d);
+            break;
+        case STATE_DUMP_FLASH:
+            logd("STATE_DUMP_FLASH\n");
             fsm_update_led(d);
             break;
         case STATE_UPDATE_LED:
@@ -682,8 +685,8 @@ static void parse_report_30_joycon_left(uni_hid_device_t* d, const struct switch
     gp->buttons |= (r->buttons_misc & 0b00001000) ? BUTTON_THUMB_L : 0;
 
     // Misc cbuttons
-    gp->misc_buttons |= (r->buttons_misc & 0b00000001) ? MISC_BUTTON_BACK : 0;  // -
-    gp->misc_buttons |= (r->buttons_misc & 0b00100000) ? MISC_BUTTON_HOME : 0;  // Capture
+    gp->misc_buttons |= (r->buttons_misc & 0b00000001) ? MISC_BUTTON_HOME : 0;    // -
+    gp->misc_buttons |= (r->buttons_misc & 0b00100000) ? MISC_BUTTON_SYSTEM : 0;  // Capture
 }
 
 static void parse_report_30_joycon_right(uni_hid_device_t* d, const struct switch_report_30_s* r) {
@@ -710,8 +713,8 @@ static void parse_report_30_joycon_right(uni_hid_device_t* d, const struct switc
     gp->buttons |= (r->buttons_misc & 0b00000100) ? BUTTON_THUMB_L : 0;
 
     // Misc cbuttons
-    gp->misc_buttons |= (r->buttons_misc & 0b00000010) ? MISC_BUTTON_HOME : 0;  // +
-    gp->misc_buttons |= (r->buttons_misc & 0b00010000) ? MISC_BUTTON_BACK : 0;  // Home
+    gp->misc_buttons |= (r->buttons_misc & 0b00000010) ? MISC_BUTTON_HOME : 0;    // +
+    gp->misc_buttons |= (r->buttons_misc & 0b00010000) ? MISC_BUTTON_SYSTEM : 0;  // Home
 }
 
 // Process 0x3f input report: SWITCH_INPUT_BUTTON_EVENT
@@ -734,7 +737,7 @@ static void parse_report_3f(struct uni_hid_device_s* d, const uint8_t* report, i
 
     // Button aux
     gp->misc_buttons |= (r->buttons_aux & 0b00000001) ? MISC_BUTTON_BACK : 0;    // -
-    gp->buttons |= (r->buttons_aux & 0b00000010) ? MISC_BUTTON_HOME : 0;         // +
+    gp->misc_buttons |= (r->buttons_aux & 0b00000010) ? MISC_BUTTON_HOME : 0;    // +
     gp->buttons |= (r->buttons_aux & 0b00000100) ? BUTTON_THUMB_L : 0;           // Thumb L
     gp->buttons |= (r->buttons_aux & 0b00001000) ? BUTTON_THUMB_R : 0;           // Thumb R
     gp->misc_buttons |= (r->buttons_aux & 0b00010000) ? MISC_BUTTON_SYSTEM : 0;  // Home
