@@ -87,7 +87,9 @@
 #define MAX_ATTRIBUTE_VALUE_SIZE 512  // Apparently PS4 has a 470-bytes report
 #define L2CAP_CHANNEL_MTU 0xffff      // PS4 requires a 79-byte packet
 
-#define SDP_QUERY_TIMEOUT_MS 6500
+// Some old devices like "ThinkGeek 8-bitty Game Controller" takes a lot of time to respond
+// to SDP queries.
+#define SDP_QUERY_TIMEOUT_MS 13000
 _Static_assert(SDP_QUERY_TIMEOUT_MS < HID_DEVICE_CONNECTION_TIMEOUT_MS, "Timeout too big");
 #define INQUIRY_REMOTE_NAME_TIMEOUT_MS 4500
 _Static_assert(INQUIRY_REMOTE_NAME_TIMEOUT_MS < HID_DEVICE_CONNECTION_TIMEOUT_MS, "Timeout too big");

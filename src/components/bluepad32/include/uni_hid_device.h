@@ -33,7 +33,7 @@ limitations under the License.
 #define HID_DEVICE_MAX_PARSER_DATA 128
 #define HID_DEVICE_MAX_PLATFORM_DATA 128
 // HID_DEVICE_CONNECTION_TIMEOUT_MS includes the time from when the device is created until it is ready.
-#define HID_DEVICE_CONNECTION_TIMEOUT_MS 13000
+#define HID_DEVICE_CONNECTION_TIMEOUT_MS 20000
 
 // clang-format off
 #define MASK_COD_MAJOR_PERIPHERAL   0x0500  // 0b0000_0101_0000_0000
