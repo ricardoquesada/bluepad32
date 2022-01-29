@@ -233,7 +233,7 @@ bool uni_hid_device_is_cod_supported(uint32_t cod) {
     const uint32_t minor_cod = cod & UNI_BT_COD_MINOR_MASK;
 
     // Joysticks, mice, gamepads are valid.
-    if (cod & UNI_BT_COD_MAJOR_PERIPHERAL) {
+    if ((cod & UNI_BT_COD_MAJOR_MASK) == UNI_BT_COD_MAJOR_PERIPHERAL) {
         // Device is a peripheral: keyboard, mouse, joystick, gamepad, etc.
         // We only care about joysticks, gamepads & mice. But some gamepads,
         // specially cheap ones are advertised as keyboards.
@@ -243,7 +243,7 @@ bool uni_hid_device_is_cod_supported(uint32_t cod) {
 
     // Hack for Amazon Fire TV remote control: CoD: 0x00400408 (Audio + Telephony
     // Hands free)
-    if (cod & UNI_BT_COD_MAJOR_AUDIO_VIDEO) {
+    if ((cod & UNI_BT_COD_MAJOR_MASK) == UNI_BT_COD_MAJOR_AUDIO_VIDEO) {
         return (cod == 0x400408);
     }
     return false;

@@ -24,8 +24,9 @@ limitations under the License.
 // Class of Device constants taken from:
 // https://btprodspecificationrefs.blob.core.windows.net/assigned-numbers/Assigned%20Number%20Types/Baseband.pdf
 // clang-format off
-#define UNI_BT_COD_MAJOR_PERIPHERAL         0b0000010100000000 // 0x0500
-#define UNI_BT_COD_MAJOR_AUDIO_VIDEO        0b0000010000000000 // 0x0400
+#define UNI_BT_COD_MAJOR_MASK               0b0001111100000000  // 0x1f00
+#define UNI_BT_COD_MAJOR_PERIPHERAL         0b0000010100000000  // 0x0500
+#define UNI_BT_COD_MAJOR_AUDIO_VIDEO        0b0000010000000000  // 0x0400
 
 // Bits 0 and 1 must always be 0
 #define UNI_BT_COD_MINOR_MASK               0b11111100

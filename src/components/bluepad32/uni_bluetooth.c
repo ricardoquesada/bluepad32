@@ -345,7 +345,7 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
 
                         // Filter out inquiry results before we start the inquiry
                         hci_send_cmd(&hci_set_event_filter_inquiry_cod, 0x01, 0x01, UNI_BT_COD_MAJOR_PERIPHERAL,
-                                     0x001f00);
+                                     UNI_BT_COD_MAJOR_MASK);
 
                         start_scan();
                     }
@@ -765,14 +765,14 @@ static void on_l2cap_channel_opened(uint16_t channel, const uint8_t* packet, uin
     status = l2cap_event_channel_opened_get_status(packet);
     if (status) {
         logi("L2CAP Connection failed: 0x%02x.\n", status);
-        // Practice showed that if any of these two status are received, it is
-        // best to remove the link key. But this is based on empirical evidence,
-        // not on theory.
-        if (status == L2CAP_CONNECTION_RESPONSE_RESULT_RTX_TIMEOUT || status == L2CAP_CONNECTION_BASEBAND_DISCONNECT) {
-            logi("Removing previous link key for address=%s.\n", bd_addr_to_str(address));
-            uni_hid_device_disconnect(device);
-            uni_hid_device_delete(device);
+        // Practice showed that if the connections fails, just disconnect/remove
+        // so that the connection can start again.
+        if (status == L2CAP_CONNECTION_RESPONSE_RESULT_REFUSED_SECURITY) {
+            logi("Probably GAP-security-related issues. Set GAP security to 2\n");
         }
+        logi("Disconnecting/removing device: %s.\n", bd_addr_to_str(address));
+        uni_hid_device_disconnect(device);
+        uni_hid_device_delete(device);
         return;
     }
     psm = l2cap_event_channel_opened_get_psm(packet);
