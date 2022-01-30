@@ -317,6 +317,7 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
     bd_addr_t event_addr;
     uni_hid_device_t* device;
     uint8_t status;
+    uint16_t handle;
 #ifdef UNI_ENABLE_BLE
     hci_con_handle_t con_handle;
     uint16_t hids_cid;
@@ -399,16 +400,15 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
                     uint16_t opcode = hci_event_command_complete_get_command_opcode(packet);
                     const uint8_t* param = hci_event_command_complete_get_return_parameters(packet);
                     status = param[0];
-                    logd("--> HCI_EVENT_COMMAND_COMPLETE: opcode = 0x%04x - status=%d\n", opcode, status);
+                    if (status)
+                        logi("Failed command: HCI_EVENT_COMMAND_COMPLETE: opcode = 0x%04x - status=%d\n", opcode,
+                             status);
                     break;
                 }
                 case HCI_EVENT_AUTHENTICATION_COMPLETE_EVENT: {
                     status = hci_event_authentication_complete_get_status(packet);
-                    uint16_t handle = hci_event_authentication_complete_get_connection_handle(packet);
-                    logi(
-                        "--> HCI_EVENT_AUTHENTICATION_COMPLETE_EVENT: status=%d, "
-                        "handle=0x%04x\n",
-                        status, handle);
+                    handle = hci_event_authentication_complete_get_connection_handle(packet);
+                    logi("--> HCI_EVENT_AUTHENTICATION_COMPLETE_EVENT: status=%d, handle=0x%04x\n", status, handle);
                     break;
                 }
                 case HCI_EVENT_PIN_CODE_REQUEST: {
@@ -458,6 +458,17 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
                     break;
                 case HCI_EVENT_DISCONNECTION_COMPLETE:
                     logi("--> HCI_EVENT_DISCONNECTION_COMPLETE\n");
+                    handle = hci_event_disconnection_complete_get_connection_handle(packet);
+                    // Xbox Wireless Controller starts an incoming connection when told to
+                    // enter in "discovery mode". If the connection fails (HCI_EVENT_DISCONNECTION_COMPLETE
+                    // is generated) then it starts the discovery.
+                    // So, just delete the possible-previous created entry. This highly increase
+                    // the reliability with Xbox Wireless controllers.
+                    device = uni_hid_device_get_instance_for_connection_handle(handle);
+                    if (device) {
+                        logi("Device %s disconnected, deleting it\n", bd_addr_to_str(device->conn.remote_addr));
+                        uni_hid_device_delete(device);
+                    }
                     break;
                 case HCI_EVENT_LINK_KEY_REQUEST:
                     logi("--> HCI_EVENT_LINK_KEY_REQUEST:\n");
@@ -655,11 +666,11 @@ static void on_hci_connection_complete(uint16_t channel, const uint8_t* packet, 
     // }
 
     int cod = d->cod;
-    bool is_keyboard = ((cod & UNI_BT_COD_MAJOR_PERIPHERAL) == UNI_BT_COD_MAJOR_PERIPHERAL) &&
-                       ((cod & UNI_BT_COD_MINOR_MASK) & UNI_BT_COD_MINOR_KEYBOARD);
+    bool is_keyboard = ((cod & UNI_BT_COD_MAJOR_MASK) == UNI_BT_COD_MAJOR_PERIPHERAL) && (cod & UNI_BT_COD_MINOR_MASK);
     if (is_keyboard) {
         // gap_request_security_level(handle, LEVEL_1);
     }
+    // gap_request_security_level(handle, LEVEL_2);
 }
 
 static void on_gap_inquiry_result(uint16_t channel, const uint8_t* packet, uint16_t size) {

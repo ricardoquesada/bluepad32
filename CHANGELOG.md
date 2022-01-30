@@ -21,7 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and might break the gamepad setup sequence.
   Change order of setup commands.
   Change mappings in JoyCons so that it is possible to press "System" button.
-- Xbox: Improved reliability (based on the new auto delete code)
+- Xbox: Highly improved reliability (based on the new auto delete code)
+  Compared to before, it is like 10x more reliable, but the Xbox Wireless Controller
+  is still somewhat unreliable.
 - API: renamed some functions / typedefs
   - uni_hid_parser() -> uni_hid_parse_input_report()
   - report_parse_raw_fn_t -> report_parse_input_report_fn_t

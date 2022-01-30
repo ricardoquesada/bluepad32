@@ -24,6 +24,8 @@ limitations under the License.
 #include <btstack.h>
 
 typedef enum {
+    UNI_BT_CONN_STATE_DEVICE_NONE,  // Must be the first state
+
     UNI_BT_CONN_STATE_DEVICE_DISCOVERED,
 
     UNI_BT_CONN_STATE_REMOTE_NAME_REQUEST,

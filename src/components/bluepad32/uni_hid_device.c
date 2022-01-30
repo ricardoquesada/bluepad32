@@ -350,15 +350,19 @@ void uni_hid_device_delete(uni_hid_device_t* d) {
         loge("uni_hid_device_delete: invalid hid device: NULL\n");
         return;
     }
+
+    // Remove the timer. If it was still running, it will crash if the handler gets called.
+    btstack_run_loop_remove_timer(&d->connection_timer);
+
     memset(d, 0, sizeof(*d));
 }
 
 void uni_hid_device_dump_device(uni_hid_device_t* d) {
     logi(
         "%s, handle=%d, ctrl_cid=0x%04x, intr_cid=0x%04x, cod=0x%08x, vid=0x%04x, pid=0x%04x, "
-        "flags=0x%08x, ctrl_type=0x%02x, name='%s'\n",
+        "flags=0x%08x, ctrl_type=0x%02x, incoming=%d, name='%s'\n",
         bd_addr_to_str(d->conn.remote_addr), d->conn.handle, d->conn.control_cid, d->conn.interrupt_cid, d->cod,
-        d->vendor_id, d->product_id, d->flags, d->controller_type, d->name);
+        d->vendor_id, d->product_id, d->flags, d->controller_type, d->conn.incoming, d->name);
 }
 
 void uni_hid_device_dump_all(void) {
