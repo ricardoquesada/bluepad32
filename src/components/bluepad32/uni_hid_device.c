@@ -232,7 +232,7 @@ void uni_hid_device_set_cod(uni_hid_device_t* d, uint32_t cod) {
 bool uni_hid_device_is_cod_supported(uint32_t cod) {
     const uint32_t minor_cod = cod & UNI_BT_COD_MINOR_MASK;
 
-    // Joysticks, mice, gamepads are valid.
+    // Peripherals: joysticks, mice, gamepads and keyboard are accepted.
     if ((cod & UNI_BT_COD_MAJOR_MASK) == UNI_BT_COD_MAJOR_PERIPHERAL) {
         // Device is a peripheral: keyboard, mouse, joystick, gamepad, etc.
         // We only care about joysticks, gamepads & mice. But some gamepads,
@@ -241,8 +241,11 @@ bool uni_hid_device_is_cod_supported(uint32_t cod) {
                                UNI_BT_COD_MINOR_JOYSTICK));
     }
 
-    // Hack for Amazon Fire TV remote control: CoD: 0x00400408 (Audio + Telephony
-    // Hands free)
+    // Hack for Amazon Fire TV remote control: CoD: 0x00400408 (Audio + Telephony Hands free)
+    // FIXME: This is no longer true, since a "set-event-filter" is being called accepting only
+    // MAJOR_PERIPHERAL devices.
+    // Acceptable trade-off: The Amazon Stick is no longer working. On the other hand we have
+    // muuuuuch cleaner logs, and easier to analyze hci dumps.
     if ((cod & UNI_BT_COD_MAJOR_MASK) == UNI_BT_COD_MAJOR_AUDIO_VIDEO) {
         return (cod == 0x400408);
     }

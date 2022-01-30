@@ -63,7 +63,9 @@
 #include <string.h>
 
 #include "sdkconfig.h"
+#include "uni_bt_conn.h"
 #include "uni_bt_defines.h"
+#include "uni_bt_sdp.h"
 #include "uni_config.h"
 #include "uni_debug.h"
 #include "uni_hci_cmd.h"
@@ -85,23 +87,12 @@
 #define GAP_INQUIRY_INTERVAL 3          // Measured in in 1.28s units
 #define GAP_INQUIRY_PAUSE_TIME_MS 1800  // Window open for incoming connections
 
-#define MAX_ATTRIBUTE_VALUE_SIZE 512  // Apparently PS4 has a 470-bytes report
-#define L2CAP_CHANNEL_MTU 0xffff      // PS4 requires a 79-byte packet
+#define L2CAP_CHANNEL_MTU 0xffff  // PS4 requires a 79-byte packet
 
-// Some old devices like "ThinkGeek 8-bitty Game Controller" takes a lot of time to respond
-// to SDP queries.
-#define SDP_QUERY_TIMEOUT_MS 13000
-_Static_assert(SDP_QUERY_TIMEOUT_MS < HID_DEVICE_CONNECTION_TIMEOUT_MS, "Timeout too big");
 #define INQUIRY_REMOTE_NAME_TIMEOUT_MS 4500
 _Static_assert(INQUIRY_REMOTE_NAME_TIMEOUT_MS < HID_DEVICE_CONNECTION_TIMEOUT_MS, "Timeout too big");
 
 // globals
-// SDP
-static uint8_t sdp_attribute_value[MAX_ATTRIBUTE_VALUE_SIZE];
-static const unsigned int sdp_attribute_value_buffer_size = MAX_ATTRIBUTE_VALUE_SIZE;
-static uni_hid_device_t* sdp_device = NULL;
-static btstack_timer_source_t sdp_query_timer;
-
 // Used to implement connection timeout and reconnect timer
 static btstack_timer_source_t hog_connection_timer;  // BLE only
 static btstack_timer_source_t gap_inquiry_timer;
@@ -116,13 +107,6 @@ static hid_protocol_mode_t protocol_mode = HID_PROTOCOL_MODE_REPORT;
 static bool accept_incoming_connections = true;
 
 static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
-static void handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
-static void handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
-static void sdp_query_start(uni_hid_device_t* device);
-static void sdp_query_end(uni_hid_device_t* device);
-static void sdp_query_start_hid_descriptor(uni_hid_device_t* device);
-static void sdp_query_start_vid_pid(uni_hid_device_t* device);
-static void sdp_query_timeout(btstack_timer_source_t* ts);
 
 #ifdef UNI_ENABLE_BLE
 static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
@@ -146,124 +130,6 @@ static void on_hci_connection_request(uint16_t channel, const uint8_t* packet, u
 static void l2cap_create_control_connection(uni_hid_device_t* d);
 static void l2cap_create_interrupt_connection(uni_hid_device_t* d);
 static void inquiry_remote_name_timeout_callback(btstack_timer_source_t* ts);
-static void fsm_process(uni_hid_device_t* d);
-
-// HID results: HID descriptor, PSM interrupt, PSM control, etc.
-static void handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
-    UNUSED(packet_type);
-    UNUSED(channel);
-    UNUSED(size);
-
-    des_iterator_t attribute_list_it;
-    des_iterator_t additional_des_it;
-    uint8_t* des_element;
-    uint8_t* element;
-
-    if (sdp_device == NULL) {
-        loge("ERROR: handle_sdp_hid_query_result. SDP device = NULL\n");
-        return;
-    }
-
-    switch (hci_event_packet_get_type(packet)) {
-        case SDP_EVENT_QUERY_ATTRIBUTE_VALUE:
-            if (sdp_event_query_attribute_byte_get_attribute_length(packet) <= sdp_attribute_value_buffer_size) {
-                sdp_attribute_value[sdp_event_query_attribute_byte_get_data_offset(packet)] =
-                    sdp_event_query_attribute_byte_get_data(packet);
-                if ((uint16_t)(sdp_event_query_attribute_byte_get_data_offset(packet) + 1) ==
-                    sdp_event_query_attribute_byte_get_attribute_length(packet)) {
-                    switch (sdp_event_query_attribute_byte_get_attribute_id(packet)) {
-                        case BLUETOOTH_ATTRIBUTE_HID_DESCRIPTOR_LIST:
-                            for (des_iterator_init(&attribute_list_it, sdp_attribute_value);
-                                 des_iterator_has_more(&attribute_list_it); des_iterator_next(&attribute_list_it)) {
-                                if (des_iterator_get_type(&attribute_list_it) != DE_DES)
-                                    continue;
-                                des_element = des_iterator_get_element(&attribute_list_it);
-                                for (des_iterator_init(&additional_des_it, des_element);
-                                     des_iterator_has_more(&additional_des_it); des_iterator_next(&additional_des_it)) {
-                                    if (des_iterator_get_type(&additional_des_it) != DE_STRING)
-                                        continue;
-                                    element = des_iterator_get_element(&additional_des_it);
-                                    const uint8_t* descriptor = de_get_string(element);
-                                    int descriptor_len = de_get_data_size(element);
-                                    logi("SDP HID Descriptor (%d):\n", descriptor_len);
-                                    uni_hid_device_set_hid_descriptor(sdp_device, descriptor, descriptor_len);
-                                    printf_hexdump(descriptor, descriptor_len);
-                                }
-                            }
-                            break;
-                        default:
-                            break;
-                    }
-                }
-            } else {
-                loge("SDP attribute value buffer size exceeded: available %d, required %d\n",
-                     sdp_attribute_value_buffer_size, sdp_event_query_attribute_byte_get_attribute_length(packet));
-            }
-            break;
-        case SDP_EVENT_QUERY_COMPLETE:
-            sdp_query_end(sdp_device);
-            break;
-        default:
-            break;
-    }
-}
-
-// Device ID results: Vendor ID, Product ID, Version, etc...
-static void handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
-    UNUSED(packet_type);
-    UNUSED(channel);
-    UNUSED(size);
-
-    uint16_t id16;
-
-    if (sdp_device == NULL) {
-        loge("ERROR: handle_sdp_pid_query_result. SDP device = NULL\n");
-        return;
-    }
-
-    switch (hci_event_packet_get_type(packet)) {
-        case SDP_EVENT_QUERY_ATTRIBUTE_VALUE:
-            if (sdp_event_query_attribute_byte_get_attribute_length(packet) <= sdp_attribute_value_buffer_size) {
-                sdp_attribute_value[sdp_event_query_attribute_byte_get_data_offset(packet)] =
-                    sdp_event_query_attribute_byte_get_data(packet);
-                if ((uint16_t)(sdp_event_query_attribute_byte_get_data_offset(packet) + 1) ==
-                    sdp_event_query_attribute_byte_get_attribute_length(packet)) {
-                    switch (sdp_event_query_attribute_byte_get_attribute_id(packet)) {
-                        case BLUETOOTH_ATTRIBUTE_VENDOR_ID:
-                            if (de_element_get_uint16(sdp_attribute_value, &id16))
-                                uni_hid_device_set_vendor_id(sdp_device, id16);
-                            else
-                                loge("Error getting vendor id\n");
-                            break;
-
-                        case BLUETOOTH_ATTRIBUTE_PRODUCT_ID:
-                            if (de_element_get_uint16(sdp_attribute_value, &id16))
-                                uni_hid_device_set_product_id(sdp_device, id16);
-                            else
-                                loge("Error getting product id\n");
-                            break;
-                        default:
-                            break;
-                    }
-                }
-            } else {
-                loge("SDP attribute value buffer size exceeded: available %d, required %d\n",
-                     sdp_attribute_value_buffer_size, sdp_event_query_attribute_byte_get_attribute_length(packet));
-            }
-            break;
-        case SDP_EVENT_QUERY_COMPLETE:
-            logi("Vendor ID: 0x%04x - Product ID: 0x%04x\n", uni_hid_device_get_vendor_id(sdp_device),
-                 uni_hid_device_get_product_id(sdp_device));
-            uni_hid_device_guess_controller_type_from_pid_vid(sdp_device);
-            uni_bt_conn_set_state(&sdp_device->conn, UNI_BT_CONN_STATE_SDP_VENDOR_FETCHED);
-            fsm_process(sdp_device);
-            break;
-        default:
-            // TODO: xxx
-            logd("TODO: handle_sdp_pid_query_result. switch->default triggered\n");
-            break;
-    }
-}
 
 // BLE only
 #ifdef UNI_ENABLE_BLE
@@ -312,7 +178,6 @@ static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint
 
 static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     static bool bt_ready = false;
-
     uint8_t event;
     bd_addr_t event_addr;
     uni_hid_device_t* device;
@@ -506,7 +371,7 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
                         // Remove timer
                         btstack_run_loop_remove_timer(&device->inquiry_remote_name_timer);
 
-                        fsm_process(device);
+                        uni_bluetooth_process_fsm(device);
                     }
                     break;
                 // L2CAP EVENTS
@@ -728,7 +593,7 @@ static void on_gap_inquiry_result(uint16_t channel, const uint8_t* packet, uint1
                 uni_bt_conn_set_state(&device->conn, UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED);
             }
         }
-        fsm_process(device);
+        uni_bluetooth_process_fsm(device);
     }
 }
 
@@ -816,7 +681,7 @@ static void on_l2cap_channel_opened(uint16_t channel, const uint8_t* packet, uin
         default:
             break;
     }
-    fsm_process(device);
+    uni_bluetooth_process_fsm(device);
 }
 
 static void on_l2cap_channel_closed(uint16_t channel, const uint8_t* packet, uint16_t size) {
@@ -1010,90 +875,6 @@ static void stop_scan() {
     gap_inquiry_stop();
 }
 
-static void sdp_query_start(uni_hid_device_t* device) {
-    loge("-----------> sdp_query_start()\n");
-    // Needed for the SDP query since it only supports one SDP query at the time.
-    if (sdp_device != NULL) {
-        logi("Another SDP query is in progress (%s), disconnecting...\n", bd_addr_to_str(sdp_device->conn.remote_addr));
-        uni_hid_device_disconnect(device);
-        uni_hid_device_delete(device);
-        return;
-    }
-
-    sdp_device = device;
-    btstack_run_loop_set_timer_context(&sdp_query_timer, device);
-    btstack_run_loop_set_timer_handler(&sdp_query_timer, &sdp_query_timeout);
-    btstack_run_loop_set_timer(&sdp_query_timer, SDP_QUERY_TIMEOUT_MS);
-    btstack_run_loop_add_timer(&sdp_query_timer);
-
-    sdp_query_start_vid_pid(device);
-}
-
-static void sdp_query_end(uni_hid_device_t* device) {
-    loge("-----------> sdp_query_end()\n");
-    uni_bt_conn_set_state(&device->conn, UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_FETCHED);
-    sdp_device = NULL;
-    btstack_run_loop_remove_timer(&sdp_query_timer);
-    fsm_process(device);
-}
-
-static void sdp_query_start_vid_pid(uni_hid_device_t* device) {
-    logi("Starting SDP VID/PID query for %s\n", bd_addr_to_str(device->conn.remote_addr));
-
-    uni_bt_conn_set_state(&device->conn, UNI_BT_CONN_STATE_SDP_VENDOR_REQUESTED);
-    uint8_t status = sdp_client_query_uuid16(&handle_sdp_pid_query_result, device->conn.remote_addr,
-                                             BLUETOOTH_SERVICE_CLASS_PNP_INFORMATION);
-    if (status != 0) {
-        loge("Failed to perform SDP VID/PID query\n");
-        uni_hid_device_disconnect(device);
-        uni_hid_device_delete(device);
-        return;
-    }
-}
-
-static void sdp_query_start_hid_descriptor(uni_hid_device_t* device) {
-    if (!uni_hid_device_does_require_hid_descriptor(device)) {
-        logi("Device %s does not need a HID descriptor, skipping query.\n", bd_addr_to_str(device->conn.remote_addr));
-        sdp_query_end(device);
-        return;
-    }
-
-    logi("Starting SDP HID-descriptor query for %s\n", bd_addr_to_str(device->conn.remote_addr));
-
-    // Needed for the SDP query since it only supports one SDP query at the time.
-    if (sdp_device == NULL) {
-        logi("...but sdp_vendor was not set, aborting query for %s\n", bd_addr_to_str(device->conn.remote_addr));
-        return;
-    }
-
-    uni_bt_conn_set_state(&device->conn, UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_REQUESTED);
-    uint8_t status = sdp_client_query_uuid16(&handle_sdp_hid_query_result, device->conn.remote_addr,
-                                             BLUETOOTH_SERVICE_CLASS_HUMAN_INTERFACE_DEVICE_SERVICE);
-    if (status != 0) {
-        loge("Failed to perform SDP query for %s. Removing it...\n", bd_addr_to_str(device->conn.remote_addr));
-        btstack_run_loop_remove_timer(&sdp_query_timer);
-        uni_hid_device_disconnect(device);
-        uni_hid_device_delete(device);
-    }
-}
-
-static void sdp_query_timeout(btstack_timer_source_t* ts) {
-    loge("---->sdp_query_timeout()\n");
-    uni_hid_device_t* device = btstack_run_loop_get_timer_context(ts);
-    if (!sdp_device) {
-        loge("sdp_query_timeout: unexpeced, sdp_device should not be NULL\n");
-        return;
-    }
-    if (device != sdp_device) {
-        loge("sdp_query_timeout: unexpected device values, they should be equal, got: %s != %s",
-             bd_addr_to_str(device->conn.remote_addr), bd_addr_to_str(sdp_device->conn.remote_addr));
-        return;
-    }
-
-    logi("Failed to query SDP for %s, timeout\n", bd_addr_to_str(device->conn.remote_addr));
-    sdp_device = NULL;
-}
-
 static void list_link_keys(void) {
     bd_addr_t addr;
     link_key_t link_key;
@@ -1148,128 +929,7 @@ static void inquiry_remote_name_timeout_callback(btstack_timer_source_t* ts) {
     // The device has no name. Just fake one
     uni_hid_device_set_name(d, "Controller without name");
     uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED);
-    fsm_process(d);
-}
-
-static void fsm_process(uni_hid_device_t* d) {
-    // A device can be in the following states:
-    // - discovered (which might or might not have a name)
-    // - received incoming connection
-    // - establishing a connection
-    // - fetching the name (in case it doesn't have one)
-    // - SDP query to get VID/PID and HID descriptor
-    //   Although the HID descriptor might not be needed on some devices
-    // The order in which those states are executed vary from gamepad to gamepad
-    uni_bt_conn_state_t state;
-
-    // logi("fsm_process: %p = 0x%02x\n", d, d->state);
-    if (d == NULL) {
-        loge("fsm_process: Invalid device\n");
-    }
-    // Two possible flows:
-    // - Incoming (initiated by gamepad)
-    // - Or discovered (initiated by Bluepad32).
-
-    state = uni_bt_conn_get_state(&d->conn);
-
-    logi("fsm_process, bd addr:%s,  state: %d, incoming:%d\n", bd_addr_to_str(d->conn.remote_addr), state,
-         uni_hid_device_is_incoming(d));
-
-    // Does it have a name?
-    // The name is fetched at the very beginning, when we initiate the connection,
-    // Or at the very end, when it is an incoming connection.
-    if (!uni_hid_device_has_name(d) &&
-        ((state == UNI_BT_CONN_STATE_DEVICE_DISCOVERED) || state == UNI_BT_CONN_STATE_L2CAP_INTERRUPT_CONNECTED)) {
-        logi("fsm_process: requesting name\n");
-
-        gap_remote_name_request(d->conn.remote_addr, 0x02, 0x0000);
-        uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_REMOTE_NAME_INQUIRED);
-
-        // Some devices might not respond to the name request
-        btstack_run_loop_set_timer(&d->inquiry_remote_name_timer, INQUIRY_REMOTE_NAME_TIMEOUT_MS);
-        btstack_run_loop_set_timer_context(&d->inquiry_remote_name_timer, d);
-        btstack_run_loop_set_timer_handler(&d->inquiry_remote_name_timer, &inquiry_remote_name_timeout_callback);
-        btstack_run_loop_add_timer(&d->inquiry_remote_name_timer);
-        return;
-    }
-
-    if (state == UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED) {
-        // TODO: Move comparison to DS4 code
-        if (strcmp("Wireless Controller", d->name) == 0) {
-            logi("fsm_process: gamepad is 'Wireless Controller', starting SDP query\n");
-            d->sdp_query_type = SDP_QUERY_BEFORE_CONNECT;
-            sdp_query_start(d);
-            return;
-        }
-
-        if (uni_hid_device_guess_controller_type_from_name(d, d->name)) {
-            logi("fsm_process: Guess controller from name\n");
-            d->sdp_query_type = SDP_QUERY_NOT_NEEDED;
-            uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_FETCHED);
-        }
-
-        if (uni_hid_device_is_incoming(d)) {
-            if (d->sdp_query_type == SDP_QUERY_NOT_NEEDED) {
-                logi("fsm_process: Device is ready\n");
-                uni_hid_device_set_ready(d);
-            } else {
-                logi("fsm_process: starting SDP query\n");
-                sdp_query_start(d);
-            }
-            return;
-        }
-        // else, not an incoming connection
-        logi("fsm_process: Starting L2CAP connection\n");
-        l2cap_create_control_connection(d);
-        return;
-    }
-
-    if (state == UNI_BT_CONN_STATE_SDP_VENDOR_FETCHED) {
-        logi("fsm_process: querying HID descriptor\n");
-        sdp_query_start_hid_descriptor(d);
-        return;
-    }
-
-    if (state == UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_FETCHED) {
-        if (uni_hid_device_is_incoming(d)) {
-            uni_hid_device_set_ready(d);
-            return;
-        }
-
-        // Not incoming
-        if (d->sdp_query_type == SDP_QUERY_BEFORE_CONNECT) {
-            logi("fsm_process: Starting L2CAP connection\n");
-            l2cap_create_control_connection(d);
-        } else {
-            logi("fsm_process: Device is ready\n");
-            uni_hid_device_set_ready(d);
-        }
-        return;
-    }
-
-    if (!uni_hid_device_is_incoming(d)) {
-        if (state == UNI_BT_CONN_STATE_L2CAP_CONTROL_CONNECTED) {
-            logi("fsm_process: Create L2CAP interrupt connection\n");
-            l2cap_create_interrupt_connection(d);
-            return;
-        }
-
-        if (state == UNI_BT_CONN_STATE_L2CAP_INTERRUPT_CONNECTED) {
-            switch (d->sdp_query_type) {
-                case SDP_QUERY_BEFORE_CONNECT:
-                case SDP_QUERY_NOT_NEEDED:
-                    logi("fsm_process: Device is ready\n");
-                    uni_hid_device_set_ready(d);
-                    break;
-                case SDP_QUERY_AFTER_CONNECT:
-                    logi("fsm_process: starting SDP query\n");
-                    sdp_query_start(d);
-                    break;
-                default:
-                    break;
-            }
-        }
-    }
+    uni_bluetooth_process_fsm(d);
 }
 
 //
@@ -1377,4 +1037,125 @@ void uni_bluetooth_enable_new_connections_safe(bool enabled) {
     enable_bt_callback_registration.callback = &enable_new_connections_callback;
     enable_bt_callback_registration.context = (void*)(uintptr_t)enabled;
     btstack_run_loop_execute_on_main_thread(&enable_bt_callback_registration);
+}
+
+void uni_bluetooth_process_fsm(uni_hid_device_t* d) {
+    // A device can be in the following states:
+    // - discovered (which might or might not have a name)
+    // - received incoming connection
+    // - establishing a connection
+    // - fetching the name (in case it doesn't have one)
+    // - SDP query to get VID/PID and HID descriptor
+    //   Although the HID descriptor might not be needed on some devices
+    // The order in which those states are executed vary from gamepad to gamepad
+    uni_bt_conn_state_t state;
+
+    // logi("uni_bluetooth_process_fsm: %p = 0x%02x\n", d, d->state);
+    if (d == NULL) {
+        loge("uni_bluetooth_process_fsm: Invalid device\n");
+    }
+    // Two possible flows:
+    // - Incoming (initiated by gamepad)
+    // - Or discovered (initiated by Bluepad32).
+
+    state = uni_bt_conn_get_state(&d->conn);
+
+    logi("uni_bluetooth_process_fsm, bd addr:%s,  state: %d, incoming:%d\n", bd_addr_to_str(d->conn.remote_addr), state,
+         uni_hid_device_is_incoming(d));
+
+    // Does it have a name?
+    // The name is fetched at the very beginning, when we initiate the connection,
+    // Or at the very end, when it is an incoming connection.
+    if (!uni_hid_device_has_name(d) &&
+        ((state == UNI_BT_CONN_STATE_DEVICE_DISCOVERED) || state == UNI_BT_CONN_STATE_L2CAP_INTERRUPT_CONNECTED)) {
+        logi("uni_bluetooth_process_fsm: requesting name\n");
+
+        gap_remote_name_request(d->conn.remote_addr, 0x02, 0x0000);
+        uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_REMOTE_NAME_INQUIRED);
+
+        // Some devices might not respond to the name request
+        btstack_run_loop_set_timer(&d->inquiry_remote_name_timer, INQUIRY_REMOTE_NAME_TIMEOUT_MS);
+        btstack_run_loop_set_timer_context(&d->inquiry_remote_name_timer, d);
+        btstack_run_loop_set_timer_handler(&d->inquiry_remote_name_timer, &inquiry_remote_name_timeout_callback);
+        btstack_run_loop_add_timer(&d->inquiry_remote_name_timer);
+        return;
+    }
+
+    if (state == UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED) {
+        // TODO: Move comparison to DS4 code
+        if (strcmp("Wireless Controller", d->name) == 0) {
+            logi("uni_bluetooth_process_fsm: gamepad is 'Wireless Controller', starting SDP query\n");
+            d->sdp_query_type = SDP_QUERY_BEFORE_CONNECT;
+            uni_bt_sdp_query_start(d);
+            return;
+        }
+
+        if (uni_hid_device_guess_controller_type_from_name(d, d->name)) {
+            logi("uni_bluetooth_process_fsm: Guess controller from name\n");
+            d->sdp_query_type = SDP_QUERY_NOT_NEEDED;
+            uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_FETCHED);
+        }
+
+        if (uni_hid_device_is_incoming(d)) {
+            if (d->sdp_query_type == SDP_QUERY_NOT_NEEDED) {
+                logi("uni_bluetooth_process_fsm: Device is ready\n");
+                uni_hid_device_set_ready(d);
+            } else {
+                logi("uni_bluetooth_process_fsm: starting SDP query\n");
+                uni_bt_sdp_query_start(d);
+            }
+            return;
+        }
+        // else, not an incoming connection
+        logi("uni_bluetooth_process_fsm: Starting L2CAP connection\n");
+        l2cap_create_control_connection(d);
+        return;
+    }
+
+    if (state == UNI_BT_CONN_STATE_SDP_VENDOR_FETCHED) {
+        logi("uni_bluetooth_process_fsm: querying HID descriptor\n");
+        uni_bt_sdp_query_start_hid_descriptor(d);
+        return;
+    }
+
+    if (state == UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_FETCHED) {
+        if (uni_hid_device_is_incoming(d)) {
+            uni_hid_device_set_ready(d);
+            return;
+        }
+
+        // Not incoming
+        if (d->sdp_query_type == SDP_QUERY_BEFORE_CONNECT) {
+            logi("uni_bluetooth_process_fsm: Starting L2CAP connection\n");
+            l2cap_create_control_connection(d);
+        } else {
+            logi("uni_bluetooth_process_fsm: Device is ready\n");
+            uni_hid_device_set_ready(d);
+        }
+        return;
+    }
+
+    if (!uni_hid_device_is_incoming(d)) {
+        if (state == UNI_BT_CONN_STATE_L2CAP_CONTROL_CONNECTED) {
+            logi("uni_bluetooth_process_fsm: Create L2CAP interrupt connection\n");
+            l2cap_create_interrupt_connection(d);
+            return;
+        }
+
+        if (state == UNI_BT_CONN_STATE_L2CAP_INTERRUPT_CONNECTED) {
+            switch (d->sdp_query_type) {
+                case SDP_QUERY_BEFORE_CONNECT:
+                case SDP_QUERY_NOT_NEEDED:
+                    logi("uni_bluetooth_process_fsm: Device is ready\n");
+                    uni_hid_device_set_ready(d);
+                    break;
+                case SDP_QUERY_AFTER_CONNECT:
+                    logi("uni_bluetooth_process_fsm: starting SDP query\n");
+                    uni_bt_sdp_query_start(d);
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
 }
