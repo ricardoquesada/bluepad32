@@ -36,7 +36,7 @@ typedef enum {
 
 typedef uint8_t (*fn_t)(void);
 
-static void list_link_keys(void);
+static void maybe_delete_or_list_link_keys(void);
 static void setup_call_next_fn(void);
 static uint8_t setup_set_event_filter(void);
 static uint8_t setup_write_simple_pairing_mode(void);
@@ -51,7 +51,7 @@ static fn_t setup_fns[] = {
 static setup_state_t setup_state = SETUP_STATE_BTSTACK_IN_PROGRESS;
 static btstack_packet_callback_registration_t hci_event_callback_registration;
 
-static void list_link_keys(void) {
+static void maybe_delete_or_list_link_keys(void) {
     bd_addr_t addr;
     link_key_t link_key;
     link_key_type_t type;
@@ -81,24 +81,21 @@ static void list_link_keys(void) {
 
 static uint8_t setup_set_event_filter(void) {
     // Filter out inquiry results before we start the inquiry
-    loge("setup_set_event_filter\n");
     return hci_send_cmd(&hci_set_event_filter_inquiry_cod, 0x01, 0x01, UNI_BT_COD_MAJOR_PERIPHERAL,
                         UNI_BT_COD_MAJOR_MASK);
 }
 
 static uint8_t setup_write_simple_pairing_mode(void) {
-    loge("setup_write_simple_pairing_mode\n");
     return hci_send_cmd(&hci_write_simple_pairing_mode, true);
 }
 
 static uint8_t setup_periodic_inquiry_mode(void) {
-    loge("setup_periodic_inquiry_mode\n");
     // FIXME: Duplicate code. Should call start_scan() from uni_bluetooth
     return hci_send_cmd(&hci_periodic_inquiry_mode, /* cmd */
-                        10,                         /* max period length, in 1.28s */
-                        8,                          /* min period length, in 1.28s */
+                        5,                          /* max period length, in 1.28s */
+                        4,                          /* min period length, in 1.28s */
                         GAP_IAC_GENERAL_INQUIRY,    /* LAP */
-                        3,                          /* inquiry length, in 1.28s */
+                        2,                          /* inquiry length, in 1.28s */
                         0                           /* num responses, unlimited */
     );
 }
@@ -108,11 +105,9 @@ static void setup_call_next_fn(void) {
     uint8_t status;
 
     if (!hci_can_send_command_packet_now()) {
-        loge("HCI not ready... cannot  send packet\n");
+        logi("HCI not ready, cannot send packet, will again try later. Current state idx=%d\n", setup_fn_idx);
         return;
     }
-
-    loge("setup_call_next_fn() = %d\n", setup_fn_idx);
 
     // Assume it is safe to call an HCI command
     fn_t fn = setup_fns[setup_fn_idx];
@@ -126,9 +121,11 @@ static void setup_call_next_fn(void) {
     if (setup_fn_idx == ARRAY_SIZE(setup_fns)) {
         setup_state = SETUP_STATE_READY;
 
+        // If finished with the "setup" commands, just finish the setup
+        // by printing some debug version.
         gap_local_bd_addr(event_addr);
         logi("BTstack up and running on %s.\n", bd_addr_to_str(event_addr));
-        list_link_keys();
+        maybe_delete_or_list_link_keys();
 
         uni_get_platform()->on_init_complete();
     }
@@ -184,6 +181,9 @@ int uni_bt_setup(void) {
     gap_discoverable_control(0);
 
     gap_set_page_scan_type(PAGE_SCAN_MODE_INTERLACED);
+    // gap_set_page_timeout(0x2000);
+    // gap_set_page_scan_activity(0x50, 0x12);
+    // gap_inquiry_set_scan_activity(0x50, 0x12);
 
     int security_level = gap_get_security_level();
     logi("Gap security level: %d\n", security_level);
