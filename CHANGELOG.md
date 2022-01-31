@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2022-??-??
+## [3.0.0-rc0] - 2022-01-31
 ### New
 
 - Devices: Support for feature reports.
@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DualShock3: Add partial support for DualShock 3 clones, like PANHAI.
 - 8BitDo Arcade Stick: Add support for it.
   It keeps responding to inquiries even after the device is connected.
+- API to change mappings. Although this feature is not complete yet.
+  Missing save/restore, BLE service. Consider it WIP.
 
 ### Changed
 
@@ -53,6 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bluetooth: Add set_event_filter.
   When doing the inquiry, only devices with a Class Of Device HID are shown.
   This reduces the noise in the console
+- Tested with latest ESP-IDF v4.4 (eb3797dc3ffebd9eaf873a01df63aed89fad58b6)
 
 ### Fixed
 
