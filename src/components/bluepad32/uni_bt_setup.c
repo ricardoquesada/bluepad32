@@ -90,13 +90,9 @@ static uint8_t setup_write_simple_pairing_mode(void) {
 }
 
 static uint8_t setup_periodic_inquiry_mode(void) {
-    // FIXME: Duplicate code. Should call start_scan() from uni_bluetooth
     return hci_send_cmd(&hci_periodic_inquiry_mode, /* cmd */
-                        5,                          /* max period length, in 1.28s */
-                        4,                          /* min period length, in 1.28s */
-                        GAP_IAC_GENERAL_INQUIRY,    /* LAP */
-                        2,                          /* inquiry length, in 1.28s */
-                        0                           /* num responses, unlimited */
+                        UNI_BT_MAX_PERIODIC_LENGTH, UNI_BT_MIN_PERIODIC_LENGTH, GAP_IAC_GENERAL_INQUIRY,
+                        UNI_BT_INQUIRY_LENGTH, 0 /* unlimited */
     );
 }
 

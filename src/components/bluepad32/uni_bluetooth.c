@@ -660,13 +660,8 @@ static uint8_t start_scan(void) {
     gap_start_scan();
 #endif  // UNI_ENABLE_BLE
 
-    status = hci_send_cmd(&hci_periodic_inquiry_mode, /* cmd */
-                          10,                         /* max period length, in 1.28s unit */
-                          8,                          /* min period length, in 1.28s unit */
-                          GAP_IAC_GENERAL_INQUIRY,    /* LAP */
-                          3,                          /* inquiry length, in 1.28s unit */
-                          0                           /* num responses, unlimited */
-    );
+    status = hci_send_cmd(&hci_periodic_inquiry_mode, UNI_BT_MAX_PERIODIC_LENGTH, UNI_BT_MIN_PERIODIC_LENGTH,
+                          GAP_IAC_GENERAL_INQUIRY, UNI_BT_INQUIRY_LENGTH, 0 /* unlimited */);
     if (status)
         loge("Error: cannot start inquiry (0x%02x), please try again\n", status);
     return status;
