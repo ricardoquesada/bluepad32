@@ -57,9 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Bluetooth: add log about Feature Report not being supported ATM.
-- Bluetooth: Incoming connections are more reliable.
-  Scan inquiry is only done for 1.28secs, then a "wait" for 1 second, that
-  allows incoming connections to be received.
+- Bluetooth: Incoming connections are more reliable. Using HCI periodic inquiry mode.
 - Bluetooth: fix when parsing device name. Does not reuse previous discovered device.
 - DualSense: doesn't not disconnect randomly
 - Switch: Don't enable "home light" at setup time.

@@ -18,6 +18,14 @@ limitations under the License.
 
 #include "uni_hci_cmd.h"
 
+// 2: Max period length, in 1.28s unit
+// 2: Min period length, in 1.28s unit
+// 3: LAP
+// 1: Inquiry Length, in 1.28s unit
+// 1: Num responses
+const hci_cmd_t hci_periodic_inquiry_mode = {HCI_OPCODE_HCI_PERIODIC_INQUIRY_MODE, "22311"};
+const hci_cmd_t hci_exit_periodic_inquiry_mode = {HCI_OPCODE_HCI_EXIT_PERIODIC_INQUIRY_MODE, ""};
+
 // 1: Filter type: Connection Setup (0x02)
 // 1: Filter condition type: Allow connection from Class of Devices (0x01)
 // 3: COD

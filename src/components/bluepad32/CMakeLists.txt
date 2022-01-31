@@ -1,6 +1,7 @@
 set(srcs "uni_bluetooth.c"
          "uni_bt_conn.c"
          "uni_bt_sdp.c"
+         "uni_bt_setup.c"
          "uni_circular_buffer.c"
          "uni_esp32.c"
          "uni_gamepad.c"

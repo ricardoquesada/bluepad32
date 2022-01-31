@@ -71,6 +71,7 @@ bluepad32: ${CORE_OBJ} ${COMMON_OBJ} ${CLASSIC_OBJ} ${SDP_CLIENT} btstack_ring_b
 	${BLUEPAD32_ROOT}/uni_bluetooth.o \
 	${BLUEPAD32_ROOT}/uni_bt_conn.o \
 	${BLUEPAD32_ROOT}/uni_bt_sdp.o \
+	${BLUEPAD32_ROOT}/uni_bt_setup.o \
 	${BLUEPAD32_ROOT}/uni_circular_buffer.o \
 	${BLUEPAD32_ROOT}/uni_gamepad.o \
 	${BLUEPAD32_ROOT}/uni_hci_cmd.o \

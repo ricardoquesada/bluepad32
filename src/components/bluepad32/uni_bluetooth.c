@@ -66,6 +66,7 @@
 #include "uni_bt_conn.h"
 #include "uni_bt_defines.h"
 #include "uni_bt_sdp.h"
+#include "uni_bt_setup.h"
 #include "uni_config.h"
 #include "uni_debug.h"
 #include "uni_hci_cmd.h"
@@ -81,24 +82,14 @@
 // Experiment feature. Disabled until it is ready.
 // #define UNI_ENABLE_BLE 1
 
-// Delicate balance between INQUIRY_INTERVAL and INQUIRY_PAUSE
-// If the interval is too short, some devices won't get discovered (e.g: 8BitDo SN30 Pro in dinput/xinput modes)
-// If the interval is too big, some devices won't be able to re-connect (e.g: Wii Remotes)
-#define GAP_INQUIRY_INTERVAL 3          // Measured in in 1.28s units
-#define GAP_INQUIRY_PAUSE_TIME_MS 1800  // Window open for incoming connections
-
-#define L2CAP_CHANNEL_MTU 0xffff  // PS4 requires a 79-byte packet
-
 #define INQUIRY_REMOTE_NAME_TIMEOUT_MS 4500
 _Static_assert(INQUIRY_REMOTE_NAME_TIMEOUT_MS < HID_DEVICE_CONNECTION_TIMEOUT_MS, "Timeout too big");
 
 // globals
 // Used to implement connection timeout and reconnect timer
 static btstack_timer_source_t hog_connection_timer;  // BLE only
-static btstack_timer_source_t gap_inquiry_timer;
 static btstack_context_callback_registration_t enable_bt_callback_registration;
 static btstack_context_callback_registration_t del_keys_callback_registration;
-static btstack_packet_callback_registration_t hci_event_callback_registration;
 #ifdef UNI_ENABLE_BLE
 static btstack_packet_callback_registration_t sm_event_callback_registration;
 static hid_protocol_mode_t protocol_mode = HID_PROTOCOL_MODE_REPORT;
@@ -106,16 +97,11 @@ static hid_protocol_mode_t protocol_mode = HID_PROTOCOL_MODE_REPORT;
 
 static bool accept_incoming_connections = true;
 
-static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
-
 #ifdef UNI_ENABLE_BLE
 static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
 #endif  // UNI_ENABLE_BLE
 static bool adv_event_contains_hid_service(const uint8_t* packet);
 static void hog_connect(bd_addr_t addr, bd_addr_type_t addr_type);
-static void start_scan(void);
-static void stop_scan(void);
-static void list_link_keys(void);
 static void enable_new_connections_callback(void* context);
 static void bluetooth_del_keys_callback(void* context);
 
@@ -130,6 +116,8 @@ static void on_hci_connection_request(uint16_t channel, const uint8_t* packet, u
 static void l2cap_create_control_connection(uni_hid_device_t* d);
 static void l2cap_create_interrupt_connection(uni_hid_device_t* d);
 static void inquiry_remote_name_timeout_callback(btstack_timer_source_t* ts);
+static uint8_t start_scan(void);
+static uint8_t stop_scan(void);
 
 // BLE only
 #ifdef UNI_ENABLE_BLE
@@ -175,256 +163,6 @@ static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint
     }
 }
 #endif  // UNI_ENABLE_BLE
-
-static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
-    static bool bt_ready = false;
-    uint8_t event;
-    bd_addr_t event_addr;
-    uni_hid_device_t* device;
-    uint8_t status;
-    uint16_t handle;
-#ifdef UNI_ENABLE_BLE
-    hci_con_handle_t con_handle;
-    uint16_t hids_cid;
-#endif  // UNI_ENABLE_BLE
-
-    // Ignore all packet events if BT is not ready, with the exception of the "BT is ready" event.
-    if (!bt_ready &&
-        ((packet_type != HCI_EVENT_PACKET) || (hci_event_packet_get_type(packet) != BTSTACK_EVENT_STATE))) {
-        logd("Ignoring packet. BT not ready yet\n");
-        return;
-    }
-
-    switch (packet_type) {
-        case HCI_EVENT_PACKET:
-            event = hci_event_packet_get_type(packet);
-            switch (event) {
-                case BTSTACK_EVENT_STATE:
-                    if (btstack_event_state_get_state(packet) == HCI_STATE_WORKING) {
-                        uni_get_platform()->on_init_complete();
-                        bt_ready = true;
-                        gap_local_bd_addr(event_addr);
-                        logi("BTstack up and running on %s.\n", bd_addr_to_str(event_addr));
-                        list_link_keys();
-
-                        // hci_send_cmd(&hci_write_simple_pairing_mode, true);
-
-                        // Filter out inquiry results before we start the inquiry
-                        hci_send_cmd(&hci_set_event_filter_inquiry_cod, 0x01, 0x01, UNI_BT_COD_MAJOR_PERIPHERAL,
-                                     UNI_BT_COD_MAJOR_MASK);
-
-                        start_scan();
-                    }
-                    break;
-
-                    // HCI EVENTS
-#ifdef UNI_ENABLE_BLE
-                case HCI_EVENT_LE_META:  // BLE only
-                    // wait for connection complete
-                    // XXX: FIXME
-                    if (hci_event_le_meta_get_subevent_code(packet) != HCI_SUBEVENT_LE_CONNECTION_COMPLETE)
-                        break;
-                    btstack_run_loop_remove_timer(&hog_connection_timer);
-                    hci_subevent_le_connection_complete_get_peer_address(packet, event_addr);
-                    device = uni_hid_device_get_instance_for_address(event_addr);
-                    if (!device) {
-                        loge("Device not found for addr: %s\n", bd_addr_to_str(event_addr));
-                        break;
-                    }
-                    con_handle = hci_subevent_le_connection_complete_get_connection_handle(packet);
-                    // // request security
-                    sm_request_pairing(con_handle);
-                    uni_hid_device_set_connection_handle(device, con_handle);
-                    break;
-                case HCI_EVENT_ENCRYPTION_CHANGE:  // BLE only
-                    // XXX, TODO, WARNING: This event is also triggered by Classic,
-                    // and might crash the stack. Real case:
-                    // Connect a Wii , disconnect it, and try re-connection
-                    con_handle = hci_event_encryption_change_get_connection_handle(packet);
-                    device = uni_hid_device_get_instance_for_connection_handle(con_handle);
-                    if (!device) {
-                        loge("Device not found for connection handle: 0x%04x\n", con_handle);
-                        break;
-                    }
-                    logi("Connection encrypted: %u\n", hci_event_encryption_change_get_encryption_enabled(packet));
-                    if (hci_event_encryption_change_get_encryption_enabled(packet) == 0) {
-                        logi("Encryption failed -> abort\n");
-                        gap_disconnect(con_handle);
-                        break;
-                    }
-                    // continue - query primary services
-                    logi("Search for HID service.\n");
-                    status = hids_client_connect(con_handle, handle_gatt_client_event, protocol_mode, &hids_cid);
-                    if (status != ERROR_CODE_SUCCESS) {
-                        logi("HID client connection failed, status 0x%02x\n", status);
-                    }
-                    device->hids_cid = hids_cid;
-                    break;
-#endif  //  UNI_ENABLE_BLE
-                case HCI_EVENT_COMMAND_COMPLETE: {
-                    uint16_t opcode = hci_event_command_complete_get_command_opcode(packet);
-                    const uint8_t* param = hci_event_command_complete_get_return_parameters(packet);
-                    status = param[0];
-                    if (status)
-                        logi("Failed command: HCI_EVENT_COMMAND_COMPLETE: opcode = 0x%04x - status=%d\n", opcode,
-                             status);
-                    break;
-                }
-                case HCI_EVENT_AUTHENTICATION_COMPLETE_EVENT: {
-                    status = hci_event_authentication_complete_get_status(packet);
-                    handle = hci_event_authentication_complete_get_connection_handle(packet);
-                    logi("--> HCI_EVENT_AUTHENTICATION_COMPLETE_EVENT: status=%d, handle=0x%04x\n", status, handle);
-                    break;
-                }
-                case HCI_EVENT_PIN_CODE_REQUEST: {
-                    // gap_pin_code_response_binary does not copy the data, and data
-                    // must be valid until the next hci_send_cmd is called.
-                    static bd_addr_t pin_code;
-                    bd_addr_t local_addr;
-                    logi("--> HCI_EVENT_PIN_CODE_REQUEST\n");
-                    // FIXME: Assumes incoming connection from Nintendo Wii using Sync.
-                    //
-                    // From: https://wiibrew.org/wiki/Wiimote#Bluetooth_Pairing:
-                    //  If connecting by holding down the 1+2 buttons, the PIN is the
-                    //  bluetooth address of the wiimote backwards, if connecting by
-                    //  pressing the "sync" button on the back of the wiimote, then the
-                    //  PIN is the bluetooth address of the host backwards.
-                    hci_event_pin_code_request_get_bd_addr(packet, event_addr);
-                    gap_local_bd_addr(local_addr);
-                    reverse_bd_addr(local_addr, pin_code);
-                    logi("Using PIN code: \n");
-                    printf_hexdump(pin_code, sizeof(pin_code));
-                    gap_pin_code_response_binary(event_addr, pin_code, sizeof(pin_code));
-                    break;
-                }
-                case HCI_EVENT_USER_CONFIRMATION_REQUEST:
-                    // inform about user confirmation request
-                    logi("SSP User Confirmation Request with numeric value '%" PRIu32 "'\n",
-                         little_endian_read_32(packet, 8));
-                    logi("SSP User Confirmation Auto accept\n");
-                    break;
-                case HCI_EVENT_HID_META: {
-                    logi("UNSUPPORTED ---> HCI_EVENT_HID_META <---\n");
-                    uint8_t code = hci_event_hid_meta_get_subevent_code(packet);
-                    logi("HCI HID META SUBEVENT: 0x%02x\n", code);
-                    break;
-                }
-                case HCI_EVENT_INQUIRY_RESULT:
-                    // logi("--> HCI_EVENT_INQUIRY_RESULT <--\n");
-                    break;
-                case HCI_EVENT_CONNECTION_REQUEST:
-                    logi("--> HCI_EVENT_CONNECTION_REQUEST: link_type = %d <--\n",
-                         hci_event_connection_request_get_link_type(packet));
-                    on_hci_connection_request(channel, packet, size);
-                    break;
-                case HCI_EVENT_CONNECTION_COMPLETE:
-                    logi("--> HCI_EVENT_CONNECTION_COMPLETE\n");
-                    on_hci_connection_complete(channel, packet, size);
-                    break;
-                case HCI_EVENT_DISCONNECTION_COMPLETE:
-                    logi("--> HCI_EVENT_DISCONNECTION_COMPLETE\n");
-                    handle = hci_event_disconnection_complete_get_connection_handle(packet);
-                    // Xbox Wireless Controller starts an incoming connection when told to
-                    // enter in "discovery mode". If the connection fails (HCI_EVENT_DISCONNECTION_COMPLETE
-                    // is generated) then it starts the discovery.
-                    // So, just delete the possible-previous created entry. This highly increase
-                    // the reliability with Xbox Wireless controllers.
-                    device = uni_hid_device_get_instance_for_connection_handle(handle);
-                    if (device) {
-                        logi("Device %s disconnected, deleting it\n", bd_addr_to_str(device->conn.remote_addr));
-                        uni_hid_device_delete(device);
-                    }
-                    break;
-                case HCI_EVENT_LINK_KEY_REQUEST:
-                    logi("--> HCI_EVENT_LINK_KEY_REQUEST:\n");
-                    break;
-                case HCI_EVENT_ROLE_CHANGE:
-                    logi("--> HCI_EVENT_ROLE_CHANGE\n");
-                    break;
-                case HCI_EVENT_SYNCHRONOUS_CONNECTION_COMPLETE:
-                    logi("--> HCI_EVENT_SYNCHRONOUS_CONNECTION_COMPLETE\n");
-                    break;
-                case HCI_EVENT_INQUIRY_RESULT_WITH_RSSI:
-                    // logi("--> HCI_EVENT_INQUIRY_RESULT_WITH_RSSI <--\n");
-                    break;
-                case HCI_EVENT_EXTENDED_INQUIRY_RESPONSE:
-                    // logi("--> HCI_EVENT_EXTENDED_INQUIRY_RESPONSE <--\n");
-                    break;
-                case HCI_EVENT_REMOTE_NAME_REQUEST_COMPLETE:
-                    logi("--> HCI_EVENT_REMOTE_NAME_REQUEST_COMPLETE\n");
-                    hci_event_remote_name_request_complete_get_bd_addr(packet, event_addr);
-                    device = uni_hid_device_get_instance_for_address(event_addr);
-                    if (device != NULL) {
-                        // FIXME: This must be a const char*
-                        char* name = NULL;
-                        status = hci_event_remote_name_request_complete_get_status(packet);
-                        if (status) {
-                            // Failed to get the name, just fake one
-                            logi("Failed to fetch name for %s, error = 0x%02x\n", bd_addr_to_str(event_addr), status);
-                            name = "Controller without name";
-                        } else {
-                            name = (char*)hci_event_remote_name_request_complete_get_remote_name(packet);
-                        }
-                        logi("Name: '%s'\n", name);
-                        uni_hid_device_set_name(device, name);
-                        uni_bt_conn_set_state(&device->conn, UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED);
-                        // Remove timer
-                        btstack_run_loop_remove_timer(&device->inquiry_remote_name_timer);
-
-                        uni_bluetooth_process_fsm(device);
-                    }
-                    break;
-                // L2CAP EVENTS
-                case L2CAP_EVENT_CAN_SEND_NOW:
-                    logd("--> L2CAP_EVENT_CAN_SEND_NOW\n");
-                    uint16_t local_cid = l2cap_event_can_send_now_get_local_cid(packet);
-                    device = uni_hid_device_get_instance_for_cid(local_cid);
-                    if (device == NULL) {
-                        loge("--->>> CANNOT FIND DEVICE");
-                    } else {
-                        uni_hid_device_send_queued_reports(device);
-                    }
-                    break;
-                case L2CAP_EVENT_INCOMING_CONNECTION:
-                    logi("--> L2CAP_EVENT_INCOMING_CONNECTION\n");
-                    on_l2cap_incoming_connection(channel, packet, size);
-                    break;
-                case L2CAP_EVENT_CHANNEL_OPENED:
-                    on_l2cap_channel_opened(channel, packet, size);
-                    break;
-                case L2CAP_EVENT_CHANNEL_CLOSED:
-                    on_l2cap_channel_closed(channel, packet, size);
-                    break;
-
-                // GAP EVENTS
-                case GAP_EVENT_INQUIRY_RESULT:
-                    // logi("--> GAP_EVENT_INQUIRY_RESULT\n");
-                    on_gap_inquiry_result(channel, packet, size);
-                    break;
-                case GAP_EVENT_INQUIRY_COMPLETE:
-                    logd("--> GAP_EVENT_INQUIRY_COMPLETE\n");
-
-                    // Pause for 1 second before doing the scan again.
-                    // Might be a bug on BTstack, but when the scan is on, it prevents
-                    // incoming connections.
-                    btstack_run_loop_set_timer(&gap_inquiry_timer, GAP_INQUIRY_PAUSE_TIME_MS);
-                    btstack_run_loop_add_timer(&gap_inquiry_timer);
-                    break;
-                case GAP_EVENT_ADVERTISING_REPORT:  // BLE only
-                    on_gap_event_advertising_report(channel, packet, size);
-                    break;
-                default:
-                    break;
-            }
-            break;
-        case L2CAP_DATA_PACKET:
-            on_l2cap_data_packet(channel, packet, size);
-            break;
-        default:
-            loge("unhandled packet type: 0x%02x\n", packet_type);
-            break;
-    }
-}
 
 /* HCI packet handler
  *
@@ -846,66 +584,10 @@ static bool adv_event_contains_hid_service(const uint8_t* packet) {
     return ad_data_contains_uuid16(ad_len, ad_data, ORG_BLUETOOTH_SERVICE_HUMAN_INTERFACE_DEVICE);
 }
 
-static void gap_inquiry_pause_timeout(btstack_timer_source_t* ts) {
-    UNUSED(ts);
-    // Continue with the scanning after pausing.
-    uni_hid_device_request_inquire();
-    start_scan();
-}
-
-static void start_scan(void) {
-    logd("--> Scanning for new gamepads...\n");
-    // Passive scanning, 100% (scan interval = scan window)
-    // Start GAP BLE scan
-#ifdef UNI_ENABLE_BLE
-    gap_set_scan_parameters(0 /* type */, 48 /* interval */, 48 /* window */);
-    gap_start_scan();
-#endif  // UNI_ENABLE_BLE
-
-    // Start GAP Classic inquiry
-    if (gap_inquiry_start(GAP_INQUIRY_INTERVAL) != 0)
-        loge("start_scan: failed to do gap_inquiry_start()\n");
-}
-
-static void stop_scan() {
-    logi("--> Stop scanning for new gamepads\n");
-#ifdef UNI_ENABLE_BLE
-    gap_stop_scan();
-#endif  // UNI_ENABLE_BLE
-    gap_inquiry_stop();
-}
-
-static void list_link_keys(void) {
-    bd_addr_t addr;
-    link_key_t link_key;
-    link_key_type_t type;
-    btstack_link_key_iterator_t it;
-
-    int ok = gap_link_key_iterator_init(&it);
-    if (!ok) {
-        loge("Link key iterator not implemented\n");
-        return;
-    }
-    int32_t delete_keys = uni_get_platform()->get_property(UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS);
-    if (delete_keys == 1)
-        logi("Deleting stored link keys:\n");
-    else
-        logi("Stored link keys:\n");
-
-    while (gap_link_key_iterator_get_next(&it, addr, link_key, &type)) {
-        logi("%s - type %u, key: ", bd_addr_to_str(addr), (int)type);
-        printf_hexdump(link_key, 16);
-        if (delete_keys) {
-            gap_drop_link_key_for_bd_addr(addr);
-        }
-    }
-    logi(".\n");
-    gap_link_key_iterator_done(&it);
-}
-
 static void l2cap_create_control_connection(uni_hid_device_t* d) {
-    uint8_t status = l2cap_create_channel(packet_handler, d->conn.remote_addr, BLUETOOTH_PSM_HID_CONTROL,
-                                          L2CAP_CHANNEL_MTU, &d->conn.control_cid);
+    uint8_t status;
+    status = l2cap_create_channel(uni_bluetooth_packet_handler, d->conn.remote_addr, BLUETOOTH_PSM_HID_CONTROL,
+                                  UNI_BT_L2CAP_CHANNEL_MTU, &d->conn.control_cid);
     if (status) {
         loge("\nConnecting or Auth to HID Control failed: 0x%02x", status);
     } else {
@@ -914,8 +596,9 @@ static void l2cap_create_control_connection(uni_hid_device_t* d) {
 }
 
 static void l2cap_create_interrupt_connection(uni_hid_device_t* d) {
-    uint8_t status = l2cap_create_channel(packet_handler, d->conn.remote_addr, BLUETOOTH_PSM_HID_INTERRUPT,
-                                          L2CAP_CHANNEL_MTU, &d->conn.interrupt_cid);
+    uint8_t status;
+    status = l2cap_create_channel(uni_bluetooth_packet_handler, d->conn.remote_addr, BLUETOOTH_PSM_HID_INTERRUPT,
+                                  UNI_BT_L2CAP_CHANNEL_MTU, &d->conn.interrupt_cid);
     if (status) {
         loge("\nConnecting or Auth to HID Interrupt failed: 0x%02x", status);
     } else {
@@ -930,65 +613,6 @@ static void inquiry_remote_name_timeout_callback(btstack_timer_source_t* ts) {
     uni_hid_device_set_name(d, "Controller without name");
     uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED);
     uni_bluetooth_process_fsm(d);
-}
-
-//
-// Public functions
-//
-int uni_bluetooth_init(void) {
-    // Initialize L2CAP
-    l2cap_init();
-
-    // It seems that with gap_security_level(0) all gamepads work except Nintendo Switch Pro controller.
-#ifndef CONFIG_BLUEPAD32_GAP_SECURITY
-    gap_set_security_level(0);
-#else
-    gap_set_required_encryption_key_size(7);
-#endif
-    gap_connectable_control(1);
-    // Enable discoverability once we our "BP32 BLE service"
-    gap_discoverable_control(0);
-
-    int security_level = gap_get_security_level();
-    logi("Gap security level: %d\n", security_level);
-
-    l2cap_register_service(packet_handler, BLUETOOTH_PSM_HID_INTERRUPT, L2CAP_CHANNEL_MTU, security_level);
-    l2cap_register_service(packet_handler, BLUETOOTH_PSM_HID_CONTROL, L2CAP_CHANNEL_MTU, security_level);
-
-    // register for HCI events
-    hci_event_callback_registration.callback = &packet_handler;
-    hci_add_event_handler(&hci_event_callback_registration);
-
-    // Enable EIR for gap_inquiry
-    hci_set_inquiry_mode(INQUIRY_MODE_RSSI_AND_EIR);
-
-    // Allow sniff mode requests by HID device and support role switch
-    gap_set_default_link_policy_settings(LM_LINK_POLICY_ENABLE_SNIFF_MODE | LM_LINK_POLICY_ENABLE_ROLE_SWITCH);
-
-    // btstack_stdin_setup(stdin_process);
-    hci_set_master_slave_policy(HCI_ROLE_MASTER);
-
-#ifdef UNI_ENABLE_BLE
-    // register for events from Security Manager
-    sm_event_callback_registration.callback = &sm_packet_handler;
-    sm_add_event_handler(&sm_event_callback_registration);
-
-    // setup LE device db
-    le_device_db_init();
-    sm_init();
-    gatt_client_init();
-#endif  // UNI_ENABLE_BLE
-
-    // Disable stdout buffering
-    setbuf(stdout, NULL);
-
-    // Timer init
-    btstack_run_loop_set_timer_handler(&gap_inquiry_timer, &gap_inquiry_pause_timeout);
-
-    // Turn on the device
-    hci_power_control(HCI_POWER_ON);
-
-    return 0;
 }
 
 // Deletes Bluetooth stored keys
@@ -1013,11 +637,6 @@ static void bluetooth_del_keys_callback(void* context) {
     gap_link_key_iterator_done(&it);
 }
 
-void uni_bluetooth_del_keys_safe(void) {
-    del_keys_callback_registration.callback = &bluetooth_del_keys_callback;
-    btstack_run_loop_execute_on_main_thread(&del_keys_callback_registration);
-}
-
 static void enable_new_connections_callback(void* context) {
     bool enabled = (bool)context;
     if (accept_incoming_connections == enabled)
@@ -1031,12 +650,283 @@ static void enable_new_connections_callback(void* context) {
         stop_scan();
 }
 
+static uint8_t start_scan(void) {
+    uint8_t status;
+    logd("--> Scanning for new gamepads...\n");
+    // Passive scanning, 100% (scan interval = scan window)
+    // Start GAP BLE scan
+#ifdef UNI_ENABLE_BLE
+    gap_set_scan_parameters(0 /* type */, 48 /* interval */, 48 /* window */);
+    gap_start_scan();
+#endif  // UNI_ENABLE_BLE
+
+    status = hci_send_cmd(&hci_periodic_inquiry_mode, /* cmd */
+                          10,                         /* max period length, in 1.28s unit */
+                          8,                          /* min period length, in 1.28s unit */
+                          GAP_IAC_GENERAL_INQUIRY,    /* LAP */
+                          3,                          /* inquiry length, in 1.28s unit */
+                          0                           /* num responses, unlimited */
+    );
+    if (status)
+        loge("Error: cannot start inquiry (0x%02x), please try again\n", status);
+    return status;
+}
+
+static uint8_t stop_scan(void) {
+    uint8_t status;
+    logi("--> Stop scanning for new gamepads\n");
+#ifdef UNI_ENABLE_BLE
+    gap_stop_scan();
+#endif  // UNI_ENABLE_BLE
+
+    status = hci_send_cmd(&hci_exit_periodic_inquiry_mode);
+    if (status)
+        loge("Error: cannot stop inquiry (0x%02x), please try again\n", status);
+    return status;
+}
+
+//
+// Public functions
+//
+
+void uni_bluetooth_del_keys_safe(void) {
+    del_keys_callback_registration.callback = &bluetooth_del_keys_callback;
+    btstack_run_loop_execute_on_main_thread(&del_keys_callback_registration);
+}
+
 void uni_bluetooth_enable_new_connections_safe(bool enabled) {
     if (enabled == accept_incoming_connections)
         return;
     enable_bt_callback_registration.callback = &enable_new_connections_callback;
     enable_bt_callback_registration.context = (void*)(uintptr_t)enabled;
     btstack_run_loop_execute_on_main_thread(&enable_bt_callback_registration);
+}
+
+void uni_bluetooth_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
+    uint8_t event;
+    bd_addr_t event_addr;
+    uni_hid_device_t* device;
+    uint8_t status;
+    uint16_t handle;
+#ifdef UNI_ENABLE_BLE
+    hci_con_handle_t con_handle;
+    uint16_t hids_cid;
+#endif  // UNI_ENABLE_BLE
+
+    if (!uni_bt_setup_is_ready()) {
+        uni_bt_setup_packet_handler(packet_type, channel, packet, size);
+        return;
+    }
+
+    switch (packet_type) {
+        case HCI_EVENT_PACKET:
+            event = hci_event_packet_get_type(packet);
+            switch (event) {
+                // HCI EVENTS
+#ifdef UNI_ENABLE_BLE
+                case HCI_EVENT_LE_META:  // BLE only
+                    // wait for connection complete
+                    // XXX: FIXME
+                    if (hci_event_le_meta_get_subevent_code(packet) != HCI_SUBEVENT_LE_CONNECTION_COMPLETE)
+                        break;
+                    btstack_run_loop_remove_timer(&hog_connection_timer);
+                    hci_subevent_le_connection_complete_get_peer_address(packet, event_addr);
+                    device = uni_hid_device_get_instance_for_address(event_addr);
+                    if (!device) {
+                        loge("Device not found for addr: %s\n", bd_addr_to_str(event_addr));
+                        break;
+                    }
+                    con_handle = hci_subevent_le_connection_complete_get_connection_handle(packet);
+                    // // request security
+                    sm_request_pairing(con_handle);
+                    uni_hid_device_set_connection_handle(device, con_handle);
+                    break;
+                case HCI_EVENT_ENCRYPTION_CHANGE:  // BLE only
+                    // XXX, TODO, WARNING: This event is also triggered by Classic,
+                    // and might crash the stack. Real case:
+                    // Connect a Wii , disconnect it, and try re-connection
+                    con_handle = hci_event_encryption_change_get_connection_handle(packet);
+                    device = uni_hid_device_get_instance_for_connection_handle(con_handle);
+                    if (!device) {
+                        loge("Device not found for connection handle: 0x%04x\n", con_handle);
+                        break;
+                    }
+                    logi("Connection encrypted: %u\n", hci_event_encryption_change_get_encryption_enabled(packet));
+                    if (hci_event_encryption_change_get_encryption_enabled(packet) == 0) {
+                        logi("Encryption failed -> abort\n");
+                        gap_disconnect(con_handle);
+                        break;
+                    }
+                    // continue - query primary services
+                    logi("Search for HID service.\n");
+                    status = hids_client_connect(con_handle, handle_gatt_client_event, protocol_mode, &hids_cid);
+                    if (status != ERROR_CODE_SUCCESS) {
+                        logi("HID client connection failed, status 0x%02x\n", status);
+                    }
+                    device->hids_cid = hids_cid;
+                    break;
+#endif  //  UNI_ENABLE_BLE
+                case HCI_EVENT_COMMAND_COMPLETE: {
+                    uint16_t opcode = hci_event_command_complete_get_command_opcode(packet);
+                    const uint8_t* param = hci_event_command_complete_get_return_parameters(packet);
+                    status = param[0];
+                    if (status)
+                        logi("Failed command: HCI_EVENT_COMMAND_COMPLETE: opcode = 0x%04x - status=%d\n", opcode,
+                             status);
+                    break;
+                }
+                case HCI_EVENT_AUTHENTICATION_COMPLETE_EVENT: {
+                    status = hci_event_authentication_complete_get_status(packet);
+                    handle = hci_event_authentication_complete_get_connection_handle(packet);
+                    logi("--> HCI_EVENT_AUTHENTICATION_COMPLETE_EVENT: status=%d, handle=0x%04x\n", status, handle);
+                    break;
+                }
+                case HCI_EVENT_PIN_CODE_REQUEST: {
+                    // gap_pin_code_response_binary does not copy the data, and data
+                    // must be valid until the next hci_send_cmd is called.
+                    static bd_addr_t pin_code;
+                    bd_addr_t local_addr;
+                    logi("--> HCI_EVENT_PIN_CODE_REQUEST\n");
+                    // FIXME: Assumes incoming connection from Nintendo Wii using Sync.
+                    //
+                    // From: https://wiibrew.org/wiki/Wiimote#Bluetooth_Pairing:
+                    //  If connecting by holding down the 1+2 buttons, the PIN is the
+                    //  bluetooth address of the wiimote backwards, if connecting by
+                    //  pressing the "sync" button on the back of the wiimote, then the
+                    //  PIN is the bluetooth address of the host backwards.
+                    hci_event_pin_code_request_get_bd_addr(packet, event_addr);
+                    gap_local_bd_addr(local_addr);
+                    reverse_bd_addr(local_addr, pin_code);
+                    logi("Using PIN code: \n");
+                    printf_hexdump(pin_code, sizeof(pin_code));
+                    gap_pin_code_response_binary(event_addr, pin_code, sizeof(pin_code));
+                    break;
+                }
+                case HCI_EVENT_USER_CONFIRMATION_REQUEST:
+                    // inform about user confirmation request
+                    logi("SSP User Confirmation Request with numeric value '%" PRIu32 "'\n",
+                         little_endian_read_32(packet, 8));
+                    logi("SSP User Confirmation Auto accept\n");
+                    break;
+                case HCI_EVENT_HID_META: {
+                    logi("UNSUPPORTED ---> HCI_EVENT_HID_META <---\n");
+                    uint8_t code = hci_event_hid_meta_get_subevent_code(packet);
+                    logi("HCI HID META SUBEVENT: 0x%02x\n", code);
+                    break;
+                }
+                case HCI_EVENT_INQUIRY_RESULT:
+                    // logi("--> HCI_EVENT_INQUIRY_RESULT <--\n");
+                    break;
+                case HCI_EVENT_CONNECTION_REQUEST:
+                    logi("--> HCI_EVENT_CONNECTION_REQUEST: link_type = %d <--\n",
+                         hci_event_connection_request_get_link_type(packet));
+                    on_hci_connection_request(channel, packet, size);
+                    break;
+                case HCI_EVENT_CONNECTION_COMPLETE:
+                    logi("--> HCI_EVENT_CONNECTION_COMPLETE\n");
+                    on_hci_connection_complete(channel, packet, size);
+                    break;
+                case HCI_EVENT_DISCONNECTION_COMPLETE:
+                    logi("--> HCI_EVENT_DISCONNECTION_COMPLETE\n");
+                    handle = hci_event_disconnection_complete_get_connection_handle(packet);
+                    // Xbox Wireless Controller starts an incoming connection when told to
+                    // enter in "discovery mode". If the connection fails (HCI_EVENT_DISCONNECTION_COMPLETE
+                    // is generated) then it starts the discovery.
+                    // So, just delete the possible-previous created entry. This highly increase
+                    // the reliability with Xbox Wireless controllers.
+                    device = uni_hid_device_get_instance_for_connection_handle(handle);
+                    if (device) {
+                        logi("Device %s disconnected, deleting it\n", bd_addr_to_str(device->conn.remote_addr));
+                        uni_hid_device_delete(device);
+                    }
+                    break;
+                case HCI_EVENT_LINK_KEY_REQUEST:
+                    logi("--> HCI_EVENT_LINK_KEY_REQUEST:\n");
+                    break;
+                case HCI_EVENT_ROLE_CHANGE:
+                    logi("--> HCI_EVENT_ROLE_CHANGE\n");
+                    break;
+                case HCI_EVENT_SYNCHRONOUS_CONNECTION_COMPLETE:
+                    logi("--> HCI_EVENT_SYNCHRONOUS_CONNECTION_COMPLETE\n");
+                    break;
+                case HCI_EVENT_INQUIRY_RESULT_WITH_RSSI:
+                    // logi("--> HCI_EVENT_INQUIRY_RESULT_WITH_RSSI <--\n");
+                    break;
+                case HCI_EVENT_EXTENDED_INQUIRY_RESPONSE:
+                    // logi("--> HCI_EVENT_EXTENDED_INQUIRY_RESPONSE <--\n");
+                    break;
+                case HCI_EVENT_REMOTE_NAME_REQUEST_COMPLETE:
+                    logi("--> HCI_EVENT_REMOTE_NAME_REQUEST_COMPLETE\n");
+                    hci_event_remote_name_request_complete_get_bd_addr(packet, event_addr);
+                    device = uni_hid_device_get_instance_for_address(event_addr);
+                    if (device != NULL) {
+                        // FIXME: This must be a const char*
+                        char* name = NULL;
+                        status = hci_event_remote_name_request_complete_get_status(packet);
+                        if (status) {
+                            // Failed to get the name, just fake one
+                            logi("Failed to fetch name for %s, error = 0x%02x\n", bd_addr_to_str(event_addr), status);
+                            name = "Controller without name";
+                        } else {
+                            name = (char*)hci_event_remote_name_request_complete_get_remote_name(packet);
+                        }
+                        logi("Name: '%s'\n", name);
+                        uni_hid_device_set_name(device, name);
+                        uni_bt_conn_set_state(&device->conn, UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED);
+                        // Remove timer
+                        btstack_run_loop_remove_timer(&device->inquiry_remote_name_timer);
+
+                        uni_bluetooth_process_fsm(device);
+                    }
+                    break;
+                // L2CAP EVENTS
+                case L2CAP_EVENT_CAN_SEND_NOW:
+                    logd("--> L2CAP_EVENT_CAN_SEND_NOW\n");
+                    uint16_t local_cid = l2cap_event_can_send_now_get_local_cid(packet);
+                    device = uni_hid_device_get_instance_for_cid(local_cid);
+                    if (device == NULL) {
+                        loge("--->>> CANNOT FIND DEVICE");
+                    } else {
+                        uni_hid_device_send_queued_reports(device);
+                    }
+                    break;
+                case L2CAP_EVENT_INCOMING_CONNECTION:
+                    logi("--> L2CAP_EVENT_INCOMING_CONNECTION\n");
+                    on_l2cap_incoming_connection(channel, packet, size);
+                    break;
+                case L2CAP_EVENT_CHANNEL_OPENED:
+                    on_l2cap_channel_opened(channel, packet, size);
+                    break;
+                case L2CAP_EVENT_CHANNEL_CLOSED:
+                    on_l2cap_channel_closed(channel, packet, size);
+                    break;
+
+                // GAP EVENTS
+                case GAP_EVENT_INQUIRY_RESULT:
+                    // logi("--> GAP_EVENT_INQUIRY_RESULT\n");
+                    on_gap_inquiry_result(channel, packet, size);
+                    break;
+                case GAP_EVENT_INQUIRY_COMPLETE:
+                    logd("--> GAP_EVENT_INQUIRY_COMPLETE\n");
+                    logi("Unexpected, GAP inquiry completed. Running it again\n");
+                    // Should not happen since we put a "periodic inquiry"
+                    // but just in case it finishes, let's run it again
+                    start_scan();
+                    break;
+                case GAP_EVENT_ADVERTISING_REPORT:  // BLE only
+                    on_gap_event_advertising_report(channel, packet, size);
+                    break;
+                default:
+                    break;
+            }
+            break;
+        case L2CAP_DATA_PACKET:
+            on_l2cap_data_packet(channel, packet, size);
+            break;
+        default:
+            loge("unhandled packet type: 0x%02x\n", packet_type);
+            break;
+    }
 }
 
 void uni_bluetooth_process_fsm(uni_hid_device_t* d) {

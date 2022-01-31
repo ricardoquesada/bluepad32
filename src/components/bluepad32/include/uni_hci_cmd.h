@@ -19,13 +19,22 @@ limitations under the License.
 #ifndef UNI_HID_HCI_CMD_H
 #define UNI_HID_HCI_CMD_H
 
+#include <stdint.h>
+
 #include <hci_cmd.h>
 
 enum {
+    HCI_OPCODE_HCI_PERIODIC_INQUIRY_MODE = HCI_OPCODE(OGF_LINK_CONTROL, 0x03),
+    HCI_OPCODE_HCI_EXIT_PERIODIC_INQUIRY_MODE = HCI_OPCODE(OGF_LINK_CONTROL, 0x04),
+
     HCI_OPCODE_HCI_SET_EVENT_FILTER = HCI_OPCODE(OGF_CONTROLLER_BASEBAND, 0x05),
 };
 
-// Filters by Class of Device
+// Link Control
+extern const hci_cmd_t hci_periodic_inquiry_mode;
+extern const hci_cmd_t hci_exit_periodic_inquiry_mode;
+
+// Controller Baseband
 extern const hci_cmd_t hci_set_event_filter_connection_cod;
 extern const hci_cmd_t hci_set_event_filter_inquiry_cod;
 

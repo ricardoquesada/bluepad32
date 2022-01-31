@@ -18,7 +18,7 @@ limitations under the License.
 
 #include "uni_main.h"
 
-#include "uni_bluetooth.h"
+#include "uni_bt_setup.h"
 #include "uni_config.h"
 #include "uni_debug.h"
 #include "uni_hid_device.h"
@@ -37,7 +37,7 @@ int uni_main(int argc, const char** argv) {
     uni_hid_device_init();
 
     // Continue with bluetooth setup.
-    uni_bluetooth_init();
+    uni_bt_setup();
 
     // Does not return.
     btstack_run_loop_execute();
