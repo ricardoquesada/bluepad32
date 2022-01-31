@@ -21,6 +21,7 @@ limitations under the License.
 #include <btstack.h>
 #include <inttypes.h>
 
+#include "sdkconfig.h"
 #include "uni_bluetooth.h"
 #include "uni_bt_defines.h"
 #include "uni_common.h"

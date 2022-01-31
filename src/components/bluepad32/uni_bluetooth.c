@@ -273,7 +273,13 @@ static void on_hci_connection_complete(uint16_t channel, const uint8_t* packet, 
     if (is_keyboard) {
         // gap_request_security_level(handle, LEVEL_1);
     }
-    // gap_request_security_level(handle, LEVEL_2);
+#ifndef CONFIG_BLUEPAD32_GAP_SECURITY
+    // Seems to help on certain devices when using GAP Security level 0.
+    // For exmaple, Dualshock 3 and Nintendo Switch works when the l2cap security level is 0,
+    // and then I request it here to be 2.
+    // But this is not perfect solution, since other gamepads requires that L2CAP be at Level 2.
+    gap_request_security_level(handle, LEVEL_2);
+#endif
 }
 
 static void on_gap_inquiry_result(uint16_t channel, const uint8_t* packet, uint16_t size) {
