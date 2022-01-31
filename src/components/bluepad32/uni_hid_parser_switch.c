@@ -42,8 +42,11 @@ limitations under the License.
 
 // Support for Nintendo Switch Pro gamepad and JoyCons.
 
-static const uint16_t SWITCH_PRO_CONTROLLER_VID = 0x057e;  // Nintendo
-static const uint16_t SWITCH_PRO_CONTROLLER_PID = 0x2009;  // Switch Pro Controller
+static const uint16_t NINTENDO_VID = 0x057e;
+static const uint16_t SWITCH_JOYCON_L_PID = 0x2006;
+static const uint16_t SWITCH_JOYCON_R_PID = 0x2007;
+static const uint16_t SWITCH_PRO_CONTROLLER_PID = 0x2009;
+
 #define SWITCH_FACTORY_CAL_DATA_SIZE 18
 static const uint16_t SWITCH_FACTORY_CAL_DATA_ADDR = 0x603d;
 #define SWITCH_USER_CAL_DATA_SIZE 22
@@ -949,13 +952,28 @@ void uni_hid_parser_switch_set_rumble(struct uni_hid_device_s* d, uint8_t value,
 }
 
 bool uni_hid_parser_switch_does_name_match(struct uni_hid_device_s* d, const char* name) {
-    if (strcmp("Pro Controller", name) != 0)
-        return false;
+    struct device_s {
+        char* name;
+        int vid;
+        int pid;
+    };
 
-    // Fake VID/PID
-    uni_hid_device_set_vendor_id(d, SWITCH_PRO_CONTROLLER_VID);
-    uni_hid_device_set_product_id(d, SWITCH_PRO_CONTROLLER_PID);
-    return true;
+    struct device_s devices[] = {
+        // Clones might not respond to SDP queries. Support them by name.
+        {"Pro Controller", NINTENDO_VID, SWITCH_PRO_CONTROLLER_PID},
+        {"Joy-Con (L)", NINTENDO_VID, SWITCH_JOYCON_L_PID},
+        {"Joy-Con (R)", NINTENDO_VID, SWITCH_JOYCON_R_PID},
+    };
+
+    for (long unsigned i = 0; i < ARRAY_SIZE(devices); i++) {
+        if (strcmp(devices[i].name, name) == 0) {
+            // Fake VID/PID
+            uni_hid_device_set_vendor_id(d, devices[i].vid);
+            uni_hid_device_set_product_id(d, devices[i].pid);
+            return true;
+        }
+    }
+    return false;
 }
 
 //

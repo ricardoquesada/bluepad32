@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Devices: Support for feature reports.
 - DualSense / DualShock 4: add support for get firmware version and calibration values.
   Although calibration is ignored ATM.
+- Switch JoyCon clones: Added support for clones (at least some of them).
 - DualShock3: Add partial support for DualShock 3 clones, like PANHAI.
 - 8BitDo Arcade Stick: Add support for it.
   It keeps responding to inquiries even after the device is connected.
