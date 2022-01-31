@@ -78,7 +78,9 @@ See: [Supported gamepads][gamepads]
 
    ```sh
    cd ${BLUEPAD32}/external/btstack/port/esp32
-   ./integrate_btstack.py
+   # This will install BTstack as a component inside Bluepad32 source code (recommended).
+   # Remove "IDF_PATH=../../../../src" if you want it installed in the ESP-IDF folder
+   IDF_PATH=../../../../src ./integrate_btstack.py
    ```
 
 4. Compile Bluepad32

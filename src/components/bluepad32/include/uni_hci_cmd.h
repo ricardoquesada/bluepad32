@@ -1,7 +1,7 @@
 /****************************************************************************
 http://retro.moe/unijoysticle2
 
-Copyright 2019 Ricardo Quesada
+Copyright 2022 Ricardo Quesada
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,20 +16,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
-#ifndef UNI_HID_PARSER_DS3_H
-#define UNI_HID_PARSER_DS3_H
+#ifndef UNI_HID_HCI_CMD_H
+#define UNI_HID_HCI_CMD_H
 
-#include <stdbool.h>
 #include <stdint.h>
 
-#include "uni_hid_parser.h"
+#include <hci_cmd.h>
 
-// For DUALSHOCK 3 gamepads
-void uni_hid_parser_ds3_setup(struct uni_hid_device_s* d);
-void uni_hid_parser_ds3_init_report(struct uni_hid_device_s* d);
-void uni_hid_parser_ds3_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len);
-void uni_hid_parser_ds3_set_player_leds(struct uni_hid_device_s* d, uint8_t leds);
-void uni_hid_parser_ds3_set_rumble(struct uni_hid_device_s* d, uint8_t value, uint8_t duration);
-bool uni_hid_parser_ds3_does_name_match(struct uni_hid_device_s* d, const char* name);
+enum {
+    HCI_OPCODE_HCI_PERIODIC_INQUIRY_MODE = HCI_OPCODE(OGF_LINK_CONTROL, 0x03),
+    HCI_OPCODE_HCI_EXIT_PERIODIC_INQUIRY_MODE = HCI_OPCODE(OGF_LINK_CONTROL, 0x04),
 
-#endif  // UNI_HID_PARSER_DS3_H
+    HCI_OPCODE_HCI_SET_EVENT_FILTER = HCI_OPCODE(OGF_CONTROLLER_BASEBAND, 0x05),
+};
+
+// Link Control
+extern const hci_cmd_t hci_periodic_inquiry_mode;
+extern const hci_cmd_t hci_exit_periodic_inquiry_mode;
+
+// Controller Baseband
+extern const hci_cmd_t hci_set_event_filter_connection_cod;
+extern const hci_cmd_t hci_set_event_filter_inquiry_cod;
+
+#endif /* UNI_HID_HCI_CMD_H */

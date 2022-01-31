@@ -913,6 +913,8 @@ static void wii_fsm_assign_device(uni_hid_device_t* d) {
             uni_hid_device_send_intr_report(d, reportKee, sizeof(reportKee));
             break;
         }
+        default:
+            loge("Wii: wii_fsm_assign_device() unexpected device type: %d\n", ins->dev_type);
     }
     ins->state = WII_FSM_DEV_ASSIGNED;
     wii_process_fsm(d);
@@ -924,6 +926,8 @@ static void wii_fsm_update_led(uni_hid_device_t* d) {
     set_led(d, ins->gamepad_seat);
     ins->state = WII_FSM_LED_UPDATED;
     wii_process_fsm(d);
+
+    uni_hid_device_set_ready_complete(d);
 }
 
 static void wii_fsm_dump_eeprom(struct uni_hid_device_s* d) {
@@ -984,6 +988,8 @@ static void wii_process_fsm(uni_hid_device_t* d) {
             break;
         case WII_FSM_LED_UPDATED:
             break;
+        default:
+            loge("Wii: wii_process_fsm() unexpected state: %d\n", ins->state);
     }
 }
 
@@ -1018,7 +1024,7 @@ void uni_hid_parser_wii_init_report(uni_hid_device_t* d) {
     d->gamepad.misc_buttons = 0;
 }
 
-void uni_hid_parser_wii_parse_raw(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
+void uni_hid_parser_wii_parse_input_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
     if (len == 0)
         return;
     switch (report[0]) {

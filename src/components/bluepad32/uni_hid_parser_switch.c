@@ -42,24 +42,17 @@ limitations under the License.
 
 // Support for Nintendo Switch Pro gamepad and JoyCons.
 
-static const uint16_t SWITCH_VID = 0x057e;  // Nintendo
-static const uint16_t SWITCH_PID = 0x2009;  // Switch Pro Controller
-static const uint8_t SWITCH_HID_DESCRIPTOR[] = {
-    0x05, 0x01, 0x09, 0x05, 0xA1, 0x01, 0x06, 0x01, 0xFF, 0x85, 0x21, 0x09, 0x21, 0x75, 0x08, 0x95, 0x30, 0x81, 0x02,
-    0x85, 0x30, 0x09, 0x30, 0x75, 0x08, 0x95, 0x30, 0x81, 0x02, 0x85, 0x31, 0x09, 0x31, 0x75, 0x08, 0x96, 0x69, 0x01,
-    0x81, 0x02, 0x85, 0x32, 0x09, 0x32, 0x75, 0x08, 0x96, 0x69, 0x01, 0x81, 0x02, 0x85, 0x33, 0x09, 0x33, 0x75, 0x08,
-    0x96, 0x69, 0x01, 0x81, 0x02, 0x85, 0x3F, 0x05, 0x09, 0x19, 0x01, 0x29, 0x10, 0x15, 0x00, 0x25, 0x01, 0x75, 0x01,
-    0x95, 0x10, 0x81, 0x02, 0x05, 0x01, 0x09, 0x39, 0x15, 0x00, 0x25, 0x07, 0x75, 0x04, 0x95, 0x01, 0x81, 0x42, 0x05,
-    0x09, 0x75, 0x04, 0x95, 0x01, 0x81, 0x01, 0x05, 0x01, 0x09, 0x30, 0x09, 0x31, 0x09, 0x33, 0x09, 0x34, 0x16, 0x00,
-    0x00, 0x27, 0xFF, 0xFF, 0x00, 0x00, 0x75, 0x10, 0x95, 0x04, 0x81, 0x02, 0x06, 0x01, 0xFF, 0x85, 0x01, 0x09, 0x01,
-    0x75, 0x08, 0x95, 0x30, 0x91, 0x02, 0x85, 0x10, 0x09, 0x10, 0x75, 0x08, 0x95, 0x30, 0x91, 0x02, 0x85, 0x11, 0x09,
-    0x11, 0x75, 0x08, 0x95, 0x30, 0x91, 0x02, 0x85, 0x12, 0x09, 0x12, 0x75, 0x08, 0x95, 0x30, 0x91, 0x02, 0xC0,
-};
+static const uint16_t NINTENDO_VID = 0x057e;
+static const uint16_t SWITCH_JOYCON_L_PID = 0x2006;
+static const uint16_t SWITCH_JOYCON_R_PID = 0x2007;
+static const uint16_t SWITCH_PRO_CONTROLLER_PID = 0x2009;
+
 #define SWITCH_FACTORY_CAL_DATA_SIZE 18
 static const uint16_t SWITCH_FACTORY_CAL_DATA_ADDR = 0x603d;
 #define SWITCH_USER_CAL_DATA_SIZE 22
 static const uint16_t SWITCH_USER_CAL_DATA_ADDR = 0x8010;
 #define SWITCH_DUMP_ROM_DATA_SIZE 24  // Max size is 24
+#define SWITCH_SETUP_TIMEOUT_MS 2000
 #if ENABLE_SPI_FLASH_DUMP
 static const uint32_t SWITCH_DUMP_ROM_DATA_ADDR_START = 0x20000;
 static const uint32_t SWITCH_DUMP_ROM_DATA_ADDR_END = 0x30000;
@@ -68,13 +61,12 @@ static const uint32_t SWITCH_DUMP_ROM_DATA_ADDR_END = 0x30000;
 enum switch_state {
     STATE_UNINIT,
     STATE_SETUP,
-    STATE_DUMP_FLASH,                // Dump SPI Flash memory
+    STATE_SET_FULL_REPORT,           // Request report 0x30
     STATE_REQ_DEV_INFO,              // What controller
     STATE_READ_FACTORY_CALIBRATION,  // Factory calibration info
     STATE_READ_USER_CALIBRATION,     // User calibration info
-    STATE_SET_FULL_REPORT,           // Request report 0x30
     STATE_ENABLE_IMU,                // Enable/Disable gyro/accel
-    STATE_SET_HOME_LIGHT,            // Enable home light
+    STATE_DUMP_FLASH,                // Dump SPI Flash memory
     STATE_UPDATE_LED,                // Update LEDs
     STATE_READY,                     // Gamepad setup ready!
 };
@@ -111,7 +103,6 @@ enum switch_subcmd {
     SUBCMD_SET_REPORT_MODE = 0x03,
     SUBCMD_SPI_FLASH_READ = 0x10,
     SUBCMD_SET_PLAYER_LEDS = 0x30,
-    SUBCMD_SET_HOME_LIGHT = 0x38,
     SUBCMD_ENABLE_IMU = 0x40,
 };
 
@@ -124,8 +115,8 @@ typedef struct switch_cal_stick_s {
 
 // switch_instance_t represents data used by the Switch driver instance.
 typedef struct switch_instance_s {
-    btstack_timer_source_t ts;
-    uni_hid_device_t* hid_device;
+    btstack_timer_source_t rumble_timer;
+    btstack_timer_source_t setup_timer;
     bool rumble_in_progress;
 
     enum switch_state state;
@@ -300,7 +291,6 @@ static void fsm_read_factory_calibration(struct uni_hid_device_s* d);
 static void fsm_read_user_calibration(struct uni_hid_device_s* d);
 static void fsm_set_full_report(struct uni_hid_device_s* d);
 static void fsm_enable_imu(struct uni_hid_device_s* d);
-static void fsm_set_home_light(struct uni_hid_device_s* d);
 static void fsm_update_led(struct uni_hid_device_s* d);
 static void fsm_ready(struct uni_hid_device_s* d);
 static void process_reply_read_spi_dump(struct uni_hid_device_s* d, const uint8_t* data, int len);
@@ -310,19 +300,19 @@ static void process_reply_req_dev_info(struct uni_hid_device_s* d, const struct 
 static void process_reply_set_report_mode(struct uni_hid_device_s* d, const struct switch_report_21_s* r, int len);
 static void process_reply_spi_flash_read(struct uni_hid_device_s* d, const struct switch_report_21_s* r, int len);
 static void process_reply_set_player_leds(struct uni_hid_device_s* d, const struct switch_report_21_s* r, int len);
-static void process_reply_set_home_light(struct uni_hid_device_s* d, const struct switch_report_21_s* r, int len);
 static void process_reply_enable_imu(struct uni_hid_device_s* d, const struct switch_report_21_s* r, int len);
 static int32_t calibrate_axis(int16_t v, switch_cal_stick_t cal);
 static void set_led(uni_hid_device_t* d, uint8_t leds);
 static void switch_rumble_off(btstack_timer_source_t* ts);
+static void switch_setup_timeout_callback(btstack_timer_source_t* ts);
 
 void uni_hid_parser_switch_setup(struct uni_hid_device_s* d) {
     switch_instance_t* ins = get_switch_instance(d);
 
-    ins->hid_device = d;  // Used by rumble callbacks
-
     ins->state = STATE_SETUP;
     ins->mode = SWITCH_MODE_NONE;
+    // In case the controller doesn't answer to SUBCMD_REQ_DEV_INFO command, set a default one.
+    ins->controller_type = SWITCH_CONTROLLER_TYPE_PRO;
 
     // Setup default min,center,max calibration values for sticks.
     ins->cal_x.min = ins->cal_y.min = ins->cal_rx.min = ins->cal_ry.min = 512;
@@ -339,6 +329,13 @@ void uni_hid_parser_switch_setup(struct uni_hid_device_s* d) {
 #endif  // ENABLE_SPI_FLASH_DUMP
 
     process_fsm(d);
+
+    // Some clones don't respond to all queries.
+    // After the timeout, just set the device as "ready" with whatever the state might be.
+    btstack_run_loop_set_timer_context(&ins->setup_timer, d);
+    btstack_run_loop_set_timer_handler(&ins->setup_timer, &switch_setup_timeout_callback);
+    btstack_run_loop_set_timer(&ins->setup_timer, SWITCH_SETUP_TIMEOUT_MS);
+    btstack_run_loop_add_timer(&ins->setup_timer);
 }
 
 void uni_hid_parser_switch_init_report(uni_hid_device_t* d) {
@@ -354,18 +351,18 @@ void uni_hid_parser_switch_init_report(uni_hid_device_t* d) {
     gp->updated_states |= GAMEPAD_STATE_BUTTON_TRIGGER_L | GAMEPAD_STATE_BUTTON_TRIGGER_R |
                           GAMEPAD_STATE_BUTTON_SHOULDER_L | GAMEPAD_STATE_BUTTON_SHOULDER_R;
     gp->updated_states |=
-        GAMEPAD_STATE_BUTTON_THUMB_L | GAMEPAD_STATE_MISC_BUTTON_BACK | GAMEPAD_STATE_MISC_BUTTON_HOME;
+        GAMEPAD_STATE_BUTTON_THUMB_L | GAMEPAD_STATE_MISC_BUTTON_SYSTEM | GAMEPAD_STATE_MISC_BUTTON_HOME;
 
     // Only valid for Pro Controller.
     switch_instance_t* ins = get_switch_instance(d);
     if (ins->controller_type == SWITCH_CONTROLLER_TYPE_PRO) {
         gp->updated_states |= GAMEPAD_STATE_AXIS_RX | GAMEPAD_STATE_AXIS_RY;
         gp->updated_states |= GAMEPAD_STATE_DPAD;
-        gp->updated_states |= GAMEPAD_STATE_BUTTON_THUMB_R | GAMEPAD_STATE_MISC_BUTTON_SYSTEM;
+        gp->updated_states |= GAMEPAD_STATE_BUTTON_THUMB_R | GAMEPAD_STATE_MISC_BUTTON_BACK;
     }
 }
 
-void uni_hid_parser_switch_parse_raw(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len) {
+void uni_hid_parser_switch_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len) {
     if (len < 12) {
         loge("Nintendo Switch: Invalid packet len; got %d, want >= 12\n", len);
         return;
@@ -388,13 +385,14 @@ void uni_hid_parser_switch_parse_raw(struct uni_hid_device_s* d, const uint8_t* 
 
 static void process_fsm(struct uni_hid_device_s* d) {
     switch_instance_t* ins = get_switch_instance(d);
+    logd("Switch: fsm state = %d\n", ins->state);
     switch (ins->state) {
         case STATE_SETUP:
             logd("STATE_SETUP\n");
-            fsm_dump_rom(d);
+            fsm_set_full_report(d);
             break;
-        case STATE_DUMP_FLASH:
-            logd("STATE_DUMP_FLASH\n");
+        case STATE_SET_FULL_REPORT:
+            logd("STATE_SET_FULL_REPORT\n");
             fsm_request_device_info(d);
             break;
         case STATE_REQ_DEV_INFO:
@@ -407,18 +405,14 @@ static void process_fsm(struct uni_hid_device_s* d) {
             break;
         case STATE_READ_USER_CALIBRATION:
             logd("STATE_READ_USER_CALIBRATION\n");
-            fsm_set_full_report(d);
-            break;
-        case STATE_SET_FULL_REPORT:
-            logd("STATE_SET_FULL_REPORT\n");
             fsm_enable_imu(d);
             break;
         case STATE_ENABLE_IMU:
             logd("STATE_ENABLE_IMU\n");
-            fsm_set_home_light(d);
+            fsm_dump_rom(d);
             break;
-        case STATE_SET_HOME_LIGHT:
-            logd("STATE_SET_HOME_LIGHT\n");
+        case STATE_DUMP_FLASH:
+            logd("STATE_DUMP_FLASH\n");
             fsm_update_led(d);
             break;
         case STATE_UPDATE_LED:
@@ -562,13 +556,6 @@ static void process_reply_set_player_leds(struct uni_hid_device_s* d, const stru
     UNUSED(len);
 }
 
-// Reply to SUBCMD_SET_HOME_LIGHT
-static void process_reply_set_home_light(struct uni_hid_device_s* d, const struct switch_report_21_s* r, int len) {
-    UNUSED(d);
-    UNUSED(r);
-    UNUSED(len);
-}
-
 // Reply SUBCMD_ENABLE_IMU
 static void process_reply_enable_imu(struct uni_hid_device_s* d, const struct switch_report_21_s* r, int len) {
     UNUSED(d);
@@ -598,9 +585,6 @@ static void process_input_subcmd_reply(struct uni_hid_device_s* d, const uint8_t
             break;
         case SUBCMD_SET_PLAYER_LEDS:
             process_reply_set_player_leds(d, r, len);
-            break;
-        case SUBCMD_SET_HOME_LIGHT:
-            process_reply_set_home_light(d, r, len);
             break;
         case SUBCMD_ENABLE_IMU:
             process_reply_enable_imu(d, r, len);
@@ -704,8 +688,8 @@ static void parse_report_30_joycon_left(uni_hid_device_t* d, const struct switch
     gp->buttons |= (r->buttons_misc & 0b00001000) ? BUTTON_THUMB_L : 0;
 
     // Misc cbuttons
-    gp->misc_buttons |= (r->buttons_misc & 0b00000001) ? MISC_BUTTON_BACK : 0;  // -
-    gp->misc_buttons |= (r->buttons_misc & 0b00100000) ? MISC_BUTTON_HOME : 0;  // Capture
+    gp->misc_buttons |= (r->buttons_misc & 0b00000001) ? MISC_BUTTON_HOME : 0;    // -
+    gp->misc_buttons |= (r->buttons_misc & 0b00100000) ? MISC_BUTTON_SYSTEM : 0;  // Capture
 }
 
 static void parse_report_30_joycon_right(uni_hid_device_t* d, const struct switch_report_30_s* r) {
@@ -732,8 +716,8 @@ static void parse_report_30_joycon_right(uni_hid_device_t* d, const struct switc
     gp->buttons |= (r->buttons_misc & 0b00000100) ? BUTTON_THUMB_L : 0;
 
     // Misc cbuttons
-    gp->misc_buttons |= (r->buttons_misc & 0b00000010) ? MISC_BUTTON_HOME : 0;  // +
-    gp->misc_buttons |= (r->buttons_misc & 0b00010000) ? MISC_BUTTON_BACK : 0;  // Home
+    gp->misc_buttons |= (r->buttons_misc & 0b00000010) ? MISC_BUTTON_HOME : 0;    // +
+    gp->misc_buttons |= (r->buttons_misc & 0b00010000) ? MISC_BUTTON_SYSTEM : 0;  // Home
 }
 
 // Process 0x3f input report: SWITCH_INPUT_BUTTON_EVENT
@@ -756,7 +740,7 @@ static void parse_report_3f(struct uni_hid_device_s* d, const uint8_t* report, i
 
     // Button aux
     gp->misc_buttons |= (r->buttons_aux & 0b00000001) ? MISC_BUTTON_BACK : 0;    // -
-    gp->buttons |= (r->buttons_aux & 0b00000010) ? MISC_BUTTON_HOME : 0;         // +
+    gp->misc_buttons |= (r->buttons_aux & 0b00000010) ? MISC_BUTTON_HOME : 0;    // +
     gp->buttons |= (r->buttons_aux & 0b00000100) ? BUTTON_THUMB_L : 0;           // Thumb L
     gp->buttons |= (r->buttons_aux & 0b00001000) ? BUTTON_THUMB_R : 0;           // Thumb R
     gp->misc_buttons |= (r->buttons_aux & 0b00010000) ? MISC_BUTTON_SYSTEM : 0;  // Home
@@ -786,8 +770,7 @@ static void fsm_dump_rom(struct uni_hid_device_s* d) {
 
     uint8_t out[sizeof(struct switch_subcmd_request) + 5] = {0};
     struct switch_subcmd_request* req = (struct switch_subcmd_request*)&out[0];
-    req->transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
-    req->report_id = 0x01;         // 0x01 for sub commands
+    req->report_id = 0x01;  // 0x01 for sub commands
     req->subcmd_id = SUBCMD_SPI_FLASH_READ;
     // Address to read from: stick calibration
     req->data[0] = addr & 0xff;
@@ -809,10 +792,10 @@ static void fsm_request_device_info(struct uni_hid_device_s* d) {
     switch_instance_t* ins = get_switch_instance(d);
     ins->state = STATE_REQ_DEV_INFO;
 
-    struct switch_subcmd_request req = {0};
-    req.transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
-    req.report_id = 0x01;         // 0x01 for sub commands
-    req.subcmd_id = SUBCMD_REQ_DEV_INFO;
+    struct switch_subcmd_request req = {
+        .report_id = 0x01,  // 0x01 for sub commands
+        .subcmd_id = SUBCMD_REQ_DEV_INFO,
+    };
     send_subcmd(d, &req, sizeof(req));
 }
 
@@ -822,8 +805,7 @@ static void fsm_read_factory_calibration(struct uni_hid_device_s* d) {
 
     uint8_t out[sizeof(struct switch_subcmd_request) + 5] = {0};
     struct switch_subcmd_request* req = (struct switch_subcmd_request*)&out[0];
-    req->transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
-    req->report_id = 0x01;         // 0x01 for sub commands
+    req->report_id = 0x01;  // 0x01 for sub commands
     req->subcmd_id = SUBCMD_SPI_FLASH_READ;
     // Address to read from: stick calibration
     req->data[0] = SWITCH_FACTORY_CAL_DATA_ADDR & 0xff;
@@ -840,8 +822,7 @@ static void fsm_read_user_calibration(struct uni_hid_device_s* d) {
 
     uint8_t out[sizeof(struct switch_subcmd_request) + 5] = {0};
     struct switch_subcmd_request* req = (struct switch_subcmd_request*)&out[0];
-    req->transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
-    req->report_id = 0x01;         // 0x01 for sub commands
+    req->report_id = 0x01;  // 0x01 for sub commands
     req->subcmd_id = SUBCMD_SPI_FLASH_READ;
     // Address to read from: stick calibration
     req->data[0] = SWITCH_USER_CAL_DATA_ADDR & 0xff;
@@ -858,8 +839,7 @@ static void fsm_set_full_report(struct uni_hid_device_s* d) {
 
     uint8_t out[sizeof(struct switch_subcmd_request) + 1] = {0};
     struct switch_subcmd_request* req = (struct switch_subcmd_request*)&out[0];
-    req->transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
-    req->report_id = 0x01;         // 0x01 for sub commands
+    req->report_id = 0x01;  // 0x01 for sub commands
     req->subcmd_id = SUBCMD_SET_REPORT_MODE;
     req->data[0] = 0x30; /* type of report: standard, full */
     send_subcmd(d, req, sizeof(out));
@@ -871,32 +851,9 @@ static void fsm_enable_imu(struct uni_hid_device_s* d) {
 
     uint8_t out[sizeof(struct switch_subcmd_request) + 1] = {0};
     struct switch_subcmd_request* req = (struct switch_subcmd_request*)&out[0];
-    req->transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
-    req->report_id = 0x01;         // 0x01 for sub commands
+    req->report_id = 0x01;  // 0x01 for sub commands
     req->subcmd_id = SUBCMD_ENABLE_IMU;
     req->data[0] = (ins->mode == SWITCH_MODE_ACCEL);
-    send_subcmd(d, req, sizeof(out));
-}
-
-static void fsm_set_home_light(struct uni_hid_device_s* d) {
-    switch_instance_t* ins = get_switch_instance(d);
-    ins->state = STATE_SET_HOME_LIGHT;
-
-    // Don't set Home Light on JoyCons. It looks strange.
-    if (ins->controller_type != SWITCH_CONTROLLER_TYPE_PRO) {
-        process_fsm(d);
-        return;
-    }
-
-    uint8_t out[sizeof(struct switch_subcmd_request) + 3] = {0};
-    struct switch_subcmd_request* req = (struct switch_subcmd_request*)&out[0];
-    req->transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
-    req->report_id = 0x01;         // 0x01 for sub commands
-    req->subcmd_id = SUBCMD_SET_HOME_LIGHT;
-    req->data[0] = 0x01;  // No mini cycles | duration of each cycle.
-    req->data[1] = 0x80;  // LED medium intensity | total mini cycles=0
-    req->data[2] = 0x80;  // 1st mini cycle intensity: medium | ignore
-
     send_subcmd(d, req, sizeof(out));
 }
 
@@ -911,6 +868,9 @@ static void fsm_ready(struct uni_hid_device_s* d) {
     switch_instance_t* ins = get_switch_instance(d);
     ins->state = STATE_READY;
     logi("Switch: gamepad is ready!\n");
+
+    btstack_run_loop_remove_timer(&ins->setup_timer);
+    uni_hid_device_set_ready_complete(d);
 }
 
 static struct switch_rumble_freq_data find_rumble_freq(uint16_t freq) {
@@ -968,10 +928,9 @@ void uni_hid_parser_switch_set_rumble(struct uni_hid_device_s* d, uint8_t value,
     // FIXME: timer that cancels rumble after duration
     UNUSED(duration);
 
-    struct switch_rumble_only_request req = {0};
-
-    req.transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
-    req.report_id = OUTPUT_RUMBLE_ONLY;
+    struct switch_rumble_only_request req = {
+        .report_id = OUTPUT_RUMBLE_ONLY,
+    };
     switch_encode_rumble(req.rumble_left, value << 2, value, 500);
     switch_encode_rumble(req.rumble_right, value << 2, value, 500);
 
@@ -984,31 +943,37 @@ void uni_hid_parser_switch_set_rumble(struct uni_hid_device_s* d, uint8_t value,
     if (ins->rumble_in_progress)
         return;
 
-    ins->ts.process = &switch_rumble_off;
     ins->rumble_in_progress = 1;
     int ms = duration * 4;  // duration: 256 ~= 1 second
-    btstack_run_loop_set_timer(&ins->ts, ms);
-    btstack_run_loop_add_timer(&ins->ts);
+    btstack_run_loop_set_timer_context(&ins->rumble_timer, d);
+    btstack_run_loop_set_timer_handler(&ins->rumble_timer, &switch_rumble_off);
+    btstack_run_loop_set_timer(&ins->rumble_timer, ms);
+    btstack_run_loop_add_timer(&ins->rumble_timer);
 }
 
-uint8_t uni_hid_parser_switch_does_packet_match(struct uni_hid_device_s* d, const uint8_t* packet, int len) {
-    // A switch packet looks like this:
-    // A1 3F 00 00 08 00 80 00 80 00 80 00 80
-    if (len != 13 || packet[0] != 0xa1 || packet[1] != 0x3f) {
-        return 0;
+bool uni_hid_parser_switch_does_name_match(struct uni_hid_device_s* d, const char* name) {
+    struct device_s {
+        char* name;
+        int vid;
+        int pid;
+    };
+
+    struct device_s devices[] = {
+        // Clones might not respond to SDP queries. Support them by name.
+        {"Pro Controller", NINTENDO_VID, SWITCH_PRO_CONTROLLER_PID},
+        {"Joy-Con (L)", NINTENDO_VID, SWITCH_JOYCON_L_PID},
+        {"Joy-Con (R)", NINTENDO_VID, SWITCH_JOYCON_R_PID},
+    };
+
+    for (long unsigned i = 0; i < ARRAY_SIZE(devices); i++) {
+        if (strcmp(devices[i].name, name) == 0) {
+            // Fake VID/PID
+            uni_hid_device_set_vendor_id(d, devices[i].vid);
+            uni_hid_device_set_product_id(d, devices[i].pid);
+            return true;
+        }
     }
-    // TODO: don't set the HID descriptor. It is faster to parse the raw
-    // packet. It seems that Nintendo Switch has a stable packet format.
-    uni_hid_device_set_hid_descriptor(d, SWITCH_HID_DESCRIPTOR, sizeof(SWITCH_HID_DESCRIPTOR));
-    uni_hid_device_set_vendor_id(d, SWITCH_VID);
-    uni_hid_device_set_product_id(d, SWITCH_PID);
-    uni_hid_device_guess_controller_type_from_pid_vid(d);
-    uni_hid_device_set_sdp_device(NULL);
-    uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_SDP_VENDOR_FETCHED);
-    logi(
-        "Switch: Device detected as Nintendo Switch Pro controller using "
-        "heuristics\n");
-    return 1;
+    return false;
 }
 
 //
@@ -1026,7 +991,6 @@ static void set_led(uni_hid_device_t* d, uint8_t leds) {
     uint8_t report[sizeof(struct switch_subcmd_request) + 1] = {0};
 
     struct switch_subcmd_request* req = (struct switch_subcmd_request*)&report[0];
-    req->transaction_type = 0xa2;               // DATA | TYPE_OUTPUT
     req->report_id = OUTPUT_RUMBLE_AND_SUBCMD;  // 0x01 for sub commands
     req->subcmd_id = SUBCMD_SET_PLAYER_LEDS;
     // LSB: turn on LEDs, MSB: flash LEDs
@@ -1042,6 +1006,7 @@ static void send_subcmd(uni_hid_device_t* d, struct switch_subcmd_request* r, in
     r->packet_num = packet_num++;
     if (packet_num > 0x0f)
         packet_num = 0;
+    r->transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT;
     uni_hid_device_send_intr_report(d, (const uint8_t*)r, len);
 }
 
@@ -1061,14 +1026,15 @@ static int32_t calibrate_axis(int16_t v, switch_cal_stick_t cal) {
 }
 
 static void switch_rumble_off(btstack_timer_source_t* ts) {
-    switch_instance_t* ins = (switch_instance_t*)ts;
+    uni_hid_device_t* d = btstack_run_loop_get_timer_context(ts);
+    switch_instance_t* ins = get_switch_instance(d);
+
     // No need to protect it with a mutex since it runs in the same main thread
     assert(ins->rumble_in_progress);
     ins->rumble_in_progress = 0;
 
     struct switch_rumble_only_request req = {0};
 
-    req.transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
     req.report_id = OUTPUT_RUMBLE_ONLY;
     uint8_t rumble_default[4] = {0x00, 0x01, 0x40, 0x40};
     memcpy(req.rumble_left, rumble_default, sizeof(req.rumble_left));
@@ -1076,5 +1042,11 @@ static void switch_rumble_off(btstack_timer_source_t* ts) {
 
     // TODO: It is safe to cast switch_rumble_only_request into a subcommand
     // but could become dangerous if more data is added/removed.
-    send_subcmd(ins->hid_device, (struct switch_subcmd_request*)&req, sizeof(req));
+    send_subcmd(d, (struct switch_subcmd_request*)&req, sizeof(req));
+}
+
+void switch_setup_timeout_callback(btstack_timer_source_t* ts) {
+    logi("Switch: setup could not finish in time, forcing setup as complete\n");
+    uni_hid_device_t* d = btstack_run_loop_get_timer_context(ts);
+    fsm_ready(d);
 }

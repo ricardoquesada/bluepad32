@@ -29,23 +29,23 @@ extern "C" {
 #include "uni_platform.h"
 
 enum {
-  UNI_ARDUINO_OK = 0,
-  UNI_ARDUINO_ERROR = -1,
+    UNI_ARDUINO_OK = 0,
+    UNI_ARDUINO_ERROR = -1,
 };
 
 enum {
-  UNI_ARDUINO_GAMEPAD_INVALID = -1,
+    UNI_ARDUINO_GAMEPAD_INVALID = -1,
 };
 
 typedef struct {
-  // Indicates which gamepad it is. Goes from 0 to 3.
-  int8_t idx;
+    // Indicates which gamepad it is. Goes from 0 to 3.
+    int8_t idx;
 
-  // Type of gamepad: PS4, PS3, Xbox, etc..?
-  uint8_t type;
+    // Type of gamepad: PS4, PS3, Xbox, etc..?
+    uint8_t type;
 
-  // The gamepad data: buttons, axis, etc.
-  uni_gamepad_t data;
+    // The gamepad data: buttons, axis, etc.
+    uni_gamepad_t data;
 } arduino_gamepad_t;
 
 struct uni_platform* uni_platform_arduino_create(void);

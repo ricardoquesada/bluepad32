@@ -24,41 +24,58 @@ limitations under the License.
 #include <assert.h>
 
 #include "hid_usage.h"
+#include "uni_common.h"
 #include "uni_config.h"
 #include "uni_debug.h"
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
 #include "uni_utils.h"
 
+#define DS5_FEATURE_REPORT_CALIBRATION 0x05
+#define DS5_FEATURE_REPORT_CALIBRATION_SIZE 41
+#define DS5_FEATURE_REPORT_PAIRING_INFO 0x09
+#define DS5_FEATURE_REPORT_PAIRING_INFO_SIZE 20
+#define DS5_FEATURE_REPORT_FIRMWARE_VERSION 0x20
+#define DS5_FEATURE_REPORT_FIRMWARE_VERSION_SIZE 64
+
 enum {
     // Values for flag 0
-    DS5_FLAG0_COMPATIBLE_VIBRATION = 1 << 0,
-    DS5_FLAG0_HAPTICS_SELECT = 1 << 1,
+    DS5_FLAG0_COMPATIBLE_VIBRATION = BIT(0),
+    DS5_FLAG0_HAPTICS_SELECT = BIT(1),
 
     // Values for flag 1
-    DS5_FLAG1_LIGHTBAR = 1 << 2,
-    DS5_FLAG1_PLAYER_LED = 1 << 4,
+    DS5_FLAG1_LIGHTBAR = BIT(2),
+    DS5_FLAG1_PLAYER_LED = BIT(4),
 
     // Values for flag 2
-    DS5_FLAG2_LIGHTBAR_SETUP_CONTROL_ENABLE = 1 << 1,
+    DS5_FLAG2_LIGHTBAR_SETUP_CONTROL_ENABLE = BIT(1),
 
     // Values for lightbar_setup
-    DS5_LIGHTBAR_SETUP_LIGHT_OUT = 1 << 1,
+    DS5_LIGHTBAR_SETUP_LIGHT_OUT = BIT(1),  // Fade light out
 };
 
+typedef enum {
+    DS5_STATE_INITIAL,
+    DS5_STATE_PAIRING_INFO_REQUEST,
+    DS5_STATE_FIRMWARE_VERSION_REQUEST,
+    DS5_STATE_CALIBRATION_REQUEST,
+    DS5_STATE_READY,
+} ds5_state_t;
+
 typedef struct {
-    // Must be first element
-    btstack_timer_source_t ts;
-    uni_hid_device_t* hid_device;
+    btstack_timer_source_t rumble_timer;
     bool rumble_in_progress;
     uint8_t output_seq;
+    ds5_state_t state;
+    uint32_t hw_version;
+    uint32_t fw_version;
 } ds5_instance_t;
 _Static_assert(sizeof(ds5_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "DS5 intance too big");
 
 typedef struct __attribute((packed)) {
     // Bluetooth only
-    uint8_t transaction_type; /* 0xa2 */
-    uint8_t report_id;        /* 0x31 */
+    uint8_t transaction_type;
+    uint8_t report_id; /* 0x31 */
     uint8_t seq_tag;
     uint8_t tag;
 
@@ -123,8 +140,25 @@ typedef struct __attribute((packed)) {
     uint8_t reserved4[11];
 } ds5_input_report_t;
 
+typedef struct __attribute((packed)) {
+    uint8_t report_id;  // Must be DS5_FEATURE_REPORT_FIRMWARE_VERSION
+    char string_date[11];
+    char string_time[8];
+    char unk_0[4];
+    uint32_t hw_version;
+    uint32_t fw_version;
+    char unk_1[28];
+    uint32_t crc32;
+} ds5_feature_report_firmware_version_t;
+_Static_assert(sizeof(ds5_feature_report_firmware_version_t) == DS5_FEATURE_REPORT_FIRMWARE_VERSION_SIZE,
+               "Invalid size");
+
 static ds5_instance_t* get_ds5_instance(uni_hid_device_t* d);
 static void ds5_send_output_report(uni_hid_device_t* d, ds5_output_report_t* out);
+static void ds5_send_enable_lightbar_report(uni_hid_device_t* d);
+static void ds5_request_pairing_info_report(uni_hid_device_t* d);
+static void ds5_request_firmware_version_report(uni_hid_device_t* d);
+static void ds5_request_calibration_report(uni_hid_device_t* d);
 static void ds5_set_rumble_off(btstack_timer_source_t* ts);
 
 void uni_hid_parser_ds5_init_report(uni_hid_device_t* d) {
@@ -148,18 +182,69 @@ void uni_hid_parser_ds5_init_report(uni_hid_device_t* d) {
 void uni_hid_parser_ds5_setup(uni_hid_device_t* d) {
     ds5_instance_t* ins = get_ds5_instance(d);
     memset(ins, 0, sizeof(*ins));
-    ins->hid_device = d;  // Used by rumble callbacks
-
-    // Enable lightbar.
-    // Also, sending an output report enables input report 0x31.
-    ds5_output_report_t out = {0};
-
-    out.valid_flag2 = DS5_FLAG2_LIGHTBAR_SETUP_CONTROL_ENABLE;
-    out.lightbar_setup = DS5_LIGHTBAR_SETUP_LIGHT_OUT;
-    ds5_send_output_report(d, &out);
+    ds5_request_pairing_info_report(d);
 }
 
-void uni_hid_parser_ds5_parse_raw(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
+void uni_hid_parser_ds5_parse_feature_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
+    ds5_instance_t* ins = get_ds5_instance(d);
+    uint8_t report_id = report[0];
+    switch (report_id) {
+        case DS5_FEATURE_REPORT_PAIRING_INFO:
+            if (len != DS5_FEATURE_REPORT_PAIRING_INFO_SIZE) {
+                loge("DS5: Unexpected pairing info size: got %d, want: %d\n", len,
+                     DS5_FEATURE_REPORT_PAIRING_INFO_SIZE);
+                /* fallthrough */
+            }
+            // report[0]: Report ID, in this case 9
+            // report[1-6] has the DualSense Mac Address in reverse order
+            // report[7,8,9]: unk
+            // report[10-15]: has the host Mac Address in reverse order
+            // report[16-19]: CRC32
+
+            // Do nothing with Pairing Info.
+
+            ds5_request_firmware_version_report(d);
+            break;
+
+        case DS5_FEATURE_REPORT_FIRMWARE_VERSION:
+            if (len != DS5_FEATURE_REPORT_FIRMWARE_VERSION_SIZE) {
+                loge("DS5: Unexpected firmware version size: got %d, want: %d\n", len,
+                     DS5_FEATURE_REPORT_FIRMWARE_VERSION_SIZE);
+                /* fallthrough */
+            }
+            ds5_feature_report_firmware_version_t* r = (ds5_feature_report_firmware_version_t*)report;
+            ins->hw_version = r->hw_version;
+            ins->fw_version = r->fw_version;
+
+            // ASCII-z strings
+            char date_z[sizeof(r->string_date) + 1] = {0};
+            char time_z[sizeof(r->string_time) + 1] = {0};
+
+            strncpy(date_z, r->string_date, sizeof(date_z) - 1);
+            strncpy(time_z, r->string_time, sizeof(time_z) - 1);
+
+            logi("DS5: fw version: 0x%08x, hw version: 0x%08x\n", ins->fw_version, ins->hw_version);
+            logi("DS5: Firmware build date: %s, %s\n", date_z, time_z);
+
+            ds5_request_calibration_report(d);
+            break;
+
+        case DS5_FEATURE_REPORT_CALIBRATION:
+            /* TODO: Don't ignore calibration */
+            if (len != DS5_FEATURE_REPORT_CALIBRATION_SIZE) {
+                loge("DS5: Unexpected calibration size: got %d, want: %d\n", len, DS5_FEATURE_REPORT_CALIBRATION_SIZE);
+                /* fallthrough */
+            }
+            ds5_send_enable_lightbar_report(d);
+            break;
+
+        default:
+            loge("DS5: Unexpected report id in feature report: 0x%02x\n", report_id);
+            break;
+    }
+}
+
+void uni_hid_parser_ds5_parse_input_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
     if (report[0] != 0x31) {
         loge("DS5: Unexpected report type: got 0x%02x, want: 0x31\n", report[0]);
         return;
@@ -216,27 +301,39 @@ void uni_hid_parser_ds5_parse_raw(uni_hid_device_t* d, const uint8_t* report, ui
         gp->misc_buttons |= MISC_BUTTON_SYSTEM;  // PS
 }
 
-// uni_hid_parser_ds5_parse_usage() was removed since "stream" mode is the only
-// one supported. If needed, the function is preserved in git history:
+// uni_hid_parser_ds5_parse_usage() was removed since "stream" mode is the only one supported.
+// If needed, the function is preserved in git history:
 // https://gitlab.com/ricardoquesada/bluepad32/-/blob/c32598f39831fd8c2fa2f73ff3c1883049caafc2/src/main/uni_hid_parser_ds5.c#L213
 
 void uni_hid_parser_ds5_set_player_leds(struct uni_hid_device_s* d, uint8_t value) {
-    ds5_output_report_t out = {0};
+    // PS5 has 5 player LEDS (instead of 4).
+    // The player number is indicated by how many LEDs are on.
+    // E.g: if two LEDs are On, it means gamepad is assigned to player 2.
+    // And for player two, these are the LEDs that should be ON: -X-X-
 
-    out.player_leds = value;
-    out.valid_flag1 = DS5_FLAG1_PLAYER_LED;
+    static const char led_values[] = {
+        0x00,                               // No player
+        BIT(2),                             // Player 1 (center LED)
+        BIT(1) | BIT(3),                    // Player 2
+        BIT(0) | BIT(2) | BIT(4),           // Player 3
+        BIT(0) | BIT(1) | BIT(3) | BIT(4),  // Player 4
+    };
+
+    ds5_output_report_t out = {
+        .player_leds = led_values[value % ARRAY_SIZE(led_values)],
+        .valid_flag1 = DS5_FLAG1_PLAYER_LED,
+    };
 
     ds5_send_output_report(d, &out);
 }
 
 void uni_hid_parser_ds5_set_lightbar_color(struct uni_hid_device_s* d, uint8_t r, uint8_t g, uint8_t b) {
-    ds5_output_report_t out = {0};
-
-    out.lightbar_red = r;
-    out.lightbar_green = g;
-    out.lightbar_blue = b;
-
-    out.valid_flag1 = DS5_FLAG1_LIGHTBAR;
+    ds5_output_report_t out = {
+        .lightbar_red = r,
+        .lightbar_green = g,
+        .lightbar_blue = b,
+        .valid_flag1 = DS5_FLAG1_LIGHTBAR,
+    };
 
     ds5_send_output_report(d, &out);
 }
@@ -246,22 +343,23 @@ void uni_hid_parser_ds5_set_rumble(struct uni_hid_device_s* d, uint8_t value, ui
     if (ins->rumble_in_progress)
         return;
 
-    ds5_output_report_t out = {0};
+    ds5_output_report_t out = {
+        .valid_flag0 = DS5_FLAG0_HAPTICS_SELECT | DS5_FLAG0_COMPATIBLE_VIBRATION,
 
-    out.valid_flag0 = DS5_FLAG0_HAPTICS_SELECT | DS5_FLAG0_COMPATIBLE_VIBRATION;
-
-    // Right motor: small force; left motor: big force
-    out.motor_right = value;
-    out.motor_left = value;
+        // Right motor: small force; left motor: big force
+        .motor_right = value,
+        .motor_left = value,
+    };
 
     ds5_send_output_report(d, &out);
 
     // Set timer to turn off rumble
-    ins->ts.process = &ds5_set_rumble_off;
+    ins->rumble_timer.process = &ds5_set_rumble_off;
+    ins->rumble_timer.context = d;
     ins->rumble_in_progress = 1;
     int ms = duration * 4;  // duration: 256 ~= 1 second
-    btstack_run_loop_set_timer(&ins->ts, ms);
-    btstack_run_loop_add_timer(&ins->ts);
+    btstack_run_loop_set_timer(&ins->rumble_timer, ms);
+    btstack_run_loop_add_timer(&ins->rumble_timer);
 }
 
 //
@@ -274,9 +372,9 @@ static ds5_instance_t* get_ds5_instance(uni_hid_device_t* d) {
 static void ds5_send_output_report(uni_hid_device_t* d, ds5_output_report_t* out) {
     ds5_instance_t* ins = get_ds5_instance(d);
 
-    out->transaction_type = 0xa2;  // DATA | TYPE_OUTPUT
-    out->report_id = 0x31;         // taken from HID descriptor
-    out->tag = 0x10;               // Magic number must be set to 0x10
+    out->transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT;
+    out->report_id = 0x31;  // taken from HID descriptor
+    out->tag = 0x10;        // Magic number must be set to 0x10
 
     // Highest 4-bit is a sequence number, which needs to be increased every
     // report. Lowest 4-bit is tag and can be zero for now.
@@ -290,14 +388,68 @@ static void ds5_send_output_report(uni_hid_device_t* d, ds5_output_report_t* out
 }
 
 static void ds5_set_rumble_off(btstack_timer_source_t* ts) {
-    ds5_instance_t* ins = (ds5_instance_t*)ts;
+    uni_hid_device_t* d = ts->context;
+    ds5_instance_t* ins = get_ds5_instance(d);
 
     // No need to protect it with a mutex since it runs in the same main thread
     assert(ins->rumble_in_progress);
     ins->rumble_in_progress = 0;
 
-    ds5_output_report_t out = {0};
-    out.valid_flag0 = DS5_FLAG0_COMPATIBLE_VIBRATION | DS5_FLAG0_HAPTICS_SELECT;
+    ds5_output_report_t out = {
+        .valid_flag0 = DS5_FLAG0_COMPATIBLE_VIBRATION | DS5_FLAG0_HAPTICS_SELECT,
+    };
 
-    ds5_send_output_report(ins->hid_device, &out);
+    ds5_send_output_report(d, &out);
+}
+
+static void ds5_request_calibration_report(uni_hid_device_t* d) {
+    ds5_instance_t* ins = get_ds5_instance(d);
+    ins->state = DS5_STATE_CALIBRATION_REQUEST;
+
+    // Mimic kernel behavior: request calibration report
+    // Hopefully fixes: https://gitlab.com/ricardoquesada/bluepad32/-/issues/2
+    static uint8_t report[] = {
+        ((HID_MESSAGE_TYPE_GET_REPORT << 4) | HID_REPORT_TYPE_FEATURE),
+        DS5_FEATURE_REPORT_CALIBRATION,
+    };
+    uni_hid_device_send_ctrl_report(d, (uint8_t*)report, sizeof(report));
+}
+
+static void ds5_request_pairing_info_report(uni_hid_device_t* d) {
+    ds5_instance_t* ins = get_ds5_instance(d);
+    ins->state = DS5_STATE_PAIRING_INFO_REQUEST;
+
+    static uint8_t report[] = {
+        ((HID_MESSAGE_TYPE_GET_REPORT << 4) | HID_REPORT_TYPE_FEATURE),
+        DS5_FEATURE_REPORT_PAIRING_INFO,
+    };
+    uni_hid_device_send_ctrl_report(d, (uint8_t*)report, sizeof(report));
+}
+
+static void ds5_request_firmware_version_report(uni_hid_device_t* d) {
+    ds5_instance_t* ins = get_ds5_instance(d);
+    ins->state = DS5_STATE_FIRMWARE_VERSION_REQUEST;
+
+    static uint8_t report[] = {
+        ((HID_MESSAGE_TYPE_GET_REPORT << 4) | HID_REPORT_TYPE_FEATURE),
+        DS5_FEATURE_REPORT_FIRMWARE_VERSION,
+    };
+    uni_hid_device_send_ctrl_report(d, (uint8_t*)report, sizeof(report));
+}
+
+static void ds5_send_enable_lightbar_report(uni_hid_device_t* d) {
+    // Enable lightbar, and set it to blue
+    // Also, sending an output report enables input report 0x31.
+    ds5_output_report_t out = {
+        .lightbar_blue = 255,
+        .valid_flag1 = DS5_FLAG1_LIGHTBAR,
+
+        .valid_flag2 = DS5_FLAG2_LIGHTBAR_SETUP_CONTROL_ENABLE,
+        .lightbar_setup = DS5_LIGHTBAR_SETUP_LIGHT_OUT,
+    };
+    ds5_send_output_report(d, &out);
+
+    ds5_instance_t* ins = get_ds5_instance(d);
+    ins->state = DS5_STATE_READY;
+    uni_hid_device_set_ready_complete(d);
 }

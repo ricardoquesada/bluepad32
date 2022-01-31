@@ -29,13 +29,13 @@ extern "C" {
 #include "uni_joystick.h"
 
 typedef enum {
-  // The gamepad "System" button was pressed
-  UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON,
+    // The gamepad "System" button was pressed
+    UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON,
 } uni_platform_oob_event_t;
 
 typedef enum {
-  // Whether or not the Bluetooth stored keys should be deleted at boot time
-  UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS,
+    // Whether or not the Bluetooth stored keys should be deleted at boot time
+    UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS,
 } uni_platform_property_t;
 
 // uni_platform must be defined for each new platform that is implemented.
@@ -44,36 +44,35 @@ typedef enum {
 // For example, in the case for the Unijosyticle2, it contains the GPIOs that
 // must be enable/disable to emulate a C64 joystick.
 struct uni_platform {
-  // The name of the platform
-  char* name;
+    // The name of the platform
+    char* name;
 
-  // Platform "callbacks".
+    // Platform "callbacks".
 
-  // init is called just once, just after boot time, and before Bluetooth
-  // gets initialized.
-  void (*init)(int argc, const char** argv);
-  // on_init_complete is called when initialization finishes
-  void (*on_init_complete)(void);
+    // init is called just once, just after boot time, and before Bluetooth
+    // gets initialized.
+    void (*init)(int argc, const char** argv);
+    // on_init_complete is called when initialization finishes
+    void (*on_init_complete)(void);
 
-  // When a device (gamepad) connects. But probably it is not ready to use.
-  // HID and/or other things might not have been parsed/init yet.
-  void (*on_device_connected)(uni_hid_device_t* d);
-  // When a device (gamepad) disconnects.
-  void (*on_device_disconnected)(uni_hid_device_t* d);
-  // When a device (gamepad) is ready to be used. Each platform can override
-  // whether the device should be ready by returning a non-zero value.
-  int (*on_device_ready)(uni_hid_device_t* d);
+    // When a device (gamepad) connects. But probably it is not ready to use.
+    // HID and/or other things might not have been parsed/init yet.
+    void (*on_device_connected)(uni_hid_device_t* d);
+    // When a device (gamepad) disconnects.
+    void (*on_device_disconnected)(uni_hid_device_t* d);
+    // When a device (gamepad) is ready to be used. Each platform can override
+    // whether the device should be ready by returning a non-zero value.
+    int (*on_device_ready)(uni_hid_device_t* d);
 
-  // Indicates that a gamepad button and/or stick was pressed and/or released.
-  void (*on_gamepad_data)(uni_hid_device_t* d, uni_gamepad_t* gp);
+    // Indicates that a gamepad button and/or stick was pressed and/or released.
+    void (*on_gamepad_data)(uni_hid_device_t* d, uni_gamepad_t* gp);
 
-  // Return -1 if property is not supported
-  int32_t (*get_property)(uni_platform_property_t key);
+    // Return -1 if property is not supported
+    int32_t (*get_property)(uni_platform_property_t key);
 
-  // When a device (gamepad) generates an Out-of-Band event, like pressing the
-  // home button.
-  void (*on_device_oob_event)(uni_hid_device_t* d,
-                              uni_platform_oob_event_t event);
+    // When a device (gamepad) generates an Out-of-Band event, like pressing the
+    // home button.
+    void (*on_device_oob_event)(uni_hid_device_t* d, uni_platform_oob_event_t event);
 };
 
 void uni_platform_init(int argc, const char** argv);

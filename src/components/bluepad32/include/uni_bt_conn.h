@@ -24,22 +24,25 @@ limitations under the License.
 #include <btstack.h>
 
 typedef enum {
+    UNI_BT_CONN_STATE_DEVICE_NONE,  // Must be the first state
+
     UNI_BT_CONN_STATE_DEVICE_DISCOVERED,
 
     UNI_BT_CONN_STATE_REMOTE_NAME_REQUEST,
     UNI_BT_CONN_STATE_REMOTE_NAME_INQUIRED,
     UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED,
 
-    UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_REQUESTED,
-    UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_FETCHED,
     UNI_BT_CONN_STATE_SDP_VENDOR_REQUESTED,
     UNI_BT_CONN_STATE_SDP_VENDOR_FETCHED,
+    UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_REQUESTED,
+    UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_FETCHED,
 
     UNI_BT_CONN_STATE_L2CAP_CONTROL_CONNECTION_REQUESTED,
     UNI_BT_CONN_STATE_L2CAP_CONTROL_CONNECTED,
     UNI_BT_CONN_STATE_L2CAP_INTERRUPT_CONNECTION_REQUESTED,
     UNI_BT_CONN_STATE_L2CAP_INTERRUPT_CONNECTED,
 
+    UNI_BT_CONN_STATE_DEVICE_PENDING_READY,
     UNI_BT_CONN_STATE_DEVICE_READY,
 } uni_bt_conn_state_t;
 
@@ -57,7 +60,6 @@ typedef struct {
     bool connected;
 
     uni_bt_conn_state_t state;
-
 } uni_bt_conn_t;
 
 void uni_bt_conn_init(uni_bt_conn_t* conn);
@@ -66,5 +68,6 @@ uni_bt_conn_state_t uni_bt_conn_get_state(uni_bt_conn_t* conn);
 void uni_bt_conn_get_address(uni_bt_conn_t* conn, bd_addr_t out_addr);
 bool uni_bt_conn_is_incoming(uni_bt_conn_t* conn);
 bool uni_bt_conn_is_connected(uni_bt_conn_t* conn);
+void uni_bt_conn_disconnect(uni_bt_conn_t* conn);
 
 #endif  // UNI_BT_CONN_H

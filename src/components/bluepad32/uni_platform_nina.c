@@ -429,8 +429,7 @@ static int request_forget_bluetooth_keys(const uint8_t command[], uint8_t respon
     response[3] = 1;  // Param len
     response[4] = RESPONSE_OK;
 
-    // TODO: Not thread safe, but should be mostly Okish (?)
-    uni_bluetooth_del_keys();
+    uni_bluetooth_del_keys_safe();
     return 5;
 }
 

@@ -4,8 +4,72 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.5.0] - 2022-01/08
+## [3.0.0-rc0] - 2022-01-31
 ### New
+
+- Devices: Support for feature reports.
+- DualSense / DualShock 4: add support for get firmware version and calibration values.
+  Although calibration is ignored ATM.
+- Switch JoyCon clones: Added support for clones (at least some of them).
+- DualShock3: Add partial support for DualShock 3 clones, like PANHAI.
+- 8BitDo Arcade Stick: Add support for it.
+  It keeps responding to inquiries even after the device is connected.
+- API to change mappings. Although this feature is not complete yet.
+  Missing save/restore, BLE service. Consider it WIP.
+
+### Changed
+
+- DualSense: Player LEDs are reported in the same way as PlayStation 5.
+- Switch: Don't turn ON Home Light,  8BitDo devices don't support it,
+  and might break the gamepad setup sequence.
+  Change order of setup commands.
+  Change mappings in JoyCons so that it is possible to press "System" button.
+- Xbox: Highly improved reliability (based on the new auto delete code)
+  Compared to before, it is like 10x more reliable, but the Xbox Wireless Controller
+  is still somewhat unreliable.
+- API: renamed some functions / typedefs
+  - uni_hid_parser() -> uni_hid_parse_input_report()
+  - report_parse_raw_fn_t -> report_parse_input_report_fn_t
+- These functions are "safe". Can be called from another task and/or CPU.
+  The suffix "_safe" were added to their names:
+  - uni_bluetooth_del_keys()
+  - uni_bluetooth_enable_new_connections()
+- Arduino: Seat assignment simplified.
+- Bluetooth: request device name for incoming connections.
+- Bluetooth: Replaced the old "auto_delete" code, which used "counts", with
+  one based on a timer. New code includes incoming connections.
+- Bluetooth: SDP query + state machine refactor.
+  SDP query timeout using btstack timers instead of ad-hoc one.
+  SDP query moved to its ow file.
+  Perform VID/PID query before HID-descriptor.
+  If HID-descriptor is not needed, don't do the query. Reduces connection latency.
+  DualShock 3 and Nintendo Pro Controllers are guessed by their names
+  The state machine was rewritten. Although it is still complex, it is much
+  easier to understand. In the process, many bugs were fixed.
+  Gamepad name is requested to all gamepads. If it fails, a fake one is assigned.
+  This is because the "name" is now used to identify certain devices.
+  Switch Pro Controller clone improved.
+  Re-connection works in many devices, including Switch clones!
+  (but not all devices support reconnection yet).
+  Overall, cleaner code.
+- Bluetooth: Add set_event_filter.
+  When doing the inquiry, only devices with a Class Of Device HID are shown.
+  This reduces the noise in the console
+- Tested with latest ESP-IDF v4.4 (eb3797dc3ffebd9eaf873a01df63aed89fad58b6)
+
+### Fixed
+
+- Bluetooth: add log about Feature Report not being supported ATM.
+- Bluetooth: Incoming connections are more reliable. Using HCI periodic inquiry mode.
+- Bluetooth: fix when parsing device name. Does not reuse previous discovered device.
+- DualSense: doesn't not disconnect randomly
+- Switch: Don't enable "home light" at setup time.
+  8BitDo gamepads don't implement it and might not be able to finish setup.
+  Fixed mappings of button "+" in report 0x30.
+
+## [2.5.0] - 2022-01-08
+### New
+
 - tools/pc_debug: Integrate into Gitlab CI
 - tools/fw: add --clean argument to build.py
 - uni_bluetooth: add uni_bluetooth_set_enabled().

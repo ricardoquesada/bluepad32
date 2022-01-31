@@ -19,6 +19,7 @@ limitations under the License.
 #ifndef UNI_HID_PARSER_SWITCH_H
 #define UNI_HID_PARSER_SWITCH_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "uni_hid_parser.h"
@@ -26,13 +27,9 @@ limitations under the License.
 // Nintendo Switch devices
 void uni_hid_parser_switch_setup(struct uni_hid_device_s* d);
 void uni_hid_parser_switch_init_report(struct uni_hid_device_s* d);
-void uni_hid_parser_switch_parse_raw(struct uni_hid_device_s* d,
-                                     const uint8_t* report, uint16_t len);
-void uni_hid_parser_switch_set_player_leds(struct uni_hid_device_s* d,
-                                           uint8_t leds);
-void uni_hid_parser_switch_set_rumble(struct uni_hid_device_s* d, uint8_t value,
-                                      uint8_t duration);
-uint8_t uni_hid_parser_switch_does_packet_match(struct uni_hid_device_s* d,
-                                                const uint8_t* packet, int len);
+void uni_hid_parser_switch_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len);
+void uni_hid_parser_switch_set_player_leds(struct uni_hid_device_s* d, uint8_t leds);
+void uni_hid_parser_switch_set_rumble(struct uni_hid_device_s* d, uint8_t value, uint8_t duration);
+bool uni_hid_parser_switch_does_name_match(struct uni_hid_device_s* d, const char* name);
 
 #endif  // UNI_HID_PARSER_SWITCH_H

@@ -32,17 +32,8 @@ limitations under the License.
 #define HID_MAX_DESCRIPTOR_LEN 512
 #define HID_DEVICE_MAX_PARSER_DATA 128
 #define HID_DEVICE_MAX_PLATFORM_DATA 128
-
-// clang-format off
-#define MASK_COD_MAJOR_PERIPHERAL   0x0500  // 0b0000_0101_0000_0000
-#define MASK_COD_MAJOR_AUDIO        0x0400  // 0b0000_0100_0000_0000
-#define MASK_COD_MINOR_MASK         0x00FC  //             1111_1100
-#define MASK_COD_MINOR_POINT_DEVICE 0x0080  //             1000_0000
-#define MASK_COD_MINOR_KEYBOARD     0x0040  //             0100_0000
-#define MASK_COD_MINOR_GAMEPAD      0x0008  //             0000_1000
-#define MASK_COD_MINOR_JOYSTICK     0x0004  //             0000_0100
-#define MASK_COD_MINOR_HANDS_FREE   0x0008  //             0000_1000
-// clang-format on
+// HID_DEVICE_CONNECTION_TIMEOUT_MS includes the time from when the device is created until it is ready.
+#define HID_DEVICE_CONNECTION_TIMEOUT_MS 20000
 
 typedef enum {
     CONTROLLER_SUBTYPE_NONE = 0,
@@ -56,6 +47,12 @@ typedef enum {
     CONTROLLER_SUBTYPE_WIIUPRO
 } uni_controller_subtype_t;
 
+typedef enum {
+    SDP_QUERY_AFTER_CONNECT,   // If not set, this is the default one.
+    SDP_QUERY_BEFORE_CONNECT,  // Special case for DualShock4 1st generation.
+    SDP_QUERY_NOT_NEEDED,      // Because the Controller type was inferred by other means.
+} uni_sdp_query_type_t;
+
 struct uni_hid_device_s {
     uint32_t cod;  // class of device
     uint16_t vendor_id;
@@ -65,10 +62,9 @@ struct uni_hid_device_s {
     // hid, cod, etc...
     uint32_t flags;
 
-    // Times the device was discovered while also failed to establish a connection
-    // If it reaches a certain threshold, then the discovered devices should be
-    // start the connection process again.
-    int auto_delete;
+    // Will abort connection if the connection was not established after timeout.
+    btstack_timer_source_t connection_timer;
+    btstack_timer_source_t inquiry_remote_name_timer;
 
     // SDP
     uint8_t hid_descriptor[HID_MAX_DESCRIPTOR_LEN];
@@ -81,13 +77,13 @@ struct uni_hid_device_s {
     // Unijoysticle + btstack + libusb in Linux. The correct thing to do is to
     // debug the Linux connection and see what packets are sent before the
     // connection.
-    uint8_t sdp_query_before_connect;
+    uni_sdp_query_type_t sdp_query_type;
 
     // Channels
     uint16_t hids_cid;  // BLE only
 
     // Gamepad
-    uint8_t controller_type;                      // type of controller attached
+    uint8_t controller_type;                      // type of controller. E.g: DualShock4, Switch ,etc.
     uni_controller_subtype_t controller_subtype;  // sub-type of controller attached
     uni_gamepad_t gamepad;                        // gamepad state
 
@@ -132,15 +128,8 @@ uni_hid_device_t* uni_hid_device_get_first_device_with_state(uni_bt_conn_state_t
 uni_hid_device_t* uni_hid_device_get_instance_for_idx(int idx);
 uni_hid_device_t* uni_hid_device_get_instance_with_predicate(uni_hid_device_predicate_t predicate, void* data);
 
-// Which device is currently doing a SDP query.
-void uni_hid_device_set_sdp_device(uni_hid_device_t* d);
-// Returns which device is currently doing a SDP query, and also the elapsed
-// time since the last SDP query in microseconds.
-uni_hid_device_t* uni_hid_device_get_sdp_device(uint64_t* elapsed /*out*/);
-
 void uni_hid_device_set_ready(uni_hid_device_t* d);
-
-void uni_hid_device_remove_entry_with_channel(uint16_t channel);
+void uni_hid_device_set_ready_complete(uni_hid_device_t* d);
 
 void uni_hid_device_request_inquire(void);
 
@@ -152,14 +141,13 @@ bool uni_hid_device_is_cod_supported(uint32_t cod);
 void uni_hid_device_set_hid_descriptor(uni_hid_device_t* d, const uint8_t* descriptor, int len);
 bool uni_hid_device_has_hid_descriptor(uni_hid_device_t* d);
 
-// Returns true if the device was deleted.
-// The device will be deleted after call "auto_delete" gets calls N times.
-bool uni_hid_device_auto_delete(uni_hid_device_t* d);
+void uni_hid_device_disconnect(uni_hid_device_t* d);
+void uni_hid_device_delete(uni_hid_device_t* d);
 
 void uni_hid_device_set_incoming(uni_hid_device_t* d, bool incoming);
 bool uni_hid_device_is_incoming(uni_hid_device_t* d);
 
-void uni_hid_device_set_name(uni_hid_device_t* d, const uint8_t* name, int name_len);
+void uni_hid_device_set_name(uni_hid_device_t* d, const char* name);
 bool uni_hid_device_has_name(uni_hid_device_t* d);
 
 void uni_hid_device_set_product_id(uni_hid_device_t* d, uint16_t product_id);
@@ -171,9 +159,7 @@ uint16_t uni_hid_device_get_vendor_id(uni_hid_device_t* d);
 void uni_hid_device_dump_device(uni_hid_device_t* d);
 void uni_hid_device_dump_all(void);
 
-bool uni_hid_device_is_orphan(uni_hid_device_t* d);
-
-uint8_t uni_hid_device_guess_controller_type_from_packet(uni_hid_device_t* d, const uint8_t* packet, int len);
+bool uni_hid_device_guess_controller_type_from_name(uni_hid_device_t* d, const char* name);
 void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d);
 bool uni_hid_device_has_controller_type(uni_hid_device_t* d);
 
@@ -185,5 +171,7 @@ void uni_hid_device_send_report(uni_hid_device_t* d, uint16_t cid, const uint8_t
 void uni_hid_device_send_intr_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
 void uni_hid_device_send_ctrl_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
 void uni_hid_device_send_queued_reports(uni_hid_device_t* d);
+
+bool uni_hid_device_does_require_hid_descriptor(uni_hid_device_t* d);
 
 #endif  // UNI_HID_DEVICE_H

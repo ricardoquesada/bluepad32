@@ -19,6 +19,6 @@ limitations under the License.
 #ifndef UNI_VERSION_H
 #define UNI_VERSION_H
 
-#define UNI_VERSION "2.5.0"
+#define UNI_VERSION "3.0.0-rc0"
 
 #endif  // UNI_VERSION_H

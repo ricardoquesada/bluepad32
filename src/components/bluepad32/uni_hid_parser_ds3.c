@@ -34,6 +34,9 @@ limitations under the License.
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
 
+static const uint16_t DUALSHOCK3_VID = 0x054c;  // Sony
+static const uint16_t DUALSHOCK3_PID = 0x0268;  // DualShock 3
+
 // Required steps to determine what kind of extensions are supported.
 typedef enum ds3_fsm {
     DS3_FSM_0,                    // Uninitialized
@@ -137,7 +140,7 @@ void uni_hid_parser_ds3_init_report(uni_hid_device_t* d) {
         GAMEPAD_STATE_MISC_BUTTON_BACK | GAMEPAD_STATE_MISC_BUTTON_HOME | GAMEPAD_STATE_MISC_BUTTON_SYSTEM;
 }
 
-void uni_hid_parser_ds3_parse_raw(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
+void uni_hid_parser_ds3_parse_input_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
     ds3_instance_t* ins = get_ds3_instance(d);
     if (ins->state == DS3_FSM_REQUIRES_LED_UPDATE) {
         ds3_update_led(d, ins->player_leds);
@@ -243,13 +246,31 @@ void uni_hid_parser_ds3_set_rumble(uni_hid_device_t* d, uint8_t value, uint8_t d
 }
 
 void uni_hid_parser_ds3_setup(struct uni_hid_device_s* d) {
-    // Dual Shock 3 Sixasis requires a magic packet to be sent in order to
-    // enable reports. Taken from:
-    // https://github.com/ros-drivers/joystick_drivers/blob/52e8fcfb5619382a04756207b228fbc569f9a3ca/ps3joy/scripts/ps3joy_node.py#L299
-    static uint8_t sixaxisEnableReports[] = {0x53,  // Transaction type: SET_REPORT Feature
+    // Dual Shock 3 Sixasis requires a magic packet to be sent in order to enable reports. Taken from:
+    // https://github.com/torvalds/linux/blob/1d1df41c5a33359a00e919d54eaebfb789711fdc/drivers/hid/hid-sony.c#L1684
+    static uint8_t sixaxisEnableReports[] = {(HID_MESSAGE_TYPE_SET_REPORT << 4) | HID_REPORT_TYPE_FEATURE,
                                              0xf4,  // Report ID
-                                             0x42, 0x03, 0x00, 0x00};
+                                             0x42,
+                                             0x03,
+                                             0x00,
+                                             0x00};
     uni_hid_device_send_ctrl_report(d, (uint8_t*)&sixaxisEnableReports, sizeof(sixaxisEnableReports));
+
+    // TODO: should set "ready_complete" once we receive an ack from DS3 regaring report id 0xf4 (???)
+    uni_hid_device_set_ready_complete(d);
+}
+
+bool uni_hid_parser_ds3_does_name_match(struct uni_hid_device_s* d, const char* name) {
+    // Matching names like:
+    // - "PLAYSTATION(R)3 Controller"
+    // - "PLAYSTATION(R)3Conteroller-PANHAI"
+    if (strncmp("PLAYSTATION(R)3", name, 15) != 0)
+        return false;
+
+    // Fake PID/VID
+    uni_hid_device_set_vendor_id(d, DUALSHOCK3_VID);
+    uni_hid_device_set_product_id(d, DUALSHOCK3_PID);
+    return true;
 }
 
 //

@@ -28,6 +28,7 @@ void uni_hid_parser_smarttvremote_init_report(struct uni_hid_device_s* d);
 void uni_hid_parser_smarttvremote_parse_usage(struct uni_hid_device_s* d,
                                               hid_globals_t* globals,
                                               uint16_t usage_page,
-                                              uint16_t usage, int32_t value);
+                                              uint16_t usage,
+                                              int32_t value);
 
 #endif  // UNI_HID_PARSER_SMARTTVREMOTE_H
