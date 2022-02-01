@@ -45,10 +45,11 @@ Add Bluetooth gamepad support to your projects easily. Supported platforms:
 * Sony DualSense (PS5)
 * Sony DUALSHOCK 4 (PS4)
 * Sony DUALSHOCK 3 (PS3)
-* Xbox One S
 * Nintendo Switch Pro
+* Nintendo Switch JoyCon
 * Nintendo Wii U
 * Nintendo Wii
+* Xbox Wireless (model 1708)
 * Android gamepads
 * PC/Window gamepads
 * 8BitDo
@@ -85,7 +86,7 @@ See: [Supported gamepads][gamepads]
 
 4. Compile Bluepad32
 
-    Choose target platform (default is Unijoysticle):
+    Choose target platform (default is *Unijoysticle*):
 
     ```sh
     cd ${BLUEPAD32}/src

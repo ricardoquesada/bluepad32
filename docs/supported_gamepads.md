@@ -38,23 +38,11 @@ Not every Bluetooth HID controller is "Classic". Some of them are "BLE" (low ene
 
 List of supported gamepads with supported features, known bugs, etc.
 
-## Xbox Wireless (model 1708)
-
-[![Xbox One S][xbox_one_s]][13]
-
-- Must be the *model 1708* (released in 2016) and not earlier. *Model 1797* might work. Newer models, like 1914, are not supported ATM.
-- Supports both "old" and "new" Xbox One mappings: supports firmware v3.1 as well as firmware v4.8.
-- Supported features: rumble
-- Known Issues: [issue #1][issue_1]
-
-[xbox_one_s]: https://lh3.googleusercontent.com/YmONc-MhVZhnE8HVRgzH7FKSpT_29MLeIF70U5AfrcBuCtuNJ2Ln5xkmSpNqO0myrFpnDLbFvR2TRTRu0xcqvP3cLNaq1BBpruEAn-Z7vBbwzNtaXx7eQaLLF7aa8tt2Wa0IcYxeD08=-no
-[issue_1]: https://gitlab.com/ricardoquesada/unijoysticle2/issues/1
-
 ## Sony DualSense (PS5)
 
 [![ddualsense_gamepad][dualsense]][11]
 
-- [Must be in PC mode][25]. Clones might not work.
+- [Must be in PC mode][25]
 - Supported features: rumble, lightbar color, player LEDs
 
 [dualsense]: https://lh3.googleusercontent.com/pw/ACtC-3d1CVA-e5srBTDhTD6D-3BSWYi7MncfECPj_9bQJfcGOAKIHrP6g6Ha7xAD0trE59eN-Qv_U33MklCFPskPWRLjfFI4ITHEol8RAmTYNHFNrA-gwhoXEn2ks_M7UDDbxiKhNdaPNXexxgj5zzOtpBjiyw=-no
@@ -63,9 +51,10 @@ List of supported gamepads with supported features, known bugs, etc.
 
 [![ds4_gamepad][dualshock_4]][14]
 
-- [Must be in PC mode][25]. Clones might not work.
+- [Must be in PC mode][25].
 - Supports both the 2013 (CUH-ZCT1) and 2016 (CUH-ZCT2) editions
 - Supported features: rumble, lightbar color
+- Some clones are known to work Ok
 
 [dualshock_4]: https://lh3.googleusercontent.com/_0sAxKXbSkk4g8rWJzTNxAirz2hD632jW4TGjGVOwjoac8sD4AfiN9PA1HdGWhm_ujcVygDlEG-LENPemF7IyFhqVsHgVHfCMVeFVjBbeDl-fUUjdMbRYAE8FiKdyWM_UBNUNmVy9Ro=-no
 
@@ -73,13 +62,45 @@ List of supported gamepads with supported features, known bugs, etc.
 
 [![ds3_gamepad][dualshock_3]][12]
 
-- Tested with genuine DS3. Clones might not work.
 - Supported features: rumble, player LEDs
 - Requires that the [DS3 is manually paired][pair_ds3] to the Unijoysticle device.
 - Disabled by default since it conflicts with Nintendo Switch. Enable it via `idf.py menuconfig`
+- Some clones are known to work Ok
 
 [dualshock_3]: https://lh3.googleusercontent.com/pw/ACtC-3dEBJYkdIpF5_icFUY7n7otgw5LPpLyviKS14JL2EJtuiDBt6Kk-XcKlIIP9JCgT0yxJVN1KuW-JICpilYKhMGfDxQt6vjJm8r_lRS1R9IyOX4iBlUQoIrflt9KmSjXBjcJlS81cmKaGB166HF608v5MA=-no
 [pair_ds3]: pair_ds3.md
+
+## Nintendo Switch Pro
+
+[![Switch Pro][switch_pro_img]][switch_pro]
+
+- Supported features: rumble, player LEDs
+- Clones and "licensed by Nintendo" controllers should also work Ok.
+
+[switch_pro]: https://en.wikipedia.org/wiki/Nintendo_Switch_Pro_Controller
+[switch_pro_img]: https://lh3.googleusercontent.com/33hrGYM117T9pPrW0L-wr7bl0trLXooqmp4I78XV9vWkumHE8mK8Z_5KJZFzWKNpJg31gvrxHC0agF5BUgVr2f6awNYb98R-xPIWaawG6b0XwxHzm8hzz39Wnnv6qLmeEXsRaeoybsA=-no
+
+## Nintendo Switch JoyCon
+
+[![Switch JoyCon][switch_joycon_img]][switch_joycon]
+
+Both Left and Right JoyCon are supported.
+
+- Supported features: player LEDs
+- They must be used in "horizontal" mode.
+- Each JoyCon represents one gamepad. Cannot be used as a single/combined gamepad.
+- Clones and "licensed by Nintendo" should also work Ok.
+
+[switch_joycon]: https://en.wikipedia.org/wiki/Joy-Con
+[switch_joycon_img]: https://lh3.googleusercontent.com/pw/ACtC-3cN7JVNm3SvOM3IeKiAg4Ex03Dg7yxozBRNNV95Ycr_0J1eHF03_oDz8ydwpTZCFcPPfFuSzroK4UQ-3KcM0Y2XKew8deuYTqu_q5Q0nEEjA_KTQJCioVRU0IEbBGXHqy2ybtTP7EXp3p-7_RfjYK7Wjg=w360-no
+
+## Nintendo Wii U Pro controller
+
+[![Wii U Pro][wii_u_pro]][27]
+
+- Supported features: player LEDs
+
+[wii_u_pro]: https://lh3.googleusercontent.com/kfKAySKzV-lLG7VmQGfCES1KuhtjBcTIfMzo59FgABcL7Ir9Tp7fQqrTP2iFqf8UVIhce1JhIXyBN_EH9eXpjlf5Q4b9NhhyxrFX9H0yVVRF0_pghjjz3pVqmY4uxS-FMgr7FC7egNo=w360-no
 
 ## Nintendo Wii Remote
 
@@ -162,37 +183,17 @@ Classic Controller can be used.
 
 [wii_classic_controller_img]: https://lh3.googleusercontent.com/nX-CyjcmorkW90mP8RybO_pJ7ezM4EJk1tsqkz8HAuLkHBAasccZzq5h-A74Ez-h7Zmv5hpsuBu5n66EeThwRUnLTIu8ffk2MstEMBjHiGrcNoyq-XAC9zeh97Kz8GDBDLqmujmm2J0=-no
 
-## Nintendo Wii U Pro controller
+## Xbox Wireless (model 1708)
 
-[![Wii U Pro][wii_u_pro]][27]
+[![Xbox One S][xbox_one_s]][13]
 
-- Supported features: player LEDs
+- Must be the *model 1708* (released in 2016) and not earlier. *Model 1797* might work. Newer models, like 1914, are not supported ATM.
+- Supports both "old" (firmware 3.1) and "new" (firmware 4.8) Xbox One mappings
+- Supported features: rumble
+- Known Issues: [issue #1][issue_1]
 
-[wii_u_pro]: https://lh3.googleusercontent.com/kfKAySKzV-lLG7VmQGfCES1KuhtjBcTIfMzo59FgABcL7Ir9Tp7fQqrTP2iFqf8UVIhce1JhIXyBN_EH9eXpjlf5Q4b9NhhyxrFX9H0yVVRF0_pghjjz3pVqmY4uxS-FMgr7FC7egNo=w360-no
-
-## Nintendo Switch Pro
-
-[![Switch Pro][switch_pro_img]][switch_pro]
-
-Clones and "licensed by Nintendo" controllers should also work supported Ok.
-
-- Supported features: rumble, player LEDs
-
-[switch_pro]: https://en.wikipedia.org/wiki/Nintendo_Switch_Pro_Controller
-[switch_pro_img]: https://lh3.googleusercontent.com/33hrGYM117T9pPrW0L-wr7bl0trLXooqmp4I78XV9vWkumHE8mK8Z_5KJZFzWKNpJg31gvrxHC0agF5BUgVr2f6awNYb98R-xPIWaawG6b0XwxHzm8hzz39Wnnv6qLmeEXsRaeoybsA=-no
-
-## Nintendo Switch JoyCon
-
-[![Switch JoyCon][switch_joycon_img]][switch_joycon]
-
-Both Left and Right JoyCon are supported.
-
-- Supported features: player LEDs
-- They must be used in "horizontal" mode.
-- Each JoyCon represents one gamepad. Cannot be used as a single/combined gamepad.
-
-[switch_joycon]: https://en.wikipedia.org/wiki/Joy-Con
-[switch_joycon_img]: https://lh3.googleusercontent.com/pw/ACtC-3cN7JVNm3SvOM3IeKiAg4Ex03Dg7yxozBRNNV95Ycr_0J1eHF03_oDz8ydwpTZCFcPPfFuSzroK4UQ-3KcM0Y2XKew8deuYTqu_q5Q0nEEjA_KTQJCioVRU0IEbBGXHqy2ybtTP7EXp3p-7_RfjYK7Wjg=w360-no
+[xbox_one_s]: https://lh3.googleusercontent.com/YmONc-MhVZhnE8HVRgzH7FKSpT_29MLeIF70U5AfrcBuCtuNJ2Ln5xkmSpNqO0myrFpnDLbFvR2TRTRu0xcqvP3cLNaq1BBpruEAn-Z7vBbwzNtaXx7eQaLLF7aa8tt2Wa0IcYxeD08=-no
+[issue_1]: https://gitlab.com/ricardoquesada/unijoysticle2/issues/1
 
 ## Android
 
@@ -224,7 +225,7 @@ Both Left and Right JoyCon are supported.
 
 [![8bitdo SN30 Pro][8bitdo_sn30_pro_img]][8bitdo_sn30_pro]
 
-- Tested with: [8BitDo SN30 Pro][8bitdo_sn30_pro], [8BitDo Arcade Stick][8bitdo_arcadestick],
+- Tested with: [8BitDo SN30 Pro][8bitdo_sn30_pro], [8BitDo Arcade Stick][8bitdo_arcade_stick],
   [8BitDo Lite][8bitdo_lite], [8BitDo NES30][8bitdo_nes30]
 - All 8BitDo modes are supported: *Switch*, *Android*, *Windows* and *macOS*.
 - Known issues: [issue #10][issue_10]
