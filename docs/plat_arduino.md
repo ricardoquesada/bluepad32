@@ -40,7 +40,7 @@ To test it just do:
 
 ```sh
 # To compile it do:
-idf.py make
+idf.py build
 
 # To flash it do:
 idf.py flash monitor
