@@ -91,7 +91,11 @@ struct uni_hid_device_s {
     uni_report_parser_t report_parser;
 
     // Buttons that needs to be released before triggering the action again.
-    uint32_t wait_release_misc_button;
+    uint32_t misc_button_wait_release;
+    // Buttons that needs to wait for a delay before triggering the action again.
+    uint32_t misc_button_wait_delay;
+    // Needed for Nintendo Switch family of controllers.
+    btstack_timer_source_t misc_button_delay_timer;
 
     // Circular buffer that contains the outgoing packets that couldn't be sent
     // immediately.

@@ -45,14 +45,14 @@ Add Bluetooth gamepad support to your projects easily. Supported platforms:
 * Sony DualSense (PS5)
 * Sony DUALSHOCK 4 (PS4)
 * Sony DUALSHOCK 3 (PS3)
-* Nintendo Switch Pro
+* Nintendo Switch Pro controller
 * Nintendo Switch JoyCon
-* Nintendo Wii U
-* Nintendo Wii
-* Xbox Wireless (model 1708)
+* Nintendo Wii U controller
+* Nintendo Wii Remote + accesories
+* Xbox Wireless controller (model 1708)
 * Android gamepads
 * PC/Window gamepads
-* 8BitDo
+* 8BitDo controllers
 * iCade
 * And more
 

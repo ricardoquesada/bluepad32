@@ -52,11 +52,14 @@ enum {
     FLAGS_HAS_CONTROLLER_TYPE = (1 << 13),
 };
 
+#define MISC_BUTTON_DELAY_MS 200
+
 static uni_hid_device_t g_devices[CONFIG_BLUEPAD32_MAX_DEVICES];
 static const bd_addr_t zero_addr = {0, 0, 0, 0, 0, 0};
 
 static void process_misc_button_system(uni_hid_device_t* d);
 static void process_misc_button_home(uni_hid_device_t* d);
+static void misc_button_enable_callback(btstack_timer_source_t* ts);
 static void device_connection_timeout(btstack_timer_source_t* ts);
 static void start_connection_timeout(uni_hid_device_t* d);
 
@@ -639,6 +642,11 @@ bool uni_hid_device_does_require_hid_descriptor(uni_hid_device_t* d) {
 
 // Helpers
 
+static void misc_button_enable_callback(btstack_timer_source_t* ts) {
+    uni_hid_device_t* d = btstack_run_loop_get_timer_context(ts);
+    d->misc_button_wait_delay &= ~MISC_BUTTON_SYSTEM;
+}
+
 // process_mic_button_system swaps joystick port A and B only if there is one device attached.
 static void process_misc_button_system(uni_hid_device_t* d) {
     if ((d->gamepad.updated_states & GAMEPAD_STATE_MISC_BUTTON_SYSTEM) == 0) {
@@ -648,16 +656,34 @@ static void process_misc_button_system(uni_hid_device_t* d) {
 
     if ((d->gamepad.misc_buttons & MISC_BUTTON_SYSTEM) == 0) {
         // System button released ?
-        d->wait_release_misc_button &= ~MISC_BUTTON_SYSTEM;
+        d->misc_button_wait_release &= ~MISC_BUTTON_SYSTEM;
         return;
     }
 
-    if (d->wait_release_misc_button & MISC_BUTTON_SYSTEM)
+    if (d->misc_button_wait_release & MISC_BUTTON_SYSTEM)
         return;
 
-    d->wait_release_misc_button |= MISC_BUTTON_SYSTEM;
+    // Needed only for Nintendo Switch family of controllers.
+    // This is because each time you press the "system" button it generates two events
+    // automatically:  press button + release button
+    // We artificially add a delay.
+    bool requires_delay = (d->controller_type == CONTROLLER_TYPE_SwitchProController ||
+                           d->controller_type == CONTROLLER_TYPE_SwitchJoyConLeft || CONTROLLER_TYPE_SwitchJoyConRight);
+
+    if (requires_delay && (d->misc_button_wait_delay & MISC_BUTTON_SYSTEM))
+        return;
+
+    d->misc_button_wait_release |= MISC_BUTTON_SYSTEM;
 
     uni_get_platform()->on_device_oob_event(d, UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON);
+
+    if (requires_delay) {
+        d->misc_button_wait_delay |= MISC_BUTTON_SYSTEM;
+        btstack_run_loop_set_timer_context(&d->misc_button_delay_timer, d);
+        btstack_run_loop_set_timer_handler(&d->misc_button_delay_timer, &misc_button_enable_callback);
+        btstack_run_loop_set_timer(&d->misc_button_delay_timer, MISC_BUTTON_DELAY_MS);
+        btstack_run_loop_add_timer(&d->misc_button_delay_timer);
+    }
 }
 
 // process_misc_button_home dumps uni_hid_device debug info in the console.
@@ -669,16 +695,16 @@ static void process_misc_button_home(uni_hid_device_t* d) {
 
     if ((d->gamepad.misc_buttons & MISC_BUTTON_HOME) == 0) {
         // Home button released ? Clear "wait" flag.
-        d->wait_release_misc_button &= ~MISC_BUTTON_HOME;
+        d->misc_button_wait_release &= ~MISC_BUTTON_HOME;
         return;
     }
 
     // "Wait" flag present? Return.
-    if (d->wait_release_misc_button & MISC_BUTTON_HOME)
+    if (d->misc_button_wait_release & MISC_BUTTON_HOME)
         return;
 
     // Update "wait" flag.
-    d->wait_release_misc_button |= MISC_BUTTON_HOME;
+    d->misc_button_wait_release |= MISC_BUTTON_HOME;
 
     uni_hid_device_dump_all();
 }
