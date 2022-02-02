@@ -721,6 +721,8 @@ static void parse_report_30_joycon_right(uni_hid_device_t* d, const struct switc
 }
 
 // Process 0x3f input report: SWITCH_INPUT_BUTTON_EVENT
+// Some clones report the buttons inverted. Always base the mappings on the original
+// devices, not clones.
 static void parse_report_3f(struct uni_hid_device_s* d, const uint8_t* report, int len) {
     // Expecting something like:
     // (a1) 3F 00 00 08 D0 81 0F 88 F0 81 6F 8E
@@ -1046,7 +1048,8 @@ static void switch_rumble_off(btstack_timer_source_t* ts) {
 }
 
 void switch_setup_timeout_callback(btstack_timer_source_t* ts) {
-    logi("Switch: setup could not finish in time, forcing setup as complete\n");
     uni_hid_device_t* d = btstack_run_loop_get_timer_context(ts);
+    switch_instance_t* ins = get_switch_instance(d);
+    logi("Switch: setup could not finish in time, last state=0x%02x. Forcing setup as complete\n", ins->state);
     fsm_ready(d);
 }
