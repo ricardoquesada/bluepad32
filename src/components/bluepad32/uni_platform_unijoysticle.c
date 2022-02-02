@@ -592,7 +592,7 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
 
     } else if (d->report_parser.set_player_leds != NULL) {
         // 2nd best option: set player LEDs
-        d->report_parser.set_player_leds(d, all_seats);
+        d->report_parser.set_player_leds(d, seat);
 
     } else if (d->report_parser.set_rumble != NULL) {
         // Finally, as last resort, rumble

@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] - 2022-??-??
 ### Fixed
 
+- Unijoysticle: correclty set Player LED when second player connects
 - Nintendo Switch: Pressing "system" button has a delay of 200ms before being able
   to press it again. This helps switching the Joystick port in Unijoysticle.
 - 8BitDo: Added SNES30 to the DB. It correctly identifies it as 8BitDo gamepad
