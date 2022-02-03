@@ -48,6 +48,6 @@ limitations under the License.
 // If the interval is too big, some devices won't be able to re-connect (e.g: Wii Remotes)
 #define UNI_BT_MAX_PERIODIC_LENGTH 5  // In 1.28s unit
 #define UNI_BT_MIN_PERIODIC_LENGTH 4  // In 1.28s  unit
-#define UNI_BT_INQUIRY_LENGTH 2       // In 1.28s unit
+#define UNI_BT_INQUIRY_LENGTH 3       // In 1.28s unit
 
 #endif /* UNI_BT_DEFINES_H */
