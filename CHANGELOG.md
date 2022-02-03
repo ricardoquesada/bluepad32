@@ -5,9 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased] - 2022-??-??
+### Changed
+
+- Bluetooth: To err on the safe side, new connection have a bigger window time to connect,
+  and re-connects (incoming connections) a slightly smaller window.
+
 ### Fixed
 
 - Unijoysticle: correclty set Player LED when second player connects
+- Unijoysticle: reject new connections if two gamepads are already connected
 - Nintendo Switch: Pressing "system" button has a delay of 200ms before being able
   to press it again. This helps switching the Joystick port in Unijoysticle.
 - 8BitDo: Added SNES30 to the DB. It correctly identifies it as 8BitDo gamepad
