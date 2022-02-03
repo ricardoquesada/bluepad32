@@ -331,6 +331,11 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
         used_joystick_ports |= get_unijoysticle_instance(tmp_d)->gamepad_seat;
     }
 
+    // Either two gamepads are connected, or one is in Enhanced mode.
+    // Don't allow new connections.
+    if (used_joystick_ports == (GAMEPAD_SEAT_A | GAMEPAD_SEAT_B))
+        return -1;
+
     int wanted_seat = GAMEPAD_SEAT_A;
     if (get_board_model() == BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT) {
         // Single port boards only supports one port, so keep using SEAT A
