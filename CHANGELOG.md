@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unijoysticle: reject new connections if two gamepads are already connected
 - Nintendo Switch: Pressing "system" button has a delay of 200ms before being able
   to press it again. This helps switching the Joystick port in Unijoysticle.
+- Nintendo Switch: While setting up the controller, each step has its own timeout.
+  This helps setup clones that might need certain steps in order to enable report 0x30.
 - 8BitDo: Added SNES30 to the DB. It correctly identifies it as 8BitDo gamepad
 
 ## [3.0.0-rc0] - 2022-01-31

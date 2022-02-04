@@ -52,7 +52,7 @@ static const uint16_t SWITCH_FACTORY_CAL_DATA_ADDR = 0x603d;
 #define SWITCH_USER_CAL_DATA_SIZE 22
 static const uint16_t SWITCH_USER_CAL_DATA_ADDR = 0x8010;
 #define SWITCH_DUMP_ROM_DATA_SIZE 24  // Max size is 24
-#define SWITCH_SETUP_TIMEOUT_MS 2000
+#define SWITCH_SETUP_TIMEOUT_MS 600
 #if ENABLE_SPI_FLASH_DUMP
 static const uint32_t SWITCH_DUMP_ROM_DATA_ADDR_START = 0x20000;
 static const uint32_t SWITCH_DUMP_ROM_DATA_ADDR_END = 0x30000;
@@ -61,10 +61,10 @@ static const uint32_t SWITCH_DUMP_ROM_DATA_ADDR_END = 0x30000;
 enum switch_state {
     STATE_UNINIT,
     STATE_SETUP,
-    STATE_SET_FULL_REPORT,           // Request report 0x30
     STATE_REQ_DEV_INFO,              // What controller
     STATE_READ_FACTORY_CALIBRATION,  // Factory calibration info
     STATE_READ_USER_CALIBRATION,     // User calibration info
+    STATE_SET_FULL_REPORT,           // Request report 0x30
     STATE_ENABLE_IMU,                // Enable/Disable gyro/accel
     STATE_DUMP_FLASH,                // Dump SPI Flash memory
     STATE_UPDATE_LED,                // Update LEDs
@@ -329,13 +329,6 @@ void uni_hid_parser_switch_setup(struct uni_hid_device_s* d) {
 #endif  // ENABLE_SPI_FLASH_DUMP
 
     process_fsm(d);
-
-    // Some clones don't respond to all queries.
-    // After the timeout, just set the device as "ready" with whatever the state might be.
-    btstack_run_loop_set_timer_context(&ins->setup_timer, d);
-    btstack_run_loop_set_timer_handler(&ins->setup_timer, &switch_setup_timeout_callback);
-    btstack_run_loop_set_timer(&ins->setup_timer, SWITCH_SETUP_TIMEOUT_MS);
-    btstack_run_loop_add_timer(&ins->setup_timer);
 }
 
 void uni_hid_parser_switch_init_report(uni_hid_device_t* d) {
@@ -385,14 +378,19 @@ void uni_hid_parser_switch_parse_input_report(struct uni_hid_device_s* d, const 
 
 static void process_fsm(struct uni_hid_device_s* d) {
     switch_instance_t* ins = get_switch_instance(d);
-    logd("Switch: fsm state = %d\n", ins->state);
+    logd("Switch: fsm next state = %d\n", ins->state + 1);
+
+    // Some clones don't respond to all queries. Set a timeout for each request
+    if (ins->state != STATE_READY) {
+        btstack_run_loop_set_timer_context(&ins->setup_timer, d);
+        btstack_run_loop_set_timer_handler(&ins->setup_timer, &switch_setup_timeout_callback);
+        btstack_run_loop_set_timer(&ins->setup_timer, SWITCH_SETUP_TIMEOUT_MS);
+        btstack_run_loop_add_timer(&ins->setup_timer);
+    }
+
     switch (ins->state) {
         case STATE_SETUP:
             logd("STATE_SETUP\n");
-            fsm_set_full_report(d);
-            break;
-        case STATE_SET_FULL_REPORT:
-            logd("STATE_SET_FULL_REPORT\n");
             fsm_request_device_info(d);
             break;
         case STATE_REQ_DEV_INFO:
@@ -405,6 +403,10 @@ static void process_fsm(struct uni_hid_device_s* d) {
             break;
         case STATE_READ_USER_CALIBRATION:
             logd("STATE_READ_USER_CALIBRATION\n");
+            fsm_set_full_report(d);
+            break;
+        case STATE_SET_FULL_REPORT:
+            logd("STATE_SET_FULL_REPORT\n");
             fsm_enable_imu(d);
             break;
         case STATE_ENABLE_IMU:
@@ -593,6 +595,9 @@ static void process_input_subcmd_reply(struct uni_hid_device_s* d, const uint8_t
             loge("Switch: Error, unexpected subcmd_id=0x%02x in report 0x21\n", r->subcmd_id);
             break;
     }
+    switch_instance_t* ins = get_switch_instance(d);
+    btstack_run_loop_remove_timer(&ins->setup_timer);
+
     process_fsm(d);
 }
 
@@ -786,6 +791,7 @@ static void fsm_dump_rom(struct uni_hid_device_s* d) {
 #else
     switch_instance_t* ins = get_switch_instance(d);
     ins->state = STATE_DUMP_FLASH;
+    btstack_run_loop_remove_timer(&ins->setup_timer);
     process_fsm(d);
 #endif  // ENABLE_SPI_FLASH_DUMP
 }
@@ -870,8 +876,6 @@ static void fsm_ready(struct uni_hid_device_s* d) {
     switch_instance_t* ins = get_switch_instance(d);
     ins->state = STATE_READY;
     logi("Switch: gamepad is ready!\n");
-
-    btstack_run_loop_remove_timer(&ins->setup_timer);
     uni_hid_device_set_ready_complete(d);
 }
 
@@ -1050,6 +1054,6 @@ static void switch_rumble_off(btstack_timer_source_t* ts) {
 void switch_setup_timeout_callback(btstack_timer_source_t* ts) {
     uni_hid_device_t* d = btstack_run_loop_get_timer_context(ts);
     switch_instance_t* ins = get_switch_instance(d);
-    logi("Switch: setup could not finish in time, last state=0x%02x. Forcing setup as complete\n", ins->state);
-    fsm_ready(d);
+    logi("Switch: setup timer timeout, failed state: 0x%02x\n", ins->state);
+    process_fsm(d);
 }

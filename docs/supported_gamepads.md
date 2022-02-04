@@ -11,7 +11,7 @@ List of supported Bluetooth Classic controller
 - DualSense (PS5)
 - DUALSHOCK 4 (PS4) controller, both 2013 and 2016 editions
 - DUALSHOCK 3 (PS3) controller
-- Nintendo Switch Pro controller and clones
+- Nintendo Switch Pro controller
 - Nintendo Switch JoyCons
 - Nintendo Wii U Pro controller
 - Nintendo Wii Remote and Remote Motion Plus, including Nunchuk and Classic Controller
@@ -99,6 +99,7 @@ Both Left and Right JoyCon are supported.
 [![Wii U Pro][wii_u_pro]][27]
 
 - Supported features: player LEDs
+- Clones should also work Ok.
 
 [wii_u_pro]: https://lh3.googleusercontent.com/kfKAySKzV-lLG7VmQGfCES1KuhtjBcTIfMzo59FgABcL7Ir9Tp7fQqrTP2iFqf8UVIhce1JhIXyBN_EH9eXpjlf5Q4b9NhhyxrFX9H0yVVRF0_pghjjz3pVqmY4uxS-FMgr7FC7egNo=w360-no
 
