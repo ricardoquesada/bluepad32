@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Nintendo Switch: While setting up the controller, each step has its own timeout.
   This helps setup clones that might need certain steps in order to enable report 0x30.
 - 8BitDo: Added SNES30 to the DB. It correctly identifies it as 8BitDo gamepad
+- MightyMiggy: millis() declared static to avoid collision
 
 ## [3.0.0-rc0] - 2022-01-31
 ### New
