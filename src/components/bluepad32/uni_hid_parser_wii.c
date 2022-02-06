@@ -452,22 +452,28 @@ static void process_drm_ka(uni_hid_device_t* d, const uint8_t* report, uint16_t 
     int16_t sz = z - 0x200;
 
     // printf_hexdump(report, len);
-    logd("Wii: x=%d, y=%d, z=%d\n", sx, sy, sz);
+    // logi("Wii: x=%d, y=%d, z=%d\n", sx, sy, sz);
 
     uni_gamepad_t* gp = &d->gamepad;
 #ifdef ENABLE_ACCEL_WHEEL_MODE
 
-    if (sy > accel_threshold) {
-        gp->dpad |= DPAD_LEFT;
-    } else if (sy < -accel_threshold) {
-        gp->dpad |= DPAD_RIGHT;
-    }
-    if (sz > accel_threshold) {
-        gp->dpad |= DPAD_UP;
-    } else if (sz < -accel_threshold) {
-        // Threshold for down is 50% because it is not as easy to tilt the
-        // device down as it is it to tilt it up.
-        gp->dpad |= DPAD_DOWN;
+    // Is the wheel in resting position, don't read accelerometer
+    if (sx > -accel_threshold && sx < accel_threshold) {
+        // Accelerometer reading disabled.
+        // logd("Wii: Wheel in resting position, do nothing");
+    } else {
+        if (sy > accel_threshold) {
+            gp->dpad |= DPAD_LEFT;
+        } else if (sy < -accel_threshold) {
+            gp->dpad |= DPAD_RIGHT;
+        }
+        if (sz > accel_threshold) {
+            gp->dpad |= DPAD_UP;
+        } else if (sz < -accel_threshold) {
+            // Threshold for down is 50% because it is not as easy to tilt the
+            // device down as it is it to tilt it up.
+            gp->dpad |= DPAD_DOWN;
+        }
     }
 #else   // !ENABLE_ACCEL_WHEEL_MODE
     if (sx < -accel_threshold) {
