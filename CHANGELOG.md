@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bluetooth: To err on the safe side, new connection have a bigger window time to connect,
   and re-connects (incoming connections) a slightly smaller window.
+- Wii: Accelerometer mode works as if the Wii Remote is being inside a Wii Wheel.
+  This is because the "old" mode was not rather difficult to use, and using it for the
+  Wii Whell is very usable in C64 racing games.
 
 ### Fixed
 
