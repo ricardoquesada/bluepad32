@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Bluetooth: use page scan / clock offset if available when requesting name
+  This used to be the case in v2.5, but disabled during the big refactoring
 - Unijoysticle: correclty set Player LED when second player connects
 - Unijoysticle: reject new connections if two gamepads are already connected
 - Unijoysticle: On DualSense gamepads, update Player LEDs when gamepad connects.

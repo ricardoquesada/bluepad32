@@ -196,7 +196,8 @@ int uni_bt_setup(void) {
     hci_event_callback_registration.callback = &uni_bluetooth_packet_handler;
     hci_add_event_handler(&hci_event_callback_registration);
 
-    // Enable EIR for gap_inquiry
+    // Enable RSSI and EIR for gap_inquiry
+    // TODO: Do we need EIR, since the name will be requested if not provided?
     hci_set_inquiry_mode(INQUIRY_MODE_RSSI_AND_EIR);
 
     // Allow sniff mode requests by HID device and support role switch
