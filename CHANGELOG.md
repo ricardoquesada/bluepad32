@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Unijoysticle: correclty set Player LED when second player connects
 - Unijoysticle: reject new connections if two gamepads are already connected
+- Unijoysticle: On DualSense gamepads, update Player LEDs when gamepad connects.
 - Nintendo Switch: Pressing "system" button has a delay of 200ms before being able
   to press it again. This helps switching the Joystick port in Unijoysticle.
 - Nintendo Switch: While setting up the controller, each step has its own timeout.
