@@ -287,7 +287,7 @@ static void on_gap_inquiry_result(uint16_t channel, const uint8_t* packet, uint1
     uni_hid_device_t* device = NULL;
     char name_buffer[HID_MAX_NAME_LEN + 1] = {0};
     int name_len = 0;
-    uint8_t rssi = 0;
+    uint8_t rssi = 255;
 
     UNUSED(channel);
     UNUSED(size);
@@ -312,9 +312,9 @@ static void on_gap_inquiry_result(uint16_t channel, const uint8_t* packet, uint1
         logi(", name '%s'", name_buffer);
     }
     logi("\n");
-    // As returned by BTStack, the bigger the RSSI number, the better, being 255 the max.
+    // As returned by BTStack, the bigger the RSSI number, the better, being 255 the closest possible (?).
     if (rssi < (255 - 100))
-        logi("Controller too far away, try moving closer to Bluepad32 device\n");
+        logi("Device %s too far away, try moving it closer to Bluepad32 device\n", bd_addr_to_str(addr));
 
     if (uni_hid_device_is_cod_supported(cod)) {
         device = uni_hid_device_get_instance_for_address(addr);
