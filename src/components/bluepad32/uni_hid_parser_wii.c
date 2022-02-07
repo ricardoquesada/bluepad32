@@ -20,6 +20,10 @@ limitations under the License.
 // http://wiibrew.org/wiki/Wiimote
 // https://github.com/dvdhrm/xwiimote/blob/master/doc/PROTOCOL
 
+// When accelerometer mode is enabled, it will use it as if it were
+// in the Nintendo Wii Wheel.
+#define ENABLE_ACCEL_WHEEL_MODE 1
+
 #define ENABLE_EEPROM_DUMP 0
 
 #if ENABLE_EEPROM_DUMP
@@ -430,7 +434,7 @@ static void process_drm_k_vertical(uni_gamepad_t* gp, const uint8_t* data) {
 // http://wiibrew.org/wiki/Wiimote#0x31:_Core_Buttons_and_Accelerometer
 static void process_drm_ka(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
     // Process Wiimote in "accelerator mode".
-    const int16_t accel_threshold = 32;
+    const int16_t accel_threshold = 26;
     /* DRM_KA: BB*2 AA*3*/
     // Expecting something like:
     // 31 20 60 82 7F 99
@@ -439,22 +443,39 @@ static void process_drm_ka(uni_hid_device_t* d, const uint8_t* report, uint16_t 
         return;
     }
 
-    uint16_t x = report[3] << 2;
-    uint16_t y = report[4] << 2;
-    // uint16_t z = report[5] << 2;
-
-    x |= (report[1] >> 5) & 0x3;
-    y |= (report[2] >> 4) & 0x2;
-    // z |= (report[2] >> 5) & 0x2;
+    uint16_t x = (report[3] << 2) | ((report[1] >> 5) & 0x3);
+    uint16_t y = (report[4] << 2) | ((report[2] >> 4) & 0x2);
+    uint16_t z = (report[5] << 2) | ((report[2] >> 5) & 0x2);
 
     int16_t sx = x - 0x200;
     int16_t sy = y - 0x200;
-    // int16_t sz = z - 0x200;
+    int16_t sz = z - 0x200;
 
     // printf_hexdump(report, len);
-    // printf("x=%d, y=%d, z=%d\n", x, y, z);
+    // logi("Wii: x=%d, y=%d, z=%d\n", sx, sy, sz);
 
     uni_gamepad_t* gp = &d->gamepad;
+#ifdef ENABLE_ACCEL_WHEEL_MODE
+
+    // Is the wheel in resting position, don't read accelerometer
+    if (sx > -accel_threshold && sx < accel_threshold) {
+        // Accelerometer reading disabled.
+        // logd("Wii: Wheel in resting position, do nothing");
+    } else {
+        if (sy > accel_threshold) {
+            gp->dpad |= DPAD_LEFT;
+        } else if (sy < -accel_threshold) {
+            gp->dpad |= DPAD_RIGHT;
+        }
+        if (sz > accel_threshold) {
+            gp->dpad |= DPAD_UP;
+        } else if (sz < -accel_threshold) {
+            // Threshold for down is 50% because it is not as easy to tilt the
+            // device down as it is it to tilt it up.
+            gp->dpad |= DPAD_DOWN;
+        }
+    }
+#else   // !ENABLE_ACCEL_WHEEL_MODE
     if (sx < -accel_threshold) {
         gp->dpad |= DPAD_LEFT;
     } else if (sx > accel_threshold) {
@@ -467,6 +488,7 @@ static void process_drm_ka(uni_hid_device_t* d, const uint8_t* report, uint16_t 
         // device down as it is it to tilt it up.
         gp->dpad |= DPAD_DOWN;
     }
+#endif  // ! ENABLE_ACCEL_WHEEL_MODE
     gp->updated_states |= GAMEPAD_STATE_DPAD;
 
     gp->buttons |= (report[2] & 0x08) ? BUTTON_A : 0;  // Big button "A"

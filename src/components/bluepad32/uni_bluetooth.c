@@ -287,6 +287,7 @@ static void on_gap_inquiry_result(uint16_t channel, const uint8_t* packet, uint1
     uni_hid_device_t* device = NULL;
     char name_buffer[HID_MAX_NAME_LEN + 1] = {0};
     int name_len = 0;
+    uint8_t rssi = 255;
 
     UNUSED(channel);
     UNUSED(size);
@@ -301,7 +302,8 @@ static void on_gap_inquiry_result(uint16_t channel, const uint8_t* packet, uint1
     logi("pageScan %d, ", page_scan_repetition_mode);
     logi("clock offset 0x%04x", clock_offset);
     if (gap_event_inquiry_result_get_rssi_available(packet)) {
-        logi(", rssi %d dBm", (int8_t)gap_event_inquiry_result_get_rssi(packet));
+        rssi = gap_event_inquiry_result_get_rssi(packet);
+        logi(", rssi %u dBm", rssi);
     }
     if (gap_event_inquiry_result_get_name_available(packet)) {
         name_len = gap_event_inquiry_result_get_name_len(packet);
@@ -310,6 +312,9 @@ static void on_gap_inquiry_result(uint16_t channel, const uint8_t* packet, uint1
         logi(", name '%s'", name_buffer);
     }
     logi("\n");
+    // As returned by BTStack, the bigger the RSSI number, the better, being 255 the closest possible (?).
+    if (rssi < (255 - 100))
+        logi("Device %s too far away, try moving it closer to Bluepad32 device\n", bd_addr_to_str(addr));
 
     if (uni_hid_device_is_cod_supported(cod)) {
         device = uni_hid_device_get_instance_for_address(addr);
@@ -330,7 +335,7 @@ static void on_gap_inquiry_result(uint16_t channel, const uint8_t* packet, uint1
             uni_bt_conn_set_state(&device->conn, UNI_BT_CONN_STATE_DEVICE_DISCOVERED);
             uni_hid_device_set_cod(device, cod);
             device->conn.page_scan_repetition_mode = page_scan_repetition_mode;
-            device->conn.clock_offset = clock_offset;
+            device->conn.clock_offset = clock_offset | UNI_BT_CLOCK_OFFSET_VALID;
 
             if (name_len > 0 && !uni_hid_device_has_name(device)) {
                 uni_hid_device_set_name(device, name_buffer);
@@ -961,7 +966,11 @@ void uni_bluetooth_process_fsm(uni_hid_device_t* d) {
         ((state == UNI_BT_CONN_STATE_DEVICE_DISCOVERED) || state == UNI_BT_CONN_STATE_L2CAP_INTERRUPT_CONNECTED)) {
         logi("uni_bluetooth_process_fsm: requesting name\n");
 
-        gap_remote_name_request(d->conn.remote_addr, 0x02, 0x0000);
+        if (d->conn.clock_offset & UNI_BT_CLOCK_OFFSET_VALID)
+            gap_remote_name_request(d->conn.remote_addr, d->conn.page_scan_repetition_mode, d->conn.clock_offset);
+        else
+            gap_remote_name_request(d->conn.remote_addr, 0x02, 0x0000);
+
         uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_REMOTE_NAME_INQUIRED);
 
         // Some devices might not respond to the name request

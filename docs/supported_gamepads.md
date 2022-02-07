@@ -2,16 +2,16 @@
 
 ![Supported gamepads][Supported gamepads]
 
-[Supported gamepads]:https://lh3.googleusercontent.com/pw/ACtC-3cg22O7VPT8NwXIATr2rsgs-rn2kShZeiUbArIK-2lIkskCLI6q06nRtK9been8Hom49dOacwHD8bVT2Tc8YKsxd5w73W25lhOvlRk6Xf9RVXgB5AZcmdl2PoWhrEAZUbmBl1pS6HrtMuZYI506US7YuA=-no
+[Supported gamepads]:https://lh3.googleusercontent.com/pw/AM-JKLXpmyDvNXZ_LmlmBSYObRZDhwuY6hHXXBzAicFw1YH1QNSgZrpiPWXZMiPNM0ATgrockqGf5bLsI3fWceJtQQEj2_OroHs1SrxsgmS8Rh4XHlnFolchomsTPVC7o5zi4pXGQkhGEFbinoh3-ub_a4lQIw=-no?authuser=0
 
 ## Bluetooth Classic controllers
 
-List of supported Bluetooth Classic controller
+List of supported Bluetooth Classic controllers
 
 - DualSense (PS5)
 - DUALSHOCK 4 (PS4) controller, both 2013 and 2016 editions
 - DUALSHOCK 3 (PS3) controller
-- Nintendo Switch Pro controller and clones
+- Nintendo Switch Pro controller
 - Nintendo Switch JoyCons
 - Nintendo Wii U Pro controller
 - Nintendo Wii Remote and Remote Motion Plus, including Nunchuk and Classic Controller
@@ -22,7 +22,6 @@ List of supported Bluetooth Classic controller
 - Nimbus SteelSeries
 - OUYA controllers
 - Some TV remote controls, like the Amazon Fire TV
-- Some mice
 
 If you have a Bluetooth Classic gamepad and is not on that list, please file a bug.
 
@@ -31,30 +30,17 @@ If you have a Bluetooth Classic gamepad and is not on that list, please file a b
 Not every Bluetooth HID controller is "Classic". Some of them are "BLE" (low energy).
 "BLE" controllers are **not supported** at the moment, like:
 
-- Apple TV remote control (1st gen)
-- Nexus Android TV remote control
+- Xbox Wireless controller model 1914
 
 # Supported gamepads
 
 List of supported gamepads with supported features, known bugs, etc.
 
-## Xbox Wireless (model 1708)
-
-[![Xbox One S][xbox_one_s]][13]
-
-- Must be the *model 1708* (released in 2016) and not earlier. *Model 1797* might work. Newer models, like 1914, are not supported ATM.
-- Supports both "old" and "new" Xbox One mappings: supports firmware v3.1 as well as firmware v4.8.
-- Supported features: rumble
-- Known Issues: [issue #1][issue_1]
-
-[xbox_one_s]: https://lh3.googleusercontent.com/YmONc-MhVZhnE8HVRgzH7FKSpT_29MLeIF70U5AfrcBuCtuNJ2Ln5xkmSpNqO0myrFpnDLbFvR2TRTRu0xcqvP3cLNaq1BBpruEAn-Z7vBbwzNtaXx7eQaLLF7aa8tt2Wa0IcYxeD08=-no
-[issue_1]: https://gitlab.com/ricardoquesada/unijoysticle2/issues/1
-
 ## Sony DualSense (PS5)
 
 [![ddualsense_gamepad][dualsense]][11]
 
-- [Must be in PC mode][25]. Clones might not work.
+- [Must be in PC mode][25]
 - Supported features: rumble, lightbar color, player LEDs
 
 [dualsense]: https://lh3.googleusercontent.com/pw/ACtC-3d1CVA-e5srBTDhTD6D-3BSWYi7MncfECPj_9bQJfcGOAKIHrP6g6Ha7xAD0trE59eN-Qv_U33MklCFPskPWRLjfFI4ITHEol8RAmTYNHFNrA-gwhoXEn2ks_M7UDDbxiKhNdaPNXexxgj5zzOtpBjiyw=-no
@@ -63,9 +49,10 @@ List of supported gamepads with supported features, known bugs, etc.
 
 [![ds4_gamepad][dualshock_4]][14]
 
-- [Must be in PC mode][25]. Clones might not work.
+- [Must be in PC mode][25].
 - Supports both the 2013 (CUH-ZCT1) and 2016 (CUH-ZCT2) editions
 - Supported features: rumble, lightbar color
+- Some clones are known to work Ok
 
 [dualshock_4]: https://lh3.googleusercontent.com/_0sAxKXbSkk4g8rWJzTNxAirz2hD632jW4TGjGVOwjoac8sD4AfiN9PA1HdGWhm_ujcVygDlEG-LENPemF7IyFhqVsHgVHfCMVeFVjBbeDl-fUUjdMbRYAE8FiKdyWM_UBNUNmVy9Ro=-no
 
@@ -73,13 +60,46 @@ List of supported gamepads with supported features, known bugs, etc.
 
 [![ds3_gamepad][dualshock_3]][12]
 
-- Tested with genuine DS3. Clones might not work.
 - Supported features: rumble, player LEDs
 - Requires that the [DS3 is manually paired][pair_ds3] to the Unijoysticle device.
 - Disabled by default since it conflicts with Nintendo Switch. Enable it via `idf.py menuconfig`
+- Some clones are known to work Ok
 
 [dualshock_3]: https://lh3.googleusercontent.com/pw/ACtC-3dEBJYkdIpF5_icFUY7n7otgw5LPpLyviKS14JL2EJtuiDBt6Kk-XcKlIIP9JCgT0yxJVN1KuW-JICpilYKhMGfDxQt6vjJm8r_lRS1R9IyOX4iBlUQoIrflt9KmSjXBjcJlS81cmKaGB166HF608v5MA=-no
 [pair_ds3]: pair_ds3.md
+
+## Nintendo Switch Pro
+
+[![Switch Pro][switch_pro_img]][switch_pro]
+
+- Supported features: rumble, player LEDs
+- Some clones are known to work Ok
+
+[switch_pro]: https://en.wikipedia.org/wiki/Nintendo_Switch_Pro_Controller
+[switch_pro_img]: https://lh3.googleusercontent.com/33hrGYM117T9pPrW0L-wr7bl0trLXooqmp4I78XV9vWkumHE8mK8Z_5KJZFzWKNpJg31gvrxHC0agF5BUgVr2f6awNYb98R-xPIWaawG6b0XwxHzm8hzz39Wnnv6qLmeEXsRaeoybsA=-no
+
+## Nintendo Switch JoyCon
+
+[![Switch JoyCon][switch_joycon_img]][switch_joycon]
+
+Both Left and Right JoyCon are supported.
+
+- Supported features: player LEDs
+- They must be used in "horizontal" mode.
+- Each JoyCon represents one gamepad. Cannot be used as a single/combined gamepad.
+- Some clones are known to work Ok
+
+[switch_joycon]: https://en.wikipedia.org/wiki/Joy-Con
+[switch_joycon_img]: https://lh3.googleusercontent.com/pw/ACtC-3cN7JVNm3SvOM3IeKiAg4Ex03Dg7yxozBRNNV95Ycr_0J1eHF03_oDz8ydwpTZCFcPPfFuSzroK4UQ-3KcM0Y2XKew8deuYTqu_q5Q0nEEjA_KTQJCioVRU0IEbBGXHqy2ybtTP7EXp3p-7_RfjYK7Wjg=w360-no
+
+## Nintendo Wii U Pro controller
+
+[![Wii U Pro][wii_u_pro]][27]
+
+- Supported features: player LEDs
+- Some clones are known to work Ok
+
+[wii_u_pro]: https://lh3.googleusercontent.com/kfKAySKzV-lLG7VmQGfCES1KuhtjBcTIfMzo59FgABcL7Ir9Tp7fQqrTP2iFqf8UVIhce1JhIXyBN_EH9eXpjlf5Q4b9NhhyxrFX9H0yVVRF0_pghjjz3pVqmY4uxS-FMgr7FC7egNo=w360-no
 
 ## Nintendo Wii Remote
 
@@ -162,60 +182,39 @@ Classic Controller can be used.
 
 [wii_classic_controller_img]: https://lh3.googleusercontent.com/nX-CyjcmorkW90mP8RybO_pJ7ezM4EJk1tsqkz8HAuLkHBAasccZzq5h-A74Ez-h7Zmv5hpsuBu5n66EeThwRUnLTIu8ffk2MstEMBjHiGrcNoyq-XAC9zeh97Kz8GDBDLqmujmm2J0=-no
 
-## Nintendo Wii U Pro controller
+## Xbox Wireless (model 1708)
 
-[![Wii U Pro][wii_u_pro]][27]
+[![Xbox One S][xbox_one_s]][13]
 
-- Supported features: player LEDs
+- Must be the *model 1708* (released in 2016) and not earlier. *Model 1797* might work. Newer models, like 1914, are not supported ATM.
+- Supports both "old" (firmware 3.1) and "new" (firmware 4.8) Xbox One mappings
+- Supported features: rumble
 
-[wii_u_pro]: https://lh3.googleusercontent.com/kfKAySKzV-lLG7VmQGfCES1KuhtjBcTIfMzo59FgABcL7Ir9Tp7fQqrTP2iFqf8UVIhce1JhIXyBN_EH9eXpjlf5Q4b9NhhyxrFX9H0yVVRF0_pghjjz3pVqmY4uxS-FMgr7FC7egNo=w360-no
-
-## Nintendo Switch Pro
-
-[![Switch Pro][switch_pro_img]][switch_pro]
-
-Clones and "licensed by Nintendo" controllers should also work supported Ok.
-
-- Supported features: rumble, player LEDs
-
-[switch_pro]: https://en.wikipedia.org/wiki/Nintendo_Switch_Pro_Controller
-[switch_pro_img]: https://lh3.googleusercontent.com/33hrGYM117T9pPrW0L-wr7bl0trLXooqmp4I78XV9vWkumHE8mK8Z_5KJZFzWKNpJg31gvrxHC0agF5BUgVr2f6awNYb98R-xPIWaawG6b0XwxHzm8hzz39Wnnv6qLmeEXsRaeoybsA=-no
-
-## Nintendo Switch JoyCon
-
-[![Switch JoyCon][switch_joycon_img]][switch_joycon]
-
-Both Left and Right JoyCon are supported.
-
-- Supported features: player LEDs
-- They must be used in "horizontal" mode.
-- Each JoyCon represents one gamepad. Cannot be used as a single/combined gamepad.
-
-[switch_joycon]: https://en.wikipedia.org/wiki/Joy-Con
-[switch_joycon_img]: https://lh3.googleusercontent.com/pw/ACtC-3cN7JVNm3SvOM3IeKiAg4Ex03Dg7yxozBRNNV95Ycr_0J1eHF03_oDz8ydwpTZCFcPPfFuSzroK4UQ-3KcM0Y2XKew8deuYTqu_q5Q0nEEjA_KTQJCioVRU0IEbBGXHqy2ybtTP7EXp3p-7_RfjYK7Wjg=w360-no
+[xbox_one_s]: https://lh3.googleusercontent.com/YmONc-MhVZhnE8HVRgzH7FKSpT_29MLeIF70U5AfrcBuCtuNJ2Ln5xkmSpNqO0myrFpnDLbFvR2TRTRu0xcqvP3cLNaq1BBpruEAn-Z7vBbwzNtaXx7eQaLLF7aa8tt2Wa0IcYxeD08=-no
 
 ## Android
 
 ![Android][android_gamepad]
 
-- Tested with: [ASUS][15], [Moga Pro 2][16], [Amazon Fire TV gamepads][17]
+- Tested with: [ASUS][15], [Moga Pro 2][16], [Amazon Fire TV gamepads][17], [SteelSeries Status Duo][stratus_duo]
 
 [android_gamepad]: https://lh3.googleusercontent.com/S3H1pEGYGT5aVTwF3ySWHF7vqbonDYR0UxOLJBxFe5At6Q4AP_4TQUCaNOiEXD22U4H3C0lVP1E3m26H3QM4rIbgp1wysbQoSt1NpD61snlWES5N5zGUgx20c2sfFCKZL4w_Gl66Y1s=-no
+[stratus_duo]: https://steelseries.com/gaming-controllers/stratus-duo
 
-## Nimbus SteelSeries
+## SteelSeries Nimbus
 
-[![Nimbus SteelSeries for iOS][nimbus_steelseries]][18]
+[![Nimbus SteelSeries for iOS][nimbus_steelseries_img]][nimbus]
 
 - Tested with Nimbus SteelSeries for iOS.
 
-[nimbus_steelseries]: https://lh3.googleusercontent.com/QeK4QebBIw4O-vWuyc-oxTGT_eST6BZ_2y6R9X5cuXPsQVQgZRdm5JEYs982dDKkYDs7AqCIGZyCQBRPJgLJ3ZxNqt_7KYMl9uKkWtmR0P89VbYgC4cMtkEFob2ihA8J6UxGHQ_4Tw0=-no
+[nimbus_steelseries_img]: https://lh3.googleusercontent.com/QeK4QebBIw4O-vWuyc-oxTGT_eST6BZ_2y6R9X5cuXPsQVQgZRdm5JEYs982dDKkYDs7AqCIGZyCQBRPJgLJ3ZxNqt_7KYMl9uKkWtmR0P89VbYgC4cMtkEFob2ihA8J6UxGHQ_4Tw0=-no
+[nimbus]: https://steelseries.com/gaming-controllers/nimbus
 
 ## OUYA
 
 [![OUYA 1st gen][ouya_1gen]][19]
 
-- Only 1st gen is supported. It is unknown the status on newer version. They might or might not work.
-- Known issues: [issue #7][issue_7]
+- Only 1st gen is supported. It is unknown whether the newer version works Ok.
 
 [ouya_1gen]: https://lh3.googleusercontent.com/FtbQLbt1QrzU59TTPQHIEarGZItlPik0bGWo40iDu0rnMwddCEwKMcy8LAe_fqzklaSKfMbt3-EvFJI4Vcoz3gSPTgC9MnTog3MyGfNWMc0Wq2Idq1kzjPOpRIS5OXeSqSSmIfGa5-w=-no
 [issue_7]: https://gitlab.com/ricardoquesada/unijoysticle2/issues/7
@@ -224,7 +223,7 @@ Both Left and Right JoyCon are supported.
 
 [![8bitdo SN30 Pro][8bitdo_sn30_pro_img]][8bitdo_sn30_pro]
 
-- Tested with: [8BitDo SN30 Pro][8bitdo_sn30_pro], [8BitDo Arcade Stick][8bitdo_arcadestick],
+- Tested with: [8BitDo SN30 Pro][8bitdo_sn30_pro], [8BitDo Arcade Stick][8bitdo_arcade_stick],
   [8BitDo Lite][8bitdo_lite], [8BitDo NES30][8bitdo_nes30]
 - All 8BitDo modes are supported: *Switch*, *Android*, *Windows* and *macOS*.
 - Known issues: [issue #10][issue_10]
@@ -243,7 +242,7 @@ Both Left and Right JoyCon are supported.
 [![iCade][icade_img]][icade_url]
 
 - The original iCade cabinets works great.
-- Might work with other controllers that support the iCade protocol, but the `uni_hid_device_vendors.h` file might need to be updated.
+- Might work with other controllers that support the iCade protocol.
 
 [icade_img]: https://lh3.googleusercontent.com/owslbSElM2BJL5M9h3hqksaCJhjAGf7DyfEwRFxxqjdG3Y73D5V9ScI0zVNokmSJMO6jrHMuX7j437kB-ER7kCAzc8GPX4ir9MPEVdypuxMneoIuzp3yAY8DqvkItbSZY0hlaAUMPn8=-no
 [icade_url]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=m570.l1313&_nkw=icade+cabinet&_sacat=0&LH_TitleDesc=0&_osacat=0&_odkw=icade+cabinet
@@ -259,7 +258,7 @@ Both Left and Right JoyCon are supported.
 
 [![Amazon Fire TV Remote 1st gen][fire_tv_remote]][22]
 
-- Only *1st gen* is supported. Apparently *2nd gen* uses BLE instead of BT Classic.
+- Only *1st gen* is supported
 
 [fire_tv_remote]: https://lh3.googleusercontent.com/qnSdv7NM5et0vDhMQsRp7oMniqcjYxGKN9QJY0_gRWT6NXFrdWBf94JKNvP77abBZoykaSQOJBtXUnGW-Z1yF-MWn3q3t2Nt_TUVVV7a2HsPFjRc_DIuLh8tPiQNsEZSWDsb0z6Ys3k=-no
 
@@ -331,7 +330,6 @@ Many of the virtual buttons/pads are left unmapped, but could be mapped in the f
 [15]: https://www.asus.com/us/Home-Entertainment/Gamepad-TV500BG/
 [16]: https://www.amazon.com/PowerA-MOGA-Pro-Power-Electronic-Games/dp/B00FB5RBJM?th=1
 [17]: http://www.gamingonfire.com/2014-amazon-fire-gaming-controller-1st-gen/
-[18]: https://steelseries.com/gaming-controllers/nimbus
 [19]: https://www.amazon.com/OUYA-Wireless-Controller/dp/B002I0GX38?th=1
 [22]: https://www.amazon.com/Alexa-Voice-Remote-Amazon-Stick/dp/B071D41YC3
 [25]: https://www.techradar.com/how-to/gaming/how-to-use-the-ps4-dualshock-4-controller-on-a-pc-1309014

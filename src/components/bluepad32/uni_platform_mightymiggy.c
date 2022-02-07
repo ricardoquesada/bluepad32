@@ -69,7 +69,7 @@ limitations under the License.
  * Of course the above needs a "trigger point" which will trigger the... trigger
  * when exceeded
  */
-const unsigned int PEDAL_THRESHOLD = 800;
+static const unsigned int PEDAL_THRESHOLD = 800;
 
 /** \def ENABLE_INSTRUMENTATION
  *
@@ -94,9 +94,9 @@ static const gpio_num_t PIN_INTERRUPT_TIMING = GPIO_NUM_0;
 static const gpio_num_t PIN_CD32MODE = GPIO_NUM_4;
 #endif
 
-const char* STORAGE_NAMESPACE = "storage";
+static const char* STORAGE_NAMESPACE = "storage";
 
-const char* NVS_KEY_CONFIG = "config";
+static const char* NVS_KEY_CONFIG = "config";
 
 // GPIO map is based on the MH-ET Live mini-kit board
 
@@ -205,8 +205,8 @@ static const uint8_t PIN_NO_MODE = 6;   // Port pin 5 (PotX)
 static const uint8_t PIN_NO_CLOCK = 7;  // Port pin 6 (Again)
 #endif
 
-const int16_t BLUEPAD32_ANALOG_MIN = -512;
-const int16_t BLUEPAD32_ANALOG_MAX = +511;
+static const int16_t BLUEPAD32_ANALOG_MIN = -512;
+static const int16_t BLUEPAD32_ANALOG_MAX = +511;
 
 /** \brief Dead zone for analog sticks
  *
@@ -215,17 +215,17 @@ const int16_t BLUEPAD32_ANALOG_MAX = +511;
  *
  * \sa ANALOG_IDLE_VALUE
  */
-const uint8_t ANALOG_DEAD_ZONE = 75U;
+static const uint8_t ANALOG_DEAD_ZONE = 75U;
 
 /** \brief Delay of the quadrature square waves when mouse is moving at the
  * \a slowest speed
  */
-const uint8_t MOUSE_SLOW_DELTA = 150U;
+static const uint8_t MOUSE_SLOW_DELTA = 150U;
 
 /** \brief Delay of the quadrature square waves when mouse is moving at the
  * \a fastest speed.
  */
-const uint8_t MOUSE_FAST_DELTA = 10U;
+static const uint8_t MOUSE_FAST_DELTA = 10U;
 
 /** \brief LED2 pin
  *
@@ -247,14 +247,14 @@ static const gpio_num_t PIN_LED_P1 = GPIO_NUM_13;
  * Keep in mind that in normal conditions it is toggled once per frame (i.e.
  * every ~20 ms).
  */
-const uint8_t TIMEOUT_CD32_MODE = 100U;
+static const uint8_t TIMEOUT_CD32_MODE = 100U;
 
 /** \brief Programming mode timeout
  *
  * Programming mode will be entered if SELECT + a button are held for this
  * amount of milliseconds.
  */
-const unsigned long TIMEOUT_PROGRAMMING_MODE = 1000U;
+static const unsigned long TIMEOUT_PROGRAMMING_MODE = 1000U;
 
 /** \brief Single-button debounce time
  *
@@ -263,7 +263,7 @@ const unsigned long TIMEOUT_PROGRAMMING_MODE = 1000U;
  *
  * \sa debounceButtons()
  */
-const unsigned long DEBOUNCE_TIME_BUTTON = 30U;
+static const unsigned long DEBOUNCE_TIME_BUTTON = 30U;
 
 /** \brief Combo debounce time
  *
@@ -274,7 +274,7 @@ const unsigned long DEBOUNCE_TIME_BUTTON = 30U;
  *
  * \sa debounceButtons()
  */
-const unsigned long DEBOUNCE_TIME_COMBO = 150U;
+static const unsigned long DEBOUNCE_TIME_COMBO = 150U;
 
 /*******************************************************************************
  * DEBUGGING SUPPORT
@@ -292,13 +292,13 @@ const unsigned long DEBOUNCE_TIME_COMBO = 150U;
 
 //! \name Button bits for CD32 mode
 //! @{
-const uint8_t BTN32_BLUE = 1U << 0U;     //!< \a Blue Button
-const uint8_t BTN32_RED = 1U << 1U;      //!< \a Red Button
-const uint8_t BTN32_YELLOW = 1U << 2U;   //!< \a Yellow Button
-const uint8_t BTN32_GREEN = 1U << 3U;    //!< \a Green Button
-const uint8_t BTN32_FRONT_R = 1U << 4U;  //!< \a Front \a Right Button
-const uint8_t BTN32_FRONT_L = 1U << 5U;  //!< \a Front \a Left Button
-const uint8_t BTN32_START = 1U << 6U;    //!< \a Start/Pause Button
+static const uint8_t BTN32_BLUE = 1U << 0U;     //!< \a Blue Button
+static const uint8_t BTN32_RED = 1U << 1U;      //!< \a Red Button
+static const uint8_t BTN32_YELLOW = 1U << 2U;   //!< \a Yellow Button
+static const uint8_t BTN32_GREEN = 1U << 3U;    //!< \a Green Button
+static const uint8_t BTN32_FRONT_R = 1U << 4U;  //!< \a Front \a Right Button
+static const uint8_t BTN32_FRONT_L = 1U << 5U;  //!< \a Front \a Left Button
+static const uint8_t BTN32_START = 1U << 6U;    //!< \a Start/Pause Button
 //! @}
 
 /** \brief Controller State machine states
@@ -434,7 +434,7 @@ static const bd_addr_t zero_addr = {0, 0, 0, 0, 0, 0};
 //! \name Global variables
 //! @{
 
-AdapterState adapterState;
+static AdapterState adapterState;
 
 /** \brief All possible controller configurations
  *
@@ -442,7 +442,7 @@ AdapterState adapterState;
  * many different ones as other buttons we have (i.e.: PAD_BUTTONS_NO). In
  * practice, we will start handling only a handful.
  */
-ControllerConfiguration controllerConfigs[PAD_BUTTONS_NO];
+static ControllerConfiguration controllerConfigs[PAD_BUTTONS_NO];
 
 // Forward declaration
 typedef struct RuntimeControllerInfo_s RuntimeControllerInfo;
@@ -456,7 +456,7 @@ typedef struct RuntimeControllerInfo_s RuntimeControllerInfo;
 typedef void (*JoyMappingFunc)(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j);
 
 // Default button mapping function prototype for initialization of the following
-void mapJoystickNormal(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j);
+static void mapJoystickNormal(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j);
 
 // We have 128 bytes available here (HID_DEVICE_MAX_PLATFORM_DATA)
 typedef struct RuntimeControllerInfo_s {
@@ -575,15 +575,15 @@ static xQueueHandle controllerUpdateQueue = NULL;
 //! \name Stuff for Arduino compatibility
 //! @{
 
-uint32_t millis() {
+static uint32_t millis() {
     return esp_timer_get_time() / 1000;
 }
 
-long map(long x, long in_min, long in_max, long out_min, long out_max) {
+static long map(long x, long in_min, long in_max, long out_min, long out_max) {
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
-int16_t constrain16(const int16_t x, const int16_t min, const int16_t max) {
+static int16_t constrain16(const int16_t x, const int16_t min, const int16_t max) {
     if (x < min) {
         return min;
     } else if (x > max) {
@@ -603,9 +603,11 @@ int16_t constrain16(const int16_t x, const int16_t min, const int16_t max) {
  * These are only used for debugging and will not show up in the executable if
  * it is not enabled
  */
-const char* const padButtonNames[PAD_BUTTONS_NO] = {"Back", "ThumbL", "ThumbR",   "Home",     "Up",        "Right",
-                                                    "Down", "Left",   "TriggerL", "TriggerR", "ShoulderL", "ShoulderR",
-                                                    "Y",    "B",      "A",        "X",        "System"};
+#if defined(ENABLE_SERIAL_DEBUG) || defined(DEBUG_PAD)
+static const char* const padButtonNames[PAD_BUTTONS_NO] = {
+    "Back",     "ThumbL",    "ThumbR",    "Home", "Up", "Right", "Down", "Left",  "TriggerL",
+    "TriggerR", "ShoulderL", "ShoulderR", "Y",    "B",  "A",     "X",    "System"};
+#endif  // defined(ENABLE_SERIAL_DEBUG) || defined(DEBUG_PAD)
 
 /** \brief Convert a button on the PSX controller to a small integer
  *
@@ -616,7 +618,7 @@ const char* const padButtonNames[PAD_BUTTONS_NO] = {"Back", "ThumbL", "ThumbR", 
  * \param[in] buttons Button to be converted
  * \return A small integer corresponding to the "first" button pressed
  */
-int padButtonToIndex(PadButtons buttons) {
+static int padButtonToIndex(PadButtons buttons) {
     int i;
 
     for (i = 0; i < PAD_BUTTONS_NO; ++i) {
@@ -636,7 +638,7 @@ int padButtonToIndex(PadButtons buttons) {
  * \param[in] buttons Button to be converted
  * \return A string (in flash) containing the name of the "first" buton pressed
  */
-const char* getButtonName(PadButtons psxButton) {
+static const char* getButtonName(PadButtons psxButton) {
     const char* ret = "";
 
     int b = padButtonToIndex(psxButton);
@@ -652,7 +654,7 @@ const char* getButtonName(PadButtons psxButton) {
  *
  * \param[in] buttons Buttons to be printed
  */
-void dumpButtons(PadButtons buttons) {
+static void dumpButtons(PadButtons buttons) {
 #ifdef DEBUG_PAD
     static PadButtons lastB = 0;
 
@@ -686,15 +688,15 @@ void dumpButtons(PadButtons buttons) {
  * \return true if \a button has changed state with regard to the previous
  *         call to read(), false otherwise
  */
-bool buttonChanged(const PadButtons buttonWord, const PadButtons previousButtonWord, const PadButton button) {
+static bool buttonChanged(const PadButtons buttonWord, const PadButtons previousButtonWord, const PadButton button) {
     return ((previousButtonWord ^ buttonWord) & button) > 0;
 }
 
-bool buttonPressed(const PadButtons buttonWord, const PadButton button) {
+static bool buttonPressed(const PadButtons buttonWord, const PadButton button) {
     return buttonWord & ((PadButtons)button);
 }
 
-bool noButtonPressed(const PadButtons buttonWord) {
+static bool noButtonPressed(const PadButtons buttonWord) {
     return buttonWord == BTN_NONE;
 }
 
@@ -704,7 +706,9 @@ bool noButtonPressed(const PadButtons buttonWord) {
  * \return true if \a button was not pressed in the previous call to read()
  *         and is now, false otherwise
  */
-bool buttonJustPressed(const PadButtons buttonWord, const PadButtons previousButtonWord, const PadButton button) {
+static bool buttonJustPressed(const PadButtons buttonWord,
+                              const PadButtons previousButtonWord,
+                              const PadButton button) {
     return buttonChanged(buttonWord, previousButtonWord, button) & buttonPressed(buttonWord, button);
 }
 
@@ -719,9 +723,9 @@ bool buttonJustPressed(const PadButtons buttonWord, const PadButtons previousBut
  * \param[in] holdTime Time the button/combo must be stable for
  */
 // FIXME: Use previousButtons?
-PadButtons debounceButtons(const PadButtons buttonWord,
-                           const PadButtons previousButtonWord,
-                           const unsigned long holdTime) {
+static PadButtons debounceButtons(const PadButtons buttonWord,
+                                  const PadButtons previousButtonWord,
+                                  const unsigned long holdTime) {
     static PadButtons oldButtons = BTN_NONE;
     static unsigned long pressedOn = 0;
 
@@ -750,7 +754,7 @@ PadButtons debounceButtons(const PadButtons buttonWord,
  * CD32 mode is entered automatically whenever a HIGH level is detected on
  * #PIN_PADMODE, after this function has been called.
  */
-void enableCD32Trigger(const RuntimeControllerInfo* cinfo) {
+static void enableCD32Trigger(const RuntimeControllerInfo* cinfo) {
 #ifdef ENABLE_CD32_SUPPORT
     if (cinfo->seat == GAMEPAD_SEAT_A) {
         xEventGroupSetBits(evGrpCd32, EVENT_ENABLE_CD32_SEAT_A);
@@ -767,7 +771,7 @@ void enableCD32Trigger(const RuntimeControllerInfo* cinfo) {
  * CD32 mode will no longer be entered automatically after this function has
  * been called.
  */
-void disableCD32Trigger(const RuntimeControllerInfo* cinfo) {
+static void disableCD32Trigger(const RuntimeControllerInfo* cinfo) {
 #ifdef ENABLE_CD32_SUPPORT
     if (cinfo->seat == GAMEPAD_SEAT_A) {
         xEventGroupSetBits(evGrpCd32, EVENT_DISABLE_CD32_SEAT_A);
@@ -788,7 +792,7 @@ void disableCD32Trigger(const RuntimeControllerInfo* cinfo) {
  *
  * The programming function can then be used to map any button as desired.
  */
-void clearConfigurations() {
+static void clearConfigurations() {
     mmlogi("Clearing controllerConfigs\n");
     memset(controllerConfigs, 0x00, sizeof(controllerConfigs));
     for (uint8_t i = 0; i < PAD_BUTTONS_NO; ++i) {
@@ -805,7 +809,7 @@ void clearConfigurations() {
  *
  * \return True if the loaded configurations are valid, false otherwise
  */
-bool loadConfigurations() {
+static bool loadConfigurations() {
     bool ret = false;
 
     nvs_handle_t nvs_handle;
@@ -836,7 +840,7 @@ bool loadConfigurations() {
  * Note that there's no need to store a CRC of some kind, as the ESP32 NVS
  * already includes it.
  */
-void saveConfigurations() {
+static void saveConfigurations() {
     nvs_handle_t nvs_handle;
     esp_err_t err;
 
@@ -876,7 +880,7 @@ void saveConfigurations() {
  *
  * \param[in] pin Pin corresponding to the button to be pressed
  */
-void buttonPress(const gpio_num_t pin) {
+static void buttonPress(const gpio_num_t pin) {
     /* We have an (open-collector) inverter gate between us and the actual port
      * pin, so we must use inverse logic... which, since joystick signals are
      * active-low, means "normal" logic, i.e.: 1 = pressed ;)
@@ -890,7 +894,7 @@ void buttonPress(const gpio_num_t pin) {
  *
  * \param[in] pin Pin corresponding to the button to be pressed
  */
-void buttonRelease(const gpio_num_t pin) {
+static void buttonRelease(const gpio_num_t pin) {
     ESP_ERROR_CHECK(gpio_set_level(pin, 0));
 }
 
@@ -901,7 +905,7 @@ void buttonRelease(const gpio_num_t pin) {
  *
  * \param[out] j Mapped joystick status
  */
-void mapAnalogStickHorizontal(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j) {
+static void mapAnalogStickHorizontal(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j) {
     // Bluepad analog range is [-512, 511] - But it seems to be 1024+ on Wii U Pro Controller!
     j->left = cinfo->leftAnalog.x < -ANALOG_DEAD_ZONE;
     j->right = cinfo->leftAnalog.x > +ANALOG_DEAD_ZONE;
@@ -923,7 +927,7 @@ void mapAnalogStickHorizontal(const RuntimeControllerInfo* cinfo, TwoButtonJoyst
  *
  * \param[out] j Mapped joystick status
  */
-void mapAnalogStickVertical(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j) {
+static void mapAnalogStickVertical(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j) {
     j->up = cinfo->leftAnalog.y < -ANALOG_DEAD_ZONE;
     j->down = cinfo->leftAnalog.y > +ANALOG_DEAD_ZONE;
 
@@ -947,7 +951,7 @@ void mapAnalogStickVertical(const RuntimeControllerInfo* cinfo, TwoButtonJoystic
  *
  * \param[out] j Mapped joystick status
  */
-void mapJoystickNormal(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j) {
+static void mapJoystickNormal(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j) {
     // Use both analog axes
     mapAnalogStickHorizontal(cinfo, j);
     mapAnalogStickVertical(cinfo, j);
@@ -970,7 +974,7 @@ void mapJoystickNormal(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j)
  *
  * \param[out] j Mapped joystick status
  */
-void mapJoystickRacing1(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j) {
+static void mapJoystickRacing1(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j) {
     // Use analog's horizontal axis to steer, ignore vertical
     mapAnalogStickHorizontal(cinfo, j);
 
@@ -1000,7 +1004,7 @@ void mapJoystickRacing1(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j
  *
  * \param[out] j Mapped joystick status
  */
-void mapJoystickRacing2(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j) {
+static void mapJoystickRacing2(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j) {
     // Use analog's horizontal axis to steer, ignore vertical
     mapAnalogStickHorizontal(cinfo, j);
 
@@ -1030,7 +1034,7 @@ void mapJoystickRacing2(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j
  *
  * \param[out] j Mapped joystick status
  */
-void mapJoystickPlatform(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j) {
+static void mapJoystickPlatform(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j) {
     // Use horizontal analog axis fully, but only down on vertical
     mapAnalogStickHorizontal(cinfo, j);
     mapAnalogStickVertical(cinfo, j);
@@ -1055,7 +1059,7 @@ void mapJoystickPlatform(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* 
  * \param[in] n The number
  * \return The number of bits set
  */
-unsigned int countSetBits(int n) {
+static unsigned int countSetBits(int n) {
     unsigned int count = 0;
 
     while (n) {
@@ -1074,7 +1078,7 @@ unsigned int countSetBits(int n) {
  * \param[in] b The button to be checked
  * \return True if \b can be mapped, false otherwise
  */
-bool isButtonMappable(PadButtons b) {
+static bool isButtonMappable(PadButtons b) {
     return countSetBits(b) == 1 && !buttonPressed(b, BTN_BACK) && !buttonPressed(b, BTN_PAD_UP) &&
            !buttonPressed(b, BTN_PAD_DOWN) && !buttonPressed(b, BTN_PAD_LEFT) && !buttonPressed(b, BTN_PAD_RIGHT);
 }
@@ -1087,7 +1091,7 @@ bool isButtonMappable(PadButtons b) {
  * \param[inout] dest Destination
  * \param[in] src Source
  */
-void mergeButtons(TwoButtonJoystick* dest, const TwoButtonJoystick* src) {
+static void mergeButtons(TwoButtonJoystick* dest, const TwoButtonJoystick* src) {
     /* This is what we need to do:
      * dest.up |= src.up;
      * dest.down |= src.down;
@@ -1108,7 +1112,7 @@ void mergeButtons(TwoButtonJoystick* dest, const TwoButtonJoystick* src) {
  *
  * \param[out] j Mapped joystick status
  */
-void mapJoystickCustom(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j) {
+static void mapJoystickCustom(const RuntimeControllerInfo* cinfo, TwoButtonJoystick* j) {
     // Use both analog axes fully
     mapAnalogStickHorizontal(cinfo, j);
     mapAnalogStickVertical(cinfo, j);
@@ -1163,7 +1167,7 @@ static void setSeat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
  *
  * \param[in] n Desired number of flashes
  */
-void flashLed(gpio_num_t pin, int n) {
+static void flashLed(gpio_num_t pin, int n) {
     for (int i = 0; i < n; ++i) {
         gpio_set_level(pin, 1);
         vTaskDelay(pdMS_TO_TICKS(40));
@@ -1180,7 +1184,7 @@ void flashLed(gpio_num_t pin, int n) {
  * \param[out] y Movement on the vertical axis [-511 ... 511]
  * \return True if the stick is not in the center position, false otherwise
  */
-bool rightAnalogMoved(const RuntimeControllerInfo* cinfo, int16_t* x, int16_t* y) {
+static bool rightAnalogMoved(const RuntimeControllerInfo* cinfo, int16_t* x, int16_t* y) {
     bool ret = false;
 
     // Bluepad analog range is [-512, 511]
@@ -1229,7 +1233,7 @@ bool rightAnalogMoved(const RuntimeControllerInfo* cinfo, int16_t* x, int16_t* y
  *
  * \param[in] j Two-button joystick to be dumped
  */
-void dumpJoy(const TwoButtonJoystick* j) {
+static void dumpJoy(const TwoButtonJoystick* j) {
     if (j->up) {
         mmlogi("Up ");
     }
@@ -1261,7 +1265,7 @@ void dumpJoy(const TwoButtonJoystick* j) {
  *
  * \param[out] j Mapped joystick status
  */
-void handleJoystickDirections(RuntimeControllerInfo* cinfo, TwoButtonJoystick* j) {
+static void handleJoystickDirections(RuntimeControllerInfo* cinfo, TwoButtonJoystick* j) {
     if (cinfo->joyPins != NULL) {
 #ifdef ENABLE_SERIAL_DEBUG
         static TwoButtonJoystick oldJoy = {false, false, false, false, false, false};
@@ -1372,7 +1376,7 @@ void handleJoystickDirections(RuntimeControllerInfo* cinfo, TwoButtonJoystick* j
  * \param[in] j Mapped joystick status, as returned by
  *              handleJoystickDirections().
  */
-void handleJoystickButtons(const RuntimeControllerInfo* cinfo, const TwoButtonJoystick* j) {
+static void handleJoystickButtons(const RuntimeControllerInfo* cinfo, const TwoButtonJoystick* j) {
     /* If the interrupt that switches us to CD32 mode is
      * triggered while we are here we might end up setting pin states after
      * we should have relinquished control of the pins, so let's avoid this
@@ -1438,7 +1442,7 @@ void handleJoystickButtons(const RuntimeControllerInfo* cinfo, const TwoButtonJo
  *
  * Of course, this function shall only be called when state is ST_CD32.
  */
-void handleJoystickButtonsTemp(const RuntimeControllerInfo* cinfo) {
+static void handleJoystickButtonsTemp(const RuntimeControllerInfo* cinfo) {
     // Use the same logic as in handleJoystickButtons()
     taskDISABLE_INTERRUPTS();
 
@@ -1469,7 +1473,7 @@ void handleJoystickButtonsTemp(const RuntimeControllerInfo* cinfo) {
  * This function updates all the output pins as necessary to emulate mouse
  * movements and button presses. It shall only be called when state is ST_MOUSE.
  */
-void handleMouse(const RuntimeControllerInfo* cinfo) {
+static void handleMouse(const RuntimeControllerInfo* cinfo) {
     static unsigned long tx = 0, ty = 0;
 
     if (cinfo->mousePins != NULL) {
@@ -1565,7 +1569,7 @@ void handleMouse(const RuntimeControllerInfo* cinfo) {
  * \param[out] j Two-button joystick configuration corresponding to input
  * \return True if the output contains at least one pressed button
  */
-bool psxButton2Amiga(const PadButtons buttons, TwoButtonJoystick* j) {
+static bool psxButton2Amiga(const PadButtons buttons, TwoButtonJoystick* j) {
     memset(j, 0x00, sizeof(TwoButtonJoystick));
 
     j->up = buttonPressed(buttons, BTN_PAD_UP);
@@ -1583,7 +1587,7 @@ bool psxButton2Amiga(const PadButtons buttons, TwoButtonJoystick* j) {
  * \param[in] b The button to be checked
  * \return True if \b is programmable, false otherwise
  */
-bool isButtonProgrammable(const PadButtons b) {
+static bool isButtonProgrammable(const PadButtons b) {
     return buttonPressed(b, BTN_SHOULDER_L) || buttonPressed(b, BTN_TRIGGER_L) || buttonPressed(b, BTN_SHOULDER_R) ||
            buttonPressed(b, BTN_TRIGGER_R);
 }
@@ -1597,7 +1601,7 @@ bool isButtonProgrammable(const PadButtons b) {
  *          v
  *          A
  */
-void stateMachine(RuntimeControllerInfo* cinfo) {
+static void stateMachine(RuntimeControllerInfo* cinfo) {
     PadButtons buttons = BTN_NONE;
     TwoButtonJoystick j;  // = {false, false, false, false, false, false};
 
@@ -1993,7 +1997,7 @@ static uni_hid_device_t* getControllerForSeat(const uni_gamepad_seat_t seat) {
  * We have a separate function for this as several machine states share the same
  * led state.
  */
-void updateLeds() {
+static void updateLeds() {
     // LOL, how crap! :X
     for (int i = 0; i < 2; ++i) {
         uni_gamepad_seat_t seat = GAMEPAD_SEAT_A;

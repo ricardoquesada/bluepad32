@@ -331,6 +331,11 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
         used_joystick_ports |= get_unijoysticle_instance(tmp_d)->gamepad_seat;
     }
 
+    // Either two gamepads are connected, or one is in Enhanced mode.
+    // Don't allow new connections.
+    if (used_joystick_ports == (GAMEPAD_SEAT_A | GAMEPAD_SEAT_B))
+        return -1;
+
     int wanted_seat = GAMEPAD_SEAT_A;
     if (get_board_model() == BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT) {
         // Single port boards only supports one port, so keep using SEAT A
@@ -580,8 +585,10 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
     safe_gpio_set_level(g_uni_config->led_j1, status_a);
     safe_gpio_set_level(g_uni_config->led_j2, status_b);
 
+    bool lightbar_or_led_set = false;
+    // Try with LightBar and/or Player LEDs. Some devices like DualSense support
+    // both. Use them both when available.
     if (d->report_parser.set_lightbar_color != NULL) {
-        // First try with color LED (best experience)
         uint8_t red = 0;
         uint8_t green = 0;
         if (seat & 0x01)
@@ -589,13 +596,15 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
         if (seat & 0x02)
             red = 0xff;
         d->report_parser.set_lightbar_color(d, red, green, 0x00 /* blue*/);
+        lightbar_or_led_set = true;
+    }
+    if (d->report_parser.set_player_leds != NULL) {
+        d->report_parser.set_player_leds(d, seat);
+        lightbar_or_led_set = true;
+    }
 
-    } else if (d->report_parser.set_player_leds != NULL) {
-        // 2nd best option: set player LEDs
-        d->report_parser.set_player_leds(d, all_seats);
-
-    } else if (d->report_parser.set_rumble != NULL) {
-        // Finally, as last resort, rumble
+    //  If Lightbar or Player LEDs cannot be set, use rumble as fallback option
+    if (!lightbar_or_led_set && d->report_parser.set_rumble != NULL) {
         d->report_parser.set_rumble(d, 0x80 /* value */, 0x04 /* duration */);
     }
 }

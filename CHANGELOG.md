@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0-rc1] - 2022-02-06
+### Changed
+
+- Bluetooth: To err on the safe side, new connection have a bigger window time to connect,
+  and re-connects (incoming connections) a slightly smaller window. I'll revisit this in the future.
+- Wii: Accelerometer mode works as if the Wii Remote is being inside a Wii Wheel.
+  This is because the "old" mode was not rather difficult to use, and using it for the
+  Wii Whell is very usable in C64 racing games.
+
+### Fixed
+
+- Bluetooth: use page scan / clock offset if available when requesting name.
+  This used to be the case in v2.5, but disabled during the big refactoring.
+- Unijoysticle: correclty set Player LED when second player connects
+- Unijoysticle: reject new connections if two gamepads are already connected.
+- Unijoysticle: On DualSense gamepads, update Player LEDs when gamepad connects.
+- Nintendo Switch: Pressing "system" button has a delay of 200ms before being able
+  to press it again. This helps switching the Joystick port in Unijoysticle.
+- Nintendo Switch: While setting up the controller, each step has its own timeout.
+  This helps setup clones that might need certain steps in order to enable report 0x30.
+- 8BitDo: Added SNES30 to the DB. It correctly identifies it as 8BitDo gamepad.
+- MightyMiggy: All internal functions declared static to avoid collision with other projects.
+
 ## [3.0.0-rc0] - 2022-01-31
 ### New
 

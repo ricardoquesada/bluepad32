@@ -40,18 +40,19 @@ Add Bluetooth gamepad support to your projects easily. Supported platforms:
 
 ## Supported controllers
 
-![Supported gamepads](https://lh3.googleusercontent.com/pw/ACtC-3cg22O7VPT8NwXIATr2rsgs-rn2kShZeiUbArIK-2lIkskCLI6q06nRtK9been8Hom49dOacwHD8bVT2Tc8YKsxd5w73W25lhOvlRk6Xf9RVXgB5AZcmdl2PoWhrEAZUbmBl1pS6HrtMuZYI506US7YuA=-no)
+![Supported gamepads](https://lh3.googleusercontent.com/pw/AM-JKLXpmyDvNXZ_LmlmBSYObRZDhwuY6hHXXBzAicFw1YH1QNSgZrpiPWXZMiPNM0ATgrockqGf5bLsI3fWceJtQQEj2_OroHs1SrxsgmS8Rh4XHlnFolchomsTPVC7o5zi4pXGQkhGEFbinoh3-ub_a4lQIw=-no)
 
 * Sony DualSense (PS5)
 * Sony DUALSHOCK 4 (PS4)
 * Sony DUALSHOCK 3 (PS3)
-* Xbox One S
-* Nintendo Switch Pro
-* Nintendo Wii U
-* Nintendo Wii
+* Nintendo Switch Pro controller
+* Nintendo Switch JoyCon
+* Nintendo Wii U controller
+* Nintendo Wii Remote + accesories
+* Xbox Wireless controller (model 1708)
 * Android gamepads
 * PC/Window gamepads
-* 8BitDo
+* 8BitDo controllers
 * iCade
 * And more
 
@@ -63,7 +64,7 @@ See: [Supported gamepads][gamepads]
 
 1. Install ESP-IDF
 
-    Install the ESP32 toolchain. Use version **4.2**. Might work on newer / older
+    Install the ESP32 toolchain. Use version **4.4**. Might work on newer / older
     ones, but not tested.
 
     * https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/
@@ -85,7 +86,7 @@ See: [Supported gamepads][gamepads]
 
 4. Compile Bluepad32
 
-    Choose target platform (default is Unijoysticle):
+    Choose target platform (default is *Unijoysticle*):
 
     ```sh
     cd ${BLUEPAD32}/src
