@@ -19,6 +19,9 @@ Add Bluetooth gamepad support to your projects easily. Supported platforms:
   * [Unijoysticle v2 for the Amiga][amiga]
   * [ULX3S][ulx3s], an FPGA console
 
+Note: Only the original ESP32 is supported, which has Bluetooth Classic.
+Newer models like ESP32-Sx, ESP32-Cx, ESP32-Hx are **NOT** supported since they don't have Bluetooth Classic support.
+
 [amiga]: https://gitlab.com/SukkoPera/unijoysticle2
 [bp32-arduino]: https://gitlab.com/ricardoquesada/bluepad32-arduino
 [bp32-circuitpython]: https://gitlab.com/ricardoquesada/bluepad32-circuitpython
@@ -67,7 +70,7 @@ See: [Supported gamepads][gamepads]
     Install the ESP32 toolchain. Use version **4.4**. Might work on newer / older
     ones, but not tested.
 
-    * https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/
+    * <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/>
 
 2. Clone repo
 
