@@ -4,51 +4,63 @@ If you only want to flash the latest firmware version without downloading the to
 
 Download latest precompiled firmware from here:
 
-- https://github.com/ricardoquesada/bluepad32/releases
+- <https://gitlab.com/ricardoquesada/bluepad32/-/releases>
 
-And then...
+And then you can flash it either using:
+
+- Command Line
+- or GUI
 
 ## Command Line (esptool)
 
 ![esptool](https://lh3.googleusercontent.com/UfYRw0D2m6DUy337fskfNYP6FA3oj_AgATe6QU3y5OvGe14DaI5amCb-rhmGliSepoFYmhvX-u5uzq5N0wChP0lr0eSOrY4YMLB__UBZ8tY8ASbw5DgI6dUX-oEt2ZpWHPLpnBdxryA=-no)
 
+Supported platforms: Linux, macOS and Windows
+
 For Command Line tool, download `esptool.py`:
 
-- Source Code: https://github.com/espressif/esptool
+- Source Code: <https://github.com/espressif/esptool>
+- Ubuntu / Debian: `sudo apt install esptool`
 - macOS: `brew install esptool`
-- Debian: `sudo apt install esptool`
 - Windows and other OSs: `pip install esptool`
 
 And:
 
 ```sh
-# macOS
-export ESPPORT=/dev/cu.SLAB_USBtoUART
 # Linux
 export ESPPORT=/dev/ttyUSB0
+# macOS
+export ESPPORT=/dev/cu.SLAB_USBtoUART
 # Windows
 set ESPPORT=COM??  #??? Try different ones
 
 esptool.py --port ${ESPPORT} --baud 115200 --before default_reset --after hard_reset write_flash 0x0000 bluepad32-unijoysticle-full.bin
 ```
 
-## GUI (ESP32 Flash Tool)
+## GUI (ESP32 Flash Download Tool)
 
 ![flash_tool](https://lh3.googleusercontent.com/pw/ACtC-3c6KvmSei83mYKogxIadcq7tWamg41jsNk7pqJOpjnPhNoeN3uYjehB94wAja72mIDRNrhrWIqG0Sle1gxZHr0gANCSJyDFUcSfXMdoetUTynure2UrjRv7WkZEYnj0nqpiYJ54mwj85jDLkFrnD4jd-g=-no)
 
-If you are not familiar with command-line tools, you can try with the ESP32 Flash Tool (Windows only):
+Supported platforms: Windows only
 
-- Download: https://www.espressif.com/en/products/hardware/esp32/resources
+If you are not familiar with command-line tools, you can try with the ESP32 Flash Download Tool:
 
-A tutorial that explains how to use and from where to download is here:
+- Download: <https://www.espressif.com/en/support/download/other-tools>
 
-- Tutorial: [ESP32 Flash Tool tutorial](http://iot-bits.com/esp32/esp32-flash-download-tool-tutorial/)
+Parameters:
+
+- If asked about "chipType", select "ESP32"
+- Select "SPIDownload" tab
+- Click on "..." and select the `bluepad32-unijoysticle-full.bin` file
+- Set `0x0000` as address
+- Select the correct "COM" port
+- And then click "START"
 
 # Compiling + flashing firmware
 
 **Linux**: Supported. Keep reading.
 
-**macOS**: The Linux instructions should work, but not %100 sure.
+**macOS**: The Linux instructions should work, but not tested
 
 **Windows**:  Follow these instructions: [ESP-IDF for Windows][esp-idf-windows]
 
@@ -64,23 +76,23 @@ git clone --recursive https://gitlab.com/ricardoquesada/bluepad32.git
 
 ### Download ESP-IDF
 
-Check latest info from here: https://docs.espressif.com/projects/esp-idf/en/stable/esp32/get-started/index.html
+Check latest info from here: <https://docs.espressif.com/projects/esp-idf/en/stable/esp32/get-started/index.html>
 
 ```sh
 # Needs to be done just once
 # 1. Clone the ESP-IDF git repo
-$ mkdir -p ~/esp
-$ cd ~/esp
-$ git clone -b release/v4.3 --recursive https://github.com/espressif/esp-idf.git
+mkdir -p ~/esp
+cd ~/esp
+git clone -b release/v4.4 --recursive https://github.com/espressif/esp-idf.git
 
 # 2. And then install the toolchain
-$ cd ~/esp/esp-idf
-$ ./install.sh
+cd ~/esp/esp-idf
+./install.sh
 ```
 
 ```sh
 # Needs to be done every time you open a new terminal and want to compile Bluepad32
-$ source ~/esp/esp-idf/export.sh
+source ~/esp/esp-idf/export.sh
 ```
 
 ### Optional: Download libusb
