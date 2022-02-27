@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### New
 - Docs: Added CONTRIBUTING.md file
 
+### Changed
+- Update ESP-IDF v4.4 to hash: 000d3823bb2ff697c327958e41e9dfc6b772822a
+
 ### Fixed
 - Docs: Minor fixes in documentation, moved images to its own folder.
 - 8BitDo: Added SFC30 to the DB. It correctly identifies it as 8BitDo gamepad.
