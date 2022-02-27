@@ -1,4 +1,4 @@
-// Copyright 2021 - 2021, Ricardo Quesada, http://retro.moe
+// Copyright 2021 - 2022, Ricardo Quesada, http://retro.moe
 // SPDX-License-Identifier: Apache-2.0 or LGPL-2.1-or-later
 
 #include "ArduinoGamepad.h"
@@ -45,5 +45,5 @@ void Gamepad::setRumble(uint8_t force, uint8_t duration) const {
     }
 
     if (arduino_set_rumble(_state.idx, force, duration) == -1)
-        loge("error setting lightbar color");
+        loge("error setting rumble");
 }

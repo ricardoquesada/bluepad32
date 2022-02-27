@@ -25,7 +25,7 @@ In order to have gamepad support, the original AirLift firmware must be replaced
 with Bluepad32 firmware. This is a simple step that needs to be done just once,
 and can be "undone" at any time.
 
-![how-does-it-work](bluepad32-airlift-how-does-it-work.png)
+![how-does-it-work](images/bluepad32-airlift-how-does-it-work.png)
 
 This is how it works:
 

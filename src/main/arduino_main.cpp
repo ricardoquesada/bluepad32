@@ -19,7 +19,7 @@ limitations under the License.
 #include "sdkconfig.h"
 #ifndef CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 #error "Must only be compiled when using Bluepad32 Arduino platform"
-#endif // !CONFIG_BLUEPAD32_PLATFORM_ARDUINO
+#endif  // !CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 
 #include <Arduino.h>
 #include <Bluepad32.h>
@@ -49,6 +49,13 @@ void setup() {
 
     // Setup the Bluepad32 callbacks
     BP32.setup(&onConnectedGamepad, &onDisconnectedGamepad);
+
+    // "forgetBluetoothKeys()" should be called when the user performs
+    // a "device factory reset", or similar.
+    // Calling "forgetBluetoothKeys" in setup() just as an example.
+    // Forgetting Bluetooth keys prevents "paired" gamepads to reconnect.
+    // But might also fix some connection / re-connection issues.
+    BP32.forgetBluetoothKeys();
 }
 
 // Arduino loop function. Runs in CPU 1

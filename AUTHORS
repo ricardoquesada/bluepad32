@@ -2,7 +2,7 @@ Bluepad32 authors
 
 Main author: Ricardo Quesada
 
-Contributors:
+Code contributors:
   - Marcelo Lorenzati:
     - Added DualShock3 gamepad support
   - SukkoPera:
@@ -10,12 +10,22 @@ Contributors:
     - Added controller_subtype in hid_device
     - Author of MightyMiggy platform
   - Cristiano Vaccarini (vcorp):
-    - Added VID/PID entires for 8bitdo Zero 2 and TUTUO (a PS4 clone)
+    - Added VID/PID entries for 8BitDo Zero 2 and TUTUO (a PS4 clone)
   - Ryan C. Bedard:
     - Fixes in documentation
   - Justus Ip:
     - Explicitly require Stream mode to DS4 gamepads
+  - Sol Huebner:
+    - Fixes in ArduinoGamepad code
 
-Many thanks to:
+
+People who contributed with ideas and/or testing:
   - Esteban/PVM and many other PVMers: Dualshock4 and general testing
   - Pyrofer: Wii / Wii U beta testing and ideas
+
+
+People who contributed hardware and/or donations:
+  - Christian Ruecker
+  - Sol Huebner
+  - Kelly Keeton
+
