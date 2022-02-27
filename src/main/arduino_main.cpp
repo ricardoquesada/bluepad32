@@ -50,10 +50,11 @@ void setup() {
     // Setup the Bluepad32 callbacks
     BP32.setup(&onConnectedGamepad, &onDisconnectedGamepad);
 
-    // User should be able to delete the stored Bluetooth keys,
-    // perhaps when the user does a factory reset.
-    // Forgetting the Bluetooth keys, will prevent "paired" gamepads to reconnect.
-    // But also might fix some connection / re-connection issues.
+    // "forgetBluetoothKeys()" should be called when the user performs
+    // a "device factory reset", or similar.
+    // Calling "forgetBluetoothKeys" in setup() just as an example.
+    // Forgetting Bluetooth keys prevents "paired" gamepads to reconnect.
+    // But might also fix some connection / re-connection issues.
     BP32.forgetBluetoothKeys();
 }
 
