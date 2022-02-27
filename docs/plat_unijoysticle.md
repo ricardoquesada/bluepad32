@@ -4,7 +4,7 @@
 
 ## What is Unijoysticle
 
-Unijoysticle is a device that connects to retro computers like that Commodore 64.
+Unijoysticle is a device that connects to retro computers like the Commodore 64.
 Basically you can play Commodore 64 games using modern gamepads.
 
 Detailed information about the project can be found here:
