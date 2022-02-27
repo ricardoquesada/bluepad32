@@ -4,12 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.0.0] - 2022-02-27
 ### New
 - Docs: Added CONTRIBUTING.md file
 
 ### Fixed
-- Docs: Minor fixes in documentation
+- Docs: Minor fixes in documentation, moved images to its own folder.
 - 8BitDo: Added SFC30 to the DB. It correctly identifies it as 8BitDo gamepad.
 
 ## [3.0.0-rc1] - 2022-02-06
