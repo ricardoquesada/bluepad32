@@ -7,7 +7,7 @@
 #include "sdkconfig.h"
 #ifndef CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 #error "Must only be compiled when using Bluepad32 Arduino platform"
-#endif // !CONFIG_BLUEPAD32_PLATFORM_ARDUINO
+#endif  // !CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 
 #include <inttypes.h>
 #include <uni_platform_arduino.h>
@@ -41,8 +41,7 @@ class Bluepad32 {
     // Gamepad
     void update();
 
-    // When a gamepad connects to the ESP32, the ESP32 stores keys to make it
-    // easier the reconnection.
+    // When a gamepad is paired to the ESP32, the ESP32 stores keys to enable reconnection.
     // If you want to "forget" (delete) the keys from ESP32, you should call this
     // function.
     void forgetBluetoothKeys();

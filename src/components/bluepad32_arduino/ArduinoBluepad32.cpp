@@ -6,10 +6,11 @@
 #include "sdkconfig.h"
 #ifndef CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 #error "Must only be compiled when using Bluepad32 Arduino platform"
-#endif // !CONFIG_BLUEPAD32_PLATFORM_ARDUINO
+#endif  // !CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 
 #include <Arduino.h>
 #include <inttypes.h>
+#include <uni_bluetooth.h>
 #include <uni_debug.h>
 #include <uni_platform_arduino.h>
 #include <uni_version.h>
@@ -60,7 +61,7 @@ void Bluepad32::update() {
 }
 
 void Bluepad32::forgetBluetoothKeys() {
-    // FIXME: Not implemented
+    uni_bluetooth_del_keys_safe();
 }
 
 void Bluepad32::setup(const GamepadCallback& onConnect, const GamepadCallback& onDisconnect) {
