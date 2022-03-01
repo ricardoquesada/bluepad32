@@ -11,15 +11,15 @@ Add Bluetooth gamepad support to your projects easily. Supported platforms:
 * Arduino + ESP32 boards:
   * [Documentation][plat_arduino]
   * [Template project][esp-idf-bluepad32-arduino]
-  * Examples from the community: [Lego Robot][esp32_example], [gbaHD Shield][esp32_example2]
+  * Projects from the community: [Lego Robot][esp32_example], [gbaHD Shield][esp32_example2]
 * Arduino + boards with the NINA coprocessor:
   * [Documentation][plat_nina]
   * [Library][bp32-arduino]
-  * Example from the community: [Philips CD-i meets Bluetooth][nina_example]
+  * Project from the community: [Philips CD-i meets Bluetooth][nina_example]
 * CircuitPython + boards with the AirLift coprocessor:
   * [Documentation][plat_airlift]
   * [Library][bp32-circuitpython]
-  * Examples from the community: [Quico console][airlift_example], [Controlling 4 servos][airlift_example2]
+  * Projects from the community: [Quico console][airlift_example], [Controlling 4 servos][airlift_example2]
 * Or in custom boards like:
   * [Unijoysticle v2, to play games on the C64][unijoysticle2]
   * [Unijoysticle v2 for the Amiga][amiga]
