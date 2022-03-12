@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### New
 - Arduino: Add function to return Gamepad model
 
+### Changed
+- Update BTStack to latest stable. Hash: 45e937e1ce34444aabbc21ec35504e1c50ad528d
+
 ## [3.0.0] - 2022-02-27
 ### New
 - Docs: Added CONTRIBUTING.md file
