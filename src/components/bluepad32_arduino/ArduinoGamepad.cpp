@@ -4,13 +4,46 @@
 #include "ArduinoGamepad.h"
 
 #include <inttypes.h>
+#include <uni_common.h>
 #include <uni_debug.h>
 #include <uni_platform_arduino.h>
 
 #include "sdkconfig.h"
 #ifndef CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 #error "Must only be compiled when using Bluepad32 Arduino platform"
-#endif // !CONFIG_BLUEPAD32_PLATFORM_ARDUINO
+#endif  // !CONFIG_BLUEPAD32_PLATFORM_ARDUINO
+
+const struct Gamepad::controllerNames Gamepad::_controllerNames[] = {
+    {Gamepad::CONTROLLER_TYPE_UnknownSteamController, "Unknown Steam"},
+    {Gamepad::CONTROLLER_TYPE_SteamController, "Steam"},
+    {Gamepad::CONTROLLER_TYPE_SteamControllerV2, "Steam V2"},
+
+    {Gamepad::CONTROLLER_TYPE_XBox360Controller, "XBox 360"},
+    {Gamepad::CONTROLLER_TYPE_XBoxOneController, "XBox One"},
+    {Gamepad::CONTROLLER_TYPE_PS3Controller, "DualShock 3"},
+    {Gamepad::CONTROLLER_TYPE_PS4Controller, "DualShock 4"},
+    {Gamepad::CONTROLLER_TYPE_WiiController, "Wii"},
+    {Gamepad::CONTROLLER_TYPE_AppleController, "Apple"},
+    {Gamepad::CONTROLLER_TYPE_AndroidController, "Android"},
+    {Gamepad::CONTROLLER_TYPE_SwitchProController, "Switch Pro"},
+    {Gamepad::CONTROLLER_TYPE_SwitchJoyConLeft, "Switch JoyCon Left"},
+    {Gamepad::CONTROLLER_TYPE_SwitchJoyConRight, "Switch JoyCon Right"},
+    {Gamepad::CONTROLLER_TYPE_SwitchJoyConPair, "Switch JoyCon Pair"},
+    {Gamepad::CONTROLLER_TYPE_SwitchInputOnlyController, "Switch Input Only"},
+    {Gamepad::CONTROLLER_TYPE_MobileTouch, "Mobile Touch"},
+    {Gamepad::CONTROLLER_TYPE_XInputSwitchController, "XInput Switch"},
+    {Gamepad::CONTROLLER_TYPE_PS5Controller, "DualSense"},
+
+    {Gamepad::CONTROLLER_TYPE_iCadeController, "iCade"},
+    {Gamepad::CONTROLLER_TYPE_SmartTVRemoteController, "Smart TV Remote"},
+    {Gamepad::CONTROLLER_TYPE_EightBitdoController, "8BitDo"},
+    {Gamepad::CONTROLLER_TYPE_GenericController, "Generic"},
+    {Gamepad::CONTROLLER_TYPE_NimbusController, "Nimbus"},
+    {Gamepad::CONTROLLER_TYPE_OUYAController, "OUYA"},
+
+    {Gamepad::CONTROLLER_TYPE_GenericKeyboard, "Keyboard"},
+    {Gamepad::CONTROLLER_TYPE_GenericMouse, "Mouse"},
+};
 
 Gamepad::Gamepad() : _connected(false), _state() {}
 
@@ -46,4 +79,12 @@ void Gamepad::setRumble(uint8_t force, uint8_t duration) const {
 
     if (arduino_set_rumble(_state.idx, force, duration) == -1)
         loge("error setting rumble");
+}
+
+String Gamepad::getModelName() const {
+    for (int i = 0; i < ARRAY_SIZE(_controllerNames); i++) {
+        if (_state.type == _controllerNames[i].type)
+            return _controllerNames[i].name;
+    }
+    return "Unknown";
 }

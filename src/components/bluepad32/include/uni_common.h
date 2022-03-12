@@ -19,6 +19,10 @@ limitations under the License.
 #ifndef UNI_COMMON_H
 #define UNI_COMMON_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Some common macros
 
 #ifndef BIT
@@ -28,5 +32,9 @@ limitations under the License.
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 #endif  // ARRAY_SIZE
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // UNI_COMMON_H
