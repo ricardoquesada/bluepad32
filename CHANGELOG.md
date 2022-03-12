@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Update BTStack to latest stable. Hash: 45e937e1ce34444aabbc21ec35504e1c50ad528d
+- Compiler option: Using -O2 (optimize for performance) by default. Debug disabled.
 
 ## [3.0.0] - 2022-02-27
 ### New
