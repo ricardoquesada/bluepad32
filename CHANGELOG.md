@@ -4,13 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.0.1] - 2022-03-15
 ### New
 - Arduino: Add function to return Gamepad model
 
 ### Changed
 - Update BTStack to latest stable. Hash: 45e937e1ce34444aabbc21ec35504e1c50ad528d
 - Compiler option: Using -O2 (optimize for performance) by default. Debug disabled.
+
+### Fixed
+- 8BitDo: Added SF30 Pro to the DB. It correctly identifies it as 8BitDo gamepad.
 
 ## [3.0.0] - 2022-02-27
 ### New
