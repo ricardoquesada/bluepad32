@@ -638,7 +638,8 @@ static const uni_controller_description_t arrControllers[] = {
 	{ MAKE_CONTROLLER_ID(0x2dc8, 0x2830), CONTROLLER_TYPE_8BitdoController, NULL},  // 8Bitdo SFC30
 	{ MAKE_CONTROLLER_ID(0x2dc8, 0x2840), CONTROLLER_TYPE_8BitdoController, NULL},  // 8Bitdo SNES30
 	{ MAKE_CONTROLLER_ID(0x2dc8, 0x3230), CONTROLLER_TYPE_8BitdoController, NULL},  // 8Bitdo Zero 2
-	{ MAKE_CONTROLLER_ID(0x2dc8, 0x6101), CONTROLLER_TYPE_8BitdoController, NULL},  // 8Bitdo SN30 pro
+	{ MAKE_CONTROLLER_ID(0x2dc8, 0x6100), CONTROLLER_TYPE_8BitdoController, NULL},  // 8Bitdo SF30 Pro
+	{ MAKE_CONTROLLER_ID(0x2dc8, 0x6101), CONTROLLER_TYPE_8BitdoController, NULL},  // 8Bitdo SN30 Pro
 
 	// Generic gamepad
 	{ MAKE_CONTROLLER_ID(0x0a5c, 0x4502), CONTROLLER_TYPE_GenericController, NULL},  // White-label mini gamepad received as gift in conference

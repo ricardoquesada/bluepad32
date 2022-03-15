@@ -7,16 +7,17 @@
 #include "sdkconfig.h"
 #ifndef CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 #error "Must only be compiled when using Bluepad32 Arduino platform"
-#endif // !CONFIG_BLUEPAD32_PLATFORM_ARDUINO
+#endif  // !CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 
 #include <inttypes.h>
 #include <uni_platform_arduino.h>
 
+#include <Arduino.h>
+
 class Gamepad {
    public:
-    // Types of controllers
-    // Taken from here, with Bluepad32 additions:
-    // http://hg.libsdl.org/SDL/file/28fcb5ef7ff1/src/joystick/controller_type.h
+    // FIXME: Should not be duplicated.
+    // Must match values from "uni_hid_device_vendors.h"
     enum {
         CONTROLLER_TYPE_None = -1,
         CONTROLLER_TYPE_Unknown = 0,
@@ -103,6 +104,7 @@ class Gamepad {
 
     // Returns the gamepad model.
     int getModel() const { return _state.type; }
+    String getModelName() const;
 
     // "Output" functions.
     void setPlayerLEDs(uint8_t led) const;
@@ -117,6 +119,14 @@ class Gamepad {
     // chances are that the gamepad won't get updated automatically.
     Gamepad(const Gamepad&) = delete;
 
+    // For converting controller types to names.
+    struct controllerNames {
+        int type;
+        const char* name;
+    };
+    static const struct controllerNames _controllerNames[];
+
+    // Friends
     friend class Bluepad32;
 };
 

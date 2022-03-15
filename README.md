@@ -9,11 +9,17 @@ A Bluetooth gamepad "host" for the ESP32.
 Add Bluetooth gamepad support to your projects easily. Supported platforms:
 
 * Arduino + ESP32 boards:
-  [further info][plat_arduino], [template project][esp-idf-bluepad32-arduino]
+  * [Documentation][plat_arduino]
+  * [Template project][esp-idf-bluepad32-arduino]
+  * Projects from the community: [Lego Robot][esp32_example], [gbaHD Shield][esp32_example2]
 * Arduino + boards with the NINA coprocessor:
-  [further info][plat_nina], [library][bp32-arduino]
+  * [Documentation][plat_nina]
+  * [Library][bp32-arduino]
+  * Project from the community: [Philips CD-i meets Bluetooth][nina_example]
 * CircuitPython + boards with the AirLift coprocessor:
-  [further info][plat_airlift], [library][bp32-circuitpython]
+  * [Documentation][plat_airlift]
+  * [Library][bp32-circuitpython]
+  * Projects from the community: [Quico console][airlift_example], [Controlling 4 servos][airlift_example2]
 * Or in custom boards like:
   * [Unijoysticle v2, to play games on the C64][unijoysticle2]
   * [Unijoysticle v2 for the Amiga][amiga]
@@ -22,10 +28,15 @@ Add Bluetooth gamepad support to your projects easily. Supported platforms:
 Note: Only the original ESP32 is supported, which supports Bluetooth Classic.
 Newer models like ESP32-Sx, ESP32-Cx, ESP32-Hx are **NOT** supported since they don't support Bluetooth Classic.
 
+[airlift_example]: https://gitlab.com/ricardoquesada/quico
+[airlift_example2]: https://twitter.com/makermelissa/status/1482596378282913793
 [amiga]: https://gitlab.com/SukkoPera/unijoysticle2
 [bp32-arduino]: https://gitlab.com/ricardoquesada/bluepad32-arduino
 [bp32-circuitpython]: https://gitlab.com/ricardoquesada/bluepad32-circuitpython
+[esp32_example]: https://github.com/antonvh/LMS-uart-esp/blob/main/Projects/BluePad32_idf/README.md
+[esp32_example2]: https://github.com/ManCloud/GBAHD-Shield
 [esp-idf-bluepad32-arduino]: https://gitlab.com/ricardoquesada/esp-idf-arduino-bluepad32-template
+[nina_example]: https://eyskens.me/cd-i-meets-bluetooth/
 [plat_airlift]: docs/plat_airlift.md
 [plat_arduino]: docs/plat_arduino.md
 [plat_nina]: docs/plat_nina.md
