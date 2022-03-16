@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Fixed
+- Arduino/NINA/AirLift: Assign gamepad type at connection time: [Bug #10][gitlab_bug_10]
+
+[gitlab_bug_10]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/10
+
 ## [3.0.1] - 2022-03-15
 ### New
 - Arduino: Add function to return Gamepad model
