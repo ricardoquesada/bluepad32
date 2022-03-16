@@ -179,6 +179,7 @@ static int arduino_on_device_ready(uni_hid_device_t* d) {
     for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         if (_gamepads[i].idx == UNI_ARDUINO_GAMEPAD_INVALID) {
             _gamepads[i].idx = i;
+            _gamepads[i].type = d->controller_type;
             ins->gamepad_idx = i;
             _used_gamepads++;
             break;
@@ -206,11 +207,7 @@ static void arduino_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
 
     // Populate gamepad data on shared struct.
     xSemaphoreTake(_gamepad_mutex, portMAX_DELAY);
-    _gamepads[ins->gamepad_idx] = (arduino_gamepad_t){
-        .idx = ins->gamepad_idx,
-        .type = d->controller_type,
-        .data = *gp,
-    };
+    _gamepads[ins->gamepad_idx].data = *gp;
     xSemaphoreGive(_gamepad_mutex);
 }
 

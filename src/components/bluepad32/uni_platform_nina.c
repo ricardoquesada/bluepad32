@@ -809,8 +809,11 @@ static int nina_on_device_ready(uni_hid_device_t* d) {
         }
     }
 
+    // This is how "client" knows which gamepad emitted the events.
+    _gamepads[ins->gamepad_idx].idx = ins->gamepad_idx;
+    _gamepads[ins->gamepad_idx].type = d->controller_type;
+
     if (d->report_parser.set_player_leds != NULL) {
-        nina_instance_t* ins = get_nina_instance(d);
         d->report_parser.set_player_leds(d, (1 << ins->gamepad_idx));
     }
     return 0;
@@ -841,21 +844,15 @@ static void nina_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
 
     // Populate gamepad data on shared struct.
     xSemaphoreTake(_gamepad_mutex, portMAX_DELAY);
-    _gamepads[ins->gamepad_idx] = (nina_gamepad_t){
-        .idx = ins->gamepad_idx,  // This is how "client" knows which gamepad
-                                  // emitted the events
-        .dpad = gp->dpad,
-        .axis_x = gp->axis_x,
-        .axis_y = gp->axis_y,
-        .axis_rx = gp->axis_rx,
-        .axis_ry = gp->axis_ry,
-        .brake = gp->brake,
-        .throttle = gp->throttle,
-        .buttons = gp->buttons,
-        .misc_buttons = gp->misc_buttons,
-
-        .type = d->controller_type,
-    };
+    _gamepads[ins->gamepad_idx].dpad = gp->dpad;
+    _gamepads[ins->gamepad_idx].axis_x = gp->axis_x;
+    _gamepads[ins->gamepad_idx].axis_y = gp->axis_y;
+    _gamepads[ins->gamepad_idx].axis_rx = gp->axis_rx;
+    _gamepads[ins->gamepad_idx].axis_ry = gp->axis_ry;
+    _gamepads[ins->gamepad_idx].brake = gp->brake;
+    _gamepads[ins->gamepad_idx].throttle = gp->throttle;
+    _gamepads[ins->gamepad_idx].buttons = gp->buttons;
+    _gamepads[ins->gamepad_idx].misc_buttons = gp->misc_buttons;
     xSemaphoreGive(_gamepad_mutex);
 }
 
