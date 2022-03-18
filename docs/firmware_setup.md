@@ -58,98 +58,149 @@ Parameters:
 
 # Compiling + flashing firmware
 
-**Linux**: Supported. Keep reading.
+## For Windows
 
-**macOS**: The Linux instructions should work, but not tested
+1. Install [ESP-IDF v4.4][esp-idf-windows-installer]. For further info, read: [ESP-IDF Getting Started for Windows][esp-idf-windows-setup]
 
-**Windows**:  Follow these instructions: [ESP-IDF for Windows][esp-idf-windows]
+   * Either the Online or Offline version shoud work
+   * When asked which components to install, don't change anything. Default options are Ok.
+   * When asked whether ESP can modify the system, answer "Yes"
 
-[esp-idf-windows]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/windows-setup.html
+2. Launch the "ESP-IDF v4.4 CMD" (type that in the Windows search box)
 
-## 1. Download
+3. From the ESP-IDF cmd, clone Bluepad32 repo
 
-### Download Bluepad32
+   ```sh
+   git clone --recursive https://gitlab.com/ricardoquesada/bluepad32.git
+   ```
 
-```sh
-git clone --recursive https://gitlab.com/ricardoquesada/bluepad32.git
-```
+4. Setup
 
-### Download ESP-IDF
+    ```sh
+    # Setup BTStack
+    cd ${BLUEPAD32}/external/btstack/port/esp32
+    # This will install BTstack as a component inside Bluepad32 source code (recommended).
+    # Remove "IDF_PATH=../../../../src" if you want it installed in the ESP-IDF folder
+    IDF_PATH=../../../../src ./integrate_btstack.py
+    ```
 
-Check latest info from here: <https://docs.espressif.com/projects/esp-idf/en/stable/esp32/get-started/index.html>
+    ```sh
+    # Setup Bluepad32 Platform
+    cd ${BLUEPAD32}/src
+    idf.py menuconfig
+    ```
 
-```sh
-# Needs to be done just once
-# 1. Clone the ESP-IDF git repo
-mkdir -p ~/esp
-cd ~/esp
-git clone -b release/v4.4 --recursive https://github.com/espressif/esp-idf.git
+    And select `Component config` -> `Bluepad32` -> `Target platform` (choose the right one for you).
 
-# 2. And then install the toolchain
-cd ~/esp/esp-idf
-./install.sh
-```
+5. Compile it
 
-```sh
-# Needs to be done every time you open a new terminal and want to compile Bluepad32
-source ~/esp/esp-idf/export.sh
-```
+    ```sh
+    # Compile it
+    cd ${BLUEPAD32}/src
+    idf.py build
 
-### Optional: Download libusb
+    # Flash + open debug terminal
+    idf.py flash monitor
+    ```
+
+[esp-idf-windows-setup]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/windows-setup.html
+[esp-idf-windows-installer]: https://dl.espressif.com/dl/esp-idf/?idf=4.4
+
+## For Linux / macOS
+
+1. Requirements and permissions
+
+    Install ESP-IDF dependencies (taken from [here][toolchain-deps]):
+
+    ```sh
+    # For Ubuntu / Debian
+    sudo apt-get install git wget flex bison gperf python3 python3-pip python3-setuptools cmake ninja-build ccache libffi-dev libssl-dev dfu-util libusb-1.0-0
+    ```
+
+    And in case you don't have permissions to open `/dev/ttyUSB0`, do:
+    (taken from [here][ttyusb0])
+
+    ```sh
+    # You MUST logout/login (or in some cases reboot Linux) after running this command
+    sudo usermod -a -G dialout $USER
+    ```
+
+2. Install and setup ESP-IDF
+
+    ```sh
+    # Needs to be done just once
+    # Clone the ESP-IDF git repo
+    mkdir ~/esp && cd ~/esp
+    git clone -b release/v4.4 --recursive https://github.com/espressif/esp-idf.git
+
+    # Then install the toolchain
+    cd ~/esp/esp-idf
+    ./install.sh
+    ```
+
+3. Clone Bluepad32 repo
+
+   ```sh
+   git clone --recursive https://gitlab.com/ricardoquesada/bluepad32.git
+   ```
+
+4. Setup
+
+    ```sh
+    # Setup BTStack
+    cd ${BLUEPAD32}/external/btstack/port/esp32
+    # This will install BTstack as a component inside Bluepad32 source code (recommended).
+    # Remove "IDF_PATH=../../../../src" if you want it installed in the ESP-IDF folder
+    IDF_PATH=../../../../src ./integrate_btstack.py
+    ```
+
+    ```sh
+    # Setup Bluepad32 Platform
+    cd ${BLUEPAD32}/src
+    idf.py menuconfig
+    ```
+
+    And select `Component config` -> `Bluepad32` -> `Target platform` (choose the right one for you).
+
+5. Compile it
+
+    ```sh
+    # Compile it
+    cd ${BLUEPAD32}/src
+    idf.py build
+
+    # Flash + open debug terminal
+    idf.py flash monitor
+    ```
+
+
+[toolchain-deps]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/linux-setup.html
+[ttyusb0]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/establish-serial-connection.html#linux-dialout-group
+
+
+## Optional: Linux as a target device
 
 Only if you target Linux as a device (not a ESP32 device):
 
-```sh
-sudo apt install libusb-1.0.0-dev
-```
+1. Install dependencies
 
-## 2. Compile
+  ```sh
+  sudo apt install libusb-1.0.0-dev
+  ```
 
-### Integrate BTstack for ESP32
+2. Setup BTSTack for libusb
 
-```sh
-cd ${BLUEPAD32}/external/btstack/port/esp32
-# This will install BTstack as a component inside Bluepad32 source code (recommended).
-# Remove "IDF_PATH=../../../../src" if you want it installed in the ESP-IDF folder
-IDF_PATH=../../../../src ./integrate_btstack.py
-```
+  ```sh
+  cd ${BLUEPAD32}/external/btstack/port/libusb
+  make
+  ```
 
-### Optional: Compile BTStack for Linux as target
+3. Compile Bluepad32
 
-```sh
-cd ${BLUEPAD32}/external/btstack/port/libusb
-make
-```
-
-### Compile Bluepad32
-
-...and finally compile Bluepad32 :)
-
-#### Bluepad32 for ESP32 as target
-
-```sh
-cd ${BLUEPAD32}/src
-# Choose target platform: unijoysticle, airlift, etc.
-# Go to: Components config -> Bluepad32 (find it at the very bottom) -> Target platform
-idf.py menuconfig
- 
-# Choose the correct port. Might vary.
-export ESPPORT=/dev/ttyUSB0
-idf.py build
-idf.py flash monitor
-```
-
-#### Optional: Bluepad32 for Linux as target
-
-```sh
-# Optional: Only if you are targeting Linux as a device (this is not for the ESP32!)
-cd ${BLUEPAD32}/tools/pc_debug
-make
-sudo ./bluepad32
-```
+  ```sh
+  cd ${BLUEPAD32}/tools/pc_debug
+  make
+  sudo ./bluepad32
+  ```
 
 Put the gamepad in discovery mode. The gamepad should be recognized and when you press buttons, you should see them on the console.
-
-[1]: https://www.aliexpress.com/item/MH-ET-LIVE-ESP32-MINI-KIT-WiFi-Bluetooth-Internet-of-Things-development-board-based-ESP8266-Fully/32819107932.html
-[2]: https://wiki.wemos.cc/products:d1:d1_mini
-[3]: https://github.com/bluekitchen/btstack/blob/master/port/esp32/README.md

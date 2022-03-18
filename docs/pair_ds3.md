@@ -5,17 +5,17 @@ The DUALSHOCK3 gamepad does not implement the entire Bluetooth stack. It require
 ## Patch Bluepad32
 
 By default, DS3 is disabled since it requires `gap_set_security_level(0)`.
-But that change breaks Nintendo Switch, so it is disabled.
-To enable DS3 support edit `uni_bluetooth.c` and in line ~960 you should see
-something like:
+But that change breaks Nintendo Switch and other gamepads, so it is disabled.
+To enable it, you should change on setting in `menuconfig`:
 
-```c
-// TODO: For DS3 support...
-
-// gap_set_security_level(0);
+```sh
+idf.py menuconfig
 ```
 
-Uncomment that line, and recompile the firmware
+And select `Component config` -> `Bluepad32` -> `Enable GAP Security` (must be disabled)
+
+And then you have to re-compile the firmware (see here for firmware compilation instructions).
+
 
 ## Manual pair
 
