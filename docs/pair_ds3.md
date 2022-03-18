@@ -14,8 +14,9 @@ idf.py menuconfig
 
 And select `Component config` -> `Bluepad32` -> `Enable GAP Security` (must be disabled)
 
-And then you have to re-compile the firmware (see here for firmware compilation instructions).
+And then you have to re-compile the firmware (see here for [firmware compilation instructions]).
 
+[firmware compilation instructions]: firmware_setup.md
 
 ## Manual pair
 
