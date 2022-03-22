@@ -23,7 +23,7 @@ const char* Bluepad32::firmwareVersion() const {
 
 void Bluepad32::update() {
     int connectedGamepads = 0;
-    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
+    for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {
         if (arduino_get_gamepad_data(i, &_gamepads[i]._state) == -1)
             continue;
         if (_gamepads[i]._state.idx != -1)
@@ -37,7 +37,7 @@ void Bluepad32::update() {
     logi("connected in total: %d\n", connectedGamepads);
 
     // Compare bit by bit, and find which one got connected and which one disconnected.
-    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
+    for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {
         int bit = (1 << i);
         int current = connectedGamepads & bit;
         int prev = _prevConnectedGamepads & bit;
