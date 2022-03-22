@@ -75,8 +75,6 @@
 #include "uni_hid_parser.h"
 #include "uni_platform.h"
 
-_Static_assert(CONFIG_BTDM_CTRL_BR_EDR_MAX_ACL_CONN >= 2, "Max ACL must be >= 2");
-
 // Needed for DualShock4 version1.
 // It seems that when UNI_ENABLE_BLE is enabled, it doesn't need it.
 // Probably related to one of the HCI events handled by the BLE code.

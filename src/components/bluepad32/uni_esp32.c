@@ -18,12 +18,16 @@ limitations under the License.
 
 #include "uni_esp32.h"
 
+#include "sdkconfig.h"
+
 #include <esp32/rom/uart.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <soc/gpio_periph.h>
 #include <soc/io_mux_reg.h>
 #include <stddef.h>
+
+_Static_assert(CONFIG_BTDM_CTRL_BR_EDR_MAX_ACL_CONN >= 2, "Max ACL must be >= 2");
 
 // Code taken from nina-fw
 // https://github.com/adafruit/nina-fw/blob/master/main/sketch.ino.cpp
