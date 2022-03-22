@@ -10,8 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Arduino/NINA/AirLift: Assign gamepad type at connection time: [Bug #10][gitlab_bug_10]
+- Compile-time error if ACL connections are not least 2 [Bug #11][gitlab_bug_11]
 
 [gitlab_bug_10]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/10
+[gitlab_bug_10]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/11
 
 ## [3.0.1] - 2022-03-15
 ### New

@@ -186,6 +186,7 @@ int uni_bt_setup(void) {
     logi("Gap security level: %d\n", security_level);
     logi("Periodic Inquiry: max=%d, min=%d, len=%d\n", UNI_BT_MAX_PERIODIC_LENGTH, UNI_BT_MIN_PERIODIC_LENGTH,
          UNI_BT_INQUIRY_LENGTH);
+    logi("Max connected gamepads: %d\n", CONFIG_BLUEPAD32_MAX_DEVICES);
 
     l2cap_register_service(uni_bluetooth_packet_handler, BLUETOOTH_PSM_HID_INTERRUPT, UNI_BT_L2CAP_CHANNEL_MTU,
                            security_level);
