@@ -2,47 +2,65 @@
 
 Adding a new platform is easy:
 
-1. create your `src/main/uni_platform_yourplatform.c` file
-2. add you `src/configs/yourplatform-config.mk` makefile config file
-3. edit `src/main/uni_platform.c` file
-4. add documentation in `docs/plat_yourplatform.md`
+1. Create your `src/components/bluepad32/uni_platform_yourplatform.c` file
+2. Update `src/components/bluepad32/Kconfig` file
+3. Add your `src/configs/yourplatform-config.mk` makefile config file
+4. Update`src/components/bluepad32/uni_platform.c` file
+5. Add documentation in `docs/plat_yourplatform.md`
 
 ## 1. Platform file
 
 Use the existing platform as an exmaple:
 
-* [uni_platform_airlift.c]
+* [uni_platform_nina.c]
 
 What you need to do is to implement the callbacks:
 
 ```c
 //
-// AirLift platform entry point
+// NINA platform entry point
 //
-struct uni_platform* uni_platform_airlift_create(void) {
-  static struct uni_platform plat;
+struct uni_platform* uni_platform_nina_create(void) {
+    static struct uni_platform plat;
 
-  plat.name = "Adafruit AirLift";
-  plat.init = airlift_init;
-  plat.on_init_complete = airlift_on_init_complete;
-  plat.on_device_connected = airlift_on_device_connected;
-  plat.on_device_disconnected = airlift_on_device_disconnected;
-  plat.on_device_ready = airlift_on_device_ready;
-  plat.on_device_oob_event = airlift_on_device_oob_event;
-  plat.on_gamepad_data = airlift_on_gamepad_data;
-  plat.get_property = airlift_get_property;
+    plat.name = "Arduino NINA";
+    plat.init = nina_init;
+    plat.on_init_complete = nina_on_init_complete;
+    plat.on_device_connected = nina_on_device_connected;
+    plat.on_device_disconnected = nina_on_device_disconnected;
+    plat.on_device_ready = nina_on_device_ready;
+    plat.on_device_oob_event = nina_on_device_oob_event;
+    plat.on_gamepad_data = nina_on_gamepad_data;
+    plat.get_property = nina_get_property;
 
-  return &plat;
+    return &plat;
 }
-
 ```
 
 Bluepad32 only uses one core of the ESP32 (CPU0). The remaining one (CPU1) is
-free to use. As an example, AirLift uses it to read from SPI. See [uni_platform_airlift.c] for details.
+free to use. As an example, NINA uses it to read from SPI. See [uni_platform_nina.c] for details.
 
-[uni_platform_airlift.c]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/src/main/uni_platform_airlift.c
+[uni_platform_nina.c]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/main/src/components/bluepad32/uni_platform_nina.c
 
-## 2. Add a makefile config file
+## 2. Update Kconfig file
+
+Update [Kconfig] file, and add your platform there. Just copy & paste another platform and update it accordingly.
+
+Once it is updated, you can select your platform by doing:
+
+```
+idf.py menuconfig
+```
+
+And then select `Component config` -> `Bluepad32` -> `Target platform`
+
+
+[Kconfig]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/main/src/components/bluepad32/Kconfig
+
+
+## 3. Add a makefile config file
+
+NOTE: Makefile support is deprecated. It will be removed once Bluepad32 migrates to ESP-IDF 5.0.
 
 Again, use existing code as example:
 
@@ -56,24 +74,32 @@ CFLAGS += -DUNI_PLATFORM_YOURPLATFORM
 
 [airlift-config.mk]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/src/configs/airlift-config.mk
 
-## 3. Edit uni_platform.c
+## 4. Edit uni_platform.c
 
 Finally in [uni_platform.c] add support for your platform. E.g:
 
 ```c
 void uni_platform_init(int argc, const char** argv) {
-  // Only one for the moment. Each vendor must create its own.
-  // These UNI_PLATFORM_ defines are defined in the Makefile and CMakeLists.txt
+    // Each vendor must create its own. These CONFIG_BLUEPAD32_PLATFORM_ defines
+    // are defined in the Makefile and/or CMakeLists.txt and also in KConfig.
 
-#ifdef UNI_PLATFORM_UNIJOYSTICLE
-  _platform = uni_platform_unijoysticle_create();
-#elif defined(UNI_PLATFORM_PC_DEBUG)
-  _platform = uni_platform_pc_debug_create();
-#elif defined(UNI_PLATFORM_AIRLIFT)
-  _platform = uni_platform_airlift_create();
+#ifdef CONFIG_BLUEPAD32_PLATFORM_UNIJOYSTICLE
+    _platform = uni_platform_unijoysticle_create();
+#elif defined(CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG)
+    _platform = uni_platform_pc_debug_create();
+#elif defined(CONFIG_BLUEPAD32_PLATFORM_AIRLIFT)
+    _platform = uni_platform_airlift_create();
+#elif defined(CONFIG_BLUEPAD32_PLATFORM_MIGHTYMIGGY)
+    _platform = uni_platform_mightymiggy_create();
+#elif defined(CONFIG_BLUEPAD32_PLATFORM_NINA)
+    _platform = uni_platform_nina_create();
+#elif defined(CONFIG_BLUEPAD32_PLATFORM_ARDUINO)
+    _platform = uni_platform_arduino_create();
 #elif defined(UNI_PLATFORM_YOURPLATFORM)
- // Here goes your code
-  _platform = uni_platform_yourplatform_create();
+    // Here goes your code
+    _platform = uni_platform_yourplatform_create();
+#else
+#error "Platform not defined. Set PLATFORM environment variable"
 #endif
 }
 
@@ -82,7 +108,7 @@ void uni_platform_init(int argc, const char** argv) {
 [uni_platform.c]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/src/main/uni_platform.c
 
 
-## 4. Add documentation
+## 5. Add documentation
 
 Add a `docs/plat_yourplatform.md` file that, at least, describes:
 

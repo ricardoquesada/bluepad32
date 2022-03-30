@@ -30,8 +30,8 @@ limitations under the License.
 static struct uni_platform* _platform;
 
 void uni_platform_init(int argc, const char** argv) {
-    // Only one for the moment. Each vendor must create its own.
-    // These UNI_PLATFORM_ defines are defined in the Makefile and CMakeLists.txt
+    // Each vendor must create its own. These CONFIG_BLUEPAD32_PLATFORM_ defines
+    // are defined in the Makefile and/or CMakeLists.txt and also in KConfig.
 
 #ifdef CONFIG_BLUEPAD32_PLATFORM_UNIJOYSTICLE
     _platform = uni_platform_unijoysticle_create();
