@@ -629,9 +629,6 @@ static void IRAM_ATTR isr_handler_on_chip_select(void* arg) {
 }
 
 static void spi_main_loop(void* arg) {
-    _gamepad_mutex = xSemaphoreCreateMutex();
-    assert(_gamepad_mutex != NULL);
-
     // Small delay to let CPU0 finish initialization. This is to prevent
     // collision in the log(). No harm is done if there is collision, only
     // that it is more difficult to read the logs from the console.
