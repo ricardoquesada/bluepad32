@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Arduino: Example code supports multiple gamepad connections
+- Wii: When in accelerometer mode (wheel):
+  - Dpad can be used, useful for menu navigation
+  - Button "1" is brake (Dpad down)
+  - Button "2" is Throttle (Dpad up)
+  - "Up" and "Down" disabled from Accelerometer
 
 ### Fixed
 - Arduino/NINA/AirLift: Assign gamepad type at connection time: [Bug #10][gitlab_bug_10]

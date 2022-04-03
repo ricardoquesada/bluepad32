@@ -450,11 +450,11 @@ static void process_drm_ka(uni_hid_device_t* d, const uint8_t* report, uint16_t 
 
     uint16_t x = (report[3] << 2) | ((report[1] >> 5) & 0x3);
     uint16_t y = (report[4] << 2) | ((report[2] >> 4) & 0x2);
-    uint16_t z = (report[5] << 2) | ((report[2] >> 5) & 0x2);
+    // uint16_t z = (report[5] << 2) | ((report[2] >> 5) & 0x2);
 
     int16_t sx = x - 0x200;
     int16_t sy = y - 0x200;
-    int16_t sz = z - 0x200;
+    // int16_t sz = z - 0x200;
 
     // printf_hexdump(report, len);
     // logi("Wii: x=%d, y=%d, z=%d\n", sx, sy, sz);
@@ -467,19 +467,27 @@ static void process_drm_ka(uni_hid_device_t* d, const uint8_t* report, uint16_t 
         // Accelerometer reading disabled.
         // logd("Wii: Wheel in resting position, do nothing");
     } else {
+        // Dpad works as dpad, useful to navigate menus.
+        gp->dpad |= (report[1] & 0x01) ? DPAD_DOWN : 0;
+        gp->dpad |= (report[1] & 0x02) ? DPAD_UP : 0;
+        gp->dpad |= (report[1] & 0x04) ? DPAD_RIGHT : 0;
+        gp->dpad |= (report[1] & 0x08) ? DPAD_LEFT : 0;
+
+        // Button "1" is Brake (down), and button "2" is Throttle (up)
+        // Buttons "1" and "2" can override values from Dpad.
+        gp->dpad |= (report[2] & 0x02) ? DPAD_DOWN : 0;  // Button "1"
+        gp->dpad |= (report[2] & 0x01) ? DPAD_UP : 0;    // Button "2"
+
+        // Accelerometer overrides Dpad values.
         if (sy > accel_threshold) {
             gp->dpad |= DPAD_LEFT;
+            gp->dpad &= ~DPAD_RIGHT;
         } else if (sy < -accel_threshold) {
             gp->dpad |= DPAD_RIGHT;
-        }
-        if (sz > accel_threshold) {
-            gp->dpad |= DPAD_UP;
-        } else if (sz < -accel_threshold) {
-            // Threshold for down is 50% because it is not as easy to tilt the
-            // device down as it is it to tilt it up.
-            gp->dpad |= DPAD_DOWN;
+            gp->dpad &= ~DPAD_LEFT;
         }
     }
+
 #else   // !ENABLE_ACCEL_WHEEL_MODE
     if (sx < -accel_threshold) {
         gp->dpad |= DPAD_LEFT;
@@ -498,10 +506,7 @@ static void process_drm_ka(uni_hid_device_t* d, const uint8_t* report, uint16_t 
 
     gp->buttons |= (report[2] & 0x08) ? BUTTON_A : 0;  // Big button "A"
     gp->buttons |= (report[2] & 0x04) ? BUTTON_B : 0;  // Button Shoulder
-    gp->buttons |= (report[2] & 0x02) ? BUTTON_X : 0;  // Button "1"
-    gp->buttons |= (report[2] & 0x01) ? BUTTON_Y : 0;  // Button "2"
-    gp->updated_states |=
-        GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B | GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y;
+    gp->updated_states |= GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B;
 
     gp->misc_buttons |= (report[2] & 0x80) ? MISC_BUTTON_SYSTEM : 0;  // Button "home"
     gp->misc_buttons |= (report[2] & 0x10) ? MISC_BUTTON_BACK : 0;    // Button "-"
