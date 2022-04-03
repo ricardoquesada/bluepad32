@@ -931,9 +931,6 @@ void uni_hid_parser_switch_set_player_leds(uni_hid_device_t* d, uint8_t leds) {
 }
 
 void uni_hid_parser_switch_set_rumble(struct uni_hid_device_s* d, uint8_t value, uint8_t duration) {
-    // FIXME: timer that cancels rumble after duration
-    UNUSED(duration);
-
     struct switch_rumble_only_request req = {
         .report_id = OUTPUT_RUMBLE_ONLY,
     };

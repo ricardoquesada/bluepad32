@@ -206,7 +206,9 @@ void uni_hid_device_set_connected(uni_hid_device_t* d, bool connected) {
         return;
     }
 
+    // Must be updated before calling the callbacks.
     d->conn.connected = connected;
+
     if (connected) {
         // connected
         uni_get_platform()->on_device_connected(d);
@@ -500,6 +502,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             d->report_parser.init_report = uni_hid_parser_wii_init_report;
             d->report_parser.parse_input_report = uni_hid_parser_wii_parse_input_report;
             d->report_parser.set_player_leds = uni_hid_parser_wii_set_player_leds;
+            d->report_parser.set_rumble = uni_hid_parser_wii_set_rumble;
             logi("Device detected as Wii controller: 0x%02x\n", type);
             break;
         case CONTROLLER_TYPE_SwitchProController:
