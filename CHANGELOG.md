@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### New
 - Wii: Add support for Rumble
+- AirLift/NINA: Add support for "get gamepad properties"
 
 ### Changed
 - Arduino: Example code supports multiple gamepad connections
@@ -21,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Compile-time error if ACL connections are not least 2 [Bug #11][gitlab_bug_11]
 
 [gitlab_bug_10]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/10
-[gitlab_bug_10]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/11
+[gitlab_bug_11]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/11
 
 ## [3.0.1] - 2022-03-15
 ### New
