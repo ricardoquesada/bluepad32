@@ -14,6 +14,8 @@
 
 #include <Arduino.h>
 
+#include "ArduinoGamepadProperties.h"
+
 class Gamepad {
    public:
     // FIXME: Should not be duplicated.
@@ -65,46 +67,47 @@ class Gamepad {
 
     Gamepad();
 
-    uint8_t dpad() const { return _state.data.dpad; }
+    uint8_t dpad() const { return _data.dpad; }
 
     // To test one button at the time.
-    bool a() const { return _state.data.buttons & BUTTON_A; }
-    bool b() const { return _state.data.buttons & BUTTON_B; }
-    bool x() const { return _state.data.buttons & BUTTON_X; }
-    bool y() const { return _state.data.buttons & BUTTON_Y; }
-    bool l1() const { return _state.data.buttons & BUTTON_SHOULDER_L; }
-    bool l2() const { return _state.data.buttons & BUTTON_TRIGGER_L; }
-    bool r1() const { return _state.data.buttons & BUTTON_SHOULDER_R; }
-    bool r2() const { return _state.data.buttons & BUTTON_TRIGGER_R; }
-    bool thumbL() const { return _state.data.buttons & BUTTON_THUMB_L; }
-    bool thumbR() const { return _state.data.buttons & BUTTON_THUMB_R; }
+    bool a() const { return _data.buttons & BUTTON_A; }
+    bool b() const { return _data.buttons & BUTTON_B; }
+    bool x() const { return _data.buttons & BUTTON_X; }
+    bool y() const { return _data.buttons & BUTTON_Y; }
+    bool l1() const { return _data.buttons & BUTTON_SHOULDER_L; }
+    bool l2() const { return _data.buttons & BUTTON_TRIGGER_L; }
+    bool r1() const { return _data.buttons & BUTTON_SHOULDER_R; }
+    bool r2() const { return _data.buttons & BUTTON_TRIGGER_R; }
+    bool thumbL() const { return _data.buttons & BUTTON_THUMB_L; }
+    bool thumbR() const { return _data.buttons & BUTTON_THUMB_R; }
 
     // Returns the state of all buttons.
-    uint16_t buttons() const { return _state.data.buttons; }
+    uint16_t buttons() const { return _data.buttons; }
 
     // Returns the state of all misc buttons.
-    uint16_t miscButtons() const { return _state.data.misc_buttons; }
+    uint16_t miscButtons() const { return _data.misc_buttons; }
 
     // Axis
-    int32_t axisX() const { return _state.data.axis_x; }
-    int32_t axisY() const { return _state.data.axis_y; }
-    int32_t axisRX() const { return _state.data.axis_rx; }
-    int32_t axisRY() const { return _state.data.axis_ry; }
+    int32_t axisX() const { return _data.axis_x; }
+    int32_t axisY() const { return _data.axis_y; }
+    int32_t axisRX() const { return _data.axis_rx; }
+    int32_t axisRY() const { return _data.axis_ry; }
 
     // Brake & Throttle
-    int32_t brake() const { return _state.data.brake; }
-    int32_t throttle() const { return _state.data.throttle; }
+    int32_t brake() const { return _data.brake; }
+    int32_t throttle() const { return _data.throttle; }
 
     // Misc buttons
-    bool miscSystem() const { return _state.data.misc_buttons & MISC_BUTTON_SYSTEM; }
-    bool miscBack() const { return _state.data.misc_buttons & MISC_BUTTON_BACK; }
-    bool miscHome() const { return _state.data.misc_buttons & MISC_BUTTON_HOME; }
+    bool miscSystem() const { return _data.misc_buttons & MISC_BUTTON_SYSTEM; }
+    bool miscBack() const { return _data.misc_buttons & MISC_BUTTON_BACK; }
+    bool miscHome() const { return _data.misc_buttons & MISC_BUTTON_HOME; }
 
     bool isConnected() const;
 
     // Returns the gamepad model.
-    int getModel() const { return _state.type; }
+    int getModel() const;
     String getModelName() const;
+    GamepadProperties getProperties() const;
 
     // "Output" functions.
     void setPlayerLEDs(uint8_t led) const;
@@ -112,8 +115,14 @@ class Gamepad {
     void setRumble(uint8_t force, uint8_t duration) const;
 
    private:
+    void onConnected();
+    void onDisconnected();
+
     bool _connected;
-    arduino_gamepad_t _state;
+    // Gamepad index, from 0 to 3.
+    int8_t _idx;
+    arduino_gamepad_data_t _data;
+    arduino_gamepad_properties_t _properties;
 
     // Delete copy constructor to avoid copying the state by mistake. If so,
     // chances are that the gamepad won't get updated automatically.

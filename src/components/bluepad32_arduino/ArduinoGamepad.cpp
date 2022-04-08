@@ -45,7 +45,7 @@ const struct Gamepad::controllerNames Gamepad::_controllerNames[] = {
     {Gamepad::CONTROLLER_TYPE_GenericMouse, "Mouse"},
 };
 
-Gamepad::Gamepad() : _connected(false), _state() {}
+Gamepad::Gamepad() : _connected(false), _idx(-1), _data(), _properties() {}
 
 bool Gamepad::isConnected() const {
     return _connected;
@@ -57,7 +57,7 @@ void Gamepad::setPlayerLEDs(uint8_t led) const {
         return;
     }
 
-    if (arduino_set_player_leds(_state.idx, led) == -1)
+    if (arduino_set_player_leds(_idx, led) == -1)
         loge("error setting player LEDs");
 }
 
@@ -67,7 +67,7 @@ void Gamepad::setColorLED(uint8_t red, uint8_t green, uint8_t blue) const {
         return;
     }
 
-    if (arduino_set_lightbar_color(_state.idx, red, green, blue) == -1)
+    if (arduino_set_lightbar_color(_idx, red, green, blue) == -1)
         loge("error setting lightbar color");
 }
 
@@ -77,14 +77,31 @@ void Gamepad::setRumble(uint8_t force, uint8_t duration) const {
         return;
     }
 
-    if (arduino_set_rumble(_state.idx, force, duration) == -1)
+    if (arduino_set_rumble(_idx, force, duration) == -1)
         loge("error setting rumble");
 }
 
 String Gamepad::getModelName() const {
     for (int i = 0; i < ARRAY_SIZE(_controllerNames); i++) {
-        if (_state.type == _controllerNames[i].type)
+        if (_properties.type == _controllerNames[i].type)
             return _controllerNames[i].name;
     }
     return "Unknown";
+}
+
+GamepadProperties Gamepad::getProperties() const {
+    return _properties;
+}
+
+// Private functions
+void Gamepad::onConnected() {
+    _connected = true;
+    // Fetch properties, and have them cached.
+    if (arduino_get_gamepad_properties(_idx, &_properties) != UNI_ARDUINO_OK) {
+        loge("failed to get gamepad properties");
+    }
+}
+
+void Gamepad::onDisconnected() {
+    _connected = false;
 }

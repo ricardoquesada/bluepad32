@@ -7,10 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### New
 - Wii: Add support for Rumble
-- AirLift/NINA: Add support for "get gamepad properties"
+- Arduino,AirLift,NINA: Add support for "get gamepad properties"
 
 ### Changed
 - Arduino: Example code supports multiple gamepad connections
+  Internally ArduinoGamepad.h was refactored to better support "gamepad properties".
 - Wii: When in accelerometer mode (wheel):
   - Dpad can be used, useful for menu navigation
   - Button "1" is brake (Dpad down)

@@ -34,6 +34,16 @@ void onConnectedGamepad(GamepadPtr gp) {
         if (myGamepads[i] == nullptr) {
             Serial.print("CALLBACK: Gamepad is connected, index=");
             Serial.println(i);
+            // Additionally, you can get certain gamepad properties like:
+            // Model, VID, PID, BTAddr, flags, etc.
+            GamepadProperties properties = gp->getProperties();
+            Serial.print("Gamepad model: ");
+            Serial.print(gp->getModelName());
+            Serial.print(", VID/PID: ");
+            Serial.print(properties.vendor_id, HEX);
+            Serial.print(":");
+            Serial.print(properties.product_id, HEX);
+            Serial.println();
             myGamepads[i] = gp;
             foundEmptySlot = true;
             break;

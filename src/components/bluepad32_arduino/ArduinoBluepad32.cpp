@@ -24,10 +24,11 @@ const char* Bluepad32::firmwareVersion() const {
 void Bluepad32::update() {
     int connectedGamepads = 0;
     for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {
-        if (arduino_get_gamepad_data(i, &_gamepads[i]._state) == -1)
+        if (arduino_get_gamepad_data(i, &_gamepads[i]._data) == -1)
             continue;
-        if (_gamepads[i]._state.idx != -1)
-            connectedGamepads |= (1 << i);
+        // Update Idx in case it is the first time to get updated.
+        _gamepads[i]._idx = i;
+        connectedGamepads |= (1 << i);
     }
 
     // No changes in connected gamepads. No need to call onConnected or onDisconnected.
@@ -47,12 +48,12 @@ void Bluepad32::update() {
             continue;
 
         if (current) {
-            _gamepads[i]._connected = true;
-            _onConnect(&_gamepads[i]);
             logi("gamepad connected: %d\n", i);
+            _gamepads[i].onConnected();
+            _onConnect(&_gamepads[i]);
         } else {
             _onDisconnect(&_gamepads[i]);
-            _gamepads[i]._connected = false;
+            _gamepads[i].onDisconnected();
             logi("gamepad disconnected: %d\n", i);
         }
     }
