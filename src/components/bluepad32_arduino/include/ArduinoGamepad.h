@@ -105,7 +105,7 @@ class Gamepad {
     bool isConnected() const;
 
     // Returns the gamepad model.
-    int getModel() const;
+    int getModel() const { return _properties.type; }
     String getModelName() const;
     GamepadProperties getProperties() const;
 
