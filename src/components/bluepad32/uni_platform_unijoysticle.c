@@ -28,6 +28,7 @@ limitations under the License.
 #include <math.h>
 
 #include "sdkconfig.h"
+#include "uni_bluetooth.h"
 #include "uni_bt_defines.h"
 #include "uni_config.h"
 #include "uni_debug.h"
@@ -288,8 +289,20 @@ static void unijoysticle_on_init_complete(void) {
 }
 
 static void unijoysticle_on_device_connected(uni_hid_device_t* d) {
+    int connected = 0;
     if (d == NULL) {
         loge("ERROR: unijoysticle_on_device_connected: Invalid NULL device\n");
+    }
+
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
+        uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(i);
+        if (uni_bt_conn_is_connected(&tmp_d->conn))
+            connected++;
+    }
+
+    if (connected == 2) {
+        uni_bluetooth_enable_new_connections_safe(false);
+        logi("unijoysticle: New gamepad connections disabled\n");
     }
 }
 
@@ -310,6 +323,10 @@ static void unijoysticle_on_device_disconnected(uni_hid_device_t* d) {
         ins->gamepad_seat = GAMEPAD_SEAT_NONE;
         ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
     }
+
+    // Regarless of how many connections are active, enable Bluetooth connections.
+    uni_bluetooth_enable_new_connections_safe(true);
+    logi("unijoysticle: New gamepad connections enabled\n");
 }
 
 static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
@@ -825,11 +842,17 @@ static void handle_event_button() {
         set_gamepad_seat(d, GAMEPAD_SEAT_A | GAMEPAD_SEAT_B);
         logi("unijoysticle: Emulation mode = Combo Joy Joy\n");
 
+        uni_bluetooth_enable_new_connections_safe(false);
+        logi("unijoysticle: New gamepad connections disabled\n");
+
     } else if (ins->emu_mode == EMULATION_MODE_COMBO_JOY_JOY) {
         ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
         set_gamepad_seat(d, ins->prev_gamepad_seat);
         // Turn on only the valid one
         logi("unijoysticle: Emulation mode = Single Joy\n");
+
+        uni_bluetooth_enable_new_connections_safe(true);
+        logi("unijoysticle: New gamepad connections enabled\n");
 
     } else {
         loge("unijoysticle: Cannot switch emu mode. Current mode: %d\n", ins->emu_mode);

@@ -49,6 +49,11 @@ class Bluepad32 {
     // function.
     void forgetBluetoothKeys();
 
+    // Enable / Disable new Bluetooth connections.
+    // When enabled, the device is put in Discovery mode, and new pairs and connections are accepted.
+    // Established connections are not affected.
+    void enableNewBluetoothConnections(bool enabled);
+
     void setup(const GamepadCallback& onConnect, const GamepadCallback& onDisconnect);
 
    private:
