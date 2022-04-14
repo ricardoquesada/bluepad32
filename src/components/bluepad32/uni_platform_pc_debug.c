@@ -100,7 +100,7 @@ static int pc_debug_on_device_ready(uni_hid_device_t* d) {
 
 static void pc_debug_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
     static uint8_t leds = 0;
-    static uint8_t enabled = 0;
+    static uint8_t enabled = true;
     static uni_gamepad_t prev = {0};
 
     if (memcmp(&prev, gp, sizeof(*gp)) == 0) {
@@ -110,29 +110,32 @@ static void pc_debug_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
     uni_gamepad_dump(gp);
 
     // Debugging
+    // Axis ry: control rumble
+    if ((gp->buttons & BUTTON_A) && d->report_parser.set_rumble != NULL) {
+        d->report_parser.set_rumble(d, 128, 128);
+    }
+    // Buttons: Control LEDs On/Off
+    if ((gp->buttons & BUTTON_B) && d->report_parser.set_player_leds != NULL) {
+        d->report_parser.set_player_leds(d, leds++ & 0x0f);
+    }
     // Axis: control RGB color
-    if ((gp->buttons & BUTTON_A) && d->report_parser.set_lightbar_color != NULL) {
+    if (d->report_parser.set_lightbar_color != NULL) {
         uint8_t r = (gp->axis_x * 256) / 512;
         uint8_t g = (gp->axis_y * 256) / 512;
         uint8_t b = (gp->axis_rx * 256) / 512;
         d->report_parser.set_lightbar_color(d, r, g, b);
     }
-    // Axis ry: control rumble
-    if ((gp->buttons & BUTTON_B) && d->report_parser.set_rumble != NULL) {
-        uint8_t value = (gp->axis_ry * 256) / 512;
-        d->report_parser.set_rumble(d, value, 128);
-    }
-    // Buttons: Control LEDs On/Off
-    if ((gp->buttons & BUTTON_X) && d->report_parser.set_player_leds != NULL) {
-        d->report_parser.set_player_leds(d, leds++ & 0x0f);
-    }
 
     // Toggle Bluetooth connections
-    if (gp->buttons & BUTTON_Y) {
-        if (!enabled) {
-            uni_bluetooth_enable_new_connections_safe(false);
-            enabled = true;
-        }
+    if ((gp->buttons & BUTTON_X) && enabled) {
+        logi("*** Disabling Bluetooth connections\n");
+        uni_bluetooth_enable_new_connections_safe(false);
+        enabled = false;
+    }
+    if ((gp->buttons & BUTTON_Y) && !enabled) {
+        logi("*** Enabling Bluetooth connections\n");
+        uni_bluetooth_enable_new_connections_safe(true);
+        enabled = true;
     }
 }
 
