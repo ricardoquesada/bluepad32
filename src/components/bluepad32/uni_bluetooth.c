@@ -913,10 +913,8 @@ void uni_bluetooth_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
                     break;
                 case GAP_EVENT_INQUIRY_COMPLETE:
                     logd("--> GAP_EVENT_INQUIRY_COMPLETE\n");
-                    logi("Unexpected, GAP inquiry completed. Running it again\n");
-                    // Should not happen since we put a "periodic inquiry"
-                    // but just in case it finishes, let's run it again
-                    start_scan();
+                    // This can happen when "exit periodic inquiry" is called.
+                    // Just do nothing, don't call "start_scan" again.
                     break;
                 case GAP_EVENT_ADVERTISING_REPORT:  // BLE only
                     on_gap_event_advertising_report(channel, packet, size);

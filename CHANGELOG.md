@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### New
 - Wii: Add support for Rumble
-- Arduino,AirLift,NINA: Add support for "get gamepad properties"
+- Arduino,AirLift,NINA: Add support for "get gamepad properties" and
+  "enable Bluetooth connections"
+- Gamepad: Add support for Nintendo SNES (Swicth Online)
 
 ### Changed
 - Arduino: Example code supports multiple gamepad connections
@@ -17,10 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Button "1" is brake (Dpad down)
   - Button "2" is Throttle (Dpad up)
   - "Up" and "Down" disabled from Accelerometer
+- Unijoysticle: Disable Bluetooth connections once two gamepads are connected,
+  or when in "Enhanced Mode". Re-enable when that's not the case.
 
 ### Fixed
 - Arduino/NINA/AirLift: Assign gamepad type at connection time: [Bug #10][gitlab_bug_10]
 - Compile-time error if ACL connections are not least 2 [Bug #11][gitlab_bug_11]
+- "Enable/Disable Bluetooth connections" works everytime it is called.
 
 [gitlab_bug_10]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/10
 [gitlab_bug_11]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/11
