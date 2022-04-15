@@ -23,11 +23,12 @@ const char* Bluepad32::firmwareVersion() const {
 
 void Bluepad32::update() {
     int connectedGamepads = 0;
-    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
-        if (arduino_get_gamepad_data(i, &_gamepads[i]._state) == -1)
+    for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {
+        if (arduino_get_gamepad_data(i, &_gamepads[i]._data) == -1)
             continue;
-        if (_gamepads[i]._state.idx != -1)
-            connectedGamepads |= (1 << i);
+        // Update Idx in case it is the first time to get updated.
+        _gamepads[i]._idx = i;
+        connectedGamepads |= (1 << i);
     }
 
     // No changes in connected gamepads. No need to call onConnected or onDisconnected.
@@ -37,7 +38,7 @@ void Bluepad32::update() {
     logi("connected in total: %d\n", connectedGamepads);
 
     // Compare bit by bit, and find which one got connected and which one disconnected.
-    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
+    for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {
         int bit = (1 << i);
         int current = connectedGamepads & bit;
         int prev = _prevConnectedGamepads & bit;
@@ -47,12 +48,12 @@ void Bluepad32::update() {
             continue;
 
         if (current) {
-            _gamepads[i]._connected = true;
-            _onConnect(&_gamepads[i]);
             logi("gamepad connected: %d\n", i);
+            _gamepads[i].onConnected();
+            _onConnect(&_gamepads[i]);
         } else {
             _onDisconnect(&_gamepads[i]);
-            _gamepads[i]._connected = false;
+            _gamepads[i].onDisconnected();
             logi("gamepad disconnected: %d\n", i);
         }
     }
@@ -62,6 +63,10 @@ void Bluepad32::update() {
 
 void Bluepad32::forgetBluetoothKeys() {
     uni_bluetooth_del_keys_safe();
+}
+
+void Bluepad32::enableNewBluetoothConnections(bool enabled) {
+    uni_bluetooth_enable_new_connections_safe(enabled);
 }
 
 void Bluepad32::setup(const GamepadCallback& onConnect, const GamepadCallback& onDisconnect) {

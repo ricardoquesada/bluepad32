@@ -24,6 +24,8 @@ limitations under the License.
 // in the Nintendo Wii Wheel.
 #define ENABLE_ACCEL_WHEEL_MODE 1
 
+#include <assert.h>
+
 #define ENABLE_EEPROM_DUMP 0
 
 #if ENABLE_EEPROM_DUMP
@@ -48,8 +50,9 @@ static const uint32_t WII_DUMP_ROM_DATA_ADDR_END = 0x1700;
 
 enum wii_flags {
     WII_FLAGS_NONE = 0,
-    WII_FLAGS_VERTICAL = 1 << 0,
-    WII_FLAGS_ACCEL = 1 << 1,
+    WII_FLAGS_VERTICAL = BIT(0),
+    WII_FLAGS_ACCEL = BIT(1),
+    WII_FLAGS_RUMBLE = BIT(2),
 };
 
 // Taken from Linux kernel: hid-wiimote.h
@@ -137,10 +140,11 @@ typedef struct nunchuk_s {
 typedef struct wii_instance_s {
     uint8_t state;
     uint8_t register_address;
-    uint8_t flags;
+    uint8_t flags; /* accel, vertical, rumble, etc.. */
     enum wii_devtype dev_type;
     enum wii_exttype ext_type;
     uni_gamepad_seat_t gamepad_seat;
+    btstack_timer_source_t rumble_timer;
 
     // Debug only
     int debug_fd;         // File descriptor where dump is saved
@@ -172,7 +176,8 @@ static void wii_fsm_dump_eeprom(uni_hid_device_t* d);
 
 static void wii_read_mem(uni_hid_device_t* d, wii_read_type_t t, uint32_t offset, uint16_t size);
 static wii_instance_t* get_wii_instance(uni_hid_device_t* d);
-static void set_led(uni_hid_device_t* d, uni_gamepad_seat_t seat);
+static void wii_set_led(uni_hid_device_t* d, uni_gamepad_seat_t seat);
+static void wii_rumble_off(btstack_timer_source_t* ts);
 
 // process_ functions
 
@@ -445,11 +450,11 @@ static void process_drm_ka(uni_hid_device_t* d, const uint8_t* report, uint16_t 
 
     uint16_t x = (report[3] << 2) | ((report[1] >> 5) & 0x3);
     uint16_t y = (report[4] << 2) | ((report[2] >> 4) & 0x2);
-    uint16_t z = (report[5] << 2) | ((report[2] >> 5) & 0x2);
+    // uint16_t z = (report[5] << 2) | ((report[2] >> 5) & 0x2);
 
     int16_t sx = x - 0x200;
     int16_t sy = y - 0x200;
-    int16_t sz = z - 0x200;
+    // int16_t sz = z - 0x200;
 
     // printf_hexdump(report, len);
     // logi("Wii: x=%d, y=%d, z=%d\n", sx, sy, sz);
@@ -462,19 +467,27 @@ static void process_drm_ka(uni_hid_device_t* d, const uint8_t* report, uint16_t 
         // Accelerometer reading disabled.
         // logd("Wii: Wheel in resting position, do nothing");
     } else {
+        // Dpad works as dpad, useful to navigate menus.
+        gp->dpad |= (report[1] & 0x01) ? DPAD_DOWN : 0;
+        gp->dpad |= (report[1] & 0x02) ? DPAD_UP : 0;
+        gp->dpad |= (report[1] & 0x04) ? DPAD_RIGHT : 0;
+        gp->dpad |= (report[1] & 0x08) ? DPAD_LEFT : 0;
+
+        // Button "1" is Brake (down), and button "2" is Throttle (up)
+        // Buttons "1" and "2" can override values from Dpad.
+        gp->dpad |= (report[2] & 0x02) ? DPAD_DOWN : 0;  // Button "1"
+        gp->dpad |= (report[2] & 0x01) ? DPAD_UP : 0;    // Button "2"
+
+        // Accelerometer overrides Dpad values.
         if (sy > accel_threshold) {
             gp->dpad |= DPAD_LEFT;
+            gp->dpad &= ~DPAD_RIGHT;
         } else if (sy < -accel_threshold) {
             gp->dpad |= DPAD_RIGHT;
-        }
-        if (sz > accel_threshold) {
-            gp->dpad |= DPAD_UP;
-        } else if (sz < -accel_threshold) {
-            // Threshold for down is 50% because it is not as easy to tilt the
-            // device down as it is it to tilt it up.
-            gp->dpad |= DPAD_DOWN;
+            gp->dpad &= ~DPAD_LEFT;
         }
     }
+
 #else   // !ENABLE_ACCEL_WHEEL_MODE
     if (sx < -accel_threshold) {
         gp->dpad |= DPAD_LEFT;
@@ -493,10 +506,7 @@ static void process_drm_ka(uni_hid_device_t* d, const uint8_t* report, uint16_t 
 
     gp->buttons |= (report[2] & 0x08) ? BUTTON_A : 0;  // Big button "A"
     gp->buttons |= (report[2] & 0x04) ? BUTTON_B : 0;  // Button Shoulder
-    gp->buttons |= (report[2] & 0x02) ? BUTTON_X : 0;  // Button "1"
-    gp->buttons |= (report[2] & 0x01) ? BUTTON_Y : 0;  // Button "2"
-    gp->updated_states |=
-        GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B | GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y;
+    gp->updated_states |= GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B;
 
     gp->misc_buttons |= (report[2] & 0x80) ? MISC_BUTTON_SYSTEM : 0;  // Button "home"
     gp->misc_buttons |= (report[2] & 0x10) ? MISC_BUTTON_BACK : 0;    // Button "-"
@@ -811,7 +821,7 @@ static void wii_fsm_req_status(uni_hid_device_t* d) {
     logi("fsm: req_status\n");
     wii_instance_t* ins = get_wii_instance(d);
     ins->state = WII_FSM_DID_REQ_STATUS;
-    const uint8_t status[] = {0xa2, WIIPROTO_REQ_SREQ, 0x00 /* rumble off */};
+    const uint8_t status[] = {0xa2, WIIPROTO_REQ_SREQ, 0x00 /* LEDS & rumble off */};
     uni_hid_device_send_intr_report(d, status, sizeof(status));
 }
 
@@ -945,7 +955,7 @@ static void wii_fsm_assign_device(uni_hid_device_t* d) {
 static void wii_fsm_update_led(uni_hid_device_t* d) {
     logi("fsm: upload_led\n");
     wii_instance_t* ins = get_wii_instance(d);
-    set_led(d, ins->gamepad_seat);
+    wii_set_led(d, ins->gamepad_seat);
     ins->state = WII_FSM_LED_UPDATED;
     wii_process_fsm(d);
 
@@ -1096,7 +1106,40 @@ void uni_hid_parser_wii_set_player_leds(uni_hid_device_t* d, uint8_t leds) {
     if (ins->state < WII_FSM_LED_UPDATED)
         return;
 
-    set_led(d, leds);
+    wii_set_led(d, leds);
+}
+
+void uni_hid_parser_wii_set_rumble(struct uni_hid_device_s* d, uint8_t value, uint8_t duration) {
+    UNUSED(value);
+
+    if (d == NULL) {
+        loge("Wii: ERROR: Invalid device\n");
+        return;
+    }
+
+    wii_instance_t* ins = get_wii_instance(d);
+
+    if (ins->state < WII_FSM_LED_UPDATED) {
+        return;
+    }
+
+    // Already enabled? return
+    if (ins->flags & WII_FLAGS_RUMBLE)
+        return;
+
+    ins->flags |= WII_FLAGS_RUMBLE;
+
+    // Setup timer for "rumble off"
+    int ms = duration * 4;  // duration: 256 ~= 1 second
+    btstack_run_loop_set_timer_context(&ins->rumble_timer, d);
+    btstack_run_loop_set_timer_handler(&ins->rumble_timer, &wii_rumble_off);
+    btstack_run_loop_set_timer(&ins->rumble_timer, ms);
+    btstack_run_loop_add_timer(&ins->rumble_timer);
+
+    uint8_t report[] = {
+        0xa2, WIIPROTO_REQ_RUMBLE, 0x01 /* Rumble on*/
+    };
+    uni_hid_device_send_intr_report(d, report, sizeof(report));
 }
 
 //
@@ -1106,12 +1149,12 @@ static wii_instance_t* get_wii_instance(uni_hid_device_t* d) {
     return (wii_instance_t*)&d->parser_data[0];
 }
 
-static void set_led(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
+static void wii_set_led(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
     wii_instance_t* ins = get_wii_instance(d);
 
     // Set LED to 1.
     uint8_t report[] = {
-        0xa2, WIIPROTO_REQ_LED, 0x00 /* LED */
+        0xa2, WIIPROTO_REQ_LED, 0x00 /* LED & Rumble off */
     };
     uint8_t led = seat << 4;
 
@@ -1123,7 +1166,27 @@ static void set_led(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
     if (ins->flags & WII_FLAGS_ACCEL) {
         led |= 0x40;
     }
+
+    // Rumble could be enabled
+    if (ins->flags & WII_FLAGS_RUMBLE) {
+        led |= 0x01;
+    }
     report[2] = led;
+    uni_hid_device_send_intr_report(d, report, sizeof(report));
+}
+
+static void wii_rumble_off(btstack_timer_source_t* ts) {
+    uni_hid_device_t* d = btstack_run_loop_get_timer_context(ts);
+    wii_instance_t* ins = get_wii_instance(d);
+
+    // No need to protect it with a mutex since it runs in the same main thread
+    assert(ins->flags & WII_FLAGS_RUMBLE);
+    ins->flags &= ~WII_FLAGS_RUMBLE;
+
+    // Disable rumble
+    uint8_t report[] = {
+        0xa2, WIIPROTO_REQ_RUMBLE, 0x00 /* Rumble off*/
+    };
     uni_hid_device_send_intr_report(d, report, sizeof(report));
 }
 

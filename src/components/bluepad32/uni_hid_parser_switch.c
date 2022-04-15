@@ -46,6 +46,7 @@ static const uint16_t NINTENDO_VID = 0x057e;
 static const uint16_t SWITCH_JOYCON_L_PID = 0x2006;
 static const uint16_t SWITCH_JOYCON_R_PID = 0x2007;
 static const uint16_t SWITCH_PRO_CONTROLLER_PID = 0x2009;
+static const uint16_t SWITCH_SNES_CONTROLLER_PID = 0x2017;
 
 #define SWITCH_FACTORY_CAL_DATA_SIZE 18
 static const uint16_t SWITCH_FACTORY_CAL_DATA_ADDR = 0x603d;
@@ -88,9 +89,10 @@ enum switch_proto_reqs {
 
 // Received in SUBCMD_REQ_DEV_INFO
 enum switch_controller_types {
-    SWITCH_CONTROLLER_TYPE_JCL = 0x01,  // Joy-con left
-    SWITCH_CONTROLLER_TYPE_JCR = 0x02,  // Joy-con right
-    SWITCH_CONTROLLER_TYPE_PRO = 0x03,  // Pro Controller
+    SWITCH_CONTROLLER_TYPE_JCL = 0x01,   // Joy-con left
+    SWITCH_CONTROLLER_TYPE_JCR = 0x02,   // Joy-con right
+    SWITCH_CONTROLLER_TYPE_PRO = 0x03,   // Pro Controller
+    SWITCH_CONTROLLER_TYPE_SNES = 0x0b,  // SNES Controller
 };
 
 enum {
@@ -337,7 +339,7 @@ void uni_hid_parser_switch_init_report(uni_hid_device_t* d) {
 
     // It is safe to set the reported states just once, here.
 
-    // Common to JoyCons and Pro Controller.
+    // Common to all controllers.
     gp->updated_states = GAMEPAD_STATE_AXIS_X | GAMEPAD_STATE_AXIS_Y;
     gp->updated_states |=
         GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y | GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B;
@@ -352,6 +354,11 @@ void uni_hid_parser_switch_init_report(uni_hid_device_t* d) {
         gp->updated_states |= GAMEPAD_STATE_AXIS_RX | GAMEPAD_STATE_AXIS_RY;
         gp->updated_states |= GAMEPAD_STATE_DPAD;
         gp->updated_states |= GAMEPAD_STATE_BUTTON_THUMB_R | GAMEPAD_STATE_MISC_BUTTON_BACK;
+    }
+
+    // Only valid for SNES Controller.
+    if (ins->controller_type == SWITCH_CONTROLLER_TYPE_SNES) {
+        gp->updated_states |= GAMEPAD_STATE_DPAD;
     }
 }
 
@@ -620,6 +627,7 @@ static void parse_report_30(struct uni_hid_device_s* d, const uint8_t* report, i
             parse_report_30_joycon_right(d, r);
             break;
         case SWITCH_CONTROLLER_TYPE_PRO:
+        case SWITCH_CONTROLLER_TYPE_SNES:
             parse_report_30_pro_controller(d, r);
             break;
         default:
@@ -628,7 +636,9 @@ static void parse_report_30(struct uni_hid_device_s* d, const uint8_t* report, i
     }
 }
 
+// Shared both by Switch Pro Controller and Switch SNES.
 static void parse_report_30_pro_controller(uni_hid_device_t* d, const struct switch_report_30_s* r) {
+    switch_instance_t* ins = get_switch_instance(d);
     uni_gamepad_t* gp = &d->gamepad;
     // Buttons "right"
     gp->buttons |= (r->buttons_right & 0b00000001) ? BUTTON_X : 0;           // Y
@@ -638,14 +648,6 @@ static void parse_report_30_pro_controller(uni_hid_device_t* d, const struct swi
     gp->buttons |= (r->buttons_right & 0b01000000) ? BUTTON_SHOULDER_R : 0;  // R
     gp->buttons |= (r->buttons_right & 0b10000000) ? BUTTON_TRIGGER_R : 0;   // ZR
 
-    // Buttons "misc" + thumbs
-    gp->misc_buttons |= (r->buttons_misc & 0b00000001) ? MISC_BUTTON_BACK : 0;    // -
-    gp->misc_buttons |= (r->buttons_misc & 0b00000010) ? MISC_BUTTON_HOME : 0;    // +
-    gp->misc_buttons |= (r->buttons_misc & 0b00010000) ? MISC_BUTTON_SYSTEM : 0;  // Home
-    gp->misc_buttons |= (r->buttons_misc & 0b00100000) ? 0 : 0;                   // Capture (unused)
-    gp->buttons |= (r->buttons_misc & 0b00000100) ? BUTTON_THUMB_R : 0;           // Thumb R
-    gp->buttons |= (r->buttons_misc & 0b00001000) ? BUTTON_THUMB_L : 0;           // Thumb L
-
     // Buttons "left"
     gp->dpad |= (r->buttons_left & 0b00000001) ? DPAD_DOWN : 0;
     gp->dpad |= (r->buttons_left & 0b00000010) ? DPAD_UP : 0;
@@ -654,19 +656,31 @@ static void parse_report_30_pro_controller(uni_hid_device_t* d, const struct swi
     gp->buttons |= (r->buttons_left & 0b01000000) ? BUTTON_SHOULDER_L : 0;  // L
     gp->buttons |= (r->buttons_left & 0b10000000) ? BUTTON_TRIGGER_L : 0;   // ZL
 
-    switch_instance_t* ins = get_switch_instance(d);
-    // Stick left
-    int16_t lx = r->stick_left[0] | ((r->stick_left[1] & 0x0f) << 8);
-    gp->axis_x = calibrate_axis(lx, ins->cal_x);
-    int16_t ly = (r->stick_left[1] >> 4) | (r->stick_left[2] << 4);
-    gp->axis_y = -calibrate_axis(ly, ins->cal_y);
+    // Misc
+    gp->misc_buttons |= (r->buttons_misc & 0b00000001) ? MISC_BUTTON_BACK : 0;    // -
+    gp->misc_buttons |= (r->buttons_misc & 0b00000010) ? MISC_BUTTON_HOME : 0;    // +
+    gp->misc_buttons |= (r->buttons_misc & 0b00010000) ? MISC_BUTTON_SYSTEM : 0;  // Home
+    gp->misc_buttons |= (r->buttons_misc & 0b00100000) ? 0 : 0;                   // Capture (unused)
 
-    // Stick right
-    int16_t rx = r->stick_right[0] | ((r->stick_right[1] & 0x0f) << 8);
-    gp->axis_rx = calibrate_axis(rx, ins->cal_rx);
-    int16_t ry = (r->stick_right[1] >> 4) | (r->stick_right[2] << 4);
-    gp->axis_ry = -calibrate_axis(ry, ins->cal_ry);
-    logd("uncalibrated values: x=%d,y=%d,rx=%d,ry=%d\n", lx, ly, rx, ry);
+    // Sticks, not present on SNES model.
+    if (ins->controller_type == SWITCH_CONTROLLER_TYPE_PRO) {
+        // Thumbs
+        gp->buttons |= (r->buttons_misc & 0b00000100) ? BUTTON_THUMB_R : 0;  // Thumb R
+        gp->buttons |= (r->buttons_misc & 0b00001000) ? BUTTON_THUMB_L : 0;  // Thumb L
+
+        // Stick left
+        int16_t lx = r->stick_left[0] | ((r->stick_left[1] & 0x0f) << 8);
+        gp->axis_x = calibrate_axis(lx, ins->cal_x);
+        int16_t ly = (r->stick_left[1] >> 4) | (r->stick_left[2] << 4);
+        gp->axis_y = -calibrate_axis(ly, ins->cal_y);
+
+        // Stick right
+        int16_t rx = r->stick_right[0] | ((r->stick_right[1] & 0x0f) << 8);
+        gp->axis_rx = calibrate_axis(rx, ins->cal_rx);
+        int16_t ry = (r->stick_right[1] >> 4) | (r->stick_right[2] << 4);
+        gp->axis_ry = -calibrate_axis(ry, ins->cal_ry);
+        logd("uncalibrated values: x=%d,y=%d,rx=%d,ry=%d\n", lx, ly, rx, ry);
+    }
 }
 
 static void parse_report_30_joycon_left(uni_hid_device_t* d, const struct switch_report_30_s* r) {
@@ -692,9 +706,10 @@ static void parse_report_30_joycon_left(uni_hid_device_t* d, const struct switch
     gp->buttons |= (r->buttons_left & 0b10000000) ? BUTTON_TRIGGER_R : 0;   // ZL
     gp->buttons |= (r->buttons_misc & 0b00001000) ? BUTTON_THUMB_L : 0;
 
-    // Misc cbuttons
-    gp->misc_buttons |= (r->buttons_misc & 0b00000001) ? MISC_BUTTON_HOME : 0;    // -
-    gp->misc_buttons |= (r->buttons_misc & 0b00100000) ? MISC_BUTTON_SYSTEM : 0;  // Capture
+    // Misc buttons
+    // Since the JoyCon is in horizontal mode, map "-" / "Capture" as if they where "-" and "+"
+    gp->misc_buttons |= (r->buttons_misc & 0b00000001) ? MISC_BUTTON_BACK : 0;  // -
+    gp->misc_buttons |= (r->buttons_misc & 0b00100000) ? MISC_BUTTON_HOME: 0;   // Capture
 }
 
 static void parse_report_30_joycon_right(uni_hid_device_t* d, const struct switch_report_30_s* r) {
@@ -720,9 +735,10 @@ static void parse_report_30_joycon_right(uni_hid_device_t* d, const struct switc
     gp->buttons |= (r->buttons_right & 0b10000000) ? BUTTON_TRIGGER_R : 0;   // ZR
     gp->buttons |= (r->buttons_misc & 0b00000100) ? BUTTON_THUMB_L : 0;
 
-    // Misc cbuttons
-    gp->misc_buttons |= (r->buttons_misc & 0b00000010) ? MISC_BUTTON_HOME : 0;    // +
-    gp->misc_buttons |= (r->buttons_misc & 0b00010000) ? MISC_BUTTON_SYSTEM : 0;  // Home
+    // Misc buttons
+    // Since the JoyCon is in horizontal mode, map "Home" / "+" as if they where "-" and "+"
+    gp->misc_buttons |= (r->buttons_misc & 0b00010000) ? MISC_BUTTON_BACK: 0;  // Home
+    gp->misc_buttons |= (r->buttons_misc & 0b00000010) ? MISC_BUTTON_HOME: 0;  // +
 }
 
 // Process 0x3f input report: SWITCH_INPUT_BUTTON_EVENT
@@ -931,9 +947,6 @@ void uni_hid_parser_switch_set_player_leds(uni_hid_device_t* d, uint8_t leds) {
 }
 
 void uni_hid_parser_switch_set_rumble(struct uni_hid_device_s* d, uint8_t value, uint8_t duration) {
-    // FIXME: timer that cancels rumble after duration
-    UNUSED(duration);
-
     struct switch_rumble_only_request req = {
         .report_id = OUTPUT_RUMBLE_ONLY,
     };
@@ -969,6 +982,7 @@ bool uni_hid_parser_switch_does_name_match(struct uni_hid_device_s* d, const cha
         {"Pro Controller", NINTENDO_VID, SWITCH_PRO_CONTROLLER_PID},
         {"Joy-Con (L)", NINTENDO_VID, SWITCH_JOYCON_L_PID},
         {"Joy-Con (R)", NINTENDO_VID, SWITCH_JOYCON_R_PID},
+        {"SNES Controller", NINTENDO_VID, SWITCH_SNES_CONTROLLER_PID},
     };
 
     for (long unsigned i = 0; i < ARRAY_SIZE(devices); i++) {

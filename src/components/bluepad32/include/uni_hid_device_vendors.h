@@ -571,16 +571,16 @@ static const uni_controller_description_t arrControllers[] = {
 	{ MAKE_CONTROLLER_ID( 0x05ac, 0x0001 ), CONTROLLER_TYPE_AppleController, NULL },	// MFI Extended Gamepad (generic entry for iOS/tvOS)
 	{ MAKE_CONTROLLER_ID( 0x05ac, 0x0002 ), CONTROLLER_TYPE_AppleController, NULL },	// MFI Standard Gamepad (generic entry for iOS/tvOS)
 
-    // We now support Joy-Cons if SDL_HINT_JOYSTICK_HIDAPI_JOY_CONS is set to "1", but they won't be combined into one controller.
-    { MAKE_CONTROLLER_ID( 0x057e, 0x2006 ), CONTROLLER_TYPE_SwitchJoyConLeft, NULL },    // Nintendo Switch Joy-Con (Left)
-    { MAKE_CONTROLLER_ID( 0x057e, 0x2007 ), CONTROLLER_TYPE_SwitchJoyConRight, NULL },   // Nintendo Switch Joy-Con (Right)
+	// We now support Joy-Cons if SDL_HINT_JOYSTICK_HIDAPI_JOY_CONS is set to "1", but they won't be combined into one controller.
+	{ MAKE_CONTROLLER_ID( 0x057e, 0x2006 ), CONTROLLER_TYPE_SwitchJoyConLeft, NULL },    // Nintendo Switch Joy-Con (Left)
+	{ MAKE_CONTROLLER_ID( 0x057e, 0x2007 ), CONTROLLER_TYPE_SwitchJoyConRight, NULL },   // Nintendo Switch Joy-Con (Right)
 
-    // This same controller ID is spoofed by many 3rd-party Switch controllers.
-    // The ones we currently know of are:
-    // * Any 8bitdo controller with Switch support
-    // * ORTZ Gaming Wireless Pro Controller
-    // * ZhiXu Gamepad Wireless
-    // * Sunwaytek Wireless Motion Controller for Nintendo Switch
+	// This same controller ID is spoofed by many 3rd-party Switch controllers.
+	// The ones we currently know of are:
+	// * Any 8bitdo controller with Switch support
+	// * ORTZ Gaming Wireless Pro Controller
+	// * ZhiXu Gamepad Wireless
+	// * Sunwaytek Wireless Motion Controller for Nintendo Switch
 	{ MAKE_CONTROLLER_ID( 0x057e, 0x2009 ), CONTROLLER_TYPE_SwitchProController, NULL },        // Nintendo Switch Pro Controller
 
 	{ MAKE_CONTROLLER_ID( 0x0f0d, 0x00c1 ), CONTROLLER_TYPE_SwitchInputOnlyController, NULL },  // HORIPAD for Nintendo Switch
@@ -645,12 +645,13 @@ static const uni_controller_description_t arrControllers[] = {
 	{ MAKE_CONTROLLER_ID(0x0a5c, 0x4502), CONTROLLER_TYPE_GenericController, NULL},  // White-label mini gamepad received as gift in conference
 
 	// SteelSeries
-	{ MAKE_CONTROLLER_ID(0x0111, 0x1420), CONTROLLER_TYPE_NimbusController, NULL},  // SteelSeries Nimbus
-	{ MAKE_CONTROLLER_ID(0x0111, 0x1431), CONTROLLER_TYPE_AndroidController, NULL}, // SteelSeries Stratus Duo (Bluetooth)
+	{ MAKE_CONTROLLER_ID(0x0111, 0x1420), CONTROLLER_TYPE_NimbusController, NULL},   // SteelSeries Nimbus
+	{ MAKE_CONTROLLER_ID(0x0111, 0x1431), CONTROLLER_TYPE_AndroidController, NULL},  // SteelSeries Stratus Duo (Bluetooth)
 
 	// Nintendo
-	{ MAKE_CONTROLLER_ID(0x057e, 0x0330), CONTROLLER_TYPE_WiiController, NULL},  // Nintendo Wii U Pro
-	{ MAKE_CONTROLLER_ID(0x057e, 0x0306), CONTROLLER_TYPE_WiiController, NULL},  // Nintendo Wii Remote
+	{ MAKE_CONTROLLER_ID(0x057e, 0x0330), CONTROLLER_TYPE_WiiController, NULL},        // Nintendo Wii U Pro
+	{ MAKE_CONTROLLER_ID(0x057e, 0x0306), CONTROLLER_TYPE_WiiController, NULL},        // Nintendo Wii Remote
+	{ MAKE_CONTROLLER_ID(0x057e, 0x2017), CONTROLLER_TYPE_SwitchProController, NULL},  // Nintendo SNES
 
 	// Bluepad32 addons to here.
 };

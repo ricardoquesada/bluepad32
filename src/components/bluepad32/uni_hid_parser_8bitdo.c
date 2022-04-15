@@ -37,7 +37,20 @@ limitations under the License.
 
 void uni_hid_parser_8bitdo_init_report(uni_hid_device_t* d) {
     // Reset old state. Each report contains a full-state.
-    d->gamepad.updated_states = 0;
+    uni_gamepad_t* gp = &d->gamepad;
+    memset(gp, 0, sizeof(*gp));
+
+    // It is safe to set the reported states just once, here:
+    gp->updated_states = GAMEPAD_STATE_AXIS_X | GAMEPAD_STATE_AXIS_Y | GAMEPAD_STATE_AXIS_RX | GAMEPAD_STATE_AXIS_RY;
+    gp->updated_states |= GAMEPAD_STATE_BRAKE | GAMEPAD_STATE_THROTTLE;
+    gp->updated_states |= GAMEPAD_STATE_DPAD;
+    gp->updated_states |=
+        GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y | GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B;
+    gp->updated_states |= GAMEPAD_STATE_BUTTON_TRIGGER_L | GAMEPAD_STATE_BUTTON_TRIGGER_R |
+                          GAMEPAD_STATE_BUTTON_SHOULDER_L | GAMEPAD_STATE_BUTTON_SHOULDER_R;
+    gp->updated_states |= GAMEPAD_STATE_BUTTON_THUMB_L | GAMEPAD_STATE_BUTTON_THUMB_R;
+    gp->updated_states |=
+        GAMEPAD_STATE_MISC_BUTTON_BACK | GAMEPAD_STATE_MISC_BUTTON_HOME | GAMEPAD_STATE_MISC_BUTTON_SYSTEM;
 }
 
 void uni_hid_parser_8bitdo_parse_usage(uni_hid_device_t* d,
@@ -53,31 +66,25 @@ void uni_hid_parser_8bitdo_parse_usage(uni_hid_device_t* d,
             switch (usage) {
                 case HID_USAGE_AXIS_X:
                     gp->axis_x = uni_hid_parser_process_axis(globals, value);
-                    gp->updated_states |= GAMEPAD_STATE_AXIS_X;
                     break;
                 case HID_USAGE_AXIS_Y:
                     gp->axis_y = uni_hid_parser_process_axis(globals, value);
-                    gp->updated_states |= GAMEPAD_STATE_AXIS_Y;
                     break;
                 case HID_USAGE_AXIS_Z:
                     gp->axis_rx = uni_hid_parser_process_axis(globals, value);
-                    gp->updated_states |= GAMEPAD_STATE_AXIS_RX;
                     break;
                 case HID_USAGE_AXIS_RZ:
                     gp->axis_ry = uni_hid_parser_process_axis(globals, value);
-                    gp->updated_states |= GAMEPAD_STATE_AXIS_RY;
                     break;
                 case HID_USAGE_HAT:
                     hat = uni_hid_parser_process_hat(globals, value);
                     gp->dpad = uni_hid_parser_hat_to_dpad(hat);
-                    gp->updated_states |= GAMEPAD_STATE_DPAD;
                     break;
                 case HID_USAGE_DPAD_UP:
                 case HID_USAGE_DPAD_DOWN:
                 case HID_USAGE_DPAD_RIGHT:
                 case HID_USAGE_DPAD_LEFT:
                     uni_hid_parser_process_dpad(usage, value, &gp->dpad);
-                    gp->updated_states |= GAMEPAD_STATE_DPAD;
                     break;
                 default:
                     logi("8Bitdo: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
@@ -88,11 +95,9 @@ void uni_hid_parser_8bitdo_parse_usage(uni_hid_device_t* d,
             switch (usage) {
                 case HID_USAGE_ACCELERATOR:
                     gp->throttle = uni_hid_parser_process_pedal(globals, value);
-                    gp->updated_states |= GAMEPAD_STATE_THROTTLE;
                     break;
                 case HID_USAGE_BRAKE:
                     gp->brake = uni_hid_parser_process_pedal(globals, value);
-                    gp->updated_states |= GAMEPAD_STATE_BRAKE;
                     break;
                 default:
                     logi("8Bitdo: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
@@ -104,16 +109,10 @@ void uni_hid_parser_8bitdo_parse_usage(uni_hid_device_t* d,
                 case 0x01:  // Button A
                     if (value)
                         gp->buttons |= BUTTON_B;
-                    else
-                        gp->buttons &= ~BUTTON_B;
-                    gp->updated_states |= GAMEPAD_STATE_BUTTON_B;
                     break;
                 case 0x02:  // Button B
                     if (value)
                         gp->buttons |= BUTTON_A;
-                    else
-                        gp->buttons &= ~BUTTON_A;
-                    gp->updated_states |= GAMEPAD_STATE_BUTTON_A;
                     break;
                 case 0x03:  // Not mapped
                     // SN30 Pro: Home button
@@ -121,62 +120,38 @@ void uni_hid_parser_8bitdo_parse_usage(uni_hid_device_t* d,
                 case 0x04:  // Button X
                     if (value)
                         gp->buttons |= BUTTON_Y;
-                    else
-                        gp->buttons &= ~BUTTON_Y;
-                    gp->updated_states |= GAMEPAD_STATE_BUTTON_Y;
                     break;
                 case 0x05:  // Button Y
                     if (value)
                         gp->buttons |= BUTTON_X;
-                    else
-                        gp->buttons &= ~BUTTON_X;
-                    gp->updated_states |= GAMEPAD_STATE_BUTTON_X;
                     break;
                 case 0x06:  // No used
                     break;
                 case 0x07:
                     if (value)
                         gp->buttons |= BUTTON_SHOULDER_L;
-                    else
-                        gp->buttons &= ~BUTTON_SHOULDER_L;
-                    gp->updated_states |= GAMEPAD_STATE_BUTTON_SHOULDER_L;
                     break;
                 case 0x08:
                     if (value)
                         gp->buttons |= BUTTON_SHOULDER_R;
-                    else
-                        gp->buttons &= ~BUTTON_SHOULDER_R;
-                    gp->updated_states |= GAMEPAD_STATE_BUTTON_SHOULDER_R;
                     break;
                 case 0x09:
                     // SN30 Pro and gamepads with "trigger" buttons.
                     if (value)
                         gp->buttons |= BUTTON_TRIGGER_L;
-                    else
-                        gp->buttons &= ~BUTTON_TRIGGER_L;
-                    gp->updated_states |= GAMEPAD_STATE_BUTTON_TRIGGER_L;
                     break;
                 case 0x0a:
                     // SN30 Pro and gamepads with "trigger" buttons.
                     if (value)
                         gp->buttons |= BUTTON_TRIGGER_R;
-                    else
-                        gp->buttons &= ~BUTTON_TRIGGER_R;
-                    gp->updated_states |= GAMEPAD_STATE_BUTTON_TRIGGER_R;
                     break;
                 case 0x0b:  // "Select" button
                     if (value)
-                        gp->misc_buttons |= MISC_BUTTON_HOME;
-                    else
-                        gp->misc_buttons &= ~MISC_BUTTON_HOME;
-                    gp->updated_states |= GAMEPAD_STATE_MISC_BUTTON_HOME;
+                        gp->misc_buttons |= MISC_BUTTON_BACK;
                     break;
                 case 0x0c:  // "Start" button
                     if (value)
-                        gp->misc_buttons |= MISC_BUTTON_SYSTEM;
-                    else
-                        gp->misc_buttons &= ~MISC_BUTTON_SYSTEM;
-                    gp->updated_states |= GAMEPAD_STATE_MISC_BUTTON_SYSTEM;
+                        gp->misc_buttons |= MISC_BUTTON_HOME;
                     break;
                 case 0x0d:  // Unsupported
                     break;
@@ -184,17 +159,11 @@ void uni_hid_parser_8bitdo_parse_usage(uni_hid_device_t* d,
                     // SN30 Pro and gamepads with "thumb" buttons.
                     if (value)
                         gp->buttons |= BUTTON_THUMB_L;
-                    else
-                        gp->buttons &= ~BUTTON_THUMB_L;
-                    gp->updated_states |= GAMEPAD_STATE_BUTTON_THUMB_L;
                     break;
                 case 0x0f:
                     // SN30 Pro and gamepads with "thumb" buttons.
                     if (value)
                         gp->buttons |= BUTTON_THUMB_R;
-                    else
-                        gp->buttons &= ~BUTTON_THUMB_R;
-                    gp->updated_states |= GAMEPAD_STATE_BUTTON_THUMB_R;
                     break;
                 case 0x10:  // Not mapped
                     break;

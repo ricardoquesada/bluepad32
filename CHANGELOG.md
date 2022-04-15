@@ -4,6 +4,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2022-04-14
+### New
+- Wii: Add support for Rumble
+- Arduino,AirLift,NINA: Add support for "get gamepad properties" and
+  "enable Bluetooth connections"
+- Gamepad: Add support for Nintendo SNES (Swicth Online)
+
+### Changed
+- 8BitDo: "Dinput" mode mappings updated to match the other modes' mappings:
+  Button "-" / "select" maps to BUTTON_BACK
+  Button "+" / "start" maps to BUTTON_HOME
+  BUTTON_SYSTEM is not mapped any more.
+- Nintendo Joycons mappings updated for the "-", "+", "home" and "capture".
+  The button that is at the left, is mapped to BUTTON_BACK
+  The button that is at the right, is mapped to BUTTON_HOME
+- Arduino: Example code supports multiple gamepad connections
+  Internally ArduinoGamepad.h was refactored to better support "gamepad properties".
+- Wii: When in accelerometer mode (wheel):
+  - Dpad can be used, useful for menu navigation
+  - Button "1" is brake (Dpad down)
+  - Button "2" is Throttle (Dpad up)
+  - "Up" and "Down" disabled from Accelerometer
+- Unijoysticle: Disable Bluetooth connections once two gamepads are connected,
+  or when in "Enhanced Mode". Re-enable when that's not the case.
+
+### Fixed
+- Arduino/NINA/AirLift: Assign gamepad type at connection time: [Bug #10][gitlab_bug_10]
+- Compile-time error if ACL connections are not least 2 [Bug #11][gitlab_bug_11]
+- "Enable/Disable Bluetooth connections" works everytime it is called.
+
+[gitlab_bug_10]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/10
+[gitlab_bug_11]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/11
+
 ## [3.0.1] - 2022-03-15
 ### New
 - Arduino: Add function to return Gamepad model

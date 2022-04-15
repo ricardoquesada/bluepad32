@@ -106,7 +106,26 @@ typedef struct __attribute__((packed)) {
 
     // Not related to the state:
     uint8_t type;  // model: PS4, PS3, Xbox, etc..?
+                   // Should be moved to nina_gamepad_properties_t
 } nina_gamepad_t;
+
+enum {
+    PROPERTY_FLAG_RUMBLE = BIT(0),
+    PROPERTY_FLAG_PLAYER_LEDS = BIT(1),
+    PROPERTY_FLAG_PLAYER_LIGHTBAR = BIT(2),
+};
+
+// This is sent via the wire. Adding new properties at the end Ok.
+// If so, update Protocol version.
+typedef struct __attribute__((packed)) {
+    uint8_t idx;          // Device index
+    uint8_t btaddr[6];    // BT Addr
+    uint8_t type;         // model: copy from nina_gamepad_t
+    uint8_t subtype;      // subtype. E.g: Wii Remote 2nd version
+    uint16_t vendor_id;   // VID
+    uint16_t product_id;  // PID
+    uint16_t flags;       // Features like Rumble, LEDs, etc.
+} nina_gamepad_properties_t;
 
 //
 // Globals
@@ -132,6 +151,7 @@ static SemaphoreHandle_t _ready_semaphore = NULL;
 static QueueHandle_t _pending_queue = NULL;
 static SemaphoreHandle_t _gamepad_mutex = NULL;
 static nina_gamepad_t _gamepads[CONFIG_BLUEPAD32_MAX_DEVICES];
+static nina_gamepad_properties_t _gamepads_properties[CONFIG_BLUEPAD32_MAX_DEVICES];
 static volatile uni_gamepad_seat_t _gamepad_seats;
 
 static nina_instance_t* get_nina_instance(uni_hid_device_t* d);
@@ -204,113 +224,10 @@ enum {
     RESPONSE_OK = 1,
 };
 
-// Command 0x1a
-static int request_set_debug(const uint8_t command[], uint8_t response[]) {
-    uni_esp32_enable_uart_output(command[4]);
-    response[2] = 1;           // total params
-    response[3] = 1;           // param len
-    response[4] = command[4];  // return the value requested
-
-    return 5;
-}
-
-// Command 0x20
-// This is to make the default "CheckFirmwareVersion" sketch happy.
-// Taken from wl_definitions.h
-// See:
-// https://github.com/arduino-libraries/WiFiNINA/blob/master/src/utility/wl_definitions.h
-enum { WL_IDLE_STATUS = 0 };
-static int request_get_conn_status(const uint8_t command[], uint8_t response[]) {
-    response[2] = 1;  // total params
-    response[3] = 1;  // param len
-    response[4] = WL_IDLE_STATUS;
-
-    return 5;
-}
-
-// Command 0x37
-static int request_get_fw_version(const uint8_t command[], uint8_t response[]) {
-    response[2] = 1;                         // Number of parameters
-    response[3] = sizeof(FIRMWARE_VERSION);  // Parameter 1 length
-
-    memcpy(&response[4], FIRMWARE_VERSION, sizeof(FIRMWARE_VERSION));
-
-    return 4 + sizeof(FIRMWARE_VERSION);
-}
-
-// Command 0x50
-static int request_set_pin_mode(const uint8_t command[], uint8_t response[]) {
-    enum {
-        INPUT = 0,
-        OUTPUT = 1,
-        INPUT_PULLUP = 2,
-    };
-
-    // command[2]: total params, should be 2
-    // command[3]: param len, should be 1
-    uint8_t pin = command[4];
-    // command[5]: param 2 len: should be 1
-    uint8_t mode = command[6];
-
-    // Taken from Arduino pinMode()
-    switch (mode) {
-        case INPUT:
-            gpio_set_direction((gpio_num_t)pin, GPIO_MODE_INPUT);
-            gpio_set_pull_mode((gpio_num_t)pin, GPIO_FLOATING);
-            break;
-
-        case OUTPUT:
-            gpio_set_direction((gpio_num_t)pin, GPIO_MODE_OUTPUT);
-            gpio_set_pull_mode((gpio_num_t)pin, GPIO_FLOATING);
-            break;
-
-        case INPUT_PULLUP:
-            gpio_set_direction((gpio_num_t)pin, GPIO_MODE_INPUT);
-            gpio_set_pull_mode((gpio_num_t)pin, GPIO_PULLUP_ONLY);
-            break;
-    }
-    PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[pin], PIN_FUNC_GPIO);
-
-    response[2] = 1;  // number of parameters
-    response[3] = 1;  // parameter 1 length
-    response[4] = RESPONSE_OK;
-    return 5;
-}
-
-// Command 0x51
-static int request_digital_write(const uint8_t command[], uint8_t response[]) {
-    // command[2]: total params, should be 2
-    // command[3]: param len, should be 1
-    uint8_t pin = command[4];
-    // command[5]: param len, should be 1
-    uint8_t value = command[6];
-
-    gpio_set_level((gpio_num_t)pin, value);
-
-    response[2] = 1;  // total parameters
-    response[3] = 1;  // param len
-    response[4] = RESPONSE_OK;
-    return 5;
-}
-
-// Command 0x53
-static int request_digital_read(const uint8_t command[], uint8_t response[]) {
-    // command[2]: total params, should be 1
-    // command[3]: param len, should be 1
-    uint8_t pin = command[4];
-
-    uint8_t value = gpio_get_level(pin);
-
-    response[2] = 1;      // number of parameters
-    response[3] = 1;      // parameter 1 length
-    response[4] = value;  // response
-    return 5;
-}
-
 // Command 0x00
 static int request_protocol_version(const uint8_t command[], uint8_t response[]) {
 #define PROTOCOL_VERSION_HI 0x01
-#define PROTOCOL_VERSION_LO 0x00
+#define PROTOCOL_VERSION_LO 0x01
 
     response[2] = 1;  // Number of parameters
     response[3] = 2;  // Param len
@@ -433,6 +350,142 @@ static int request_forget_bluetooth_keys(const uint8_t command[], uint8_t respon
     return 5;
 }
 
+// Command 0x06
+static int request_get_gamepad_properties(const uint8_t command[], uint8_t response[]) {
+    // command[2]: total params
+    // command[3]: param len
+    int idx = command[4];
+
+    if (idx < 0 || idx >= CONFIG_BLUEPAD32_MAX_DEVICES) {
+        // To be consistent with the "OK" case, we return 2 parameters on "Error".
+        response[2] = 2;  // Number of parameters
+        response[3] = 1;  // Param len
+        response[4] = RESPONSE_ERROR;
+        response[5] = 1;  // Param len
+        response[6] = 0;  // Ignore
+        return 7;
+    };
+
+    response[2] = 2;                                // Number of parameters
+    response[3] = 1;                                // Param len
+    response[4] = RESPONSE_OK;                      // Ok
+    response[5] = sizeof(_gamepads_properties[0]);  // Param len
+
+    xSemaphoreTake(_gamepad_mutex, portMAX_DELAY);
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
+        if (_gamepads_properties[i].idx == idx) {
+            memcpy(&response[6], &_gamepads_properties[i], sizeof(_gamepads_properties[0]));
+            break;
+        }
+    }
+    xSemaphoreGive(_gamepad_mutex);
+
+    return 6 + sizeof(nina_gamepad_properties_t);
+}
+
+// Command 0x1a
+static int request_set_debug(const uint8_t command[], uint8_t response[]) {
+    uni_esp32_enable_uart_output(command[4]);
+    response[2] = 1;           // total params
+    response[3] = 1;           // param len
+    response[4] = command[4];  // return the value requested
+
+    return 5;
+}
+
+// Command 0x20
+// This is to make the default "CheckFirmwareVersion" sketch happy.
+// Taken from wl_definitions.h
+// See:
+// https://github.com/arduino-libraries/WiFiNINA/blob/master/src/utility/wl_definitions.h
+enum { WL_IDLE_STATUS = 0 };
+static int request_get_conn_status(const uint8_t command[], uint8_t response[]) {
+    response[2] = 1;  // total params
+    response[3] = 1;  // param len
+    response[4] = WL_IDLE_STATUS;
+
+    return 5;
+}
+
+// Command 0x37
+static int request_get_fw_version(const uint8_t command[], uint8_t response[]) {
+    response[2] = 1;                         // Number of parameters
+    response[3] = sizeof(FIRMWARE_VERSION);  // Parameter 1 length
+
+    memcpy(&response[4], FIRMWARE_VERSION, sizeof(FIRMWARE_VERSION));
+
+    return 4 + sizeof(FIRMWARE_VERSION);
+}
+
+// Command 0x50
+static int request_set_pin_mode(const uint8_t command[], uint8_t response[]) {
+    enum {
+        INPUT = 0,
+        OUTPUT = 1,
+        INPUT_PULLUP = 2,
+    };
+
+    // command[2]: total params, should be 2
+    // command[3]: param len, should be 1
+    uint8_t pin = command[4];
+    // command[5]: param 2 len: should be 1
+    uint8_t mode = command[6];
+
+    // Taken from Arduino pinMode()
+    switch (mode) {
+        case INPUT:
+            gpio_set_direction((gpio_num_t)pin, GPIO_MODE_INPUT);
+            gpio_set_pull_mode((gpio_num_t)pin, GPIO_FLOATING);
+            break;
+
+        case OUTPUT:
+            gpio_set_direction((gpio_num_t)pin, GPIO_MODE_OUTPUT);
+            gpio_set_pull_mode((gpio_num_t)pin, GPIO_FLOATING);
+            break;
+
+        case INPUT_PULLUP:
+            gpio_set_direction((gpio_num_t)pin, GPIO_MODE_INPUT);
+            gpio_set_pull_mode((gpio_num_t)pin, GPIO_PULLUP_ONLY);
+            break;
+    }
+    PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[pin], PIN_FUNC_GPIO);
+
+    response[2] = 1;  // number of parameters
+    response[3] = 1;  // parameter 1 length
+    response[4] = RESPONSE_OK;
+    return 5;
+}
+
+// Command 0x51
+static int request_digital_write(const uint8_t command[], uint8_t response[]) {
+    // command[2]: total params, should be 2
+    // command[3]: param len, should be 1
+    uint8_t pin = command[4];
+    // command[5]: param len, should be 1
+    uint8_t value = command[6];
+
+    gpio_set_level((gpio_num_t)pin, value);
+
+    response[2] = 1;  // total parameters
+    response[3] = 1;  // param len
+    response[4] = RESPONSE_OK;
+    return 5;
+}
+
+// Command 0x53
+static int request_digital_read(const uint8_t command[], uint8_t response[]) {
+    // command[2]: total params, should be 1
+    // command[3]: param len, should be 1
+    uint8_t pin = command[4];
+
+    uint8_t value = gpio_get_level(pin);
+
+    response[2] = 1;      // number of parameters
+    response[3] = 1;      // parameter 1 length
+    response[4] = value;  // response
+    return 5;
+}
+
 typedef int (*command_handler_t)(const uint8_t command[], uint8_t response[] /* out */);
 const command_handler_t command_handlers[] = {
     // 0x00 -> 0x0f: Bluepad32 own extensions
@@ -445,7 +498,7 @@ const command_handler_t command_handlers[] = {
     request_set_gamepad_color_led,    // available on DS4, DualSense
     request_set_gamepad_rumble,       // available on DS4, Xbox, Switch, etc.
     request_forget_bluetooth_keys,    // forget stored Bluetooth keys
-    NULL,
+    request_get_gamepad_properties,   // get gamepad properties like BTAddr, VID/PID, etc.
     NULL,
     NULL,
     NULL,
@@ -629,9 +682,6 @@ static void IRAM_ATTR isr_handler_on_chip_select(void* arg) {
 }
 
 static void spi_main_loop(void* arg) {
-    _gamepad_mutex = xSemaphoreCreateMutex();
-    assert(_gamepad_mutex != NULL);
-
     // Small delay to let CPU0 finish initialization. This is to prevent
     // collision in the log(). No harm is done if there is collision, only
     // that it is more difficult to read the logs from the console.
@@ -783,6 +833,8 @@ static void nina_on_device_disconnected(uni_hid_device_t* d) {
         _gamepad_seats &= ~(1 << ins->gamepad_idx);
         memset(&_gamepads[ins->gamepad_idx], 0, sizeof(_gamepads[ins->gamepad_idx]));
         _gamepads[ins->gamepad_idx].idx = NINA_GAMEPAD_INVALID;
+        memset(&_gamepads_properties[ins->gamepad_idx], 0, sizeof(_gamepads_properties[ins->gamepad_idx]));
+        _gamepads_properties[ins->gamepad_idx].idx = NINA_GAMEPAD_INVALID;
         ins->gamepad_idx = NINA_GAMEPAD_INVALID;
     }
 }
@@ -809,8 +861,26 @@ static int nina_on_device_ready(uni_hid_device_t* d) {
         }
     }
 
+    // This is how "client" knows which gamepad emitted the events.
+    int idx = ins->gamepad_idx;
+    _gamepads[idx].idx = ins->gamepad_idx;
+    _gamepads[idx].type = d->controller_type;
+
+    // FIXME: To save RAM gamepad_properties should be updated at "request time".
+    // It requires to add a mutex in uni_hid_device, and that has its own issues.
+    // As a quick hack, it is easier to copy them now.
+    _gamepads_properties[idx].idx = ins->gamepad_idx;
+    _gamepads_properties[idx].type = d->controller_type;
+    _gamepads_properties[idx].subtype = d->controller_subtype;
+    _gamepads_properties[idx].vendor_id = d->vendor_id;
+    _gamepads_properties[idx].product_id = d->product_id;
+    _gamepads_properties[idx].flags = (d->report_parser.set_player_leds ? PROPERTY_FLAG_PLAYER_LEDS : 0) |
+                                      (d->report_parser.set_rumble ? PROPERTY_FLAG_RUMBLE : 0) |
+                                      (d->report_parser.set_lightbar_color ? PROPERTY_FLAG_PLAYER_LIGHTBAR : 0);
+
+    memcpy(_gamepads_properties[ins->gamepad_idx].btaddr, d->conn.remote_addr, sizeof(_gamepads_properties[0].btaddr));
+
     if (d->report_parser.set_player_leds != NULL) {
-        nina_instance_t* ins = get_nina_instance(d);
         d->report_parser.set_player_leds(d, (1 << ins->gamepad_idx));
     }
     return 0;
@@ -841,21 +911,15 @@ static void nina_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
 
     // Populate gamepad data on shared struct.
     xSemaphoreTake(_gamepad_mutex, portMAX_DELAY);
-    _gamepads[ins->gamepad_idx] = (nina_gamepad_t){
-        .idx = ins->gamepad_idx,  // This is how "client" knows which gamepad
-                                  // emitted the events
-        .dpad = gp->dpad,
-        .axis_x = gp->axis_x,
-        .axis_y = gp->axis_y,
-        .axis_rx = gp->axis_rx,
-        .axis_ry = gp->axis_ry,
-        .brake = gp->brake,
-        .throttle = gp->throttle,
-        .buttons = gp->buttons,
-        .misc_buttons = gp->misc_buttons,
-
-        .type = d->controller_type,
-    };
+    _gamepads[ins->gamepad_idx].dpad = gp->dpad;
+    _gamepads[ins->gamepad_idx].axis_x = gp->axis_x;
+    _gamepads[ins->gamepad_idx].axis_y = gp->axis_y;
+    _gamepads[ins->gamepad_idx].axis_rx = gp->axis_rx;
+    _gamepads[ins->gamepad_idx].axis_ry = gp->axis_ry;
+    _gamepads[ins->gamepad_idx].brake = gp->brake;
+    _gamepads[ins->gamepad_idx].throttle = gp->throttle;
+    _gamepads[ins->gamepad_idx].buttons = gp->buttons;
+    _gamepads[ins->gamepad_idx].misc_buttons = gp->misc_buttons;
     xSemaphoreGive(_gamepad_mutex);
 }
 

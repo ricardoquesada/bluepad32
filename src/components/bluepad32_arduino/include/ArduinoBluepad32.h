@@ -16,6 +16,9 @@
 
 #include "ArduinoGamepad.h"
 
+// Arduino friendly define. Matches the one used in "bluepad32-arduino" (NINA) project.
+#define BP32_MAX_GAMEPADS CONFIG_BLUEPAD32_MAX_DEVICES
+
 typedef std::function<void(GamepadPtr gamepad)> GamepadCallback;
 
 class Bluepad32 {
@@ -24,7 +27,7 @@ class Bluepad32 {
     int _prevConnectedGamepads;
 
     // This is what the user receives
-    Gamepad _gamepads[CONFIG_BLUEPAD32_MAX_DEVICES];
+    Gamepad _gamepads[BP32_MAX_GAMEPADS];
 
     GamepadCallback _onConnect;
     GamepadCallback _onDisconnect;
@@ -45,6 +48,11 @@ class Bluepad32 {
     // If you want to "forget" (delete) the keys from ESP32, you should call this
     // function.
     void forgetBluetoothKeys();
+
+    // Enable / Disable new Bluetooth connections.
+    // When enabled, the device is put in Discovery mode, and new pairs and connections are accepted.
+    // Established connections are not affected.
+    void enableNewBluetoothConnections(bool enabled);
 
     void setup(const GamepadCallback& onConnect, const GamepadCallback& onDisconnect);
 

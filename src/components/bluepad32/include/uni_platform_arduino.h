@@ -25,6 +25,7 @@ extern "C" {
 
 #include <stdint.h>
 
+#include "uni_common.h"
 #include "uni_gamepad.h"
 #include "uni_platform.h"
 
@@ -37,20 +38,36 @@ enum {
     UNI_ARDUINO_GAMEPAD_INVALID = -1,
 };
 
+enum {
+    ARDUINO_PROPERTY_FLAG_RUMBLE = BIT(0),
+    ARDUINO_PROPERTY_FLAG_PLAYER_LEDS = BIT(1),
+    ARDUINO_PROPERTY_FLAG_PLAYER_LIGHTBAR = BIT(2),
+};
+
+typedef uni_gamepad_t arduino_gamepad_data_t;
+
 typedef struct {
-    // Indicates which gamepad it is. Goes from 0 to 3.
-    int8_t idx;
+    uint8_t btaddr[6];    // BT Addr
+    uint8_t type;         // Gamepad model: PS3, PS4, Switch, etc.
+    uint8_t subtype;      // subtype. E.g: Wii Remote 2nd version
+    uint16_t vendor_id;   // VID
+    uint16_t product_id;  // PID
+    uint16_t flags;       // Features like Rumble, LEDs, etc.
+} arduino_gamepad_properties_t;
 
-    // Type of gamepad: PS4, PS3, Xbox, etc..?
-    uint8_t type;
+typedef struct {
+    int8_t idx;  // Gamepad index
+    arduino_gamepad_data_t data;
 
-    // The gamepad data: buttons, axis, etc.
-    uni_gamepad_t data;
+    // TODO: To reduce RAM, the properties should be calculated at "request time", and
+    // not store them "forever".
+    arduino_gamepad_properties_t properties;
 } arduino_gamepad_t;
 
 struct uni_platform* uni_platform_arduino_create(void);
 
-int arduino_get_gamepad_data(int idx, arduino_gamepad_t* out_gp);
+int arduino_get_gamepad_data(int idx, arduino_gamepad_data_t* out_data);
+int arduino_get_gamepad_properties(int idx, arduino_gamepad_properties_t* out_properties);
 int arduino_set_player_leds(int idx, uint8_t leds);
 int arduino_set_lightbar_color(int idx, uint8_t r, uint8_t g, uint8_t b);
 int arduino_set_rumble(int idx, uint8_t force, uint8_t duration);

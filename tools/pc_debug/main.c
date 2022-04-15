@@ -121,7 +121,6 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
             if (using_static_address) {
                 memcpy(local_addr, static_address, 6);
             }
-            printf("BTstack up and running on %s.\n", bd_addr_to_str(local_addr));
             strcpy(tlv_db_path, TLV_DB_PATH_PREFIX);
             strcat(tlv_db_path, bd_addr_to_str(local_addr));
             strcat(tlv_db_path, TLV_DB_PATH_POSTFIX);

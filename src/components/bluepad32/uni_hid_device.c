@@ -172,6 +172,11 @@ void uni_hid_device_set_ready(uni_hid_device_t* d) {
 }
 
 void uni_hid_device_set_ready_complete(uni_hid_device_t* d) {
+    if (d == NULL) {
+        loge("ERROR: Invalid NULL device\n");
+        return;
+    }
+
     if (uni_bt_conn_get_state(&d->conn) == UNI_BT_CONN_STATE_DEVICE_READY) {
         loge("uni_hid_device_set_ready_complete(): Error, device already in 'ready-complete' state, skipping\n");
         return;
@@ -206,7 +211,9 @@ void uni_hid_device_set_connected(uni_hid_device_t* d, bool connected) {
         return;
     }
 
+    // Must be updated before calling the callbacks.
     d->conn.connected = connected;
+
     if (connected) {
         // connected
         uni_get_platform()->on_device_connected(d);
@@ -500,6 +507,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             d->report_parser.init_report = uni_hid_parser_wii_init_report;
             d->report_parser.parse_input_report = uni_hid_parser_wii_parse_input_report;
             d->report_parser.set_player_leds = uni_hid_parser_wii_set_player_leds;
+            d->report_parser.set_rumble = uni_hid_parser_wii_set_rumble;
             logi("Device detected as Wii controller: 0x%02x\n", type);
             break;
         case CONTROLLER_TYPE_SwitchProController:

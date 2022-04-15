@@ -41,13 +41,11 @@ static void maybe_delete_or_list_link_keys(void);
 static void setup_call_next_fn(void);
 static uint8_t setup_set_event_filter(void);
 static uint8_t setup_write_simple_pairing_mode(void);
-static uint8_t setup_periodic_inquiry_mode(void);
 
 static int setup_fn_idx = 0;
 static fn_t setup_fns[] = {
     &setup_write_simple_pairing_mode,
     &setup_set_event_filter,
-    &setup_periodic_inquiry_mode,
 };
 static setup_state_t setup_state = SETUP_STATE_BTSTACK_IN_PROGRESS;
 static btstack_packet_callback_registration_t hci_event_callback_registration;
@@ -90,13 +88,6 @@ static uint8_t setup_write_simple_pairing_mode(void) {
     return hci_send_cmd(&hci_write_simple_pairing_mode, true);
 }
 
-static uint8_t setup_periodic_inquiry_mode(void) {
-    return hci_send_cmd(&hci_periodic_inquiry_mode, /* cmd */
-                        UNI_BT_MAX_PERIODIC_LENGTH, UNI_BT_MIN_PERIODIC_LENGTH, GAP_IAC_GENERAL_INQUIRY,
-                        UNI_BT_INQUIRY_LENGTH, 0 /* unlimited */
-    );
-}
-
 static void setup_call_next_fn(void) {
     bd_addr_t event_addr;
     uint8_t status;
@@ -120,9 +111,16 @@ static void setup_call_next_fn(void) {
 
         // If finished with the "setup" commands, just finish the setup
         // by printing some debug version.
+
         gap_local_bd_addr(event_addr);
         logi("BTstack up and running on %s.\n", bd_addr_to_str(event_addr));
         maybe_delete_or_list_link_keys();
+
+        // Start inquiry now, once we know that HCI is running.
+        status =
+            gap_inquiry_periodic_start(UNI_BT_INQUIRY_LENGTH, UNI_BT_MAX_PERIODIC_LENGTH, UNI_BT_MIN_PERIODIC_LENGTH);
+        if (status)
+            loge("Failed to start period inquiry, error=0x%02x\n", status);
 
         uni_get_platform()->on_init_complete();
     }
@@ -186,6 +184,7 @@ int uni_bt_setup(void) {
     logi("Gap security level: %d\n", security_level);
     logi("Periodic Inquiry: max=%d, min=%d, len=%d\n", UNI_BT_MAX_PERIODIC_LENGTH, UNI_BT_MIN_PERIODIC_LENGTH,
          UNI_BT_INQUIRY_LENGTH);
+    logi("Max connected gamepads: %d\n", CONFIG_BLUEPAD32_MAX_DEVICES);
 
     l2cap_register_service(uni_bluetooth_packet_handler, BLUETOOTH_PSM_HID_INTERRUPT, UNI_BT_L2CAP_CHANNEL_MTU,
                            security_level);
