@@ -172,6 +172,11 @@ void uni_hid_device_set_ready(uni_hid_device_t* d) {
 }
 
 void uni_hid_device_set_ready_complete(uni_hid_device_t* d) {
+    if (d == NULL) {
+        loge("ERROR: Invalid NULL device\n");
+        return;
+    }
+
     if (uni_bt_conn_get_state(&d->conn) == UNI_BT_CONN_STATE_DEVICE_READY) {
         loge("uni_hid_device_set_ready_complete(): Error, device already in 'ready-complete' state, skipping\n");
         return;

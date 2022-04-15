@@ -662,7 +662,7 @@ static void parse_report_30_pro_controller(uni_hid_device_t* d, const struct swi
     gp->misc_buttons |= (r->buttons_misc & 0b00010000) ? MISC_BUTTON_SYSTEM : 0;  // Home
     gp->misc_buttons |= (r->buttons_misc & 0b00100000) ? 0 : 0;                   // Capture (unused)
 
-    // "misc" and sticks
+    // Sticks, not present on SNES model.
     if (ins->controller_type == SWITCH_CONTROLLER_TYPE_PRO) {
         // Thumbs
         gp->buttons |= (r->buttons_misc & 0b00000100) ? BUTTON_THUMB_R : 0;  // Thumb R
@@ -680,13 +680,6 @@ static void parse_report_30_pro_controller(uni_hid_device_t* d, const struct swi
         int16_t ry = (r->stick_right[1] >> 4) | (r->stick_right[2] << 4);
         gp->axis_ry = -calibrate_axis(ry, ins->cal_ry);
         logd("uncalibrated values: x=%d,y=%d,rx=%d,ry=%d\n", lx, ly, rx, ry);
-
-    } else if (ins->controller_type == SWITCH_CONTROLLER_TYPE_SNES) {
-        gp->misc_buttons |= (r->buttons_misc & 0b00000001) ? MISC_BUTTON_SYSTEM : 0;  // Start
-        gp->misc_buttons |= (r->buttons_misc & 0b00000010) ? MISC_BUTTON_HOME : 0;    // Select
-
-    } else {
-        loge("Switch: Should not happen, invalid controller type: 0x%04x\n", ins->controller_type);
     }
 }
 
@@ -713,9 +706,10 @@ static void parse_report_30_joycon_left(uni_hid_device_t* d, const struct switch
     gp->buttons |= (r->buttons_left & 0b10000000) ? BUTTON_TRIGGER_R : 0;   // ZL
     gp->buttons |= (r->buttons_misc & 0b00001000) ? BUTTON_THUMB_L : 0;
 
-    // Misc cbuttons
-    gp->misc_buttons |= (r->buttons_misc & 0b00000001) ? MISC_BUTTON_HOME : 0;    // -
-    gp->misc_buttons |= (r->buttons_misc & 0b00100000) ? MISC_BUTTON_SYSTEM : 0;  // Capture
+    // Misc buttons
+    // Since the JoyCon is in horizontal mode, map "-" / "Capture" as if they where "-" and "+"
+    gp->misc_buttons |= (r->buttons_misc & 0b00000001) ? MISC_BUTTON_BACK : 0;  // -
+    gp->misc_buttons |= (r->buttons_misc & 0b00100000) ? MISC_BUTTON_HOME: 0;   // Capture
 }
 
 static void parse_report_30_joycon_right(uni_hid_device_t* d, const struct switch_report_30_s* r) {
@@ -741,9 +735,10 @@ static void parse_report_30_joycon_right(uni_hid_device_t* d, const struct switc
     gp->buttons |= (r->buttons_right & 0b10000000) ? BUTTON_TRIGGER_R : 0;   // ZR
     gp->buttons |= (r->buttons_misc & 0b00000100) ? BUTTON_THUMB_L : 0;
 
-    // Misc cbuttons
-    gp->misc_buttons |= (r->buttons_misc & 0b00000010) ? MISC_BUTTON_HOME : 0;    // +
-    gp->misc_buttons |= (r->buttons_misc & 0b00010000) ? MISC_BUTTON_SYSTEM : 0;  // Home
+    // Misc buttons
+    // Since the JoyCon is in horizontal mode, map "Home" / "+" as if they where "-" and "+"
+    gp->misc_buttons |= (r->buttons_misc & 0b00010000) ? MISC_BUTTON_BACK: 0;  // Home
+    gp->misc_buttons |= (r->buttons_misc & 0b00000010) ? MISC_BUTTON_HOME: 0;  // +
 }
 
 // Process 0x3f input report: SWITCH_INPUT_BUTTON_EVENT
