@@ -119,7 +119,7 @@ static void pc_debug_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
         d->report_parser.set_player_leds(d, leds++ & 0x0f);
     }
     // Axis: control RGB color
-    if (d->report_parser.set_lightbar_color != NULL) {
+    if ((gp->buttons & BUTTON_X) && d->report_parser.set_lightbar_color != NULL) {
         uint8_t r = (gp->axis_x * 256) / 512;
         uint8_t g = (gp->axis_y * 256) / 512;
         uint8_t b = (gp->axis_rx * 256) / 512;
@@ -127,12 +127,12 @@ static void pc_debug_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
     }
 
     // Toggle Bluetooth connections
-    if ((gp->buttons & BUTTON_X) && enabled) {
+    if ((gp->buttons & BUTTON_SHOULDER_L) && enabled) {
         logi("*** Disabling Bluetooth connections\n");
         uni_bluetooth_enable_new_connections_safe(false);
         enabled = false;
     }
-    if ((gp->buttons & BUTTON_Y) && !enabled) {
+    if ((gp->buttons & BUTTON_SHOULDER_R) && !enabled) {
         logi("*** Enabling Bluetooth connections\n");
         uni_bluetooth_enable_new_connections_safe(true);
         enabled = true;

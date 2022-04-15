@@ -656,14 +656,14 @@ static void parse_report_30_pro_controller(uni_hid_device_t* d, const struct swi
     gp->buttons |= (r->buttons_left & 0b01000000) ? BUTTON_SHOULDER_L : 0;  // L
     gp->buttons |= (r->buttons_left & 0b10000000) ? BUTTON_TRIGGER_L : 0;   // ZL
 
-    // Buttons "misc" and sticks
-    if (ins->controller_type == SWITCH_CONTROLLER_TYPE_PRO) {
-        // Misc
-        gp->misc_buttons |= (r->buttons_misc & 0b00000001) ? MISC_BUTTON_BACK : 0;    // -
-        gp->misc_buttons |= (r->buttons_misc & 0b00000010) ? MISC_BUTTON_HOME : 0;    // +
-        gp->misc_buttons |= (r->buttons_misc & 0b00010000) ? MISC_BUTTON_SYSTEM : 0;  // Home
-        gp->misc_buttons |= (r->buttons_misc & 0b00100000) ? 0 : 0;                   // Capture (unused)
+    // Misc
+    gp->misc_buttons |= (r->buttons_misc & 0b00000001) ? MISC_BUTTON_BACK : 0;    // -
+    gp->misc_buttons |= (r->buttons_misc & 0b00000010) ? MISC_BUTTON_HOME : 0;    // +
+    gp->misc_buttons |= (r->buttons_misc & 0b00010000) ? MISC_BUTTON_SYSTEM : 0;  // Home
+    gp->misc_buttons |= (r->buttons_misc & 0b00100000) ? 0 : 0;                   // Capture (unused)
 
+    // "misc" and sticks
+    if (ins->controller_type == SWITCH_CONTROLLER_TYPE_PRO) {
         // Thumbs
         gp->buttons |= (r->buttons_misc & 0b00000100) ? BUTTON_THUMB_R : 0;  // Thumb R
         gp->buttons |= (r->buttons_misc & 0b00001000) ? BUTTON_THUMB_L : 0;  // Thumb L

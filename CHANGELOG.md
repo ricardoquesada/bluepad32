@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gamepad: Add support for Nintendo SNES (Swicth Online)
 
 ### Changed
+- 8BitDo: "Dinput" mode mappings updated to match the other modes' mappings:
+  Button "-" / "select" maps to BUTTON_BACK
+  Button "+" / "start" maps to BUTTON_HOME
+  BUTTON_SYSTEM is not mapped any more.
 - Arduino: Example code supports multiple gamepad connections
   Internally ArduinoGamepad.h was refactored to better support "gamepad properties".
 - Wii: When in accelerometer mode (wheel):
