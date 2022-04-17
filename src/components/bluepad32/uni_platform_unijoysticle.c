@@ -471,8 +471,7 @@ static void unijoysticle_on_device_oob_event(uni_hid_device_t* d, uni_platform_o
     int num_devices = 0;
     for (int j = 0; j < CONFIG_BLUEPAD32_MAX_DEVICES; j++) {
         uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
-        if ((bd_addr_cmp(tmp_d->conn.remote_addr, zero_addr) != 0) &&
-            (get_unijoysticle_instance(tmp_d)->gamepad_seat > 0)) {
+        if ((bd_addr_cmp(tmp_d->conn.btaddr, zero_addr) != 0) && (get_unijoysticle_instance(tmp_d)->gamepad_seat > 0)) {
             num_devices++;
             if (num_devices > 1) {
                 logi(
@@ -584,7 +583,7 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
     unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
     ins->gamepad_seat = seat;
 
-    logi("unijoysticle: device %s has new gamepad seat: %d\n", bd_addr_to_str(d->conn.remote_addr), seat);
+    logi("unijoysticle: device %s has new gamepad seat: %d\n", bd_addr_to_str(d->conn.btaddr), seat);
 
     // Fetch all enabled ports
     uni_gamepad_seat_t all_seats = GAMEPAD_SEAT_NONE;
@@ -592,7 +591,7 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
         uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(i);
         if (tmp_d == NULL)
             continue;
-        if (bd_addr_cmp(tmp_d->conn.remote_addr, zero_addr) != 0) {
+        if (bd_addr_cmp(tmp_d->conn.btaddr, zero_addr) != 0) {
             all_seats |= get_unijoysticle_instance(tmp_d)->gamepad_seat;
         }
     }
@@ -818,7 +817,7 @@ static void handle_event_button() {
     uni_hid_device_t* d = NULL;
     for (int j = 0; j < CONFIG_BLUEPAD32_MAX_DEVICES; j++) {
         uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
-        if (bd_addr_cmp(tmp_d->conn.remote_addr, zero_addr) != 0 && tmp_d->conn.control_cid != 0 &&
+        if (bd_addr_cmp(tmp_d->conn.btaddr, zero_addr) != 0 && tmp_d->conn.control_cid != 0 &&
             tmp_d->conn.interrupt_cid != 0) {
             num_devices++;
             d = tmp_d;

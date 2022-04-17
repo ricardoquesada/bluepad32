@@ -183,7 +183,7 @@ static int arduino_on_device_ready(uni_hid_device_t* d) {
         if (_gamepads[i].idx == UNI_ARDUINO_GAMEPAD_INVALID) {
             _gamepads[i].idx = i;
 
-            memcpy(_gamepads[i].properties.btaddr, d->conn.remote_addr, sizeof(_gamepads[0].properties.btaddr));
+            memcpy(_gamepads[i].properties.btaddr, d->conn.btaddr, sizeof(_gamepads[0].properties.btaddr));
             _gamepads[i].properties.type = d->controller_type;
             _gamepads[i].properties.subtype = d->controller_type;
             _gamepads[i].properties.vendor_id = d->vendor_id;

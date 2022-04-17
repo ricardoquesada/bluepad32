@@ -35,7 +35,7 @@ void Bluepad32::update() {
     if (connectedGamepads == _prevConnectedGamepads)
         return;
 
-    logi("connected in total: %d\n", connectedGamepads);
+    logi("connected in total: 0x%02x (flag)\n", connectedGamepads);
 
     // Compare bit by bit, and find which one got connected and which one disconnected.
     for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {

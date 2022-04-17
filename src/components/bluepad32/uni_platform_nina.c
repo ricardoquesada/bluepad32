@@ -878,7 +878,7 @@ static int nina_on_device_ready(uni_hid_device_t* d) {
                                       (d->report_parser.set_rumble ? PROPERTY_FLAG_RUMBLE : 0) |
                                       (d->report_parser.set_lightbar_color ? PROPERTY_FLAG_PLAYER_LIGHTBAR : 0);
 
-    memcpy(_gamepads_properties[ins->gamepad_idx].btaddr, d->conn.remote_addr, sizeof(_gamepads_properties[0].btaddr));
+    memcpy(_gamepads_properties[ins->gamepad_idx].btaddr, d->conn.btaddr, sizeof(_gamepads_properties[0].btaddr));
 
     if (d->report_parser.set_player_leds != NULL) {
         d->report_parser.set_player_leds(d, (1 << ins->gamepad_idx));

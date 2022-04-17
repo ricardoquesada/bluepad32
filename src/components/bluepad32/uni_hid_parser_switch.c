@@ -387,7 +387,11 @@ static void process_fsm(struct uni_hid_device_s* d) {
     switch_instance_t* ins = get_switch_instance(d);
     logd("Switch: fsm next state = %d\n", ins->state + 1);
 
-    // Some clones don't respond to all queries. Set a timeout for each request
+    // Disable previous timer, except for the first state which has no timer
+    if (ins->state != STATE_SETUP)
+        btstack_run_loop_remove_timer(&ins->setup_timer);
+
+    // But re-schdule it for the next step
     if (ins->state != STATE_READY) {
         btstack_run_loop_set_timer_context(&ins->setup_timer, d);
         btstack_run_loop_set_timer_handler(&ins->setup_timer, &switch_setup_timeout_callback);
@@ -507,8 +511,8 @@ static void process_reply_read_spi_factory_calibration(struct uni_hid_device_s* 
 
 static void process_reply_read_spi_user_calibration(struct uni_hid_device_s* d, const uint8_t* data, int len) {
     UNUSED(d);
-    logi("process_reply_read_spi_user_calibration\n");
-    printf_hexdump(data, len);
+    logd("process_reply_read_spi_user_calibration\n");
+    // printf_hexdump(data, len);
 }
 
 // Reply to SUBCMD_REQ_DEV_INFO
@@ -602,9 +606,6 @@ static void process_input_subcmd_reply(struct uni_hid_device_s* d, const uint8_t
             loge("Switch: Error, unexpected subcmd_id=0x%02x in report 0x21\n", r->subcmd_id);
             break;
     }
-    switch_instance_t* ins = get_switch_instance(d);
-    btstack_run_loop_remove_timer(&ins->setup_timer);
-
     process_fsm(d);
 }
 
@@ -709,7 +710,7 @@ static void parse_report_30_joycon_left(uni_hid_device_t* d, const struct switch
     // Misc buttons
     // Since the JoyCon is in horizontal mode, map "-" / "Capture" as if they where "-" and "+"
     gp->misc_buttons |= (r->buttons_misc & 0b00000001) ? MISC_BUTTON_BACK : 0;  // -
-    gp->misc_buttons |= (r->buttons_misc & 0b00100000) ? MISC_BUTTON_HOME: 0;   // Capture
+    gp->misc_buttons |= (r->buttons_misc & 0b00100000) ? MISC_BUTTON_HOME : 0;  // Capture
 }
 
 static void parse_report_30_joycon_right(uni_hid_device_t* d, const struct switch_report_30_s* r) {
@@ -737,8 +738,8 @@ static void parse_report_30_joycon_right(uni_hid_device_t* d, const struct switc
 
     // Misc buttons
     // Since the JoyCon is in horizontal mode, map "Home" / "+" as if they where "-" and "+"
-    gp->misc_buttons |= (r->buttons_misc & 0b00010000) ? MISC_BUTTON_BACK: 0;  // Home
-    gp->misc_buttons |= (r->buttons_misc & 0b00000010) ? MISC_BUTTON_HOME: 0;  // +
+    gp->misc_buttons |= (r->buttons_misc & 0b00010000) ? MISC_BUTTON_BACK : 0;  // Home
+    gp->misc_buttons |= (r->buttons_misc & 0b00000010) ? MISC_BUTTON_HOME : 0;  // +
 }
 
 // Process 0x3f input report: SWITCH_INPUT_BUTTON_EVENT
@@ -890,9 +891,13 @@ static void fsm_update_led(struct uni_hid_device_s* d) {
 
 static void fsm_ready(struct uni_hid_device_s* d) {
     switch_instance_t* ins = get_switch_instance(d);
+
     ins->state = STATE_READY;
     logi("Switch: gamepad is ready!\n");
     uni_hid_device_set_ready_complete(d);
+
+    // So that it can end gracefully, disabling the timer
+    process_fsm(d);
 }
 
 static struct switch_rumble_freq_data find_rumble_freq(uint16_t freq) {

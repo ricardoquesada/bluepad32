@@ -1143,7 +1143,7 @@ static void setSeat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
     RuntimeControllerInfo* cinfo = getControllerInstance(d);
     cinfo->seat = seat;
 
-    mmlogi("unijoysticle: device %s has new gamepad seat: %d\n", bd_addr_to_str(d->conn.remote_addr), seat);
+    mmlogi("unijoysticle: device %s has new gamepad seat: %d\n", bd_addr_to_str(d->conn.btaddr), seat);
 
     if (d->report_parser.set_lightbar_color != NULL) {
         // First try with color LED (best experience)
@@ -1981,7 +1981,7 @@ static uni_hid_device_t* getControllerForSeat(const uni_gamepad_seat_t seat) {
 
     for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES && ret == NULL; i++) {
         uni_hid_device_t* dev = uni_hid_device_get_instance_for_idx(i);
-        if (dev && bd_addr_cmp(dev->conn.remote_addr, zero_addr) != 0) {
+        if (dev && bd_addr_cmp(dev->conn.btaddr, zero_addr) != 0) {
             RuntimeControllerInfo* cinfo = getControllerInstance(dev);
             if (cinfo && cinfo->seat == seat) {
                 ret = dev;
@@ -2361,7 +2361,7 @@ static bool seatInUse(uni_gamepad_seat_t seat) {
 
     for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES && !inUse; i++) {
         uni_hid_device_t* dev = uni_hid_device_get_instance_for_idx(i);
-        if (dev && bd_addr_cmp(dev->conn.remote_addr, zero_addr) != 0) {
+        if (dev && bd_addr_cmp(dev->conn.btaddr, zero_addr) != 0) {
             RuntimeControllerInfo* cinfo = getControllerInstance(dev);
             if (cinfo && cinfo->seat == seat) {
                 inUse = true;
@@ -2517,7 +2517,7 @@ static void mightymiggy_on_device_oob_event(uni_hid_device_t* d, uni_platform_oo
     //~ int num_devices = 0;
     //~ for (int j = 0; j < CONFIG_BLUEPAD32_MAX_DEVICES; j++) {
     //~ uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
-    //~ if ((bd_addr_cmp(tmp_d->conn.remote_addr, zero_addr) != 0) &&
+    //~ if ((bd_addr_cmp(tmp_d->conn.btaddr, zero_addr) != 0) &&
     //~ (get_mightymiggy_instance(tmp_d)->gamepad_seat > 0)) {
     //~ num_devices++;
     //~ if (num_devices > 1) {
