@@ -152,7 +152,7 @@ void loop() {
             // Another way to query the buttons, is by calling buttons(), or
             // miscButtons() which return a bitmask.
             // Some gamepads also have DPAD, axis and more.
-            char buffer[120];
+            char buffer[192];
             snprintf(buffer, sizeof(buffer) - 1,
                      "idx=%d, dpad: 0x%02x, buttons: 0x%04x, axis L: %4d, %4d, axis R: %4d, "
                      "%4d, brake: %4d, throttle: %4d, misc: 0x%02x",
@@ -167,6 +167,7 @@ void loop() {
                      myGamepad->throttle(),    // (0 - 1023): throttle (AKA gas) button
                      myGamepad->miscButtons()  // bitmak of pressed "misc" buttons
             );
+            buffer[sizeof(buffer) - 1] = 0;
             Serial.println(buffer);
 
             // You can query the axis and other properties as well. See Gamepad.h
