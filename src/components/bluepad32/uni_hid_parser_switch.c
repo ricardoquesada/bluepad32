@@ -150,20 +150,8 @@ struct switch_subcmd_request {
                          // 0xF range.
     uint8_t rumble_left[4];
     uint8_t rumble_right[4];
-    uint8_t subcmd_id;
+    uint8_t subcmd_id;  // Not used by rumble, request
     uint8_t data[0];  // length depends on the subcommand
-} __attribute__((packed));
-
-struct switch_rumble_only_request {
-    // Report related
-    uint8_t transaction_type;  // type of transaction
-    uint8_t report_id;         // must be 0x01 for subcommand, 0x10 for rumble only
-
-    // Data related
-    uint8_t packet_num;  // increment by 1 for each packet sent. It loops in 0x0 -
-                         // 0xF range.
-    uint8_t rumble_left[4];
-    uint8_t rumble_right[4];
 } __attribute__((packed));
 
 struct switch_report_3f_s {
@@ -511,6 +499,8 @@ static void process_reply_read_spi_factory_calibration(struct uni_hid_device_s* 
 
 static void process_reply_read_spi_user_calibration(struct uni_hid_device_s* d, const uint8_t* data, int len) {
     UNUSED(d);
+    UNUSED(data);
+    UNUSED(len);
     logd("process_reply_read_spi_user_calibration\n");
     // printf_hexdump(data, len);
 }
@@ -952,15 +942,14 @@ void uni_hid_parser_switch_set_player_leds(uni_hid_device_t* d, uint8_t leds) {
 }
 
 void uni_hid_parser_switch_set_rumble(struct uni_hid_device_s* d, uint8_t value, uint8_t duration) {
-    struct switch_rumble_only_request req = {
+    struct switch_subcmd_request req = {
         .report_id = OUTPUT_RUMBLE_ONLY,
     };
     switch_encode_rumble(req.rumble_left, value << 2, value, 500);
     switch_encode_rumble(req.rumble_right, value << 2, value, 500);
 
-    // TODO: It is safe to cast switch_rumble_only_request into a subcommand
-    // but could become dangerous if more data is added/removed.
-    send_subcmd(d, (struct switch_subcmd_request*)&req, sizeof(req));
+    // Rumble request don't include the last byte of "switch_subcmd_request": subcmd_id
+    send_subcmd(d, &req, sizeof(req)-1);
 
     // set timer to turn off rumble
     switch_instance_t* ins = get_switch_instance(d);
@@ -1058,16 +1047,15 @@ static void switch_rumble_off(btstack_timer_source_t* ts) {
     assert(ins->rumble_in_progress);
     ins->rumble_in_progress = 0;
 
-    struct switch_rumble_only_request req = {0};
+    struct switch_subcmd_request req = {0};
 
     req.report_id = OUTPUT_RUMBLE_ONLY;
     uint8_t rumble_default[4] = {0x00, 0x01, 0x40, 0x40};
     memcpy(req.rumble_left, rumble_default, sizeof(req.rumble_left));
     memcpy(req.rumble_right, rumble_default, sizeof(req.rumble_left));
 
-    // TODO: It is safe to cast switch_rumble_only_request into a subcommand
-    // but could become dangerous if more data is added/removed.
-    send_subcmd(d, (struct switch_subcmd_request*)&req, sizeof(req));
+    // Rumble request don't include the last byte of "switch_subcmd_request": subcmd_id
+    send_subcmd(d, (struct switch_subcmd_request*)&req, sizeof(req)-1);
 }
 
 void switch_setup_timeout_callback(btstack_timer_source_t* ts) {

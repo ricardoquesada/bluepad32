@@ -15,6 +15,9 @@ CFLAGS += -DENABLE_PRINTF_HEXDUMP
 
 CC ?= clang
 CFLAGS  += -g -std=c99 -Wall -Wmissing-prototypes -Wstrict-prototypes -Wshadow -Wunused-parameter -Wredundant-decls -Wsign-compare -Wswitch-default
+CFLAGS  += -Wextra
+CFLAGS  += -fstack-protector-all -Wstack-protector --param ssp-buffer-size=4
+CFLAGS  += -O2 -D_FORTIFY_SOURCE=2
 # CFLAGS += -Werror
 # CFLAGS += -pedantic
 
