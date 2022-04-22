@@ -150,20 +150,8 @@ struct switch_subcmd_request {
                          // 0xF range.
     uint8_t rumble_left[4];
     uint8_t rumble_right[4];
-    uint8_t subcmd_id;
+    uint8_t subcmd_id;  // Not used by rumble, request
     uint8_t data[0];  // length depends on the subcommand
-} __attribute__((packed));
-
-struct switch_rumble_only_request {
-    // Report related
-    uint8_t transaction_type;  // type of transaction
-    uint8_t report_id;         // must be 0x01 for subcommand, 0x10 for rumble only
-
-    // Data related
-    uint8_t packet_num;  // increment by 1 for each packet sent. It loops in 0x0 -
-                         // 0xF range.
-    uint8_t rumble_left[4];
-    uint8_t rumble_right[4];
 } __attribute__((packed));
 
 struct switch_report_3f_s {
@@ -387,7 +375,11 @@ static void process_fsm(struct uni_hid_device_s* d) {
     switch_instance_t* ins = get_switch_instance(d);
     logd("Switch: fsm next state = %d\n", ins->state + 1);
 
-    // Some clones don't respond to all queries. Set a timeout for each request
+    // Disable previous timer, except for the first state which has no timer
+    if (ins->state != STATE_SETUP)
+        btstack_run_loop_remove_timer(&ins->setup_timer);
+
+    // But re-schdule it for the next step
     if (ins->state != STATE_READY) {
         btstack_run_loop_set_timer_context(&ins->setup_timer, d);
         btstack_run_loop_set_timer_handler(&ins->setup_timer, &switch_setup_timeout_callback);
@@ -507,8 +499,10 @@ static void process_reply_read_spi_factory_calibration(struct uni_hid_device_s* 
 
 static void process_reply_read_spi_user_calibration(struct uni_hid_device_s* d, const uint8_t* data, int len) {
     UNUSED(d);
-    logi("process_reply_read_spi_user_calibration\n");
-    printf_hexdump(data, len);
+    UNUSED(data);
+    UNUSED(len);
+    logd("process_reply_read_spi_user_calibration\n");
+    // printf_hexdump(data, len);
 }
 
 // Reply to SUBCMD_REQ_DEV_INFO
@@ -602,9 +596,6 @@ static void process_input_subcmd_reply(struct uni_hid_device_s* d, const uint8_t
             loge("Switch: Error, unexpected subcmd_id=0x%02x in report 0x21\n", r->subcmd_id);
             break;
     }
-    switch_instance_t* ins = get_switch_instance(d);
-    btstack_run_loop_remove_timer(&ins->setup_timer);
-
     process_fsm(d);
 }
 
@@ -709,7 +700,7 @@ static void parse_report_30_joycon_left(uni_hid_device_t* d, const struct switch
     // Misc buttons
     // Since the JoyCon is in horizontal mode, map "-" / "Capture" as if they where "-" and "+"
     gp->misc_buttons |= (r->buttons_misc & 0b00000001) ? MISC_BUTTON_BACK : 0;  // -
-    gp->misc_buttons |= (r->buttons_misc & 0b00100000) ? MISC_BUTTON_HOME: 0;   // Capture
+    gp->misc_buttons |= (r->buttons_misc & 0b00100000) ? MISC_BUTTON_HOME : 0;  // Capture
 }
 
 static void parse_report_30_joycon_right(uni_hid_device_t* d, const struct switch_report_30_s* r) {
@@ -737,8 +728,8 @@ static void parse_report_30_joycon_right(uni_hid_device_t* d, const struct switc
 
     // Misc buttons
     // Since the JoyCon is in horizontal mode, map "Home" / "+" as if they where "-" and "+"
-    gp->misc_buttons |= (r->buttons_misc & 0b00010000) ? MISC_BUTTON_BACK: 0;  // Home
-    gp->misc_buttons |= (r->buttons_misc & 0b00000010) ? MISC_BUTTON_HOME: 0;  // +
+    gp->misc_buttons |= (r->buttons_misc & 0b00010000) ? MISC_BUTTON_BACK : 0;  // Home
+    gp->misc_buttons |= (r->buttons_misc & 0b00000010) ? MISC_BUTTON_HOME : 0;  // +
 }
 
 // Process 0x3f input report: SWITCH_INPUT_BUTTON_EVENT
@@ -890,9 +881,13 @@ static void fsm_update_led(struct uni_hid_device_s* d) {
 
 static void fsm_ready(struct uni_hid_device_s* d) {
     switch_instance_t* ins = get_switch_instance(d);
+
     ins->state = STATE_READY;
     logi("Switch: gamepad is ready!\n");
     uni_hid_device_set_ready_complete(d);
+
+    // So that it can end gracefully, disabling the timer
+    process_fsm(d);
 }
 
 static struct switch_rumble_freq_data find_rumble_freq(uint16_t freq) {
@@ -947,15 +942,14 @@ void uni_hid_parser_switch_set_player_leds(uni_hid_device_t* d, uint8_t leds) {
 }
 
 void uni_hid_parser_switch_set_rumble(struct uni_hid_device_s* d, uint8_t value, uint8_t duration) {
-    struct switch_rumble_only_request req = {
+    struct switch_subcmd_request req = {
         .report_id = OUTPUT_RUMBLE_ONLY,
     };
     switch_encode_rumble(req.rumble_left, value << 2, value, 500);
     switch_encode_rumble(req.rumble_right, value << 2, value, 500);
 
-    // TODO: It is safe to cast switch_rumble_only_request into a subcommand
-    // but could become dangerous if more data is added/removed.
-    send_subcmd(d, (struct switch_subcmd_request*)&req, sizeof(req));
+    // Rumble request don't include the last byte of "switch_subcmd_request": subcmd_id
+    send_subcmd(d, &req, sizeof(req)-1);
 
     // set timer to turn off rumble
     switch_instance_t* ins = get_switch_instance(d);
@@ -1053,16 +1047,15 @@ static void switch_rumble_off(btstack_timer_source_t* ts) {
     assert(ins->rumble_in_progress);
     ins->rumble_in_progress = 0;
 
-    struct switch_rumble_only_request req = {0};
+    struct switch_subcmd_request req = {0};
 
     req.report_id = OUTPUT_RUMBLE_ONLY;
     uint8_t rumble_default[4] = {0x00, 0x01, 0x40, 0x40};
     memcpy(req.rumble_left, rumble_default, sizeof(req.rumble_left));
     memcpy(req.rumble_right, rumble_default, sizeof(req.rumble_left));
 
-    // TODO: It is safe to cast switch_rumble_only_request into a subcommand
-    // but could become dangerous if more data is added/removed.
-    send_subcmd(d, (struct switch_subcmd_request*)&req, sizeof(req));
+    // Rumble request don't include the last byte of "switch_subcmd_request": subcmd_id
+    send_subcmd(d, (struct switch_subcmd_request*)&req, sizeof(req)-1);
 }
 
 void switch_setup_timeout_callback(btstack_timer_source_t* ts) {

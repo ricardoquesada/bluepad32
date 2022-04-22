@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.1] - 2022-04-22
+### Fixed
+ - NINA/AirLift: Binaries are generated with UART console disabled. [Bug bp32-arduino #3][gitlab_bp32_arduino_03]
+   UART console can be enabled/disabled from menuconfig and only when NINA/AirLift are not selected.
+ - Cleanup connect/disconnect code
+ - pc_debug: Enable extra compiler-warnings to check possible bugs
+
+[gitlab_bp32_arduino_03]: https://gitlab.com/ricardoquesada/bluepad32-arduino/-/issues/3
+
 ## [3.1.0] - 2022-04-14
 ### New
 - Wii: Add support for Rumble

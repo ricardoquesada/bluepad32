@@ -30,14 +30,13 @@ limitations under the License.
 int app_main(void) {
     // hci_dump_open(NULL, HCI_DUMP_STDOUT);
 
-#ifdef CONFIG_BLUEPAD32_UART_OUTPUT_DISABLE
+#ifdef CONFIG_BLUEPAD32_UART_OUTPUT_ENABLE
+    uni_esp32_enable_uart_output(1);
+#else
     // Adafruit Airlift modules have the UART RX/TX (GPIO 1 / 3) wired with the
     // controller so they can't be used for logging. In fact they can generate
-    // noise and can break the communication with the controller. That's why it is
-    // disabled by default.
+    // noise and can break the communication with the controller.
     uni_esp32_enable_uart_output(0);
-#else
-    uni_esp32_enable_uart_output(1);
 #endif
 
     // Configure BTstack for ESP32 VHCI Controller

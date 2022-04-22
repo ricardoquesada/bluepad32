@@ -196,11 +196,11 @@ static void sdp_query_timeout(btstack_timer_source_t* ts) {
     }
     if (d != sdp_device) {
         loge("sdp_query_timeout: unexpected device values, they should be equal, got: %s != %s",
-             bd_addr_to_str(d->conn.remote_addr), bd_addr_to_str(sdp_device->conn.remote_addr));
+             bd_addr_to_str(d->conn.btaddr), bd_addr_to_str(sdp_device->conn.btaddr));
         return;
     }
 
-    logi("Failed to query SDP for %s, timeout\n", bd_addr_to_str(d->conn.remote_addr));
+    logi("Failed to query SDP for %s, timeout\n", bd_addr_to_str(d->conn.btaddr));
     sdp_device = NULL;
 }
 
@@ -210,9 +210,10 @@ void uni_bt_sdp_query_start(uni_hid_device_t* d) {
     loge("-----------> sdp_query_start()\n");
     // Needed for the SDP query since it only supports one SDP query at the time.
     if (sdp_device != NULL) {
-        logi("Another SDP query is in progress (%s), disconnecting...\n", bd_addr_to_str(sdp_device->conn.remote_addr));
+        logi("Another SDP query is in progress (%s), disconnecting...\n", bd_addr_to_str(sdp_device->conn.btaddr));
         uni_hid_device_disconnect(d);
         uni_hid_device_delete(d);
+        /* 'd'' is destroyed after this call, don't use it */
         return;
     }
 
@@ -234,41 +235,43 @@ void uni_bt_sdp_query_end(uni_hid_device_t* d) {
 }
 
 void uni_bt_sdp_query_start_vid_pid(uni_hid_device_t* d) {
-    logi("Starting SDP VID/PID query for %s\n", bd_addr_to_str(d->conn.remote_addr));
+    logi("Starting SDP VID/PID query for %s\n", bd_addr_to_str(d->conn.btaddr));
 
     uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_SDP_VENDOR_REQUESTED);
-    uint8_t status = sdp_client_query_uuid16(&handle_sdp_pid_query_result, d->conn.remote_addr,
-                                             BLUETOOTH_SERVICE_CLASS_PNP_INFORMATION);
+    uint8_t status =
+        sdp_client_query_uuid16(&handle_sdp_pid_query_result, d->conn.btaddr, BLUETOOTH_SERVICE_CLASS_PNP_INFORMATION);
     if (status != 0) {
         loge("Failed to perform SDP VID/PID query\n");
         uni_hid_device_disconnect(d);
         uni_hid_device_delete(d);
+        /* 'd' is destroyed after this call, don't use it */
         return;
     }
 }
 
 void uni_bt_sdp_query_start_hid_descriptor(uni_hid_device_t* d) {
     if (!uni_hid_device_does_require_hid_descriptor(d)) {
-        logi("Device %s does not need a HID descriptor, skipping query.\n", bd_addr_to_str(d->conn.remote_addr));
+        logi("Device %s does not need a HID descriptor, skipping query.\n", bd_addr_to_str(d->conn.btaddr));
         uni_bt_sdp_query_end(d);
         return;
     }
 
-    logi("Starting SDP HID-descriptor query for %s\n", bd_addr_to_str(d->conn.remote_addr));
+    logi("Starting SDP HID-descriptor query for %s\n", bd_addr_to_str(d->conn.btaddr));
 
     // Needed for the SDP query since it only supports one SDP query at the time.
     if (sdp_device == NULL) {
-        logi("...but sdp_vendor was not set, aborting query for %s\n", bd_addr_to_str(d->conn.remote_addr));
+        logi("...but sdp_vendor was not set, aborting query for %s\n", bd_addr_to_str(d->conn.btaddr));
         return;
     }
 
     uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_REQUESTED);
-    uint8_t status = sdp_client_query_uuid16(&handle_sdp_hid_query_result, d->conn.remote_addr,
+    uint8_t status = sdp_client_query_uuid16(&handle_sdp_hid_query_result, d->conn.btaddr,
                                              BLUETOOTH_SERVICE_CLASS_HUMAN_INTERFACE_DEVICE_SERVICE);
     if (status != 0) {
-        loge("Failed to perform SDP query for %s. Removing it...\n", bd_addr_to_str(d->conn.remote_addr));
+        loge("Failed to perform SDP query for %s. Removing it...\n", bd_addr_to_str(d->conn.btaddr));
         btstack_run_loop_remove_timer(&sdp_query_timer);
         uni_hid_device_disconnect(d);
         uni_hid_device_delete(d);
+        /* 'd'' is destroyed after this call, don't use it */
     }
 }
