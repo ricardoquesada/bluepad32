@@ -23,7 +23,7 @@ limitations under the License.
 // Instead of implementing all of these pre-defined requests, we add our own
 // gamepad-related requests.
 
-// Logic based on Adafruit Nina-fw code: https://github.com/adafruit/nina-fw
+// Logic based on Adafruit NINA-fw code: https://github.com/adafruit/nina-fw
 //
 // This firmware should work on all Arduino boards with an NINA-W10x
 // - Arduino Nano RP2040 Connect
@@ -192,7 +192,7 @@ typedef struct {
 //
 
 //
-// SPI / Nina-fw related
+// SPI / NINA-fw related
 //
 
 static int spi_transfer(uint8_t out[], uint8_t in[], size_t len) {
@@ -620,7 +620,7 @@ const command_handler_t command_handlers[] = {
 #define COMMAND_HANDLERS_MAX (sizeof(command_handlers) / sizeof(command_handlers[0]))
 
 static int process_request(const uint8_t command[], int command_len, uint8_t response[] /* out */) {
-    // Nina-fw commands. Taken from:
+    // NINA-fw commands. Taken from:
     // https://github.com/arduino-libraries/WiFiNINA/blob/master/src/utility/wifi_spi.h
     // https://github.com/adafruit/Adafruit_CircuitPython_ESP32SPI/blob/master/adafruit_esp32spi/adafruit_esp32spi.py
     enum {
@@ -715,7 +715,7 @@ static void spi_main_loop(void* arg) {
     // gpio_set_pull_mode(GPIO_SCLK, GPIO_PULLUP_ONLY);
     // gpio_set_pull_mode(GPIO_CS, GPIO_PULLUP_ONLY);
 
-    // Honor Nina-fw way of setting up these GPIOs.
+    // Honor NINA-fw way of setting up these GPIOs.
     gpio_set_pull_mode(GPIO_MOSI, GPIO_FLOATING);
     gpio_set_pull_mode(GPIO_SCLK, GPIO_PULLDOWN_ONLY);
     gpio_set_pull_mode(GPIO_CS, GPIO_PULLUP_ONLY);

@@ -26,7 +26,7 @@ menu "Bluepad32"
 
 
         config BLUEPAD32_PLATFORM_NINA
-            bool "Nina"
+            bool "NINA"
             depends on SPI_FLASH_USE_LEGACY_IMPL
             help
                 Targets Arduino devices that have the NINA co-processor,
@@ -65,4 +65,14 @@ menu "Bluepad32"
             But when enabled, DualShock 3 gamepad fails to connect.
 
             Only disable it if you want to use DualShock 3 gamepads.
+
+
+    config BLUEPAD32_UART_OUTPUT_ENABLE
+        bool "Enable UART output"
+        default  y
+        depends on !BLUEPAD32_PLATFORM_AIRLIFT && !BLUEPAD32_PLATFORM_NINA
+        help
+            Enables UART output (console output).
+            Highly recommended for debugging purposes.
+            But must be disabled on AirLift / NINA platforms.
 endmenu
