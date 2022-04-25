@@ -338,7 +338,7 @@ static void unijoysticle_init(int argc, const char** argv) {
         io_conf.mode = GPIO_MODE_INPUT;
         io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
         // GPIOs 34~39 don't have internal Pull-up resistors.
-        io_conf.pull_up_en = (g_push_buttons[i].gpio < GPIO_NUM_34) ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE);
+        io_conf.pull_up_en = (g_push_buttons[i].gpio < GPIO_NUM_34) ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
         io_conf.pin_bit_mask = BIT(g_push_buttons[i].gpio);
         ESP_ERROR_CHECK(gpio_config(&io_conf));
         // FIXME: "i" must match EVENT_MOUSE_0, value, etc.
