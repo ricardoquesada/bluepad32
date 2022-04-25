@@ -211,7 +211,7 @@ const struct uni_gpio_config uni_gpio_config_v2plus = {
     .push_button_1_cb = NULL,
 };
 
-// Unijoysticle v2+ A500
+// Unijoysticle v2 A500
 const struct uni_gpio_config uni_gpio_config_a500 = {
     .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, GPIO_NUM_33, GPIO_NUM_16},
     .port_b = {GPIO_NUM_27, GPIO_NUM_25, GPIO_NUM_32, GPIO_NUM_17, GPIO_NUM_13, GPIO_NUM_21, GPIO_NUM_22},
@@ -280,7 +280,7 @@ static void unijoysticle_init(int argc, const char** argv) {
             g_uni_config = &uni_gpio_config_v2plus;
             break;
         case BOARD_MODEL_UNIJOYSTICLE2_A500:
-            logi("Hardware detected: Unijoysticle 2+ A500\n");
+            logi("Hardware detected: Unijoysticle 2 A500\n");
             g_uni_config = &uni_gpio_config_a500;
             break;
         case BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT:
@@ -337,7 +337,8 @@ static void unijoysticle_init(int argc, const char** argv) {
         io_conf.intr_type = GPIO_INTR_ANYEDGE;
         io_conf.mode = GPIO_MODE_INPUT;
         io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-        io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
+        // GPIOs 34~39 don't have internal Pull-up resistors.
+        io_conf.pull_up_en = (g_push_buttons[i].gpio < GPIO_NUM_34) ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE);
         io_conf.pin_bit_mask = BIT(g_push_buttons[i].gpio);
         ESP_ERROR_CHECK(gpio_config(&io_conf));
         // FIXME: "i" must match EVENT_MOUSE_0, value, etc.
@@ -585,7 +586,7 @@ static board_model_t get_board_model() {
     //              GPIO 4   GPIO 5    GPIO 15
     // Uni 2:       Hi       Hi        Hi
     // Uni 2+:      Low      Hi        Hi
-    // Uni 2+ A500: Hi       Hi        Lo
+    // Uni 2 A500:  Hi       Hi        Lo
     // Reserved:    Low      Hi        Lo
     // Single port: Hi       Low       Hi
 
@@ -605,7 +606,7 @@ static board_model_t get_board_model() {
     logi("Unijoysticle: Board ID values: %d,%d,%d\n", gpio_4, gpio_5, gpio_15);
     if (gpio_5 == 0)
         _model = BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT;
-    if (gpio_4 == 1 && gpio_15 == 1)
+    else if (gpio_4 == 1 && gpio_15 == 1)
         _model = BOARD_MODEL_UNIJOYSTICLE2;
     else if (gpio_4 == 0 && gpio_15 == 1)
         _model = BOARD_MODEL_UNIJOYSTICLE2_PLUS;
@@ -616,8 +617,7 @@ static board_model_t get_board_model() {
         _model = BOARD_MODEL_UNIJOYSTICLE2;
     }
 
-    // After detection, remove the pullup. The GPIOs might be used for something else
-    // after booting.
+    // After detection, remove the pullup. The GPIOs might be used for something else after booting.
     gpio_set_pull_mode(GPIO_NUM_4, GPIO_FLOATING);
     gpio_set_pull_mode(GPIO_NUM_5, GPIO_FLOATING);
     gpio_set_pull_mode(GPIO_NUM_15, GPIO_FLOATING);
