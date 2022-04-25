@@ -333,7 +333,6 @@ static void unijoysticle_init(int argc, const char** argv) {
         if (g_push_buttons[i].gpio == -1)
             continue;
 
-        logi(" %d -> gpio: %d\n", i, g_push_buttons[i].gpio);
         io_conf.intr_type = GPIO_INTR_ANYEDGE;
         io_conf.mode = GPIO_MODE_INPUT;
         io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
