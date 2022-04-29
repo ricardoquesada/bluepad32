@@ -36,6 +36,7 @@ limitations under the License.
 #include "uni_gamepad.h"
 #include "uni_hid_device.h"
 #include "uni_joystick.h"
+#include "uni_mouse_quadrature.h"
 
 // --- Defines / Enums
 
@@ -902,6 +903,7 @@ static void handle_event_button(int button_idx) {
 
     // "down", button pressed.
     logi("handle_event_button(%d): %d -> %d\n", button_idx, pb->enabled, !pb->enabled);
+
     pb->enabled = !pb->enabled;
 
     pb->callback(button_idx);
