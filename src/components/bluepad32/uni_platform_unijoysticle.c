@@ -58,12 +58,11 @@ limitations under the License.
 #define PUSH_BUTTONS_MAX 2
 
 enum {
-    // Event group: push buttons and mouse
+    // Push buttons
     // FIXME: EVENT_BUTTON_0 must be 0, EVENT_BUTTON_1 must be 1, etc...
     // This is because how our ISR expects the arg value.
     EVENT_BUTTON_0 = 0,
     EVENT_BUTTON_1 = 1,
-    EVENT_MOUSE = 2,
 
     // Autofire group
     EVENT_AUTOFIRE = 0,
@@ -152,16 +151,10 @@ static void process_joystick(const uni_joystick_t* joy, uni_gamepad_seat_t seat)
 static void process_mouse(uni_hid_device_t* d, int32_t delta_x, int32_t delta_y, uint16_t buttons);
 
 // Interrupt handlers
-static void handle_event_mouse();
 static void handle_event_button(int button_idx);
 
 // Mouse related
 static void joy_update_port(const uni_joystick_t* joy, const gpio_num_t* gpios);
-static void mouse_send_move(int pin_a, int pin_b, uint32_t delay);
-static void mouse_move_x(int dir, uint32_t delay);
-static void mouse_move_y(int dir, uint32_t delay);
-
-static void delay_us(uint32_t delay);
 
 // GPIO Interrupt handlers
 static void IRAM_ATTR gpio_isr_handler_button(void* arg);
@@ -181,8 +174,6 @@ static void swap_ports(int button_idx);
 // 20 milliseconds ~= 1 frame in PAL
 // 17 milliseconds ~= 1 frame in NTSC
 static const int AUTOFIRE_FREQ_MS = 20 * 4;  // change every ~4 frames
-
-static const int MOUSE_DELAY_BETWEEN_EVENT_US = 1200;  // microseconds
 
 // Unijoysticle v2: Through-hole version
 const struct uni_gpio_config uni_gpio_config_v2 = {
@@ -251,10 +242,6 @@ const struct uni_gpio_config* g_uni_config = NULL;
 static struct push_button g_push_buttons[PUSH_BUTTONS_MAX];
 static EventGroupHandle_t g_event_group;
 static EventGroupHandle_t g_auto_fire_group;
-
-// Mouse "shared data from main task to mouse task.
-static int32_t g_delta_x = 0;
-static int32_t g_delta_y = 0;
 
 // Autofire
 static bool g_autofire_a_enabled = 0;
@@ -341,7 +328,7 @@ static void unijoysticle_init(int argc, const char** argv) {
         io_conf.pull_up_en = (g_push_buttons[i].gpio < GPIO_NUM_34) ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
         io_conf.pin_bit_mask = BIT(g_push_buttons[i].gpio);
         ESP_ERROR_CHECK(gpio_config(&io_conf));
-        // FIXME: "i" must match EVENT_MOUSE_0, value, etc.
+        // FIXME: "i" must match EVENT_BUTTON_0, value, etc.
         ESP_ERROR_CHECK(gpio_isr_handler_add(g_push_buttons[i].gpio, gpio_isr_handler_button, (void*)i));
     }
 
@@ -353,6 +340,10 @@ static void unijoysticle_init(int argc, const char** argv) {
     xTaskCreate(auto_fire_loop, "auto_fire_loop", 2048, NULL, 10, NULL);
     // xTaskCreatePinnedToCore(event_loop, "event_loop", 2048,
     // NULL, portPRIVILEGE_BIT, NULL, 1);
+
+    // FIXME:
+    uni_mouse_quadrature_init(g_uni_config->port_a_named.up, g_uni_config->port_a_named.down,
+                              g_uni_config->port_a_named.left, g_uni_config->port_a_named.right);
 }
 
 static void unijoysticle_on_init_complete(void) {
@@ -634,15 +625,7 @@ static void process_mouse(uni_hid_device_t* d, int32_t delta_x, int32_t delta_y,
     static uint16_t prev_buttons = 0;
     logd("unijoysticle: mouse: x=%d, y=%d, buttons=0x%4x\n", delta_x, delta_y, buttons);
 
-    // Mouse is implemented using a quadrature encoding
-    // FIXME: Passing values to mouse task using global variables.
-    // This is, of course, error-prone to races and what not, but
-    // seeems to be good enough for our purpose.
-    if (delta_x || delta_y) {
-        g_delta_x = delta_x;
-        g_delta_y = delta_y;
-        xEventGroupSetBits(g_event_group, BIT(EVENT_MOUSE));
-    }
+    uni_mouse_quadrature_update(delta_x, delta_y);
     if (buttons != prev_buttons) {
         prev_buttons = buttons;
         safe_gpio_set_level(g_uni_config->port_a_named.fire, (buttons & BUTTON_A));
@@ -736,15 +719,12 @@ static void event_loop(void* arg) {
     // timeout of 10s
     const TickType_t xTicksToWait = 10000 / portTICK_PERIOD_MS;
     while (1) {
-        EventBits_t uxBits = xEventGroupWaitBits(
-            g_event_group, BIT(EVENT_BUTTON_0) | BIT(EVENT_BUTTON_1) | BIT(EVENT_MOUSE), pdTRUE, pdFALSE, xTicksToWait);
+        EventBits_t uxBits = xEventGroupWaitBits(g_event_group, BIT(EVENT_BUTTON_0) | BIT(EVENT_BUTTON_1), pdTRUE,
+                                                 pdFALSE, xTicksToWait);
 
         // timeout ?
         if (uxBits == 0)
             continue;
-
-        if (uxBits & BIT(EVENT_MOUSE))
-            handle_event_mouse();
 
         if (uxBits & BIT(EVENT_BUTTON_0))
             handle_event_button(EVENT_BUTTON_0);
@@ -781,88 +761,6 @@ static void auto_fire_loop(void* arg) {
             vTaskDelay(delayTicks);
         }
     }
-}
-
-// Mouse handler
-void handle_event_mouse() {
-    // Copy global variables to local, in case they changed.
-    int delta_x = g_delta_x;
-    int delta_y = g_delta_y;
-
-    // Should not happen, but better safe than sorry
-    if (delta_x == 0 && delta_y == 0)
-        return;
-
-    int dir_x = 0;
-    int dir_y = 0;
-    float a = atan2f(delta_y, delta_x) + M_PI;
-    float d = a * (180.0 / M_PI);
-    logd("x=%d, y=%d, r=%f, d=%f\n", delta_x, delta_y, a, d);
-
-    if (d < 60 || d >= 300) {
-        // Moving left? (a<60, a>=300)
-        dir_x = -1;
-    } else if (d > 120 && d <= 240) {
-        // Moving right? (120 < a <= 240)
-        dir_x = 1;
-    }
-
-    if (d > 30 && d <= 150) {
-        // Moving down? (30 < a <= 150)
-        dir_y = -1;
-    } else if (d > 210 && d <= 330) {
-        // Moving up?
-        dir_y = 1;
-    }
-
-    int delay = MOUSE_DELAY_BETWEEN_EVENT_US - (abs(delta_x) + abs(delta_y)) * 3;
-
-    if (dir_y != 0) {
-        mouse_move_y(dir_y, delay);
-    }
-    if (dir_x != 0) {
-        mouse_move_x(dir_x, delay);
-    }
-}
-
-static void mouse_send_move(int pin_a, int pin_b, uint32_t delay) {
-    safe_gpio_set_level(pin_a, 1);
-    delay_us(delay);
-    safe_gpio_set_level(pin_b, 1);
-    delay_us(delay);
-
-    safe_gpio_set_level(pin_a, 0);
-    delay_us(delay);
-    safe_gpio_set_level(pin_b, 0);
-    delay_us(delay);
-
-    vTaskDelay(0);
-}
-
-static void mouse_move_x(int dir, uint32_t delay) {
-    // up, down, left, right, fire
-    if (dir < 0)
-        mouse_send_move(g_uni_config->port_a[0], g_uni_config->port_a[1], delay);
-    else
-        mouse_send_move(g_uni_config->port_a[1], g_uni_config->port_a[0], delay);
-}
-
-static void mouse_move_y(int dir, uint32_t delay) {
-    // up, down, left, right, fire
-    if (dir < 0)
-        mouse_send_move(g_uni_config->port_a[2], g_uni_config->port_a[3], delay);
-    else
-        mouse_send_move(g_uni_config->port_a[3], g_uni_config->port_a[2], delay);
-}
-
-// Delay in microseconds. Anything bigger than 1000 microseconds
-// (1 millisecond) should be scheduled using vTaskDelay(), which
-// will allow context-switch and allow other tasks to run.
-static void delay_us(uint32_t delay) {
-    if (delay > 1000)
-        vTaskDelay(delay / 1000);
-    else
-        ets_delay_us(delay);
 }
 
 static void IRAM_ATTR gpio_isr_handler_button(void* arg) {

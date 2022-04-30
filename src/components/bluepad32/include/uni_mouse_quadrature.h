@@ -22,7 +22,7 @@ limitations under the License.
 #include <stdint.h>
 
 void uni_mouse_quadrature_init(int x1, int x2, int y1, int y2);
-void unit_mouse_quadrature_update(int8_t dx, int8_t dy);
+void uni_mouse_quadrature_update(int8_t dx, int8_t dy);
 void uni_mouse_quadrature_stop();
 
 #endif // UNI_MOUSE_QUADRATURE_H
