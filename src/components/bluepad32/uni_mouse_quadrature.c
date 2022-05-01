@@ -108,6 +108,7 @@ static void process_quadrature(struct quadrature_state* q) {
     }
     gpio_set_level(q->gpio_a, a);
     gpio_set_level(q->gpio_b, b);
+    logd("value: %d, quadrature phase: %d, a=%d, b=%d (%d,%d)\n", q->value, q->phase, a, b, q->gpio_a, q->gpio_b);
 }
 
 static void timer_x_task(void* arg) {
@@ -144,10 +145,10 @@ void uni_mouse_quadrature_init(int x1, int x2, int y1, int y2) {
 
     s_quadrature_x.gpio_a = x1;
     s_quadrature_x.gpio_b = x2;
+    s_quadrature_x.timer_idx = TIMER_0;
+
     s_quadrature_y.gpio_a = y1;
     s_quadrature_y.gpio_b = y2;
-
-    s_quadrature_x.timer_idx = TIMER_0;
     s_quadrature_y.timer_idx = TIMER_1;
 
     // Create tasks
@@ -164,16 +165,17 @@ void uni_mouse_quadrature_init(int x1, int x2, int y1, int y2) {
         .alarm_en = TIMER_ALARM_EN,
         .auto_reload = TIMER_AUTORELOAD_EN,
     };
+
+    // X
     ESP_ERROR_CHECK(timer_init(TIMER_GROUP_0, s_quadrature_x.timer_idx, &config));
-    ESP_ERROR_CHECK(timer_init(TIMER_GROUP_0, s_quadrature_y.timer_idx, &config));
-
-    timer_set_counter_value(TIMER_GROUP_0, s_quadrature_x.timer_idx, 50000);
+    timer_set_counter_value(TIMER_GROUP_0, s_quadrature_x.timer_idx, 50000 * 100);
     timer_isr_callback_add(TIMER_GROUP_0, s_quadrature_x.timer_idx, timer_x_handler, NULL, 0);
-
-    timer_set_counter_value(TIMER_GROUP_0, s_quadrature_y.timer_idx, 50000);
-    timer_isr_callback_add(TIMER_GROUP_0, s_quadrature_y.timer_idx, timer_y_handler, NULL, 0);
-
     timer_start(TIMER_GROUP_0, s_quadrature_x.timer_idx);
+
+    // Y
+    ESP_ERROR_CHECK(timer_init(TIMER_GROUP_0, s_quadrature_y.timer_idx, &config));
+    timer_set_counter_value(TIMER_GROUP_0, s_quadrature_y.timer_idx, 50000 * 100);
+    timer_isr_callback_add(TIMER_GROUP_0, s_quadrature_y.timer_idx, timer_y_handler, NULL, 0);
     timer_start(TIMER_GROUP_0, s_quadrature_y.timer_idx);
 }
 
@@ -191,7 +193,7 @@ static void process_update(struct quadrature_state* q, int8_t delta) {
     uint64_t units;
     if (delta != 0) {
         /* Don't update the phase, it should start from the previous phase */
-        q->value = delta;
+        q->value = abs(delta);
         q->dir = (delta < 0) ? DIRECTION_NEG : DIRECTION_POS;
 
         // Max mouse delta value: 127. Which should be the one that triggers faster,

@@ -343,11 +343,11 @@ static void unijoysticle_init(int argc, const char** argv) {
 
     // FIXME:
     uni_mouse_quadrature_init(
-        // Hardcoding values for AtariST
-        g_uni_config->port_a[0],  // Up
-        g_uni_config->port_a[1],  // Down
-        g_uni_config->port_a[2],  // Left
-        g_uni_config->port_a[3]   // Right
+        // Hardcoding values for Amiga
+        g_uni_config->port_a[1],  // H-pulse (up)
+        g_uni_config->port_a[3],  // HQ-pulse (left)
+        g_uni_config->port_a[0],  // V-pulse (down)
+        g_uni_config->port_a[2]   // VQ-pulse (right)
     );
 }
 
@@ -468,6 +468,9 @@ static void unijoysticle_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp)
     memset(&joy, 0, sizeof(joy));
     memset(&joy_ext, 0, sizeof(joy_ext));
 
+    // FIXME:
+    // ins->emu_mode = EMULATION_MODE_COMBO_JOY_MOUSE;
+
     switch (ins->emu_mode) {
         case EMULATION_MODE_SINGLE_JOY:
             uni_joy_to_single_joy_from_gamepad(gp, &joy);
@@ -485,7 +488,7 @@ static void unijoysticle_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp)
         case EMULATION_MODE_COMBO_JOY_MOUSE:
             uni_joy_to_combo_joy_mouse_from_gamepad(gp, &joy, &joy_ext);
             process_joystick(&joy, GAMEPAD_SEAT_B);
-            process_joystick(&joy_ext, GAMEPAD_SEAT_A);
+            process_mouse(d, -gp->axis_rx / 50, -gp->axis_ry / 50, gp->buttons);
             break;
         default:
             loge("unijoysticle: Unsupported emulation mode: %d\n", ins->emu_mode);
@@ -631,6 +634,7 @@ static void process_mouse(uni_hid_device_t* d, int32_t delta_x, int32_t delta_y,
     logd("unijoysticle: mouse: x=%d, y=%d, buttons=0x%4x\n", delta_x, delta_y, buttons);
 
     uni_mouse_quadrature_update(delta_x, delta_y);
+
     if (buttons != prev_buttons) {
         prev_buttons = buttons;
         safe_gpio_set_level(g_uni_config->port_a_named.fire, (buttons & BUTTON_A));
