@@ -342,8 +342,13 @@ static void unijoysticle_init(int argc, const char** argv) {
     // NULL, portPRIVILEGE_BIT, NULL, 1);
 
     // FIXME:
-    uni_mouse_quadrature_init(g_uni_config->port_a_named.up, g_uni_config->port_a_named.down,
-                              g_uni_config->port_a_named.left, g_uni_config->port_a_named.right);
+    uni_mouse_quadrature_init(
+        // Hardcoding values for AtariST
+        g_uni_config->port_a[0],  // Up
+        g_uni_config->port_a[1],  // Down
+        g_uni_config->port_a[2],  // Left
+        g_uni_config->port_a[3]   // Right
+    );
 }
 
 static void unijoysticle_on_init_complete(void) {
