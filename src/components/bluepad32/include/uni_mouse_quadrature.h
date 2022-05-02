@@ -21,8 +21,15 @@ limitations under the License.
 
 #include <stdint.h>
 
-void uni_mouse_quadrature_init(int x1, int x2, int y1, int y2);
+/*
+ * cpu_id indicates in which CPU the quadrature task runs.
+ * x1,x2: GPIOs for horizontal movement
+ * y1,y2: GPIOs for vertical movement
+ */
+void uni_mouse_quadrature_init(int cpu_id, int gpio_x1, int gpio_x2, int gpio_y1, int gpio_y2);
 void uni_mouse_quadrature_update(int8_t dx, int8_t dy);
-void uni_mouse_quadrature_stop();
+void uni_mouse_quadrature_start();
+void uni_mouse_quadrature_pause();
+void uni_mouse_quadrature_deinit();
 
 #endif // UNI_MOUSE_QUADRATURE_H

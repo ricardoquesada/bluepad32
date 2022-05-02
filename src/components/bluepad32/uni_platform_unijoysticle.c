@@ -57,6 +57,9 @@ limitations under the License.
 // Max of push buttons that can be in a board.
 #define PUSH_BUTTONS_MAX 2
 
+// CPU where the Quadrature task runs
+#define QUADRATURE_MOUSE_TASK_CPU 1
+
 enum {
     // Push buttons
     // FIXME: EVENT_BUTTON_0 must be 0, EVENT_BUTTON_1 must be 1, etc...
@@ -338,16 +341,14 @@ static void unijoysticle_init(int argc, const char** argv) {
 
     g_auto_fire_group = xEventGroupCreate();
     xTaskCreate(auto_fire_loop, "auto_fire_loop", 2048, NULL, 10, NULL);
-    // xTaskCreatePinnedToCore(event_loop, "event_loop", 2048,
-    // NULL, portPRIVILEGE_BIT, NULL, 1);
+    // xTaskCreatePinnedToCore(event_loop, "event_loop", 2048, NULL, portPRIVILEGE_BIT, NULL, 1);
 
-    // FIXME:
-    uni_mouse_quadrature_init(
-        // Hardcoding values for Amiga
-        g_uni_config->port_a[1],  // H-pulse (up)
-        g_uni_config->port_a[3],  // HQ-pulse (left)
-        g_uni_config->port_a[0],  // V-pulse (down)
-        g_uni_config->port_a[2]   // VQ-pulse (right)
+    // FIXME: These values are hardcoded for Amiga
+    uni_mouse_quadrature_init(QUADRATURE_MOUSE_TASK_CPU,
+                              g_uni_config->port_a[1],  // H-pulse (up)
+                              g_uni_config->port_a[3],  // HQ-pulse (left)
+                              g_uni_config->port_a[0],  // V-pulse (down)
+                              g_uni_config->port_a[2]   // VQ-pulse (right)
     );
 }
 
@@ -488,7 +489,7 @@ static void unijoysticle_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp)
         case EMULATION_MODE_COMBO_JOY_MOUSE:
             uni_joy_to_combo_joy_mouse_from_gamepad(gp, &joy, &joy_ext);
             process_joystick(&joy, GAMEPAD_SEAT_B);
-            process_mouse(d, -gp->axis_rx / 50, -gp->axis_ry / 50, gp->buttons);
+            process_mouse(d, gp->axis_rx / 50, gp->axis_ry / 50, gp->buttons);
             break;
         default:
             loge("unijoysticle: Unsupported emulation mode: %d\n", ins->emu_mode);

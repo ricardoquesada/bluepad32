@@ -35,14 +35,13 @@ limitations under the License.
 
 // One 1us per tick
 #define TIMER_DIVIDER (80)
-#define TASK_TIMER_CPU (1)
 #define TASK_TIMER_STACK_SIZE (1024)
 #define TASK_TIMER_PRIO (5)
+#define ONE_SECOND (1000000)
 
 enum direction {
-    DIRECTION_NEG,
-    DIRECTION_NEUTRAL,
-    DIRECTION_POS,
+    PHASE_DIRECTION_NEG,
+    PHASE_DIRECTION_POS,
 };
 
 // A mouse has two encoders.
@@ -74,11 +73,11 @@ static void process_quadrature(struct quadrature_state* q) {
     }
     q->value--;
 
-    if (q->dir == DIRECTION_NEG) {
+    if (q->dir == PHASE_DIRECTION_NEG) {
         q->phase--;
         if (q->phase < 0)
             q->phase = 3;
-    } else if (q->dir == DIRECTION_POS) {
+    } else /* PHASE_DIRECTION_POS */ {
         q->phase++;
         if (q->phase > 3)
             q->phase = 0;
@@ -90,16 +89,16 @@ static void process_quadrature(struct quadrature_state* q) {
             b = 0;
             break;
         case 1:
-            a = 0;
-            b = 1;
+            a = 1;
+            b = 0;
             break;
         case 2:
             a = 1;
             b = 1;
             break;
         case 3:
-            a = 1;
-            b = 0;
+            a = 0;
+            b = 1;
             break;
         default:
             loge("%s: invalid phase value: %d", __func__, q->phase);
@@ -139,23 +138,23 @@ static bool IRAM_ATTR timer_y_handler(void* arg) {
     return higher_priority_task_woken;
 }
 
-void uni_mouse_quadrature_init(int x1, int x2, int y1, int y2) {
+void uni_mouse_quadrature_init(int cpu_id, int gpio_x1, int gpio_x2, int gpio_y1, int gpio_y2) {
     memset(&s_quadrature_x, 0, sizeof(s_quadrature_x));
     memset(&s_quadrature_y, 0, sizeof(s_quadrature_y));
 
-    s_quadrature_x.gpio_a = x1;
-    s_quadrature_x.gpio_b = x2;
+    s_quadrature_x.gpio_a = gpio_x1;
+    s_quadrature_x.gpio_b = gpio_x2;
     s_quadrature_x.timer_idx = TIMER_0;
 
-    s_quadrature_y.gpio_a = y1;
-    s_quadrature_y.gpio_b = y2;
+    s_quadrature_y.gpio_a = gpio_y1;
+    s_quadrature_y.gpio_b = gpio_y2;
     s_quadrature_y.timer_idx = TIMER_1;
 
     // Create tasks
     xTaskCreatePinnedToCore(timer_x_task, "timer_x", TASK_TIMER_STACK_SIZE, NULL, TASK_TIMER_PRIO, &s_timer_x_task,
-                            TASK_TIMER_CPU);
+                            cpu_id);
     xTaskCreatePinnedToCore(timer_y_task, "timer_y", TASK_TIMER_STACK_SIZE, NULL, TASK_TIMER_PRIO, &s_timer_y_task,
-                            TASK_TIMER_CPU);
+                            cpu_id);
     // Create timers
     /* Select and initialize basic parameters of the timer */
     timer_config_t config = {
@@ -166,21 +165,24 @@ void uni_mouse_quadrature_init(int x1, int x2, int y1, int y2) {
         .auto_reload = TIMER_AUTORELOAD_EN,
     };
 
+    // FIXME: Don't start timers unless it is needed
     // X
     ESP_ERROR_CHECK(timer_init(TIMER_GROUP_0, s_quadrature_x.timer_idx, &config));
-    timer_set_counter_value(TIMER_GROUP_0, s_quadrature_x.timer_idx, 50000 * 100);
+    timer_set_counter_value(TIMER_GROUP_0, s_quadrature_x.timer_idx, ONE_SECOND * 60 * 5);
     timer_isr_callback_add(TIMER_GROUP_0, s_quadrature_x.timer_idx, timer_x_handler, NULL, 0);
     timer_start(TIMER_GROUP_0, s_quadrature_x.timer_idx);
 
     // Y
     ESP_ERROR_CHECK(timer_init(TIMER_GROUP_0, s_quadrature_y.timer_idx, &config));
-    timer_set_counter_value(TIMER_GROUP_0, s_quadrature_y.timer_idx, 50000 * 100);
+    timer_set_counter_value(TIMER_GROUP_0, s_quadrature_y.timer_idx, ONE_SECOND * 60 * 5);
     timer_isr_callback_add(TIMER_GROUP_0, s_quadrature_y.timer_idx, timer_y_handler, NULL, 0);
     timer_start(TIMER_GROUP_0, s_quadrature_y.timer_idx);
 }
 
-void uni_mouse_quadrature_stop() {
+void uni_mouse_quadrature_deinit() {
     // Stop the timers
+    timer_deinit(TIMER_GROUP_0, s_quadrature_x.timer_idx);
+    timer_deinit(TIMER_GROUP_0, s_quadrature_y.timer_idx);
 
     // Delete the tasks
     vTaskDelete(s_timer_x_task);
@@ -189,17 +191,31 @@ void uni_mouse_quadrature_stop() {
     s_timer_y_task = NULL;
 }
 
+void uni_mouse_quadrature_pause() {
+    timer_pause(TIMER_GROUP_0, s_quadrature_x.timer_idx);
+    timer_pause(TIMER_GROUP_0, s_quadrature_y.timer_idx);
+}
+
+void uni_mouse_quadrature_start() {
+    timer_start(TIMER_GROUP_0, s_quadrature_x.timer_idx);
+    timer_start(TIMER_GROUP_0, s_quadrature_y.timer_idx);
+}
+
 static void process_update(struct quadrature_state* q, int8_t delta) {
+
     uint64_t units;
     if (delta != 0) {
         /* Don't update the phase, it should start from the previous phase */
         q->value = abs(delta);
-        q->dir = (delta < 0) ? DIRECTION_NEG : DIRECTION_POS;
+        q->dir = (delta < 0) ? PHASE_DIRECTION_NEG : PHASE_DIRECTION_POS;
 
         // Max mouse delta value: 127. Which should be the one that triggers faster,
         // about about 65 us (microseconds).
         units = (127 * 65) / abs(delta);
         timer_set_counter_value(TIMER_GROUP_0, q->timer_idx, units);
+    } else {
+        // If there is no update, set timer to trigger every minute
+        timer_set_counter_value(TIMER_GROUP_0, q->timer_idx, ONE_SECOND * 60);
     }
 }
 
