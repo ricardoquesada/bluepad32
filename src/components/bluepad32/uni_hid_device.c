@@ -35,6 +35,7 @@ limitations under the License.
 #include "uni_hid_parser_ds5.h"
 #include "uni_hid_parser_generic.h"
 #include "uni_hid_parser_icade.h"
+#include "uni_hid_parser_mouse.h"
 #include "uni_hid_parser_nimbus.h"
 #include "uni_hid_parser_ouya.h"
 #include "uni_hid_parser_smarttvremote.h"
@@ -543,6 +544,12 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             d->report_parser.set_player_leds = uni_hid_parser_switch_set_player_leds;
             d->report_parser.set_rumble = uni_hid_parser_switch_set_rumble;
             logi("Device detected as Nintendo Switch Pro controller: 0x%02x\n", type);
+            break;
+        case CONTROLLER_TYPE_GenericMouse:
+            d->report_parser.init_report = uni_hid_parser_mouse_init_report;
+            d->report_parser.parse_usage = uni_hid_parser_mouse_parse_usage;
+            d->report_parser.parse_input_report = uni_hid_parser_mouse_parse_input_report;
+            logi("Device detected as Mouse: 0x%02x\n", type);
             break;
         default:
             d->report_parser.init_report = uni_hid_parser_generic_init_report;

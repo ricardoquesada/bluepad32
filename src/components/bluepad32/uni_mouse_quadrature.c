@@ -201,17 +201,22 @@ void uni_mouse_quadrature_start() {
     timer_start(TIMER_GROUP_0, s_quadrature_y.timer_idx);
 }
 
-static void process_update(struct quadrature_state* q, int8_t delta) {
-
+static void process_update(struct quadrature_state* q, int16_t delta) {
     uint64_t units;
     if (delta != 0) {
         /* Don't update the phase, it should start from the previous phase */
         q->value = abs(delta);
         q->dir = (delta < 0) ? PHASE_DIRECTION_NEG : PHASE_DIRECTION_POS;
 
-        // Max mouse delta value: 127. Which should be the one that triggers faster,
-        // about about 65 us (microseconds).
-        units = (127 * 65) / abs(delta);
+        // SmallyMouse2 mentions that 100-120 reports are recevied per second.
+        // According to my test they are ~90, which is in the same order.
+        // For simplicity, I'll use 100. It means that, at most, reports are received
+        // every 10ms.
+        // "delta" is a normalized value that goes from 0 to 511. 
+        // In theory we should split 10 milliseconds (ms) in 512 steps = ~20 microseconds (us)
+        // So, we should "tick" every 20us. The minimum available in ESP32 is 50us.
+        // It is safe to divide 512 by 4 (128), so we should tick at about 80us, instead of 20us.
+        units = ((512/4) * 80) / abs(delta/4);
         timer_set_counter_value(TIMER_GROUP_0, q->timer_idx, units);
     } else {
         // If there is no update, set timer to trigger every minute
@@ -220,7 +225,7 @@ static void process_update(struct quadrature_state* q, int8_t delta) {
 }
 
 // Should be called everytime that mouse report is received.
-void uni_mouse_quadrature_update(int8_t dx, int8_t dy) {
+void uni_mouse_quadrature_update(int16_t dx, int16_t dy) {
     process_update(&s_quadrature_x, dx);
     process_update(&s_quadrature_y, dy);
 }

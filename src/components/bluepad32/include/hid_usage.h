@@ -39,6 +39,7 @@ limitations under the License.
 #define HID_USAGE_AXIS_RX                       0x33
 #define HID_USAGE_AXIS_RY                       0x34
 #define HID_USAGE_AXIS_RZ                       0x35
+#define HID_USAGE_WHEEL                         0x38
 #define HID_USAGE_HAT                           0x39
 #define HID_USAGE_SYSTEM_MAIN_MENU              0x85
 #define HID_USAGE_DPAD_UP                       0x90

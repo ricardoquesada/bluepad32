@@ -80,10 +80,8 @@ void uni_hid_parser_android_parse_usage(uni_hid_device_t* d,
                 default:
                     // Only report unsupported values if they are 1.
                     if (value)
-                        logi(
-                            "Android: Unsupported page: 0x%04x, usage: 0x%04x, "
-                            "value=0x%x\n",
-                            usage_page, usage, value);
+                        logi("Android: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage,
+                             value);
                     break;
             }
             break;
@@ -98,10 +96,8 @@ void uni_hid_parser_android_parse_usage(uni_hid_device_t* d,
                 default:
                     // Only report unsupported values if they are 1.
                     if (value)
-                        logi(
-                            "Android: Unsupported page: 0x%04x, usage: 0x%04x, "
-                            "value=0x%x\n",
-                            usage_page, usage, value);
+                        logi("Android: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage,
+                             value);
                     break;
             };
             break;
@@ -112,10 +108,8 @@ void uni_hid_parser_android_parse_usage(uni_hid_device_t* d,
                     break;
                 default:
                     if (value)
-                        logi(
-                            "Android: Unsupported page: 0x%04x, usage: 0x%04x, "
-                            "value=0x%x\n",
-                            usage_page, usage, value);
+                        logi("Android: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage,
+                             value);
                     break;
             }
             break;
@@ -212,10 +206,8 @@ void uni_hid_parser_android_parse_usage(uni_hid_device_t* d,
                 default:
                     // Only report unsupported values if they are 1.
                     if (value)
-                        logi(
-                            "Android: Unsupported page: 0x%04x, usage: 0x%04x, "
-                            "value=0x%x\n",
-                            usage_page, usage, value);
+                        logi("Android: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage,
+                             value);
                     break;
             }
             break;

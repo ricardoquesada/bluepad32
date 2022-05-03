@@ -107,9 +107,9 @@ static void pc_debug_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
         return;
     }
     prev = *gp;
-    // Print device Id before dumpting gamepad.
-    logi("(%p) ", d);
-    uni_gamepad_dump(gp);
+    // Print device Id before dumping gamepad.
+    // logi("(%p) ", d);
+    // uni_gamepad_dump(gp);
 
     // Debugging
     // Axis ry: control rumble

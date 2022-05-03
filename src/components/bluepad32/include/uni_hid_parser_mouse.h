@@ -1,7 +1,7 @@
 /****************************************************************************
 http://retro.moe/unijoysticle2
 
-Copyright 2022 Ricardo Quesada
+Copyright 2019 Ricardo Quesada
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,20 +16,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
-#ifndef UNI_MOUSE_QUADRATURE_H
-#define UNI_MOUSE_QUADRATURE_H
+#ifndef UNI_HID_PARSER_MOUSE_H
+#define UNI_HID_PARSER_MOUSE_H
 
 #include <stdint.h>
 
-/*
- * cpu_id indicates in which CPU the quadrature task runs.
- * x1,x2: GPIOs for horizontal movement
- * y1,y2: GPIOs for vertical movement
- */
-void uni_mouse_quadrature_init(int cpu_id, int gpio_x1, int gpio_x2, int gpio_y1, int gpio_y2);
-void uni_mouse_quadrature_update(int16_t dx, int16_t dy);
-void uni_mouse_quadrature_start();
-void uni_mouse_quadrature_pause();
-void uni_mouse_quadrature_deinit();
+#include "uni_hid_parser.h"
 
-#endif // UNI_MOUSE_QUADRATURE_H
+// Android devices
+void uni_hid_parser_mouse_init_report(struct uni_hid_device_s* d);
+void uni_hid_parser_mouse_parse_usage(struct uni_hid_device_s* d,
+                                      hid_globals_t* globals,
+                                      uint16_t usage_page,
+                                      uint16_t usage,
+                                      int32_t value);
+void uni_hid_parser_mouse_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len);
+
+#endif  // UNI_HID_PARSER_MOUSE_H
