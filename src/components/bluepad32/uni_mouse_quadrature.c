@@ -34,7 +34,8 @@ limitations under the License.
 #include "uni_debug.h"
 
 // One 1us per tick
-#define TIMER_DIVIDER (80)
+// FIXME: Should be 80 instead of 80 * 25
+#define TIMER_DIVIDER (80 * 25)
 #define TASK_TIMER_STACK_SIZE (1024)
 #define TASK_TIMER_PRIO (5)
 #define ONE_SECOND (1000000)
@@ -111,7 +112,6 @@ static void process_quadrature(struct quadrature_state* q) {
 }
 
 static void timer_x_task(void* arg) {
-    logi("Task X started\n");
     while (true) {
         ulTaskNotifyTake(true, portMAX_DELAY);
         process_quadrature(&s_quadrature_x);
@@ -119,7 +119,6 @@ static void timer_x_task(void* arg) {
 }
 
 static void timer_y_task(void* arg) {
-    logi("Task Y started\n");
     while (true) {
         ulTaskNotifyTake(true, portMAX_DELAY);
         process_quadrature(&s_quadrature_y);
@@ -138,6 +137,44 @@ static bool IRAM_ATTR timer_y_handler(void* arg) {
     return higher_priority_task_woken;
 }
 
+static void init_from_cpu1_task() {
+    // From ESP-IDF documentation:
+    // "Register Timer interrupt handler, the handler is an ISR.
+    // The handler will be attached to the same CPU core that this function is running on."
+
+    // Create timers
+    /* Select and initialize basic parameters of the timer */
+    timer_config_t config = {
+        .divider = TIMER_DIVIDER,
+        .counter_dir = TIMER_COUNT_DOWN,
+        .counter_en = TIMER_PAUSE,
+        .alarm_en = TIMER_ALARM_EN,
+        .auto_reload = TIMER_AUTORELOAD_EN,
+    };
+
+    // FIXME: Don't start timers unless it is needed
+    // Setup timer X
+    ESP_ERROR_CHECK(timer_init(TIMER_GROUP_0, s_quadrature_x.timer_idx, &config));
+    timer_set_counter_value(TIMER_GROUP_0, s_quadrature_x.timer_idx, ONE_SECOND * 60);
+    timer_isr_callback_add(TIMER_GROUP_0, s_quadrature_x.timer_idx, timer_x_handler, NULL, 0);
+    timer_start(TIMER_GROUP_0, s_quadrature_x.timer_idx);
+
+    // Setup timer Y
+    ESP_ERROR_CHECK(timer_init(TIMER_GROUP_0, s_quadrature_y.timer_idx, &config));
+    timer_set_counter_value(TIMER_GROUP_0, s_quadrature_y.timer_idx, ONE_SECOND * 60);
+    timer_isr_callback_add(TIMER_GROUP_0, s_quadrature_y.timer_idx, timer_y_handler, NULL, 0);
+    timer_start(TIMER_GROUP_0, s_quadrature_y.timer_idx);
+
+    // Create timer tasks
+    xTaskCreatePinnedToCore(timer_x_task, "timer_x", TASK_TIMER_STACK_SIZE, NULL, TASK_TIMER_PRIO, &s_timer_x_task,
+                            xPortGetCoreID());
+    xTaskCreatePinnedToCore(timer_y_task, "timer_y", TASK_TIMER_STACK_SIZE, NULL, TASK_TIMER_PRIO, &s_timer_y_task,
+                            xPortGetCoreID());
+
+    // Kill itself
+    vTaskDelete(NULL);
+}
+
 void uni_mouse_quadrature_init(int cpu_id, int gpio_x1, int gpio_x2, int gpio_y1, int gpio_y2) {
     memset(&s_quadrature_x, 0, sizeof(s_quadrature_x));
     memset(&s_quadrature_y, 0, sizeof(s_quadrature_y));
@@ -151,32 +188,8 @@ void uni_mouse_quadrature_init(int cpu_id, int gpio_x1, int gpio_x2, int gpio_y1
     s_quadrature_y.timer_idx = TIMER_1;
 
     // Create tasks
-    xTaskCreatePinnedToCore(timer_x_task, "timer_x", TASK_TIMER_STACK_SIZE, NULL, TASK_TIMER_PRIO, &s_timer_x_task,
+    xTaskCreatePinnedToCore(init_from_cpu1_task, "init_timers", TASK_TIMER_STACK_SIZE, NULL, TASK_TIMER_PRIO, NULL,
                             cpu_id);
-    xTaskCreatePinnedToCore(timer_y_task, "timer_y", TASK_TIMER_STACK_SIZE, NULL, TASK_TIMER_PRIO, &s_timer_y_task,
-                            cpu_id);
-    // Create timers
-    /* Select and initialize basic parameters of the timer */
-    timer_config_t config = {
-        .divider = TIMER_DIVIDER,
-        .counter_dir = TIMER_COUNT_DOWN,
-        .counter_en = TIMER_PAUSE,
-        .alarm_en = TIMER_ALARM_EN,
-        .auto_reload = TIMER_AUTORELOAD_EN,
-    };
-
-    // FIXME: Don't start timers unless it is needed
-    // X
-    ESP_ERROR_CHECK(timer_init(TIMER_GROUP_0, s_quadrature_x.timer_idx, &config));
-    timer_set_counter_value(TIMER_GROUP_0, s_quadrature_x.timer_idx, ONE_SECOND * 60 * 5);
-    timer_isr_callback_add(TIMER_GROUP_0, s_quadrature_x.timer_idx, timer_x_handler, NULL, 0);
-    timer_start(TIMER_GROUP_0, s_quadrature_x.timer_idx);
-
-    // Y
-    ESP_ERROR_CHECK(timer_init(TIMER_GROUP_0, s_quadrature_y.timer_idx, &config));
-    timer_set_counter_value(TIMER_GROUP_0, s_quadrature_y.timer_idx, ONE_SECOND * 60 * 5);
-    timer_isr_callback_add(TIMER_GROUP_0, s_quadrature_y.timer_idx, timer_y_handler, NULL, 0);
-    timer_start(TIMER_GROUP_0, s_quadrature_y.timer_idx);
 }
 
 void uni_mouse_quadrature_deinit() {
@@ -201,31 +214,34 @@ void uni_mouse_quadrature_start() {
     timer_start(TIMER_GROUP_0, s_quadrature_y.timer_idx);
 }
 
-static void process_update(struct quadrature_state* q, int16_t delta) {
+static void process_update(struct quadrature_state* q, int32_t delta) {
     uint64_t units;
+    int32_t abs_delta = (delta < 0) ? -delta : delta;
+
     if (delta != 0) {
         /* Don't update the phase, it should start from the previous phase */
-        q->value = abs(delta);
+        q->value = abs_delta;
         q->dir = (delta < 0) ? PHASE_DIRECTION_NEG : PHASE_DIRECTION_POS;
 
         // SmallyMouse2 mentions that 100-120 reports are recevied per second.
         // According to my test they are ~90, which is in the same order.
         // For simplicity, I'll use 100. It means that, at most, reports are received
-        // every 10ms.
-        // "delta" is a normalized value that goes from 0 to 511. 
+        // every 10ms (1 second / 100 reports = 10ms per report).
+        // "delta" is a normalized value that goes from 0 to 511.
         // In theory we should split 10 milliseconds (ms) in 512 steps = ~20 microseconds (us)
         // So, we should "tick" every 20us. The minimum available in ESP32 is 50us.
-        // It is safe to divide 512 by 4 (128), so we should tick at about 80us, instead of 20us.
-        units = ((512/4) * 80) / abs(delta/4);
-        timer_set_counter_value(TIMER_GROUP_0, q->timer_idx, units);
+        // It is safe to divide 512 (the max value of "delta") by 4, so have at most 128 steps.
+        // That means that we can multiply the "tick" value by 4: 20us * 4 = 80us.
+        units = ((512 / 4) * 80) / ((abs_delta / 4) + 1);
     } else {
-        // If there is no update, set timer to trigger every minute
-        timer_set_counter_value(TIMER_GROUP_0, q->timer_idx, ONE_SECOND * 60);
+        // If there is no update, set timer to update less frequently
+        units = ONE_SECOND * 10;
     }
+    timer_set_counter_value(TIMER_GROUP_0, q->timer_idx, units);
 }
 
 // Should be called everytime that mouse report is received.
-void uni_mouse_quadrature_update(int16_t dx, int16_t dy) {
+void uni_mouse_quadrature_update(int32_t dx, int32_t dy) {
     process_update(&s_quadrature_x, dx);
     process_update(&s_quadrature_y, dy);
 }

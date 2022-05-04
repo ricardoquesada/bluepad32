@@ -433,7 +433,7 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
         // Try with Port B, assume it is a joystick
         wanted_seat = GAMEPAD_SEAT_B;
         ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
-        // d->emu_mode = EMULATION_MODE_COMBO_JOY_JOY;
+        // ins->emu_mode = EMULATION_MODE_COMBO_JOY_MOUSE;
 
         // ... unless it is a mouse which should try with PORT A.
         // Amiga/Atari ST use mice in PORT A. Undefined on the C64, but
@@ -444,7 +444,7 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
             ins->emu_mode = EMULATION_MODE_SINGLE_MOUSE;
         }
 
-        // If wanted port is already assigned, try with the next one
+        // If then wanted port is already assigned, try with the next one.
         if (used_joystick_ports & wanted_seat) {
             logi("unijoysticle: Port already assigned, trying another one\n");
             wanted_seat = (~wanted_seat) & GAMEPAD_SEAT_AB_MASK;
@@ -469,16 +469,12 @@ static void unijoysticle_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp)
     memset(&joy, 0, sizeof(joy));
     memset(&joy_ext, 0, sizeof(joy_ext));
 
-    // FIXME:
-    // ins->emu_mode = EMULATION_MODE_COMBO_JOY_MOUSE;
-
     switch (ins->emu_mode) {
         case EMULATION_MODE_SINGLE_JOY:
             uni_joy_to_single_joy_from_gamepad(gp, &joy);
             process_joystick(&joy, ins->gamepad_seat);
             break;
         case EMULATION_MODE_SINGLE_MOUSE:
-            uni_joy_to_single_mouse_from_gamepad(gp, &joy);
             process_mouse(d, gp->axis_x, gp->axis_y, gp->buttons);
             break;
         case EMULATION_MODE_COMBO_JOY_JOY:
@@ -487,9 +483,12 @@ static void unijoysticle_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp)
             process_joystick(&joy_ext, GAMEPAD_SEAT_B);
             break;
         case EMULATION_MODE_COMBO_JOY_MOUSE:
-            uni_joy_to_combo_joy_mouse_from_gamepad(gp, &joy, &joy_ext);
+            uni_joy_to_single_joy_from_gamepad(gp, &joy);
             process_joystick(&joy, GAMEPAD_SEAT_B);
-            process_mouse(d, gp->axis_rx / 50, gp->axis_ry / 50, gp->buttons);
+            // Data coming from gamepad axis is different from mouse deltas.
+            // They need to be scaled down, otherwise the pointer moves too fast.
+            // FIXME: Should be divided by 25, and not 1.
+            process_mouse(d, gp->axis_rx / 1, gp->axis_ry / 1, gp->buttons);
             break;
         default:
             loge("unijoysticle: Unsupported emulation mode: %d\n", ins->emu_mode);
@@ -501,8 +500,11 @@ static int32_t unijoysticle_get_property(uni_platform_property_t key) {
     if (key != UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS)
         return -1;
 
+    if (g_uni_config->push_button_0 == -1)
+        return -1;
+
     // Hi-released, Low-pressed
-    return !gpio_get_level(g_uni_config->push_button_1);
+    return !gpio_get_level(g_uni_config->push_button_0);
 }
 
 static void unijoysticle_on_device_oob_event(uni_hid_device_t* d, uni_platform_oob_event_t event) {
@@ -632,7 +634,7 @@ static unijoysticle_instance_t* get_unijoysticle_instance(const uni_hid_device_t
 static void process_mouse(uni_hid_device_t* d, int32_t delta_x, int32_t delta_y, uint16_t buttons) {
     UNUSED(d);
     static uint16_t prev_buttons = 0;
-    logd("unijoysticle: mouse: x=%d, y=%d, buttons=0x%4x\n", delta_x, delta_y, buttons);
+    logd("unijoysticle: mouse: x=%d, y=%d, buttons=0x%04x\n", delta_x, delta_y, buttons);
 
     uni_mouse_quadrature_update(delta_x, delta_y);
 

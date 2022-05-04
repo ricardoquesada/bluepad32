@@ -27,29 +27,12 @@ limitations under the License.
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
 
-#include <time.h>
-
 void uni_hid_parser_mouse_init_report(uni_hid_device_t* d) {
     // Reset old state. Each report contains a full-state.
     uni_gamepad_t* gp = &d->gamepad;
     memset(gp, 0, sizeof(*gp));
     gp->updated_states = GAMEPAD_STATE_AXIS_X | GAMEPAD_STATE_AXIS_Y | GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B |
                          GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y;
-}
-
-void uni_hid_parser_mouse_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len) {
-    time_t rawtime;
-    struct tm* info;
-    char buf[80];
-
-    time(&rawtime);
-    info = localtime(&rawtime);
-
-    struct tm ltm = {0};
-    strftime(buf, 80, "%x - %I:%M:%S%p", info);
-
-    printf("time: %s, ", buf);
-    printf_hexdump(report, len);
 }
 
 void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,

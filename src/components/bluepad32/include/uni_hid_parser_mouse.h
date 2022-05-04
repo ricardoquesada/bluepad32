@@ -30,6 +30,5 @@ void uni_hid_parser_mouse_parse_usage(struct uni_hid_device_s* d,
                                       uint16_t usage_page,
                                       uint16_t usage,
                                       int32_t value);
-void uni_hid_parser_mouse_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len);
 
 #endif  // UNI_HID_PARSER_MOUSE_H

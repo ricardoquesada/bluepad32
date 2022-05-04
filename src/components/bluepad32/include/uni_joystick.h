@@ -39,9 +39,5 @@ typedef struct {
 
 void uni_joy_to_single_joy_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t* out_joy);
 void uni_joy_to_combo_joy_joy_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t* out_joy1, uni_joystick_t* out_joy2);
-void uni_joy_to_single_mouse_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t* out_mouse);
-void uni_joy_to_combo_joy_mouse_from_gamepad(const uni_gamepad_t* gp,
-                                             uni_joystick_t* out_joy,
-                                             uni_joystick_t* out_mouse);
 
 #endif  // UNI_JOYSTICK_H

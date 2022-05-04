@@ -27,7 +27,7 @@ limitations under the License.
  * y1,y2: GPIOs for vertical movement
  */
 void uni_mouse_quadrature_init(int cpu_id, int gpio_x1, int gpio_x2, int gpio_y1, int gpio_y2);
-void uni_mouse_quadrature_update(int16_t dx, int16_t dy);
+void uni_mouse_quadrature_update(int32_t dx, int32_t dy);
 void uni_mouse_quadrature_start();
 void uni_mouse_quadrature_pause();
 void uni_mouse_quadrature_deinit();
