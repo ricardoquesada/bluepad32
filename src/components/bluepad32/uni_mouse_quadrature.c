@@ -35,7 +35,7 @@ limitations under the License.
 
 // One 1us per tick
 // FIXME: Should be 80 instead of 80 * 25
-#define TIMER_DIVIDER (80 * 25)
+#define TIMER_DIVIDER (80)
 #define TASK_TIMER_STACK_SIZE (1024)
 #define TASK_TIMER_PRIO (5)
 #define ONE_SECOND (1000000)

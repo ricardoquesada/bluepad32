@@ -810,6 +810,8 @@ void uni_bluetooth_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
                     logi("Using PIN code: \n");
                     printf_hexdump(pin_code, sizeof(pin_code));
                     gap_pin_code_response_binary(event_addr, pin_code, sizeof(pin_code));
+                    // Needed for some devices, like the Apple Magic Mouse 1st gen.
+                    // gap_pin_code_response_binary(event_addr, (uint8_t*)"0000", 4);
                     break;
                 }
                 case HCI_EVENT_USER_CONFIRMATION_REQUEST:
