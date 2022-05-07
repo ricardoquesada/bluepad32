@@ -487,8 +487,7 @@ static void unijoysticle_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp)
             process_joystick(&joy, GAMEPAD_SEAT_B);
             // Data coming from gamepad axis is different from mouse deltas.
             // They need to be scaled down, otherwise the pointer moves too fast.
-            // FIXME: Should be divided by 25, and not 1.
-            process_mouse(d, gp->axis_rx / 1, gp->axis_ry / 1, gp->buttons);
+            process_mouse(d, gp->axis_rx / 25, gp->axis_ry / 25, gp->buttons);
             break;
         default:
             loge("unijoysticle: Unsupported emulation mode: %d\n", ins->emu_mode);
