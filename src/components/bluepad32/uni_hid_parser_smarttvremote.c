@@ -41,7 +41,7 @@ void uni_hid_parser_smarttvremote_parse_usage(uni_hid_device_t* d,
     switch (usage_page) {
         case HID_USAGE_PAGE_GENERIC_DEVICE_CONTROLS:
             switch (usage) {
-                case HID_USAGE_BATTERY_STRENGHT:
+                case HID_USAGE_BATTERY_STRENGTH:
                     gp->battery = value;
                     break;
                 default:

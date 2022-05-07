@@ -792,26 +792,41 @@ void uni_bluetooth_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
                     break;
                 }
                 case HCI_EVENT_PIN_CODE_REQUEST: {
-                    // gap_pin_code_response_binary does not copy the data, and data
-                    // must be valid until the next hci_send_cmd is called.
-                    static bd_addr_t pin_code;
-                    bd_addr_t local_addr;
+                    bool is_mouse = false;
+
                     logi("--> HCI_EVENT_PIN_CODE_REQUEST\n");
-                    // FIXME: Assumes incoming connection from Nintendo Wii using Sync.
-                    //
-                    // From: https://wiibrew.org/wiki/Wiimote#Bluetooth_Pairing:
-                    //  If connecting by holding down the 1+2 buttons, the PIN is the
-                    //  bluetooth address of the wiimote backwards, if connecting by
-                    //  pressing the "sync" button on the back of the wiimote, then the
-                    //  PIN is the bluetooth address of the host backwards.
                     hci_event_pin_code_request_get_bd_addr(packet, event_addr);
-                    gap_local_bd_addr(local_addr);
-                    reverse_bd_addr(local_addr, pin_code);
-                    logi("Using PIN code: \n");
-                    printf_hexdump(pin_code, sizeof(pin_code));
-                    gap_pin_code_response_binary(event_addr, pin_code, sizeof(pin_code));
-                    // Needed for some devices, like the Apple Magic Mouse 1st gen.
-                    // gap_pin_code_response_binary(event_addr, (uint8_t*)"0000", 4);
+                    device = uni_hid_device_get_instance_for_address(event_addr);
+                    if (!device) {
+                        loge("Failed to get device for: %s, assuming it is not a mouse\n", bd_addr_to_str(event_addr));
+                    } else {
+                        uint32_t mouse_cod = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE;
+                        is_mouse = (device->cod & mouse_cod) == mouse_cod;
+                    }
+
+                    if (is_mouse) {
+                        // For mice, use "0000" as pins, which seems to be the exected one.
+                        logi("Using PIN code: '0000'\n");
+                        gap_pin_code_response_binary(event_addr, (uint8_t*)"0000", 4);
+                    } else {
+                        // gap_pin_code_response_binary() does not copy the data, and data
+                        // must be valid until the next hci_send_cmd is called.
+                        static bd_addr_t pin_code;
+                        bd_addr_t local_addr;
+
+                        // FIXME: Assumes incoming connection from Nintendo Wii using Sync.
+                        //
+                        // From: https://wiibrew.org/wiki/Wiimote#Bluetooth_Pairing:
+                        //  If connecting by holding down the 1+2 buttons, the PIN is the
+                        //  bluetooth address of the wiimote backwards, if connecting by
+                        //  pressing the "sync" button on the back of the wiimote, then the
+                        //  PIN is the bluetooth address of the host backwards.
+                        gap_local_bd_addr(local_addr);
+                        reverse_bd_addr(local_addr, pin_code);
+                        logi("Using PIN code: \n");
+                        printf_hexdump(pin_code, sizeof(pin_code));
+                        gap_pin_code_response_binary(event_addr, pin_code, sizeof(pin_code));
+                    }
                     break;
                 }
                 case HCI_EVENT_USER_CONFIRMATION_REQUEST:

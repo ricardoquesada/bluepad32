@@ -52,7 +52,7 @@ limitations under the License.
 #define HID_USAGE_BRAKE                         0xc5
 
 // HID usages for Generic Device Controls Page
-#define HID_USAGE_BATTERY_STRENGHT              0x20
+#define HID_USAGE_BATTERY_STRENGTH              0x20
 
 // HID usages for Keyboard / Keypad Page
 // KB=Keyboard, KP=Keypad

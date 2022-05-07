@@ -155,7 +155,7 @@ static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
 
         case HID_USAGE_PAGE_GENERIC_DEVICE_CONTROLS:
             switch (usage) {
-                case HID_USAGE_BATTERY_STRENGHT:
+                case HID_USAGE_BATTERY_STRENGTH:
                     gp->battery = value;
                     break;
                 default:
@@ -310,7 +310,7 @@ static void parse_usage_firmware_v4_8(uni_hid_device_t* d,
 
         case HID_USAGE_PAGE_GENERIC_DEVICE_CONTROLS:
             switch (usage) {
-                case HID_USAGE_BATTERY_STRENGHT:
+                case HID_USAGE_BATTERY_STRENGTH:
                     gp->battery = value;
                     break;
                 default:

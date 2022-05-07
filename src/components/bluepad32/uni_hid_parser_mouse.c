@@ -59,7 +59,7 @@ void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
                     // TODO: do something
                     break;
                 default:
-                    logi("Generic: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
+                    logi("Mouse: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
                     break;
             }
             break;
@@ -88,7 +88,20 @@ void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
                         gp->buttons |= BUTTON_SHOULDER_R;
                     break;
                 default:
-                    logi("Generic: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
+                    logi("Mouse: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
+                    break;
+            }
+            break;
+        }
+
+        case HID_USAGE_PAGE_GENERIC_DEVICE_CONTROLS: {
+            switch (usage) {
+                case HID_USAGE_BATTERY_STRENGTH:
+                    logd("Mouse: Battery strength: %d\n", value);
+                    gp->battery = value;
+                    break;
+                default:
+                    logi("Mouse: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
                     break;
             }
             break;
@@ -96,7 +109,7 @@ void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
 
         // unknown usage page
         default:
-            logi("Generic: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
+            logi("Mouse: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
             break;
     }
 }

@@ -103,7 +103,7 @@ void uni_hid_parser_android_parse_usage(uni_hid_device_t* d,
             break;
         case HID_USAGE_PAGE_GENERIC_DEVICE_CONTROLS:
             switch (usage) {
-                case HID_USAGE_BATTERY_STRENGHT:
+                case HID_USAGE_BATTERY_STRENGTH:
                     gp->battery = value;
                     break;
                 default:
