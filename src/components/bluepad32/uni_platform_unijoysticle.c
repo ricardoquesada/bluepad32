@@ -474,9 +474,9 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
             ins->emu_mode = EMULATION_MODE_SINGLE_MOUSE;
         }
 
-        // If then wanted port is already assigned, try with the next one.
+        // If wanted port is already assigned, try with the next one.
         if (used_joystick_ports & wanted_seat) {
-            logi("unijoysticle: Port already assigned, trying another one\n");
+            logi("unijoysticle: Port %d already assigned, trying another one\n", wanted_seat);
             wanted_seat = (~wanted_seat) & GAMEPAD_SEAT_AB_MASK;
         }
     }

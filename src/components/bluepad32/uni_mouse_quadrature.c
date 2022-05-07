@@ -33,6 +33,12 @@ limitations under the License.
 
 #include "uni_debug.h"
 
+/*
+ * FIXME: only supports one mouse
+ * Should be refactored to support multiple mice, or be able to swap the ports.
+ * E.g: Amiga 4000 has the port#1 and port#2 swapped.
+ */
+
 // One 1us per tick
 // FIXME: Should be 80 instead of 80 * 25
 #define TIMER_DIVIDER (80)
