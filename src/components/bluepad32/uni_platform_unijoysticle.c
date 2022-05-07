@@ -54,18 +54,33 @@ limitations under the License.
 // In some board models not all GPIOs are set. Macro to simplify code for that.
 #define SAFE_SET_BIT(__value) (__value == -1) ? 0 : (1ULL << __value)
 
-// Max of push buttons that can be in a board.
-#define PUSH_BUTTONS_MAX 2
-
 // CPU where the Quadrature task runs
 #define QUADRATURE_MOUSE_TASK_CPU 1
 
+// 20 milliseconds ~= 1 frame in PAL
+// 16.6 milliseconds ~= 1 frame in NTSC
+// From: https://eab.abime.net/showthread.php?t=99970
+//  Quickgun Turbo Pro:   7 cps
+//  Zipstick:            13 cps
+//  Quickshot 128F:      29 cps
+//  Competition Pro:     62 cps
+// One "Click-per-second" means that there is one "click" +  "release" in one second
+// So the frequency must be doubled.
+#define AUTOFIRE_FREQ_QUICKGUN_MS (1000 / 7 / 2)          // ~71ms, ~4 frames
+#define AUTOFIRE_FREQ_ZIPSTICK_MS (1000 / 13 / 2)         // ~38ms, ~2 frames
+#define AUTOFIRE_FREQ_QUICKSHOT_MS (1000 / 29 / 2)        // ~17ms, ~1 frame
+#define AUTOFIRE_FREQ_COMPETITION_PRO_MS (1000 / 62 / 2)  // ~8ms, ~1/2 frame
+
+enum {
+    PUSH_BUTTON_0,  // Toggle enhanced/mouse mode
+    PUSH_BUTTON_1,  // Swap ports
+    PUSH_BUTTON_MAX,
+};
+
 enum {
     // Push buttons
-    // FIXME: EVENT_BUTTON_0 must be 0, EVENT_BUTTON_1 must be 1, etc...
-    // This is because how our ISR expects the arg value.
-    EVENT_BUTTON_0 = 0,
-    EVENT_BUTTON_1 = 1,
+    EVENT_BUTTON_0 = PUSH_BUTTON_0,
+    EVENT_BUTTON_1 = PUSH_BUTTON_1,
 
     // Autofire group
     EVENT_AUTOFIRE = 0,
@@ -98,14 +113,22 @@ typedef enum {
 
 // --- Structs / Typedefs
 typedef void (*button_cb_t)(int button_idx);
-struct push_button {
+
+// This is the "state" of the push button, and changes in runtime.
+// This is the "mutable" part of the button that is stored in RAM.
+// The "fixed" part is stored in ROM.
+struct push_button_state {
     bool enabled;
     int64_t last_time_pressed_us;  // in microseconds
-    int gpio;                      // assigned at runtime when unijoysticle is initialized
-    button_cb_t callback;          // function to call when triggered
 };
 
-struct uni_gpio_config_joy {
+// These are const values. Cannot be modified in runtime.
+struct push_button {
+    gpio_num_t gpio;
+    button_cb_t callback;
+};
+
+struct gpio_config_joy {
     gpio_num_t up;
     gpio_num_t down;
     gpio_num_t left;
@@ -115,24 +138,22 @@ struct uni_gpio_config_joy {
     gpio_num_t pot_y;
 };
 
-struct uni_gpio_config {
+struct gpio_config {
     union {
-        struct uni_gpio_config_joy port_a_named;
+        struct gpio_config_joy port_a_named;
         gpio_num_t port_a[DB9_TOTAL_USABLE_PORTS];
     };
     union {
-        struct uni_gpio_config_joy port_b_named;
+        struct gpio_config_joy port_b_named;
         gpio_num_t port_b[DB9_TOTAL_USABLE_PORTS];
     };
-    gpio_num_t led_j1;         // Green
-    gpio_num_t led_j2;         // Red
-    gpio_num_t led_bt;         // Blue (Bluetooth on + misc)
-    gpio_num_t push_button_0;  // Enhanced mode / mouse mode
-    gpio_num_t push_button_1;  // Swap
+    gpio_num_t led_j1;  // Green
+    gpio_num_t led_j2;  // Red
+    gpio_num_t led_bt;  // Blue (Bluetooth on + misc)
+    struct push_button push_buttons[PUSH_BUTTON_MAX];
 
-    // Callback for each button
-    button_cb_t push_button_0_cb;
-    button_cb_t push_button_1_cb;
+    // Autofire frequency
+    int autofire_freq_ms;  // How fast is the autofire
 };
 
 // C64 "instance"
@@ -172,55 +193,66 @@ static void toggle_enhanced_mode(int button_idx);
 static void toggle_mouse_mode(int button_idx);
 static void swap_ports(int button_idx);
 
-// --- Consts
-
-// 20 milliseconds ~= 1 frame in PAL
-// 17 milliseconds ~= 1 frame in NTSC
-static const int AUTOFIRE_FREQ_MS = 20 * 4;  // change every ~4 frames
+// --- Consts (ROM)
 
 // Unijoysticle v2: Through-hole version
-const struct uni_gpio_config uni_gpio_config_v2 = {
+const struct gpio_config gpio_config_univ2 = {
     .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, -1, -1},
     .port_b = {GPIO_NUM_27, GPIO_NUM_25, GPIO_NUM_32, GPIO_NUM_17, GPIO_NUM_12, -1, -1},
     .led_j1 = GPIO_NUM_5,
     .led_j2 = GPIO_NUM_13,
     .led_bt = -1,
-    .push_button_0 = GPIO_NUM_10,
-    .push_button_1 = -1,
-    .push_button_0_cb = toggle_enhanced_mode,
-    .push_button_1_cb = NULL,
+    .push_buttons = {{
+                         .gpio = GPIO_NUM_10,
+                         .callback = toggle_enhanced_mode,
+                     },
+                     {
+                         .gpio = -1,
+                         .callback = NULL,
+                     }},
+    .autofire_freq_ms = AUTOFIRE_FREQ_QUICKGUN_MS,
 };
-_Static_assert(sizeof(uni_gpio_config_v2.port_a) == sizeof(uni_gpio_config_v2.port_a_named),
-               "Check uni_gpio_config union size");
+_Static_assert(sizeof(gpio_config_univ2.port_a) == sizeof(gpio_config_univ2.port_a_named),
+               "Check gpio_config union size");
 
 // Unijoysticle v2+: SMD version
-const struct uni_gpio_config uni_gpio_config_v2plus = {
+const struct gpio_config gpio_config_univ2plus = {
     .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, GPIO_NUM_33, GPIO_NUM_16},
     .port_b = {GPIO_NUM_27, GPIO_NUM_25, GPIO_NUM_32, GPIO_NUM_17, GPIO_NUM_13, GPIO_NUM_21, GPIO_NUM_22},
     .led_j1 = GPIO_NUM_5,
     .led_j2 = GPIO_NUM_12,
     .led_bt = -1,
-    .push_button_0 = GPIO_NUM_15,
-    .push_button_1 = -1,
-    .push_button_0_cb = toggle_enhanced_mode,
-    .push_button_1_cb = NULL,
+    .push_buttons = {{
+                         .gpio = GPIO_NUM_15,
+                         .callback = toggle_enhanced_mode,
+                     },
+                     {
+                         .gpio = -1,
+                         .callback = NULL,
+                     }},
+    .autofire_freq_ms = AUTOFIRE_FREQ_QUICKGUN_MS,
 };
 
 // Unijoysticle v2 A500
-const struct uni_gpio_config uni_gpio_config_a500 = {
+const struct gpio_config gpio_config_univ2a500 = {
     .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, GPIO_NUM_33, GPIO_NUM_16},
     .port_b = {GPIO_NUM_27, GPIO_NUM_25, GPIO_NUM_32, GPIO_NUM_17, GPIO_NUM_13, GPIO_NUM_21, GPIO_NUM_22},
     .led_j1 = GPIO_NUM_5,
     .led_j2 = GPIO_NUM_12,
     .led_bt = GPIO_NUM_15,
-    .push_button_0 = GPIO_NUM_34,
-    .push_button_1 = GPIO_NUM_35,
-    .push_button_0_cb = toggle_mouse_mode,
-    .push_button_1_cb = swap_ports,
+    .push_buttons = {{
+                         .gpio = GPIO_NUM_34,
+                         .callback = toggle_mouse_mode,
+                     },
+                     {
+                         .gpio = GPIO_NUM_35,
+                         .callback = swap_ports,
+                     }},
+    .autofire_freq_ms = AUTOFIRE_FREQ_QUICKGUN_MS,
 };
 
 // Arananet's Unijoy2Amiga
-const struct uni_gpio_config uni_gpio_config_singleport = {
+const struct gpio_config gpio_config_univ2singleport = {
     // Only has one port. Just mirror Port A with Port B.
     .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, GPIO_NUM_33, GPIO_NUM_16},
     .port_b = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, GPIO_NUM_33, GPIO_NUM_16},
@@ -229,22 +261,27 @@ const struct uni_gpio_config uni_gpio_config_singleport = {
     .led_j1 = GPIO_NUM_12,
     .led_j2 = -1,
     .led_bt = -1,
-    .push_button_0 = GPIO_NUM_15,
-    .push_button_1 = -1,
-    .push_button_0_cb = toggle_enhanced_mode,
-    .push_button_1_cb = NULL,
+    .push_buttons = {{
+                         .gpio = GPIO_NUM_15,
+                         .callback = toggle_enhanced_mode,
+                     },
+                     {
+                         .gpio = -1,
+                         .callback = NULL,
+                     }},
+    .autofire_freq_ms = AUTOFIRE_FREQ_QUICKGUN_MS,
 };
 
 static const bd_addr_t zero_addr = {0, 0, 0, 0, 0, 0};
 
-// --- Globals
+// --- Globals (RAM)
 
-const struct uni_gpio_config* g_uni_config = NULL;
+const struct gpio_config* g_gpio_config = NULL;
 
-// FIXME, should be part of g_gpio_config
-static struct push_button g_push_buttons[PUSH_BUTTONS_MAX];
 static EventGroupHandle_t g_event_group;
 static EventGroupHandle_t g_auto_fire_group;
+
+struct push_button_state g_push_buttons_state[PUSH_BUTTON_MAX] = {0};
 
 // Autofire
 static bool g_autofire_a_enabled = 0;
@@ -257,38 +294,30 @@ static void unijoysticle_init(int argc, const char** argv) {
     UNUSED(argc);
     UNUSED(argv);
 
-    memset(&g_push_buttons, 0, sizeof(g_push_buttons));
-
     board_model_t model = get_board_model();
 
     switch (model) {
         case BOARD_MODEL_UNIJOYSTICLE2:
             logi("Hardware detected: Unijoysticle 2\n");
-            g_uni_config = &uni_gpio_config_v2;
+            g_gpio_config = &gpio_config_univ2;
             break;
         case BOARD_MODEL_UNIJOYSTICLE2_PLUS:
             logi("Hardware detected: Unijoysticle 2+\n");
-            g_uni_config = &uni_gpio_config_v2plus;
+            g_gpio_config = &gpio_config_univ2plus;
             break;
         case BOARD_MODEL_UNIJOYSTICLE2_A500:
             logi("Hardware detected: Unijoysticle 2 A500\n");
-            g_uni_config = &uni_gpio_config_a500;
+            g_gpio_config = &gpio_config_univ2a500;
             break;
         case BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT:
             logi("Hardware detected: Unijoysticle 2 single port\n");
-            g_uni_config = &uni_gpio_config_singleport;
+            g_gpio_config = &gpio_config_univ2singleport;
             break;
         default:
-            logi("Hardware detected: ERROR!\n");
-            g_uni_config = &uni_gpio_config_v2;
+            logi("Hardware detected: ERROR! %d\n", model);
+            g_gpio_config = &gpio_config_univ2;
             break;
     }
-
-    // Update Push Buttons config
-    g_push_buttons[0].gpio = g_uni_config->push_button_0;
-    g_push_buttons[0].callback = g_uni_config->push_button_0_cb;
-    g_push_buttons[1].gpio = g_uni_config->push_button_1;
-    g_push_buttons[1].callback = g_uni_config->push_button_1_cb;
 
     gpio_config_t io_conf;
     io_conf.intr_type = GPIO_INTR_DISABLE;
@@ -298,41 +327,42 @@ static void unijoysticle_init(int argc, const char** argv) {
     io_conf.pin_bit_mask = 0;
     // Port A & B
     for (int i = 0; i < DB9_TOTAL_USABLE_PORTS; i++) {
-        io_conf.pin_bit_mask |= SAFE_SET_BIT(g_uni_config->port_a[i]);
-        io_conf.pin_bit_mask |= SAFE_SET_BIT(g_uni_config->port_b[i]);
+        io_conf.pin_bit_mask |= SAFE_SET_BIT(g_gpio_config->port_a[i]);
+        io_conf.pin_bit_mask |= SAFE_SET_BIT(g_gpio_config->port_b[i]);
     }
 
     // LEDs
-    io_conf.pin_bit_mask |= SAFE_SET_BIT(g_uni_config->led_j1);
-    io_conf.pin_bit_mask |= SAFE_SET_BIT(g_uni_config->led_j2);
+    io_conf.pin_bit_mask |= SAFE_SET_BIT(g_gpio_config->led_j1);
+    io_conf.pin_bit_mask |= SAFE_SET_BIT(g_gpio_config->led_j2);
 
     ESP_ERROR_CHECK(gpio_config(&io_conf));
 
     // Set low all GPIOs... just in case.
     for (int i = 0; i < DB9_TOTAL_USABLE_PORTS; i++) {
-        ESP_ERROR_CHECK(safe_gpio_set_level(g_uni_config->port_a[i], 0));
-        ESP_ERROR_CHECK(safe_gpio_set_level(g_uni_config->port_b[i], 0));
+        ESP_ERROR_CHECK(safe_gpio_set_level(g_gpio_config->port_a[i], 0));
+        ESP_ERROR_CHECK(safe_gpio_set_level(g_gpio_config->port_b[i], 0));
     }
 
     // Turn On LEDs
-    safe_gpio_set_level(g_uni_config->led_j1, 1);
-    safe_gpio_set_level(g_uni_config->led_j2, 1);
+    safe_gpio_set_level(g_gpio_config->led_j1, 1);
+    safe_gpio_set_level(g_gpio_config->led_j2, 1);
 
     // Push Buttons
     ESP_ERROR_CHECK(gpio_install_isr_service(0));
-    for (int i = 0; i < PUSH_BUTTONS_MAX; i++) {
-        if (g_push_buttons[i].gpio == -1)
+    for (int i = 0; i < PUSH_BUTTON_MAX; i++) {
+        if (g_gpio_config->push_buttons[i].gpio == -1)
             continue;
 
         io_conf.intr_type = GPIO_INTR_ANYEDGE;
         io_conf.mode = GPIO_MODE_INPUT;
         io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
         // GPIOs 34~39 don't have internal Pull-up resistors.
-        io_conf.pull_up_en = (g_push_buttons[i].gpio < GPIO_NUM_34) ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
-        io_conf.pin_bit_mask = BIT(g_push_buttons[i].gpio);
+        io_conf.pull_up_en =
+            (g_gpio_config->push_buttons[i].gpio < GPIO_NUM_34) ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
+        io_conf.pin_bit_mask = BIT(g_gpio_config->push_buttons[i].gpio);
         ESP_ERROR_CHECK(gpio_config(&io_conf));
-        // FIXME: "i" must match EVENT_BUTTON_0, value, etc.
-        ESP_ERROR_CHECK(gpio_isr_handler_add(g_push_buttons[i].gpio, gpio_isr_handler_button, (void*)i));
+        // "i" must match EVENT_BUTTON_0, value, etc.
+        ESP_ERROR_CHECK(gpio_isr_handler_add(g_gpio_config->push_buttons[i].gpio, gpio_isr_handler_button, (void*)i));
     }
 
     // Split "events" from "auto_fire", since auto-fire is an on-going event.
@@ -345,17 +375,17 @@ static void unijoysticle_init(int argc, const char** argv) {
 
     // FIXME: These values are hardcoded for Amiga
     uni_mouse_quadrature_init(QUADRATURE_MOUSE_TASK_CPU,
-                              g_uni_config->port_a[1],  // H-pulse (up)
-                              g_uni_config->port_a[3],  // HQ-pulse (left)
-                              g_uni_config->port_a[0],  // V-pulse (down)
-                              g_uni_config->port_a[2]   // VQ-pulse (right)
+                              g_gpio_config->port_a[1],  // H-pulse (up)
+                              g_gpio_config->port_a[3],  // HQ-pulse (left)
+                              g_gpio_config->port_a[0],  // V-pulse (down)
+                              g_gpio_config->port_a[2]   // VQ-pulse (right)
     );
 }
 
 static void unijoysticle_on_init_complete(void) {
     // Turn off LEDs
-    safe_gpio_set_level(g_uni_config->led_j1, 0);
-    safe_gpio_set_level(g_uni_config->led_j2, 0);
+    safe_gpio_set_level(g_gpio_config->led_j1, 0);
+    safe_gpio_set_level(g_gpio_config->led_j2, 0);
 }
 
 static void unijoysticle_on_device_connected(uni_hid_device_t* d) {
@@ -386,9 +416,9 @@ static void unijoysticle_on_device_disconnected(uni_hid_device_t* d) {
     if (ins->gamepad_seat != GAMEPAD_SEAT_NONE) {
         // Turn off the LEDs
         if (ins->gamepad_seat == GAMEPAD_SEAT_A || ins->emu_mode == EMULATION_MODE_COMBO_JOY_JOY)
-            safe_gpio_set_level(g_uni_config->led_j1, 0);
+            safe_gpio_set_level(g_gpio_config->led_j1, 0);
         if (ins->gamepad_seat == GAMEPAD_SEAT_B || ins->emu_mode == EMULATION_MODE_COMBO_JOY_JOY)
-            safe_gpio_set_level(g_uni_config->led_j2, 0);
+            safe_gpio_set_level(g_gpio_config->led_j2, 0);
 
         ins->gamepad_seat = GAMEPAD_SEAT_NONE;
         ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
@@ -499,11 +529,11 @@ static int32_t unijoysticle_get_property(uni_platform_property_t key) {
     if (key != UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS)
         return -1;
 
-    if (g_uni_config->push_button_0 == -1)
+    if (g_gpio_config->push_buttons[PUSH_BUTTON_0].gpio == -1)
         return -1;
 
     // Hi-released, Low-pressed
-    return !gpio_get_level(g_uni_config->push_button_0);
+    return !gpio_get_level(g_gpio_config->push_buttons[PUSH_BUTTON_0].gpio);
 }
 
 static void unijoysticle_on_device_oob_event(uni_hid_device_t* d, uni_platform_oob_event_t event) {
@@ -639,18 +669,18 @@ static void process_mouse(uni_hid_device_t* d, int32_t delta_x, int32_t delta_y,
 
     if (buttons != prev_buttons) {
         prev_buttons = buttons;
-        safe_gpio_set_level(g_uni_config->port_a_named.fire, (buttons & BUTTON_A));
-        safe_gpio_set_level(g_uni_config->port_a_named.pot_x, (buttons & BUTTON_B));
-        safe_gpio_set_level(g_uni_config->port_a_named.pot_y, (buttons & BUTTON_X));
+        safe_gpio_set_level(g_gpio_config->port_a_named.fire, (buttons & BUTTON_A));
+        safe_gpio_set_level(g_gpio_config->port_a_named.pot_x, (buttons & BUTTON_B));
+        safe_gpio_set_level(g_gpio_config->port_a_named.pot_y, (buttons & BUTTON_X));
     }
 }
 
 static void process_joystick(const uni_joystick_t* joy, uni_gamepad_seat_t seat) {
     if (seat == GAMEPAD_SEAT_A) {
-        joy_update_port(joy, g_uni_config->port_a);
+        joy_update_port(joy, g_gpio_config->port_a);
         g_autofire_a_enabled = joy->auto_fire;
     } else if (seat == GAMEPAD_SEAT_B) {
-        joy_update_port(joy, g_uni_config->port_b);
+        joy_update_port(joy, g_gpio_config->port_b);
         g_autofire_b_enabled = joy->auto_fire;
     } else {
         loge("unijoysticle: process_joystick: invalid gamepad seat: %d\n", seat);
@@ -680,8 +710,8 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
 
     bool status_a = ((all_seats & GAMEPAD_SEAT_A) != 0);
     bool status_b = ((all_seats & GAMEPAD_SEAT_B) != 0);
-    safe_gpio_set_level(g_uni_config->led_j1, status_a);
-    safe_gpio_set_level(g_uni_config->led_j2, status_b);
+    safe_gpio_set_level(g_gpio_config->led_j1, status_a);
+    safe_gpio_set_level(g_gpio_config->led_j2, status_b);
 
     bool lightbar_or_led_set = false;
     // Try with LightBar and/or Player LEDs. Some devices like DualSense support
@@ -748,7 +778,7 @@ static void event_loop(void* arg) {
 static void auto_fire_loop(void* arg) {
     // timeout of 10s
     const TickType_t xTicksToWait = 10000 / portTICK_PERIOD_MS;
-    const TickType_t delayTicks = AUTOFIRE_FREQ_MS / portTICK_PERIOD_MS;
+    const TickType_t delayTicks = g_gpio_config->autofire_freq_ms / portTICK_PERIOD_MS;
     while (1) {
         EventBits_t uxBits = xEventGroupWaitBits(g_auto_fire_group, BIT(EVENT_AUTOFIRE), pdTRUE, pdFALSE, xTicksToWait);
 
@@ -758,16 +788,16 @@ static void auto_fire_loop(void* arg) {
 
         while (g_autofire_a_enabled || g_autofire_b_enabled) {
             if (g_autofire_a_enabled)
-                safe_gpio_set_level(g_uni_config->port_a_named.fire, 1);
+                safe_gpio_set_level(g_gpio_config->port_a_named.fire, 1);
             if (g_autofire_b_enabled)
-                safe_gpio_set_level(g_uni_config->port_b_named.fire, 1);
+                safe_gpio_set_level(g_gpio_config->port_b_named.fire, 1);
 
             vTaskDelay(delayTicks);
 
             if (g_autofire_a_enabled)
-                safe_gpio_set_level(g_uni_config->port_a_named.fire, 0);
+                safe_gpio_set_level(g_gpio_config->port_a_named.fire, 0);
             if (g_autofire_b_enabled)
-                safe_gpio_set_level(g_uni_config->port_b_named.fire, 0);
+                safe_gpio_set_level(g_gpio_config->port_b_named.fire, 0);
 
             vTaskDelay(delayTicks);
         }
@@ -776,10 +806,15 @@ static void auto_fire_loop(void* arg) {
 
 static void IRAM_ATTR gpio_isr_handler_button(void* arg) {
     int button_idx = (int)arg;
-    struct push_button* pb = &g_push_buttons[button_idx];
+
+    // Stored din ROM
+    const struct push_button* pb = &g_gpio_config->push_buttons[button_idx];
+    // Stored in RAM
+    struct push_button_state* st = &g_push_buttons_state[button_idx];
+
     // Button released ?
     if (gpio_get_level(pb->gpio)) {
-        pb->last_time_pressed_us = esp_timer_get_time();
+        st->last_time_pressed_us = esp_timer_get_time();
         return;
     }
 
@@ -791,19 +826,21 @@ static void IRAM_ATTR gpio_isr_handler_button(void* arg) {
 }
 
 static void handle_event_button(int button_idx) {
-    // FIXME: Debouncer might fail when releasing the button.
-    // Implement something like this one:
+    // Basic software debouncer. If it fails, it could be improved with:
     // https://hackaday.com/2015/12/10/embed-with-elliot-debounce-your-noisy-buttons-part-ii/
     const int64_t button_threshold_time_us = 300 * 1000;  // 300ms
 
-    struct push_button* pb = &g_push_buttons[button_idx];
+    // Stored in ROM
+    const struct push_button* pb = &g_gpio_config->push_buttons[button_idx];
+    // Stored in RAM
+    struct push_button_state* st = &g_push_buttons_state[button_idx];
 
     // Regardless of the state, ignore the event if not enough time passed.
     int64_t now = esp_timer_get_time();
-    if ((now - pb->last_time_pressed_us) < button_threshold_time_us)
+    if ((now - st->last_time_pressed_us) < button_threshold_time_us)
         return;
 
-    pb->last_time_pressed_us = now;
+    st->last_time_pressed_us = now;
 
     // "up" button is released. Ignore event.
     if (gpio_get_level(pb->gpio)) {
@@ -811,10 +848,9 @@ static void handle_event_button(int button_idx) {
     }
 
     // "down", button pressed.
-    logi("handle_event_button(%d): %d -> %d\n", button_idx, pb->enabled, !pb->enabled);
+    logi("handle_event_button(%d): %d -> %d\n", button_idx, st->enabled, !st->enabled);
 
-    pb->enabled = !pb->enabled;
-
+    st->enabled = !st->enabled;
     pb->callback(button_idx);
 }
 
