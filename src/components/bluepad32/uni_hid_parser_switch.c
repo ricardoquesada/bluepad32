@@ -151,7 +151,7 @@ struct switch_subcmd_request {
     uint8_t rumble_left[4];
     uint8_t rumble_right[4];
     uint8_t subcmd_id;  // Not used by rumble, request
-    uint8_t data[0];  // length depends on the subcommand
+    uint8_t data[0];    // length depends on the subcommand
 } __attribute__((packed));
 
 struct switch_report_3f_s {
@@ -949,7 +949,7 @@ void uni_hid_parser_switch_set_rumble(struct uni_hid_device_s* d, uint8_t value,
     switch_encode_rumble(req.rumble_right, value << 2, value, 500);
 
     // Rumble request don't include the last byte of "switch_subcmd_request": subcmd_id
-    send_subcmd(d, &req, sizeof(req)-1);
+    send_subcmd(d, &req, sizeof(req) - 1);
 
     // set timer to turn off rumble
     switch_instance_t* ins = get_switch_instance(d);
@@ -1055,7 +1055,7 @@ static void switch_rumble_off(btstack_timer_source_t* ts) {
     memcpy(req.rumble_right, rumble_default, sizeof(req.rumble_left));
 
     // Rumble request don't include the last byte of "switch_subcmd_request": subcmd_id
-    send_subcmd(d, (struct switch_subcmd_request*)&req, sizeof(req)-1);
+    send_subcmd(d, (struct switch_subcmd_request*)&req, sizeof(req) - 1);
 }
 
 void switch_setup_timeout_callback(btstack_timer_source_t* ts) {

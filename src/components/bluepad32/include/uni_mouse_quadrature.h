@@ -32,4 +32,4 @@ void uni_mouse_quadrature_start();
 void uni_mouse_quadrature_pause();
 void uni_mouse_quadrature_deinit();
 
-#endif // UNI_MOUSE_QUADRATURE_H
+#endif  // UNI_MOUSE_QUADRATURE_H

@@ -57,8 +57,8 @@ limitations under the License.
 // NINA / AirLift don't use the pre-designated IO_MUX pins for VSPI.
 // Instead it uses the GPIO matrix, that might not be suitable for fast SPI
 // communications.
-//#define GPIO_MOSI GPIO_NUM_23
-//#define GPIO_MISO GPIO_NUM_19
+// #define GPIO_MOSI GPIO_NUM_23
+// #define GPIO_MISO GPIO_NUM_19
 
 // The only difference between NINA and AirLift, seems to be the MOSI pin.
 #ifdef CONFIG_BLUEPAD32_PLATFORM_AIRLIFT
