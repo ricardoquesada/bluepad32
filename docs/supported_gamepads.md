@@ -275,6 +275,29 @@ There many *generic* Bluetooth controllers that sometimes are offered as gifts i
 
 [generic_gamepad]: https://lh3.googleusercontent.com/JG0sQGQ4lmFIITl_nincUDdPi-mlYPol-RSQrnoxsYZf1_cc16A4WMod_ttuLJoIQigvcZ_ZF6NiA7p54bBQP-Eu52b28mbjfVCwsMjuu_LCQB9Lj0k9e5UkW_PkRM12IB0HrW8ah0k=-no
 
+# Supported mice
+
+## Apple Magic Mouse A1296 (1st gen)
+
+[![Apple Magic Mouse A1296][magic_mouse_a1296_photo]][magic_mouse_a1296_link]
+
+* Supports: movement; left & right click
+* Purchase link: [eBay][magic_mouse_a1296_link]
+
+[magic_mouse_a1296_photo]: https://lh3.googleusercontent.com/pw/AM-JKLUDJzou9y7_78LP1E17L8C1gL6tHBfmfJ8NE3IzCfXAMwfEba3iYj01HaWyIg3ELUXu4mkGN2SM7rj7CjRiZiJnyRJxb4pHvH-oy-pC0X74k5qyz-v3-ywurhqYc-zQ3aHNToV_IU54SyH_i0valsPv6A=-no
+[magic_mouse_a1296_link]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1312&_nkw=apple+magic+mouse+a1296&_sacat=0 
+
+## Bornd C170B
+
+[![Bornd C170B][bornd_c170b_photo]][bornd_c170b_link]
+
+* Supports: movement; left, middle & right click
+* Purchase link: [Amazon][bornd_c170b_link]
+
+[bornd_c170b_link]: https://www.amazon.com/Bornd-C170B-Bluetooth-wireless-BLACK/dp/B009FD55SU
+[bornd_c170b_photo]: https://lh3.googleusercontent.com/pw/AM-JKLWhgr0VyJ2LoErHi3U8dzedoILDyguhDJfYb86K3izqETUGyxtSfheRpxw-yD_dbbdYzoeHUT5oU_45XBjBBWFFWh-CENKZ0Xf29PIfiPMCFiz3lSaCFQET1-c6SqL2T8hECmvEmlweFmbXbEo5HmTYNw=-no
+
+
 # Technical notes: Virtual gamepad
 
 Internally, all controllers are converted to a virtual gamepad which is very similar
