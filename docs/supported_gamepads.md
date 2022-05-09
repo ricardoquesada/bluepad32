@@ -297,6 +297,31 @@ There many *generic* Bluetooth controllers that sometimes are offered as gifts i
 [bornd_c170b_link]: https://www.amazon.com/Bornd-C170B-Bluetooth-wireless-BLACK/dp/B009FD55SU
 [bornd_c170b_photo]: https://lh3.googleusercontent.com/pw/AM-JKLWhgr0VyJ2LoErHi3U8dzedoILDyguhDJfYb86K3izqETUGyxtSfheRpxw-yD_dbbdYzoeHUT5oU_45XBjBBWFFWh-CENKZ0Xf29PIfiPMCFiz3lSaCFQET1-c6SqL2T8hECmvEmlweFmbXbEo5HmTYNw=-no
 
+## Other supported / not supported mice
+
+In theory any Bluetooth BR/EDR (AKA "Classic") mouse shuold work. Notice that Bluetooth LE (AKA BLE) mice are not supported ATM.
+
+Most modern mice are BLE only. But there are still some modern mice that supports BR/EDR.
+The problem is that mice based on BK3632 are not supported ATM due to a bug in ESP-IDF. See:
+
+* https://github.com/espressif/arduino-esp32/issues/6193 (Please, go and say "please fix it")
+
+So, which mice should work:
+
+|            | Should work                                           |
+| ---------- | ----------------------------------------------------- |
+| Bluetooth  | BR/EDR (AKA "Classic", AKA "3.0")                     |
+| Search for | "Mouse Bluetooth 3.0" or "Mouse Bluetooth Windows XP" |
+|            | Bluetooth mice from early 2010's                      |
+
+|           | Should NOT work                                                |
+| --------- | -------------------------------------------------------------- |
+| Bluetooth | BLE **only** (AKA "LE" or "5.0")                               |
+| Avoid     | "Tri-Mode BT 3.0, BT 5.0, 2.4Gz". See [BK3632 bug][bk3632_bug] |
+
+
+[bk3632_bug]: https://github.com/espressif/arduino-esp32/issues/6193
+
 
 # Technical notes: Virtual gamepad
 
