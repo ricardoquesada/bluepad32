@@ -58,6 +58,7 @@ const uni_gamepad_mappings_t GAMEPAD_DEFAULT_MAPPINGS = {
     .misc_button_home = UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_HOME,
     .misc_button_system = UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_SYSTEM,
 };
+
 const int AXIS_NORMALIZE_RANGE = 1024;  // 10-bit resolution (1024)
 const int AXIS_THRESHOLD = (1024 / 8);
 

@@ -20,12 +20,63 @@ limitations under the License.
 // might implemenet usages that are invalid for specific consoles. In order to
 // keep clean the pure-console implementations, add here the generic ones.
 
-#include "uni_hid_parser_generic.h"
+#include "uni_hid_parser_mouse.h"
 
 #include "hid_usage.h"
 #include "uni_debug.h"
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
+
+struct mouse_resolution {
+    uint16_t vid;
+    uint16_t pid;
+    int multiplier;
+    int divisor;
+};
+
+// TL;DR: Mouse reports are hit and miss.
+// Don't try to be clever: just return the value unmodified.
+// Long:
+// "Unitless" reports have no sense. How many "deltas" should I move?
+// "Unit"-oriented reports (like Apple Magic Mouse), should I really do a complicated math
+// in order to translate how many inches the mouse move and then try to map that to the Amiga?
+// Error-prone.
+//
+// Easy-and-hackish wat to solve:
+// Since we only support a handful of mice, harcode the resolutions.
+// This works only becuase we support a few mice. In the future we might need to do
+// "smart" way to solve it... or just allow the user change the resolution via BLE application.
+static const struct mouse_resolution resolutions[] = {
+    {0x05ac, 0x030d, 1, 4},  // Apple Magic Mouse 1st gen
+    // No need to add entries where mult & div are both 1
+    /*
+    {0x0a5c, 0x0001, 1, 1},  // Bornd C170B
+    */
+};
+
+static int32_t process_mouse_delta(uni_hid_device_t* d, int32_t value) {
+    int mult = 1;
+    int div = 1;
+
+    for (unsigned int i = 0; i < ARRAY_SIZE(resolutions); i++) {
+        if (resolutions[i].vid == d->vendor_id && resolutions[i].pid == d->product_id) {
+            mult = resolutions[i].multiplier;
+            div = resolutions[i].divisor;
+        }
+    }
+    if (mult != 1)
+        value *= mult;
+    if (div != 1 && div != 0)
+        value /= div;
+
+    // Quadrature-driver expect values between -127 and 127.
+    if (value < -110)
+        value = -110;
+    if (value > 110)
+        value = 110;
+
+    return value;
+}
 
 void uni_hid_parser_mouse_init_report(uni_hid_device_t* d) {
     // Reset old state. Each report contains a full-state.
@@ -40,8 +91,7 @@ void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
                                       uint16_t usage_page,
                                       uint16_t usage,
                                       int32_t value) {
-    // print_parser_globals(globals);
-
+    UNUSED(globals);
     // TODO: should be a union of gamepad/mouse/keyboard
     uni_gamepad_t* gp = &d->gamepad;
     switch (usage_page) {
@@ -49,11 +99,11 @@ void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
             switch (usage) {
                 case HID_USAGE_AXIS_X:
                     // Mouse delta X
-                    gp->axis_x = uni_hid_parser_process_axis(globals, value);
+                    gp->axis_x = process_mouse_delta(d, value);
                     break;
                 case HID_USAGE_AXIS_Y:
                     // Mouse delta Y
-                    gp->axis_y = uni_hid_parser_process_axis(globals, value);
+                    gp->axis_y = process_mouse_delta(d, value);
                     break;
                 case HID_USAGE_WHEEL:
                     // TODO: do something

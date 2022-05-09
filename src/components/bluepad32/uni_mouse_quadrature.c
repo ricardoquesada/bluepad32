@@ -40,7 +40,6 @@ limitations under the License.
  */
 
 // One 1us per tick
-// FIXME: Should be 80 instead of 80 * 25
 #define TIMER_DIVIDER (80)
 #define TASK_TIMER_STACK_SIZE (1024)
 #define TASK_TIMER_PRIO (5)
@@ -223,6 +222,7 @@ void uni_mouse_quadrature_start() {
 static void process_update(struct quadrature_state* q, int32_t delta) {
     uint64_t units;
     int32_t abs_delta = (delta < 0) ? -delta : delta;
+    const int resolution = 1;
 
     if (delta != 0) {
         /* Don't update the phase, it should start from the previous phase */
@@ -233,12 +233,27 @@ static void process_update(struct quadrature_state* q, int32_t delta) {
         // According to my test they are ~90, which is in the same order.
         // For simplicity, I'll use 100. It means that, at most, reports are received
         // every 10ms (1 second / 100 reports = 10ms per report).
-        // "delta" is a normalized value that goes from 0 to 511.
-        // In theory we should split 10 milliseconds (ms) in 512 steps = ~20 microseconds (us)
-        // So, we should "tick" every 20us. The minimum available in ESP32 is 50us.
-        // It is safe to divide 512 (the max value of "delta") by 4, so have at most 128 steps.
-        // That means that we can multiply the "tick" value by 4: 20us * 4 = 80us.
-        units = ((512 / 4) * 80) / ((abs_delta / 4) + 1);
+        //
+        // "delta" is a "somewhat normalized" value that goes from 0 to 127.
+        // So we should split 10 milliseconds (ms) in 128 steps = ~80 microseconds (us).
+        // That's good because the minimum "ISR" in ESP32 is 50us.
+        // So the ESP32 timer is configured as:
+        // - down timer
+        // - ticks every 1us
+        // - when it reaches 0, triggers the ISR
+        //
+        // But a quadrature has 4 states (hence the name). So takes 4 "ticks" to have
+        // complete "state.", which is represented with "resolution", kind of "hand tuned"
+        // so that the mice movement feels "good" (to me).
+        //
+        // The smaller "units" is, the faster the mouse moves.
+        //
+        // But in order to avoid a "division" in the mouse driver, and a multiplication here,
+        // (which will  loose precision), we just use a "resolution" of 1 instead of 4,
+        // and we don't divide by 4 here.
+        units = (128 * 80) / (abs_delta * resolution);
+        if (units < 80)
+            units = 80;
     } else {
         // If there is no update, set timer to update less frequently
         units = ONE_SECOND * 10;

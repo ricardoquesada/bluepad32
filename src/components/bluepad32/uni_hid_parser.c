@@ -41,7 +41,7 @@ void uni_hid_parse_input_report(uni_hid_device_t* d, const uint8_t* report, uint
         rp->parse_input_report(d, report, report_len);
     }
 
-    // Devices that suport regular HID reports. Basically everyone except the Nintendo Wii U.
+    // Devices that suport regular HID reports.
     if (rp->parse_usage) {
         btstack_hid_parser_init(&parser, d->hid_descriptor, d->hid_descriptor_len, HID_REPORT_TYPE_INPUT, report,
                                 report_len);
@@ -51,8 +51,8 @@ void uni_hid_parse_input_report(uni_hid_device_t* d, const uint8_t* report, uint
             int32_t value;
             hid_globals_t globals;
 
-            // Save globals, otherwise they are going to get destroyed by
-            // btstack_hid_parser_get_field()
+            // Save globals, since they are destroyed by btstack_hid_parser_get_field()
+            // see: https://github.com/bluekitchen/btstack/issues/187
             globals.logical_minimum = parser.global_logical_minimum;
             globals.logical_maximum = parser.global_logical_maximum;
             globals.report_count = parser.global_report_count;
@@ -68,16 +68,6 @@ void uni_hid_parse_input_report(uni_hid_device_t* d, const uint8_t* report, uint
     }
 }
 
-// static uint32_t next_pot(uint32_t n) {
-//     n--;
-//     n |= n >> 1;
-//     n |= n >> 2;
-//     n |= n >> 4;
-//     n |= n >> 8;
-//     n |= n >> 16;
-//     return n + 1;
-// }
-
 // Converts a possible value between (0, x) to (-x/2, x/2), and normalizes it
 // between -512 and 511.
 int32_t uni_hid_parser_process_axis(hid_globals_t* globals, uint32_t value) {
@@ -92,17 +82,14 @@ int32_t uni_hid_parser_process_axis(hid_globals_t* globals, uint32_t value) {
 
     // Get the range: how big can be the number
     int32_t range = (max - min) + 1;
-    // range = next_pot(range);
 
     // First we "center" the value, meaning that 0 is when the axis is not used.
     int32_t centered = value - range / 2 - min;
 
     // Then we normalize between -512 and 511
     int32_t normalized = centered * AXIS_NORMALIZE_RANGE / range;
-    logd(
-        "original = %d, centered = %d, normalized = %d (range = %d, min=%d, "
-        "max=%d)\n",
-        value, centered, normalized, range, min, max);
+    logd("original = %d, centered = %d, normalized = %d (range = %d, min=%d, max=%d)\n", value, centered, normalized,
+         range, min, max);
 
     return normalized;
 }
