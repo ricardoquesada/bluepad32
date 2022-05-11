@@ -895,8 +895,7 @@ static void toggle_enhanced_mode(int button_idx) {
     uni_hid_device_t* d = NULL;
     for (int j = 0; j < CONFIG_BLUEPAD32_MAX_DEVICES; j++) {
         uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
-        if (bd_addr_cmp(tmp_d->conn.btaddr, zero_addr) != 0 && tmp_d->conn.control_cid != 0 &&
-            tmp_d->conn.interrupt_cid != 0) {
+        if (uni_bt_conn_is_connected(&tmp_d->conn)) {
             num_devices++;
             d = tmp_d;
         }
@@ -942,8 +941,23 @@ static void toggle_mouse_mode(int button_idx) {
 }
 
 static void swap_ports(int button_idx) {
-    // Not implemented. A500 feature
-    logi("swap_ports called: %d\n", button_idx);
+    uni_hid_device_t* d;
+    unijoysticle_instance_t* ins;
+    uni_gamepad_seat_t prev_seat, new_seat;
+
+    UNUSED(button_idx);
+
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
+        d = uni_hid_device_get_instance_for_idx(i);
+        if (uni_bt_conn_is_connected(&d->conn)) {
+            ins = get_unijoysticle_instance(d);
+
+            prev_seat = ins->gamepad_seat;
+            new_seat = ~prev_seat & GAMEPAD_SEAT_AB_MASK;
+            logi("unijoysticle: swap seat for %s: %d -> %d\n", bd_addr_to_str(d->conn.btaddr), prev_seat, new_seat);
+            set_gamepad_seat(d, new_seat);
+        }
+    }
 }
 
 // In some boards, not all GPIOs are set. If so, don't try change their values.
