@@ -52,8 +52,8 @@ enum direction {
 
 // A mouse has two encoders.
 struct quadrature_state {
-    int gpio_a;
-    int gpio_b;
+    // horizontal or vertical encoder?
+    int encoder;
     // Current direction
     enum direction dir;
     // Current value
@@ -64,6 +64,13 @@ struct quadrature_state {
     // Which timer is being used: 0 or 1
     timer_idx_t timer_idx;
 };
+
+// We have two mouse ports, but only one can be used at the time.
+// This is because it should be possible to swap the mouse port.
+// A real example: Amiga 4000 has port#2 at the left, port#1 at the right.
+static struct uni_mouse_quadrature_port g_ports[UNI_MOUSE_QUADRATURE_PORT_MAX];
+// Which port is active;
+static int g_port_idx;
 
 static struct quadrature_state s_quadrature_x;
 static struct quadrature_state s_quadrature_y;
@@ -111,9 +118,13 @@ static void process_quadrature(struct quadrature_state* q) {
             a = b = 0;
             break;
     }
-    gpio_set_level(q->gpio_a, a);
-    gpio_set_level(q->gpio_b, b);
-    logd("value: %d, quadrature phase: %d, a=%d, b=%d (%d,%d)\n", q->value, q->phase, a, b, q->gpio_a, q->gpio_b);
+
+    // Get GPIOs from the correct port / encoder.
+    int gpio_a = g_ports[g_port_idx].encoders[q->encoder].gpio_a;
+    int gpio_b = g_ports[g_port_idx].encoders[q->encoder].gpio_b;
+    gpio_set_level(gpio_a, a);
+    gpio_set_level(gpio_b, b);
+    logd("value: %d, quadrature phase: %d, a=%d, b=%d (%d,%d)\n", q->value, q->phase, a, b, gpio_a, gpio_b);
 }
 
 static void timer_x_task(void* arg) {
@@ -180,45 +191,6 @@ static void init_from_cpu1_task() {
     vTaskDelete(NULL);
 }
 
-void uni_mouse_quadrature_init(int cpu_id, int gpio_x1, int gpio_x2, int gpio_y1, int gpio_y2) {
-    memset(&s_quadrature_x, 0, sizeof(s_quadrature_x));
-    memset(&s_quadrature_y, 0, sizeof(s_quadrature_y));
-
-    s_quadrature_x.gpio_a = gpio_x1;
-    s_quadrature_x.gpio_b = gpio_x2;
-    s_quadrature_x.timer_idx = TIMER_0;
-
-    s_quadrature_y.gpio_a = gpio_y1;
-    s_quadrature_y.gpio_b = gpio_y2;
-    s_quadrature_y.timer_idx = TIMER_1;
-
-    // Create tasks
-    xTaskCreatePinnedToCore(init_from_cpu1_task, "init_timers", TASK_TIMER_STACK_SIZE, NULL, TASK_TIMER_PRIO, NULL,
-                            cpu_id);
-}
-
-void uni_mouse_quadrature_deinit() {
-    // Stop the timers
-    timer_deinit(TIMER_GROUP_0, s_quadrature_x.timer_idx);
-    timer_deinit(TIMER_GROUP_0, s_quadrature_y.timer_idx);
-
-    // Delete the tasks
-    vTaskDelete(s_timer_x_task);
-    vTaskDelete(s_timer_y_task);
-    s_timer_x_task = NULL;
-    s_timer_y_task = NULL;
-}
-
-void uni_mouse_quadrature_pause() {
-    timer_pause(TIMER_GROUP_0, s_quadrature_x.timer_idx);
-    timer_pause(TIMER_GROUP_0, s_quadrature_y.timer_idx);
-}
-
-void uni_mouse_quadrature_start() {
-    timer_start(TIMER_GROUP_0, s_quadrature_x.timer_idx);
-    timer_start(TIMER_GROUP_0, s_quadrature_y.timer_idx);
-}
-
 static void process_update(struct quadrature_state* q, int32_t delta) {
     uint64_t units;
     int32_t abs_delta = (delta < 0) ? -delta : delta;
@@ -261,8 +233,55 @@ static void process_update(struct quadrature_state* q, int32_t delta) {
     timer_set_counter_value(TIMER_GROUP_0, q->timer_idx, units);
 }
 
+void uni_mouse_quadrature_init(int cpu_id,
+                               struct uni_mouse_quadrature_port port_a,
+                               struct uni_mouse_quadrature_port port_b) {
+    g_port_idx = 0;
+    g_ports[UNI_MOUSE_QUADRATURE_PORT_0] = port_a;
+    g_ports[UNI_MOUSE_QUADRATURE_PORT_1] = port_b;
+
+    memset(&s_quadrature_x, 0, sizeof(s_quadrature_x));
+    memset(&s_quadrature_y, 0, sizeof(s_quadrature_y));
+
+    s_quadrature_x.encoder = UNI_MOUSE_QUADRATURE_ENCODER_H;
+    s_quadrature_x.timer_idx = TIMER_0;
+
+    s_quadrature_y.encoder = UNI_MOUSE_QUADRATURE_ENCODER_V;
+    s_quadrature_y.timer_idx = TIMER_1;
+
+    // Create tasks
+    xTaskCreatePinnedToCore(init_from_cpu1_task, "init_timers", TASK_TIMER_STACK_SIZE, NULL, TASK_TIMER_PRIO, NULL,
+                            cpu_id);
+}
+
+void uni_mouse_quadrature_deinit() {
+    // Stop the timers
+    timer_deinit(TIMER_GROUP_0, s_quadrature_x.timer_idx);
+    timer_deinit(TIMER_GROUP_0, s_quadrature_y.timer_idx);
+
+    // Delete the tasks
+    vTaskDelete(s_timer_x_task);
+    vTaskDelete(s_timer_y_task);
+    s_timer_x_task = NULL;
+    s_timer_y_task = NULL;
+}
+
+void uni_mouse_quadrature_pause() {
+    timer_pause(TIMER_GROUP_0, s_quadrature_x.timer_idx);
+    timer_pause(TIMER_GROUP_0, s_quadrature_y.timer_idx);
+}
+
+void uni_mouse_quadrature_start() {
+    timer_start(TIMER_GROUP_0, s_quadrature_x.timer_idx);
+    timer_start(TIMER_GROUP_0, s_quadrature_y.timer_idx);
+}
+
+
 // Should be called everytime that mouse report is received.
-void uni_mouse_quadrature_update(int32_t dx, int32_t dy) {
+void uni_mouse_quadrature_update(int port_idx, int32_t dx, int32_t dy) {
+    // Looks overkill to pass the "idx" each time.
+    // But adding another function just to say which port is active looks worse(?)
+    g_port_idx = port_idx;
     process_update(&s_quadrature_x, dx);
     process_update(&s_quadrature_y, dy);
 }

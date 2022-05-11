@@ -172,7 +172,11 @@ static board_model_t get_board_model();
 static unijoysticle_instance_t* get_unijoysticle_instance(const uni_hid_device_t* d);
 static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat);
 static void process_joystick(const uni_joystick_t* joy, uni_gamepad_seat_t seat);
-static void process_mouse(uni_hid_device_t* d, int32_t delta_x, int32_t delta_y, uint16_t buttons);
+static void process_mouse(uni_hid_device_t* d,
+                          uni_gamepad_seat_t seat,
+                          int32_t delta_x,
+                          int32_t delta_y,
+                          uint16_t buttons);
 
 // Interrupt handlers
 static void handle_event_button(int button_idx);
@@ -374,12 +378,23 @@ static void unijoysticle_init(int argc, const char** argv) {
     // xTaskCreatePinnedToCore(event_loop, "event_loop", 2048, NULL, portPRIVILEGE_BIT, NULL, 1);
 
     // FIXME: These values are hardcoded for Amiga
-    uni_mouse_quadrature_init(QUADRATURE_MOUSE_TASK_CPU,
-                              g_gpio_config->port_a[1],  // H-pulse (up)
-                              g_gpio_config->port_a[3],  // HQ-pulse (left)
-                              g_gpio_config->port_a[0],  // V-pulse (down)
-                              g_gpio_config->port_a[2]   // VQ-pulse (right)
-    );
+    struct uni_mouse_quadrature_port port_a = {(struct uni_mouse_quadrature_encoder){
+                                                   g_gpio_config->port_a[1],  // H-pulse (up)
+                                                   g_gpio_config->port_a[3],  // HQ-pulse (left)
+                                               },
+                                               (struct uni_mouse_quadrature_encoder){
+                                                   g_gpio_config->port_a[0],  // V-pulse (down)
+                                                   g_gpio_config->port_a[2]   // VQ-pulse (right)
+                                               }};
+    struct uni_mouse_quadrature_port port_b = {(struct uni_mouse_quadrature_encoder){
+                                                   g_gpio_config->port_b[1],  // H-pulse (up)
+                                                   g_gpio_config->port_b[3],  // HQ-pulse (left)
+                                               },
+                                               (struct uni_mouse_quadrature_encoder){
+                                                   g_gpio_config->port_b[0],  // V-pulse (down)
+                                                   g_gpio_config->port_b[2]   // VQ-pulse (right)
+                                               }};
+    uni_mouse_quadrature_init(QUADRATURE_MOUSE_TASK_CPU, port_a, port_b);
 }
 
 static void unijoysticle_on_init_complete(void) {
@@ -505,7 +520,7 @@ static void unijoysticle_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp)
             process_joystick(&joy, ins->gamepad_seat);
             break;
         case EMULATION_MODE_SINGLE_MOUSE:
-            process_mouse(d, gp->axis_x, gp->axis_y, gp->buttons);
+            process_mouse(d, ins->gamepad_seat, gp->axis_x, gp->axis_y, gp->buttons);
             break;
         case EMULATION_MODE_COMBO_JOY_JOY:
             uni_joy_to_combo_joy_joy_from_gamepad(gp, &joy, &joy_ext);
@@ -514,10 +529,11 @@ static void unijoysticle_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp)
             break;
         case EMULATION_MODE_COMBO_JOY_MOUSE:
             uni_joy_to_single_joy_from_gamepad(gp, &joy);
-            process_joystick(&joy, GAMEPAD_SEAT_B);
+            process_joystick(&joy, ins->gamepad_seat);
             // Data coming from gamepad axis is different from mouse deltas.
             // They need to be scaled down, otherwise the pointer moves too fast.
-            process_mouse(d, gp->axis_rx / 25, gp->axis_ry / 25, gp->buttons);
+            process_mouse(d, (~ins->gamepad_seat & GAMEPAD_SEAT_AB_MASK), gp->axis_rx / 25, gp->axis_ry / 25,
+                          gp->buttons);
             break;
         default:
             loge("unijoysticle: Unsupported emulation mode: %d\n", ins->emu_mode);
@@ -660,18 +676,34 @@ static unijoysticle_instance_t* get_unijoysticle_instance(const uni_hid_device_t
     return (unijoysticle_instance_t*)&d->platform_data[0];
 }
 
-static void process_mouse(uni_hid_device_t* d, int32_t delta_x, int32_t delta_y, uint16_t buttons) {
+static void process_mouse(uni_hid_device_t* d,
+                          uni_gamepad_seat_t seat,
+                          int32_t delta_x,
+                          int32_t delta_y,
+                          uint16_t buttons) {
     UNUSED(d);
     static uint16_t prev_buttons = 0;
     logd("unijoysticle: mouse: x=%d, y=%d, buttons=0x%04x\n", delta_x, delta_y, buttons);
 
-    uni_mouse_quadrature_update(delta_x, delta_y);
+    int port_idx = (seat == GAMEPAD_SEAT_A) ? UNI_MOUSE_QUADRATURE_PORT_0 : UNI_MOUSE_QUADRATURE_PORT_1;
+
+    uni_mouse_quadrature_update(port_idx, delta_x, delta_y);
 
     if (buttons != prev_buttons) {
         prev_buttons = buttons;
-        safe_gpio_set_level(g_gpio_config->port_a_named.fire, (buttons & BUTTON_A));
-        safe_gpio_set_level(g_gpio_config->port_a_named.pot_x, (buttons & BUTTON_B));
-        safe_gpio_set_level(g_gpio_config->port_a_named.pot_y, (buttons & BUTTON_X));
+        int fire, pot_x, pot_y;
+        if (seat == GAMEPAD_SEAT_A) {
+            fire = g_gpio_config->port_a_named.fire;
+            pot_x = g_gpio_config->port_a_named.pot_x;
+            pot_y = g_gpio_config->port_a_named.pot_y;
+        } else {
+            fire = g_gpio_config->port_b_named.fire;
+            pot_x = g_gpio_config->port_b_named.pot_x;
+            pot_y = g_gpio_config->port_b_named.pot_y;
+        }
+        safe_gpio_set_level(fire, (buttons & BUTTON_A));
+        safe_gpio_set_level(pot_x, (buttons & BUTTON_B));
+        safe_gpio_set_level(pot_y, (buttons & BUTTON_X));
     }
 }
 

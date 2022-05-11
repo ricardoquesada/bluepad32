@@ -47,7 +47,12 @@ struct mouse_resolution {
 // This works only becuase we support a few mice. In the future we might need to do
 // "smart" way to solve it... or just allow the user change the resolution via BLE application.
 static const struct mouse_resolution resolutions[] = {
-    {0x05ac, 0x030d, 1, 4},  // Apple Magic Mouse 1st gen
+    // Apple Magic Mouse 1st gen
+    {0x05ac, 0x030d, 1, 4},
+    // TECKNET 2600DPI. This mouse has a "DPI" button. The faster one is unusable.
+    // FIXME: VID/PID belongs to Broadcom Boot Mouse, so probably more than one
+    // brand is using it. Use "Name" to filter as well.
+    {0x0a5c, 0x4503, 1, 3},
     // No need to add entries where mult & div are both 1
     /*
     {0x0a5c, 0x0001, 1, 1},  // Bornd C170B

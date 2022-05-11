@@ -21,13 +21,37 @@ limitations under the License.
 
 #include <stdint.h>
 
+enum {
+    UNI_MOUSE_QUADRATURE_PORT_0,
+    UNI_MOUSE_QUADRATURE_PORT_1,
+    UNI_MOUSE_QUADRATURE_PORT_MAX,
+};
+
+enum {
+    UNI_MOUSE_QUADRATURE_ENCODER_H,
+    UNI_MOUSE_QUADRATURE_ENCODER_V,
+    UNI_MOUSE_QUADRATURE_ENCODER_MAX,
+};
+
+struct uni_mouse_quadrature_encoder {
+    int gpio_a;
+    int gpio_b;
+};
+
+struct uni_mouse_quadrature_port {
+    // Each port has two encoders: horizontal and vertical.
+    struct uni_mouse_quadrature_encoder encoders[UNI_MOUSE_QUADRATURE_ENCODER_MAX];
+};
+
 /*
  * cpu_id indicates in which CPU the quadrature task runs.
  * x1,x2: GPIOs for horizontal movement
  * y1,y2: GPIOs for vertical movement
  */
-void uni_mouse_quadrature_init(int cpu_id, int gpio_x1, int gpio_x2, int gpio_y1, int gpio_y2);
-void uni_mouse_quadrature_update(int32_t dx, int32_t dy);
+void uni_mouse_quadrature_init(int cpu_id,
+                               struct uni_mouse_quadrature_port port_a,
+                               struct uni_mouse_quadrature_port port_b);
+void uni_mouse_quadrature_update(int port_idx, int32_t dx, int32_t dy);
 void uni_mouse_quadrature_start();
 void uni_mouse_quadrature_pause();
 void uni_mouse_quadrature_deinit();
