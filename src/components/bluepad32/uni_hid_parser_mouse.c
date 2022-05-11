@@ -108,6 +108,9 @@ void uni_hid_parser_mouse_setup(uni_hid_device_t* d) {
 
     ins->multiplier = mult;
     ins->divisor = div;
+    logi("mouse: using multiplier: %d / divisor: %d\n", mult, div);
+
+    uni_hid_device_set_ready_complete(d);
 }
 
 void uni_hid_parser_mouse_init_report(uni_hid_device_t* d) {

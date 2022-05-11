@@ -469,7 +469,6 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
         // Try with Port B, assume it is a joystick
         wanted_seat = GAMEPAD_SEAT_B;
         ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
-        // ins->emu_mode = EMULATION_MODE_COMBO_JOY_MOUSE;
 
         // ... unless it is a mouse which should try with PORT A.
         // Amiga/Atari ST use mice in PORT A. Undefined on the C64, but
@@ -500,7 +499,6 @@ static void unijoysticle_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp)
 
     unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
 
-    // FIXME: Add support for EMULATION_MODE_COMBO_JOY_MOUSE
     uni_joystick_t joy, joy_ext;
     memset(&joy, 0, sizeof(joy));
     memset(&joy_ext, 0, sizeof(joy_ext));
@@ -519,12 +517,9 @@ static void unijoysticle_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp)
             process_joystick(d, GAMEPAD_SEAT_B, &joy_ext);
             break;
         case EMULATION_MODE_COMBO_JOY_MOUSE:
-            uni_joy_to_single_joy_from_gamepad(gp, &joy);
-            process_joystick(d, ins->gamepad_seat, &joy);
             // Data coming from gamepad axis is different from mouse deltas.
             // They need to be scaled down, otherwise the pointer moves too fast.
-            process_mouse(d, (~ins->gamepad_seat & GAMEPAD_SEAT_AB_MASK), gp->axis_rx / 25, gp->axis_ry / 25,
-                          gp->buttons);
+            process_mouse(d, ins->gamepad_seat, gp->axis_x / 50, gp->axis_y / 50, gp->buttons);
             break;
         default:
             loge("unijoysticle: Unsupported emulation mode: %d\n", ins->emu_mode);
@@ -555,26 +550,22 @@ static void unijoysticle_on_device_oob_event(uni_hid_device_t* d, uni_platform_o
     }
 
     if (get_board_model() == BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT) {
-        logi(
-            "INFO: unijoysticle_on_device_oob_event: No effect in single port "
-            "boards\n");
+        logi("INFO: unijoysticle_on_device_oob_event: No effect in single port boards\n");
         return;
     }
 
     unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
 
     if (ins->gamepad_seat == GAMEPAD_SEAT_NONE) {
-        logi(
-            "unijoysticle: cannot swap port since device has joystick_port = "
-            "GAMEPAD_SEAT_NONE\n");
+        logi("unijoysticle: cannot swap port since device has joystick_port = GAMEPAD_SEAT_NONE\n");
         return;
     }
 
     // This could happen if device is any Combo emu mode.
     if (ins->gamepad_seat == (GAMEPAD_SEAT_A | GAMEPAD_SEAT_B)) {
         logi(
-            "unijoysticle: cannot swap port since has more than one port "
-            "associated with. Leave emu mode and try again.\n");
+            "unijoysticle: cannot swap port since has more than one port associated with. Leave emu mode and try "
+            "again.\n");
         return;
     }
 
@@ -585,9 +576,7 @@ static void unijoysticle_on_device_oob_event(uni_hid_device_t* d, uni_platform_o
         if ((bd_addr_cmp(tmp_d->conn.btaddr, zero_addr) != 0) && (get_unijoysticle_instance(tmp_d)->gamepad_seat > 0)) {
             num_devices++;
             if (num_devices > 1) {
-                logi(
-                    "unijoysticle: cannot swap joystick ports when more than one "
-                    "device is attached\n");
+                logi("unijoysticle: cannot swap joystick ports when more than one device is attached\n");
                 uni_hid_device_dump_all();
                 return;
             }
@@ -937,10 +926,10 @@ static void toggle_mouse_mode(int button_idx) {
 
             if (ins->emu_mode == EMULATION_MODE_SINGLE_JOY) {
                 ins->emu_mode = EMULATION_MODE_COMBO_JOY_MOUSE;
-                logi("unijoysticle: device %s is in COMBO_JOY_MOUSE mode\n");
+                logi("unijoysticle: device %s is in COMBO_JOY_MOUSE mode\n", bd_addr_to_str(d->conn.btaddr));
             } else if (ins->emu_mode == EMULATION_MODE_COMBO_JOY_MOUSE) {
                 ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
-                logi("unijoysticle: device %s is in SINGLE_JOY mode\n");
+                logi("unijoysticle: device %s is in SINGLE_JOY mode\n", bd_addr_to_str(d->conn.btaddr));
             }
         }
     }
