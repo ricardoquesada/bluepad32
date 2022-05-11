@@ -27,20 +27,31 @@ limitations under the License.
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
 
+typedef struct {
+    int multiplier;
+    int divisor;
+} mouse_instance_t;
+_Static_assert(sizeof(mouse_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "Mouse intance too big");
+
 struct mouse_resolution {
     uint16_t vid;
     uint16_t pid;
+    char* name;
     int multiplier;
     int divisor;
 };
 
+static mouse_instance_t* get_mouse_instance(uni_hid_device_t* d) {
+    return (mouse_instance_t*)&d->parser_data[0];
+}
+
 // TL;DR: Mouse reports are hit and miss.
-// Don't try to be clever: just return the value unmodified.
+// Don't try to be clever: just use the "delta" multiplied by some constant (defined per mouse).
 // Long:
 // "Unitless" reports have no sense. How many "deltas" should I move?
-// "Unit"-oriented reports (like Apple Magic Mouse), should I really do a complicated math
-// in order to translate how many inches the mouse move and then try to map that to the Amiga?
-// Error-prone.
+// "Unit"-oriented reports (like Apple Magic Mouse), are extremely complex to calculate.
+// Should I really do a complicated math in order to translate how many inches the mouse move and
+// then try to map that to the Amiga? Error-prone.
 //
 // Easy-and-hackish wat to solve:
 // Since we only support a handful of mice, harcode the resolutions.
@@ -48,27 +59,22 @@ struct mouse_resolution {
 // "smart" way to solve it... or just allow the user change the resolution via BLE application.
 static const struct mouse_resolution resolutions[] = {
     // Apple Magic Mouse 1st gen
-    {0x05ac, 0x030d, 1, 4},
-    // TECKNET 2600DPI. This mouse has a "DPI" button. The faster one is unusable.
-    // FIXME: VID/PID belongs to Broadcom Boot Mouse, so probably more than one
-    // brand is using it. Use "Name" to filter as well.
-    {0x0a5c, 0x4503, 1, 3},
+    {0x05ac, 0x030d, "Admin Mouse", 1, 4},
+    // TECKNET 2600DPI. Has a "DPI" button. The faster one is unusable. Make the faster usable.
+    {0x0a5c, 0x4503, "BM30X mouse", 1, 3},
+
     // No need to add entries where mult & div are both 1
     /*
-    {0x0a5c, 0x0001, 1, 1},  // Bornd C170B
+    {0x0a5c, 0x0001, "BORND Bluetooth Mouse", 1, 1},  // Bornd C170B
     */
 };
 
 static int32_t process_mouse_delta(uni_hid_device_t* d, int32_t value) {
-    int mult = 1;
-    int div = 1;
+    mouse_instance_t* ins = get_mouse_instance(d);
 
-    for (unsigned int i = 0; i < ARRAY_SIZE(resolutions); i++) {
-        if (resolutions[i].vid == d->vendor_id && resolutions[i].pid == d->product_id) {
-            mult = resolutions[i].multiplier;
-            div = resolutions[i].divisor;
-        }
-    }
+    int mult = ins->multiplier;
+    int div = ins->divisor;
+
     if (mult != 1)
         value *= mult;
     if (div != 1 && div != 0)
@@ -83,6 +89,27 @@ static int32_t process_mouse_delta(uni_hid_device_t* d, int32_t value) {
     return value;
 }
 
+void uni_hid_parser_mouse_setup(uni_hid_device_t* d) {
+    // At setup time, fetch the "multiplier" / "divisor" for the mouse.
+    mouse_instance_t* ins;
+    int mult = 1;
+    int div = 1;
+
+    ins = get_mouse_instance(d);
+
+    for (unsigned int i = 0; i < ARRAY_SIZE(resolutions); i++) {
+        if (resolutions[i].vid == d->vendor_id && resolutions[i].pid == d->product_id &&
+            strcmp(resolutions[i].name, d->name) == 0) {
+            mult = resolutions[i].multiplier;
+            div = resolutions[i].divisor;
+            break;
+        }
+    }
+
+    ins->multiplier = mult;
+    ins->divisor = div;
+}
+
 void uni_hid_parser_mouse_init_report(uni_hid_device_t* d) {
     // Reset old state. Each report contains a full-state.
     uni_gamepad_t* gp = &d->gamepad;
@@ -90,6 +117,7 @@ void uni_hid_parser_mouse_init_report(uni_hid_device_t* d) {
     gp->updated_states = GAMEPAD_STATE_AXIS_X | GAMEPAD_STATE_AXIS_Y | GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B |
                          GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y;
 }
+
 
 void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
                                       hid_globals_t* globals,

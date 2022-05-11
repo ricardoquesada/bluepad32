@@ -23,7 +23,8 @@ limitations under the License.
 
 #include "uni_hid_parser.h"
 
-// Android devices
+// Mouse devices
+void uni_hid_parser_mouse_setup(struct uni_hid_device_s* d);
 void uni_hid_parser_mouse_init_report(struct uni_hid_device_s* d);
 void uni_hid_parser_mouse_parse_usage(struct uni_hid_device_s* d,
                                       hid_globals_t* globals,
