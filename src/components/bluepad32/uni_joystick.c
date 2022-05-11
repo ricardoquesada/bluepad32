@@ -60,10 +60,10 @@ static void to_single_joy(const uni_gamepad_t* gp, uni_joystick_t* out_joy) {
 
     // Pots
     if (gp->updated_states & GAMEPAD_STATE_BRAKE) {
-        out_joy->pot_x = (gp->brake >> 2);  // convert from 1024 to 256
+        out_joy->button2 = (gp->brake >> 2);  // convert from 1024 to 256
     }
     if (gp->updated_states & GAMEPAD_STATE_THROTTLE) {
-        out_joy->pot_y = (gp->throttle >> 2);  // convert from 1024 to 256
+        out_joy->button3 = (gp->throttle >> 2);  // convert from 1024 to 256
     }
 }
 
@@ -78,12 +78,12 @@ void uni_joy_to_single_joy_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t*
 
     // 2nd Button for Atari ST / Amiga
     if (gp->updated_states & GAMEPAD_STATE_BUTTON_X) {
-        out_joy->pot_y |= ((gp->buttons & BUTTON_X) != 0);
+        out_joy->button2 |= ((gp->buttons & BUTTON_X) != 0);
     }
 
     // 3rd Button for Amiga
     if (gp->updated_states & GAMEPAD_STATE_BUTTON_Y) {
-        out_joy->pot_x |= ((gp->buttons & BUTTON_Y) != 0);
+        out_joy->button3 |= ((gp->buttons & BUTTON_Y) != 0);
     }
 }
 

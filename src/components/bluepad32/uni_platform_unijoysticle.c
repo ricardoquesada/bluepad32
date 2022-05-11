@@ -129,13 +129,13 @@ struct push_button {
 };
 
 struct gpio_config_joy {
-    gpio_num_t up;
-    gpio_num_t down;
-    gpio_num_t left;
-    gpio_num_t right;
-    gpio_num_t fire;
-    gpio_num_t pot_x;
-    gpio_num_t pot_y;
+    gpio_num_t up;       // Pin 1
+    gpio_num_t down;     // Pin 2
+    gpio_num_t left;     // Pin 3
+    gpio_num_t right;    // Pin 4
+    gpio_num_t fire;     // Pin 6
+    gpio_num_t button2;  // Pin 9, AKA Pot X (C64), Pot Y (Amiga)
+    gpio_num_t button3;  // Pin 5, AKA Pot Y (C64), Pot X (Amiga)
 };
 
 struct gpio_config {
@@ -156,7 +156,7 @@ struct gpio_config {
     int autofire_freq_ms;  // How fast is the autofire
 };
 
-// C64 "instance"
+// The platform "instance"
 typedef struct unijoysticle_instance_s {
     emulation_mode_t emu_mode;             // type of controller to emulate
     uni_gamepad_seat_t gamepad_seat;       // which "seat" (port) is being used
@@ -171,18 +171,16 @@ static board_model_t get_board_model();
 
 static unijoysticle_instance_t* get_unijoysticle_instance(const uni_hid_device_t* d);
 static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat);
-static void process_joystick(const uni_joystick_t* joy, uni_gamepad_seat_t seat);
+static void process_joystick(uni_hid_device_t* d, uni_gamepad_seat_t seat, const uni_joystick_t* joy);
 static void process_mouse(uni_hid_device_t* d,
                           uni_gamepad_seat_t seat,
                           int32_t delta_x,
                           int32_t delta_y,
                           uint16_t buttons);
+static void joy_update_port(const uni_joystick_t* joy, const gpio_num_t* gpios);
 
 // Interrupt handlers
 static void handle_event_button(int button_idx);
-
-// Mouse related
-static void joy_update_port(const uni_joystick_t* joy, const gpio_num_t* gpios);
 
 // GPIO Interrupt handlers
 static void IRAM_ATTR gpio_isr_handler_button(void* arg);
@@ -191,6 +189,7 @@ static void event_loop(void* arg);
 static void auto_fire_loop(void* arg);
 
 static esp_err_t safe_gpio_set_level(gpio_num_t gpio, int value);
+static void enable_bluetooth(bool enabled);
 
 // Button callbacks
 static void toggle_enhanced_mode(int button_idx);
@@ -395,6 +394,8 @@ static void unijoysticle_init(int argc, const char** argv) {
                                                    g_gpio_config->port_b[2]   // VQ-pulse (right)
                                                }};
     uni_mouse_quadrature_init(QUADRATURE_MOUSE_TASK_CPU, port_a, port_b);
+
+    enable_bluetooth(true);
 }
 
 static void unijoysticle_on_init_complete(void) {
@@ -416,7 +417,7 @@ static void unijoysticle_on_device_connected(uni_hid_device_t* d) {
     }
 
     if (connected == 2) {
-        uni_bluetooth_enable_new_connections_safe(false);
+        enable_bluetooth(false);
         logi("unijoysticle: New gamepad connections disabled\n");
     }
 }
@@ -440,7 +441,7 @@ static void unijoysticle_on_device_disconnected(uni_hid_device_t* d) {
     }
 
     // Regarless of how many connections are active, enable Bluetooth connections.
-    uni_bluetooth_enable_new_connections_safe(true);
+    enable_bluetooth(true);
     logi("unijoysticle: New gamepad connections enabled\n");
 }
 
@@ -517,19 +518,19 @@ static void unijoysticle_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp)
     switch (ins->emu_mode) {
         case EMULATION_MODE_SINGLE_JOY:
             uni_joy_to_single_joy_from_gamepad(gp, &joy);
-            process_joystick(&joy, ins->gamepad_seat);
+            process_joystick(d, ins->gamepad_seat, &joy);
             break;
         case EMULATION_MODE_SINGLE_MOUSE:
             process_mouse(d, ins->gamepad_seat, gp->axis_x, gp->axis_y, gp->buttons);
             break;
         case EMULATION_MODE_COMBO_JOY_JOY:
             uni_joy_to_combo_joy_joy_from_gamepad(gp, &joy, &joy_ext);
-            process_joystick(&joy, GAMEPAD_SEAT_A);
-            process_joystick(&joy_ext, GAMEPAD_SEAT_B);
+            process_joystick(d, GAMEPAD_SEAT_A, &joy);
+            process_joystick(d, GAMEPAD_SEAT_B, &joy_ext);
             break;
         case EMULATION_MODE_COMBO_JOY_MOUSE:
             uni_joy_to_single_joy_from_gamepad(gp, &joy);
-            process_joystick(&joy, ins->gamepad_seat);
+            process_joystick(d, ins->gamepad_seat, &joy);
             // Data coming from gamepad axis is different from mouse deltas.
             // They need to be scaled down, otherwise the pointer moves too fast.
             process_mouse(d, (~ins->gamepad_seat & GAMEPAD_SEAT_AB_MASK), gp->axis_rx / 25, gp->axis_ry / 25,
@@ -610,8 +611,8 @@ static void unijoysticle_on_device_oob_event(uni_hid_device_t* d, uni_platform_o
     // Clear joystick after switch to avoid having a line "On".
     uni_joystick_t joy;
     memset(&joy, 0, sizeof(joy));
-    process_joystick(&joy, GAMEPAD_SEAT_A);
-    process_joystick(&joy, GAMEPAD_SEAT_B);
+    process_joystick(d, GAMEPAD_SEAT_A, &joy);
+    process_joystick(d, GAMEPAD_SEAT_B, &joy);
 }
 
 //
@@ -691,23 +692,24 @@ static void process_mouse(uni_hid_device_t* d,
 
     if (buttons != prev_buttons) {
         prev_buttons = buttons;
-        int fire, pot_x, pot_y;
+        int fire, button2, button3;
         if (seat == GAMEPAD_SEAT_A) {
             fire = g_gpio_config->port_a_named.fire;
-            pot_x = g_gpio_config->port_a_named.pot_x;
-            pot_y = g_gpio_config->port_a_named.pot_y;
+            button2 = g_gpio_config->port_a_named.button2;
+            button3 = g_gpio_config->port_a_named.button3;
         } else {
             fire = g_gpio_config->port_b_named.fire;
-            pot_x = g_gpio_config->port_b_named.pot_x;
-            pot_y = g_gpio_config->port_b_named.pot_y;
+            button2 = g_gpio_config->port_b_named.button2;
+            button3 = g_gpio_config->port_b_named.button3;
         }
-        safe_gpio_set_level(fire, (buttons & BUTTON_A));
-        safe_gpio_set_level(pot_x, (buttons & BUTTON_B));
-        safe_gpio_set_level(pot_y, (buttons & BUTTON_X));
+        safe_gpio_set_level(fire, !!(buttons & BUTTON_A));
+        safe_gpio_set_level(button2, !!(buttons & BUTTON_B));
+        safe_gpio_set_level(button3, !!(buttons & BUTTON_X));
     }
 }
 
-static void process_joystick(const uni_joystick_t* joy, uni_gamepad_seat_t seat) {
+static void process_joystick(uni_hid_device_t* d, uni_gamepad_seat_t seat, const uni_joystick_t* joy) {
+    UNUSED(d);
     if (seat == GAMEPAD_SEAT_A) {
         joy_update_port(joy, g_gpio_config->port_a);
         g_autofire_a_enabled = joy->auto_fire;
@@ -770,8 +772,8 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
 }
 
 static void joy_update_port(const uni_joystick_t* joy, const gpio_num_t* gpios) {
-    logd("up=%d, down=%d, left=%d, right=%d, fire=%d, potx=%d, poty=%d\n", joy->up, joy->down, joy->left, joy->right,
-         joy->fire, joy->pot_x, joy->pot_y);
+    logd("up=%d, down=%d, left=%d, right=%d, fire=%d, bt2=%d, bt3=%d\n", joy->up, joy->down, joy->left, joy->right,
+         joy->fire, joy->button2, joy->button3);
 
     safe_gpio_set_level(gpios[0], !!joy->up);
     safe_gpio_set_level(gpios[1], !!joy->down);
@@ -783,9 +785,8 @@ static void joy_update_port(const uni_joystick_t* joy, const gpio_num_t* gpios) 
         safe_gpio_set_level(gpios[4], !!joy->fire);
     }
 
-    // Check for valid GPIO values since some models might have it disabled.
-    safe_gpio_set_level(gpios[5], !!joy->pot_x);
-    safe_gpio_set_level(gpios[6], !!joy->pot_y);
+    safe_gpio_set_level(gpios[5], !!joy->button2);
+    safe_gpio_set_level(gpios[6], !!joy->button3);
 }
 
 static void event_loop(void* arg) {
@@ -918,7 +919,7 @@ static void toggle_enhanced_mode(int button_idx) {
         set_gamepad_seat(d, GAMEPAD_SEAT_A | GAMEPAD_SEAT_B);
         logi("unijoysticle: Emulation mode = Combo Joy Joy\n");
 
-        uni_bluetooth_enable_new_connections_safe(false);
+        enable_bluetooth(false);
         logi("unijoysticle: New gamepad connections disabled\n");
 
     } else if (ins->emu_mode == EMULATION_MODE_COMBO_JOY_JOY) {
@@ -927,7 +928,7 @@ static void toggle_enhanced_mode(int button_idx) {
         // Turn on only the valid one
         logi("unijoysticle: Emulation mode = Single Joy\n");
 
-        uni_bluetooth_enable_new_connections_safe(true);
+        enable_bluetooth(true);
         logi("unijoysticle: New gamepad connections enabled\n");
 
     } else {
@@ -950,6 +951,11 @@ static esp_err_t safe_gpio_set_level(gpio_num_t gpio, int value) {
     if (gpio == -1)
         return ESP_OK;
     return gpio_set_level(gpio, value);
+}
+
+static void enable_bluetooth(bool enabled) {
+    safe_gpio_set_level(g_gpio_config->led_bt, enabled);
+    uni_bluetooth_enable_new_connections_safe(enabled);
 }
 
 //
