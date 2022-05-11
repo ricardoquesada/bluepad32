@@ -297,6 +297,17 @@ There many *generic* Bluetooth controllers that sometimes are offered as gifts i
 [bornd_c170b_link]: https://www.amazon.com/Bornd-C170B-Bluetooth-wireless-BLACK/dp/B009FD55SU
 [bornd_c170b_photo]: https://lh3.googleusercontent.com/pw/AM-JKLWhgr0VyJ2LoErHi3U8dzedoILDyguhDJfYb86K3izqETUGyxtSfheRpxw-yD_dbbdYzoeHUT5oU_45XBjBBWFFWh-CENKZ0Xf29PIfiPMCFiz3lSaCFQET1-c6SqL2T8hECmvEmlweFmbXbEo5HmTYNw=-no
 
+## TECKNET 2600DPI
+
+[![TECKNET 2600DPI][tecknet_2600dpi_photo]][tecknet_2600dpi_link]
+
+* Supports: movement; left, middle & right click
+* Purchase link: [Amazon][tecknet_2600dpi_link]
+
+[tecknet_2600dpi_link]: https://www.amazon.com/dp/B01EFAGMRA?psc=1&ref=ppx_yo2ov_dt_b_product_details
+[tecknet_2600dpi_photo]: https://lh3.googleusercontent.com/pw/AM-JKLVFAtADCvTltimDJQWO0iXGf-RpVUQBx5LD1gJnVplYuCyjW3n-I-RTKGc-nWiYJGvGfFW2u_Uy4CCzdaxKjMhm2qebloiiniMXzn0IAUY_yPcPixwDwNoy-rwbd1tsArJqk1kyXM3GbP7gHFVBdzCXRg=-no
+
+
 ## Other supported / not supported mice
 
 In theory any Bluetooth BR/EDR (AKA "Classic") mouse shuold work. Notice that Bluetooth LE (AKA BLE) mice are not supported ATM.
