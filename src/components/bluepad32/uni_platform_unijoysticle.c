@@ -201,7 +201,7 @@ static void swap_ports(int button_idx);
 
 // Unijoysticle v2: Through-hole version
 const struct gpio_config gpio_config_univ2 = {
-    .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, -1, -1},
+    .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, GPIO_NUM_33, GPIO_NUM_16},
     .port_b = {GPIO_NUM_27, GPIO_NUM_25, GPIO_NUM_32, GPIO_NUM_17, GPIO_NUM_12, -1, -1},
     .led_j1 = GPIO_NUM_5,
     .led_j2 = GPIO_NUM_13,
@@ -683,7 +683,7 @@ static void process_mouse(uni_hid_device_t* d,
                           uint16_t buttons) {
     UNUSED(d);
     static uint16_t prev_buttons = 0;
-    logd("unijoysticle: mouse: x=%d, y=%d, buttons=0x%04x\n", delta_x, delta_y, buttons);
+    logd("unijoysticle: seat: %d, mouse: x=%d, y=%d, buttons=0x%04x\n", seat, delta_x, delta_y, buttons);
 
     int port_idx = (seat == GAMEPAD_SEAT_A) ? UNI_MOUSE_QUADRATURE_PORT_0 : UNI_MOUSE_QUADRATURE_PORT_1;
 
