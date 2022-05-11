@@ -47,10 +47,6 @@ limitations under the License.
 // Enabled if 1
 #define PLAT_UNIJOYSTICLE_SINGLE_PORT 0
 
-// Number of usable ports in the DB9 joystick
-// Up, down, left, right, fire, pot x, pot y
-#define DB9_TOTAL_USABLE_PORTS 7
-
 // In some board models not all GPIOs are set. Macro to simplify code for that.
 #define SAFE_SET_BIT(__value) (__value == -1) ? 0 : (1ULL << __value)
 
@@ -128,25 +124,21 @@ struct push_button {
     button_cb_t callback;
 };
 
-struct gpio_config_joy {
-    gpio_num_t up;       // Pin 1
-    gpio_num_t down;     // Pin 2
-    gpio_num_t left;     // Pin 3
-    gpio_num_t right;    // Pin 4
-    gpio_num_t fire;     // Pin 6
-    gpio_num_t button2;  // Pin 9, AKA Pot X (C64), Pot Y (Amiga)
-    gpio_num_t button3;  // Pin 5, AKA Pot Y (C64), Pot X (Amiga)
+enum {
+    JOY_UP,       // Pin 1
+    JOY_DOWN,     // Pin 2
+    JOY_LEFT,     // Pin 3
+    JOY_RIGHT,    // Pin 4
+    JOY_FIRE,     // Pin 6
+    JOY_BUTTON2,  // Pin 9, AKA Pot X (C64), Pot Y (Amiga)
+    JOY_BUTTON3,  // Pin 5, AKA Pot Y (C64), Pot X (Amiga)
+
+    JOY_MAX,
 };
 
 struct gpio_config {
-    union {
-        struct gpio_config_joy port_a_named;
-        gpio_num_t port_a[DB9_TOTAL_USABLE_PORTS];
-    };
-    union {
-        struct gpio_config_joy port_b_named;
-        gpio_num_t port_b[DB9_TOTAL_USABLE_PORTS];
-    };
+    gpio_num_t port_a[JOY_MAX];
+    gpio_num_t port_b[JOY_MAX];
     gpio_num_t led_j1;  // Green
     gpio_num_t led_j2;  // Red
     gpio_num_t led_bt;  // Blue (Bluetooth on + misc)
@@ -215,8 +207,6 @@ const struct gpio_config gpio_config_univ2 = {
                      }},
     .autofire_freq_ms = AUTOFIRE_FREQ_QUICKGUN_MS,
 };
-_Static_assert(sizeof(gpio_config_univ2.port_a) == sizeof(gpio_config_univ2.port_a_named),
-               "Check gpio_config union size");
 
 // Unijoysticle v2+: SMD version
 const struct gpio_config gpio_config_univ2plus = {
@@ -329,7 +319,7 @@ static void unijoysticle_init(int argc, const char** argv) {
     io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
     io_conf.pin_bit_mask = 0;
     // Port A & B
-    for (int i = 0; i < DB9_TOTAL_USABLE_PORTS; i++) {
+    for (int i = 0; i < JOY_MAX; i++) {
         io_conf.pin_bit_mask |= SAFE_SET_BIT(g_gpio_config->port_a[i]);
         io_conf.pin_bit_mask |= SAFE_SET_BIT(g_gpio_config->port_b[i]);
     }
@@ -341,7 +331,7 @@ static void unijoysticle_init(int argc, const char** argv) {
     ESP_ERROR_CHECK(gpio_config(&io_conf));
 
     // Set low all GPIOs... just in case.
-    for (int i = 0; i < DB9_TOTAL_USABLE_PORTS; i++) {
+    for (int i = 0; i < JOY_MAX; i++) {
         ESP_ERROR_CHECK(safe_gpio_set_level(g_gpio_config->port_a[i], 0));
         ESP_ERROR_CHECK(safe_gpio_set_level(g_gpio_config->port_b[i], 0));
     }
@@ -694,13 +684,13 @@ static void process_mouse(uni_hid_device_t* d,
         prev_buttons = buttons;
         int fire, button2, button3;
         if (seat == GAMEPAD_SEAT_A) {
-            fire = g_gpio_config->port_a_named.fire;
-            button2 = g_gpio_config->port_a_named.button2;
-            button3 = g_gpio_config->port_a_named.button3;
+            fire = g_gpio_config->port_a[JOY_FIRE];
+            button2 = g_gpio_config->port_a[JOY_BUTTON2];
+            button3 = g_gpio_config->port_a[JOY_BUTTON3];
         } else {
-            fire = g_gpio_config->port_b_named.fire;
-            button2 = g_gpio_config->port_b_named.button2;
-            button3 = g_gpio_config->port_b_named.button3;
+            fire = g_gpio_config->port_b[JOY_FIRE];
+            button2 = g_gpio_config->port_b[JOY_BUTTON2];
+            button3 = g_gpio_config->port_b[JOY_BUTTON3];
         }
         safe_gpio_set_level(fire, !!(buttons & BUTTON_A));
         safe_gpio_set_level(button2, !!(buttons & BUTTON_B));
@@ -821,16 +811,16 @@ static void auto_fire_loop(void* arg) {
 
         while (g_autofire_a_enabled || g_autofire_b_enabled) {
             if (g_autofire_a_enabled)
-                safe_gpio_set_level(g_gpio_config->port_a_named.fire, 1);
+                safe_gpio_set_level(g_gpio_config->port_a[JOY_FIRE], 1);
             if (g_autofire_b_enabled)
-                safe_gpio_set_level(g_gpio_config->port_b_named.fire, 1);
+                safe_gpio_set_level(g_gpio_config->port_b[JOY_FIRE], 1);
 
             vTaskDelay(delayTicks);
 
             if (g_autofire_a_enabled)
-                safe_gpio_set_level(g_gpio_config->port_a_named.fire, 0);
+                safe_gpio_set_level(g_gpio_config->port_a[JOY_FIRE], 0);
             if (g_autofire_b_enabled)
-                safe_gpio_set_level(g_gpio_config->port_b_named.fire, 0);
+                safe_gpio_set_level(g_gpio_config->port_b[JOY_FIRE], 0);
 
             vTaskDelay(delayTicks);
         }
@@ -936,8 +926,24 @@ static void toggle_enhanced_mode(int button_idx) {
 }
 
 static void toggle_mouse_mode(int button_idx) {
-    // Not implemented. A500 feature
-    logi("toggle_mouse_mode called: %d\n", button_idx);
+    uni_hid_device_t* d;
+    unijoysticle_instance_t* ins;
+
+    // The first gamepad (not mouse) that is found is put in "combo joy_mouse" mode.
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
+        d = uni_hid_device_get_instance_for_idx(i);
+        if (uni_bt_conn_is_connected(&d->conn)) {
+            ins = get_unijoysticle_instance(d);
+
+            if (ins->emu_mode == EMULATION_MODE_SINGLE_JOY) {
+                ins->emu_mode = EMULATION_MODE_COMBO_JOY_MOUSE;
+                logi("unijoysticle: device %s is in COMBO_JOY_MOUSE mode\n");
+            } else if (ins->emu_mode == EMULATION_MODE_COMBO_JOY_MOUSE) {
+                ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
+                logi("unijoysticle: device %s is in SINGLE_JOY mode\n");
+            }
+        }
+    }
 }
 
 static void swap_ports(int button_idx) {
