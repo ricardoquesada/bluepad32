@@ -74,6 +74,13 @@ enum {
 };
 
 enum {
+    LED_J1,  // Player #1 connected, Green
+    LED_J2,  // Player #2 connected, Red
+    LED_BT,  // Bluetooth enabled, Blue
+    LED_MAX,
+};
+
+enum {
     // Push buttons
     EVENT_BUTTON_0 = PUSH_BUTTON_0,
     EVENT_BUTTON_1 = PUSH_BUTTON_1,
@@ -139,13 +146,11 @@ enum {
 struct gpio_config {
     gpio_num_t port_a[JOY_MAX];
     gpio_num_t port_b[JOY_MAX];
-    gpio_num_t led_j1;  // Green
-    gpio_num_t led_j2;  // Red
-    gpio_num_t led_bt;  // Blue (Bluetooth on + misc)
+    gpio_num_t leds[LED_MAX];
     struct push_button push_buttons[PUSH_BUTTON_MAX];
 
-    // Autofire frequency
-    int autofire_freq_ms;  // How fast is the autofire
+    // Autofire frequency. How fast is the autofire.
+    int autofire_freq_ms;
 };
 
 // The platform "instance"
@@ -194,9 +199,7 @@ static void swap_ports(int button_idx);
 const struct gpio_config gpio_config_univ2 = {
     .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, GPIO_NUM_33, GPIO_NUM_16},
     .port_b = {GPIO_NUM_27, GPIO_NUM_25, GPIO_NUM_32, GPIO_NUM_17, GPIO_NUM_12, -1, -1},
-    .led_j1 = GPIO_NUM_5,
-    .led_j2 = GPIO_NUM_13,
-    .led_bt = -1,
+    .leds = {GPIO_NUM_5, GPIO_NUM_13, -1},
     .push_buttons = {{
                          .gpio = GPIO_NUM_10,
                          .callback = toggle_enhanced_mode,
@@ -212,9 +215,7 @@ const struct gpio_config gpio_config_univ2 = {
 const struct gpio_config gpio_config_univ2plus = {
     .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, GPIO_NUM_33, GPIO_NUM_16},
     .port_b = {GPIO_NUM_27, GPIO_NUM_25, GPIO_NUM_32, GPIO_NUM_17, GPIO_NUM_13, GPIO_NUM_21, GPIO_NUM_22},
-    .led_j1 = GPIO_NUM_5,
-    .led_j2 = GPIO_NUM_12,
-    .led_bt = -1,
+    .leds = {GPIO_NUM_5, GPIO_NUM_12, -1},
     .push_buttons = {{
                          .gpio = GPIO_NUM_15,
                          .callback = toggle_enhanced_mode,
@@ -230,9 +231,7 @@ const struct gpio_config gpio_config_univ2plus = {
 const struct gpio_config gpio_config_univ2a500 = {
     .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, GPIO_NUM_33, GPIO_NUM_16},
     .port_b = {GPIO_NUM_27, GPIO_NUM_25, GPIO_NUM_32, GPIO_NUM_17, GPIO_NUM_13, GPIO_NUM_21, GPIO_NUM_22},
-    .led_j1 = GPIO_NUM_5,
-    .led_j2 = GPIO_NUM_12,
-    .led_bt = GPIO_NUM_15,
+    .leds = {GPIO_NUM_5, GPIO_NUM_12, GPIO_NUM_15},
     .push_buttons = {{
                          .gpio = GPIO_NUM_34,
                          .callback = toggle_mouse_mode,
@@ -251,9 +250,7 @@ const struct gpio_config gpio_config_univ2singleport = {
     .port_b = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, GPIO_NUM_33, GPIO_NUM_16},
 
     // Not sure whether the LEDs and Push button are correct.
-    .led_j1 = GPIO_NUM_12,
-    .led_j2 = -1,
-    .led_bt = -1,
+    .leds = {GPIO_NUM_12, -1, -1},
     .push_buttons = {{
                          .gpio = GPIO_NUM_15,
                          .callback = toggle_enhanced_mode,
@@ -318,28 +315,29 @@ static void unijoysticle_init(int argc, const char** argv) {
     io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
     io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
     io_conf.pin_bit_mask = 0;
-    // Port A & B
+    // Setup pins for Port A & B
     for (int i = 0; i < JOY_MAX; i++) {
         io_conf.pin_bit_mask |= SAFE_SET_BIT(g_gpio_config->port_a[i]);
         io_conf.pin_bit_mask |= SAFE_SET_BIT(g_gpio_config->port_b[i]);
     }
 
-    // LEDs
-    io_conf.pin_bit_mask |= SAFE_SET_BIT(g_gpio_config->led_j1);
-    io_conf.pin_bit_mask |= SAFE_SET_BIT(g_gpio_config->led_j2);
-    io_conf.pin_bit_mask |= SAFE_SET_BIT(g_gpio_config->led_bt);
+    // Setup pins for LEDs
+    for (int i = 0; i < LED_MAX; i++)
+        io_conf.pin_bit_mask |= SAFE_SET_BIT(g_gpio_config->leds[i]);
 
     ESP_ERROR_CHECK(gpio_config(&io_conf));
 
-    // Set low all GPIOs... just in case.
+    // Set low all joystick GPIOs... just in case.
     for (int i = 0; i < JOY_MAX; i++) {
         ESP_ERROR_CHECK(safe_gpio_set_level(g_gpio_config->port_a[i], 0));
         ESP_ERROR_CHECK(safe_gpio_set_level(g_gpio_config->port_b[i], 0));
     }
 
-    // Turn On LEDs
-    safe_gpio_set_level(g_gpio_config->led_j1, 1);
-    safe_gpio_set_level(g_gpio_config->led_j2, 1);
+    // Turn On Player LEDs
+    safe_gpio_set_level(g_gpio_config->leds[LED_J1], 1);
+    safe_gpio_set_level(g_gpio_config->leds[LED_J2], 1);
+    // Turn off Bluetooth LED
+    safe_gpio_set_level(g_gpio_config->leds[LED_BT], 0);
 
     // Push Buttons
     ESP_ERROR_CHECK(gpio_install_isr_service(0));
@@ -366,6 +364,12 @@ static void unijoysticle_init(int argc, const char** argv) {
     g_auto_fire_group = xEventGroupCreate();
     xTaskCreate(auto_fire_loop, "auto_fire_loop", 2048, NULL, 10, NULL);
     // xTaskCreatePinnedToCore(event_loop, "event_loop", 2048, NULL, portPRIVILEGE_BIT, NULL, 1);
+}
+
+static void unijoysticle_on_init_complete(void) {
+    // Turn off LEDs
+    safe_gpio_set_level(g_gpio_config->leds[LED_J1], 0);
+    safe_gpio_set_level(g_gpio_config->leds[LED_J2], 0);
 
     // FIXME: These values are hardcoded for Amiga
     struct uni_mouse_quadrature_port port_a = {(struct uni_mouse_quadrature_encoder){
@@ -385,14 +389,7 @@ static void unijoysticle_init(int argc, const char** argv) {
                                                    g_gpio_config->port_b[2]   // VQ-pulse (right)
                                                }};
     uni_mouse_quadrature_init(QUADRATURE_MOUSE_TASK_CPU, port_a, port_b);
-
     enable_bluetooth(true);
-}
-
-static void unijoysticle_on_init_complete(void) {
-    // Turn off LEDs
-    safe_gpio_set_level(g_gpio_config->led_j1, 0);
-    safe_gpio_set_level(g_gpio_config->led_j2, 0);
 }
 
 static void unijoysticle_on_device_connected(uni_hid_device_t* d) {
@@ -423,9 +420,9 @@ static void unijoysticle_on_device_disconnected(uni_hid_device_t* d) {
     if (ins->gamepad_seat != GAMEPAD_SEAT_NONE) {
         // Turn off the LEDs
         if (ins->gamepad_seat == GAMEPAD_SEAT_A || ins->emu_mode == EMULATION_MODE_COMBO_JOY_JOY)
-            safe_gpio_set_level(g_gpio_config->led_j1, 0);
+            safe_gpio_set_level(g_gpio_config->leds[LED_J1], 0);
         if (ins->gamepad_seat == GAMEPAD_SEAT_B || ins->emu_mode == EMULATION_MODE_COMBO_JOY_JOY)
-            safe_gpio_set_level(g_gpio_config->led_j2, 0);
+            safe_gpio_set_level(g_gpio_config->leds[LED_J2], 0);
 
         ins->gamepad_seat = GAMEPAD_SEAT_NONE;
         ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
@@ -724,8 +721,8 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
 
     bool status_a = ((all_seats & GAMEPAD_SEAT_A) != 0);
     bool status_b = ((all_seats & GAMEPAD_SEAT_B) != 0);
-    safe_gpio_set_level(g_gpio_config->led_j1, status_a);
-    safe_gpio_set_level(g_gpio_config->led_j2, status_b);
+    safe_gpio_set_level(g_gpio_config->leds[LED_J1], status_a);
+    safe_gpio_set_level(g_gpio_config->leds[LED_J2], status_b);
 
     bool lightbar_or_led_set = false;
     // Try with LightBar and/or Player LEDs. Some devices like DualSense support
@@ -964,7 +961,7 @@ static esp_err_t safe_gpio_set_level(gpio_num_t gpio, int value) {
 }
 
 static void enable_bluetooth(bool enabled) {
-    safe_gpio_set_level(g_gpio_config->led_bt, enabled);
+    safe_gpio_set_level(g_gpio_config->leds[LED_BT], enabled);
     uni_bluetooth_enable_new_connections_safe(enabled);
 }
 
