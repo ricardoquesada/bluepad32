@@ -327,6 +327,7 @@ static void unijoysticle_init(int argc, const char** argv) {
     // LEDs
     io_conf.pin_bit_mask |= SAFE_SET_BIT(g_gpio_config->led_j1);
     io_conf.pin_bit_mask |= SAFE_SET_BIT(g_gpio_config->led_j2);
+    io_conf.pin_bit_mask |= SAFE_SET_BIT(g_gpio_config->led_bt);
 
     ESP_ERROR_CHECK(gpio_config(&io_conf));
 
