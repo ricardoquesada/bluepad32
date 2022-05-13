@@ -208,6 +208,10 @@ static void process_update(struct quadrature_state* q, int32_t delta) {
     const int resolution = 1;
 
     if (delta != 0) {
+        // Hack to make the movement smoother with "small deltas". It guarantees that
+        // at least two phases (out of 4) of the quadrature will be run.
+        if (abs_delta < 2)
+            abs_delta = 2;
         /* Don't update the phase, it should start from the previous phase */
         q->value = abs_delta;
         q->dir = (delta < 0) ? PHASE_DIRECTION_NEG : PHASE_DIRECTION_POS;
