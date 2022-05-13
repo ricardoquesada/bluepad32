@@ -71,23 +71,26 @@ static const struct mouse_resolution resolutions[] = {
 };
 
 static int32_t process_mouse_delta(uni_hid_device_t* d, int32_t value) {
+    int32_t ret = value;
     mouse_instance_t* ins = get_mouse_instance(d);
-
     int mult = ins->multiplier;
     int div = ins->divisor;
 
     if (mult != 1)
-        value *= mult;
+        ret *= mult;
     if (div != 1 && div != 0)
-        value /= div;
+        ret /= div;
 
     // Quadrature-driver expect values between -127 and 127.
-    if (value < -110)
-        value = -110;
-    if (value > 110)
-        value = 110;
+    if (ret < -110)
+        ret = -110;
+    if (ret > 110)
+        ret = 110;
 
-    return value;
+    // To avoid losing resolution in "fine movement" let lower values pass without any transformation.
+    if (ret < 3 && ret > -3)
+        ret = value;
+    return ret;
 }
 
 void uni_hid_parser_mouse_setup(uni_hid_device_t* d) {
