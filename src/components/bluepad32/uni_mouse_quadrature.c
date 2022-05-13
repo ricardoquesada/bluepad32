@@ -39,11 +39,22 @@ limitations under the License.
  * E.g: Amiga 4000 has the port#1 and port#2 swapped.
  */
 
-// One 1us per tick
+// Probably I could use a smaller divider, and only do "1 tick per 80us".
+// That would work Ok except that it will loose resolution when we divide "128 steps by delta".
+// APB clock runs at 80Mhz.
+//   Option A:
+//   80Mhz / 80 = 1Mhz = tick every 1us
 #define TIMER_DIVIDER (80)
+#define TICKS_PER_80US (80)  // How many ticks are in 80us
+//
+//   Option B:
+//   80Mhz / 6400 = 12500Hz = tick every 80us
+// #define TIMER_DIVIDER (80 *80)
+// #define TICKS_PER_80US (1) // How many ticks are in 80us
+#define ONE_SECOND (1000000)
+
 #define TASK_TIMER_STACK_SIZE (1024)
 #define TASK_TIMER_PRIO (5)
-#define ONE_SECOND (1000000)
 
 enum direction {
     PHASE_DIRECTION_NEG,
@@ -223,9 +234,12 @@ static void process_update(struct quadrature_state* q, int32_t delta) {
         // But in order to avoid a "division" in the mouse driver, and a multiplication here,
         // (which will  loose precision), we just use a "resolution" of 1 instead of 4,
         // and we don't divide by 4 here.
-        units = (128 * 80) / (abs_delta * resolution);
-        if (units < 80)
-            units = 80;
+        // Alternative: Do not divide the time, and use a constant "tick" time. But if we do so,
+        // the movement will have "jank".
+        // Perhaps for small deltas we can have a predefined "unit time"
+        units = (128 * TICKS_PER_80US) / (abs_delta * resolution);
+        if (units < TICKS_PER_80US)
+            units = TICKS_PER_80US;
     } else {
         // If there is no update, set timer to update less frequently
         units = ONE_SECOND * 10;
@@ -275,7 +289,6 @@ void uni_mouse_quadrature_start() {
     timer_start(TIMER_GROUP_0, s_quadrature_x.timer_idx);
     timer_start(TIMER_GROUP_0, s_quadrature_y.timer_idx);
 }
-
 
 // Should be called everytime that mouse report is received.
 void uni_mouse_quadrature_update(int port_idx, int32_t dx, int32_t dy) {
