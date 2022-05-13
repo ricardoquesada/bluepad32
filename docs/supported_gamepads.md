@@ -309,7 +309,7 @@ There many *generic* Bluetooth controllers that sometimes are offered as gifts i
 
 ## Adesso iMouse M300
 
-![Adesso iMouse M300][adesso_imouse_m300_photo]
+[![Adesso iMouse M300][adesso_imouse_m300_photo]][adesso_imouse_m300_link]
 
 * Supports: movement; left, middle & right click
 * Purchase link: [Amazon][adesso_imouse_m300_link]
@@ -320,10 +320,10 @@ There many *generic* Bluetooth controllers that sometimes are offered as gifts i
 
 ## Other supported / not supported mice
 
-In theory any Bluetooth BR/EDR (AKA "Classic") mouse shuold work. Notice that Bluetooth LE (AKA BLE) mice are not supported ATM.
+In theory any Bluetooth BR/EDR (AKA "Classic") mouse shuold work. Notice that mice that only support Bluetooth LE (AKA BLE) are not supported ATM.
 
-Most modern mice are BLE only. But there are still some modern mice that supports BR/EDR.
-The problem is that mice based on BK3632 are not supported ATM due to a bug in ESP-IDF. See:
+Most modern mice are BLE only. But there are still some modern mice that support BR/EDR.
+But not all modern BR/EDR mice work Ok. There is an bug in ESP32 with BK3632-based mice. See:
 
 * https://github.com/espressif/arduino-esp32/issues/6193 (Please, go and say "please fix it")
 
@@ -331,13 +331,13 @@ So, which mice should work:
 
 |            | Should work                                           |
 | ---------- | ----------------------------------------------------- |
-| Bluetooth  | BR/EDR (AKA "Classic", AKA "3.0")                     |
+| Bluetooth  | BR/EDR (AKA "Classic", AKA "BT 3.0")                  |
 | Search for | "Mouse Bluetooth 3.0" or "Mouse Bluetooth Windows XP" |
 |            | Bluetooth mice from early 2010's                      |
 
 |           | Should NOT work                                                |
 | --------- | -------------------------------------------------------------- |
-| Bluetooth | BLE **only** (AKA "LE" or "5.0")                               |
+| Bluetooth | BLE **only** (AKA "LE", or "Low Energy" or "BT 5.0")           |
 | Avoid     | "Tri-Mode BT 3.0, BT 5.0, 2.4Gz". See [BK3632 bug][bk3632_bug] |
 
 
