@@ -304,9 +304,19 @@ There many *generic* Bluetooth controllers that sometimes are offered as gifts i
 * Supports: movement; left, middle & right click
 * Purchase link: [Amazon][tecknet_2600dpi_link]
 
-[tecknet_2600dpi_link]: https://www.amazon.com/dp/B01EFAGMRA?psc=1&ref=ppx_yo2ov_dt_b_product_details
+[tecknet_2600dpi_link]: https://www.amazon.com/dp/B01EFAGMRA
 [tecknet_2600dpi_photo]: https://lh3.googleusercontent.com/pw/AM-JKLVFAtADCvTltimDJQWO0iXGf-RpVUQBx5LD1gJnVplYuCyjW3n-I-RTKGc-nWiYJGvGfFW2u_Uy4CCzdaxKjMhm2qebloiiniMXzn0IAUY_yPcPixwDwNoy-rwbd1tsArJqk1kyXM3GbP7gHFVBdzCXRg=-no
 
+## Adesso iMouse M300
+
+![Adesso iMouse M300][adesso_imouse_m300_photo]
+
+* Supports: movement; left, middle & right click
+* Purchase link: [Amazon][adesso_imouse_m300_link]
+
+
+[adesso_imouse_m300_photo]: https://lh3.googleusercontent.com/pw/AM-JKLX_jhwfDQIeBdwFqGBt8h9AlP6MpiInG2Yreox0ADkvUmYIFC8x3ftoIVr7_JFk4OolkA7x50WyUyhteh_4sImUiwX18dmiB1hoO7FSJzAgJtC1V9uNlOzKKvask6lzEMIuVzdnfTgUe-OoyhZRyXcfaA=-no
+[adesso_imouse_m300_link]: https://www.amazon.com/dp/B00CIZXX8Q
 
 ## Other supported / not supported mice
 

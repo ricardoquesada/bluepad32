@@ -62,11 +62,12 @@ static const struct mouse_resolution resolutions[] = {
     {0x05ac, 0x030d, "Admin Mouse", 1, 4},
     // TECKNET 2600DPI. Has a "DPI" button. The faster one is unusable. Make the faster usable.
     {0x0a5c, 0x4503, "BM30X mouse", 1, 3},
+    // Adesso iMouse M300
+    {0x0a5c, 0x4503, "Adesso Bluetooth 3.0 Mouse", 1, 2},
+    // Bornd C170B
+    {0x0a5c, 0x0001, "BORND Bluetooth Mouse", 2, 3},
 
     // No need to add entries where mult & div are both 1
-    /*
-    {0x0a5c, 0x0001, "BORND Bluetooth Mouse", 1, 1},  // Bornd C170B
-    */
 };
 
 static int32_t process_mouse_delta(uni_hid_device_t* d, int32_t value) {
@@ -120,7 +121,6 @@ void uni_hid_parser_mouse_init_report(uni_hid_device_t* d) {
     gp->updated_states = GAMEPAD_STATE_AXIS_X | GAMEPAD_STATE_AXIS_Y | GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B |
                          GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y;
 }
-
 
 void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
                                       hid_globals_t* globals,
