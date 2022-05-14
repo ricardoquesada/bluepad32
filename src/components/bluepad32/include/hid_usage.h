@@ -76,6 +76,7 @@ limitations under the License.
 #define HID_USAGE_AC_SEARCH                     0x0221
 #define HID_USAGE_AC_HOME                       0x0223
 #define HID_USAGE_AC_BACK                       0x0224
+#define HID_USAGE_AC_PAN                        0x0238
 
 // clang-format on
 

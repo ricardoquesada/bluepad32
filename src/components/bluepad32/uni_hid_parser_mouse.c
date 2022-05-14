@@ -124,7 +124,8 @@ void uni_hid_parser_mouse_init_report(uni_hid_device_t* d) {
     uni_gamepad_t* gp = &d->gamepad;
     memset(gp, 0, sizeof(*gp));
     gp->updated_states = GAMEPAD_STATE_AXIS_X | GAMEPAD_STATE_AXIS_Y | GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B |
-                         GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y;
+                         GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y | GAMEPAD_STATE_BUTTON_SHOULDER_L |
+                         GAMEPAD_STATE_BUTTON_SHOULDER_R;
 }
 
 void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
@@ -179,6 +180,18 @@ void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
                     if (value)
                         gp->buttons |= BUTTON_SHOULDER_R;
                     break;
+                case 0x06:  // Logitech M535 Tilt Wheel Left
+                    if (value)
+                        gp->buttons |= BUTTON_SHOULDER_L;
+                    break;
+                case 0x07:  // Logitech M535 Tilt Wheel Right
+                    if (value)
+                        gp->buttons |= BUTTON_SHOULDER_R;
+                    break;
+                case 0x08:  // Logitech M535 (???)
+                    if (value)
+                        gp->buttons |= BUTTON_Y;
+                    break;
                 default:
                     logi("Mouse: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
                     break;
@@ -191,6 +204,22 @@ void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
                 case HID_USAGE_BATTERY_STRENGTH:
                     logd("Mouse: Battery strength: %d\n", value);
                     gp->battery = value;
+                    break;
+                default:
+                    logi("Mouse: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
+                    break;
+            }
+            break;
+        }
+        case HID_USAGE_PAGE_KEYBOARD_KEYPAD: {
+            // Triggered by Logitech M535's "gesture button"
+            // Ignore it.
+            break;
+        }
+
+        case HID_USAGE_PAGE_CONSUMER: {
+            switch (usage) {
+                case HID_USAGE_AC_PAN:  // Logitech M535
                     break;
                 default:
                     logi("Mouse: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
