@@ -547,6 +547,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             break;
         case CONTROLLER_TYPE_GenericMouse:
             d->report_parser.setup = uni_hid_parser_mouse_setup;
+            d->report_parser.parse_input_report = uni_hid_parser_mouse_parse_input_report;
             d->report_parser.init_report = uni_hid_parser_mouse_init_report;
             d->report_parser.parse_usage = uni_hid_parser_mouse_parse_usage;
             logi("Device detected as Mouse: 0x%02x\n", type);

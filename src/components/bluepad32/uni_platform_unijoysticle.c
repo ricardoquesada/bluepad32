@@ -372,23 +372,30 @@ static void unijoysticle_on_init_complete(void) {
     safe_gpio_set_level(g_gpio_config->leds[LED_J2], 0);
 
     // FIXME: These values are hardcoded for Amiga
-    struct uni_mouse_quadrature_port port_a = {(struct uni_mouse_quadrature_encoder){
-                                                   g_gpio_config->port_a[1],  // H-pulse (up)
-                                                   g_gpio_config->port_a[3],  // HQ-pulse (left)
-                                               },
-                                               (struct uni_mouse_quadrature_encoder){
-                                                   g_gpio_config->port_a[0],  // V-pulse (down)
-                                                   g_gpio_config->port_a[2]   // VQ-pulse (right)
-                                               }};
-    struct uni_mouse_quadrature_port port_b = {(struct uni_mouse_quadrature_encoder){
-                                                   g_gpio_config->port_b[1],  // H-pulse (up)
-                                                   g_gpio_config->port_b[3],  // HQ-pulse (left)
-                                               },
-                                               (struct uni_mouse_quadrature_encoder){
-                                                   g_gpio_config->port_b[0],  // V-pulse (down)
-                                                   g_gpio_config->port_b[2]   // VQ-pulse (right)
-                                               }};
-    uni_mouse_quadrature_init(QUADRATURE_MOUSE_TASK_CPU, port_a, port_b);
+    struct uni_mouse_quadrature_encoder_gpios port_a_x = {
+        .a = g_gpio_config->port_a[1],  // H-pulse (up)
+        .b = g_gpio_config->port_a[3],  // HQ-pulse (left)
+    };
+
+    struct uni_mouse_quadrature_encoder_gpios port_a_y = {
+        .a = g_gpio_config->port_a[0],  // V-pulse (down)
+        .b = g_gpio_config->port_a[2]   // VQ-pulse (right)
+    };
+
+    struct uni_mouse_quadrature_encoder_gpios port_b_x = {
+        .a = g_gpio_config->port_b[1],  // H-pulse (up)
+        .b = g_gpio_config->port_b[3],  // HQ-pulse (left)
+    };
+    struct uni_mouse_quadrature_encoder_gpios port_b_y = {
+        .a = g_gpio_config->port_b[0],  // V-pulse (down)
+        .b = g_gpio_config->port_b[2]   // VQ-pulse (right)
+    };
+    uni_mouse_quadrature_init(QUADRATURE_MOUSE_TASK_CPU);
+    uni_mouse_quadrature_setup_port(UNI_MOUSE_QUADRATURE_PORT_0, port_a_x, port_a_y);
+    uni_mouse_quadrature_setup_port(UNI_MOUSE_QUADRATURE_PORT_1, port_b_x, port_b_y);
+
+    // uni_mouse_quadrature_start(UNI_MOUSE_QUADRATURE_PORT_0);
+    // uni_mouse_quadrature_start(UNI_MOUSE_QUADRATURE_PORT_1);
     enable_bluetooth(true);
 }
 

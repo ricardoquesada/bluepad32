@@ -23,6 +23,7 @@ limitations under the License.
 #include "uni_hid_parser_mouse.h"
 
 #include <math.h>
+#include <time.h>
 
 #include "hid_usage.h"
 #include "uni_debug.h"
@@ -83,7 +84,8 @@ static int32_t process_mouse_delta(uni_hid_device_t* d, int32_t value) {
         ret = 127;
 
     // To avoid losing resolution in "fine movement" let lower values pass without any transformation.
-    if (ret < 3 && ret > -3)
+    // Specially useful in mice with high DPI, where we use big (meaning small) scale factor.
+    if (ret > -2 && ret < 2)
         ret = value;
     return roundf(ret);
 }
@@ -105,6 +107,16 @@ void uni_hid_parser_mouse_setup(uni_hid_device_t* d) {
     logi("mouse: using scale: %f\n", scale);
 
     uni_hid_device_set_ready_complete(d);
+}
+
+void uni_hid_parser_mouse_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len) {
+#if 0
+    time_t t = time(0);
+    char buffer[32] = {0};
+    strftime(buffer, 9, "%H:%M:%S", localtime(&t));
+    printf("%s - ", buffer);
+    printf_hexdump(report, len);
+#endif
 }
 
 void uni_hid_parser_mouse_init_report(uni_hid_device_t* d) {
@@ -129,6 +141,7 @@ void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
                 case HID_USAGE_AXIS_X:
                     // Mouse delta X
                     gp->axis_x = process_mouse_delta(d, value);
+                    // printf("min: %d, max: %d\n", globals->logical_minimum, globals->logical_maximum);
                     break;
                 case HID_USAGE_AXIS_Y:
                     // Mouse delta Y

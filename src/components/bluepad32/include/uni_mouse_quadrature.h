@@ -21,26 +21,26 @@ limitations under the License.
 
 #include <stdint.h>
 
+// How many ports (mice) are supported
+// In this case, up to two mice are supported.
+// Required, at least, for Lemmings. In Amiga, it has a 2-player mode that uses two mice.
 enum {
     UNI_MOUSE_QUADRATURE_PORT_0,
     UNI_MOUSE_QUADRATURE_PORT_1,
     UNI_MOUSE_QUADRATURE_PORT_MAX,
 };
 
+// Each "port" has two quadrature: Horizonal and Vertical movements.
 enum {
     UNI_MOUSE_QUADRATURE_ENCODER_H,
     UNI_MOUSE_QUADRATURE_ENCODER_V,
     UNI_MOUSE_QUADRATURE_ENCODER_MAX,
 };
 
-struct uni_mouse_quadrature_encoder {
-    int gpio_a;
-    int gpio_b;
-};
-
-struct uni_mouse_quadrature_port {
-    // Each port has two encoders: horizontal and vertical.
-    struct uni_mouse_quadrature_encoder encoders[UNI_MOUSE_QUADRATURE_ENCODER_MAX];
+// And each encoder requries two GPIOs.
+struct uni_mouse_quadrature_encoder_gpios {
+    int a;  // GPIO A
+    int b;  // GPIO B
 };
 
 /*
@@ -48,12 +48,13 @@ struct uni_mouse_quadrature_port {
  * x1,x2: GPIOs for horizontal movement
  * y1,y2: GPIOs for vertical movement
  */
-void uni_mouse_quadrature_init(int cpu_id,
-                               struct uni_mouse_quadrature_port port_a,
-                               struct uni_mouse_quadrature_port port_b);
+void uni_mouse_quadrature_init(int cpu_id);
+void uni_mouse_quadrature_setup_port(int port_idx,
+                                     struct uni_mouse_quadrature_encoder_gpios h,
+                                     struct uni_mouse_quadrature_encoder_gpios v);
 void uni_mouse_quadrature_update(int port_idx, int32_t dx, int32_t dy);
-void uni_mouse_quadrature_start();
-void uni_mouse_quadrature_pause();
+void uni_mouse_quadrature_start(int port_idx);
+void uni_mouse_quadrature_pause(int port_idx);
 void uni_mouse_quadrature_deinit();
 
 #endif  // UNI_MOUSE_QUADRATURE_H

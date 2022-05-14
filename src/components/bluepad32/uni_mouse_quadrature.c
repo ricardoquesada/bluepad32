@@ -51,11 +51,11 @@ limitations under the License.
 //
 //   Option B:
 //   80Mhz / 6400 = 12500Hz = tick every 80us
-#define TIMER_DIVIDER (80 *80)
-#define TICKS_PER_80US (1) // How many ticks are in 80us
+#define TIMER_DIVIDER (80 * 80)
+#define TICKS_PER_80US (1)  // How many ticks are in 80us
 #define ONE_SECOND (12500)
 
-#define TASK_TIMER_STACK_SIZE (1024)
+#define TASK_TIMER_STACK_SIZE (1536)
 #define TASK_TIMER_PRIO (5)
 
 enum direction {
@@ -74,22 +74,17 @@ struct quadrature_state {
     // Current quadrature phase
     int phase;
 
-    // Which timer is being used: 0 or 1
+    // Which group timer/timer is being used
+    int timer_group;
     timer_idx_t timer_idx;
+
+    // GPIOs used
+    struct uni_mouse_quadrature_encoder_gpios gpios;
 };
 
-// We have two mouse ports, but only one can be used at the time.
-// This is because it should be possible to swap the mouse port.
-// A real example: Amiga 4000 has port#2 at the left, port#1 at the right.
-static struct uni_mouse_quadrature_port g_ports[UNI_MOUSE_QUADRATURE_PORT_MAX];
-// Which port is active;
-static int g_port_idx;
+static struct quadrature_state s_quadratures[UNI_MOUSE_QUADRATURE_PORT_MAX][UNI_MOUSE_QUADRATURE_ENCODER_MAX];
 
-static struct quadrature_state s_quadrature_x;
-static struct quadrature_state s_quadrature_y;
-
-static TaskHandle_t s_timer_x_task;
-static TaskHandle_t s_timer_y_task;
+static TaskHandle_t s_timer_tasks[UNI_MOUSE_QUADRATURE_PORT_MAX][UNI_MOUSE_QUADRATURE_ENCODER_MAX];
 
 static void process_quadrature(struct quadrature_state* q) {
     int a, b;
@@ -132,41 +127,38 @@ static void process_quadrature(struct quadrature_state* q) {
             break;
     }
 
-    // Get GPIOs from the correct port / encoder.
-    int gpio_a = g_ports[g_port_idx].encoders[q->encoder].gpio_a;
-    int gpio_b = g_ports[g_port_idx].encoders[q->encoder].gpio_b;
+    int gpio_a = q->gpios.a;
+    int gpio_b = q->gpios.b;
     gpio_set_level(gpio_a, a);
     gpio_set_level(gpio_b, b);
     logd("value: %d, quadrature phase: %d, a=%d, b=%d (%d,%d)\n", q->value, q->phase, a, b, gpio_a, gpio_b);
 }
 
-static void timer_x_task(void* arg) {
+// Don't be confused that is is just one task.
+// Actually this callback is called from 4 different tasks.
+static void timer_task(void* arg) {
+    uint32_t a = (uint32_t)arg;
+    uint16_t port_idx = (a >> 16);
+    uint16_t encoder_idx = (a & 0xffff);
+
+    loge("Starting task: port:%d, encoder:%d\n", port_idx, encoder_idx);
     while (true) {
         ulTaskNotifyTake(true, portMAX_DELAY);
-        process_quadrature(&s_quadrature_x);
+        process_quadrature(&s_quadratures[port_idx][encoder_idx]);
     }
 }
 
-static void timer_y_task(void* arg) {
-    while (true) {
-        ulTaskNotifyTake(true, portMAX_DELAY);
-        process_quadrature(&s_quadrature_y);
-    }
-}
+static bool IRAM_ATTR timer_handler(void* arg) {
+    uint32_t a = (uint32_t)arg;
+    uint16_t port_idx = (a >> 16);
+    uint16_t encoder_idx = (a & 0xffff);
 
-static bool IRAM_ATTR timer_x_handler(void* arg) {
     BaseType_t higher_priority_task_woken = false;
-    vTaskNotifyGiveFromISR(s_timer_x_task, &higher_priority_task_woken);
+    vTaskNotifyGiveFromISR(s_timer_tasks[port_idx][encoder_idx], &higher_priority_task_woken);
     return higher_priority_task_woken;
 }
 
-static bool IRAM_ATTR timer_y_handler(void* arg) {
-    BaseType_t higher_priority_task_woken = false;
-    vTaskNotifyGiveFromISR(s_timer_y_task, &higher_priority_task_woken);
-    return higher_priority_task_woken;
-}
-
-static void init_from_cpu1_task() {
+static void init_from_cpu_task() {
     // From ESP-IDF documentation:
     // "Register Timer interrupt handler, the handler is an ISR.
     // The handler will be attached to the same CPU core that this function is running on."
@@ -181,24 +173,25 @@ static void init_from_cpu1_task() {
         .auto_reload = TIMER_AUTORELOAD_EN,
     };
 
-    // FIXME: Don't start timers unless it is needed
     // Setup timer X
-    ESP_ERROR_CHECK(timer_init(TIMER_GROUP_0, s_quadrature_x.timer_idx, &config));
-    timer_set_counter_value(TIMER_GROUP_0, s_quadrature_x.timer_idx, ONE_SECOND * 60);
-    timer_isr_callback_add(TIMER_GROUP_0, s_quadrature_x.timer_idx, timer_x_handler, NULL, 0);
-    timer_start(TIMER_GROUP_0, s_quadrature_x.timer_idx);
+    for (int i = 0; i < UNI_MOUSE_QUADRATURE_PORT_MAX; i++) {
+        for (int j = 0; j < UNI_MOUSE_QUADRATURE_ENCODER_MAX; j++) {
+            uint32_t arg = (i << 16) | j;
+            char name[64];
+            ESP_ERROR_CHECK(timer_init(s_quadratures[i][j].timer_group, s_quadratures[i][j].timer_idx, &config));
+            timer_set_counter_value(s_quadratures[i][j].timer_group, s_quadratures[i][j].timer_idx, ONE_SECOND * 60);
+            timer_isr_callback_add(s_quadratures[i][j].timer_group, s_quadratures[i][j].timer_idx, timer_handler,
+                                   (void*)arg, 0);
+            timer_start(s_quadratures[i][j].timer_group, s_quadratures[i][j].timer_idx);
 
-    // Setup timer Y
-    ESP_ERROR_CHECK(timer_init(TIMER_GROUP_0, s_quadrature_y.timer_idx, &config));
-    timer_set_counter_value(TIMER_GROUP_0, s_quadrature_y.timer_idx, ONE_SECOND * 60);
-    timer_isr_callback_add(TIMER_GROUP_0, s_quadrature_y.timer_idx, timer_y_handler, NULL, 0);
-    timer_start(TIMER_GROUP_0, s_quadrature_y.timer_idx);
-
-    // Create timer tasks
-    xTaskCreatePinnedToCore(timer_x_task, "timer_x", TASK_TIMER_STACK_SIZE, NULL, TASK_TIMER_PRIO, &s_timer_x_task,
-                            xPortGetCoreID());
-    xTaskCreatePinnedToCore(timer_y_task, "timer_y", TASK_TIMER_STACK_SIZE, NULL, TASK_TIMER_PRIO, &s_timer_y_task,
-                            xPortGetCoreID());
+            // Create timer tasks
+            sprintf(name, "timer_%d_%d", i, j);
+            // loge("_%s: %d, %d. name=%s, group=%d, timer=%d\n", __func__, i, j, name, s_quadratures[i][j].timer_group,
+            //      s_quadratures[i][j].timer_idx);
+            xTaskCreatePinnedToCore(timer_task, name, TASK_TIMER_STACK_SIZE, (void*)arg, TASK_TIMER_PRIO,
+                                    &s_timer_tasks[i][j], xPortGetCoreID());
+        }
+    }
 
     // Kill itself
     vTaskDelete(NULL);
@@ -253,57 +246,71 @@ static void process_update(struct quadrature_state* q, int32_t delta) {
         // If there is no update, set timer to update less frequently
         units = ONE_SECOND * 10;
     }
-    timer_set_counter_value(TIMER_GROUP_0, q->timer_idx, units);
+    timer_set_counter_value(q->timer_group, q->timer_idx, units);
 }
 
-void uni_mouse_quadrature_init(int cpu_id,
-                               struct uni_mouse_quadrature_port port_a,
-                               struct uni_mouse_quadrature_port port_b) {
-    g_port_idx = 0;
-    g_ports[UNI_MOUSE_QUADRATURE_PORT_0] = port_a;
-    g_ports[UNI_MOUSE_QUADRATURE_PORT_1] = port_b;
+void uni_mouse_quadrature_init(int cpu_id) {
+    memset(s_quadratures, 0, sizeof(s_quadratures));
 
-    memset(&s_quadrature_x, 0, sizeof(s_quadrature_x));
-    memset(&s_quadrature_y, 0, sizeof(s_quadrature_y));
-
-    s_quadrature_x.encoder = UNI_MOUSE_QUADRATURE_ENCODER_H;
-    s_quadrature_x.timer_idx = TIMER_0;
-
-    s_quadrature_y.encoder = UNI_MOUSE_QUADRATURE_ENCODER_V;
-    s_quadrature_y.timer_idx = TIMER_1;
+    for (int i = 0; i < UNI_MOUSE_QUADRATURE_PORT_MAX; i++) {
+        for (int j = 0; j < UNI_MOUSE_QUADRATURE_ENCODER_MAX; j++) {
+            s_quadratures[i][j].timer_group = TIMER_GROUP_0 + i;
+            s_quadratures[i][j].timer_idx = TIMER_0 + j;
+        }
+    }
 
     // Create tasks
-    xTaskCreatePinnedToCore(init_from_cpu1_task, "init_timers", TASK_TIMER_STACK_SIZE, NULL, TASK_TIMER_PRIO, NULL,
+    xTaskCreatePinnedToCore(init_from_cpu_task, "init_timers_mama", TASK_TIMER_STACK_SIZE, NULL, TASK_TIMER_PRIO, NULL,
                             cpu_id);
+}
+
+void uni_mouse_quadrature_setup_port(int port_idx,
+                                     struct uni_mouse_quadrature_encoder_gpios h,
+                                     struct uni_mouse_quadrature_encoder_gpios v) {
+    if (port_idx < 0 || port_idx >= UNI_MOUSE_QUADRATURE_PORT_MAX) {
+        loge("%s: Invalid port idx=%d\n", __func__, port_idx);
+        return;
+    }
+    s_quadratures[port_idx][UNI_MOUSE_QUADRATURE_ENCODER_H].gpios = h;
+    s_quadratures[port_idx][UNI_MOUSE_QUADRATURE_ENCODER_V].gpios = v;
 }
 
 void uni_mouse_quadrature_deinit() {
     // Stop the timers
-    timer_deinit(TIMER_GROUP_0, s_quadrature_x.timer_idx);
-    timer_deinit(TIMER_GROUP_0, s_quadrature_y.timer_idx);
-
-    // Delete the tasks
-    vTaskDelete(s_timer_x_task);
-    vTaskDelete(s_timer_y_task);
-    s_timer_x_task = NULL;
-    s_timer_y_task = NULL;
+    for (int i = 0; i < UNI_MOUSE_QUADRATURE_PORT_MAX; i++) {
+        for (int j = 0; j < UNI_MOUSE_QUADRATURE_ENCODER_MAX; j++) {
+            timer_deinit(s_quadratures[i][j].timer_group, s_quadratures[i][j].timer_idx);
+            // Delete the tasks
+            vTaskDelete(s_timer_tasks[i][j]);
+            s_timer_tasks[i][j] = NULL;
+        }
+    }
 }
 
-void uni_mouse_quadrature_pause() {
-    timer_pause(TIMER_GROUP_0, s_quadrature_x.timer_idx);
-    timer_pause(TIMER_GROUP_0, s_quadrature_y.timer_idx);
+void uni_mouse_quadrature_pause(int port_idx) {
+    if (port_idx < 0 || port_idx >= UNI_MOUSE_QUADRATURE_PORT_MAX) {
+        loge("%s: Invalid port idx=%d\n", __func__, port_idx);
+        return;
+    }
+    for (int j = 0; j < UNI_MOUSE_QUADRATURE_ENCODER_MAX; j++)
+        timer_pause(s_quadratures[port_idx][j].timer_group, s_quadratures[port_idx][j].timer_idx);
 }
 
-void uni_mouse_quadrature_start() {
-    timer_start(TIMER_GROUP_0, s_quadrature_x.timer_idx);
-    timer_start(TIMER_GROUP_0, s_quadrature_y.timer_idx);
+void uni_mouse_quadrature_start(int port_idx) {
+    if (port_idx < 0 || port_idx >= UNI_MOUSE_QUADRATURE_PORT_MAX) {
+        loge("%s: Invalid port idx=%d\n", __func__, port_idx);
+        return;
+    }
+    for (int j = 0; j < UNI_MOUSE_QUADRATURE_ENCODER_MAX; j++)
+        timer_start(s_quadratures[port_idx][j].timer_group, s_quadratures[port_idx][j].timer_idx);
 }
 
 // Should be called everytime that mouse report is received.
 void uni_mouse_quadrature_update(int port_idx, int32_t dx, int32_t dy) {
-    // Looks overkill to pass the "idx" each time.
-    // But adding another function just to say which port is active looks worse(?)
-    g_port_idx = port_idx;
-    process_update(&s_quadrature_x, dx);
-    process_update(&s_quadrature_y, dy);
+    if (port_idx < 0 || port_idx >= UNI_MOUSE_QUADRATURE_PORT_MAX) {
+        loge("%s: Invalid port idx=%d\n", __func__, port_idx);
+        return;
+    }
+    process_update(&s_quadratures[port_idx][UNI_MOUSE_QUADRATURE_ENCODER_H], dx);
+    process_update(&s_quadratures[port_idx][UNI_MOUSE_QUADRATURE_ENCODER_V], dy);
 }
