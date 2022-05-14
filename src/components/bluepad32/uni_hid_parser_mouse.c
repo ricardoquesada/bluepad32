@@ -22,14 +22,15 @@ limitations under the License.
 
 #include "uni_hid_parser_mouse.h"
 
+#include <math.h>
+
 #include "hid_usage.h"
 #include "uni_debug.h"
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
 
 typedef struct {
-    int multiplier;
-    int divisor;
+    float scale;
 } mouse_instance_t;
 _Static_assert(sizeof(mouse_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "Mouse intance too big");
 
@@ -37,8 +38,7 @@ struct mouse_resolution {
     uint16_t vid;
     uint16_t pid;
     char* name;
-    int multiplier;
-    int divisor;
+    float scale;
 };
 
 static mouse_instance_t* get_mouse_instance(uni_hid_device_t* d) {
@@ -59,60 +59,50 @@ static mouse_instance_t* get_mouse_instance(uni_hid_device_t* d) {
 // "smart" way to solve it... or just allow the user change the resolution via BLE application.
 static const struct mouse_resolution resolutions[] = {
     // Apple Magic Mouse 1st gen
-    {0x05ac, 0x030d, "Admin Mouse", 1, 4},
+    {0x05ac, 0x030d, "Admin Mouse", 0.25},
     // TECKNET 2600DPI. Has a "DPI" button. The faster one is unusable. Make the faster usable.
-    {0x0a5c, 0x4503, "BM30X mouse", 1, 3},
+    {0x0a5c, 0x4503, "BM30X mouse", 0.3334},
     // Adesso iMouse M300
-    {0x0a5c, 0x4503, "Adesso Bluetooth 3.0 Mouse", 1, 2},
+    {0x0a5c, 0x4503, "Adesso Bluetooth 3.0 Mouse", 0.5},
     // Bornd C170B
-    {0x0a5c, 0x0001, "BORND Bluetooth Mouse", 2, 3},
+    {0x0a5c, 0x0001, "BORND Bluetooth Mouse", 0.6667},
 
     // No need to add entries where mult & div are both 1
 };
 
 static int32_t process_mouse_delta(uni_hid_device_t* d, int32_t value) {
-    int32_t ret = value;
+    float ret = value;
     mouse_instance_t* ins = get_mouse_instance(d);
-    int mult = ins->multiplier;
-    int div = ins->divisor;
 
-    if (mult != 1)
-        ret *= mult;
-    if (div != 1 && div != 0)
-        ret /= div;
+    ret *= ins->scale;
 
     // Quadrature-driver expect values between -127 and 127.
-    if (ret < -110)
-        ret = -110;
-    if (ret > 110)
-        ret = 110;
+    if (ret < -127)
+        ret = -127;
+    if (ret > 127)
+        ret = 127;
 
     // To avoid losing resolution in "fine movement" let lower values pass without any transformation.
     if (ret < 3 && ret > -3)
         ret = value;
-    return ret;
+    return roundf(ret);
 }
 
 void uni_hid_parser_mouse_setup(uni_hid_device_t* d) {
-    // At setup time, fetch the "multiplier" / "divisor" for the mouse.
-    mouse_instance_t* ins;
-    int mult = 1;
-    int div = 1;
-
-    ins = get_mouse_instance(d);
+    // At setup time, fetch the "scale" for the mouse.
+    float scale = 1;
+    mouse_instance_t* ins = get_mouse_instance(d);
 
     for (unsigned int i = 0; i < ARRAY_SIZE(resolutions); i++) {
         if (resolutions[i].vid == d->vendor_id && resolutions[i].pid == d->product_id &&
             strcmp(resolutions[i].name, d->name) == 0) {
-            mult = resolutions[i].multiplier;
-            div = resolutions[i].divisor;
+            scale = resolutions[i].scale;
             break;
         }
     }
 
-    ins->multiplier = mult;
-    ins->divisor = div;
-    logi("mouse: using multiplier: %d / divisor: %d\n", mult, div);
+    ins->scale = scale;
+    logi("mouse: using scale: %f\n", scale);
 
     uni_hid_device_set_ready_complete(d);
 }

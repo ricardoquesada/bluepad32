@@ -22,6 +22,7 @@ limitations under the License.
  */
 #include "uni_mouse_quadrature.h"
 
+#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -44,14 +45,15 @@ limitations under the License.
 // APB clock runs at 80Mhz.
 //   Option A:
 //   80Mhz / 80 = 1Mhz = tick every 1us
-#define TIMER_DIVIDER (80)
-#define TICKS_PER_80US (80)  // How many ticks are in 80us
+// #define TIMER_DIVIDER (80)
+// #define TICKS_PER_80US (80)  // How many ticks are in 80us
+// #define ONE_SECOND (1000000)
 //
 //   Option B:
 //   80Mhz / 6400 = 12500Hz = tick every 80us
-// #define TIMER_DIVIDER (80 *80)
-// #define TICKS_PER_80US (1) // How many ticks are in 80us
-#define ONE_SECOND (1000000)
+#define TIMER_DIVIDER (80 *80)
+#define TICKS_PER_80US (1) // How many ticks are in 80us
+#define ONE_SECOND (12500)
 
 #define TASK_TIMER_STACK_SIZE (1024)
 #define TASK_TIMER_PRIO (5)
@@ -205,7 +207,6 @@ static void init_from_cpu1_task() {
 static void process_update(struct quadrature_state* q, int32_t delta) {
     uint64_t units;
     int32_t abs_delta = (delta < 0) ? -delta : delta;
-    const int resolution = 1;
 
     if (delta != 0) {
         // Hack to make the movement smoother with "small deltas". It guarantees that
@@ -241,9 +242,13 @@ static void process_update(struct quadrature_state* q, int32_t delta) {
         // Alternative: Do not divide the time, and use a constant "tick" time. But if we do so,
         // the movement will have "jank".
         // Perhaps for small deltas we can have a predefined "unit time"
-        units = (128 * TICKS_PER_80US) / (abs_delta * resolution);
-        if (units < TICKS_PER_80US)
-            units = TICKS_PER_80US;
+        float max_ticks = 128 * TICKS_PER_80US;
+        float delta_f = abs_delta;
+        float resolution = 1;
+        float units_f = (max_ticks / delta_f) * resolution;
+        if (units_f < TICKS_PER_80US)
+            units_f = TICKS_PER_80US;
+        units = roundf(units_f);
     } else {
         // If there is no update, set timer to update less frequently
         units = ONE_SECOND * 10;
