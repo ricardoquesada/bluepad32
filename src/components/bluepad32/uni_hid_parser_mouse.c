@@ -67,13 +67,18 @@ static const struct mouse_resolution resolutions[] = {
     {0x0a5c, 0x4503, "Adesso Bluetooth 3.0 Mouse", 0.5},
     // Bornd C170B
     {0x0a5c, 0x0001, "BORND Bluetooth Mouse", 0.6667},
+    // Logitech	M336 / M337 / M535
+    {0x046d, 0xb016, "Bluetooth Mouse M336/M337/M535", 0.5},
 
     // No need to add entries where mult & div are both 1
 };
 
 static int32_t process_mouse_delta(uni_hid_device_t* d, int32_t value) {
-    float ret = value;
+    if (value == 0)
+        return 0;
+
     mouse_instance_t* ins = get_mouse_instance(d);
+    float ret = value;
 
     ret *= ins->scale;
 
@@ -83,14 +88,15 @@ static int32_t process_mouse_delta(uni_hid_device_t* d, int32_t value) {
     if (ret > 127)
         ret = 127;
 
-    // To avoid losing resolution in "fine movement" let lower values pass without any transformation.
-    // Specially useful in mice with high DPI, where we use big (meaning small) scale factor.
-    if (ret > -2 && ret < 2)
-        ret = value;
-    return roundf(ret);
+    int ret_i = roundf(ret);
+    // Don't return 0 when there is any kind of movement... feels "janky".
+    if (ret_i == 0)
+        ret_i = (value < 0) ? -1 : 1;
+    return ret_i;
 }
 
 void uni_hid_parser_mouse_setup(uni_hid_device_t* d) {
+    char buf[128];
     // At setup time, fetch the "scale" for the mouse.
     float scale = 1;
     mouse_instance_t* ins = get_mouse_instance(d);
@@ -104,7 +110,10 @@ void uni_hid_parser_mouse_setup(uni_hid_device_t* d) {
     }
 
     ins->scale = scale;
-    logi("mouse: using scale: %f\n", scale);
+
+    // ets_printf() doesn't support "%f"
+    sprintf(buf, "mouse: using scale: %f\n", ins->scale);
+    logi(buf);
 
     uni_hid_device_set_ready_complete(d);
 }
@@ -143,6 +152,7 @@ void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
                     // Mouse delta X
                     gp->axis_x = process_mouse_delta(d, value);
                     // printf("min: %d, max: %d\n", globals->logical_minimum, globals->logical_maximum);
+                    // printf("delta x old value: %d -> new value: %d\n", value, gp->axis_x);
                     break;
                 case HID_USAGE_AXIS_Y:
                     // Mouse delta Y
