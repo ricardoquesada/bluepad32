@@ -67,6 +67,10 @@ limitations under the License.
 #define AUTOFIRE_FREQ_QUICKSHOT_MS (1000 / 29 / 2)        // ~17ms, ~1 frame
 #define AUTOFIRE_FREQ_COMPETITION_PRO_MS (1000 / 62 / 2)  // ~8ms, ~1/2 frame
 
+// Data coming from gamepad axis is different from mouse deltas.
+// They need to be scaled down, otherwise the pointer moves too fast.
+#define GAMEPAD_AXIS_TO_MOUSE_DELTA_RATIO (50)
+
 enum {
     PUSH_BUTTON_0,  // Toggle enhanced/mouse mode
     PUSH_BUTTON_1,  // Swap ports
@@ -187,6 +191,7 @@ static void auto_fire_loop(void* arg);
 
 static esp_err_t safe_gpio_set_level(gpio_num_t gpio, int value);
 static void enable_bluetooth(bool enabled);
+static void maybe_enable_mouse_timers(void);
 
 // Button callbacks
 static void toggle_enhanced_mode(int button_idx);
@@ -438,6 +443,8 @@ static void unijoysticle_on_device_disconnected(uni_hid_device_t* d) {
     // Regarless of how many connections are active, enable Bluetooth connections.
     enable_bluetooth(true);
     logi("unijoysticle: New gamepad connections enabled\n");
+
+    maybe_enable_mouse_timers();
 }
 
 static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
@@ -493,6 +500,8 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
 
     set_gamepad_seat(d, wanted_seat);
 
+    maybe_enable_mouse_timers();
+
     return 0;
 }
 
@@ -522,9 +531,16 @@ static void unijoysticle_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp)
             process_joystick(d, GAMEPAD_SEAT_B, &joy_ext);
             break;
         case EMULATION_MODE_COMBO_JOY_MOUSE:
-            // Data coming from gamepad axis is different from mouse deltas.
-            // They need to be scaled down, otherwise the pointer moves too fast.
-            process_mouse(d, ins->gamepad_seat, gp->axis_x / 50, gp->axis_y / 50, gp->buttons);
+            // Allow to control the mouse with both axis. Use case:
+            // - Right axis: easier to control with the right thumb (for right handed people)
+            // - Left axis: easier to drag a window (move + button pressed)
+            // ... but only if the axis have the same sign
+            // Do: (x/ratio) + (rx/ratio), instead of "(x+rx)/ratio". We want to lose precision.
+            process_mouse(
+                d, ins->gamepad_seat,
+                (gp->axis_x / GAMEPAD_AXIS_TO_MOUSE_DELTA_RATIO) + (gp->axis_rx / GAMEPAD_AXIS_TO_MOUSE_DELTA_RATIO),
+                (gp->axis_y / GAMEPAD_AXIS_TO_MOUSE_DELTA_RATIO) + (gp->axis_ry / GAMEPAD_AXIS_TO_MOUSE_DELTA_RATIO),
+                gp->buttons);
             break;
         default:
             loge("unijoysticle: Unsupported emulation mode: %d\n", ins->emu_mode);
@@ -588,15 +604,7 @@ static void unijoysticle_on_device_oob_event(uni_hid_device_t* d, uni_platform_o
         }
     }
 
-    // swap joystick A with B
-    uni_gamepad_seat_t seat = (ins->gamepad_seat == GAMEPAD_SEAT_A) ? GAMEPAD_SEAT_B : GAMEPAD_SEAT_A;
-    set_gamepad_seat(d, seat);
-
-    // Clear joystick after switch to avoid having a line "On".
-    uni_joystick_t joy;
-    memset(&joy, 0, sizeof(joy));
-    process_joystick(d, GAMEPAD_SEAT_A, &joy);
-    process_joystick(d, GAMEPAD_SEAT_B, &joy);
+    swap_ports(0 /* button_idx, ignore */);
 }
 
 //
@@ -732,8 +740,6 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
     safe_gpio_set_level(g_gpio_config->leds[LED_J2], status_b);
 
     bool lightbar_or_led_set = false;
-    // Try with LightBar and/or Player LEDs. Some devices like DualSense support
-    // both. Use them both when available.
     if (d->report_parser.set_lightbar_color != NULL) {
         uint8_t red = 0;
         uint8_t green = 0;
@@ -749,7 +755,6 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
         lightbar_or_led_set = true;
     }
 
-    //  If Lightbar or Player LEDs cannot be set, use rumble as fallback option
     if (!lightbar_or_led_set && d->report_parser.set_rumble != NULL) {
         d->report_parser.set_rumble(d, 0x80 /* value */, 0x04 /* duration */);
     }
@@ -932,12 +937,15 @@ static void toggle_mouse_mode(int button_idx) {
             if (ins->emu_mode == EMULATION_MODE_SINGLE_JOY) {
                 ins->emu_mode = EMULATION_MODE_COMBO_JOY_MOUSE;
                 logi("unijoysticle: device %s is in COMBO_JOY_MOUSE mode\n", bd_addr_to_str(d->conn.btaddr));
+                break;
             } else if (ins->emu_mode == EMULATION_MODE_COMBO_JOY_MOUSE) {
                 ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
                 logi("unijoysticle: device %s is in SINGLE_JOY mode\n", bd_addr_to_str(d->conn.btaddr));
+                break;
             }
         }
     }
+    maybe_enable_mouse_timers();
 }
 
 static void swap_ports(int button_idx) {
@@ -958,6 +966,14 @@ static void swap_ports(int button_idx) {
             set_gamepad_seat(d, new_seat);
         }
     }
+
+    // Clear joystick after switch to avoid having a line "On".
+    uni_joystick_t joy;
+    memset(&joy, 0, sizeof(joy));
+    process_joystick(d, GAMEPAD_SEAT_A, &joy);
+    process_joystick(d, GAMEPAD_SEAT_B, &joy);
+
+    maybe_enable_mouse_timers();
 }
 
 // In some boards, not all GPIOs are set. If so, don't try change their values.
@@ -970,6 +986,40 @@ static esp_err_t safe_gpio_set_level(gpio_num_t gpio, int value) {
 static void enable_bluetooth(bool enabled) {
     safe_gpio_set_level(g_gpio_config->leds[LED_BT], enabled);
     uni_bluetooth_enable_new_connections_safe(enabled);
+}
+
+static void maybe_enable_mouse_timers(void) {
+    // Mouse support requires that the mouse timers are enabled.
+    // Only enable them when needed
+    bool enable_timer_0 = false;
+    bool enable_timer_1 = false;
+
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
+        uni_hid_device_t* d = uni_hid_device_get_instance_for_idx(i);
+        if (uni_bt_conn_is_connected(&d->conn)) {
+            unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
+
+            // COMBO_JOY_MOUSE counts as real mouse.
+            if (ins->emu_mode == EMULATION_MODE_COMBO_JOY_MOUSE || ins->emu_mode == EMULATION_MODE_SINGLE_MOUSE) {
+                if (ins->gamepad_seat == GAMEPAD_SEAT_A)
+                    enable_timer_0 = true;
+                else if (ins->gamepad_seat == GAMEPAD_SEAT_B)
+                    enable_timer_1 = true;
+            }
+        }
+    }
+
+    logi("mice timers enabled/disabled: port A=%d, port B=%d\n", enable_timer_0, enable_timer_1);
+
+    if (enable_timer_0)
+        uni_mouse_quadrature_start(UNI_MOUSE_QUADRATURE_PORT_0);
+    else
+        uni_mouse_quadrature_pause(UNI_MOUSE_QUADRATURE_PORT_0);
+
+    if (enable_timer_1)
+        uni_mouse_quadrature_start(UNI_MOUSE_QUADRATURE_PORT_1);
+    else
+        uni_mouse_quadrature_pause(UNI_MOUSE_QUADRATURE_PORT_1);
 }
 
 //

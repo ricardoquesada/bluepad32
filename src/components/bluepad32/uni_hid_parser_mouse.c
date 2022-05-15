@@ -60,7 +60,7 @@ static mouse_instance_t* get_mouse_instance(uni_hid_device_t* d) {
 // "smart" way to solve it... or just allow the user change the resolution via BLE application.
 static const struct mouse_resolution resolutions[] = {
     // Apple Magic Mouse 1st gen
-    {0x05ac, 0x030d, "Admin Mouse", 0.25},
+    {0x05ac, 0x030d, "Admin Mouse", 0.2},
     // TECKNET 2600DPI. Has a "DPI" button. The faster one is unusable. Make the faster usable.
     {0x0a5c, 0x4503, "BM30X mouse", 0.3334},
     // Adesso iMouse M300
@@ -68,7 +68,7 @@ static const struct mouse_resolution resolutions[] = {
     // Bornd C170B
     {0x0a5c, 0x0001, "BORND Bluetooth Mouse", 0.6667},
     // Logitech	M336 / M337 / M535
-    {0x046d, 0xb016, "Bluetooth Mouse M336/M337/M535", 0.5},
+    {0x046d, 0xb016, "Bluetooth Mouse M336/M337/M535", 0.3334},
 
     // No need to add entries where mult & div are both 1
 };

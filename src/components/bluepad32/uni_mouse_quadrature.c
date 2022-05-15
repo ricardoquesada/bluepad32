@@ -83,6 +83,8 @@ struct quadrature_state {
 };
 
 static struct quadrature_state s_quadratures[UNI_MOUSE_QUADRATURE_PORT_MAX][UNI_MOUSE_QUADRATURE_ENCODER_MAX];
+// Cache to prevent enabling/disabling timers that were already enabled/disabled
+static bool timer_started[UNI_MOUSE_QUADRATURE_PORT_MAX];
 
 static TaskHandle_t s_timer_tasks[UNI_MOUSE_QUADRATURE_PORT_MAX][UNI_MOUSE_QUADRATURE_ENCODER_MAX];
 
@@ -182,7 +184,8 @@ static void init_from_cpu_task() {
             timer_set_counter_value(s_quadratures[i][j].timer_group, s_quadratures[i][j].timer_idx, ONE_SECOND * 60);
             timer_isr_callback_add(s_quadratures[i][j].timer_group, s_quadratures[i][j].timer_idx, timer_handler,
                                    (void*)arg, 0);
-            timer_start(s_quadratures[i][j].timer_group, s_quadratures[i][j].timer_idx);
+            // Don't start timer automatically. They should be started on demand.
+            // timer_start(s_quadratures[i][j].timer_group, s_quadratures[i][j].timer_idx);
 
             // Create timer tasks
             sprintf(name, "timer_%d_%d", i, j);
@@ -253,6 +256,7 @@ void uni_mouse_quadrature_init(int cpu_id) {
     memset(s_quadratures, 0, sizeof(s_quadratures));
 
     for (int i = 0; i < UNI_MOUSE_QUADRATURE_PORT_MAX; i++) {
+        timer_started[i] = false;
         for (int j = 0; j < UNI_MOUSE_QUADRATURE_ENCODER_MAX; j++) {
             s_quadratures[i][j].timer_group = TIMER_GROUP_0 + i;
             s_quadratures[i][j].timer_idx = TIMER_0 + j;
@@ -287,22 +291,34 @@ void uni_mouse_quadrature_deinit() {
     }
 }
 
-void uni_mouse_quadrature_pause(int port_idx) {
-    if (port_idx < 0 || port_idx >= UNI_MOUSE_QUADRATURE_PORT_MAX) {
-        loge("%s: Invalid port idx=%d\n", __func__, port_idx);
-        return;
-    }
-    for (int j = 0; j < UNI_MOUSE_QUADRATURE_ENCODER_MAX; j++)
-        timer_pause(s_quadratures[port_idx][j].timer_group, s_quadratures[port_idx][j].timer_idx);
-}
-
 void uni_mouse_quadrature_start(int port_idx) {
     if (port_idx < 0 || port_idx >= UNI_MOUSE_QUADRATURE_PORT_MAX) {
         loge("%s: Invalid port idx=%d\n", __func__, port_idx);
         return;
     }
+
+    if (timer_started[port_idx])
+        return;
+
     for (int j = 0; j < UNI_MOUSE_QUADRATURE_ENCODER_MAX; j++)
         timer_start(s_quadratures[port_idx][j].timer_group, s_quadratures[port_idx][j].timer_idx);
+
+    timer_started[port_idx] = true;
+}
+
+void uni_mouse_quadrature_pause(int port_idx) {
+    if (port_idx < 0 || port_idx >= UNI_MOUSE_QUADRATURE_PORT_MAX) {
+        loge("%s: Invalid port idx=%d\n", __func__, port_idx);
+        return;
+    }
+
+    if (!timer_started[port_idx])
+        return;
+
+    for (int j = 0; j < UNI_MOUSE_QUADRATURE_ENCODER_MAX; j++)
+        timer_pause(s_quadratures[port_idx][j].timer_group, s_quadratures[port_idx][j].timer_idx);
+
+    timer_started[port_idx] = false;
 }
 
 // Should be called everytime that mouse report is received.
