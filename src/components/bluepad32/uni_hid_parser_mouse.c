@@ -38,6 +38,7 @@ _Static_assert(sizeof(mouse_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "Mouse int
 struct mouse_resolution {
     uint16_t vid;
     uint16_t pid;
+    // If name is NULL, it means it should not be used.
     char* name;
     float scale;
 };
@@ -60,7 +61,7 @@ static mouse_instance_t* get_mouse_instance(uni_hid_device_t* d) {
 // "smart" way to solve it... or just allow the user change the resolution via BLE application.
 static const struct mouse_resolution resolutions[] = {
     // Apple Magic Mouse 1st gen
-    {0x05ac, 0x030d, "Admin Mouse", 0.2},
+    {0x05ac, 0x030d, NULL, 0.2},
     // TECKNET 2600DPI. Has a "DPI" button. The faster one is unusable. Make the faster usable.
     {0x0a5c, 0x4503, "BM30X mouse", 0.3334},
     // Adesso iMouse M300
@@ -96,14 +97,14 @@ static int32_t process_mouse_delta(uni_hid_device_t* d, int32_t value) {
 }
 
 void uni_hid_parser_mouse_setup(uni_hid_device_t* d) {
-    char buf[128];
+    char buf[64];
     // At setup time, fetch the "scale" for the mouse.
     float scale = 1;
     mouse_instance_t* ins = get_mouse_instance(d);
 
     for (unsigned int i = 0; i < ARRAY_SIZE(resolutions); i++) {
         if (resolutions[i].vid == d->vendor_id && resolutions[i].pid == d->product_id &&
-            strcmp(resolutions[i].name, d->name) == 0) {
+            (resolutions[i].name == NULL || strcmp(resolutions[i].name, d->name) == 0)) {
             scale = resolutions[i].scale;
             break;
         }
@@ -111,8 +112,9 @@ void uni_hid_parser_mouse_setup(uni_hid_device_t* d) {
 
     ins->scale = scale;
 
+    logi("mouse: vid=0x%04x, pid=0x%04x, name='%s' uses scale:", d->vendor_id, d->product_id, d->name);
     // ets_printf() doesn't support "%f"
-    sprintf(buf, "mouse: using scale: %f\n", ins->scale);
+    sprintf(buf, "%f\n", ins->scale);
     logi(buf);
 
     uni_hid_device_set_ready_complete(d);
