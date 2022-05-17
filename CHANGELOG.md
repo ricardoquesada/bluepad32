@@ -4,12 +4,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2022-04-22
+### New
+- Mouse support:
+  Bluetooth BR/EDR mice supported. Only a few are supported at the moment.
+  This is to fine-tune the DPI. Mouse data is populated in the gamepad structure:
+  - axis_x / axis_y contains the mouse delta movements normalized from -127/127.
+  - Left button: A
+  - Right button: B
+  - Middle button: X
+- Mouse: Added "quadrature encoder" driver. Supports up to two
+   mice at the same time. Each mouse requires 2 timers. So the two mice are used
+   at the same time, that means that there are no HW timers left.
+- Unijoysticle: Supports Amiga mouse. Two mice can be used at the same time.
+- Unijoysticle: Support for Unijoysticle v2 A500 (a new board that fits in the Amiga 500/1200)
+- Doc: List of supported mice is here: [supported mice][supported_mice]
+
+[supported_mice]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/develop/docs/supported_mice.md
+
+### Changed
+- Unijoysticle v2: Added support for 2nd and 3rd button in Joystick #1.
+- Unijoysticle v2+: Swap 2nd with 3rd button.
+  - X is 2nd joystick button
+  - Y is 3rd joystick button
+
 ## [3.1.1] - 2022-04-22
 ### Fixed
- - NINA/AirLift: Binaries are generated with UART console disabled. [Bug bp32-arduino #3][gitlab_bp32_arduino_03]
+- NINA/AirLift: Binaries are generated with UART console disabled. [Bug bp32-arduino #3][gitlab_bp32_arduino_03]
    UART console can be enabled/disabled from menuconfig and only when NINA/AirLift are not selected.
- - Cleanup connect/disconnect code
- - pc_debug: Enable extra compiler-warnings to check possible bugs
+- Cleanup connect/disconnect code
+- pc_debug: Enable extra compiler-warnings to check possible bugs
 
 [gitlab_bp32_arduino_03]: https://gitlab.com/ricardoquesada/bluepad32-arduino/-/issues/3
 
