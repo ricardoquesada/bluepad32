@@ -72,6 +72,11 @@ limitations under the License.
 #define GAMEPAD_AXIS_TO_MOUSE_DELTA_RATIO (50)
 
 enum {
+    MOUSE_EMULATION_AMIGA,
+    MOUSE_EMULATION_ATARIST,
+};
+
+enum {
     PUSH_BUTTON_0,  // Toggle enhanced/mouse mode
     PUSH_BUTTON_1,  // Swap ports
     PUSH_BUTTON_MAX,
@@ -103,8 +108,11 @@ typedef enum {
     // Unijoysticle 2 plus: SMT version
     BOARD_MODEL_UNIJOYSTICLE2_PLUS,
 
-    // Unijoysticle 2 plus: A500 version
+    // Unijoysticle 2 A500 version
     BOARD_MODEL_UNIJOYSTICLE2_A500,
+
+    // Unijosyticle 2 ST520 version
+    BOARD_MODEL_UNIJOYSTICLE2_ST520,
 
     // Unijosyticle Single port, like Arananet's Unijoy2Amiga
     BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT,
@@ -179,6 +187,7 @@ static void process_mouse(uni_hid_device_t* d,
                           int32_t delta_y,
                           uint16_t buttons);
 static void joy_update_port(const uni_joystick_t* joy, const gpio_num_t* gpios);
+static int get_mouse_emulation();
 
 // Interrupt handlers
 static void handle_event_button(int button_idx);
@@ -304,6 +313,11 @@ static void unijoysticle_init(int argc, const char** argv) {
             logi("Hardware detected: Unijoysticle 2 A500\n");
             g_gpio_config = &gpio_config_univ2a500;
             break;
+        case BOARD_MODEL_UNIJOYSTICLE2_ST520:
+            logi("Hardware detected: Unijoysticle 2 ST520\n");
+            // Shares the same GPIO pins as the A500 one
+            g_gpio_config = &gpio_config_univ2a500;
+            break;
         case BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT:
             logi("Hardware detected: Unijoysticle 2 single port\n");
             g_gpio_config = &gpio_config_univ2singleport;
@@ -376,31 +390,47 @@ static void unijoysticle_on_init_complete(void) {
     safe_gpio_set_level(g_gpio_config->leds[LED_J1], 0);
     safe_gpio_set_level(g_gpio_config->leds[LED_J2], 0);
 
+    int x_a, x_b, y_a, y_b;
+    if (get_mouse_emulation() == MOUSE_EMULATION_ATARIST) {
+        // TODO: Not tested.
+        // Mouse AtariST is known to only work only one port A, but for the sake
+        // of completness, both ports are configured on AtariST. Overkill ?
+        x_a = 1;
+        x_b = 0;
+        y_a = 2;
+        y_b = 3;
+        logi("Unijoysticle: Using AtariST mouse emulation\n");
+    } else {
+        x_a = 1;
+        x_b = 3;
+        y_a = 0;
+        y_b = 2;
+        logi("Unijoysticle: Using Amiga mouse emulation\n");
+    }
+
     // FIXME: These values are hardcoded for Amiga
     struct uni_mouse_quadrature_encoder_gpios port_a_x = {
-        .a = g_gpio_config->port_a[1],  // H-pulse (up)
-        .b = g_gpio_config->port_a[3],  // HQ-pulse (left)
+        .a = g_gpio_config->port_a[x_a],  // H-pulse (up)
+        .b = g_gpio_config->port_a[x_b],  // HQ-pulse (left)
     };
 
     struct uni_mouse_quadrature_encoder_gpios port_a_y = {
-        .a = g_gpio_config->port_a[0],  // V-pulse (down)
-        .b = g_gpio_config->port_a[2]   // VQ-pulse (right)
+        .a = g_gpio_config->port_a[y_a],  // V-pulse (down)
+        .b = g_gpio_config->port_a[y_b]   // VQ-pulse (right)
     };
 
     struct uni_mouse_quadrature_encoder_gpios port_b_x = {
-        .a = g_gpio_config->port_b[1],  // H-pulse (up)
-        .b = g_gpio_config->port_b[3],  // HQ-pulse (left)
+        .a = g_gpio_config->port_b[x_a],  // H-pulse (up)
+        .b = g_gpio_config->port_b[x_b],  // HQ-pulse (left)
     };
     struct uni_mouse_quadrature_encoder_gpios port_b_y = {
-        .a = g_gpio_config->port_b[0],  // V-pulse (down)
-        .b = g_gpio_config->port_b[2]   // VQ-pulse (right)
+        .a = g_gpio_config->port_b[y_a],  // V-pulse (down)
+        .b = g_gpio_config->port_b[y_b]   // VQ-pulse (right)
     };
     uni_mouse_quadrature_init(QUADRATURE_MOUSE_TASK_CPU);
     uni_mouse_quadrature_setup_port(UNI_MOUSE_QUADRATURE_PORT_0, port_a_x, port_a_y);
     uni_mouse_quadrature_setup_port(UNI_MOUSE_QUADRATURE_PORT_1, port_b_x, port_b_y);
 
-    // uni_mouse_quadrature_start(UNI_MOUSE_QUADRATURE_PORT_0);
-    // uni_mouse_quadrature_start(UNI_MOUSE_QUADRATURE_PORT_1);
     enable_bluetooth(true);
 }
 
@@ -611,6 +641,17 @@ static void unijoysticle_on_device_oob_event(uni_hid_device_t* d, uni_platform_o
 // Helpers
 //
 
+static int get_mouse_emulation() {
+    int ret = MOUSE_EMULATION_AMIGA;
+#if CONFIG_BLUEPAD32_UNIJOYSTICLE_MOUSE_AUTO
+    ret = (get_board_model() == BOARD_MODEL_UNIJOYSTICLE2_ST520) ? MOUSE_EMULATION_ATARIST : MOUSE_EMULATION_AMIGA;
+#elif defined(CONFIG_BLUEPAD32_UNIJOYSTICLE_MOUSE_AMIGA)
+    ret = MOUSE_EMULATION_AMIGA;
+#elif defined(CONFIG_BLUEPAD32_UNIJOYSTICLE_MOUSE_ATARIST)
+    ret = MOUSE_EMULATION_ATARIST;
+#endif  // CONFIG_BLUEPAD32_UNIJOYSTICLE_MOUSE
+    return ret;
+}
 static board_model_t get_board_model() {
 #if PLAT_UNIJOYSTICLE_SINGLE_PORT
     // Legacy: Only needed for Arananet's Unijoy2Amiga.
@@ -627,7 +668,7 @@ static board_model_t get_board_model() {
     // Uni 2:       Hi       Hi        Hi
     // Uni 2+:      Low      Hi        Hi
     // Uni 2 A500:  Hi       Hi        Lo
-    // Reserved:    Low      Hi        Lo
+    // Uni 2 ST520: Low      Hi        Lo
     // Single port: Hi       Low       Hi
 
     gpio_set_direction(GPIO_NUM_4, GPIO_MODE_INPUT);
@@ -652,6 +693,8 @@ static board_model_t get_board_model() {
         _model = BOARD_MODEL_UNIJOYSTICLE2_PLUS;
     else if (gpio_4 == 1 && gpio_15 == 0)
         _model = BOARD_MODEL_UNIJOYSTICLE2_A500;
+    else if (gpio_4 == 0 && gpio_15 == 0)
+        _model = BOARD_MODEL_UNIJOYSTICLE2_ST520;
     else {
         logi("Unijoysticle: Invalid Board ID value: %d,%d,%d\n", gpio_4, gpio_5, gpio_15);
         _model = BOARD_MODEL_UNIJOYSTICLE2;

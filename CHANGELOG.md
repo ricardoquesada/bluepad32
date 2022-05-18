@@ -14,9 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Right button: B
   - Middle button: X
 - Mouse: Added "quadrature encoder" driver. Supports up to two
-   mice at the same time. Each mouse requires 2 timers. So the two mice are used
+   mice at the same time. Each mouse requires 2 timers. So if two mice are used
    at the same time, that means that there are no HW timers left.
-- Unijoysticle: Supports Amiga mouse. Two mice can be used at the same time.
+- Unijoysticle: Supports Amiga/AtariST mouse. Two mice can be used at the same time.
+  - Unijoysticle v2+ / v2 A500: fully functional mouse on both ports
+  - Unijoysticle v2: fully functional mouse on Port #1. Right/Middle button not available on Port #2
+- Unijoysticle: Amiga/AtariST mouse emulation can be changed from menuconfig.
 - Unijoysticle: Support for Unijoysticle v2 A500 (a new board that fits in the Amiga 500/1200)
 - Doc: List of supported mice is here: [supported mice][supported_mice]
 
