@@ -61,6 +61,7 @@ So far, this is the list of recommended mouse to try:
 
 * Supports: movement; left, middle & right click
 * Purchase link: [Amazon][adesso_imouse_m300_link]
+* Bugs: Lag from "resting" mode to "moving" move. Seems to be a mouse specific problem, not related to Bluepad32.
 
 
 [adesso_imouse_m300_photo]: https://lh3.googleusercontent.com/pw/AM-JKLX_jhwfDQIeBdwFqGBt8h9AlP6MpiInG2Yreox0ADkvUmYIFC8x3ftoIVr7_JFk4OolkA7x50WyUyhteh_4sImUiwX18dmiB1hoO7FSJzAgJtC1V9uNlOzKKvask6lzEMIuVzdnfTgUe-OoyhZRyXcfaA=-no
