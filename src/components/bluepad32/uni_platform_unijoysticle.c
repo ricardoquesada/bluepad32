@@ -188,6 +188,7 @@ static void process_mouse(uni_hid_device_t* d,
                           uint16_t buttons);
 static void joy_update_port(const uni_joystick_t* joy, const gpio_num_t* gpios);
 static int get_mouse_emulation();
+static bool is_device_a_mouse(uni_hid_device_t* d);
 
 // Interrupt handlers
 static void handle_event_button(int button_idx);
@@ -390,42 +391,51 @@ static void unijoysticle_on_init_complete(void) {
     safe_gpio_set_level(g_gpio_config->leds[LED_J1], 0);
     safe_gpio_set_level(g_gpio_config->leds[LED_J2], 0);
 
-    int x_a, x_b, y_a, y_b;
-    if (get_mouse_emulation() == MOUSE_EMULATION_ATARIST) {
-        // TODO: Not tested.
-        // Mouse AtariST is known to only work only one port A, but for the sake
-        // of completness, both ports are configured on AtariST. Overkill ?
-        x_a = 1;
-        x_b = 0;
-        y_a = 2;
-        y_b = 3;
-        logi("Unijoysticle: Using AtariST mouse emulation\n");
-    } else {
-        x_a = 1;
-        x_b = 3;
-        y_a = 0;
-        y_b = 2;
-        logi("Unijoysticle: Using Amiga mouse emulation\n");
+    // Values taken from:
+    // * http://wiki.icomp.de/wiki/DE-9_Mouse
+    // * https://www.waitingforfriday.com/?p=827#Commodore_Amiga
+    // But they contradict on the Amiga pinout. Using "waitingforfriday" pinout.
+    int x1, x2, y1, y2;
+    switch (get_mouse_emulation()) {
+        case MOUSE_EMULATION_AMIGA:
+            x1 = 1;
+            x2 = 3;
+            y1 = 2;
+            y2 = 0;
+            logi("Unijoysticle: Using Amiga mouse emulation\n");
+            break;
+        case MOUSE_EMULATION_ATARIST:
+            x1 = 1;
+            x2 = 0;
+            y1 = 2;
+            y2 = 3;
+            logi("Unijoysticle: Using AtariST mouse emulation\n");
+            break;
+        default:
+            loge("Unijoysticle: Invalid mouse emulation mode\n");
+            break;
     }
 
     // FIXME: These values are hardcoded for Amiga
     struct uni_mouse_quadrature_encoder_gpios port_a_x = {
-        .a = g_gpio_config->port_a[x_a],  // H-pulse (up)
-        .b = g_gpio_config->port_a[x_b],  // HQ-pulse (left)
+        .a = g_gpio_config->port_a[x1],  // H-pulse (up)
+        .b = g_gpio_config->port_a[x2],  // HQ-pulse (left)
     };
 
     struct uni_mouse_quadrature_encoder_gpios port_a_y = {
-        .a = g_gpio_config->port_a[y_a],  // V-pulse (down)
-        .b = g_gpio_config->port_a[y_b]   // VQ-pulse (right)
+        .a = g_gpio_config->port_a[y1],  // V-pulse (down)
+        .b = g_gpio_config->port_a[y2]   // VQ-pulse (right)
     };
 
+    // Mouse AtariST is known to only work only one port A, but for the sake
+    // of completness, both ports are configured on AtariST. Overkill ?
     struct uni_mouse_quadrature_encoder_gpios port_b_x = {
-        .a = g_gpio_config->port_b[x_a],  // H-pulse (up)
-        .b = g_gpio_config->port_b[x_b],  // HQ-pulse (left)
+        .a = g_gpio_config->port_b[x1],  // H-pulse (up)
+        .b = g_gpio_config->port_b[x2],  // HQ-pulse (left)
     };
     struct uni_mouse_quadrature_encoder_gpios port_b_y = {
-        .a = g_gpio_config->port_b[y_a],  // V-pulse (down)
-        .b = g_gpio_config->port_b[y_b]   // VQ-pulse (right)
+        .a = g_gpio_config->port_b[y1],  // V-pulse (down)
+        .b = g_gpio_config->port_b[y2]   // VQ-pulse (right)
     };
     uni_mouse_quadrature_init(QUADRATURE_MOUSE_TASK_CPU);
     uni_mouse_quadrature_setup_port(UNI_MOUSE_QUADRATURE_PORT_0, port_a_x, port_a_y);
@@ -515,8 +525,7 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
         // ... unless it is a mouse which should try with PORT A.
         // Amiga/Atari ST use mice in PORT A. Undefined on the C64, but
         // most apps use it in PORT A as well.
-        uint32_t mouse_cod = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE;
-        if ((d->cod & mouse_cod) == mouse_cod) {
+        if (is_device_a_mouse(d)) {
             wanted_seat = GAMEPAD_SEAT_A;
             ins->emu_mode = EMULATION_MODE_SINGLE_MOUSE;
         }
@@ -620,11 +629,13 @@ static void unijoysticle_on_device_oob_event(uni_hid_device_t* d, uni_platform_o
         return;
     }
 
-    // Swap joysticks iff one device is attached.
+    // Swap joystick ports iff one device, that is not a mouse, is attached.
+    // If two gamepads are connected, disable swapping to prevent "cheating".
     int num_devices = 0;
     for (int j = 0; j < CONFIG_BLUEPAD32_MAX_DEVICES; j++) {
         uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
-        if ((bd_addr_cmp(tmp_d->conn.btaddr, zero_addr) != 0) && (get_unijoysticle_instance(tmp_d)->gamepad_seat > 0)) {
+        if (uni_bt_conn_is_connected(&tmp_d->conn) && get_unijoysticle_instance(tmp_d)->gamepad_seat > 0 &&
+            !is_device_a_mouse(tmp_d)) {
             num_devices++;
             if (num_devices > 1) {
                 logi("unijoysticle: cannot swap joystick ports when more than one device is attached\n");
@@ -640,6 +651,11 @@ static void unijoysticle_on_device_oob_event(uni_hid_device_t* d, uni_platform_o
 //
 // Helpers
 //
+
+static bool is_device_a_mouse(uni_hid_device_t* d) {
+    uint32_t mouse_cod = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE;
+    return (d->cod & mouse_cod) == mouse_cod;
+}
 
 static int get_mouse_emulation() {
     int ret = MOUSE_EMULATION_AMIGA;

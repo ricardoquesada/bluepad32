@@ -328,5 +328,7 @@ void uni_mouse_quadrature_update(int port_idx, int32_t dx, int32_t dy) {
         return;
     }
     process_update(&s_quadratures[port_idx][UNI_MOUSE_QUADRATURE_ENCODER_H], dx);
-    process_update(&s_quadratures[port_idx][UNI_MOUSE_QUADRATURE_ENCODER_V], dy);
+    // Invert delta Y so that mouse goes the the right direction.
+    // This is based on emperic evidence. Also, it seems that SmallyMouse is doing the same thing
+    process_update(&s_quadratures[port_idx][UNI_MOUSE_QUADRATURE_ENCODER_V], -dy);
 }

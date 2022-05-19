@@ -152,12 +152,14 @@ void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
             switch (usage) {
                 case HID_USAGE_AXIS_X:
                     // Mouse delta X
+                    // Negative: left, positive: right.
                     gp->axis_x = process_mouse_delta(d, value);
                     // printf("min: %d, max: %d\n", globals->logical_minimum, globals->logical_maximum);
                     // printf("delta x old value: %d -> new value: %d\n", value, gp->axis_x);
                     break;
                 case HID_USAGE_AXIS_Y:
                     // Mouse delta Y
+                    // Negative: up, positive: down.
                     gp->axis_y = process_mouse_delta(d, value);
                     break;
                 case HID_USAGE_WHEEL:
