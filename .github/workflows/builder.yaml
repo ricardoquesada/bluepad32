@@ -19,4 +19,4 @@ jobs:
       uses: espressif/esp-idf-ci-action@main
       with:
         esp_idf_version: v4.4
-        command: cd tools/fw && ./build.py all
+        command: ./tools/fw/build.py all
