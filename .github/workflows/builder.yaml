@@ -1,4 +1,4 @@
-name: Build with ESP-IDF  v4.4
+name: Build with ESP-IDF v4.4
 
 on: [push]
 
@@ -19,5 +19,4 @@ jobs:
       uses: espressif/esp-idf-ci-action@main
       with:
         esp_idf_version: v4.4
-        target: esp32
-        path: 'src'
+        command: cd tools/fw && ./build.py all
