@@ -23,7 +23,7 @@ jobs:
         esp_idf_version: v4.4
         target: esp32
         path: 'src'
-        command: 'idf.py -B build_plat_unijoysticle -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.plat_unijoysticle build'
+        command: 'idf.py -B build_plat_unijoysticle -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.plat_unijoysticle" build'
 
     - name: AirLift build
       uses: espressif/esp-idf-ci-action@main
@@ -31,7 +31,7 @@ jobs:
         esp_idf_version: v4.4
         target: esp32
         path: 'src'
-        command: 'idf.py -B build_plat_airlift -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.plat_airlift build'
+        command: 'idf.py -B build_plat_airlift -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.plat_airlift" build'
 
     - name: NINA build
       uses: espressif/esp-idf-ci-action@main
@@ -39,7 +39,7 @@ jobs:
         esp_idf_version: v4.4
         target: esp32
         path: 'src'
-        command: 'idf.py -B build_plat_nina -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.plat_nina build'
+        command: 'idf.py -B build_plat_nina -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.plat_nina" build'
 
     - name: MightyMiggy build
       uses: espressif/esp-idf-ci-action@main
@@ -47,4 +47,5 @@ jobs:
         esp_idf_version: v4.4
         target: esp32
         path: 'src'
-        command: 'idf.py -B build_plat_mightymiggy -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.plat_mightymiggy build'
+        command: 'idf.py -B build_plat_mightymiggy -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.plat_mightymiggy" build'
+
