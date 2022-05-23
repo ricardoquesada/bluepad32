@@ -629,19 +629,18 @@ static void unijoysticle_on_device_oob_event(uni_hid_device_t* d, uni_platform_o
         return;
     }
 
-    // Swap joystick ports iff one device, that is not a mouse, is attached.
-    // If two gamepads are connected, disable swapping to prevent "cheating".
-    int num_devices = 0;
+    // Swap joystick ports except if there is a connected gamepad that doesn't have the "System" button pressed.
+    // Basically allow swapping mouse+gampead, or two gamepads while both are pressing the "system" button at the same
+    // time.
     for (int j = 0; j < CONFIG_BLUEPAD32_MAX_DEVICES; j++) {
         uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
-        if (uni_bt_conn_is_connected(&tmp_d->conn) && get_unijoysticle_instance(tmp_d)->gamepad_seat > 0 &&
-            !is_device_a_mouse(tmp_d)) {
-            num_devices++;
-            if (num_devices > 1) {
-                logi("unijoysticle: cannot swap joystick ports when more than one device is attached\n");
-                uni_hid_device_dump_all();
-                return;
-            }
+        unijoysticle_instance_t* tmp_ins = get_unijoysticle_instance(tmp_d);
+        if (uni_bt_conn_is_connected(&tmp_d->conn) && tmp_ins->gamepad_seat != GAMEPAD_SEAT_NONE &&
+            tmp_ins->emu_mode == EMULATION_MODE_SINGLE_JOY &&
+            ((tmp_d->gamepad.misc_buttons & MISC_BUTTON_SYSTEM) == 0)) {
+            logi("unijoysticle: two swap ports press 'system' button on both gamepads at the same time\n");
+            uni_hid_device_dump_all();
+            return;
         }
     }
 

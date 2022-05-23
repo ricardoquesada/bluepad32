@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Unijoysticle v2: fully functional mouse on Port #1. Right/Middle button not available on Port #2
 - Unijoysticle: Amiga/AtariST mouse emulation can be changed from menuconfig.
 - Unijoysticle: Support for Unijoysticle v2 A500 (a new board that fits in the Amiga 500/1200)
+- Unijoysticle: New supported combinations to swap ports by pressing "system" gamepad button:
+  - Gamepad and Mouse
+  - Gamepad and Gamepad while both press "system" at the same time
 - Doc: List of supported mice is here: [supported mice][supported_mice]
 
 [supported_mice]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/develop/docs/supported_mice.md
