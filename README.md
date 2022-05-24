@@ -1,7 +1,6 @@
 # Bluepad32
 
 [![discord](https://img.shields.io/discord/775177861665521725.svg)](https://discord.gg/r5aMn6Cw5q)
-![Github ESP-IDF](https://github.com/ricardoquesada/bluepad32/actions/workflows/esp-idf-latest.yaml/badge.svg?event=push&branch=develop)
 
 ![logo](https://lh3.googleusercontent.com/pw/ACtC-3dNNrE9YKWMQNBTVYl8gkX70jN2qLwSYMQFLR0IzzoRT9uTQ1a9n80O3tyNmF95MLxL9NPWlqm5ph7e9wTGZoHeQWPMsJWqs3qiHub1LcigLtlEX09V6f1DWwQlg52OkeumKDJTG_ext8EN_J6kn0kAqg=-no)
 
