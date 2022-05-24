@@ -1,6 +1,10 @@
 name: Build with ESP-IDF v4.4
 
-on: [push]
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
 
 jobs:
   build:
