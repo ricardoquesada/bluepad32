@@ -43,7 +43,6 @@
  *   - hid_device.c
  *   - gap_inquire.c
  *   - hid_device_test.c
- *   - gap_link_keys.c
  */
 
 #include "uni_bt_sdp.h"
@@ -69,6 +68,9 @@ static btstack_timer_source_t sdp_query_timer;
 static void handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
 static void handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
 static void sdp_query_timeout(btstack_timer_source_t* ts);
+
+// SDP Server
+static uint8_t device_id_sdp_service_buffer[100];
 
 // HID results: HID descriptor, PSM interrupt, PSM control, etc.
 static void handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
@@ -274,4 +276,15 @@ void uni_bt_sdp_query_start_hid_descriptor(uni_hid_device_t* d) {
         uni_hid_device_delete(d);
         /* 'd'' is destroyed after this call, don't use it */
     }
+}
+
+void uni_bt_sdp_server_init() {
+    // Only initialize the SDP record. Just needed for DualShock/DualSense to have
+    // a successful reconnect.
+    sdp_init();
+
+    device_id_create_sdp_record(device_id_sdp_service_buffer, 0x10003, DEVICE_ID_VENDOR_ID_SOURCE_BLUETOOTH,
+                                BLUETOOTH_COMPANY_ID_BLUEKITCHEN_GMBH, 1, 1);
+    logi("Device ID SDP service record size: %u\n", de_get_len((uint8_t*)device_id_sdp_service_buffer));
+    sdp_register_service(device_id_sdp_service_buffer);
 }

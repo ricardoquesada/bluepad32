@@ -430,6 +430,7 @@ static void on_l2cap_channel_opened(uint16_t channel, const uint8_t* packet, uin
             uni_hid_device_connect(device);
             break;
         default:
+            logi("Unknown PSM = 0x%02x\n", psm);
             break;
     }
     uni_bluetooth_process_fsm(device);

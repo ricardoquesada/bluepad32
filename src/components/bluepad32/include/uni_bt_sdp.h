@@ -30,6 +30,8 @@ void uni_bt_sdp_query_end(uni_hid_device_t* d);
 void uni_bt_sdp_query_start_vid_pid(uni_hid_device_t* d);
 void uni_bt_sdp_query_start_hid_descriptor(uni_hid_device_t* d);
 
+void uni_bt_sdp_server_init(void);
+
 #ifdef __cplusplus
 }
 #endif

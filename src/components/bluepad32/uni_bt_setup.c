@@ -24,6 +24,7 @@ limitations under the License.
 #include "sdkconfig.h"
 #include "uni_bluetooth.h"
 #include "uni_bt_defines.h"
+#include "uni_bt_sdp.h"
 #include "uni_common.h"
 #include "uni_debug.h"
 #include "uni_hci_cmd.h"
@@ -179,6 +180,9 @@ int uni_bt_setup(void) {
     // gap_set_page_timeout(0x2000);
     // gap_set_page_scan_activity(0x50, 0x12);
     // gap_inquiry_set_scan_activity(0x50, 0x12);
+
+    // Needed for some incoming connections
+    uni_bt_sdp_server_init();
 
     int security_level = gap_get_security_level();
     logi("Gap security level: %d\n", security_level);
