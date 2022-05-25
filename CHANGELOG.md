@@ -33,6 +33,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unijoysticle v2+: Swap 2nd with 3rd button.
   - X is 2nd joystick button
   - Y is 3rd joystick button
+  
+### Fixed
+- DualSense/DualShock: reconnect works Ok [Bug #14][gitlab_bug_14]
+
+[gitlab_bug_14]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/14
 
 ## [3.1.1] - 2022-04-22
 ### Fixed
