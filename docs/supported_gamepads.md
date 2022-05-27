@@ -108,7 +108,7 @@ Both Left and Right JoyCon are supported.
 - Supports both Wii Remote (RVL-003) and Wii Remote Motion Plus (RVL-036)
 - Supports 3 modes:
   - Sideways mode (default)
-  - Accelerometer mode
+  - Wheel mode (Accelerometer)
   - Vertical mode
 - Supported features: player LEDs
 - To start pairing, use the "Sync" method (press "Sync" button).
@@ -121,11 +121,11 @@ Both Left and Right JoyCon are supported.
 - Button "1" for fire.
 - Button "2" for jump.
 
-### Accelerometer mode
+### Wheel mode (Accelerometer)
 
 - Enter this mode by pressing "A" (A == accelerometer, easy to remember) while connecting or reconnecting.
-- Tilt up/down for up/down movements
 - Rotate left/right for left/right movements
+- Use DPAD for up/down movements
 - Button "A" for fire.
 - Button "shoulder" to jump.
 - LED #3 will be on in this mode.
@@ -138,7 +138,7 @@ Both Left and Right JoyCon are supported.
 - Button "A" to jump.
 - LED #4 will be on in this mode.
 
-[wii_remote]: https://lh3.googleusercontent.com/HtQgfME-mwm59JFfASHLwHRzvrfesY_FkJTZKfUSAD5XTsPhi-r7Veqvs3n5zr5igm5ug9WmL3rKWuoA7AToeXKIsHpSeMhFRfHfTi53mqu5boTHRtzQSrUex8kHEd8Ny6CS0bpUhEk=w380-no
+[wii_remote]: https://lh3.googleusercontent.com/pw/AM-JKLVMaoR_vkTyY3z1WBu2ZkdnfcaRZ_hbti95vT1-V57NjMidxB8XacACXdZy_Qa-mAg_8vhv-zkV2CZpbW338qEUys0z1KF4iqdD25JygowZXN2OJ08GbYirPe-FjfQGMzKP7zVQOcg2M8d5jGIpf3zItA=-no
 [wii_sideways]: https://forums.dolphin-emu.org/Thread-how-to-hold-the-wii-remote
 
 ## Nintendo Wii Remote + Nunchuk
