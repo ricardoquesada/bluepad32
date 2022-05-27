@@ -1,4 +1,4 @@
-# Changelog
+j# Changelog
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
@@ -36,8 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   
 ### Fixed
 - DualSense/DualShock: reconnect works Ok [Bug #14][gitlab_bug_14]
+- Nintendo Switch Pro/JoyCon: reconnect works Ok [Bug #15][gitlab_bug_15]
 
 [gitlab_bug_14]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/14
+[gitlab_bug_15]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/15
 
 ## [3.1.1] - 2022-04-22
 ### Fixed
