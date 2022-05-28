@@ -71,6 +71,13 @@ limitations under the License.
 // They need to be scaled down, otherwise the pointer moves too fast.
 #define GAMEPAD_AXIS_TO_MOUSE_DELTA_RATIO (50)
 
+// AtariST is not as fast as Amiga while processing quadrature events.
+// Cap max events to the max that AtariST can process.
+// This is true for the official AtariST mouse as well.
+// This value was "calculated" using an AtariST 520.
+// Might not be true for newer models, like the Falcon.
+#define ATARIST_MOUSE_DELTA_MAX (28)
+
 enum {
     MOUSE_EMULATION_AMIGA,
     MOUSE_EMULATION_ATARIST,
@@ -545,6 +552,9 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
 }
 
 static void unijoysticle_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
+    int32_t axis_x;
+    int32_t axis_y;
+
     if (d == NULL) {
         loge("ERROR: unijoysticle_on_device_gamepad_data: Invalid NULL device\n");
         return;
@@ -562,7 +572,19 @@ static void unijoysticle_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp)
             process_joystick(d, ins->gamepad_seat, &joy);
             break;
         case EMULATION_MODE_SINGLE_MOUSE:
-            process_mouse(d, ins->gamepad_seat, gp->axis_x, gp->axis_y, gp->buttons);
+            axis_x = gp->axis_x;
+            axis_y = gp->axis_y;
+            if (get_mouse_emulation() == MOUSE_EMULATION_ATARIST) {
+                if (axis_x < -ATARIST_MOUSE_DELTA_MAX)
+                    axis_x = -ATARIST_MOUSE_DELTA_MAX;
+                if (axis_x > ATARIST_MOUSE_DELTA_MAX)
+                    axis_x = ATARIST_MOUSE_DELTA_MAX;
+                if (axis_y < -ATARIST_MOUSE_DELTA_MAX)
+                    axis_y = -ATARIST_MOUSE_DELTA_MAX;
+                if (axis_y > ATARIST_MOUSE_DELTA_MAX)
+                    axis_y = ATARIST_MOUSE_DELTA_MAX;
+            }
+            process_mouse(d, ins->gamepad_seat, axis_x, axis_y, gp->buttons);
             break;
         case EMULATION_MODE_COMBO_JOY_JOY:
             uni_joy_to_combo_joy_joy_from_gamepad(gp, &joy, &joy_ext);
