@@ -193,7 +193,7 @@ static void init_from_cpu_task() {
             // timer_start(s_quadratures[i][j].timer_group, s_quadratures[i][j].timer_idx);
 
             // Create timer tasks
-            sprintf(name, "bp.quad.timer%c%d", (i==0) ? 'X' : 'Y', j);
+            sprintf(name, "bp.quad.timer%d%c", i, (j==0) ? 'H' : 'V');
             xTaskCreatePinnedToCore(timer_task, name, TASK_TIMER_STACK_SIZE, (void*)arg, TASK_TIMER_PRIO,
                                     &s_timer_tasks[i][j], xPortGetCoreID());
         }

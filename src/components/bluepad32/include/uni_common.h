@@ -33,6 +33,10 @@ extern "C" {
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 #endif  // ARRAY_SIZE
 
+#ifndef ARG_UNUSED
+#define ARG_UNUSED(x) (void)(sizeof(x))
+#endif // ARG_UNUSED
+
 #ifdef __cplusplus
 }
 #endif

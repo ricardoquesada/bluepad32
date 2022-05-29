@@ -31,6 +31,7 @@ limitations under the License.
 #include "uni_debug.h"
 #include "uni_hid_device.h"
 #include "uni_mouse_quadrature.h"
+#include "uni_platform_unijoysticle.h"
 
 #ifdef CONFIG_ESP_CONSOLE_USB_CDC
 #error This example is incompatible with USB CDC console. Please try "console_usb" example instead.
@@ -85,7 +86,8 @@ static int mouse_set(int argc, char** argv) {
 }
 
 static void register_bluepad32() {
-    mouse_set_args.value = arg_str1(NULL, NULL, "<value>", "a float that represents the mouse scale factor");
+    mouse_set_args.value =
+        arg_str1(NULL, NULL, "<value>", "a float that represents the mouse scale factor. Higher means slower.");
     mouse_set_args.end = arg_end(2);
 
     const esp_console_cmd_t cmd_devices = {
@@ -105,7 +107,7 @@ static void register_bluepad32() {
     const esp_console_cmd_t cmd_mouse_set = {
         .command = "mouse_scale_set",
         .help =
-            "Set mouse scale factor. Bigger numbers mean slower movement.\n"
+            "Set mouse scale factor.\n"
             "Example:\n"
             " mouse_scale_set 1.52 \n",
         .hint = NULL,
@@ -146,6 +148,9 @@ void uni_console_init() {
 #endif  // CONFIG_BLUEPAD32_CONSOLE_NVS_COMMAND_ENABLE
 
     register_bluepad32();
+#if CONFIG_BLUEPAD32_PLATFORM_UNIJOYSTICLE
+    uni_platform_unijoysticle_register_cmds();
+#endif  // CONFIG_BLUEPAD32_PLATFORM_UNIJOYSTICLE
 
     ESP_ERROR_CHECK(esp_console_new_repl_uart(&uart_config, &repl_config, &repl));
 
