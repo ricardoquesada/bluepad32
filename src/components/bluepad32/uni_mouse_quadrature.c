@@ -31,14 +31,10 @@ limitations under the License.
 #include <driver/timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <nvs.h>
+#include <nvs_flash.h>
 
 #include "uni_debug.h"
-
-/*
- * FIXME: only supports one mouse
- * Should be refactored to support multiple mice, or be able to swap the ports.
- * E.g: Amiga 4000 has the port#1 and port#2 swapped.
- */
 
 // Probably I could use a smaller divider, and only do "1 tick per 80us".
 // That would work Ok except that it will loose resolution when we divide "128 steps by delta".
@@ -56,7 +52,10 @@ limitations under the License.
 #define ONE_SECOND (12500)
 
 #define TASK_TIMER_STACK_SIZE (1536)
-#define TASK_TIMER_PRIO (5)
+#define TASK_TIMER_PRIO (7)
+
+// Default scale factor for the mouse movement
+#define DETAULT_SCALE_FACTOR (1)
 
 enum direction {
     PHASE_DIRECTION_NEG,
@@ -87,6 +86,14 @@ static struct quadrature_state s_quadratures[UNI_MOUSE_QUADRATURE_PORT_MAX][UNI_
 static bool timer_started[UNI_MOUSE_QUADRATURE_PORT_MAX];
 
 static TaskHandle_t s_timer_tasks[UNI_MOUSE_QUADRATURE_PORT_MAX][UNI_MOUSE_QUADRATURE_ENCODER_MAX];
+
+// "Scale factor" for mouse movement. To make the mouse move faster or slower.
+// Bigger means slower movement.
+static float s_scale_factor;
+
+// NVS
+static const char* STORAGE_NAMESPACE = "bp32";
+static const char* NVS_KEY_SCALE_FACTOR = "mouse.scale";
 
 static void process_quadrature(struct quadrature_state* q) {
     int a, b;
@@ -143,7 +150,6 @@ static void timer_task(void* arg) {
     uint16_t port_idx = (a >> 16);
     uint16_t encoder_idx = (a & 0xffff);
 
-    loge("Starting task: port:%d, encoder:%d\n", port_idx, encoder_idx);
     while (true) {
         ulTaskNotifyTake(true, portMAX_DELAY);
         process_quadrature(&s_quadratures[port_idx][encoder_idx]);
@@ -227,27 +233,26 @@ static void process_update(struct quadrature_state* q, int32_t delta) {
         // - when it reaches 0, triggers the ISR
         //
         // But a quadrature has 4 states (hence the name). So takes 4 "ticks" to have
-        // complete "state.", which is represented with "resolution", kind of "hand tuned"
-        // so that the mice movement feels "good" (to me).
+        // complete "state.", which is represented with "s_scale_factor",
+        // kind of "hand tuned" so that the mice movement feels "good" (to me).
         //
         // The smaller "units" is, the faster the mouse moves.
         //
         // But in order to avoid a "division" in the mouse driver, and a multiplication here,
-        // (which will  loose precision), we just use a "resolution" of 1 instead of 4,
+        // (which will  loose precision), we just use a "s_scale_factor" of 1 instead of 4,
         // and we don't divide by 4 here.
         // Alternative: Do not divide the time, and use a constant "tick" time. But if we do so,
         // the movement will have "jank".
         // Perhaps for small deltas we can have a predefined "unit time"
         float max_ticks = 128 * TICKS_PER_80US;
         float delta_f = abs_delta;
-        float resolution = 1;
-        float units_f = (max_ticks / delta_f) * resolution;
+        float units_f = (max_ticks / delta_f) * s_scale_factor;
         if (units_f < TICKS_PER_80US)
             units_f = TICKS_PER_80US;
         units = roundf(units_f);
     } else {
         // If there is no update, set timer to update less frequently
-        units = ONE_SECOND * 10;
+        units = ONE_SECOND * 60;
     }
     timer_set_counter_value(q->timer_group, q->timer_idx, units);
 }
@@ -262,6 +267,9 @@ void uni_mouse_quadrature_init(int cpu_id) {
             s_quadratures[i][j].timer_idx = TIMER_0 + j;
         }
     }
+
+    // Default value that can be overriden from the console
+    s_scale_factor = uni_mouse_quadrature_get_scale_factor();
 
     // Create tasks
     xTaskCreatePinnedToCore(init_from_cpu_task, "init_timers_mama", TASK_TIMER_STACK_SIZE, NULL, TASK_TIMER_PRIO, NULL,
@@ -331,4 +339,55 @@ void uni_mouse_quadrature_update(int port_idx, int32_t dx, int32_t dy) {
     // Invert delta Y so that mouse goes the the right direction.
     // This is based on emperic evidence. Also, it seems that SmallyMouse is doing the same thing
     process_update(&s_quadratures[port_idx][UNI_MOUSE_QUADRATURE_ENCODER_V], -dy);
+}
+
+void uni_mouse_quadrature_set_scale_factor(float scale) {
+    nvs_handle_t nvs_handle;
+    esp_err_t err;
+    uint32_t* scale_alias = (uint32_t*)&scale;
+
+    // Update runtime value
+    s_scale_factor = scale;
+
+    err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &nvs_handle);
+    if (err != ESP_OK) {
+        loge("Could not open NVS storage\n");
+        return;
+    }
+
+    // float not supported. Casting it to u32
+    err = nvs_set_u32(nvs_handle, NVS_KEY_SCALE_FACTOR, *scale_alias);
+    if (err != ESP_OK) {
+        loge("Could not save scale factor in NVS\n");
+        goto out;
+    }
+
+    err = nvs_commit(nvs_handle);
+    if (err != ESP_OK) {
+        loge("Could commit scale factor in NVS\n");
+        /* fallthrough */
+    }
+
+out:
+    nvs_close(nvs_handle);
+}
+
+float uni_mouse_quadrature_get_scale_factor() {
+    nvs_handle_t nvs_handle;
+    esp_err_t err;
+    float scale_factor;
+
+    err = nvs_open(STORAGE_NAMESPACE, NVS_READONLY, &nvs_handle);
+    if (err != ESP_OK)
+        return DETAULT_SCALE_FACTOR;
+
+    // float not supported. Casting it to u32
+    err = nvs_get_u32(nvs_handle, NVS_KEY_SCALE_FACTOR, (uint32_t*)&scale_factor);
+    if (err != ESP_OK) {
+        scale_factor = DETAULT_SCALE_FACTOR;
+        /* falltrhough */
+    }
+
+    nvs_close(nvs_handle);
+    return scale_factor;
 }
