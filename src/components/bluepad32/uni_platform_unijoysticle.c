@@ -203,7 +203,7 @@ static void handle_event_button(int button_idx);
 // GPIO Interrupt handlers
 static void IRAM_ATTR gpio_isr_handler_button(void* arg);
 
-static void event_loop(void* arg);
+static void pushbutton_event_loop(void* arg);
 static void auto_fire_loop(void* arg);
 
 static esp_err_t safe_gpio_set_level(gpio_num_t gpio, int value);
@@ -386,10 +386,10 @@ static void unijoysticle_init(int argc, const char** argv) {
 
     // Split "events" from "auto_fire", since auto-fire is an on-going event.
     g_event_group = xEventGroupCreate();
-    xTaskCreate(event_loop, "event_loop", 2048, NULL, 10, NULL);
+    xTaskCreate(pushbutton_event_loop, "uni_button_event_loop", 2048, NULL, 10, NULL);
 
     g_auto_fire_group = xEventGroupCreate();
-    xTaskCreate(auto_fire_loop, "auto_fire_loop", 2048, NULL, 10, NULL);
+    xTaskCreate(auto_fire_loop, "uni_auto_fire_loop", 2048, NULL, 10, NULL);
     // xTaskCreatePinnedToCore(event_loop, "event_loop", 2048, NULL, portPRIVILEGE_BIT, NULL, 1);
 }
 
@@ -858,7 +858,7 @@ static void joy_update_port(const uni_joystick_t* joy, const gpio_num_t* gpios) 
     safe_gpio_set_level(gpios[6], !!joy->button3);
 }
 
-static void event_loop(void* arg) {
+static void pushbutton_event_loop(void* arg) {
     // timeout of 10s
     const TickType_t xTicksToWait = 10000 / portTICK_PERIOD_MS;
     while (1) {

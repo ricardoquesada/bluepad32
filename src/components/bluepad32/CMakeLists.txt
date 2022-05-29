@@ -3,6 +3,7 @@ set(srcs "uni_bluetooth.c"
          "uni_bt_sdp.c"
          "uni_bt_setup.c"
          "uni_circular_buffer.c"
+         "uni_console.c"
          "uni_esp32.c"
          "uni_gamepad.c"
          "uni_hci_cmd.c"
@@ -34,7 +35,7 @@ set(srcs "uni_bluetooth.c"
          "uni_platform_unijoysticle.c"
          "uni_utils.c")
 
-set(requires "nvs_flash" "btstack")
+set(requires "nvs_flash" "btstack" "cmd_nvs" "cmd_system")
 
 # See: https://gitlab.com/ricardoquesada/bluepad32/-/issues/9
 if(DEFINED ENV{BLUEPAD32_ARDUINO})

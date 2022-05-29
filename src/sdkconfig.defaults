@@ -16,13 +16,16 @@ CONFIG_BTDM_CTRL_BR_EDR_MAX_ACL_CONN=5
 
 CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y
 
-# Needed for NINA platform
-CONFIG_SPI_FLASH_USE_LEGACY_IMPL=y
+#
+# FreeRTOS
+#
+# Enable FreeRTOS stats formatting functions, needed for 'tasks' console command
+CONFIG_FREERTOS_USE_TRACE_FACILITY=y
+CONFIG_FREERTOS_USE_STATS_FORMATTING_FUNCTIONS=y
 
 #
 # Bluepad32 options
 #
-
 CONFIG_BLUEPAD32_MAX_DEVICES=4
 # Only one can be selected.
 #CONFIG_BLUEPAD32_PLATFORM_AIRLIFT=y

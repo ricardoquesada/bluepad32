@@ -76,6 +76,14 @@ menu "Bluepad32"
             Highly recommended for debugging purposes.
             But must be disabled on AirLift / NINA platforms.
 
+    config BLUEPAD32_USB_CONSOLE_ENABLE
+        bool "Enable USB Console"
+        default  y
+        depends on BLUEPAD32_UART_OUTPUT_ENABLE
+        help
+            Enables the USB console.
+            User can interact with the Bluepad32 firmware via commands.
+
     choice BLUEPAD32_UNIJOYSTICLE_MOUSE
         bool "Mouse emulation"
         default BLUEPAD32_UNIJOYSTICLE_MOUSE_AUTO
