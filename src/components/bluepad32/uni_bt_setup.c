@@ -132,9 +132,9 @@ static void setup_call_next_fn(void) {
 void uni_bt_setup_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     uint8_t event;
 
-    UNUSED(channel);
-    UNUSED(packet);
-    UNUSED(size);
+    ARG_UNUSED(channel);
+    ARG_UNUSED(packet);
+    ARG_UNUSED(size);
 
     if (packet_type != HCI_EVENT_PACKET)
         return;

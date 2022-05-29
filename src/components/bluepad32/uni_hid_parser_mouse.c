@@ -26,6 +26,7 @@ limitations under the License.
 #include <time.h>
 
 #include "hid_usage.h"
+#include "uni_common.h"
 #include "uni_debug.h"
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
@@ -144,7 +145,7 @@ void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
                                       uint16_t usage_page,
                                       uint16_t usage,
                                       int32_t value) {
-    UNUSED(globals);
+    ARG_UNUSED(globals);
     // TODO: should be a union of gamepad/mouse/keyboard
     uni_gamepad_t* gp = &d->gamepad;
     switch (usage_page) {

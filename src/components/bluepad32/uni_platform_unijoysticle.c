@@ -1076,7 +1076,7 @@ static void toggle_enhanced_mode_cb(int button_idx) {
     btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
 }
 
-static int cmd_toggle_enhanced_mode(int argc, char** argv) {
+static int cmd_enhanced_mode_set(int argc, char** argv) {
     int nerrors = arg_parse(argc, argv, (void**)&set_cmd_args);
     if (nerrors != 0) {
         arg_print_errors(stderr, set_cmd_args.end, argv[0]);
@@ -1088,6 +1088,14 @@ static int cmd_toggle_enhanced_mode(int argc, char** argv) {
     cmd_callback_registration.callback = &cmd_callback;
     cmd_callback_registration.context = (void*)(value ? CMD_ENHANCED_MODE_ENABLE : CMD_ENHANCED_MODE_DISABLE);
     btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
+    return 0;
+}
+
+static int cmd_enhanced_mode_get(int argc, char** argv) {
+    ARG_UNUSED(argc);
+    ARG_UNUSED(argv);
+
+    logi("enhanced mode enabled = %d\n", s_enhanced_mode_enabled);
     return 0;
 }
 
@@ -1134,7 +1142,7 @@ static void toggle_mouse_mode_cb(int button_idx) {
     btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
 }
 
-static int cmd_toggle_mouse_mode(int argc, char** argv) {
+static int cmd_mouse_mode_set(int argc, char** argv) {
     int nerrors = arg_parse(argc, argv, (void**)&set_cmd_args);
     if (nerrors != 0) {
         arg_print_errors(stderr, set_cmd_args.end, argv[0]);
@@ -1146,6 +1154,14 @@ static int cmd_toggle_mouse_mode(int argc, char** argv) {
     cmd_callback_registration.callback = &cmd_callback;
     cmd_callback_registration.context = (void*)(value ? CMD_MOUSE_MODE_ENABLE : CMD_MOUSE_MODE_DISABLE);
     btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
+    return 0;
+}
+
+static int cmd_mouse_mode_get(int argc, char** argv) {
+    ARG_UNUSED(argc);
+    ARG_UNUSED(argv);
+
+    logi("mouse mode enabled = %d\n", s_mouse_mode_enabled);
     return 0;
 }
 
@@ -1261,7 +1277,7 @@ struct uni_platform* uni_platform_unijoysticle_create(void) {
 }
 
 void uni_platform_unijoysticle_register_cmds(void) {
-    set_cmd_args.value = arg_str1(NULL, NULL, "<value>", "0 is disabled, 1 for enabled");
+    set_cmd_args.value = arg_str1(NULL, NULL, "<value>", "0 = disabled, 1 = enabled");
     set_cmd_args.end = arg_end(2);
 
     const esp_console_cmd_t cmd_swap = {
@@ -1271,29 +1287,39 @@ void uni_platform_unijoysticle_register_cmds(void) {
         .func = &cmd_swap_ports,
     };
 
-    const esp_console_cmd_t cmd_mouse_mode = {
-        .command = "set_mouse_mode",
-        .help =
-            "Enabled/disables mouse mode. At least one gamepad must be connected.\n"
-            "Example:\n"
-            " set_mouse_mode 1 \n",
+    const esp_console_cmd_t cmd_mouse_set = {
+        .command = "mouse_mode_enabled_set",
+        .help = "Enables/disables gamepad mouse mode. At least one gamepad must be connected",
         .hint = NULL,
-        .func = &cmd_toggle_mouse_mode,
+        .func = &cmd_mouse_mode_set,
         .argtable = &set_cmd_args,
     };
 
-    const esp_console_cmd_t cmd_enhanced_mode = {
-        .command = "set_enhanced_mode",
-        .help =
-            "Enables/disables enhanced mode. One and only one gamepad must be connected.\n"
-            "Example:\n"
-            " set_enhanced_mode 1 \n",
+    const esp_console_cmd_t cmd_mouse_get = {
+        .command = "mouse_mode_enabled_get",
+        .help = "Returns gamepad mouse mode",
         .hint = NULL,
-        .func = &cmd_toggle_enhanced_mode,
+        .func = &cmd_mouse_mode_get,
+    };
+
+    const esp_console_cmd_t cmd_enhanced_set = {
+        .command = "enhanced_mode_enabled_set",
+        .help = "Enables/disables gamepad enhanced mode. One and only one gamepad must be connected",
+        .hint = NULL,
+        .func = &cmd_enhanced_mode_set,
         .argtable = &set_cmd_args,
+    };
+
+    const esp_console_cmd_t cmd_enhanced_get = {
+        .command = "enhanced_mode_enabled_get",
+        .help = "Returns gamepad enhanced mode",
+        .hint = NULL,
+        .func = &cmd_enhanced_mode_get,
     };
 
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_swap));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_mouse_mode));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_enhanced_mode));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_mouse_set));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_mouse_get));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_enhanced_set));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_enhanced_get));
 }

@@ -35,6 +35,7 @@ limitations under the License.
 
 #include "hid_usage.h"
 #include "uni_bt_conn.h"
+#include "uni_common.h"
 #include "uni_debug.h"
 #include "uni_gamepad.h"
 #include "uni_hid_device.h"
@@ -430,7 +431,7 @@ static void process_fsm(struct uni_hid_device_s* d) {
 
 static void process_reply_read_spi_dump(struct uni_hid_device_s* d, const uint8_t* data, int len) {
 #if ENABLE_SPI_FLASH_DUMP
-    UNUSED(len);
+    ARG_UNUSED(len);
     switch_instance_t* ins = get_switch_instance(d);
     uint32_t addr = data[0] | data[1] << 8 | data[2] << 16 | data[3] << 24;
     int chunk_size = data[4];
@@ -446,9 +447,9 @@ static void process_reply_read_spi_dump(struct uni_hid_device_s* d, const uint8_
     logi("Switch: dumping %d bytes at address: 0x%04x\n", chunk_size, addr);
     write(ins->debug_fd, &data[5], chunk_size);
 #else
-    UNUSED(d);
-    UNUSED(data);
-    UNUSED(len);
+    ARG_UNUSED(d);
+    ARG_UNUSED(data);
+    ARG_UNUSED(len);
 #endif  // ENABLE_SPI_FLASH_DUMP
 }
 
@@ -498,16 +499,16 @@ static void process_reply_read_spi_factory_calibration(struct uni_hid_device_s* 
 }
 
 static void process_reply_read_spi_user_calibration(struct uni_hid_device_s* d, const uint8_t* data, int len) {
-    UNUSED(d);
-    UNUSED(data);
-    UNUSED(len);
+    ARG_UNUSED(d);
+    ARG_UNUSED(data);
+    ARG_UNUSED(len);
     logd("process_reply_read_spi_user_calibration\n");
     // printf_hexdump(data, len);
 }
 
 // Reply to SUBCMD_REQ_DEV_INFO
 static void process_reply_req_dev_info(struct uni_hid_device_s* d, const struct switch_report_21_s* r, int len) {
-    UNUSED(len);
+    ARG_UNUSED(len);
     switch_instance_t* ins = get_switch_instance(d);
     if (ins->state > STATE_SETUP && ins->mode == SWITCH_MODE_NONE) {
         // FIXME: Accel should always be reported.
@@ -527,9 +528,9 @@ static void process_reply_req_dev_info(struct uni_hid_device_s* d, const struct 
 
 // Reply to SUBCMD_SET_REPORT_MODE
 static void process_reply_set_report_mode(struct uni_hid_device_s* d, const struct switch_report_21_s* r, int len) {
-    UNUSED(d);
-    UNUSED(r);
-    UNUSED(len);
+    ARG_UNUSED(d);
+    ARG_UNUSED(r);
+    ARG_UNUSED(len);
 }
 
 // Reply to SUBCMD_SPI_FLASH_READ
@@ -554,16 +555,16 @@ static void process_reply_spi_flash_read(struct uni_hid_device_s* d, const struc
 
 // Reply to SUBCMD_SET_PLAYER_LEDS
 static void process_reply_set_player_leds(struct uni_hid_device_s* d, const struct switch_report_21_s* r, int len) {
-    UNUSED(d);
-    UNUSED(r);
-    UNUSED(len);
+    ARG_UNUSED(d);
+    ARG_UNUSED(r);
+    ARG_UNUSED(len);
 }
 
 // Reply SUBCMD_ENABLE_IMU
 static void process_reply_enable_imu(struct uni_hid_device_s* d, const struct switch_report_21_s* r, int len) {
-    UNUSED(d);
-    UNUSED(r);
-    UNUSED(len);
+    ARG_UNUSED(d);
+    ARG_UNUSED(r);
+    ARG_UNUSED(len);
 }
 
 // Process 0x21 input report: SWITCH_INPUT_SUBCMD_REPLY
@@ -606,7 +607,7 @@ static void parse_report_30(struct uni_hid_device_s* d, const uint8_t* report, i
     // 9D FF 72 FD 01 00 72 10 35 00 C1 FF 9B FF 75 FD FF FF 6C 10 34 00 C2 FF
     // 9A FF
 
-    UNUSED(len);
+    ARG_UNUSED(len);
     const struct switch_report_30_s* r = (const struct switch_report_30_s*)&report[3];
 
     switch_instance_t* ins = get_switch_instance(d);
@@ -738,7 +739,7 @@ static void parse_report_30_joycon_right(uni_hid_device_t* d, const struct switc
 static void parse_report_3f(struct uni_hid_device_s* d, const uint8_t* report, int len) {
     // Expecting something like:
     // (a1) 3F 00 00 08 D0 81 0F 88 F0 81 6F 8E
-    UNUSED(len);
+    ARG_UNUSED(len);
     uni_gamepad_t* gp = &d->gamepad;
     const struct switch_report_3f_s* r = (const struct switch_report_3f_s*)&report[1];
 

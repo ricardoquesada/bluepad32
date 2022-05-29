@@ -36,6 +36,7 @@ limitations under the License.
 #endif  // ENABLE_EEPROM_DUMP
 
 #include "hid_usage.h"
+#include "uni_common.h"
 #include "uni_debug.h"
 #include "uni_gamepad.h"
 #include "uni_hid_device.h"
@@ -293,7 +294,7 @@ static void process_req_data_read_register(uni_hid_device_t* d, const uint8_t* r
 }
 
 static void process_req_data_dump_eeprom(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
-    UNUSED(len);
+    ARG_UNUSED(len);
 #if ENABLE_EEPROM_DUMP
     uint8_t se = report[3];     // SE: size and error
     uint8_t s = (se >> 4) + 1;  // size
@@ -309,8 +310,8 @@ static void process_req_data_dump_eeprom(uni_hid_device_t* d, const uint8_t* rep
     logi("Wii: dumping %d bytes at address: 0x%04x\n", s, addr);
     write(ins->debug_fd, &report[6], s);
 #else
-    UNUSED(d);
-    UNUSED(report);
+    ARG_UNUSED(d);
+    ARG_UNUSED(report);
 #endif  // ENABLE_EEPROM_DUMP
     wii_process_fsm(d);
 }
@@ -591,9 +592,9 @@ static void process_drm_ke(uni_hid_device_t* d, const uint8_t* report, uint16_t 
 static void process_drm_kae(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
     // Expecting something like:
     // (a1) 35 BB BB AA AA AA EE EE EE EE EE EE EE EE EE EE EE EE EE EE EE EE
-    UNUSED(d);
-    UNUSED(report);
-    UNUSED(len);
+    ARG_UNUSED(d);
+    ARG_UNUSED(report);
+    ARG_UNUSED(len);
     loge("Wii: drm_kae not supported yet\n");
 }
 
@@ -1110,7 +1111,7 @@ void uni_hid_parser_wii_set_player_leds(uni_hid_device_t* d, uint8_t leds) {
 }
 
 void uni_hid_parser_wii_set_rumble(struct uni_hid_device_s* d, uint8_t value, uint8_t duration) {
-    UNUSED(value);
+    ARG_UNUSED(value);
 
     if (d == NULL) {
         loge("Wii: ERROR: Invalid device\n");

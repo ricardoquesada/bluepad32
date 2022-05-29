@@ -35,7 +35,7 @@ extern "C" {
 
 #ifndef ARG_UNUSED
 #define ARG_UNUSED(x) (void)(sizeof(x))
-#endif // ARG_UNUSED
+#endif  // ARG_UNUSED
 
 #ifdef __cplusplus
 }

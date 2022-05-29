@@ -22,6 +22,7 @@ limitations under the License.
 #include "uni_hid_parser_android.h"
 
 #include "hid_usage.h"
+#include "uni_common.h"
 #include "uni_debug.h"
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
@@ -238,7 +239,7 @@ void uni_hid_parser_android_set_player_leds(uni_hid_device_t* d, uint8_t leds) {
   report[0] = 0x52;
   uni_hid_device_queue_report(d, report, sizeof(report));
 #else
-    UNUSED(d);
-    UNUSED(leds);
+    ARG_UNUSED(d);
+    ARG_UNUSED(leds);
 #endif
 }

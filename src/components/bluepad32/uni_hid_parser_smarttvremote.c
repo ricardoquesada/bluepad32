@@ -22,6 +22,7 @@ limitations under the License.
 #include "uni_hid_parser_smarttvremote.h"
 
 #include "hid_usage.h"
+#include "uni_common.h"
 #include "uni_debug.h"
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
@@ -35,7 +36,7 @@ void uni_hid_parser_smarttvremote_parse_usage(uni_hid_device_t* d,
                                               uint16_t usage_page,
                                               uint16_t usage,
                                               int32_t value) {
-    UNUSED(globals);
+    ARG_UNUSED(globals);
     uni_gamepad_t* gp = &d->gamepad;
     // print_parser_globals(globals);
     switch (usage_page) {

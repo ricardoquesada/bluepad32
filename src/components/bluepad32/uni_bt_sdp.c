@@ -51,6 +51,7 @@
 #include <inttypes.h>
 
 #include "uni_bluetooth.h"
+#include "uni_common.h"
 #include "uni_debug.h"
 
 #define MAX_ATTRIBUTE_VALUE_SIZE 512  // Apparently PS4 has a 470-bytes report
@@ -74,9 +75,9 @@ static uint8_t device_id_sdp_service_buffer[100];
 
 // HID results: HID descriptor, PSM interrupt, PSM control, etc.
 static void handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
-    UNUSED(packet_type);
-    UNUSED(channel);
-    UNUSED(size);
+    ARG_UNUSED(packet_type);
+    ARG_UNUSED(channel);
+    ARG_UNUSED(size);
 
     des_iterator_t attribute_list_it;
     des_iterator_t additional_des_it;
@@ -134,9 +135,9 @@ static void handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel, u
 
 // Device ID results: Vendor ID, Product ID, Version, etc...
 static void handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
-    UNUSED(packet_type);
-    UNUSED(channel);
-    UNUSED(size);
+    ARG_UNUSED(packet_type);
+    ARG_UNUSED(channel);
+    ARG_UNUSED(size);
 
     uint16_t id16;
 

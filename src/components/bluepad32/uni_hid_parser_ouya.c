@@ -19,6 +19,7 @@ limitations under the License.
 #include "uni_hid_parser_ouya.h"
 
 #include "hid_usage.h"
+#include "uni_common.h"
 #include "uni_debug.h"
 #include "uni_hid_device.h"
 
@@ -199,7 +200,7 @@ void uni_hid_parser_ouya_set_player_leds(uni_hid_device_t* d, uint8_t leds) {
                             0xff, 0xff, 0xff, 0xff, 0xff};
   uni_hid_device_queue_report(d, report, sizeof(report));
 #else
-    UNUSED(d);
-    UNUSED(leds);
+    ARG_UNUSED(d);
+    ARG_UNUSED(leds);
 #endif
 }
