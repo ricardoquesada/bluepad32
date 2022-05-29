@@ -52,7 +52,7 @@ limitations under the License.
 #define ONE_SECOND (12500)
 
 #define TASK_TIMER_STACK_SIZE (1536)
-#define TASK_TIMER_PRIO (7)
+#define TASK_TIMER_PRIO (10)
 
 // Default scale factor for the mouse movement
 #define DETAULT_SCALE_FACTOR (1)
@@ -181,11 +181,10 @@ static void init_from_cpu_task() {
         .auto_reload = TIMER_AUTORELOAD_EN,
     };
 
-    // Setup timer X
     for (int i = 0; i < UNI_MOUSE_QUADRATURE_PORT_MAX; i++) {
         for (int j = 0; j < UNI_MOUSE_QUADRATURE_ENCODER_MAX; j++) {
             uint32_t arg = (i << 16) | j;
-            char name[64];
+            char name[32];
             ESP_ERROR_CHECK(timer_init(s_quadratures[i][j].timer_group, s_quadratures[i][j].timer_idx, &config));
             timer_set_counter_value(s_quadratures[i][j].timer_group, s_quadratures[i][j].timer_idx, ONE_SECOND * 60);
             timer_isr_callback_add(s_quadratures[i][j].timer_group, s_quadratures[i][j].timer_idx, timer_handler,
@@ -194,9 +193,7 @@ static void init_from_cpu_task() {
             // timer_start(s_quadratures[i][j].timer_group, s_quadratures[i][j].timer_idx);
 
             // Create timer tasks
-            sprintf(name, "timer_%d_%d", i, j);
-            // loge("_%s: %d, %d. name=%s, group=%d, timer=%d\n", __func__, i, j, name, s_quadratures[i][j].timer_group,
-            //      s_quadratures[i][j].timer_idx);
+            sprintf(name, "bp.quad.timer%c%d", (i==0) ? 'X' : 'Y', j);
             xTaskCreatePinnedToCore(timer_task, name, TASK_TIMER_STACK_SIZE, (void*)arg, TASK_TIMER_PRIO,
                                     &s_timer_tasks[i][j], xPortGetCoreID());
         }
@@ -272,7 +269,7 @@ void uni_mouse_quadrature_init(int cpu_id) {
     s_scale_factor = uni_mouse_quadrature_get_scale_factor();
 
     // Create tasks
-    xTaskCreatePinnedToCore(init_from_cpu_task, "init_timers_mama", TASK_TIMER_STACK_SIZE, NULL, TASK_TIMER_PRIO, NULL,
+    xTaskCreatePinnedToCore(init_from_cpu_task, "uni.init_timers", TASK_TIMER_STACK_SIZE, NULL, TASK_TIMER_PRIO, NULL,
                             cpu_id);
 }
 

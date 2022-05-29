@@ -67,6 +67,9 @@ limitations under the License.
 #define AUTOFIRE_FREQ_QUICKSHOT_MS (1000 / 29 / 2)        // ~17ms, ~1 frame
 #define AUTOFIRE_FREQ_COMPETITION_PRO_MS (1000 / 62 / 2)  // ~8ms, ~1/2 frame
 
+#define TASK_AUTOFIRE_PRIO (9)
+#define TASK_PUSH_BUTTON_PRIO (8)
+
 // Data coming from gamepad axis is different from mouse deltas.
 // They need to be scaled down, otherwise the pointer moves too fast.
 #define GAMEPAD_AXIS_TO_MOUSE_DELTA_RATIO (50)
@@ -386,10 +389,10 @@ static void unijoysticle_init(int argc, const char** argv) {
 
     // Split "events" from "auto_fire", since auto-fire is an on-going event.
     g_event_group = xEventGroupCreate();
-    xTaskCreate(pushbutton_event_loop, "uni_button_event_loop", 2048, NULL, 10, NULL);
+    xTaskCreate(pushbutton_event_loop, "bp.uni.button", 2048, NULL, TASK_PUSH_BUTTON_PRIO, NULL);
 
     g_auto_fire_group = xEventGroupCreate();
-    xTaskCreate(auto_fire_loop, "uni_auto_fire_loop", 2048, NULL, 10, NULL);
+    xTaskCreate(auto_fire_loop, "bp.uni.autofire", 2048, NULL, TASK_AUTOFIRE_PRIO, NULL);
     // xTaskCreatePinnedToCore(event_loop, "event_loop", 2048, NULL, portPRIVILEGE_BIT, NULL, 1);
 }
 
