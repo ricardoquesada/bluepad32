@@ -84,6 +84,13 @@ menu "Bluepad32"
             Enables the USB console.
             User can interact with the Bluepad32 firmware via commands.
 
+    config BLUEPAD32_CONSOLE_NVS_COMMAND_ENABLE
+        bool "Enable NVS console commands"
+        default  n
+        depends on BLUEPAD32_USB_CONSOLE_ENABLE
+        help
+            Enables the NVS console commands. Useful for debugging.
+
     choice BLUEPAD32_UNIJOYSTICLE_MOUSE
         bool "Mouse emulation"
         default BLUEPAD32_UNIJOYSTICLE_MOUSE_AUTO

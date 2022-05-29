@@ -27,6 +27,7 @@ limitations under the License.
 #include <nvs.h>
 #include <nvs_flash.h>
 
+#include "sdkconfig.h"
 #include "uni_debug.h"
 #include "uni_hid_device.h"
 #include "uni_mouse_quadrature.h"
@@ -104,9 +105,9 @@ static void register_bluepad32() {
     const esp_console_cmd_t cmd_mouse_set = {
         .command = "mouse_scale_set",
         .help =
-            "Set mouse scale factor. Bigger numbers mean slower movement\n"
+            "Set mouse scale factor. Bigger numbers mean slower movement.\n"
             "Example:\n"
-            " mouse_scale_set 1.52",
+            " mouse_scale_set 1.52 \n",
         .hint = NULL,
         .func = &mouse_set,
         .argtable = &mouse_set_args,
@@ -140,7 +141,10 @@ void uni_console_init() {
     /* Register commands */
     esp_console_register_help_command();
     register_system_common();
+#if CONFIG_BLUEPAD32_CONSOLE_NVS_COMMAND_ENABLE
     register_nvs();
+#endif  // CONFIG_BLUEPAD32_CONSOLE_NVS_COMMAND_ENABLE
+
     register_bluepad32();
 
     ESP_ERROR_CHECK(esp_console_new_repl_uart(&uart_config, &repl_config, &repl));
