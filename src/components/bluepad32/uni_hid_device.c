@@ -396,13 +396,15 @@ void uni_hid_device_delete(uni_hid_device_t* d) {
 }
 
 void uni_hid_device_dump_device(uni_hid_device_t* d) {
-    logi("%s, handle=%d, ctrl_cid=0x%04x, intr_cid=0x%04x, cod=0x%08x, flags=0x%08x, incoming=%d\n",
-         bd_addr_to_str(d->conn.btaddr), d->conn.handle, d->conn.control_cid, d->conn.interrupt_cid, d->cod, d->flags,
-         d->conn.incoming);
-    logi("\tvid=0x%04x, pid=0x%04x, ctrl_type=0x%02x, name='%s'\n", d->vendor_id, d->product_id, d->controller_type,
-         d->name);
+    logi("%s\n", bd_addr_to_str(d->conn.btaddr));
+    logi("\tbt: handle=%d, ctrl_cid=0x%04x, intr_cid=0x%04x, cod=0x%08x, flags=0x%08x, incoming=%d\n", d->conn.handle,
+         d->conn.control_cid, d->conn.interrupt_cid, d->cod, d->flags, d->conn.incoming);
+    logi("\tmodel: vid=0x%04x, pid=0x%04x, model='%s', name='%s'\n", d->vendor_id, d->product_id,
+         uni_gamepad_get_model_name(d->controller_type), d->name);
     if (uni_get_platform()->device_dump)
         uni_get_platform()->device_dump(d);
+    if (d->report_parser.device_dump)
+        d->report_parser.device_dump(d);
 }
 
 void uni_hid_device_dump_all(void) {
@@ -552,6 +554,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             d->report_parser.parse_input_report = uni_hid_parser_mouse_parse_input_report;
             d->report_parser.init_report = uni_hid_parser_mouse_init_report;
             d->report_parser.parse_usage = uni_hid_parser_mouse_parse_usage;
+            d->report_parser.device_dump = uni_hid_parser_mouse_device_dump;
             logi("Device detected as Mouse: 0x%02x\n", type);
             break;
         default:

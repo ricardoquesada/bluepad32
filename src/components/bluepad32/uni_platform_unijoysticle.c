@@ -701,10 +701,11 @@ static void unijoysticle_on_device_oob_event(uni_hid_device_t* d, uni_platform_o
 static void unijoysticle_device_dump(uni_hid_device_t* d) {
     unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
 
+    logi("\tunijoysticle: ");
     if (is_device_a_mouse(d)) {
-        logi("\ttype=mouse, ");
+        logi("type=mouse, ");
     } else {
-        logi("\ttype=gamepad, mode=");
+        logi("type=gamepad, mode=");
         if (ins->emu_mode == EMULATION_MODE_COMBO_JOY_JOY)
             logi("enhanced, ");
         else if (ins->emu_mode == EMULATION_MODE_COMBO_JOY_MOUSE)
@@ -714,7 +715,7 @@ static void unijoysticle_device_dump(uni_hid_device_t* d) {
         else
             logi("unk, ");
     }
-    logi("seat: 0x%02x\n", ins->gamepad_seat);
+    logi("seat=0x%02x\n", ins->gamepad_seat);
 }
 
 //

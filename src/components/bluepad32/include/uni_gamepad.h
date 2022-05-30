@@ -248,6 +248,7 @@ void uni_gamepad_dump(const uni_gamepad_t* gp);
 
 uni_gamepad_t uni_gamepad_remap(const uni_gamepad_t* gp);
 void uni_gamepad_set_mappings(const uni_gamepad_mappings_t* mapping);
+char* uni_gamepad_get_model_name(int type);
 
 #ifdef __cplusplus
 }

@@ -32,5 +32,6 @@ void uni_hid_parser_mouse_parse_usage(struct uni_hid_device_s* d,
                                       uint16_t usage_page,
                                       uint16_t usage,
                                       int32_t value);
+void uni_hid_parser_mouse_device_dump(struct uni_hid_device_s* d);
 
 #endif  // UNI_HID_PARSER_MOUSE_H

@@ -249,3 +249,12 @@ void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
             break;
     }
 }
+
+void uni_hid_parser_mouse_device_dump(struct uni_hid_device_s* d) {
+    char buf[48];
+
+    mouse_instance_t* ins = get_mouse_instance(d);
+    // ets_printf() doesn't support "%f"
+    sprintf(buf, "\tmouse: scale=%f\n", ins->scale);
+    logi(buf);
+}

@@ -86,7 +86,7 @@ struct uni_hid_device_s {
     // TODO: Create a union of gamepad/mouse/keyboard structs
     // At the moment "mouse" reuses gamepad struct, but it is a hack.
     // Gamepad
-    uint8_t controller_type;                      // type of controller. E.g: DualShock4, Switch ,etc.
+    uint16_t controller_type;                     // type of controller. E.g: DualShock4, Switch ,etc.
     uni_controller_subtype_t controller_subtype;  // sub-type of controller attached
     uni_gamepad_t gamepad;                        // gamepad state
 
