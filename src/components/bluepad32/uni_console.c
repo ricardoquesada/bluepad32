@@ -98,18 +98,18 @@ static void register_bluepad32() {
     };
 
     const esp_console_cmd_t cmd_mouse_get = {
-        .command = "mouse_scale_get",
+        .command = "get_mouse_scale",
         .help = "Get mouse scale factor",
         .hint = NULL,
         .func = &mouse_get,
     };
 
     const esp_console_cmd_t cmd_mouse_set = {
-        .command = "mouse_scale_set",
+        .command = "set_mouse_scale",
         .help =
             "Set mouse scale factor.\n"
             "Example:\n"
-            " mouse_scale_set 1.52 \n",
+            " set_mouse_scale 1.52 \n",
         .hint = NULL,
         .func = &mouse_set,
         .argtable = &mouse_set_args,

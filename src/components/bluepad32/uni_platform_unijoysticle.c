@@ -143,10 +143,10 @@ typedef enum {
 // Console commands
 enum {
     CMD_SWAP_PORTS,
-    CMD_MOUSE_MODE_ENABLE,
-    CMD_MOUSE_MODE_DISABLE,
-    CMD_ENHANCED_MODE_ENABLE,
-    CMD_ENHANCED_MODE_DISABLE,
+    CMD_SET_GAMEPAD_MODE_NORMAL,    // Basic mode
+    CMD_SET_GAMEPAD_MODE_ENHANCED,  // Enhanced mode
+    CMD_SET_GAMEPAD_MODE_MOUSE,     // Mouse mode
+    CMD_GET_GAMEPAD_MODE,
 
     CMD_ENHANCED_MODE_COUNT,
 };
@@ -229,14 +229,14 @@ static void enable_bluetooth(bool enabled);
 static void maybe_enable_mouse_timers(void);
 
 // Button callbacks, called from a task that is not BT main thread
-static void toggle_enhanced_mode_cb(int button_idx);
-static void toggle_mouse_mode_cb(int button_idx);
+static void toggle_combo_enhanced_gamepad_cb(int button_idx);
+static void toggle_combo_mouse_gamepad_cb(int button_idx);
 static void swap_ports_cb(int button_idx);
 
 // Commands
 static void swap_ports(void);
-static void set_enhanced_mode_enabled(bool enabled);
-static void set_mouse_mode_enabled(bool enabled);
+static void set_gamepad_mode(int mode);
+static void get_gamepad_mode(void);
 
 // --- Consts (ROM)
 
@@ -247,7 +247,7 @@ const struct gpio_config gpio_config_univ2 = {
     .leds = {GPIO_NUM_5, GPIO_NUM_13, -1},
     .push_buttons = {{
                          .gpio = GPIO_NUM_10,
-                         .callback = toggle_enhanced_mode_cb,
+                         .callback = toggle_combo_enhanced_gamepad_cb,
                      },
                      {
                          .gpio = -1,
@@ -263,7 +263,7 @@ const struct gpio_config gpio_config_univ2plus = {
     .leds = {GPIO_NUM_5, GPIO_NUM_12, -1},
     .push_buttons = {{
                          .gpio = GPIO_NUM_15,
-                         .callback = toggle_enhanced_mode_cb,
+                         .callback = toggle_combo_enhanced_gamepad_cb,
                      },
                      {
                          .gpio = -1,
@@ -279,7 +279,7 @@ const struct gpio_config gpio_config_univ2a500 = {
     .leds = {GPIO_NUM_5, GPIO_NUM_12, GPIO_NUM_15},
     .push_buttons = {{
                          .gpio = GPIO_NUM_34,
-                         .callback = toggle_mouse_mode_cb,
+                         .callback = toggle_combo_mouse_gamepad_cb,
                      },
                      {
                          .gpio = GPIO_NUM_35,
@@ -298,7 +298,7 @@ const struct gpio_config gpio_config_univ2singleport = {
     .leds = {GPIO_NUM_12, -1, -1},
     .push_buttons = {{
                          .gpio = GPIO_NUM_15,
-                         .callback = toggle_enhanced_mode_cb,
+                         .callback = toggle_combo_enhanced_gamepad_cb,
                      },
                      {
                          .gpio = -1,
@@ -326,10 +326,7 @@ static bool g_autofire_b_enabled = 0;
 static struct {
     struct arg_str* value;
     struct arg_end* end;
-} set_cmd_args;
-
-static bool s_enhanced_mode_enabled = false;
-static bool s_mouse_mode_enabled = false;
+} set_gamepad_mode_args;
 
 static btstack_context_callback_registration_t cmd_callback_registration;
 
@@ -994,17 +991,17 @@ static void cmd_callback(void* context) {
         case CMD_SWAP_PORTS:
             swap_ports();
             break;
-        case CMD_ENHANCED_MODE_ENABLE:
-            set_enhanced_mode_enabled(true);
+        case CMD_SET_GAMEPAD_MODE_ENHANCED:
+            set_gamepad_mode(EMULATION_MODE_COMBO_JOY_JOY);
             break;
-        case CMD_ENHANCED_MODE_DISABLE:
-            set_enhanced_mode_enabled(false);
+        case CMD_SET_GAMEPAD_MODE_MOUSE:
+            set_gamepad_mode(EMULATION_MODE_COMBO_JOY_MOUSE);
             break;
-        case CMD_MOUSE_MODE_ENABLE:
-            set_mouse_mode_enabled(true);
+        case CMD_SET_GAMEPAD_MODE_NORMAL:
+            set_gamepad_mode(EMULATION_MODE_SINGLE_JOY);
             break;
-        case CMD_MOUSE_MODE_DISABLE:
-            set_mouse_mode_enabled(false);
+        case CMD_GET_GAMEPAD_MODE:
+            get_gamepad_mode();
             break;
         default:
             loge("Unijoysticle: invalid command: %d\n", cmd);
@@ -1012,10 +1009,7 @@ static void cmd_callback(void* context) {
     }
 }
 
-static void set_enhanced_mode_enabled(bool enabled) {
-    if (enabled == s_enhanced_mode_enabled)
-        return;
-
+static void get_gamepad_mode() {
     // Change emulation mode
     int num_devices = 0;
     uni_hid_device_t* d = NULL;
@@ -1023,145 +1017,163 @@ static void set_enhanced_mode_enabled(bool enabled) {
         uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
         if (uni_bt_conn_is_connected(&tmp_d->conn)) {
             num_devices++;
-            d = tmp_d;
+            if (!is_device_a_mouse(tmp_d)) {
+                d = tmp_d;
+                break;
+            }
         }
     }
 
     if (d == NULL) {
-        loge("unijoysticle: Cannot find valid HID device\n");
-        return;
-    }
-
-    if (num_devices != 1) {
-        loge("unijoysticle: cannot change mode. Expected num_devices=1, actual=%d\n", num_devices);
+        loge("unijoysticle: Cannot find gamepad device\n");
         return;
     }
 
     unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
 
-    if (enabled && ins->emu_mode == EMULATION_MODE_SINGLE_JOY) {
-        ins->emu_mode = EMULATION_MODE_COMBO_JOY_JOY;
-        ins->prev_gamepad_seat = ins->gamepad_seat;
-        set_gamepad_seat(d, GAMEPAD_SEAT_A | GAMEPAD_SEAT_B);
-        logi("unijoysticle: Emulation mode = Combo Joy Joy\n");
+    switch (ins->emu_mode) {
+        case EMULATION_MODE_COMBO_JOY_JOY:
+            logi("Gamepad mode = enhanced\n");
+            break;
 
-        enable_bluetooth(false);
+        case EMULATION_MODE_COMBO_JOY_MOUSE:
+            logi("Gamepad mode = mouse\n");
+            break;
 
-        s_enhanced_mode_enabled = enabled;
-        return;
+        case EMULATION_MODE_SINGLE_JOY:
+            logi("Gamepad mode = normal\n");
+            break;
+
+        default:
+            logi("Gamepad mode = unknown\n");
+            break;
     }
-
-    if (!enabled && ins->emu_mode == EMULATION_MODE_COMBO_JOY_JOY) {
-        ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
-        set_gamepad_seat(d, ins->prev_gamepad_seat);
-        // Turn on only the valid one
-        logi("unijoysticle: Emulation mode = Single Joy\n");
-
-        enable_bluetooth(true);
-
-        s_enhanced_mode_enabled = enabled;
-        return;
-    }
-
-    loge("unijoysticle: Cannot set enhanced mode\n");
 }
 
-static void toggle_enhanced_mode_cb(int button_idx) {
-    ARG_UNUSED(button_idx);
-
-    int value = !s_enhanced_mode_enabled;
-
-    cmd_callback_registration.callback = &cmd_callback;
-    cmd_callback_registration.context = (void*)(value ? CMD_ENHANCED_MODE_ENABLE : CMD_ENHANCED_MODE_DISABLE);
-    btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
-}
-
-static int cmd_enhanced_mode_set(int argc, char** argv) {
-    int nerrors = arg_parse(argc, argv, (void**)&set_cmd_args);
-    if (nerrors != 0) {
-        arg_print_errors(stderr, set_cmd_args.end, argv[0]);
-        return 1;
-    }
-
-    int value = atoi(set_cmd_args.value->sval[0]);
-
-    cmd_callback_registration.callback = &cmd_callback;
-    cmd_callback_registration.context = (void*)(value ? CMD_ENHANCED_MODE_ENABLE : CMD_ENHANCED_MODE_DISABLE);
-    btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
-    return 0;
-}
-
-static int cmd_enhanced_mode_get(int argc, char** argv) {
-    ARG_UNUSED(argc);
-    ARG_UNUSED(argv);
-
-    logi("enhanced mode enabled = %d\n", s_enhanced_mode_enabled);
-    return 0;
-}
-
-static void set_mouse_mode_enabled(bool enabled) {
-    uni_hid_device_t* d;
-    unijoysticle_instance_t* ins;
-
-    if (s_mouse_mode_enabled == enabled)
-        return;
-
-    // The first gamepad (not mouse) that is found is put in "combo joy_mouse" mode.
-    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
-        d = uni_hid_device_get_instance_for_idx(i);
-        if (uni_bt_conn_is_connected(&d->conn)) {
-            ins = get_unijoysticle_instance(d);
-
-            if (enabled && ins->emu_mode == EMULATION_MODE_SINGLE_JOY) {
-                ins->emu_mode = EMULATION_MODE_COMBO_JOY_MOUSE;
-                logi("unijoysticle: device %s is in COMBO_JOY_MOUSE mode\n", bd_addr_to_str(d->conn.btaddr));
-                s_mouse_mode_enabled = enabled;
-                maybe_enable_mouse_timers();
-                return;
-            }
-
-            if (!enabled && ins->emu_mode == EMULATION_MODE_COMBO_JOY_MOUSE) {
-                ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
-                logi("unijoysticle: device %s is in SINGLE_JOY mode\n", bd_addr_to_str(d->conn.btaddr));
-                s_mouse_mode_enabled = enabled;
-                maybe_enable_mouse_timers();
-                return;
+static void set_gamepad_mode(int mode) {
+    // Change emulation mode
+    int num_devices = 0;
+    uni_hid_device_t* d = NULL;
+    for (int j = 0; j < CONFIG_BLUEPAD32_MAX_DEVICES; j++) {
+        uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
+        if (uni_bt_conn_is_connected(&tmp_d->conn)) {
+            num_devices++;
+            if (!is_device_a_mouse(tmp_d)) {
+                d = tmp_d;
+                break;
             }
         }
     }
-    loge("unijoysticle: Cannot set mouse mode\n");
+    
+    if (d == NULL) {
+        loge("unijoysticle: Cannot find gamepad device\n");
+        return;
+    }
+
+    unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
+
+    if (ins->emu_mode == mode)
+        return;
+
+    if (ins->emu_mode != EMULATION_MODE_COMBO_JOY_JOY && ins->emu_mode != EMULATION_MODE_COMBO_JOY_MOUSE &&
+        ins->emu_mode != EMULATION_MODE_SINGLE_JOY)
+        return;
+
+    switch (mode) {
+        case EMULATION_MODE_COMBO_JOY_JOY:
+            if (num_devices != 1) {
+                loge("unijoysticle: cannot change mode. Expected num_devices=1, actual=%d\n", num_devices);
+                return;
+            }
+
+            ins->emu_mode = EMULATION_MODE_COMBO_JOY_JOY;
+            ins->prev_gamepad_seat = ins->gamepad_seat;
+            set_gamepad_seat(d, GAMEPAD_SEAT_A | GAMEPAD_SEAT_B);
+            logi("unijoysticle: Gamepad mode = enhanced\n");
+
+            enable_bluetooth(false);
+            break;
+
+        case EMULATION_MODE_COMBO_JOY_MOUSE:
+            if (ins->emu_mode == EMULATION_MODE_COMBO_JOY_JOY) {
+                set_gamepad_seat(d, ins->prev_gamepad_seat);
+                enable_bluetooth(true);
+            }
+            ins->emu_mode = EMULATION_MODE_COMBO_JOY_MOUSE;
+            logi("unijoysticle: Gamepad mode = mouse\n");
+            break;
+
+        case EMULATION_MODE_SINGLE_JOY:
+            if (ins->emu_mode == EMULATION_MODE_COMBO_JOY_JOY) {
+                set_gamepad_seat(d, ins->prev_gamepad_seat);
+                enable_bluetooth(true);
+            }
+            ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
+            logi("unijoysticle: Gamepad mode = normal\n");
+            break;
+
+        default:
+            loge("unijoysticle: unsupported gamepad mode: %d\n", mode);
+            break;
+    }
+    maybe_enable_mouse_timers();
 }
 
-static void toggle_mouse_mode_cb(int button_idx) {
+static void toggle_combo_enhanced_gamepad_cb(int button_idx) {
     ARG_UNUSED(button_idx);
+    static bool enabled = false;
 
-    int value = !s_mouse_mode_enabled;
+    enabled = !enabled;
 
     cmd_callback_registration.callback = &cmd_callback;
-    cmd_callback_registration.context = (void*)(value ? CMD_ENHANCED_MODE_ENABLE : CMD_ENHANCED_MODE_DISABLE);
+    cmd_callback_registration.context = (void*)(enabled ? CMD_SET_GAMEPAD_MODE_ENHANCED : CMD_SET_GAMEPAD_MODE_NORMAL);
     btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
 }
 
-static int cmd_mouse_mode_set(int argc, char** argv) {
-    int nerrors = arg_parse(argc, argv, (void**)&set_cmd_args);
+static int cmd_set_gamepad_mode(int argc, char** argv) {
+    int nerrors = arg_parse(argc, argv, (void**)&set_gamepad_mode_args);
     if (nerrors != 0) {
-        arg_print_errors(stderr, set_cmd_args.end, argv[0]);
+        arg_print_errors(stderr, set_gamepad_mode_args.end, argv[0]);
         return 1;
     }
 
-    int value = atoi(set_cmd_args.value->sval[0]);
+    int mode = 0;
+
+    if (strcmp(set_gamepad_mode_args.value->sval[0], "normal") == 0) {
+        mode = CMD_SET_GAMEPAD_MODE_NORMAL;
+    } else if (strcmp(set_gamepad_mode_args.value->sval[0], "enhanced") == 0) {
+        mode = CMD_SET_GAMEPAD_MODE_ENHANCED;
+    } else if (strcmp(set_gamepad_mode_args.value->sval[0], "mouse") == 0) {
+        mode = CMD_SET_GAMEPAD_MODE_MOUSE;
+    } else {
+        loge("Invalid mouse mode: %s\n", set_gamepad_mode_args.value->sval[0]);
+        return 1;
+    }
 
     cmd_callback_registration.callback = &cmd_callback;
-    cmd_callback_registration.context = (void*)(value ? CMD_MOUSE_MODE_ENABLE : CMD_MOUSE_MODE_DISABLE);
+    cmd_callback_registration.context = (void*)mode;
     btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
     return 0;
 }
 
-static int cmd_mouse_mode_get(int argc, char** argv) {
+static void toggle_combo_mouse_gamepad_cb(int button_idx) {
+    ARG_UNUSED(button_idx);
+    static bool enabled = false;
+
+    enabled = !enabled;
+
+    cmd_callback_registration.callback = &cmd_callback;
+    cmd_callback_registration.context = (void*)(enabled ? CMD_SET_GAMEPAD_MODE_MOUSE : CMD_SET_GAMEPAD_MODE_NORMAL);
+    btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
+}
+
+static int cmd_get_gamepad_mode(int argc, char** argv) {
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
 
-    logi("mouse mode enabled = %d\n", s_mouse_mode_enabled);
+    cmd_callback_registration.callback = &cmd_callback;
+    cmd_callback_registration.context = (void*)CMD_GET_GAMEPAD_MODE;
+    btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
     return 0;
 }
 
@@ -1277,49 +1289,54 @@ struct uni_platform* uni_platform_unijoysticle_create(void) {
 }
 
 void uni_platform_unijoysticle_register_cmds(void) {
-    set_cmd_args.value = arg_str1(NULL, NULL, "<value>", "0 = disabled, 1 = enabled");
-    set_cmd_args.end = arg_end(2);
+    set_gamepad_mode_args.value = arg_str1(NULL, NULL, "<mode>", "mode can be normal, enhanced or mouse");
+    set_gamepad_mode_args.end = arg_end(2);
 
-    const esp_console_cmd_t cmd_swap = {
+    const esp_console_cmd_t swap_ports = {
         .command = "swap_ports",
         .help = "Swaps joystick ports",
         .hint = NULL,
         .func = &cmd_swap_ports,
     };
 
-    const esp_console_cmd_t cmd_mouse_set = {
-        .command = "mouse_mode_enabled_set",
-        .help = "Enables/disables gamepad mouse mode. At least one gamepad must be connected",
+    const esp_console_cmd_t set_gamepad_mode = {
+        .command = "set_gamepad_mode",
+        .help = "Sets the gamepad mode. At least one gamepad must be connected.",
         .hint = NULL,
-        .func = &cmd_mouse_mode_set,
-        .argtable = &set_cmd_args,
+        .func = &cmd_set_gamepad_mode,
+        .argtable = &set_gamepad_mode_args,
     };
 
-    const esp_console_cmd_t cmd_mouse_get = {
-        .command = "mouse_mode_enabled_get",
-        .help = "Returns gamepad mouse mode",
+    const esp_console_cmd_t get_gamepad_mode = {
+        .command = "get_gamepad_mode",
+        .help = "Returns the gamepad mode. At least one gamepad must be connected.",
         .hint = NULL,
-        .func = &cmd_mouse_mode_get,
+        .func = &cmd_get_gamepad_mode,
     };
 
-    const esp_console_cmd_t cmd_enhanced_set = {
-        .command = "enhanced_mode_enabled_set",
-        .help = "Enables/disables gamepad enhanced mode. One and only one gamepad must be connected",
-        .hint = NULL,
-        .func = &cmd_enhanced_mode_set,
-        .argtable = &set_cmd_args,
-    };
+#if CONFIG_BLUEPAD32_UNIJOYSTICLE_MOUSE_AUTO
+    // const esp_console_cmd_t cmd_emulation_set = {
+    //     .command = "mouse_emulation_set",
+    //     .help = "Sets mouse emulation mode",
+    //     .hint = NULL,
+    //     .func = &cmd_mouse_emulation_set,
+    //     .argtable = &mouse_emulation_set_cmd_args,
+    // };
 
-    const esp_console_cmd_t cmd_enhanced_get = {
-        .command = "enhanced_mode_enabled_get",
-        .help = "Returns gamepad enhanced mode",
-        .hint = NULL,
-        .func = &cmd_enhanced_mode_get,
-    };
+    // const esp_console_cmd_t cmd_emulation_get = {
+    //     .command = "mouse_emulation_get",
+    //     .help = "Returns mouse emulation mode",
+    //     .hint = NULL,
+    //     .func = &cmd_mouse_emulation_get,
+    // };
+#endif  // CONFIG_BLUEPAD32_UNIJOYSTICLE_MOUSE_AUTO
 
-    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_swap));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_mouse_set));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_mouse_get));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_enhanced_set));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_enhanced_get));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&swap_ports));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&set_gamepad_mode));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&get_gamepad_mode));
+
+#if CONFIG_BLUEPAD32_UNIJOYSTICLE_MOUSE_AUTO
+    // ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_emulation_set));
+    // ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_emulation_get));
+#endif  // CONFIG_BLUEPAD32_UNIJOYSTICLE_MOUSE_AUTO
 }
