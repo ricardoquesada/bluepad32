@@ -698,6 +698,25 @@ static void unijoysticle_on_device_oob_event(uni_hid_device_t* d, uni_platform_o
     swap_ports();
 }
 
+static void unijoysticle_device_dump(uni_hid_device_t* d) {
+    unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
+
+    if (is_device_a_mouse(d)) {
+        logi("\ttype=mouse, ");
+    } else {
+        logi("\ttype=gamepad, mode=");
+        if (ins->emu_mode == EMULATION_MODE_COMBO_JOY_JOY)
+            logi("enhanced, ");
+        else if (ins->emu_mode == EMULATION_MODE_COMBO_JOY_MOUSE)
+            logi("mouse, ");
+        else if (ins->emu_mode == EMULATION_MODE_SINGLE_JOY)
+            logi("normal, ");
+        else
+            logi("unk, ");
+    }
+    logi("seat: 0x%02x\n", ins->gamepad_seat);
+}
+
 //
 // Helpers
 //
@@ -1064,7 +1083,7 @@ static void set_gamepad_mode(int mode) {
             }
         }
     }
-    
+
     if (d == NULL) {
         loge("unijoysticle: Cannot find gamepad device\n");
         return;
@@ -1270,24 +1289,8 @@ static void maybe_enable_mouse_timers(void) {
 }
 
 //
-// Entry Point
+// Public
 //
-struct uni_platform* uni_platform_unijoysticle_create(void) {
-    static struct uni_platform plat;
-
-    plat.name = "unijoysticle2";
-    plat.init = unijoysticle_init;
-    plat.on_init_complete = unijoysticle_on_init_complete;
-    plat.on_device_connected = unijoysticle_on_device_connected;
-    plat.on_device_disconnected = unijoysticle_on_device_disconnected;
-    plat.on_device_ready = unijoysticle_on_device_ready;
-    plat.on_device_oob_event = unijoysticle_on_device_oob_event;
-    plat.on_gamepad_data = unijoysticle_on_gamepad_data;
-    plat.get_property = unijoysticle_get_property;
-
-    return &plat;
-}
-
 void uni_platform_unijoysticle_register_cmds(void) {
     set_gamepad_mode_args.value = arg_str1(NULL, NULL, "<mode>", "mode can be normal, enhanced or mouse");
     set_gamepad_mode_args.end = arg_end(2);
@@ -1339,4 +1342,21 @@ void uni_platform_unijoysticle_register_cmds(void) {
     // ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_emulation_set));
     // ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_emulation_get));
 #endif  // CONFIG_BLUEPAD32_UNIJOYSTICLE_MOUSE_AUTO
+}
+
+struct uni_platform* uni_platform_unijoysticle_create(void) {
+    static struct uni_platform plat = {
+        .name = "unijoysticle2",
+        .init = unijoysticle_init,
+        .on_init_complete = unijoysticle_on_init_complete,
+        .on_device_connected = unijoysticle_on_device_connected,
+        .on_device_disconnected = unijoysticle_on_device_disconnected,
+        .on_device_ready = unijoysticle_on_device_ready,
+        .on_device_oob_event = unijoysticle_on_device_oob_event,
+        .on_gamepad_data = unijoysticle_on_gamepad_data,
+        .get_property = unijoysticle_get_property,
+        .device_dump = unijoysticle_device_dump,
+    };
+
+    return &plat;
 }

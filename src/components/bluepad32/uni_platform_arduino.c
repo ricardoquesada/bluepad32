@@ -332,17 +332,17 @@ static arduino_instance_t* get_arduino_instance(uni_hid_device_t* d) {
 // Entry Point
 //
 struct uni_platform* uni_platform_arduino_create(void) {
-    static struct uni_platform plat;
-
-    plat.name = "Arduino";
-    plat.init = arduino_init;
-    plat.on_init_complete = arduino_on_init_complete;
-    plat.on_device_connected = arduino_on_device_connected;
-    plat.on_device_disconnected = arduino_on_device_disconnected;
-    plat.on_device_ready = arduino_on_device_ready;
-    plat.on_device_oob_event = arduino_on_device_oob_event;
-    plat.on_gamepad_data = arduino_on_gamepad_data;
-    plat.get_property = arduino_get_property;
+    static struct uni_platform plat = {
+        .name = "Arduino",
+        .init = arduino_init,
+        .on_init_complete = arduino_on_init_complete,
+        .on_device_connected = arduino_on_device_connected,
+        .on_device_disconnected = arduino_on_device_disconnected,
+        .on_device_ready = arduino_on_device_ready,
+        .on_device_oob_event = arduino_on_device_oob_event,
+        .on_gamepad_data = arduino_on_gamepad_data,
+        .get_property = arduino_get_property,
+    };
 
     return &plat;
 }

@@ -964,17 +964,17 @@ struct uni_platform* uni_platform_nina_create(void) {
 
 // AirLift and NINA are identical with the exception of the MOSI pin.
 struct uni_platform* uni_platform_airlift_create(void) {
-    static struct uni_platform plat;
-
-    plat.name = "Adafruit AirLift";
-    plat.init = nina_init;
-    plat.on_init_complete = nina_on_init_complete;
-    plat.on_device_connected = nina_on_device_connected;
-    plat.on_device_disconnected = nina_on_device_disconnected;
-    plat.on_device_ready = nina_on_device_ready;
-    plat.on_device_oob_event = nina_on_device_oob_event;
-    plat.on_gamepad_data = nina_on_gamepad_data;
-    plat.get_property = nina_get_property;
+    static struct uni_platform plat = {
+        .name = "Adafruit AirLift",
+        .init = nina_init,
+        .on_init_complete = nina_on_init_complete,
+        .on_device_connected = nina_on_device_connected,
+        .on_device_disconnected = nina_on_device_disconnected,
+        .on_device_ready = nina_on_device_ready,
+        .on_device_oob_event = nina_on_device_oob_event,
+        .on_gamepad_data = nina_on_gamepad_data,
+        .get_property = nina_get_property,
+    };
 
     return &plat;
 }

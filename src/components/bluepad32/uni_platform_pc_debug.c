@@ -196,17 +196,17 @@ static void trigger_event_on_gamepad(uni_hid_device_t* d) {
 // Entry Point
 //
 struct uni_platform* uni_platform_pc_debug_create(void) {
-    static struct uni_platform plat;
-
-    plat.name = "PC Debug";
-    plat.init = pc_debug_init;
-    plat.on_init_complete = pc_debug_on_init_complete;
-    plat.on_device_connected = pc_debug_on_device_connected;
-    plat.on_device_disconnected = pc_debug_on_device_disconnected;
-    plat.on_device_ready = pc_debug_on_device_ready;
-    plat.on_device_oob_event = pc_debug_on_device_oob_event;
-    plat.on_gamepad_data = pc_debug_on_gamepad_data;
-    plat.get_property = pc_debug_get_property;
+    static struct uni_platform plat = {
+        .name = "PC Debug",
+        .init = pc_debug_init,
+        .on_init_complete = pc_debug_on_init_complete,
+        .on_device_connected = pc_debug_on_device_connected,
+        .on_device_disconnected = pc_debug_on_device_disconnected,
+        .on_device_ready = pc_debug_on_device_ready,
+        .on_device_oob_event = pc_debug_on_device_oob_event,
+        .on_gamepad_data = pc_debug_on_gamepad_data,
+        .get_property = pc_debug_get_property,
+    };
 
     return &plat;
 }

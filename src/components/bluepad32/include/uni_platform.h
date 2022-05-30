@@ -73,6 +73,9 @@ struct uni_platform {
     // When a device (gamepad) generates an Out-of-Band event, like pressing the
     // home button.
     void (*on_device_oob_event)(uni_hid_device_t* d, uni_platform_oob_event_t event);
+
+   // Print debug info about a device.
+    void (*device_dump)(uni_hid_device_t* d);
 };
 
 void uni_platform_init(int argc, const char** argv);

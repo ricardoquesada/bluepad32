@@ -396,11 +396,13 @@ void uni_hid_device_delete(uni_hid_device_t* d) {
 }
 
 void uni_hid_device_dump_device(uni_hid_device_t* d) {
-    logi(
-        "%s, handle=%d, ctrl_cid=0x%04x, intr_cid=0x%04x, cod=0x%08x, flags=0x%08x, ctrl_type=0x%02x, incoming=%d\n"
-        "\tvid=0x%04x, pid=0x%04x, name='%s'\n",
-        bd_addr_to_str(d->conn.btaddr), d->conn.handle, d->conn.control_cid, d->conn.interrupt_cid, d->cod, d->flags,
-        d->controller_type, d->conn.incoming, d->vendor_id, d->product_id, d->name);
+    logi("%s, handle=%d, ctrl_cid=0x%04x, intr_cid=0x%04x, cod=0x%08x, flags=0x%08x, incoming=%d\n",
+         bd_addr_to_str(d->conn.btaddr), d->conn.handle, d->conn.control_cid, d->conn.interrupt_cid, d->cod, d->flags,
+         d->conn.incoming);
+    logi("\tvid=0x%04x, pid=0x%04x, ctrl_type=0x%02x, name='%s'\n", d->vendor_id, d->product_id, d->controller_type,
+         d->name);
+    if (uni_get_platform()->device_dump)
+        uni_get_platform()->device_dump(d);
 }
 
 void uni_hid_device_dump_all(void) {
