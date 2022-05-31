@@ -16,3 +16,4 @@ jobs:
       with:
         clang-format-version: '13'
         check-path: 'src'
+        exclude-regex: 'src/components/(cmd_nvs|cmd_system)'
