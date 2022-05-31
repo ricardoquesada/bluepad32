@@ -107,7 +107,7 @@ static void register_bluepad32() {
     const esp_console_cmd_t cmd_mouse_set = {
         .command = "set_mouse_scale",
         .help =
-            "Set global mouse scale factor.\n"
+            "Set global mouse scale factor. Default: 1.0\n"
             "Example:\n"
             " set_mouse_scale 1.52 \n",
         .hint = NULL,

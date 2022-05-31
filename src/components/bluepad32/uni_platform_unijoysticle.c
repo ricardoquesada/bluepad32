@@ -1425,7 +1425,7 @@ void uni_platform_unijoysticle_register_cmds(void) {
 
     const esp_console_cmd_t set_gamepad_mode = {
         .command = "set_gamepad_mode",
-        .help = "Sets the gamepad mode. At least one gamepad must be connected.",
+        .help = "Sets the gamepad mode. At least one gamepad must be connected. Default: normal",
         .hint = NULL,
         .func = &cmd_set_gamepad_mode,
         .argtable = &set_gamepad_mode_args,
@@ -1441,7 +1441,7 @@ void uni_platform_unijoysticle_register_cmds(void) {
 #if CONFIG_BLUEPAD32_UNIJOYSTICLE_MOUSE_AUTO
     const esp_console_cmd_t set_mouse_emulation = {
         .command = "set_mouse_emulation",
-        .help = "Sets mouse emulation mode",
+        .help = "Sets mouse emulation mode. Default: auto",
         .hint = NULL,
         .func = &cmd_set_mouse_emulation,
         .argtable = &set_mouse_emulation_args,
