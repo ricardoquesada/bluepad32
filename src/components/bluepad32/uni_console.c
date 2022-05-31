@@ -65,7 +65,7 @@ static int mouse_get(int argc, char** argv) {
     float scale = uni_mouse_quadrature_get_scale_factor();
 
     // ets_printf() doesn't support "%f"
-    sprintf(buf, "mouse scale = %f\n", scale);
+    sprintf(buf, "global mouse scale = %f\n", scale);
     logi(buf);
     return 0;
 }
@@ -87,7 +87,7 @@ static int mouse_set(int argc, char** argv) {
 
 static void register_bluepad32() {
     mouse_set_args.value =
-        arg_str1(NULL, NULL, "<value>", "a float that represents the mouse scale factor. Higher means slower.");
+        arg_str1(NULL, NULL, "<value>", "a float that represents the global mouse scale factor. Higher means slower.");
     mouse_set_args.end = arg_end(2);
 
     const esp_console_cmd_t cmd_devices = {
@@ -99,7 +99,7 @@ static void register_bluepad32() {
 
     const esp_console_cmd_t cmd_mouse_get = {
         .command = "get_mouse_scale",
-        .help = "Get mouse scale factor",
+        .help = "Get global mouse scale factor",
         .hint = NULL,
         .func = &mouse_get,
     };
@@ -107,7 +107,7 @@ static void register_bluepad32() {
     const esp_console_cmd_t cmd_mouse_set = {
         .command = "set_mouse_scale",
         .help =
-            "Set mouse scale factor.\n"
+            "Set global mouse scale factor.\n"
             "Example:\n"
             " set_mouse_scale 1.52 \n",
         .hint = NULL,

@@ -1346,13 +1346,13 @@ static int cmd_get_mouse_emulation(int argc, char** argv) {
             logi("atarist\n");
             break;
         case MOUSE_EMULATION_FROM_BOARD_MODEL:
-            logi("Auto (");
+            logi("auto (");
             if (real == MOUSE_EMULATION_AMIGA)
                 logi("amiga)\n");
             else if (real == MOUSE_EMULATION_ATARIST)
                 logi("atarist)\n");
             else
-                logi("Unk)\n");
+                logi("error)\n");
             break;
     }
     return 0;
