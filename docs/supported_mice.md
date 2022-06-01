@@ -20,6 +20,16 @@ So far, this is the list of recommended mouse to try:
 [magic_mouse_a1296_photo]: https://lh3.googleusercontent.com/pw/AM-JKLUDJzou9y7_78LP1E17L8C1gL6tHBfmfJ8NE3IzCfXAMwfEba3iYj01HaWyIg3ELUXu4mkGN2SM7rj7CjRiZiJnyRJxb4pHvH-oy-pC0X74k5qyz-v3-ywurhqYc-zQ3aHNToV_IU54SyH_i0valsPv6A=-no
 [magic_mouse_a1296_link]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1312&_nkw=apple+magic+mouse+a1296&_sacat=0
 
+## Apple Magic Trackpad A1339 (1st gen)
+
+[![Apple Magic Trackpad A1339][magic_trackpad_a1339_photo]][magic_trackpad_a1339_link]
+
+* Supports: movement; left click
+* Purchase link: [eBay][magic_trackpad_a1339_link]
+
+[magic_trackpad_a1339_photo]: https://lh3.googleusercontent.com/pw/AM-JKLV-N1Imj77WsdXc-wPtlwxYubS6BAb_X5ipI-gpk2XagClmdcbGyvPddp5F9zy6bsH9Q0ICrEvrd6PdF7EzmsfejmbI7WAaeMBQqI69UIYId5Ehvw4vDAC8CAHsaFpz4veUsgs2_jnjyix2wTdA7PjgAA=-no?
+[magic_trackpad_a1339_link]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1312&_nkw=apple+magic+trackpad+a1339&_sacat=0
+
 ## Logitech M336 / M337 / M535
 
 [![Logitech M535][logitech_m535_photo]][logitech_m535_link]
@@ -80,13 +90,13 @@ So, which mice should work:
 
 |            | Should work                                           |
 | ---------- | ----------------------------------------------------- |
-| Bluetooth  | BR/EDR (AKA "Classic", AKA "BT 3.0")                  |
+| Bluetooth  | BR/EDR (AKA "Classic", "BT 3.0", or "BT 2.0)          |
 | Search for | "Mouse Bluetooth 3.0" or "Mouse Bluetooth Windows XP" |
 |            | Bluetooth mice from early 2010's                      |
 
 |           | Should NOT work                                                |
 | --------- | -------------------------------------------------------------- |
-| Bluetooth | BLE **only** (AKA "LE", or "Low Energy" or "BT 5.0")           |
+| Bluetooth | BLE **only** (AKA "LE", "Low Energy",  "BT 5.0")               |
 | Avoid     | "Tri-Mode BT 3.0, BT 5.0, 2.4Gz". See [BK3632 bug][bk3632_bug] |
 
 

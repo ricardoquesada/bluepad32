@@ -364,7 +364,7 @@ void uni_mouse_quadrature_set_scale_factor(float scale) {
         loge("Could commit scale factor in NVS\n");
         /* fallthrough */
     } else {
-        logi("Ok");
+        logi("Ok\n");
     }
 
 out:
