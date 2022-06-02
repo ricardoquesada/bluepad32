@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 
+## New
+- Property storage abstraction
+  API that allows to store key/values in non-volatile areas
+- Console. Added new commands:
+  `get` / `set_gap_security_level`: Similar to the `menuconfig` option, but no need to recompile it.
+  `get` / `set_gap_periodic_inquiry`: To change the new-connection/reconnection window
+
 ## [3.5.0-beta0] - 2022-05-30
 ### New
 - Mouse support:

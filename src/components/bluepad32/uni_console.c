@@ -28,6 +28,7 @@ limitations under the License.
 #include <nvs_flash.h>
 
 #include "sdkconfig.h"
+#include "uni_bt_setup.h"
 #include "uni_debug.h"
 #include "uni_hid_device.h"
 #include "uni_mouse_quadrature.h"
@@ -41,18 +42,21 @@ static const char* TAG = "console";
 #define PROMPT_STR "bp32"
 
 static struct {
-    struct arg_str* value;
+    struct arg_dbl* value;
     struct arg_end* end;
 } mouse_set_args;
 
-static void initialize_nvs(void) {
-    esp_err_t err = nvs_flash_init();
-    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        err = nvs_flash_init();
-    }
-    ESP_ERROR_CHECK(err);
-}
+static struct {
+    struct arg_int* value;
+    struct arg_end* end;
+} set_gap_security_level_args;
+
+static struct {
+    struct arg_int* max;
+    struct arg_int* min;
+    struct arg_int* len;
+    struct arg_end* end;
+} set_gap_periodic_inquiry_args;
 
 static int devices_info(int argc, char** argv) {
     /* FIXME: Should be called from btstack thread */
@@ -79,16 +83,77 @@ static int mouse_set(int argc, char** argv) {
         return 1;
     }
 
-    const char* value = mouse_set_args.value->sval[0];
-    scale = atof(value);
+    scale = mouse_set_args.value->dval[0];
     uni_mouse_quadrature_set_scale_factor(scale);
+    logi("Done\n");
+    return 0;
+}
+
+static int set_gap_security_level(int argc, char** argv) {
+    int gap;
+
+    int nerrors = arg_parse(argc, argv, (void**)&set_gap_security_level_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, set_gap_security_level_args.end, argv[0]);
+        return 1;
+    }
+
+    gap = set_gap_security_level_args.value->ival[0];
+    uni_bt_setup_set_gap_security_level(gap);
+    logi("Done. Restart required. Type 'restart' + Enter\n");
+    return 0;
+}
+
+static int get_gap_security_level(int argc, char** argv) {
+    ARG_UNUSED(argc);
+    ARG_UNUSED(argv);
+
+    int gap = uni_bt_setup_get_gap_security_level();
+    logi("GAP security level: %d\n", gap);
+    return 0;
+}
+
+static int set_gap_periodic_inquiry(int argc, char** argv) {
+    int min, max, len;
+
+    int nerrors = arg_parse(argc, argv, (void**)&set_gap_periodic_inquiry_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, set_gap_periodic_inquiry_args.end, argv[0]);
+        return 1;
+    }
+
+    max = set_gap_periodic_inquiry_args.max->ival[0];
+    min = set_gap_periodic_inquiry_args.min->ival[0];
+    len = set_gap_periodic_inquiry_args.len->ival[0];
+    uni_bt_setup_set_gap_max_peridic_length(max);
+    uni_bt_setup_set_gap_min_peridic_length(min);
+    uni_bt_setup_set_gap_inquiry_length(len);
+    logi("Done. Restart required. Type 'restart' + Enter\n");
+    return 0;
+}
+
+static int get_gap_periodic_inquiry(int argc, char** argv) {
+    ARG_UNUSED(argc);
+    ARG_UNUSED(argv);
+
+    int max = uni_bt_setup_get_gap_max_periodic_lenght();
+    int min = uni_bt_setup_get_gap_min_periodic_lenght();
+    int len = uni_bt_setup_get_gap_inquiry_lenght();
+    logi("GAP max periodic len: %d, min periodic len: %d, inquiry len: %d\n", max, min, len);
     return 0;
 }
 
 static void register_bluepad32() {
-    mouse_set_args.value =
-        arg_str1(NULL, NULL, "<value>", "a float that represents the global mouse scale factor. Higher means slower.");
+    mouse_set_args.value = arg_dbl1(NULL, NULL, "<value>", "Global mouse scale factor. Higher means slower");
     mouse_set_args.end = arg_end(2);
+
+    set_gap_security_level_args.value = arg_int1(NULL, NULL, "<value>", "GAP security level");
+    set_gap_security_level_args.end = arg_end(2);
+
+    set_gap_periodic_inquiry_args.max = arg_int1(NULL, NULL, "<max>", "Max periodic length. Must be bigger than <min>");
+    set_gap_periodic_inquiry_args.min = arg_int1(NULL, NULL, "<min>", "Min periodic length. Must be less than <max>");
+    set_gap_periodic_inquiry_args.len = arg_int1(NULL, NULL, "<len>", "Inquiry length. Must be less than <min>");
+    set_gap_periodic_inquiry_args.end = arg_end(4);
 
     const esp_console_cmd_t cmd_devices = {
         .command = "devices",
@@ -108,16 +173,55 @@ static void register_bluepad32() {
         .command = "set_mouse_scale",
         .help =
             "Set global mouse scale factor. Default: 1.0\n"
-            "Example:\n"
-            " set_mouse_scale 1.52 \n",
+            "  Example: set_mouse_scale 1.52",
         .hint = NULL,
         .func = &mouse_set,
         .argtable = &mouse_set_args,
     };
 
+    const esp_console_cmd_t cmd_set_gap_security_level = {
+        .command = "set_gap_security_level",
+        .help =
+            "Set GAP security level. Default: 2\n"
+            "  Recommended values: 0, 1 or 2",
+        .hint = NULL,
+        .func = &set_gap_security_level,
+        .argtable = &set_gap_security_level_args,
+    };
+
+    const esp_console_cmd_t cmd_get_gap_security_level = {
+        .command = "get_gap_security_level",
+        .help = "Get GAP security level",
+        .hint = NULL,
+        .func = &get_gap_security_level,
+    };
+
+    const esp_console_cmd_t cmd_set_gap_periodic_inquiry = {
+        .command = "set_gap_periodic_inquiry",
+        .help =
+            "Set GAP periodic inquiry mode. Default: 5 4 3.\n"
+            "  Used for new connections / reconnections.\n"
+            "  1 unit == 1.28 seconds\n"
+            "  See Section 7.1.3 'Periodic Inquiry Mode Command' from Bluetooth spec",
+        .hint = NULL,
+        .func = &set_gap_periodic_inquiry,
+        .argtable = &set_gap_periodic_inquiry_args,
+    };
+
+    const esp_console_cmd_t cmd_get_gap_periodic_inquiry = {
+        .command = "get_gap_periodic_inquiry",
+        .help = "Get GAP periodic inquiry parameters",
+        .hint = NULL,
+        .func = &get_gap_periodic_inquiry,
+    };
+
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_devices));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_mouse_get));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_mouse_set));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_set_gap_security_level));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_get_gap_security_level));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_set_gap_periodic_inquiry));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_get_gap_periodic_inquiry));
 }
 
 void uni_console_init() {
@@ -129,8 +233,6 @@ void uni_console_init() {
      */
     repl_config.prompt = PROMPT_STR ">";
     repl_config.max_cmdline_length = 80;  // CONFIG_CONSOLE_MAX_COMMAND_LINE_LENGTH;
-
-    initialize_nvs();
 
 #if CONFIG_CONSOLE_STORE_HISTORY
     initialize_filesystem();

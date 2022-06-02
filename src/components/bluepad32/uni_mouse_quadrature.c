@@ -31,10 +31,9 @@ limitations under the License.
 #include <driver/timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include <nvs.h>
-#include <nvs_flash.h>
 
 #include "uni_debug.h"
+#include "uni_property.h"
 
 // Probably I could use a smaller divider, and only do "1 tick per 80us".
 // That would work Ok except that it will loose resolution when we divide "128 steps by delta".
@@ -90,10 +89,6 @@ static TaskHandle_t s_timer_tasks[UNI_MOUSE_QUADRATURE_PORT_MAX][UNI_MOUSE_QUADR
 // "Scale factor" for mouse movement. To make the mouse move faster or slower.
 // Bigger means slower movement.
 static float s_scale_factor;
-
-// NVS
-static const char* STORAGE_NAMESPACE = "bp32";
-static const char* NVS_KEY_SCALE_FACTOR = "mouse.scale";
 
 static void process_quadrature(struct quadrature_state* q) {
     int a, b;
@@ -339,54 +334,20 @@ void uni_mouse_quadrature_update(int port_idx, int32_t dx, int32_t dy) {
 }
 
 void uni_mouse_quadrature_set_scale_factor(float scale) {
-    nvs_handle_t nvs_handle;
-    esp_err_t err;
-    uint32_t* scale_alias = (uint32_t*)&scale;
+    uni_property_value_t value;
+    value.f32 = scale;
 
-    // Update runtime value
     s_scale_factor = scale;
-
-    err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &nvs_handle);
-    if (err != ESP_OK) {
-        loge("Could not open NVS storage\n");
-        return;
-    }
-
-    // float not supported. Casting it to u32
-    err = nvs_set_u32(nvs_handle, NVS_KEY_SCALE_FACTOR, *scale_alias);
-    if (err != ESP_OK) {
-        loge("Could not save scale factor in NVS\n");
-        goto out;
-    }
-
-    err = nvs_commit(nvs_handle);
-    if (err != ESP_OK) {
-        loge("Could commit scale factor in NVS\n");
-        /* fallthrough */
-    } else {
-        logi("Ok\n");
-    }
-
-out:
-    nvs_close(nvs_handle);
+    uni_property_set(UNI_PROPERTY_KEY_MOUSE_SCALE, UNI_PROPERTY_TYPE_FLOAT, value);
 }
 
 float uni_mouse_quadrature_get_scale_factor() {
-    nvs_handle_t nvs_handle;
-    esp_err_t err;
-    float scale_factor;
+    uni_property_value_t value;
+    uni_property_value_t def;
 
-    err = nvs_open(STORAGE_NAMESPACE, NVS_READONLY, &nvs_handle);
-    if (err != ESP_OK)
-        return DETAULT_SCALE_FACTOR;
+    def.f32 = 1.0;
 
-    // float not supported. Casting it to u32
-    err = nvs_get_u32(nvs_handle, NVS_KEY_SCALE_FACTOR, (uint32_t*)&scale_factor);
-    if (err != ESP_OK) {
-        scale_factor = DETAULT_SCALE_FACTOR;
-        /* falltrhough */
-    }
-
-    nvs_close(nvs_handle);
-    return scale_factor;
+    value = uni_property_get(UNI_PROPERTY_KEY_MOUSE_SCALE, UNI_PROPERTY_TYPE_FLOAT, def);
+    s_scale_factor = value.f32;
+    return value.f32;
 }

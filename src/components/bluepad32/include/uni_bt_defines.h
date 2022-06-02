@@ -48,6 +48,7 @@ limitations under the License.
 // Delicate balance between inquiry + pause.
 // If the interval is too short, some devices won't get discovered (e.g: 8BitDo SN30 Pro in dinput/xinput modes)
 // If the interval is too big, some devices won't be able to re-connect (e.g: Wii Remotes)
+// These are the default values, but that be overriden from the console.
 #define UNI_BT_MAX_PERIODIC_LENGTH 5  // In 1.28s unit
 #define UNI_BT_MIN_PERIODIC_LENGTH 4  // In 1.28s  unit
 #define UNI_BT_INQUIRY_LENGTH 3       // In 1.28s unit

@@ -91,30 +91,4 @@ menu "Bluepad32"
         help
             Enables the NVS console commands. Useful for debugging.
 
-    choice BLUEPAD32_UNIJOYSTICLE_MOUSE
-        bool "Mouse emulation"
-        default BLUEPAD32_UNIJOYSTICLE_MOUSE_AUTO
-        depends on BLUEPAD32_PLATFORM_UNIJOYSTICLE
-        help
-            Select the mouse emulation platform: Amiga or AtariST
-
-        config BLUEPAD32_UNIJOYSTICLE_MOUSE_AUTO
-            bool "Auto"
-            help
-                It uses Amiga mouse emulation on all Unijoysticle devices
-                with the exception of Unijoysticle v2 ST520.
-                For that one it will use AtariST mouse emulation.
-
-        config BLUEPAD32_UNIJOYSTICLE_MOUSE_AMIGA
-            bool "Amiga"
-            help
-                Forces to use Amiga mouse emulation, regardless of the Unijoysticle device.
-
-        config BLUEPAD32_UNIJOYSTICLE_MOUSE_ATARIST
-            bool "AtariST"
-            help
-                Forces to use AtariST mouse emulation, regardless of the Unijoysticle device.
-
-    endchoice
-
 endmenu

@@ -18,17 +18,20 @@ limitations under the License.
 
 #include "uni_bt_setup.h"
 
-#include <btstack.h>
 #include <inttypes.h>
+
+#include <btstack.h>
 
 #include "sdkconfig.h"
 #include "uni_bluetooth.h"
+#include "uni_bt_defines.h"
 #include "uni_bt_defines.h"
 #include "uni_bt_sdp.h"
 #include "uni_common.h"
 #include "uni_debug.h"
 #include "uni_hci_cmd.h"
 #include "uni_platform.h"
+#include "uni_property.h"
 
 typedef enum {
     SETUP_STATE_BTSTACK_IN_PROGRESS,
@@ -162,16 +165,84 @@ bool uni_bt_setup_is_ready() {
     return setup_state == SETUP_STATE_READY;
 }
 
+// Properties
+void uni_bt_setup_set_gap_security_level(int gap) {
+    uni_property_value_t val;
+
+    val.u32 = gap;
+    uni_property_set(UNI_PROPERTY_KEY_GAP_LEVEL, UNI_PROPERTY_TYPE_U32, val);
+}
+
+int uni_bt_setup_get_gap_security_level() {
+    uni_property_value_t val;
+    uni_property_value_t def;
+
+    // It seems that with gap_security_level(0) all gamepads work except Nintendo Switch Pro controller.
+#if CONFIG_BLUEPAD32_GAP_SECURITY
+    def.u32 = 2;
+#else
+    def.u32 = 0;
+#endif  // CONFIG_BLUEPAD32_GAP_SECURITY
+
+    val = uni_property_get(UNI_PROPERTY_KEY_GAP_LEVEL, UNI_PROPERTY_TYPE_U32, def);
+    return val.u32;
+} 
+
+void uni_bt_setup_set_gap_inquiry_length(int len) {
+    uni_property_value_t val;
+
+    val.u8 = len;
+    uni_property_set(UNI_PROPERTY_KEY_GAP_INQ_LEN, UNI_PROPERTY_TYPE_U8, val);
+}
+
+int uni_bt_setup_get_gap_inquiry_lenght(void) {
+    uni_property_value_t val;
+    uni_property_value_t def;
+
+    def.u8 = UNI_BT_INQUIRY_LENGTH;
+    val = uni_property_get(UNI_PROPERTY_KEY_GAP_INQ_LEN, UNI_PROPERTY_TYPE_U8, def);
+    return val.u8;
+}
+
+void uni_bt_setup_set_gap_max_peridic_length(int len) {
+    uni_property_value_t val;
+
+    val.u8 = len;
+    uni_property_set(UNI_PROPERTY_KEY_GAP_MAX_PERIODIC_LEN, UNI_PROPERTY_TYPE_U8, val);
+}
+
+int uni_bt_setup_get_gap_max_periodic_lenght(void) {
+    uni_property_value_t val;
+    uni_property_value_t def;
+
+    def.u8 = UNI_BT_MAX_PERIODIC_LENGTH;
+    val = uni_property_get(UNI_PROPERTY_KEY_GAP_MAX_PERIODIC_LEN, UNI_PROPERTY_TYPE_U8, def);
+    return val.u8;
+}
+
+void uni_bt_setup_set_gap_min_peridic_length(int len) {
+    uni_property_value_t val;
+
+    val.u8 = len;
+    uni_property_set(UNI_PROPERTY_KEY_GAP_MIN_PERIODIC_LEN, UNI_PROPERTY_TYPE_U8, val);
+}
+
+int uni_bt_setup_get_gap_min_periodic_lenght(void) {
+    uni_property_value_t val;
+    uni_property_value_t def;
+
+    def.u8 = UNI_BT_MIN_PERIODIC_LENGTH;
+    val = uni_property_get(UNI_PROPERTY_KEY_GAP_MIN_PERIODIC_LEN, UNI_PROPERTY_TYPE_U8, def);
+    return val.u8;
+}
+
 int uni_bt_setup(void) {
     // Initialize L2CAP
     l2cap_init();
 
-    // It seems that with gap_security_level(0) all gamepads work except Nintendo Switch Pro controller.
-#ifndef CONFIG_BLUEPAD32_GAP_SECURITY
-    gap_set_security_level(0);
-#else
-    gap_set_required_encryption_key_size(7);
-#endif
+    int gap = uni_bt_setup_get_gap_security_level();
+    gap_set_security_level(gap);
+
     gap_connectable_control(1);
     // Enable discoverability once we our "BP32 BLE service"
     gap_discoverable_control(0);
@@ -186,8 +257,10 @@ int uni_bt_setup(void) {
 
     int security_level = gap_get_security_level();
     logi("Gap security level: %d\n", security_level);
-    logi("Periodic Inquiry: max=%d, min=%d, len=%d\n", UNI_BT_MAX_PERIODIC_LENGTH, UNI_BT_MIN_PERIODIC_LENGTH,
-         UNI_BT_INQUIRY_LENGTH);
+    logi("Periodic Inquiry: max=%d, min=%d, len=%d\n", 
+            uni_bt_setup_get_gap_max_periodic_lenght(),
+            uni_bt_setup_get_gap_min_periodic_lenght(),
+            uni_bt_setup_get_gap_inquiry_lenght());
     logi("Max connected gamepads: %d\n", CONFIG_BLUEPAD32_MAX_DEVICES);
 
     l2cap_register_service(uni_bluetooth_packet_handler, BLUETOOTH_PSM_HID_INTERRUPT, UNI_BT_L2CAP_CHANNEL_MTU,

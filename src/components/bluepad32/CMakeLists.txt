@@ -33,6 +33,8 @@ set(srcs "uni_bluetooth.c"
          "uni_platform_nina.c"
          "uni_platform_pc_debug.c"
          "uni_platform_unijoysticle.c"
+         "uni_property.c"
+         "uni_property_nvs.c"
          "uni_utils.c")
 
 set(requires "nvs_flash" "btstack" "cmd_nvs" "cmd_system")

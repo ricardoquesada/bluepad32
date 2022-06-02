@@ -679,7 +679,9 @@ static uint8_t start_scan(void) {
     gap_start_scan();
 #endif  // UNI_ENABLE_BLE
 
-    status = gap_inquiry_periodic_start(UNI_BT_INQUIRY_LENGTH, UNI_BT_MAX_PERIODIC_LENGTH, UNI_BT_MIN_PERIODIC_LENGTH);
+    status =
+        gap_inquiry_periodic_start(uni_bt_setup_get_gap_inquiry_lenght(), uni_bt_setup_get_gap_max_periodic_lenght(),
+                                   uni_bt_setup_get_gap_min_periodic_lenght());
     if (status)
         loge("Error: cannot start inquiry (0x%02x), please try again\n", status);
     return status;

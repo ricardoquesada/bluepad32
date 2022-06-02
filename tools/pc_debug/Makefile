@@ -98,6 +98,8 @@ bluepad32: ${CORE_OBJ} ${COMMON_OBJ} ${CLASSIC_OBJ} ${SDP_CLIENT} btstack_ring_b
 	${BLUEPAD32_ROOT}/uni_main.o \
 	${BLUEPAD32_ROOT}/uni_platform.o \
 	${BLUEPAD32_ROOT}/uni_platform_pc_debug.o \
+	${BLUEPAD32_ROOT}/uni_property.o \
+	${BLUEPAD32_ROOT}/uni_property_mem.o \
 	${BLUEPAD32_ROOT}/uni_utils.o
 	${CC} $^ ${CFLAGS} ${LDFLAGS} -o $@
 
