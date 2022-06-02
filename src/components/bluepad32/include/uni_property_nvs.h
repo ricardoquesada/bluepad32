@@ -21,8 +21,8 @@ limitations under the License.
 
 #include "uni_property.h"
 
+void uni_property_nvs_init(void);
 void uni_property_nvs_set(const char* key, uni_property_type_t type, uni_property_value_t value);
 uni_property_value_t uni_property_nvs_get(const char* key, uni_property_type_t type, uni_property_value_t def);
-void uni_property_nvs_init();
 
 #endif  // UNI_PROPERTY_NVS_H

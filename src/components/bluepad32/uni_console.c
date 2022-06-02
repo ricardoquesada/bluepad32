@@ -224,7 +224,7 @@ static void register_bluepad32() {
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_get_gap_periodic_inquiry));
 }
 
-void uni_console_init() {
+void uni_console_init(void) {
     esp_console_repl_t* repl = NULL;
     esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
     esp_console_dev_uart_config_t uart_config = ESP_CONSOLE_DEV_UART_CONFIG_DEFAULT();

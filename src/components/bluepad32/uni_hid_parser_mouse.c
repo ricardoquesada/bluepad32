@@ -124,7 +124,11 @@ void uni_hid_parser_mouse_setup(uni_hid_device_t* d) {
 }
 
 void uni_hid_parser_mouse_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len) {
-#if 0
+    ARG_UNUSED(d);
+#if 1
+    ARG_UNUSED(report);
+    ARG_UNUSED(len);
+#else
     time_t t = time(0);
     char buffer[32] = {0};
     strftime(buffer, 9, "%H:%M:%S", localtime(&t));

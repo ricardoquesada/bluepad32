@@ -49,7 +49,7 @@ uni_property_value_t uni_property_get(const char* key, uni_property_type_t type,
 #endif
 }
 
-void uni_property_init() {
+void uni_property_init(void) {
 #if defined(CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG)
     return uni_property_mem_init();
 #else

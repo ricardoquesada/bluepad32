@@ -19,6 +19,6 @@ limitations under the License.
 #ifndef UNI_CONSOLE_H
 #define UNI_CONSOLE_H
 
-void uni_console_init();
+void uni_console_init(void);
 
 #endif  // UNI_CONSOLE_H

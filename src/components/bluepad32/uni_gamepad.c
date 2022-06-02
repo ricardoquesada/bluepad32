@@ -210,7 +210,7 @@ void uni_gamepad_dump(const uni_gamepad_t* gp) {
 }
 
 char* uni_gamepad_get_model_name(int type) {
-    for (int i = 0; i < ARRAY_SIZE(controller_names); i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(controller_names); i++) {
         if (controller_names[i].type == type)
             return controller_names[i].name;
     }

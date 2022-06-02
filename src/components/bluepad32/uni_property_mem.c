@@ -28,7 +28,7 @@ void uni_property_mem_set(const char* key, uni_property_type_t type, uni_propert
     ARG_UNUSED(key);
     ARG_UNUSED(type);
     ARG_UNUSED(value);
-    /* nothing */
+    /* Nothing */
 }
 
 uni_property_value_t uni_property_mem_get(const char* key, uni_property_type_t type, uni_property_value_t def) {
@@ -38,5 +38,6 @@ uni_property_value_t uni_property_mem_get(const char* key, uni_property_type_t t
     return def;
 }
 
-void uni_property_mem_init() {
+void uni_property_mem_init(void) {
+    /* Nothing */
 }
