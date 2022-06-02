@@ -25,7 +25,6 @@ limitations under the License.
 #include "sdkconfig.h"
 #include "uni_bluetooth.h"
 #include "uni_bt_defines.h"
-#include "uni_bt_defines.h"
 #include "uni_bt_sdp.h"
 #include "uni_common.h"
 #include "uni_debug.h"
@@ -186,7 +185,7 @@ int uni_bt_setup_get_gap_security_level() {
 
     val = uni_property_get(UNI_PROPERTY_KEY_GAP_LEVEL, UNI_PROPERTY_TYPE_U32, def);
     return val.u32;
-} 
+}
 
 void uni_bt_setup_set_gap_inquiry_length(int len) {
     uni_property_value_t val;
@@ -257,10 +256,8 @@ int uni_bt_setup(void) {
 
     int security_level = gap_get_security_level();
     logi("Gap security level: %d\n", security_level);
-    logi("Periodic Inquiry: max=%d, min=%d, len=%d\n", 
-            uni_bt_setup_get_gap_max_periodic_lenght(),
-            uni_bt_setup_get_gap_min_periodic_lenght(),
-            uni_bt_setup_get_gap_inquiry_lenght());
+    logi("Periodic Inquiry: max=%d, min=%d, len=%d\n", uni_bt_setup_get_gap_max_periodic_lenght(),
+         uni_bt_setup_get_gap_min_periodic_lenght(), uni_bt_setup_get_gap_inquiry_lenght());
     logi("Max connected gamepads: %d\n", CONFIG_BLUEPAD32_MAX_DEVICES);
 
     l2cap_register_service(uni_bluetooth_packet_handler, BLUETOOTH_PSM_HID_INTERRUPT, UNI_BT_L2CAP_CHANNEL_MTU,
