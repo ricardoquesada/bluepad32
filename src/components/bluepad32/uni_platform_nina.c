@@ -228,7 +228,7 @@ enum {
 // Command 0x00
 static int request_protocol_version(const uint8_t command[], uint8_t response[]) {
 #define PROTOCOL_VERSION_HI 0x01
-#define PROTOCOL_VERSION_LO 0x01
+#define PROTOCOL_VERSION_LO 0x02
 
     response[2] = 1;  // Number of parameters
     response[3] = 2;  // Param len
@@ -384,6 +384,18 @@ static int request_get_gamepad_properties(const uint8_t command[], uint8_t respo
     return 6 + sizeof(nina_gamepad_properties_t);
 }
 
+// Command 0x07
+static int request_enable_bluetooth_connections(const uint8_t command[], uint8_t response[]) {
+    bool enabled = command[4];
+    uni_bluetooth_enable_new_connections_safe(enabled);
+
+    response[2] = 1;           // total params
+    response[3] = 1;           // param len
+    response[4] = RESPONSE_OK;
+
+    return 5;
+}
+
 // Command 0x1a
 static int request_set_debug(const uint8_t command[], uint8_t response[]) {
     uni_esp32_enable_uart_output(command[4]);
@@ -493,14 +505,14 @@ const command_handler_t command_handlers[] = {
     // These 16 entries are NULL in NINA. Perhaps they are reserved for future
     // use? Seems to be safe to use them for Bluepad32 commands.
     request_protocol_version,
-    request_gamepads_data,            // data
-    request_set_gamepad_player_leds,  // the 4 LEDs that is available in many
-                                      // gamepads.
-    request_set_gamepad_color_led,    // available on DS4, DualSense
-    request_set_gamepad_rumble,       // available on DS4, Xbox, Switch, etc.
-    request_forget_bluetooth_keys,    // forget stored Bluetooth keys
-    request_get_gamepad_properties,   // get gamepad properties like BTAddr, VID/PID, etc.
-    NULL,
+    request_gamepads_data,                 // data
+    request_set_gamepad_player_leds,       // the 4 LEDs that is available in many
+                                           // gamepads.
+    request_set_gamepad_color_led,         // available on DS4, DualSense
+    request_set_gamepad_rumble,            // available on DS4, Xbox, Switch, etc.
+    request_forget_bluetooth_keys,         // forget stored Bluetooth keys
+    request_get_gamepad_properties,        // get gamepad properties like BTAddr, VID/PID, etc.
+    request_enable_bluetooth_connections,  // Enable/Disable bluetooth connection
     NULL,
     NULL,
     NULL,

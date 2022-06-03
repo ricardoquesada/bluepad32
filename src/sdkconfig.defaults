@@ -37,3 +37,5 @@ CONFIG_BLUEPAD32_PLATFORM_UNIJOYSTICLE=y
 #
 # Add here other options
 #
+# Needed for NINA platform
+CONFIG_SPI_FLASH_USE_LEGACY_IMPL=y
