@@ -389,8 +389,8 @@ static int request_enable_bluetooth_connections(const uint8_t command[], uint8_t
     bool enabled = command[4];
     uni_bluetooth_enable_new_connections_safe(enabled);
 
-    response[2] = 1;           // total params
-    response[3] = 1;           // param len
+    response[2] = 1;  // total params
+    response[3] = 1;  // param len
     response[4] = RESPONSE_OK;
 
     return 5;
