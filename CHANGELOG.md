@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `get` / `set_gap_security_level`: Similar to the `menuconfig` option, but no need to recompile it.
   `get` / `set_gap_periodic_inquiry`: To change the new-connection/reconnection window
 - NINA/AirLift: Add support for "enable/disable new bluetooth connections"
+- Mouse: Added support for:
+  - Apple Magic Mouse 2nd gen
+  - Logitech M-RCL124 MX Revolution
 
 ## [3.5.0-beta0] - 2022-05-30
 ### New
