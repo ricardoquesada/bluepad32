@@ -63,6 +63,9 @@ static mouse_instance_t* get_mouse_instance(uni_hid_device_t* d) {
 static const struct mouse_resolution resolutions[] = {
     // Apple Magic Mouse 1st gen
     {0x05ac, 0x030d, NULL, 0.2},
+    // Apple Magic Mouse 2nd gen
+    {0x05ac, 0x0269, NULL, 0.2},
+    {0x004c, 0x0269, NULL, 0.2},  // VID 0x004c... did I get a fake one?
     // Apple Magic Trackpad 1st gen
     {0x05ac, 0x030e, NULL, 0.47},
     // TECKNET 2600DPI. Has a "DPI" button. The faster one is unusable. Make the faster usable.
