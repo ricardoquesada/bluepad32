@@ -73,6 +73,8 @@ static const struct mouse_resolution resolutions[] = {
     {0x0a5c, 0x0001, "BORND Bluetooth Mouse", 0.6667},
     // Logitech	M336 / M337 / M535
     {0x046d, 0xb016, "Bluetooth Mouse M336/M337/M535", 0.3334},
+    // Logitech M-RCL124 MX Revolution
+    {0x046d, 0xb007, "Logitech MX Revolution Mouse", 0.3334},
 
     // No need to add entries where mult & div are both 1
 };
@@ -213,6 +215,15 @@ void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
                     if (value)
                         gp->buttons |= BUTTON_Y;
                     break;
+                case 0x09:  // Logitech M-RCL124
+                case 0x0a:
+                case 0x0b:
+                case 0x0c:
+                case 0x0d:
+                case 0x0e:
+                case 0x0f:
+                case 0x10:
+                    break;
                 default:
                     logi("Mouse: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
                     break;
@@ -240,6 +251,10 @@ void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
 
         case HID_USAGE_PAGE_CONSUMER: {
             switch (usage) {
+                case 0x00:  // Unassigned, Logitech M-RCL124
+                    break;
+                case HID_USAGE_AC_SEARCH:  // Logitech M-RCL124
+                    break;
                 case HID_USAGE_AC_PAN:  // Logitech M535
                     break;
                 default:
@@ -248,6 +263,9 @@ void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
             }
             break;
         }
+
+        case 0xff00:  // Logitech M-RCL124
+            break;
 
         // unknown usage page
         default:
