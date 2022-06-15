@@ -246,6 +246,7 @@ bool uni_hid_device_is_cod_supported(uint32_t cod) {
         // Device is a peripheral: keyboard, mouse, joystick, gamepad, etc.
         // We only care about joysticks, gamepads & mice. But some gamepads,
         // specially cheap ones are advertised as keyboards.
+        // FIXME: Which gamepads are advertised as keyboard?
         return !!(minor_cod & (UNI_BT_COD_MINOR_MICE | UNI_BT_COD_MINOR_KEYBOARD | UNI_BT_COD_MINOR_GAMEPAD |
                                UNI_BT_COD_MINOR_JOYSTICK));
     }
@@ -440,11 +441,9 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
     // If it fails, try to guess it from COD
     if (type == CONTROLLER_TYPE_Unknown) {
         logi("Device (vendor_id=0x%04x, product_id=0x%04x) not found in DB.\n", d->vendor_id, d->product_id);
-        uint32_t mouse_cod = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE;
-        uint32_t keyboard_cod = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_KEYBOARD;
-        if ((d->cod & mouse_cod) == mouse_cod) {
+        if (uni_hid_device_is_mouse(d)) {
             type = CONTROLLER_TYPE_GenericMouse;
-        } else if ((d->cod & keyboard_cod) == keyboard_cod) {
+        } else if (uni_hid_device_is_keyboard(d)) {
             type = CONTROLLER_TYPE_GenericKeyboard;
         } else {
             // FIXME: Default should be the most popular gamepad device.
@@ -683,6 +682,35 @@ bool uni_hid_device_does_require_hid_descriptor(uni_hid_device_t* d) {
     // If the parser has a "parse_usage" functions, it is safe to assume that a HID descriptor
     // is needed. "parse_usage" cannot work without a HID descriptor.
     return (d->report_parser.parse_usage != NULL);
+}
+
+bool uni_hid_device_is_mouse(uni_hid_device_t* d) {
+    if (d == NULL) {
+        loge("uni_hid_device_is_mouse: failed, device is NULL\n");
+        return false;
+    }
+
+    uint32_t mouse_cod = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE;
+    return (d->cod & mouse_cod) == mouse_cod;
+}
+
+bool uni_hid_device_is_keyboard(uni_hid_device_t* d) {
+    if (d == NULL) {
+        loge("uni_hid_device_is_keybaord: failed, device is NULL\n");
+        return false;
+    }
+    uint32_t keyboard_cod = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_KEYBOARD;
+    return (d->cod & keyboard_cod) == keyboard_cod;
+}
+
+bool uni_hid_device_is_gamepad(uni_hid_device_t* d) {
+    if (d == NULL) {
+        loge("uni_hid_device_is_gamepad: failed, device is NULL\n");
+        return false;
+    }
+    // If it a gamepad or a joystick, then we treat it as a gamepad
+    uint32_t gamepad_cod = UNI_BT_COD_MINOR_GAMEPAD | UNI_BT_COD_MINOR_JOYSTICK;
+    return (d->cod & UNI_BT_COD_MAJOR_PERIPHERAL) && (d->cod & gamepad_cod);
 }
 
 // Helpers

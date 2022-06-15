@@ -114,6 +114,10 @@ enum {
     PROPERTY_FLAG_RUMBLE = BIT(0),
     PROPERTY_FLAG_PLAYER_LEDS = BIT(1),
     PROPERTY_FLAG_PLAYER_LIGHTBAR = BIT(2),
+
+    PROPERTY_FLAG_GAMEPAD = BIT(13),
+    PROPERTY_FLAG_MOUSE = BIT(14),
+    PROPERTY_FLAG_KEYBOARD = BIT(15),
 };
 
 // This is sent via the wire. Adding new properties at the end Ok.
@@ -890,6 +894,18 @@ static int nina_on_device_ready(uni_hid_device_t* d) {
     _gamepads_properties[idx].flags = (d->report_parser.set_player_leds ? PROPERTY_FLAG_PLAYER_LEDS : 0) |
                                       (d->report_parser.set_rumble ? PROPERTY_FLAG_RUMBLE : 0) |
                                       (d->report_parser.set_lightbar_color ? PROPERTY_FLAG_PLAYER_LIGHTBAR : 0);
+
+    // TODO: Most probably a device cannot be a mouse a keyboard and a gamepad at the same time,
+    // and 2 bits should be more than enough.
+    // But for simplicity, let's use one bit for each category.
+    if (uni_hid_device_is_mouse(d))
+        _gamepads_properties[idx].flags |= PROPERTY_FLAG_MOUSE;
+
+    if (uni_hid_device_is_keyboard(d))
+        _gamepads_properties[idx].flags |= PROPERTY_FLAG_KEYBOARD;
+
+    if (uni_hid_device_is_gamepad(d))
+        _gamepads_properties[idx].flags |= PROPERTY_FLAG_GAMEPAD;
 
     memcpy(_gamepads_properties[ins->gamepad_idx].btaddr, d->conn.btaddr, sizeof(_gamepads_properties[0].btaddr));
 

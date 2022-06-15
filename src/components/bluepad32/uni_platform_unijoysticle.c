@@ -216,7 +216,6 @@ static void process_mouse(uni_hid_device_t* d,
                           uint16_t buttons);
 static void joy_update_port(const uni_joystick_t* joy, const gpio_num_t* gpios);
 static int get_mouse_emulation();
-static bool is_device_a_mouse(uni_hid_device_t* d);
 
 // Interrupt handlers
 static void handle_event_button(int button_idx);
@@ -569,7 +568,7 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
         // ... unless it is a mouse which should try with PORT A.
         // Amiga/Atari ST use mice in PORT A. Undefined on the C64, but
         // most apps use it in PORT A as well.
-        if (is_device_a_mouse(d)) {
+        if (uni_hid_device_is_mouse(d)) {
             wanted_seat = GAMEPAD_SEAT_A;
             ins->emu_mode = EMULATION_MODE_SINGLE_MOUSE;
         }
@@ -710,7 +709,7 @@ static void unijoysticle_device_dump(uni_hid_device_t* d) {
     unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
 
     logi("\tunijoysticle: ");
-    if (is_device_a_mouse(d)) {
+    if (uni_hid_device_is_mouse(d)) {
         logi("type=mouse, ");
     } else {
         logi("type=gamepad, mode=");
@@ -729,11 +728,6 @@ static void unijoysticle_device_dump(uni_hid_device_t* d) {
 //
 // Helpers
 //
-
-static bool is_device_a_mouse(uni_hid_device_t* d) {
-    uint32_t mouse_cod = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE;
-    return (d->cod & mouse_cod) == mouse_cod;
-}
 
 static void set_mouse_emulation_to_nvs(int mode) {
     uni_property_value_t value;
@@ -1062,7 +1056,7 @@ static void get_gamepad_mode() {
         uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
         if (uni_bt_conn_is_connected(&tmp_d->conn)) {
             num_devices++;
-            if (!is_device_a_mouse(tmp_d)) {
+            if (!uni_hid_device_is_mouse(tmp_d)) {
                 d = tmp_d;
                 break;
             }
@@ -1103,7 +1097,7 @@ static void set_gamepad_mode(int mode) {
         uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
         if (uni_bt_conn_is_connected(&tmp_d->conn)) {
             num_devices++;
-            if (!is_device_a_mouse(tmp_d)) {
+            if (!uni_hid_device_is_mouse(tmp_d)) {
                 d = tmp_d;
                 break;
             }

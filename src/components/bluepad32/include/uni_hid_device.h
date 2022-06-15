@@ -181,4 +181,8 @@ void uni_hid_device_send_queued_reports(uni_hid_device_t* d);
 
 bool uni_hid_device_does_require_hid_descriptor(uni_hid_device_t* d);
 
+bool uni_hid_device_is_gamepad(uni_hid_device_t* d);
+bool uni_hid_device_is_mouse(uni_hid_device_t* d);
+bool uni_hid_device_is_keyboard(uni_hid_device_t* d);
+
 #endif  // UNI_HID_DEVICE_H
