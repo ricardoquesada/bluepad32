@@ -78,8 +78,12 @@ static const struct mouse_resolution resolutions[] = {
     {0x046d, 0xb016, "Bluetooth Mouse M336/M337/M535", 0.3334},
     // Logitech M-RCL124 MX Revolution
     {0x046d, 0xb007, "Logitech MX Revolution Mouse", 0.3334},
+    // Kensigton SureTrack Dual Wireless Mouse (K75351WW)
+    {0xae24, 0x8618, "BT3.0 Mouse", 0.2},
+    // TECKNET "3 Modes, 2400 DPI"
+    {0xae24, 0x8618, "BM20X-3.0", 0.2},
 
-    // No need to add entries where mult & div are both 1
+    // No need to add entries where scale is 1
 };
 
 static int32_t process_mouse_delta(uni_hid_device_t* d, int32_t value) {
