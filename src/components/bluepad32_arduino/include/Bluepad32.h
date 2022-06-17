@@ -5,7 +5,7 @@
 #define BP32_BLUEPAD32_H
 
 #include "ArduinoBluepad32.h"
-#include "ArduinoGamepad.h"
 #include "ArduinoConsole.h"
+#include "ArduinoGamepad.h"
 
 #endif  // BP32_BLUEPAD32_H
