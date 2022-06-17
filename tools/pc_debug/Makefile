@@ -95,6 +95,7 @@ bluepad32: ${CORE_OBJ} ${COMMON_OBJ} ${CLASSIC_OBJ} ${SDP_CLIENT} btstack_ring_b
 	${BLUEPAD32_ROOT}/uni_hid_parser_wii.o \
 	${BLUEPAD32_ROOT}/uni_hid_parser_xboxone.o \
 	${BLUEPAD32_ROOT}/uni_joystick.o \
+	${BLUEPAD32_ROOT}/uni_log.o \
 	${BLUEPAD32_ROOT}/uni_main.o \
 	${BLUEPAD32_ROOT}/uni_platform.o \
 	${BLUEPAD32_ROOT}/uni_platform_pc_debug.o \

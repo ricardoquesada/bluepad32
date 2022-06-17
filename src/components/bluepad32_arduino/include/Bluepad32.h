@@ -6,5 +6,6 @@
 
 #include "ArduinoBluepad32.h"
 #include "ArduinoGamepad.h"
+#include "ArduinoConsole.h"
 
 #endif  // BP32_BLUEPAD32_H

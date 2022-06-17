@@ -24,6 +24,20 @@ limitations under the License.
 #include <Arduino.h>
 #include <Bluepad32.h>
 
+//
+// README FIRST, README FIRST, README FIRST
+//
+// Bluepad32 has a built-in interactive console.
+// By default it is enabled (hey, this is a great feature!).
+// But it is incompatible with Arduino "Serial" class.
+//
+// Instead of using "Serial" you can use Bluepad32 "Console" class instead.
+// It is somewhat similar to Serial but not exactly the same.
+//
+// Should you want to still use "Serial", you have to disable the Bluepad32's console
+// from "sdkconfig.defaults" with:
+//    CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE=n
+
 GamepadPtr myGamepads[BP32_MAX_GAMEPADS];
 
 // This callback gets called any time a new gamepad is connected.
@@ -32,25 +46,19 @@ void onConnectedGamepad(GamepadPtr gp) {
     bool foundEmptySlot = false;
     for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {
         if (myGamepads[i] == nullptr) {
-            Serial.print("CALLBACK: Gamepad is connected, index=");
-            Serial.println(i);
+            Console.printf("CALLBACK: Gamepad is connected, index=%d\n", i);
             // Additionally, you can get certain gamepad properties like:
             // Model, VID, PID, BTAddr, flags, etc.
             GamepadProperties properties = gp->getProperties();
-            Serial.print("Gamepad model: ");
-            Serial.print(gp->getModelName());
-            Serial.print(", VID/PID: ");
-            Serial.print(properties.vendor_id, HEX);
-            Serial.print(":");
-            Serial.print(properties.product_id, HEX);
-            Serial.println();
+            Console.printf("Gamepad model: %s, VID=0x%04x, PID=0x%04x\n", gp->getModelName(), properties.vendor_id,
+                           properties.product_id);
             myGamepads[i] = gp;
             foundEmptySlot = true;
             break;
         }
     }
     if (!foundEmptySlot) {
-        Serial.println("CALLBACK: Gamepad connected, but could not found empty slot");
+        Console.println("CALLBACK: Gamepad connected, but could not found empty slot");
     }
 }
 
@@ -59,8 +67,7 @@ void onDisconnectedGamepad(GamepadPtr gp) {
 
     for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {
         if (myGamepads[i] == gp) {
-            Serial.print("CALLBACK: Gamepad is disconnected from index=");
-            Serial.println(i);
+            Console.printf("CALLBACK: Gamepad is disconnected from index=%d\n", i);
             myGamepads[i] = nullptr;
             foundGamepad = true;
             break;
@@ -68,17 +75,13 @@ void onDisconnectedGamepad(GamepadPtr gp) {
     }
 
     if (!foundGamepad) {
-        Serial.println("CALLBACK: Gamepad disconnected, but not found in myGamepads");
+        Console.println("CALLBACK: Gamepad disconnected, but not found in myGamepads");
     }
 }
 
 // Arduino setup function. Runs in CPU 1
 void setup() {
-    Serial.begin(115200);
-
-    String fv = BP32.firmwareVersion();
-    Serial.print("Firmware: ");
-    Serial.println(fv);
+    Console.printf("Firmware: %s\n", BP32.firmwareVersion());
 
     // Setup the Bluepad32 callbacks
     BP32.setup(&onConnectedGamepad, &onDisconnectedGamepad);
@@ -152,23 +155,20 @@ void loop() {
             // Another way to query the buttons, is by calling buttons(), or
             // miscButtons() which return a bitmask.
             // Some gamepads also have DPAD, axis and more.
-            char buffer[192];
-            snprintf(buffer, sizeof(buffer) - 1,
-                     "idx=%d, dpad: 0x%02x, buttons: 0x%04x, axis L: %4d, %4d, axis R: %4d, "
-                     "%4d, brake: %4d, throttle: %4d, misc: 0x%02x",
-                     i,                        // Gamepad Index
-                     myGamepad->dpad(),        // DPAD
-                     myGamepad->buttons(),     // bitmask of pressed buttons
-                     myGamepad->axisX(),       // (-511 - 512) left X Axis
-                     myGamepad->axisY(),       // (-511 - 512) left Y axis
-                     myGamepad->axisRX(),      // (-511 - 512) right X axis
-                     myGamepad->axisRY(),      // (-511 - 512) right Y axis
-                     myGamepad->brake(),       // (0 - 1023): brake button
-                     myGamepad->throttle(),    // (0 - 1023): throttle (AKA gas) button
-                     myGamepad->miscButtons()  // bitmak of pressed "misc" buttons
+            Console.printf(
+                "idx=%d, dpad: 0x%02x, buttons: 0x%04x, axis L: %4d, %4d, axis R: %4d, "
+                "%4d, brake: %4d, throttle: %4d, misc: 0x%02x\n",
+                i,                        // Gamepad Index
+                myGamepad->dpad(),        // DPAD
+                myGamepad->buttons(),     // bitmask of pressed buttons
+                myGamepad->axisX(),       // (-511 - 512) left X Axis
+                myGamepad->axisY(),       // (-511 - 512) left Y axis
+                myGamepad->axisRX(),      // (-511 - 512) right X axis
+                myGamepad->axisRY(),      // (-511 - 512) right Y axis
+                myGamepad->brake(),       // (0 - 1023): brake button
+                myGamepad->throttle(),    // (0 - 1023): throttle (AKA gas) button
+                myGamepad->miscButtons()  // bitmak of pressed "misc" buttons
             );
-            buffer[sizeof(buffer) - 1] = 0;
-            Serial.println(buffer);
 
             // You can query the axis and other properties as well. See Gamepad.h
             // For all the available functions.

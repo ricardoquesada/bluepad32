@@ -7,4 +7,4 @@
 # please read the ESP-IDF documents if you need to do this.
 #
 
-$(call compile_only_if,$(CONFIG_BLUEPAD32_PLATFORM_ARDUINO), ArduinoGamepad.o ArduinoBluepad32.o)
+$(call compile_only_if,$(CONFIG_BLUEPAD32_PLATFORM_ARDUINO), ArduinoBluepad32.o ArduinoConsole.o ArduinoGamepad.o)

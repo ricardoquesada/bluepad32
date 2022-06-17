@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] -
 ## New
+- Arduino: Add "Console" class. An alternative to Arduino "Serial" that is
+  compatible with Bluepad32's USB console.
 - Property storage abstraction
   API that allows to store key/values in non-volatile areas
 - Console. Added new commands:
