@@ -82,6 +82,8 @@ static const struct mouse_resolution resolutions[] = {
     {0xae24, 0x8618, "BT3.0 Mouse", 0.2},
     // TECKNET "3 Modes, 2400 DPI"
     {0xae24, 0x8618, "BM20X-3.0", 0.2},
+    // HP Z5000
+    {0x03f0, 0x084c, "HP Bluetooth Mouse Z5000", 0.5},
 
     // No need to add entries where scale is 1
 };

@@ -69,6 +69,16 @@ So far, this is the list of recommended mouse to try:
 [logitech_mrcl124_photo]:  https://lh3.googleusercontent.com/pw/AM-JKLXSw5S0ikLdFcm_iMFc2qokRs5HLgPce2RMYgrsXVL-Mr0_1mfZTB13g_IgjViHCYZww25ziYY0_4EsQNRHti70zgGucFDIv-TblZ4oTkDBz6SjZWy6tr-469AemriMdIDrs5kFWikiS0Y1m2gdAvHXSQ=-no
 [logitech_mrcl124_link]: https://www.ebay.com/sch/i.html?_nkw=logitech+m-rcl124
 
+## HP Z5000
+
+[![HP Z500][hp_z5000_photo]][hp_z5000_link]
+
+* Supports: movement; left, middle, right click
+* Purchase link [eBay][hp_z5000_link]
+
+[hp_z5000_link]: https://www.ebay.com/sch/i.html?_nkw=hp+z5000+mouse
+[hp_z5000_photo]: https://lh3.googleusercontent.com/pw/AM-JKLUukVi-cLy3H3DGJ91gXLGtbIPmyw-GCvxX-ZE8196T04ThlaB6dx7wNNn-zWtXJhYz_SemDSmRGotFle4aHex2--cGTOwG8esf7KU9Pqi8vwrFKM_peTs6rQ20XhNJvXuWVctAIw5aJ1IxM8c2B17JSQ=-no
+
 ## Bornd C170B
 
 [![Bornd C170B][bornd_c170b_photo]][bornd_c170b_link]
