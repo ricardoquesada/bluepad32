@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] -
+## [3.5.0-beta1] - 2022-06-17
 ## New
 - Arduino: Add "Console" class. An alternative to Arduino "Serial" that is
   compatible with Bluepad32's USB console.
@@ -14,9 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `get` / `set_gap_security_level`: Similar to the `menuconfig` option, but no need to recompile it.
   `get` / `set_gap_periodic_inquiry`: To change the new-connection/reconnection window
 - NINA/AirLift: Add support for "enable/disable new bluetooth connections"
+  - Add "type of controller" in GamepadProperty flags: gamepad, mouse or keyboard
 - Mouse: Added support for:
   - Apple Magic Mouse 2nd gen
   - Logitech M-RCL124 MX Revolution
+  - HP Z5000
+  - Some BK3632-based mice
+  - Updated list of [supported mice][supported_mice]
 
 ## [3.5.0-beta0] - 2022-05-30
 ### New
