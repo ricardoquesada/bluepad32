@@ -74,6 +74,7 @@ limitations under the License.
 
 #define TASK_AUTOFIRE_PRIO (9)
 #define TASK_PUSH_BUTTON_PRIO (8)
+#define TASK_BLINK_LED_PRIO (7)
 
 // Data coming from gamepad axis is different from mouse deltas.
 // They need to be scaled down, otherwise the pointer moves too fast.
@@ -154,6 +155,14 @@ enum {
     CMD_ENHANCED_MODE_COUNT,
 };
 
+enum button_mode {
+    BUTTON_MODE_NORMAL = 0,  // No special mode
+    BUTTON_MODE_MOUSE,       // Gamepad
+    BUTTON_MODE_ENHANCED,    // Enhanced mode
+
+    BUTTON_MODE_COUNT
+};
+
 // --- Structs / Typedefs
 typedef void (*button_cb_t)(int button_idx);
 
@@ -232,13 +241,16 @@ static void maybe_enable_mouse_timers(void);
 
 // Button callbacks, called from a task that is not BT main thread
 static void toggle_combo_enhanced_gamepad_cb(int button_idx);
-static void toggle_combo_mouse_gamepad_cb(int button_idx);
+static void cycle_gamepad_mode_cb(int button_idx);
 static void swap_ports_cb(int button_idx);
 
 // Commands
 static void swap_ports(void);
-static void set_gamepad_mode(int mode);
+static void set_gamepad_mode(emulation_mode_t mode);
 static void get_gamepad_mode(void);
+
+static void set_button_mode(enum button_mode mode);
+static void blink_bt_led(int times);
 
 // --- Consts (ROM)
 
@@ -281,7 +293,7 @@ const struct gpio_config gpio_config_univ2a500 = {
     .leds = {GPIO_NUM_5, GPIO_NUM_12, GPIO_NUM_15},
     .push_buttons = {{
                          .gpio = GPIO_NUM_34,
-                         .callback = toggle_combo_mouse_gamepad_cb,
+                         .callback = cycle_gamepad_mode_cb,
                      },
                      {
                          .gpio = GPIO_NUM_35,
@@ -323,6 +335,10 @@ struct push_button_state g_push_buttons_state[PUSH_BUTTON_MAX] = {0};
 // Autofire
 static bool g_autofire_a_enabled = 0;
 static bool g_autofire_b_enabled = 0;
+
+// Button "mode". Used in Uni2 A500
+static enum button_mode s_button_mode = BUTTON_MODE_NORMAL;
+static int s_bluetooth_led_on;  // Used as a cache
 
 // For the console
 static struct {
@@ -1089,7 +1105,7 @@ static void get_gamepad_mode() {
     }
 }
 
-static void set_gamepad_mode(int mode) {
+static void set_gamepad_mode(emulation_mode_t mode) {
     // Change emulation mode
     int num_devices = 0;
     uni_hid_device_t* d = NULL;
@@ -1106,6 +1122,7 @@ static void set_gamepad_mode(int mode) {
 
     if (d == NULL) {
         loge("unijoysticle: Cannot find a connected gamepad\n");
+        set_button_mode(BUTTON_MODE_NORMAL);
         return;
     }
 
@@ -1131,6 +1148,8 @@ static void set_gamepad_mode(int mode) {
             logi("unijoysticle: Gamepad mode = enhanced\n");
 
             enable_bluetooth(false);
+
+            set_button_mode(BUTTON_MODE_ENHANCED);
             break;
 
         case EMULATION_MODE_COMBO_JOY_MOUSE:
@@ -1140,6 +1159,8 @@ static void set_gamepad_mode(int mode) {
             }
             ins->emu_mode = EMULATION_MODE_COMBO_JOY_MOUSE;
             logi("unijoysticle: Gamepad mode = mouse\n");
+
+            set_button_mode(BUTTON_MODE_MOUSE);
             break;
 
         case EMULATION_MODE_SINGLE_JOY:
@@ -1149,6 +1170,8 @@ static void set_gamepad_mode(int mode) {
             }
             ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
             logi("unijoysticle: Gamepad mode = normal\n");
+
+            set_button_mode(BUTTON_MODE_NORMAL);
             break;
 
         default:
@@ -1169,14 +1192,30 @@ static void toggle_combo_enhanced_gamepad_cb(int button_idx) {
     btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
 }
 
-static void toggle_combo_mouse_gamepad_cb(int button_idx) {
+// Cycles between different gamepad modes: normal -> mouse -> enhanced -> normal -> ...
+static void cycle_gamepad_mode_cb(int button_idx) {
     ARG_UNUSED(button_idx);
-    static bool enabled = false;
 
-    enabled = !enabled;
+    int cmd;
+    int desired_mode = (s_button_mode + 1) % BUTTON_MODE_COUNT;
+
+    switch (desired_mode) {
+        case BUTTON_MODE_NORMAL:
+            cmd = CMD_SET_GAMEPAD_MODE_NORMAL;
+            break;
+        case BUTTON_MODE_MOUSE:
+            cmd = CMD_SET_GAMEPAD_MODE_MOUSE;
+            break;
+        case BUTTON_MODE_ENHANCED:
+            cmd = CMD_SET_GAMEPAD_MODE_ENHANCED;
+            break;
+        default:
+            loge("Unijoysticle: Invalid desired button mode %d\n", desired_mode);
+            return;
+    }
 
     cmd_callback_registration.callback = &cmd_callback;
-    cmd_callback_registration.context = (void*)(enabled ? CMD_SET_GAMEPAD_MODE_MOUSE : CMD_SET_GAMEPAD_MODE_NORMAL);
+    cmd_callback_registration.context = (void*)cmd;
     btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
 }
 
@@ -1226,6 +1265,12 @@ static void swap_ports(void) {
         d = uni_hid_device_get_instance_for_idx(i);
         if (uni_bt_conn_is_connected(&d->conn)) {
             ins = get_unijoysticle_instance(d);
+            
+            // Don't swap if gamepad is in Enahnced mode
+            if (ins->emu_mode == EMULATION_MODE_COMBO_JOY_JOY) {
+                // Should it blink oncea on error?
+                return;
+            }
 
             prev_seat = ins->gamepad_seat;
             new_seat = ~prev_seat & GAMEPAD_SEAT_AB_MASK;
@@ -1241,6 +1286,8 @@ static void swap_ports(void) {
     process_joystick(d, GAMEPAD_SEAT_B, &joy);
 
     maybe_enable_mouse_timers();
+
+    blink_bt_led(1);
 }
 
 static void swap_ports_cb(int button_idx) {
@@ -1317,6 +1364,7 @@ static esp_err_t safe_gpio_set_level(gpio_num_t gpio, int value) {
 
 static void enable_bluetooth(bool enabled) {
     safe_gpio_set_level(g_gpio_config->leds[LED_BT], enabled);
+    s_bluetooth_led_on = enabled;
     uni_bluetooth_enable_new_connections_safe(enabled);
 
     logi("unijoysticle: New gamepad connections %s\n", enabled ? "enabled" : "disabled");
@@ -1354,6 +1402,32 @@ static void maybe_enable_mouse_timers(void) {
         uni_mouse_quadrature_start(UNI_MOUSE_QUADRATURE_PORT_1);
     else
         uni_mouse_quadrature_pause(UNI_MOUSE_QUADRATURE_PORT_1);
+}
+
+static void task_blink_bt_led(void* arg) {
+    int times = (int)arg;
+
+    while (times--) {
+        safe_gpio_set_level(g_gpio_config->leds[LED_BT], 0);
+        vTaskDelay(pdMS_TO_TICKS(100));
+        safe_gpio_set_level(g_gpio_config->leds[LED_BT], 1);
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+    safe_gpio_set_level(g_gpio_config->leds[LED_BT], s_bluetooth_led_on);
+
+    // Kill itself
+    vTaskDelete(NULL);
+}
+
+static void blink_bt_led(int times) {
+    xTaskCreate(task_blink_bt_led, "bp.uni.blink", 512, (void*)times, TASK_BLINK_LED_PRIO, NULL);
+}
+
+static void set_button_mode(enum button_mode mode) {
+    s_button_mode = mode;
+    int times = mode + 1;
+
+    blink_bt_led(times);
 }
 
 //

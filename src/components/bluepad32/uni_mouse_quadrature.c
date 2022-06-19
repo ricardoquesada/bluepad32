@@ -235,10 +235,13 @@ static void process_update(struct quadrature_state* q, int32_t delta) {
         // and we don't divide by 4 here.
         // Alternative: Do not divide the time, and use a constant "tick" time. But if we do so,
         // the movement will have "jank".
-        // Perhaps for small deltas we can have a predefined "unit time"
+        // Perhaps for small deltas we can have a predefined "unit time".
+        //
+        // s_scale_factor is used as a divisor to honor the "scale" name:
+        //  smaller numers make it slower, high number faster
         float max_ticks = 128 * TICKS_PER_80US;
         float delta_f = abs_delta;
-        float units_f = (max_ticks / delta_f) * s_scale_factor;
+        float units_f = max_ticks / (delta_f * s_scale_factor);
         if (units_f < TICKS_PER_80US)
             units_f = TICKS_PER_80US;
         units = roundf(units_f);

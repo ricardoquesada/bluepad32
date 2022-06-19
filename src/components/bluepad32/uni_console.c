@@ -144,7 +144,7 @@ static int get_gap_periodic_inquiry(int argc, char** argv) {
 }
 
 static void register_bluepad32() {
-    mouse_set_args.value = arg_dbl1(NULL, NULL, "<value>", "Global mouse scale factor. Higher means slower");
+    mouse_set_args.value = arg_dbl1(NULL, NULL, "<value>", "Global mouse scale factor. Higher means faster");
     mouse_set_args.end = arg_end(2);
 
     set_gap_security_level_args.value = arg_int1(NULL, NULL, "<value>", "GAP security level");
@@ -173,7 +173,7 @@ static void register_bluepad32() {
         .command = "set_mouse_scale",
         .help =
             "Set global mouse scale factor. Default: 1.0\n"
-            "  Example: set_mouse_scale 1.52",
+            "  Example: set_mouse_scale 0.5",
         .hint = NULL,
         .func = &mouse_set,
         .argtable = &mouse_set_args,

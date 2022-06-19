@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - ???
+### Changed
+- Console: `set_mouse_scale(value)` where a higher value means faster movement.
+  Before it meant "higher value == slower movement"
+- Unijoysticle2 A500:
+  Bluetooth LED is also used as status:
+  Blink 1, 2 or 3 times means gamepad mode: "normal", "mouse" or "enhanced"
+  "Mode button" cycles between those 3 modes, and the BT LED is used as feedback.
+  "Swap button", when succeed, it blinks once. It fails it you try to swap when
+  a gamepad is in enhanced mode.
+
 ## [3.5.0-beta1] - 2022-06-17
 ## New
 - Arduino: Add "Console" class. An alternative to Arduino "Serial" that is
