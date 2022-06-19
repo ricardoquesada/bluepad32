@@ -1265,7 +1265,7 @@ static void swap_ports(void) {
         d = uni_hid_device_get_instance_for_idx(i);
         if (uni_bt_conn_is_connected(&d->conn)) {
             ins = get_unijoysticle_instance(d);
-            
+
             // Don't swap if gamepad is in Enahnced mode
             if (ins->emu_mode == EMULATION_MODE_COMBO_JOY_JOY) {
                 // Should it blink oncea on error?
