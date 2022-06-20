@@ -66,7 +66,7 @@ So far, this is the list of recommended mouse to try:
 * Supports: movement; left, middle, right click
 * Purchase link [eBay][logitech_mrcl124_link]
 
-[logitech_mrcl124_photo]:  https://lh3.googleusercontent.com/pw/AM-JKLXSw5S0ikLdFcm_iMFc2qokRs5HLgPce2RMYgrsXVL-Mr0_1mfZTB13g_IgjViHCYZww25ziYY0_4EsQNRHti70zgGucFDIv-TblZ4oTkDBz6SjZWy6tr-469AemriMdIDrs5kFWikiS0Y1m2gdAvHXSQ=-no
+[logitech_mrcl124_photo]: https://lh3.googleusercontent.com/pw/AM-JKLXCVeFyW_RgL3_Q4nQNqQ-h8i4RDJZSO5B5DZVKTOOoWZC6apzqE3W5FUEHzIaT1BvzsAaqrPXF2j1OukhlyCz8tmJsWcdnDiyFxI2B8rWd-YV0dml6YvT1z2LOBDPyR9GEsys49SevOWyuC4b6x5uxsA=-no
 [logitech_mrcl124_link]: https://www.ebay.com/sch/i.html?_nkw=logitech+m-rcl124
 
 ## HP Z5000
