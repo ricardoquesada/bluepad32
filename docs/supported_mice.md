@@ -79,6 +79,16 @@ So far, this is the list of recommended mouse to try:
 [hp_z5000_link]: https://www.ebay.com/sch/i.html?_nkw=hp+z5000+mouse
 [hp_z5000_photo]: https://lh3.googleusercontent.com/pw/AM-JKLUukVi-cLy3H3DGJ91gXLGtbIPmyw-GCvxX-ZE8196T04ThlaB6dx7wNNn-zWtXJhYz_SemDSmRGotFle4aHex2--cGTOwG8esf7KU9Pqi8vwrFKM_peTs6rQ20XhNJvXuWVctAIw5aJ1IxM8c2B17JSQ=-no
 
+## LogiLink ID0078A
+
+[![LogiLink][logilink_photo]][logilink_link]
+
+* Supports: movement; left, middle, right click
+* Purchase link [Grooves.land][logilink_link]
+
+[logilink_link]: https://www.grooves.land/blogilink-accessories-optische-bluetooth-maus-1000-1600-dpi-pZZa1-2098391786.html
+[logilink_photo]: https://lh3.googleusercontent.com/pw/AM-JKLWiL-biLoRAn40D4_XOOJnwJdyYjk5-TgBIHVn7DWGGp-uY2KMspBD41Okz5T6Au9-QycuR6mmjWY0CoI45xLXA5eiSI4tvDOz_f9M8GlEMGXHiIvQWq0ioBE9Ouop8wIScLxwaY2nS7LN_sFuAEcTBrg=-no
+
 ## Bornd C170B
 
 [![Bornd C170B][bornd_c170b_photo]][bornd_c170b_link]

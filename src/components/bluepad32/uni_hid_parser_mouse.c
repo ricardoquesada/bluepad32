@@ -84,6 +84,8 @@ static const struct mouse_resolution resolutions[] = {
     {0xae24, 0x8618, "BM20X-3.0", 0.2},
     // HP Z5000
     {0x03f0, 0x084c, "HP Bluetooth Mouse Z5000", 0.5},
+    // LogiLink ID0078A
+    {0x046d, 0xb016, "ID0078A", 0.3334},
 
     // No need to add entries where scale is 1
 };
