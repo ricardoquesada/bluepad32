@@ -27,12 +27,16 @@ typedef enum {
     UNI_PROPERTY_TYPE_FLOAT,
 } uni_property_type_t;
 
-extern const char* UNI_PROPERTY_KEY_GAP_LEVEL;
+// Bluepad32-global properties
 extern const char* UNI_PROPERTY_KEY_GAP_INQ_LEN;
+extern const char* UNI_PROPERTY_KEY_GAP_LEVEL;
 extern const char* UNI_PROPERTY_KEY_GAP_MAX_PERIODIC_LEN;
 extern const char* UNI_PROPERTY_KEY_GAP_MIN_PERIODIC_LEN;
-extern const char* UNI_PROPERTY_KEY_MOUSE_EMULATION;
 extern const char* UNI_PROPERTY_KEY_MOUSE_SCALE;
+
+// Specific to Unijoysticle
+extern const char* UNI_PROPERTY_KEY_AUTOFIRE_CPS;
+extern const char* UNI_PROPERTY_KEY_MOUSE_EMULATION;
 
 typedef union {
     uint8_t u8;

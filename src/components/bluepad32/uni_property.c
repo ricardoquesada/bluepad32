@@ -23,13 +23,18 @@ limitations under the License.
 #include "sdkconfig.h"
 
 // Globals
+// Keep them sorted
 // Keys name should not be longer than NVS_KEY_NAME_MAX_SIZE (16 chars).
-const char* UNI_PROPERTY_KEY_GAP_LEVEL = "uni.gap.level";
-const char* UNI_PROPERTY_KEY_GAP_INQ_LEN = "uni.gap.inq_len";
-const char* UNI_PROPERTY_KEY_GAP_MAX_PERIODIC_LEN = "uni.gap.max_len";
-const char* UNI_PROPERTY_KEY_GAP_MIN_PERIODIC_LEN = "uni.gap.min_len";
-const char* UNI_PROPERTY_KEY_MOUSE_EMULATION = "uni.mouse.emu";
-const char* UNI_PROPERTY_KEY_MOUSE_SCALE = "uni.mouse.scale";
+const char* UNI_PROPERTY_KEY_GAP_INQ_LEN = "bp.gap.inq_len";
+const char* UNI_PROPERTY_KEY_GAP_LEVEL = "bp.gap.level";
+const char* UNI_PROPERTY_KEY_GAP_MAX_PERIODIC_LEN = "bp.gap.max_len";
+const char* UNI_PROPERTY_KEY_GAP_MIN_PERIODIC_LEN = "bp.gap.min_len";
+const char* UNI_PROPERTY_KEY_MOUSE_SCALE = "bp.mouse.scale";
+
+// Unijoysticle only
+// Move them to the Unijoysticle file.
+const char* UNI_PROPERTY_KEY_AUTOFIRE_CPS = "bp.uni.autofire";
+const char* UNI_PROPERTY_KEY_MOUSE_EMULATION = "bp.uni.mouseemu";
 
 // TODO: Implement "property interface" instead of doing #ifdef
 

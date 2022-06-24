@@ -34,7 +34,7 @@ void uni_property_nvs_set(const char* key, uni_property_type_t type, uni_propert
 
     err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &nvs_handle);
     if (err != ESP_OK) {
-        loge("Could not open readwrite NVS storage, key: %s\n", key);
+        loge("Could not open readwrite NVS storage, key: %s, err=%#x\n", key, err);
         return;
     }
 
@@ -51,15 +51,14 @@ void uni_property_nvs_set(const char* key, uni_property_type_t type, uni_propert
             break;
     }
 
-    err = nvs_set_u32(nvs_handle, key, *float_alias);
     if (err != ESP_OK) {
-        loge("Could not store '%s' in NVS\n", key);
+        loge("Could not store '%s' in NVS, err=%#x\n", key, err);
         goto out;
     }
 
     err = nvs_commit(nvs_handle);
     if (err != ESP_OK) {
-        loge("Could not commit '%s' in NVS\n", key);
+        loge("Could not commit '%s' in NVS, err=%#x\n", key, err);
     }
 
 out:

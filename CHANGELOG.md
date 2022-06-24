@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased] - ???
+### New
+- Mouse: Added support for:
+  - LogiLink ID0078A
+- Unijoysticle console commands: Be able to change the autofire "click-per-second" with:
+  - `set_autofire_cps` and `get_autofire_cps`
+
 ### Changed
 - Console: `set_mouse_scale(value)` where a higher value means faster movement.
   Before it meant "higher value == slower movement"

@@ -67,10 +67,11 @@ limitations under the License.
 //  Competition Pro:     62 cps
 // One "Click-per-second" means that there is one "click" +  "release" in one second
 // So the frequency must be doubled.
-#define AUTOFIRE_FREQ_QUICKGUN_MS (1000 / 7 / 2)          // ~71ms, ~4 frames
-#define AUTOFIRE_FREQ_ZIPSTICK_MS (1000 / 13 / 2)         // ~38ms, ~2 frames
-#define AUTOFIRE_FREQ_QUICKSHOT_MS (1000 / 29 / 2)        // ~17ms, ~1 frame
-#define AUTOFIRE_FREQ_COMPETITION_PRO_MS (1000 / 62 / 2)  // ~8ms, ~1/2 frame
+#define AUTOFIRE_CPS_QUICKGUN (7)          // ~71ms, ~4 frames
+#define AUTOFIRE_CPS_ZIPSTICK (13)         // ~38ms, ~2 frames
+#define AUTOFIRE_CPS_QUICKSHOT (29)        // ~17ms, ~1 frame
+#define AUTOFIRE_CPS_COMPETITION_PRO (62)  // ~8ms, ~1/2 frame
+#define AUTOFIRE_CPS_DEFAULT AUTOFIRE_CPS_QUICKGUN
 
 #define TASK_AUTOFIRE_PRIO (9)
 #define TASK_PUSH_BUTTON_PRIO (8)
@@ -112,7 +113,8 @@ enum {
     EVENT_BUTTON_1 = PUSH_BUTTON_1,
 
     // Autofire group
-    EVENT_AUTOFIRE = 0,
+    EVENT_AUTOFIRE_TRIGGER = 0,
+    EVENT_AUTOFIRE_CONFIG = 1,
 };
 
 typedef enum {
@@ -232,8 +234,8 @@ static void handle_event_button(int button_idx);
 // GPIO Interrupt handlers
 static void IRAM_ATTR gpio_isr_handler_button(void* arg);
 
-static void pushbutton_event_loop(void* arg);
-static void auto_fire_loop(void* arg);
+static void pushbutton_event_task(void* arg);
+static void auto_fire_task(void* arg);
 
 static esp_err_t safe_gpio_set_level(gpio_num_t gpio, int value);
 static void enable_bluetooth(bool enabled);
@@ -267,7 +269,6 @@ const struct gpio_config gpio_config_univ2 = {
                          .gpio = -1,
                          .callback = NULL,
                      }},
-    .autofire_freq_ms = AUTOFIRE_FREQ_QUICKGUN_MS,
 };
 
 // Unijoysticle v2+: SMD version
@@ -283,7 +284,6 @@ const struct gpio_config gpio_config_univ2plus = {
                          .gpio = -1,
                          .callback = NULL,
                      }},
-    .autofire_freq_ms = AUTOFIRE_FREQ_QUICKGUN_MS,
 };
 
 // Unijoysticle v2 A500
@@ -299,7 +299,6 @@ const struct gpio_config gpio_config_univ2a500 = {
                          .gpio = GPIO_NUM_35,
                          .callback = swap_ports_cb,
                      }},
-    .autofire_freq_ms = AUTOFIRE_FREQ_QUICKGUN_MS,
 };
 
 // Arananet's Unijoy2Amiga
@@ -318,7 +317,6 @@ const struct gpio_config gpio_config_univ2singleport = {
                          .gpio = -1,
                          .callback = NULL,
                      }},
-    .autofire_freq_ms = AUTOFIRE_FREQ_QUICKGUN_MS,
 };
 
 static const bd_addr_t zero_addr = {0, 0, 0, 0, 0, 0};
@@ -328,7 +326,7 @@ static const bd_addr_t zero_addr = {0, 0, 0, 0, 0, 0};
 const struct gpio_config* g_gpio_config = NULL;
 
 static EventGroupHandle_t g_event_group;
-static EventGroupHandle_t g_auto_fire_group;
+static EventGroupHandle_t g_autofire_group;
 
 struct push_button_state g_push_buttons_state[PUSH_BUTTON_MAX] = {0};
 
@@ -350,6 +348,11 @@ static struct {
     struct arg_str* value;
     struct arg_end* end;
 } set_mouse_emulation_args;
+
+static struct {
+    struct arg_int* value;
+    struct arg_end* end;
+} set_autofire_cps_args;
 
 static btstack_context_callback_registration_t cmd_callback_registration;
 
@@ -440,10 +443,10 @@ static void unijoysticle_init(int argc, const char** argv) {
 
     // Split "events" from "auto_fire", since auto-fire is an on-going event.
     g_event_group = xEventGroupCreate();
-    xTaskCreate(pushbutton_event_loop, "bp.uni.button", 2048, NULL, TASK_PUSH_BUTTON_PRIO, NULL);
+    xTaskCreate(pushbutton_event_task, "bp.uni.button", 2048, NULL, TASK_PUSH_BUTTON_PRIO, NULL);
 
-    g_auto_fire_group = xEventGroupCreate();
-    xTaskCreate(auto_fire_loop, "bp.uni.autofire", 2048, NULL, TASK_AUTOFIRE_PRIO, NULL);
+    g_autofire_group = xEventGroupCreate();
+    xTaskCreate(auto_fire_task, "bp.uni.autofire", 2048, NULL, TASK_AUTOFIRE_PRIO, NULL);
     // xTaskCreatePinnedToCore(event_loop, "event_loop", 2048, NULL, portPRIVILEGE_BIT, NULL, 1);
 }
 
@@ -773,6 +776,24 @@ static int get_mouse_emulation() {
     return ret;
 }
 
+static void set_autofire_cps_to_nvs(int cps) {
+    uni_property_value_t value;
+    value.u8 = cps;
+
+    uni_property_set(UNI_PROPERTY_KEY_AUTOFIRE_CPS, UNI_PROPERTY_TYPE_U8, value);
+    logi("Done\n");
+}
+
+static int get_autofire_cps_from_nvs() {
+    uni_property_value_t value;
+    uni_property_value_t def;
+
+    def.u8 = AUTOFIRE_CPS_DEFAULT;
+
+    value = uni_property_get(UNI_PROPERTY_KEY_AUTOFIRE_CPS, UNI_PROPERTY_TYPE_U8, def);
+    return value.u8;
+}
+
 static board_model_t get_board_model() {
 #if PLAT_UNIJOYSTICLE_SINGLE_PORT
     // Legacy: Only needed for Arananet's Unijoy2Amiga.
@@ -877,7 +898,7 @@ static void process_joystick(uni_hid_device_t* d, uni_gamepad_seat_t seat, const
     }
 
     if (g_autofire_a_enabled || g_autofire_b_enabled) {
-        xEventGroupSetBits(g_auto_fire_group, BIT(EVENT_AUTOFIRE));
+        xEventGroupSetBits(g_autofire_group, BIT(EVENT_AUTOFIRE_TRIGGER));
     }
 }
 
@@ -942,50 +963,59 @@ static void joy_update_port(const uni_joystick_t* joy, const gpio_num_t* gpios) 
     safe_gpio_set_level(gpios[6], !!joy->button3);
 }
 
-static void pushbutton_event_loop(void* arg) {
-    // timeout of 10s
-    const TickType_t xTicksToWait = 10000 / portTICK_PERIOD_MS;
+static void pushbutton_event_task(void* arg) {
+    // timeout of 100s
+    const TickType_t xTicksToWait = pdMS_TO_TICKS(100000);
     while (1) {
-        EventBits_t uxBits = xEventGroupWaitBits(g_event_group, BIT(EVENT_BUTTON_0) | BIT(EVENT_BUTTON_1), pdTRUE,
-                                                 pdFALSE, xTicksToWait);
+        EventBits_t bits = xEventGroupWaitBits(g_event_group, BIT(EVENT_BUTTON_0) | BIT(EVENT_BUTTON_1), pdTRUE,
+                                               pdFALSE, xTicksToWait);
 
         // timeout ?
-        if (uxBits == 0)
+        if (bits == 0)
             continue;
 
-        if (uxBits & BIT(EVENT_BUTTON_0))
+        if (bits & BIT(EVENT_BUTTON_0))
             handle_event_button(EVENT_BUTTON_0);
 
-        if (uxBits & BIT(EVENT_BUTTON_1))
+        if (bits & BIT(EVENT_BUTTON_1))
             handle_event_button(EVENT_BUTTON_1);
     }
 }
 
-static void auto_fire_loop(void* arg) {
-    // timeout of 10s
-    const TickType_t xTicksToWait = 10000 / portTICK_PERIOD_MS;
-    const TickType_t delayTicks = g_gpio_config->autofire_freq_ms / portTICK_PERIOD_MS;
+static void auto_fire_task(void* arg) {
+    // timeout of 100s
+    const TickType_t timeout = pdMS_TO_TICKS(100000);
+    int ms = 1000 / get_autofire_cps_from_nvs() / 2;
+    TickType_t delay_ticks = pdMS_TO_TICKS(ms);
     while (1) {
-        EventBits_t uxBits = xEventGroupWaitBits(g_auto_fire_group, BIT(EVENT_AUTOFIRE), pdTRUE, pdFALSE, xTicksToWait);
+        EventBits_t bits = xEventGroupWaitBits(
+            g_autofire_group, BIT(EVENT_AUTOFIRE_TRIGGER) | BIT(EVENT_AUTOFIRE_CONFIG), pdTRUE, pdFALSE, timeout);
 
         // timeout ?
-        if (uxBits == 0)
+        if (bits == 0)
             continue;
 
-        while (g_autofire_a_enabled || g_autofire_b_enabled) {
-            if (g_autofire_a_enabled)
-                safe_gpio_set_level(g_gpio_config->port_a[JOY_FIRE], 1);
-            if (g_autofire_b_enabled)
-                safe_gpio_set_level(g_gpio_config->port_b[JOY_FIRE], 1);
+        if (bits & BIT(EVENT_AUTOFIRE_CONFIG)) {
+            ms = 1000 / get_autofire_cps_from_nvs() / 2;
+            delay_ticks = pdMS_TO_TICKS(ms);
+        }
 
-            vTaskDelay(delayTicks);
+        if (bits & BIT(EVENT_AUTOFIRE_TRIGGER)) {
+            while (g_autofire_a_enabled || g_autofire_b_enabled) {
+                if (g_autofire_a_enabled)
+                    safe_gpio_set_level(g_gpio_config->port_a[JOY_FIRE], 1);
+                if (g_autofire_b_enabled)
+                    safe_gpio_set_level(g_gpio_config->port_b[JOY_FIRE], 1);
 
-            if (g_autofire_a_enabled)
-                safe_gpio_set_level(g_gpio_config->port_a[JOY_FIRE], 0);
-            if (g_autofire_b_enabled)
-                safe_gpio_set_level(g_gpio_config->port_b[JOY_FIRE], 0);
+                vTaskDelay(delay_ticks);
 
-            vTaskDelay(delayTicks);
+                if (g_autofire_a_enabled)
+                    safe_gpio_set_level(g_gpio_config->port_a[JOY_FIRE], 0);
+                if (g_autofire_b_enabled)
+                    safe_gpio_set_level(g_gpio_config->port_b[JOY_FIRE], 0);
+
+                vTaskDelay(delay_ticks);
+            }
         }
     }
 }
@@ -1355,6 +1385,28 @@ static int cmd_get_mouse_emulation(int argc, char** argv) {
     return 0;
 }
 
+static int cmd_set_autofire_cps(int argc, char** argv) {
+    int nerrors = arg_parse(argc, argv, (void**)&set_autofire_cps_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, set_autofire_cps_args.end, argv[0]);
+        return 1;
+    }
+    int cps = set_autofire_cps_args.value->ival[0];
+    set_autofire_cps_to_nvs(cps);
+
+    logi("New autofire cps: %d\n", cps);
+
+    xEventGroupSetBits(g_autofire_group, BIT(EVENT_AUTOFIRE_CONFIG));
+    return 0;
+}
+
+static int cmd_get_autofire_cps(int argc, char** argv) {
+    int cps = get_autofire_cps_from_nvs();
+
+    logi("%d\n", cps);
+    return 0;
+}
+
 // In some boards, not all GPIOs are set. If so, don't try change their values.
 static esp_err_t safe_gpio_set_level(gpio_num_t gpio, int value) {
     if (gpio == -1)
@@ -1440,6 +1492,9 @@ void uni_platform_unijoysticle_register_cmds(void) {
     set_mouse_emulation_args.value = arg_str1(NULL, NULL, "<emulation>", "valid options: 'amiga', 'atarist' or 'auto'");
     set_mouse_emulation_args.end = arg_end(2);
 
+    set_autofire_cps_args.value = arg_int1(NULL, NULL, "<cps>", "clicks per second (cps)");
+    set_autofire_cps_args.end = arg_end(2);
+
     const esp_console_cmd_t swap_ports = {
         .command = "swap_ports",
         .help = "Swaps joystick ports",
@@ -1484,12 +1539,32 @@ void uni_platform_unijoysticle_register_cmds(void) {
         .func = &cmd_get_mouse_emulation,
     };
 
+    const esp_console_cmd_t set_autofire_cps = {
+        .command = "set_autofire_cps",
+        .help =
+            "Sets the autofire 'clicks per second' (cps)\n"
+            "Default: 7",
+        .hint = NULL,
+        .func = &cmd_set_autofire_cps,
+        .argtable = &set_autofire_cps_args,
+    };
+
+    const esp_console_cmd_t get_autofire_cps = {
+        .command = "get_autofire_cps",
+        .help = "Returns the autofire 'clicks per second' (cps)",
+        .hint = NULL,
+        .func = &cmd_get_autofire_cps,
+    };
+
     ESP_ERROR_CHECK(esp_console_cmd_register(&swap_ports));
     ESP_ERROR_CHECK(esp_console_cmd_register(&set_gamepad_mode));
     ESP_ERROR_CHECK(esp_console_cmd_register(&get_gamepad_mode));
 
     ESP_ERROR_CHECK(esp_console_cmd_register(&set_mouse_emulation));
     ESP_ERROR_CHECK(esp_console_cmd_register(&get_mouse_emulation));
+
+    ESP_ERROR_CHECK(esp_console_cmd_register(&set_autofire_cps));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&get_autofire_cps));
 }
 
 struct uni_platform* uni_platform_unijoysticle_create(void) {
