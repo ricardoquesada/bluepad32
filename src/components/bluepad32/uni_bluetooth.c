@@ -658,15 +658,17 @@ static void bluetooth_del_keys_callback(void* context) {
 
 static void enable_new_connections_callback(void* context) {
     bool enabled = (bool)context;
-    if (accept_incoming_connections == enabled)
-        return;
 
-    accept_incoming_connections = enabled;
+    if (accept_incoming_connections != enabled) {
+        accept_incoming_connections = enabled;
 
-    if (enabled)
-        start_scan();
-    else
-        stop_scan();
+        if (enabled)
+            start_scan();
+        else
+            stop_scan();
+    }
+
+    uni_get_platform()->on_oob_event(UNI_PLATFORM_OOB_BLUETOOTH_ENABLED, (void*)enabled);
 }
 
 static uint8_t start_scan(void) {

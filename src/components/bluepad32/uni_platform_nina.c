@@ -952,10 +952,9 @@ static void nina_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
     xSemaphoreGive(_gamepad_mutex);
 }
 
-static void nina_on_device_oob_event(uni_hid_device_t* d, uni_platform_oob_event_t event) {
-    if (event != UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON)
-        return;
-
+static void nina_on_oob_event(uni_platform_oob_event_t event, void* data) {
+    ARG_UNUSED(event);
+    ARG_UNUSED(data);
     // TODO: Do something ?
 }
 
@@ -975,17 +974,17 @@ static nina_instance_t* get_nina_instance(uni_hid_device_t* d) {
 // Entry Point
 //
 struct uni_platform* uni_platform_nina_create(void) {
-    static struct uni_platform plat;
-
-    plat.name = "Arduino NINA";
-    plat.init = nina_init;
-    plat.on_init_complete = nina_on_init_complete;
-    plat.on_device_connected = nina_on_device_connected;
-    plat.on_device_disconnected = nina_on_device_disconnected;
-    plat.on_device_ready = nina_on_device_ready;
-    plat.on_device_oob_event = nina_on_device_oob_event;
-    plat.on_gamepad_data = nina_on_gamepad_data;
-    plat.get_property = nina_get_property;
+    static struct uni_platform plat = {
+        .name = "Arduino NINA",
+        .init = nina_init,
+        .on_init_complete = nina_on_init_complete,
+        .on_device_connected = nina_on_device_connected,
+        .on_device_disconnected = nina_on_device_disconnected,
+        .on_device_ready = nina_on_device_ready,
+        .on_oob_event = nina_on_oob_event,
+        .on_gamepad_data = nina_on_gamepad_data,
+        .get_property = nina_get_property,
+    };
 
     return &plat;
 }
@@ -999,7 +998,7 @@ struct uni_platform* uni_platform_airlift_create(void) {
         .on_device_connected = nina_on_device_connected,
         .on_device_disconnected = nina_on_device_disconnected,
         .on_device_ready = nina_on_device_ready,
-        .on_device_oob_event = nina_on_device_oob_event,
+        .on_oob_event = nina_on_oob_event,
         .on_gamepad_data = nina_on_gamepad_data,
         .get_property = nina_get_property,
     };

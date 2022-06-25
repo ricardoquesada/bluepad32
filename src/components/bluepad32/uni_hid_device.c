@@ -748,7 +748,7 @@ static void process_misc_button_system(uni_hid_device_t* d) {
 
     d->misc_button_wait_release |= MISC_BUTTON_SYSTEM;
 
-    uni_get_platform()->on_device_oob_event(d, UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON);
+    uni_get_platform()->on_oob_event(UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON, d);
 
     if (requires_delay) {
         d->misc_button_wait_delay |= MISC_BUTTON_SYSTEM;

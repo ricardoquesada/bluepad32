@@ -8,8 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### New
 - Mouse: Added support for:
   - LogiLink ID0078A
-- Unijoysticle console commands: Be able to change the autofire "click-per-second" with:
-  - `set_autofire_cps` and `get_autofire_cps`
+- Unijoysticle console commands:
+  - Be able to change the autofire "click-per-second" with:
+    `set_autofire_cps` and `get_autofire_cps`:
+  - `Be able to enable/disable incoming Bluetooth connections with:
+    `set_bluetooth_enabled`
 
 ### Changed
 - Console: `set_mouse_scale(value)` where a higher value means faster movement.
@@ -20,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "Mode button" cycles between those 3 modes, and the BT LED is used as feedback.
   "Swap button", when succeed, it blinks once. It fails it you try to swap when
   a gamepad is in enhanced mode.
+- Platform: renamed `on_device_oob_event` to `on_oob_event`.
+  Bluetooth enabled/disabled OOB event is sent ot the platforms.
 
 ## [3.5.0-beta1] - 2022-06-17
 ## New

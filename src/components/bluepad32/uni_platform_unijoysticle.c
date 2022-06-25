@@ -41,6 +41,7 @@ limitations under the License.
 #include "uni_hid_device.h"
 #include "uni_joystick.h"
 #include "uni_mouse_quadrature.h"
+#include "uni_platform.h"
 #include "uni_property.h"
 
 // --- Defines / Enums
@@ -238,7 +239,6 @@ static void pushbutton_event_task(void* arg);
 static void auto_fire_task(void* arg);
 
 static esp_err_t safe_gpio_set_level(gpio_num_t gpio, int value);
-static void enable_bluetooth(bool enabled);
 static void maybe_enable_mouse_timers(void);
 
 // Button callbacks, called from a task that is not BT main thread
@@ -505,7 +505,7 @@ static void unijoysticle_on_init_complete(void) {
     uni_mouse_quadrature_setup_port(UNI_MOUSE_QUADRATURE_PORT_0, port_a_x, port_a_y);
     uni_mouse_quadrature_setup_port(UNI_MOUSE_QUADRATURE_PORT_1, port_b_x, port_b_y);
 
-    enable_bluetooth(true);
+    safe_gpio_set_level(g_gpio_config->leds[LED_BT], 1);
 }
 
 static void unijoysticle_on_device_connected(uni_hid_device_t* d) {
@@ -521,7 +521,7 @@ static void unijoysticle_on_device_connected(uni_hid_device_t* d) {
     }
 
     if (connected == 2) {
-        enable_bluetooth(false);
+        uni_bluetooth_enable_new_connections_safe(false);
     }
 }
 
@@ -544,7 +544,7 @@ static void unijoysticle_on_device_disconnected(uni_hid_device_t* d) {
     }
 
     // Regarless of how many connections are active, enable Bluetooth connections.
-    enable_bluetooth(true);
+    uni_bluetooth_enable_new_connections_safe(true);
 
     maybe_enable_mouse_timers();
 }
@@ -675,7 +675,24 @@ static int32_t unijoysticle_get_property(uni_platform_property_t key) {
     return !gpio_get_level(g_gpio_config->push_buttons[PUSH_BUTTON_0].gpio);
 }
 
-static void unijoysticle_on_device_oob_event(uni_hid_device_t* d, uni_platform_oob_event_t event) {
+static void unijoysticle_on_oob_event(uni_platform_oob_event_t event, void* data) {
+    if (event == UNI_PLATFORM_OOB_BLUETOOTH_ENABLED) {
+        // Turn on/off the BT led
+        bool enabled = (bool)data;
+        safe_gpio_set_level(g_gpio_config->leds[LED_BT], enabled);
+        s_bluetooth_led_on = enabled;
+
+        logi("unijoysticle: New gamepad connections %s\n", enabled ? "enabled" : "disabled");
+        return;
+    }
+
+    if (event != UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON) {
+        logi("unijoysticle: Unsupported OOB event: %d\n", event);
+        return;
+    }
+
+    uni_hid_device_t* d = data;
+
     if (d == NULL) {
         loge("ERROR: unijoysticle_on_device_gamepad_event: Invalid NULL device\n");
         return;
@@ -715,7 +732,7 @@ static void unijoysticle_on_device_oob_event(uni_hid_device_t* d, uni_platform_o
         if (uni_bt_conn_is_connected(&tmp_d->conn) && tmp_ins->gamepad_seat != GAMEPAD_SEAT_NONE &&
             tmp_ins->emu_mode == EMULATION_MODE_SINGLE_JOY &&
             ((tmp_d->gamepad.misc_buttons & MISC_BUTTON_SYSTEM) == 0)) {
-            logi("unijoysticle: two swap ports press 'system' button on both gamepads at the same time\n");
+            logi("unijoysticle: to swap ports press 'system' button on both gamepads at the same time\n");
             uni_hid_device_dump_all();
             return;
         }
@@ -1177,7 +1194,7 @@ static void set_gamepad_mode(emulation_mode_t mode) {
             set_gamepad_seat(d, GAMEPAD_SEAT_A | GAMEPAD_SEAT_B);
             logi("unijoysticle: Gamepad mode = enhanced\n");
 
-            enable_bluetooth(false);
+            uni_bluetooth_enable_new_connections_safe(false);
 
             set_button_mode(BUTTON_MODE_ENHANCED);
             break;
@@ -1185,7 +1202,7 @@ static void set_gamepad_mode(emulation_mode_t mode) {
         case EMULATION_MODE_COMBO_JOY_MOUSE:
             if (ins->emu_mode == EMULATION_MODE_COMBO_JOY_JOY) {
                 set_gamepad_seat(d, ins->prev_gamepad_seat);
-                enable_bluetooth(true);
+                uni_bluetooth_enable_new_connections_safe(true);
             }
             ins->emu_mode = EMULATION_MODE_COMBO_JOY_MOUSE;
             logi("unijoysticle: Gamepad mode = mouse\n");
@@ -1196,7 +1213,7 @@ static void set_gamepad_mode(emulation_mode_t mode) {
         case EMULATION_MODE_SINGLE_JOY:
             if (ins->emu_mode == EMULATION_MODE_COMBO_JOY_JOY) {
                 set_gamepad_seat(d, ins->prev_gamepad_seat);
-                enable_bluetooth(true);
+                uni_bluetooth_enable_new_connections_safe(true);
             }
             ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
             logi("unijoysticle: Gamepad mode = normal\n");
@@ -1414,14 +1431,6 @@ static esp_err_t safe_gpio_set_level(gpio_num_t gpio, int value) {
     return gpio_set_level(gpio, value);
 }
 
-static void enable_bluetooth(bool enabled) {
-    safe_gpio_set_level(g_gpio_config->leds[LED_BT], enabled);
-    s_bluetooth_led_on = enabled;
-    uni_bluetooth_enable_new_connections_safe(enabled);
-
-    logi("unijoysticle: New gamepad connections %s\n", enabled ? "enabled" : "disabled");
-}
-
 static void maybe_enable_mouse_timers(void) {
     // Mouse support requires that the mouse timers are enabled.
     // Only enable them when needed
@@ -1575,7 +1584,7 @@ struct uni_platform* uni_platform_unijoysticle_create(void) {
         .on_device_connected = unijoysticle_on_device_connected,
         .on_device_disconnected = unijoysticle_on_device_disconnected,
         .on_device_ready = unijoysticle_on_device_ready,
-        .on_device_oob_event = unijoysticle_on_device_oob_event,
+        .on_oob_event = unijoysticle_on_oob_event,
         .on_gamepad_data = unijoysticle_on_gamepad_data,
         .get_property = unijoysticle_get_property,
         .device_dump = unijoysticle_device_dump,

@@ -24,6 +24,7 @@ limitations under the License.
 
 #include "sdkconfig.h"
 #include "uni_bluetooth.h"
+#include "uni_common.h"
 #include "uni_config.h"
 #include "uni_debug.h"
 #include "uni_gamepad.h"
@@ -224,10 +225,9 @@ static void arduino_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
     xSemaphoreGive(_gamepad_mutex);
 }
 
-static void arduino_on_device_oob_event(uni_hid_device_t* d, uni_platform_oob_event_t event) {
-    if (event != UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON)
-        return;
-
+static void arduino_on_device_oob_event(uni_platform_oob_event_t event, void* data) {
+    ARG_UNUSED(event);
+    ARG_UNUSED(data);
     // TODO: Do something ?
 }
 
@@ -339,7 +339,7 @@ struct uni_platform* uni_platform_arduino_create(void) {
         .on_device_connected = arduino_on_device_connected,
         .on_device_disconnected = arduino_on_device_disconnected,
         .on_device_ready = arduino_on_device_ready,
-        .on_device_oob_event = arduino_on_device_oob_event,
+        .on_oob_event = arduino_on_device_oob_event,
         .on_gamepad_data = arduino_on_gamepad_data,
         .get_property = arduino_get_property,
     };

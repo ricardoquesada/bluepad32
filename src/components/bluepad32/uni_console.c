@@ -28,6 +28,7 @@ limitations under the License.
 #include <nvs_flash.h>
 
 #include "sdkconfig.h"
+#include "uni_bluetooth.h"
 #include "uni_bt_setup.h"
 #include "uni_debug.h"
 #include "uni_hid_device.h"
@@ -57,6 +58,11 @@ static struct {
     struct arg_int* len;
     struct arg_end* end;
 } set_gap_periodic_inquiry_args;
+
+static struct {
+    struct arg_int* enabled;
+    struct arg_end* end;
+} set_bluetooth_enabled_args;
 
 static int devices_info(int argc, char** argv) {
     /* FIXME: Should be called from btstack thread */
@@ -143,6 +149,20 @@ static int get_gap_periodic_inquiry(int argc, char** argv) {
     return 0;
 }
 
+static int set_bluetooth_enabled(int argc, char** argv) {
+    int enabled;
+
+    int nerrors = arg_parse(argc, argv, (void**)&set_bluetooth_enabled_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, set_bluetooth_enabled_args.end, argv[0]);
+        return 1;
+    }
+
+    enabled = set_bluetooth_enabled_args.enabled->ival[0];
+    uni_bluetooth_enable_new_connections_safe(!!enabled);
+    return 0;
+}
+
 static void register_bluepad32() {
     mouse_set_args.value = arg_dbl1(NULL, NULL, "<value>", "Global mouse scale factor. Higher means faster");
     mouse_set_args.end = arg_end(2);
@@ -155,6 +175,10 @@ static void register_bluepad32() {
     set_gap_periodic_inquiry_args.len = arg_int1(NULL, NULL, "<len>", "Inquiry length. Must be less than <min>");
     set_gap_periodic_inquiry_args.end = arg_end(4);
 
+    set_bluetooth_enabled_args.enabled =
+        arg_int1(NULL, NULL, "<0 | 1>", "Whether to enable Bluetooth incoming connections");
+    set_bluetooth_enabled_args.end = arg_end(2);
+
     const esp_console_cmd_t cmd_devices = {
         .command = "devices",
         .help = "Get information about connected devices",
@@ -162,14 +186,14 @@ static void register_bluepad32() {
         .func = &devices_info,
     };
 
-    const esp_console_cmd_t cmd_mouse_get = {
+    const esp_console_cmd_t cmd_get_mouse = {
         .command = "get_mouse_scale",
         .help = "Get global mouse scale factor",
         .hint = NULL,
         .func = &mouse_get,
     };
 
-    const esp_console_cmd_t cmd_mouse_set = {
+    const esp_console_cmd_t cmd_set_mouse = {
         .command = "set_mouse_scale",
         .help =
             "Set global mouse scale factor. Default: 1.0\n"
@@ -215,13 +239,22 @@ static void register_bluepad32() {
         .func = &get_gap_periodic_inquiry,
     };
 
-    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_devices));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_mouse_get));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_mouse_set));
+    const esp_console_cmd_t cmd_set_bluetooth_enabled = {
+        .command = "set_bluetooth_enabled",
+        .help = "Set Bluetooth incoming connections enabled",
+        .hint = NULL,
+        .func = &set_bluetooth_enabled,
+        .argtable = &set_bluetooth_enabled_args,
+    };
+
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_set_gap_security_level));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_get_gap_security_level));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_set_gap_periodic_inquiry));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_get_gap_periodic_inquiry));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_devices));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_get_mouse));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_set_mouse));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_set_bluetooth_enabled));
 }
 
 void uni_console_init(void) {
