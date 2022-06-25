@@ -504,8 +504,6 @@ static void unijoysticle_on_init_complete(void) {
     uni_mouse_quadrature_init(QUADRATURE_MOUSE_TASK_CPU);
     uni_mouse_quadrature_setup_port(UNI_MOUSE_QUADRATURE_PORT_0, port_a_x, port_a_y);
     uni_mouse_quadrature_setup_port(UNI_MOUSE_QUADRATURE_PORT_1, port_b_x, port_b_y);
-
-    safe_gpio_set_level(g_gpio_config->leds[LED_BT], 1);
 }
 
 static void unijoysticle_on_device_connected(uni_hid_device_t* d) {

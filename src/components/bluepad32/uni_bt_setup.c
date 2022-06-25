@@ -126,6 +126,7 @@ static void setup_call_next_fn(void) {
             loge("Failed to start period inquiry, error=0x%02x\n", status);
 
         uni_get_platform()->on_init_complete();
+        uni_get_platform()->on_oob_event(UNI_PLATFORM_OOB_BLUETOOTH_ENABLED, (void*)true);
     }
 }
 
