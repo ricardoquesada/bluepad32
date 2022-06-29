@@ -17,6 +17,8 @@ Code contributors:
     - Explicitly require Stream mode to DS4 gamepads
   - Sol Huebner:
     - Fixes in ArduinoGamepad code
+  - Gresoe:
+    - Added Wii Balance Board support for Wii driver
 
 
 People who contributed with ideas and/or testing:

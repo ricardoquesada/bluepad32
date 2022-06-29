@@ -328,6 +328,7 @@ static void process_req_data_read_register(uni_hid_device_t* d, const uint8_t* r
 }
 
 static void process_req_data_read_calibration_data(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
+    ARG_UNUSED(len);
     uint8_t se = report[3];  // SE: size and error
     uint8_t s = se >> 4;     // size
     uint8_t e = se & 0x0f;   // error
@@ -340,8 +341,8 @@ static void process_req_data_read_calibration_data(uni_hid_device_t* d, const ui
 
     // We are expecting to read 16 bytes from 0xXX0024
     if (s == 15 && report[4] == 0x00 && report[5] == 0x24) {
-        loge("Wii: balance board read calibration\n");
-        uint8_t* cal = report + 6;
+        logi("Wii: balance board read calibration\n");
+        const uint8_t* cal = report + 6;
         ins->balance_board_calibration.kg0.tr = (cal[0] << 8) + cal[1];  // Top Right 0kg
         ins->balance_board_calibration.kg0.br = (cal[2] << 8) + cal[3];  // Bottom Right 0kg
         ins->balance_board_calibration.kg0.tl = (cal[4] << 8) + cal[5];  // Top Left 0kg
@@ -358,6 +359,7 @@ static void process_req_data_read_calibration_data(uni_hid_device_t* d, const ui
 }
 
 static void process_req_data_read_calibration_data2(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
+    ARG_UNUSED(len);
     uint8_t se = report[3];  // SE: size and error
     uint8_t s = se >> 4;     // size
     uint8_t e = se & 0x0f;   // error
@@ -370,8 +372,8 @@ static void process_req_data_read_calibration_data2(uni_hid_device_t* d, const u
 
     // We are expecting to read 8 bytes from 0xXX0034
     if (s == 7 && report[4] == 0x00 && report[5] == 0x34) {
-        loge("Wii: balance board read calibration 2\n");
-        uint8_t* cal = report + 6;
+        logi("Wii: balance board read calibration 2\n");
+        const uint8_t* cal = report + 6;
         ins->balance_board_calibration.kg34.tr = (cal[0] << 8) + cal[1];  // Top Right 34kg
         ins->balance_board_calibration.kg34.br = (cal[2] << 8) + cal[3];  // Bottom Right 34kg
         ins->balance_board_calibration.kg34.tl = (cal[4] << 8) + cal[5];  // Top Left 34kg
@@ -382,7 +384,7 @@ static void process_req_data_read_calibration_data2(uni_hid_device_t* d, const u
     wii_process_fsm(d);
 }
 
-int32_t balance_interpolate(uint16_t val, uint16_t kg0, uint16_t kg17, uint16_t kg34) {
+static int32_t balance_interpolate(uint16_t val, uint16_t kg0, uint16_t kg17, uint16_t kg34) {
     float weight = 0;
 
     if (val < kg0) {  // 0kg

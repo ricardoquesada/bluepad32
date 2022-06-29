@@ -229,7 +229,7 @@ static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
         case HID_USAGE_PAGE_CONSUMER:
             // New in Xbox One firmware v4.8
             switch (usage) {
-                case 0x0224:
+                case HID_USAGE_AC_BACK:
                     break;
                 default:
                     logi(

@@ -35,7 +35,7 @@ limitations under the License.
 // HID usages for Generic Desktop Page
 #define HID_USAGE_AXIS_X                        0x30
 #define HID_USAGE_AXIS_Y                        0x31
-#define HID_USAGE_AXIS_Z                        0X32
+#define HID_USAGE_AXIS_Z                        0x32
 #define HID_USAGE_AXIS_RX                       0x33
 #define HID_USAGE_AXIS_RY                       0x34
 #define HID_USAGE_AXIS_RZ                       0x35
