@@ -100,6 +100,7 @@ enum wii_exttype {
     WII_EXT_NUNCHUK,             // Nunchuk
     WII_EXT_CLASSIC_CONTROLLER,  // Classic Controller or Classic Controller Pro
     WII_EXT_U_PRO_CONTROLLER,    // Wii U Pro
+    WII_EXT_BALANCE_BOARD        // Balance Board
 };
 
 // Required steps to determine what kind of extensions are supported.
@@ -114,10 +115,14 @@ enum wii_fsm {
     WII_FSM_EXT_DID_INIT,             // Extension initialized
     WII_FSM_EXT_DID_NO_ENCRYPTION,    // Extension no encription
     WII_FSM_EXT_DID_READ_REGISTER,    // Extension read register
-    WII_FSM_DEV_GUESSED,              // Device type guessed
-    WII_FSM_DEV_ASSIGNED,             // Device type assigned
-    WII_FSM_LED_UPDATED,              // After device was assigned, update LEDs.
-                                      // Gamepad ready to be used
+    WII_FSM_BALANCE_BOARD_READ_CALIBRATION,
+    WII_FSM_BALANCE_BOARD_READ_CALIBRATION2,
+    WII_FSM_BALANCE_BOARD_DID_READ_CALIBRATION,
+    WII_FSM_BALANCE_BOARD_DID_READ_CALIBRATION2,
+    WII_FSM_DEV_GUESSED,   // Device type guessed
+    WII_FSM_DEV_ASSIGNED,  // Device type assigned
+    WII_FSM_LED_UPDATED,   // After device was assigned, update LEDs.
+                           // Gamepad ready to be used
 };
 
 // As defined here: http://wiibrew.org/wiki/Wiimote#0x21:_Read_Memory_Data
@@ -137,6 +142,24 @@ typedef struct nunchuk_s {
     bool bz;  // Button Z
 } nunchuk_t;
 
+// balance_board_t represents the data provided by the Balance Board.
+typedef struct balance_board_s {
+    uint16_t tr;      // Top right
+    uint16_t br;      // Bottom right
+    uint16_t tl;      // Top left
+    uint16_t bl;      // Bottom left
+    int temperature;  // Temperature
+    uint8_t battery;  // Battery level
+} balance_board_t;
+
+// balance_board_calibration_s represents the calibration data that is used
+// to convert read data to a mass measurement.
+typedef struct balance_board_calibration_s {
+    balance_board_t kg0;   // Calibration data at 0 kg
+    balance_board_t kg17;  // Calibration data at 17 kg
+    balance_board_t kg34;  // Calibration data at 34 kg
+} balance_board_calibration_t;
+
 // wii_instance_t represents data used by the Wii driver instance.
 typedef struct wii_instance_s {
     uint8_t state;
@@ -146,6 +169,8 @@ typedef struct wii_instance_s {
     enum wii_exttype ext_type;
     uni_gamepad_seat_t gamepad_seat;
     btstack_timer_source_t rumble_timer;
+
+    balance_board_calibration_t balance_board_calibration;
 
     // Debug only
     int debug_fd;         // File descriptor where dump is saved
@@ -165,6 +190,7 @@ static void process_drm_kae(uni_hid_device_t* d, const uint8_t* report, uint16_t
 static void process_drm_kee(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
 static void process_drm_e(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
 static nunchuk_t process_nunchuk(const uint8_t* e, uint16_t len);
+static balance_board_t process_balance_board(uni_hid_device_t* d, const uint8_t* e, uint16_t len);
 
 static void wii_process_fsm(uni_hid_device_t* d);
 static void wii_fsm_ext_init(uni_hid_device_t* d);
@@ -273,6 +299,10 @@ static void process_req_data_read_register(uni_hid_device_t* d, const uint8_t* r
                 // Nunchuck: 00 00 a4 20 00 00
                 ins->ext_type = WII_EXT_NUNCHUK;
                 logi("Wii: Nunchuk extension found\n");
+            } else if (report[10] == 0x04 && report[11] == 0x02) {
+                // Balance Board: 00 00 a4 20 04 02
+                ins->ext_type = WII_EXT_BALANCE_BOARD;
+                logi("Wii: Balance Board extension found\n");
             } else if (report[10] == 0x01 && report[11] == 0x01) {
                 // Classic / Classic Pro: 0? 00 a4 20 01 01
                 ins->ext_type = WII_EXT_CLASSIC_CONTROLLER;
@@ -285,12 +315,85 @@ static void process_req_data_read_register(uni_hid_device_t* d, const uint8_t* r
             }
         }
 
-        ins->state = WII_FSM_DEV_GUESSED;
+        if (ins->ext_type == WII_EXT_BALANCE_BOARD) {
+            ins->state = WII_FSM_BALANCE_BOARD_READ_CALIBRATION;
+        } else {
+            ins->state = WII_FSM_DEV_GUESSED;
+        }
         wii_process_fsm(d);
     } else {
         loge("Wii: invalid response");
         printf_hexdump(report, len);
     }
+}
+
+static void process_req_data_read_calibration_data(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
+    uint8_t se = report[3];  // SE: size and error
+    uint8_t s = se >> 4;     // size
+    uint8_t e = se & 0x0f;   // error
+    if (e) {
+        loge("Wii: error reading memory: 0x%02x\n.", e);
+        return;
+    }
+
+    wii_instance_t* ins = get_wii_instance(d);
+
+    // We are expecting to read 16 bytes from 0xXX0024
+    if (s == 15 && report[4] == 0x00 && report[5] == 0x24) {
+        loge("Wii: balance board read calibration\n");
+        uint8_t* cal = report + 6;
+        ins->balance_board_calibration.kg0.tr = (cal[0] << 8) + cal[1];  // Top Right 0kg
+        ins->balance_board_calibration.kg0.br = (cal[2] << 8) + cal[3];  // Bottom Right 0kg
+        ins->balance_board_calibration.kg0.tl = (cal[4] << 8) + cal[5];  // Top Left 0kg
+        ins->balance_board_calibration.kg0.bl = (cal[6] << 8) + cal[7];  // Bottom Left 0kg
+
+        ins->balance_board_calibration.kg17.tr = (cal[8] << 8) + cal[9];    // Top Right 17kg
+        ins->balance_board_calibration.kg17.br = (cal[10] << 8) + cal[11];  // Bottom Right 17kg
+        ins->balance_board_calibration.kg17.tl = (cal[12] << 8) + cal[13];  // Top Left 17kg
+        ins->balance_board_calibration.kg17.bl = (cal[14] << 8) + cal[15];  // Bottom Left 17kg
+    }
+
+    ins->state = WII_FSM_BALANCE_BOARD_READ_CALIBRATION2;
+    wii_process_fsm(d);
+}
+
+static void process_req_data_read_calibration_data2(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
+    uint8_t se = report[3];  // SE: size and error
+    uint8_t s = se >> 4;     // size
+    uint8_t e = se & 0x0f;   // error
+    if (e) {
+        loge("Wii: error reading memory: 0x%02x\n.", e);
+        return;
+    }
+
+    wii_instance_t* ins = get_wii_instance(d);
+
+    // We are expecting to read 8 bytes from 0xXX0034
+    if (s == 7 && report[4] == 0x00 && report[5] == 0x34) {
+        loge("Wii: balance board read calibration 2\n");
+        uint8_t* cal = report + 6;
+        ins->balance_board_calibration.kg34.tr = (cal[0] << 8) + cal[1];  // Top Right 34kg
+        ins->balance_board_calibration.kg34.br = (cal[2] << 8) + cal[3];  // Bottom Right 34kg
+        ins->balance_board_calibration.kg34.tl = (cal[4] << 8) + cal[5];  // Top Left 34kg
+        ins->balance_board_calibration.kg34.bl = (cal[6] << 8) + cal[7];  // Bottom Left 34kg
+    }
+
+    ins->state = WII_FSM_DEV_GUESSED;
+    wii_process_fsm(d);
+}
+
+int32_t balance_interpolate(uint16_t val, uint16_t kg0, uint16_t kg17, uint16_t kg34) {
+    float weight = 0;
+
+    if (val < kg0) {  // 0kg
+        weight = 0;
+    } else if (val < kg17) {  // 17kg
+        weight = 17 * (float)(val - kg0) / (float)(kg17 - kg0);
+    } else /* if (values[pos] > cal[pos+5])*/ {  // 34kg
+        weight = 17 + 17 * (float)(val - kg17) / (float)(kg34 - kg17);
+    }
+
+    return weight * 1000;
 }
 
 static void process_req_data_dump_eeprom(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
@@ -331,6 +434,12 @@ static void process_req_data(uni_hid_device_t* d, const uint8_t* report, uint16_
     switch (ins->state) {
         case WII_FSM_EXT_DID_READ_REGISTER:
             process_req_data_read_register(d, report, len);
+            break;
+        case WII_FSM_BALANCE_BOARD_DID_READ_CALIBRATION:
+            process_req_data_read_calibration_data(d, report, len);
+            break;
+        case WII_FSM_BALANCE_BOARD_DID_READ_CALIBRATION2:
+            process_req_data_read_calibration_data2(d, report, len);
             break;
         case WII_FSM_DUMP_EEPROM_IN_PROGRESS:
             process_req_data_dump_eeprom(d, report, len);
@@ -619,6 +728,38 @@ static nunchuk_t process_nunchuk(const uint8_t* e, uint16_t len) {
     n.bz = !(e[5] & 0b00000001);
     return n;
 }
+static balance_board_t process_balance_board(uni_hid_device_t* d, const uint8_t* e, uint16_t len) {
+    // Balance board format here:
+    // http://wiibrew.org/wiki/Wii_Balance_Board
+    balance_board_t b = {0};
+    balance_board_t b2 = {0};
+
+    if (len < 11) {
+        loge("Wii: unexpected len; got %d, want >= 11\n", len);
+        return b;
+    }
+
+    wii_instance_t* ins = get_wii_instance(d);
+    balance_board_t* kg0 = &ins->balance_board_calibration.kg0;
+    balance_board_t* kg17 = &ins->balance_board_calibration.kg17;
+    balance_board_t* kg34 = &ins->balance_board_calibration.kg34;
+
+    b.tr = (e[0] << 8) + e[1];
+    b.br = (e[2] << 8) + e[3];
+    b.tl = (e[4] << 8) + e[5];
+    b.bl = (e[6] << 8) + e[7];
+    b.temperature = e[8];
+    b.battery = e[10];
+
+    // Interpolate:
+    b2 = b;
+    b2.tr = balance_interpolate(b.tr, kg0->tr, kg17->tr, kg34->tr);
+    b2.br = balance_interpolate(b.br, kg0->br, kg17->br, kg34->br);
+    b2.tl = balance_interpolate(b.tl, kg0->tl, kg17->tl, kg34->tl);
+    b2.bl = balance_interpolate(b.bl, kg0->bl, kg17->bl, kg34->bl);
+
+    return b2;
+}
 
 // Used for the Wii U Pro Controller
 // Defined here:
@@ -626,6 +767,25 @@ static nunchuk_t process_nunchuk(const uint8_t* e, uint16_t len) {
 static void process_drm_kee(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
     wii_instance_t* ins = get_wii_instance(d);
     if (ins->ext_type != WII_EXT_U_PRO_CONTROLLER) {
+        //
+        // Process Balance Board
+        //
+        if (ins->ext_type == WII_EXT_BALANCE_BOARD) {
+            uni_gamepad_t* gp = &d->gamepad;
+            balance_board_t b = process_balance_board(d, &report[3], len - 3);
+            gp->axis_rx = b.tr;
+            gp->axis_ry = b.br;
+            gp->axis_x = b.tl;
+            gp->axis_y = b.bl;
+
+            gp->updated_states |=
+                GAMEPAD_STATE_AXIS_X | GAMEPAD_STATE_AXIS_Y | GAMEPAD_STATE_AXIS_RX | GAMEPAD_STATE_AXIS_RY;
+
+            return;
+        } else {
+            loge("Wii: unexpected Wii extension: got %d, want: %d OR %d", ins->ext_type, WII_EXT_U_PRO_CONTROLLER,
+                 WII_EXT_BALANCE_BOARD);
+        }
     }
     /* DRM_KEE: BB*2 EE*19 */
     // Expecting something like:
@@ -881,6 +1041,28 @@ static void wii_fsm_ext_read_register(uni_hid_device_t* d) {
     wii_read_mem(d, WII_READ_FROM_REGISTERS, offset, bytes_to_read);
 }
 
+static void wii_fsm_balance_board_read_calibration(uni_hid_device_t* d) {
+    logi("fsm: balance_board_read_calibration\n");
+    wii_instance_t* ins = get_wii_instance(d);
+    ins->state = WII_FSM_BALANCE_BOARD_DID_READ_CALIBRATION;
+
+    // Addr is either 0xA40024 or 0xA60024
+    uint32_t offset = 0x000024 | (ins->register_address << 16);
+    uint16_t bytes_to_read = 16;
+    wii_read_mem(d, WII_READ_FROM_REGISTERS, offset, bytes_to_read);
+}
+
+static void wii_fsm_balance_board_read_calibration2(uni_hid_device_t* d) {
+    logi("fsm: balance_board_read_calibration\n");
+    wii_instance_t* ins = get_wii_instance(d);
+    ins->state = WII_FSM_BALANCE_BOARD_DID_READ_CALIBRATION2;
+
+    // Addr is either 0xA40024 or 0xA60024
+    uint32_t offset = 0x000034 | (ins->register_address << 16);
+    uint16_t bytes_to_read = 8;
+    wii_read_mem(d, WII_READ_FROM_REGISTERS, offset, bytes_to_read);
+}
+
 static void wii_fsm_assign_device(uni_hid_device_t* d) {
     logi("fsm: assign_device\n");
     wii_instance_t* ins = get_wii_instance(d);
@@ -918,6 +1100,10 @@ static void wii_fsm_assign_device(uni_hid_device_t* d) {
                 logi("Wii: requesting E (Classic Controller)\n");
                 d->controller_subtype = CONTROLLER_SUBTYPE_WII_CLASSIC;
                 reportType = WIIPROTO_REQ_DRM_E;
+            } else if (ins->ext_type == WII_EXT_BALANCE_BOARD) {
+                logi("Wii: requesting Weight (Balance Board)\n");
+                d->controller_subtype = CONTROLLER_SUBTYPE_WII_BALANCE_BOARD;
+                reportType = WIIPROTO_REQ_DRM_KEE;
             } else {
                 if (ins->flags & WII_FLAGS_ACCEL) {
                     // Request Core buttons + accel
@@ -1015,6 +1201,16 @@ static void wii_process_fsm(uni_hid_device_t* d) {
             break;
         case WII_FSM_DEV_GUESSED:
             wii_fsm_assign_device(d);
+            break;
+        case WII_FSM_BALANCE_BOARD_READ_CALIBRATION:
+            wii_fsm_balance_board_read_calibration(d);
+            break;
+        case WII_FSM_BALANCE_BOARD_READ_CALIBRATION2:
+            wii_fsm_balance_board_read_calibration2(d);
+            break;
+        case WII_FSM_BALANCE_BOARD_DID_READ_CALIBRATION:
+        case WII_FSM_BALANCE_BOARD_DID_READ_CALIBRATION2:
+            // Do nothing;
             break;
         case WII_FSM_DEV_ASSIGNED:
             wii_fsm_update_led(d);
