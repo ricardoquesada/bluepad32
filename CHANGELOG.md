@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a gamepad is in enhanced mode.
 - Platform: renamed `on_device_oob_event` to `on_oob_event`.
   Bluetooth enabled/disabled OOB event is sent ot the platforms.
+- DualShock3: Can connect even on GAP Security Level 2.
+  No need to change the GAP level.
 
 ## [3.5.0-beta1] - 2022-06-17
 ## New
