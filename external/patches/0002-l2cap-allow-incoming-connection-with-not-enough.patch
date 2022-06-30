@@ -1,7 +1,7 @@
 From f78b8410d4bfc8970b2f7d1c873904bffa90ed34 Mon Sep 17 00:00:00 2001
 From: Ricardo Quesada <ricardoquesada@gmail.com>
 Date: Wed, 29 Jun 2022 17:48:51 -0700
-Subject: [PATCH] hci: Allow incoming connection with not-enough GAP
+Subject: [PATCH] l2cap: Allow incoming connection with not-enough GAP
  privilegies
 
 Allow incoming connections from DualShock 3, even though GAP Security is
