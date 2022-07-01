@@ -49,6 +49,9 @@ void uni_property_nvs_set(const char* key, uni_property_type_t type, uni_propert
             float_alias = (uint32_t*)&value.f32;
             err = nvs_set_u32(nvs_handle, key, *float_alias);
             break;
+        case UNI_PROPERTY_TYPE_STRING:
+            err = nvs_set_str(nvs_handle, key, value.str);
+            break;
     }
 
     if (err != ESP_OK) {
@@ -69,6 +72,8 @@ uni_property_value_t uni_property_nvs_get(const char* key, uni_property_type_t t
     nvs_handle_t nvs_handle;
     esp_err_t err;
     uni_property_value_t ret;
+    size_t str_len;
+    static char str_ret[64];
 
     err = nvs_open(STORAGE_NAMESPACE, NVS_READONLY, &nvs_handle);
     if (err != ESP_OK) {
@@ -86,6 +91,10 @@ uni_property_value_t uni_property_nvs_get(const char* key, uni_property_type_t t
             break;
         case UNI_PROPERTY_TYPE_FLOAT:
             err = nvs_get_u32(nvs_handle, key, (uint32_t*)&ret.f32);
+            break;
+        case UNI_PROPERTY_TYPE_STRING:
+            ret.str = str_ret;
+            err = nvs_get_str(nvs_handle, key, ret.str, &str_len);
             break;
     }
 

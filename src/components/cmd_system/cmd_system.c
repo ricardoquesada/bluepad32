@@ -28,11 +28,15 @@
 #define WITH_TASKS_INFO 1
 #endif
 
+// #define WITH_VERSION
+
 static const char *TAG = "cmd_system";
 
 static void register_free(void);
 static void register_heap(void);
+#if WITH_VERSION
 static void register_version(void);
+#endif
 static void register_restart(void);
 static void register_deep_sleep(void);
 static void register_light_sleep(void);
@@ -44,7 +48,9 @@ void register_system_common(void)
 {
     register_free();
     register_heap();
+#if WITH_VERSION
     register_version();
+#endif
     register_restart();
 #if WITH_TASKS_INFO
     register_tasks();
@@ -63,6 +69,7 @@ void register_system(void)
     register_system_sleep();
 }
 
+#if WITH_VERSION
 /* 'version' command */
 static int get_version(int argc, char **argv)
 {
@@ -92,6 +99,7 @@ static void register_version(void)
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
+#endif
 
 /** 'restart' command restarts the program */
 

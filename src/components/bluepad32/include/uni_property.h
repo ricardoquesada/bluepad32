@@ -25,9 +25,11 @@ typedef enum {
     UNI_PROPERTY_TYPE_U8,
     UNI_PROPERTY_TYPE_U32,
     UNI_PROPERTY_TYPE_FLOAT,
+    UNI_PROPERTY_TYPE_STRING,
 } uni_property_type_t;
 
 // Bluepad32-global properties
+// Keep them sorted
 extern const char* UNI_PROPERTY_KEY_GAP_INQ_LEN;
 extern const char* UNI_PROPERTY_KEY_GAP_LEVEL;
 extern const char* UNI_PROPERTY_KEY_GAP_MAX_PERIODIC_LEN;
@@ -35,13 +37,19 @@ extern const char* UNI_PROPERTY_KEY_GAP_MIN_PERIODIC_LEN;
 extern const char* UNI_PROPERTY_KEY_MOUSE_SCALE;
 
 // Specific to Unijoysticle
-extern const char* UNI_PROPERTY_KEY_AUTOFIRE_CPS;
-extern const char* UNI_PROPERTY_KEY_MOUSE_EMULATION;
+// TODO: Move them to unijoysticle file
+// Keep them sorted
+extern const char* UNI_PROPERTY_KEY_UNI_AUTOFIRE_CPS;
+extern const char* UNI_PROPERTY_KEY_UNI_MODEL;
+extern const char* UNI_PROPERTY_KEY_UNI_MOUSE_EMULATION;
+extern const char* UNI_PROPERTY_KEY_UNI_SERIAL_NUMBER;
+extern const char* UNI_PROPERTY_KEY_UNI_VENDOR;
 
 typedef union {
     uint8_t u8;
     uint32_t u32;
     float f32;
+    char* str;
 } uni_property_value_t;
 
 void uni_property_init(void);

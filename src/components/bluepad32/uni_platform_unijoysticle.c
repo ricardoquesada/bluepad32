@@ -25,7 +25,10 @@ limitations under the License.
 
 #include <argtable3/argtable3.h>
 #include <driver/gpio.h>
+#include <esp_chip_info.h>
 #include <esp_console.h>
+#include <esp_idf_version.h>
+#include <esp_spi_flash.h>
 #include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
@@ -43,6 +46,7 @@ limitations under the License.
 #include "uni_mouse_quadrature.h"
 #include "uni_platform.h"
 #include "uni_property.h"
+#include "uni_version.h"
 
 // --- Defines / Enums
 
@@ -155,7 +159,7 @@ enum {
     CMD_SET_GAMEPAD_MODE_MOUSE,     // Mouse mode
     CMD_GET_GAMEPAD_MODE,
 
-    CMD_ENHANCED_MODE_COUNT,
+    CMD_COUNT,
 };
 
 enum button_mode {
@@ -216,7 +220,7 @@ _Static_assert(sizeof(unijoysticle_instance_t) < HID_DEVICE_MAX_PLATFORM_DATA, "
 
 // --- Function declaration
 
-static board_model_t get_board_model();
+static board_model_t get_uni_model_from_pins();
 
 static unijoysticle_instance_t* get_unijoysticle_instance(const uni_hid_device_t* d);
 static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat);
@@ -250,6 +254,7 @@ static void swap_ports_cb(int button_idx);
 static void swap_ports(void);
 static void set_gamepad_mode(emulation_mode_t mode);
 static void get_gamepad_mode(void);
+static void version(void);
 
 static void set_button_mode(enum button_mode mode);
 static void blink_bt_led(int times);
@@ -321,6 +326,16 @@ const struct gpio_config gpio_config_univ2singleport = {
 
 static const bd_addr_t zero_addr = {0, 0, 0, 0, 0, 0};
 
+// Keep them in the order of the defines
+static char* uni_models[] = {
+    "Unknown",        // BOARD_MODEL_UNK
+    "2",              // BOARD_MODEL_UNIJOYSTICLE2,
+    "2+",             // BOARD_MODEL_UNIJOYSTICLE2_PLUS,
+    "2 A500",         // BOARD_MODEL_UNIJOYSTICLE2_A500,
+    "2 ST520",        // BOARD_MODEL_UNIJOYSTICLE2_ST520,
+    "2 Single port",  // BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT,
+};
+
 // --- Globals (RAM)
 
 const struct gpio_config* g_gpio_config = NULL;
@@ -363,35 +378,30 @@ static void unijoysticle_init(int argc, const char** argv) {
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
 
-    board_model_t model = get_board_model();
+    board_model_t model = get_uni_model_from_pins();
 
     switch (model) {
         case BOARD_MODEL_UNIJOYSTICLE2:
-            logi("Hardware detected: Unijoysticle 2\n");
             g_gpio_config = &gpio_config_univ2;
             break;
         case BOARD_MODEL_UNIJOYSTICLE2_PLUS:
-            logi("Hardware detected: Unijoysticle 2+\n");
             g_gpio_config = &gpio_config_univ2plus;
             break;
         case BOARD_MODEL_UNIJOYSTICLE2_A500:
-            logi("Hardware detected: Unijoysticle 2 A500\n");
             g_gpio_config = &gpio_config_univ2a500;
             break;
         case BOARD_MODEL_UNIJOYSTICLE2_ST520:
-            logi("Hardware detected: Unijoysticle 2 ST520\n");
             // Shares the same GPIO pins as the A500 one
             g_gpio_config = &gpio_config_univ2a500;
             break;
         case BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT:
-            logi("Hardware detected: Unijoysticle 2 single port\n");
             g_gpio_config = &gpio_config_univ2singleport;
             break;
         default:
-            logi("Hardware detected: ERROR! %d\n", model);
             g_gpio_config = &gpio_config_univ2;
             break;
     }
+    logi("Hardware detected: %s\n", uni_models[model]);
 
     gpio_config_t io_conf;
     io_conf.intr_type = GPIO_INTR_DISABLE;
@@ -572,7 +582,7 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
         return -1;
 
     int wanted_seat = GAMEPAD_SEAT_A;
-    if (get_board_model() == BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT) {
+    if (get_uni_model_from_pins() == BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT) {
         // Single port boards only supports one port, so keep using SEAT A
         wanted_seat = GAMEPAD_SEAT_A;
         ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
@@ -701,7 +711,7 @@ static void unijoysticle_on_oob_event(uni_platform_oob_event_t event, void* data
         return;
     }
 
-    if (get_board_model() == BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT) {
+    if (get_uni_model_from_pins() == BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT) {
         logi("INFO: unijoysticle_on_device_oob_event: No effect in single port boards\n");
         return;
     }
@@ -763,11 +773,38 @@ static void unijoysticle_device_dump(uni_hid_device_t* d) {
 // Helpers
 //
 
+static const char* get_uni_model_from_nvs(void) {
+    uni_property_value_t def;
+    uni_property_value_t value;
+
+    def.str = "Unknown";
+    value = uni_property_get(UNI_PROPERTY_KEY_UNI_MODEL, UNI_PROPERTY_TYPE_STRING, def);
+    return value.str;
+}
+
+static const char* get_uni_vendor_from_nvs(void) {
+    uni_property_value_t def;
+    uni_property_value_t value;
+
+    def.str = "Unknown";
+    value = uni_property_get(UNI_PROPERTY_KEY_UNI_VENDOR, UNI_PROPERTY_TYPE_STRING, def);
+    return value.str;
+}
+
+static int get_uni_serial_number_from_nvs(void) {
+    uni_property_value_t def;
+    uni_property_value_t value;
+
+    def.u32 = 0;
+    value = uni_property_get(UNI_PROPERTY_KEY_UNI_SERIAL_NUMBER, UNI_PROPERTY_TYPE_U32, def);
+    return value.u32;
+}
+
 static void set_mouse_emulation_to_nvs(int mode) {
     uni_property_value_t value;
     value.u32 = mode;
 
-    uni_property_set(UNI_PROPERTY_KEY_MOUSE_EMULATION, UNI_PROPERTY_TYPE_U32, value);
+    uni_property_set(UNI_PROPERTY_KEY_UNI_MOUSE_EMULATION, UNI_PROPERTY_TYPE_U32, value);
     logi("Done. Restart required. Type 'restart' + Enter\n");
 }
 
@@ -777,7 +814,7 @@ static int get_mouse_emulation_from_nvs() {
 
     def.u32 = MOUSE_EMULATION_FROM_BOARD_MODEL;
 
-    value = uni_property_get(UNI_PROPERTY_KEY_MOUSE_EMULATION, UNI_PROPERTY_TYPE_U32, def);
+    value = uni_property_get(UNI_PROPERTY_KEY_UNI_MOUSE_EMULATION, UNI_PROPERTY_TYPE_U32, def);
     return value.u8;
 }
 
@@ -785,7 +822,8 @@ static int get_mouse_emulation() {
     int ret;
     int nvs_setting = get_mouse_emulation_from_nvs();
     if (nvs_setting == MOUSE_EMULATION_FROM_BOARD_MODEL)
-        ret = (get_board_model() == BOARD_MODEL_UNIJOYSTICLE2_ST520) ? MOUSE_EMULATION_ATARIST : MOUSE_EMULATION_AMIGA;
+        ret = (get_uni_model_from_pins() == BOARD_MODEL_UNIJOYSTICLE2_ST520) ? MOUSE_EMULATION_ATARIST
+                                                                             : MOUSE_EMULATION_AMIGA;
     else
         ret = nvs_setting;
     return ret;
@@ -795,7 +833,7 @@ static void set_autofire_cps_to_nvs(int cps) {
     uni_property_value_t value;
     value.u8 = cps;
 
-    uni_property_set(UNI_PROPERTY_KEY_AUTOFIRE_CPS, UNI_PROPERTY_TYPE_U8, value);
+    uni_property_set(UNI_PROPERTY_KEY_UNI_AUTOFIRE_CPS, UNI_PROPERTY_TYPE_U8, value);
     logi("Done\n");
 }
 
@@ -805,11 +843,11 @@ static int get_autofire_cps_from_nvs() {
 
     def.u8 = AUTOFIRE_CPS_DEFAULT;
 
-    value = uni_property_get(UNI_PROPERTY_KEY_AUTOFIRE_CPS, UNI_PROPERTY_TYPE_U8, def);
+    value = uni_property_get(UNI_PROPERTY_KEY_UNI_AUTOFIRE_CPS, UNI_PROPERTY_TYPE_U8, def);
     return value.u8;
 }
 
-static board_model_t get_board_model() {
+static board_model_t get_uni_model_from_pins() {
 #if PLAT_UNIJOYSTICLE_SINGLE_PORT
     // Legacy: Only needed for Arananet's Unijoy2Amiga.
     // Single-port boards should ground GPIO 5. It will be detected in runtime.
@@ -1109,6 +1147,29 @@ static void cmd_callback(void* context) {
     }
 }
 
+static void version(void) {
+    esp_chip_info_t info;
+    esp_chip_info(&info);
+
+    logi("Unijoysticle info:\n");
+    logi("\tModel: %s\n", get_uni_model_from_nvs());
+    logi("\tVendor: %s\n", get_uni_vendor_from_nvs());
+    logi("\tSerial Number: %d\n", get_uni_serial_number_from_nvs());
+    logi("\tDetected Model: Unijoysticle %s\n", uni_models[get_uni_model_from_pins()]);
+
+    logi("\nBluepad32 Version: v%s\n", UNI_VERSION);
+    logi("IDF Version: %s\n", esp_get_idf_version());
+
+    logi("Chip info:\n");
+    logi("\tModel: %s\n", info.model == CHIP_ESP32 ? "ESP32" : "Unknown");
+    logi("\tCores: %d\n", info.cores);
+    logi("\tFeature: %s%s%s%s%d%s\n", info.features & CHIP_FEATURE_WIFI_BGN ? "/802.11bgn" : "",
+         info.features & CHIP_FEATURE_BLE ? "/BLE" : "", info.features & CHIP_FEATURE_BT ? "/BT" : "",
+         info.features & CHIP_FEATURE_EMB_FLASH ? "/Embedded-Flash:" : "/External-Flash:",
+         spi_flash_get_chip_size() / (1024 * 1024), " MB");
+    logi("\tRevision Number: %d\n", info.revision);
+}
+
 static void get_gamepad_mode() {
     // Change emulation mode
     int num_devices = 0;
@@ -1288,6 +1349,14 @@ static int cmd_set_gamepad_mode(int argc, char** argv) {
     cmd_callback_registration.callback = &cmd_callback;
     cmd_callback_registration.context = (void*)mode;
     btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
+    return 0;
+}
+
+static int cmd_version(int argc, char** argv) {
+    ARG_UNUSED(argc);
+    ARG_UNUSED(argv);
+
+    version();
     return 0;
 }
 
@@ -1563,6 +1632,13 @@ void uni_platform_unijoysticle_register_cmds(void) {
         .func = &cmd_get_autofire_cps,
     };
 
+    const esp_console_cmd_t version = {
+        .command = "version",
+        .help = "Gets the Unijoysticle version info",
+        .hint = NULL,
+        .func = &cmd_version,
+    };
+
     ESP_ERROR_CHECK(esp_console_cmd_register(&swap_ports));
     ESP_ERROR_CHECK(esp_console_cmd_register(&set_gamepad_mode));
     ESP_ERROR_CHECK(esp_console_cmd_register(&get_gamepad_mode));
@@ -1572,6 +1648,8 @@ void uni_platform_unijoysticle_register_cmds(void) {
 
     ESP_ERROR_CHECK(esp_console_cmd_register(&set_autofire_cps));
     ESP_ERROR_CHECK(esp_console_cmd_register(&get_autofire_cps));
+
+    ESP_ERROR_CHECK(esp_console_cmd_register(&version));
 }
 
 struct uni_platform* uni_platform_unijoysticle_create(void) {

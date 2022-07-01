@@ -16,8 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Wii: Add support for Wii Balance Board
 
 ### Changed
-- Console: `set_mouse_scale(value)` where a higher value means faster movement.
-  Before it meant "higher value == slower movement"
+- Console:
+  - `set_mouse_scale(value)` where a higher value means faster movement.
+     Before it meant "higher value == slower movement"
+  - `version` shows Unijoysticle, Bluepad32 and Chip info
 - Unijoysticle2 A500:
   Bluetooth LED is also used as status:
   Blink 1, 2 or 3 times means gamepad mode: "normal", "mouse" or "enhanced"

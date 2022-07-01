@@ -32,9 +32,13 @@ const char* UNI_PROPERTY_KEY_GAP_MIN_PERIODIC_LEN = "bp.gap.min_len";
 const char* UNI_PROPERTY_KEY_MOUSE_SCALE = "bp.mouse.scale";
 
 // Unijoysticle only
-// Move them to the Unijoysticle file.
-const char* UNI_PROPERTY_KEY_AUTOFIRE_CPS = "bp.uni.autofire";
-const char* UNI_PROPERTY_KEY_MOUSE_EMULATION = "bp.uni.mouseemu";
+// TODO: Move them to the Unijoysticle file.
+// Keep them sorted
+const char* UNI_PROPERTY_KEY_UNI_AUTOFIRE_CPS = "bp.uni.autofire";
+const char* UNI_PROPERTY_KEY_UNI_MODEL = "bp.uni.model";
+const char* UNI_PROPERTY_KEY_UNI_MOUSE_EMULATION = "bp.uni.mouseemu";
+const char* UNI_PROPERTY_KEY_UNI_SERIAL_NUMBER = "bp.uni.serial";
+const char* UNI_PROPERTY_KEY_UNI_VENDOR = "bp.uni.vendor";
 
 // TODO: Implement "property interface" instead of doing #ifdef
 
