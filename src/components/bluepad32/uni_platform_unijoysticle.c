@@ -94,9 +94,11 @@ limitations under the License.
 #define ATARIST_MOUSE_DELTA_MAX (28)
 
 enum {
-    MOUSE_EMULATION_FROM_BOARD_MODEL,  // Used internally for NVS
+    MOUSE_EMULATION_FROM_BOARD_MODEL,  // Used internally for NVS (Deprecated)
     MOUSE_EMULATION_AMIGA,
     MOUSE_EMULATION_ATARIST,
+
+    MOUSE_EMULATION_COUNT,
 };
 
 enum {
@@ -140,6 +142,8 @@ typedef enum {
 
     // Unijosyticle Single port, like Arananet's Unijoy2Amiga
     BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT,
+
+    BOARD_MODEL_COUNT,
 } board_model_t;
 
 // Different emulation modes
@@ -231,7 +235,7 @@ static void process_mouse(uni_hid_device_t* d,
                           int32_t delta_y,
                           uint16_t buttons);
 static void joy_update_port(const uni_joystick_t* joy, const gpio_num_t* gpios);
-static int get_mouse_emulation();
+static int get_mouse_emulation_from_nvs(void);
 
 // Interrupt handlers
 static void handle_event_button(int button_idx);
@@ -337,6 +341,13 @@ static char* uni_models[] = {
     "2 Single port",  // BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT,
 };
 
+// Keep them in the order of the defines
+static char* mouse_modes[] = {
+    "unknown",      // MOUSE_EMULATION_FROM_BOARD_MODEL
+    "amiga",        // MOUSE_EMULATION_AMIGA
+    "atarist",      // MOUSE_EMULATION_ATARIST
+};
+
 // --- Globals (RAM)
 
 const struct gpio_config* g_gpio_config = NULL;
@@ -408,6 +419,7 @@ static void unijoysticle_init(int argc, const char** argv) {
     }
     logi("Hardware detected: %s\n", uni_models[model]);
 
+
     gpio_config_t io_conf;
     io_conf.intr_type = GPIO_INTR_DISABLE;
     io_conf.mode = GPIO_MODE_OUTPUT;
@@ -475,7 +487,7 @@ static void unijoysticle_on_init_complete(void) {
     // * https://www.waitingforfriday.com/?p=827#Commodore_Amiga
     // But they contradict on the Amiga pinout. Using "waitingforfriday" pinout.
     int x1, x2, y1, y2;
-    switch (get_mouse_emulation()) {
+    switch (get_mouse_emulation_from_nvs()) {
         case MOUSE_EMULATION_AMIGA:
             x1 = 1;
             x2 = 3;
@@ -642,7 +654,7 @@ static void unijoysticle_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp)
         case EMULATION_MODE_SINGLE_MOUSE:
             axis_x = gp->axis_x;
             axis_y = gp->axis_y;
-            if (get_mouse_emulation() == MOUSE_EMULATION_ATARIST) {
+            if (get_mouse_emulation_from_nvs() == MOUSE_EMULATION_ATARIST) {
                 if (axis_x < -ATARIST_MOUSE_DELTA_MAX)
                     axis_x = -ATARIST_MOUSE_DELTA_MAX;
                 if (axis_x > ATARIST_MOUSE_DELTA_MAX)
@@ -695,7 +707,7 @@ static void unijoysticle_on_oob_event(uni_platform_oob_event_t event, void* data
         safe_gpio_set_level(g_gpio_config->leds[LED_BT], enabled);
         s_bluetooth_led_on = enabled;
 
-        logi("unijoysticle: New gamepad connections %s\n", enabled ? "enabled" : "disabled");
+        logi("unijoysticle: Bluetooth discovery mode is %s\n", enabled ? "enabled" : "disabled");
 
         if (!enabled && !s_skip_next_enable_bluetooth_event) {
             // Means that Bluetooth was disabled by user from the console.
@@ -824,21 +836,14 @@ static int get_mouse_emulation_from_nvs() {
     uni_property_value_t value;
     uni_property_value_t def;
 
-    def.u32 = MOUSE_EMULATION_FROM_BOARD_MODEL;
+    def.u32 = MOUSE_EMULATION_AMIGA;
 
     value = uni_property_get(UNI_PROPERTY_KEY_UNI_MOUSE_EMULATION, UNI_PROPERTY_TYPE_U32, def);
-    return value.u8;
-}
 
-static int get_mouse_emulation() {
-    int ret;
-    int nvs_setting = get_mouse_emulation_from_nvs();
-    if (nvs_setting == MOUSE_EMULATION_FROM_BOARD_MODEL)
-        ret = (get_uni_model_from_pins() == BOARD_MODEL_UNIJOYSTICLE2_ST520) ? MOUSE_EMULATION_ATARIST
-                                                                             : MOUSE_EMULATION_AMIGA;
-    else
-        ret = nvs_setting;
-    return ret;
+    // Validate return value.
+    if (value.u8 >= MOUSE_EMULATION_COUNT || value.u8 == MOUSE_EMULATION_FROM_BOARD_MODEL)
+        return MOUSE_EMULATION_AMIGA;
+    return value.u8;
 }
 
 static void set_autofire_cps_to_nvs(int cps) {
@@ -1166,8 +1171,9 @@ static void version(void) {
     logi("Unijoysticle info:\n");
     logi("\tModel: %s\n", get_uni_model_from_nvs());
     logi("\tVendor: %s\n", get_uni_vendor_from_nvs());
-    logi("\tSerial Number: %d\n", get_uni_serial_number_from_nvs());
+    logi("\tSerial Number: %04d\n", get_uni_serial_number_from_nvs());
     logi("\tDetected Model: Unijoysticle %s\n", uni_models[get_uni_model_from_pins()]);
+    logi("\tMouse Emulation: %s\n", mouse_modes[get_mouse_emulation_from_nvs()]);
 
     logi("\nBluepad32 Version: v%s\n", UNI_VERSION);
     logi("IDF Version: %s\n", esp_get_idf_version());
@@ -1441,15 +1447,13 @@ static int cmd_set_mouse_emulation(int argc, char** argv) {
         return 1;
     }
 
-    if (strcmp(set_mouse_emulation_args.value->sval[0], "auto") == 0) {
-        set_mouse_emulation_to_nvs(MOUSE_EMULATION_FROM_BOARD_MODEL);
-    } else if (strcmp(set_mouse_emulation_args.value->sval[0], "amiga") == 0) {
+    if (strcmp(set_mouse_emulation_args.value->sval[0], "amiga") == 0) {
         set_mouse_emulation_to_nvs(MOUSE_EMULATION_AMIGA);
     } else if (strcmp(set_mouse_emulation_args.value->sval[0], "atarist") == 0) {
         set_mouse_emulation_to_nvs(MOUSE_EMULATION_ATARIST);
     } else {
         loge("Invalid mouse emulation: %s\n", set_mouse_emulation_args.value->sval[0]);
-        loge("Valid values: 'auto', 'amiga' or 'atarist'\n");
+        loge("Valid values: 'amiga' or 'atarist'\n");
         return 1;
     }
 
@@ -1457,27 +1461,14 @@ static int cmd_set_mouse_emulation(int argc, char** argv) {
 }
 
 static int cmd_get_mouse_emulation(int argc, char** argv) {
-    int nvs = get_mouse_emulation_from_nvs();
-    int real = get_mouse_emulation();
+    int mode = get_mouse_emulation_from_nvs();
 
-    logi("Mouse emulation: ");
-    switch (nvs) {
-        case MOUSE_EMULATION_AMIGA:
-            logi("amiga\n");
-            break;
-        case MOUSE_EMULATION_ATARIST:
-            logi("atarist\n");
-            break;
-        case MOUSE_EMULATION_FROM_BOARD_MODEL:
-            logi("auto (");
-            if (real == MOUSE_EMULATION_AMIGA)
-                logi("amiga)\n");
-            else if (real == MOUSE_EMULATION_ATARIST)
-                logi("atarist)\n");
-            else
-                logi("error)\n");
-            break;
+    if (mode >= MOUSE_EMULATION_COUNT) {
+        logi("Invalid mouse emulation: %d\n", mode);
+        return 1;
     }
+
+    logi("Mouse emulation: %s\n", mouse_modes[mode]);
     return 0;
 }
 
