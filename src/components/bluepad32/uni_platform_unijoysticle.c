@@ -343,9 +343,9 @@ static char* uni_models[] = {
 
 // Keep them in the order of the defines
 static char* mouse_modes[] = {
-    "unknown",      // MOUSE_EMULATION_FROM_BOARD_MODEL
-    "amiga",        // MOUSE_EMULATION_AMIGA
-    "atarist",      // MOUSE_EMULATION_ATARIST
+    "unknown",  // MOUSE_EMULATION_FROM_BOARD_MODEL
+    "amiga",    // MOUSE_EMULATION_AMIGA
+    "atarist",  // MOUSE_EMULATION_ATARIST
 };
 
 // --- Globals (RAM)
@@ -418,7 +418,6 @@ static void unijoysticle_init(int argc, const char** argv) {
             break;
     }
     logi("Hardware detected: %s\n", uni_models[model]);
-
 
     gpio_config_t io_conf;
     io_conf.intr_type = GPIO_INTR_DISABLE;
