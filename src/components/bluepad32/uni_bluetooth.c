@@ -708,8 +708,6 @@ void uni_bluetooth_del_keys_safe(void) {
 }
 
 void uni_bluetooth_enable_new_connections_safe(bool enabled) {
-    if (enabled == bt_scanning_enabled)
-        return;
     enable_bt_callback_registration.callback = &enable_new_connections_callback;
     enable_bt_callback_registration.context = (void*)(uintptr_t)enabled;
     btstack_run_loop_execute_on_main_thread(&enable_bt_callback_registration);
