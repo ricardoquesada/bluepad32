@@ -26,10 +26,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "Mode button" cycles between those 3 modes, and the BT LED is used as feedback.
   "Swap button", when succeed, it blinks once. It fails it you try to swap when
   a gamepad is in enhanced mode.
+- Unijoysticle2 auto-enable-bluetooth:
+  If Bluetooth is disabled via the console, then the "auto" feature is disabled.
+  The only way to enable bluetooth again is via the console, or with a reset.  
 - Platform: renamed `on_device_oob_event` to `on_oob_event`.
   Bluetooth enabled/disabled OOB event is sent ot the platforms.
 - DualShock3: Can connect even on GAP Security Level 2.
   No need to change the GAP level.
+- `uni_bluetooth_enable_new_connections()`, when disabled, paired devices can connect [Github Issue #21][github_issue_21]
+
+[github_issue_21]: https://github.com/ricardoquesada/bluepad32/issues/21
 
 ## [3.5.0-beta1] - 2022-06-17
 ## New

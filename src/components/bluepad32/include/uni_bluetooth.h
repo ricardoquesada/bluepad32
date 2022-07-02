@@ -31,7 +31,13 @@ int uni_bluetooth_init(void);
 
 // Public functions
 // Safe to call these functions from another task and/or CPU
+
+// Delete stored Bluetooth keys
 void uni_bluetooth_del_keys_safe(void);
+
+// Whether to enable new Bluetooth connections.
+// When enabled, the device enters into "discovery" mode, and new un-paired devices are accepted.
+// When disabled, only devices that have paired before can connect.
 void uni_bluetooth_enable_new_connections_safe(bool enabled);
 
 // Private functions.

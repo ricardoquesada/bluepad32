@@ -96,7 +96,7 @@ static btstack_packet_callback_registration_t sm_event_callback_registration;
 static hid_protocol_mode_t protocol_mode = HID_PROTOCOL_MODE_REPORT;
 #endif  // UNI_ENABLE_BLE
 
-static bool accept_incoming_connections = true;
+static bool bt_scanning_enabled = true;
 
 #ifdef UNI_ENABLE_BLE
 static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
@@ -465,11 +465,7 @@ static void on_l2cap_incoming_connection(uint16_t channel, const uint8_t* packet
 
     ARG_UNUSED(size);
 
-    if (!accept_incoming_connections) {
-        logi("Declining incoming connection\n");
-        l2cap_decline_connection(channel);
-        return;
-    }
+    // Incoming connections are always accepted, regardless whether Bluetooth scanning is disabled.
 
     psm = l2cap_event_incoming_connection_get_psm(packet);
     handle = l2cap_event_incoming_connection_get_handle(packet);
@@ -659,8 +655,8 @@ static void bluetooth_del_keys_callback(void* context) {
 static void enable_new_connections_callback(void* context) {
     bool enabled = (bool)context;
 
-    if (accept_incoming_connections != enabled) {
-        accept_incoming_connections = enabled;
+    if (bt_scanning_enabled != enabled) {
+        bt_scanning_enabled = enabled;
 
         if (enabled)
             start_scan();
@@ -712,7 +708,7 @@ void uni_bluetooth_del_keys_safe(void) {
 }
 
 void uni_bluetooth_enable_new_connections_safe(bool enabled) {
-    if (enabled == accept_incoming_connections)
+    if (enabled == bt_scanning_enabled)
         return;
     enable_bt_callback_registration.callback = &enable_new_connections_callback;
     enable_bt_callback_registration.context = (void*)(uintptr_t)enabled;

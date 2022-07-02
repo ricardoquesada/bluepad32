@@ -258,6 +258,7 @@ static void version(void);
 
 static void set_button_mode(enum button_mode mode);
 static void blink_bt_led(int times);
+static void maybe_enable_bluetooth(bool enabled);
 
 // --- Consts (ROM)
 
@@ -346,12 +347,13 @@ static EventGroupHandle_t g_autofire_group;
 struct push_button_state g_push_buttons_state[PUSH_BUTTON_MAX] = {0};
 
 // Autofire
-static bool g_autofire_a_enabled = 0;
-static bool g_autofire_b_enabled = 0;
+static bool g_autofire_a_enabled;
+static bool g_autofire_b_enabled;
 
 // Button "mode". Used in Uni2 A500
 static enum button_mode s_button_mode = BUTTON_MODE_NORMAL;
 static int s_bluetooth_led_on;  // Used as a cache
+static bool s_auto_enable_bluetooth = true;
 
 // For the console
 static struct {
@@ -529,7 +531,7 @@ static void unijoysticle_on_device_connected(uni_hid_device_t* d) {
     }
 
     if (connected == 2) {
-        uni_bluetooth_enable_new_connections_safe(false);
+        maybe_enable_bluetooth(false);
     }
 }
 
@@ -552,7 +554,7 @@ static void unijoysticle_on_device_disconnected(uni_hid_device_t* d) {
     }
 
     // Regarless of how many connections are active, enable Bluetooth connections.
-    uni_bluetooth_enable_new_connections_safe(true);
+    maybe_enable_bluetooth(true);
 
     maybe_enable_mouse_timers();
 }
@@ -691,6 +693,12 @@ static void unijoysticle_on_oob_event(uni_platform_oob_event_t event, void* data
         s_bluetooth_led_on = enabled;
 
         logi("unijoysticle: New gamepad connections %s\n", enabled ? "enabled" : "disabled");
+
+        if (!enabled) {
+            // Means that Bluetooth was disabled on purpose, most probably from the console.
+            // If so, leave it disabled. The only way to enable it, is again from the console.
+            s_auto_enable_bluetooth = false;
+        }
         return;
     }
 
@@ -1253,7 +1261,7 @@ static void set_gamepad_mode(emulation_mode_t mode) {
             set_gamepad_seat(d, GAMEPAD_SEAT_A | GAMEPAD_SEAT_B);
             logi("unijoysticle: Gamepad mode = enhanced\n");
 
-            uni_bluetooth_enable_new_connections_safe(false);
+            maybe_enable_bluetooth(false);
 
             set_button_mode(BUTTON_MODE_ENHANCED);
             break;
@@ -1261,7 +1269,7 @@ static void set_gamepad_mode(emulation_mode_t mode) {
         case EMULATION_MODE_COMBO_JOY_MOUSE:
             if (ins->emu_mode == EMULATION_MODE_COMBO_JOY_JOY) {
                 set_gamepad_seat(d, ins->prev_gamepad_seat);
-                uni_bluetooth_enable_new_connections_safe(true);
+                maybe_enable_bluetooth(true);
             }
             ins->emu_mode = EMULATION_MODE_COMBO_JOY_MOUSE;
             logi("unijoysticle: Gamepad mode = mouse\n");
@@ -1272,7 +1280,7 @@ static void set_gamepad_mode(emulation_mode_t mode) {
         case EMULATION_MODE_SINGLE_JOY:
             if (ins->emu_mode == EMULATION_MODE_COMBO_JOY_JOY) {
                 set_gamepad_seat(d, ins->prev_gamepad_seat);
-                uni_bluetooth_enable_new_connections_safe(true);
+                maybe_enable_bluetooth(true);
             }
             ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
             logi("unijoysticle: Gamepad mode = normal\n");
@@ -1556,6 +1564,13 @@ static void set_button_mode(enum button_mode mode) {
     int times = mode + 1;
 
     blink_bt_led(times);
+}
+
+static void maybe_enable_bluetooth(bool enabled) {
+    // Only enable/disable Bluetooth if automatic is on
+    if (!s_auto_enable_bluetooth)
+        return;
+    uni_bluetooth_enable_new_connections_safe(enabled);
 }
 
 //
