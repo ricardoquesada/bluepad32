@@ -20,6 +20,7 @@ limitations under the License.
 
 #include <nvs.h>
 #include <nvs_flash.h>
+#include <string.h>
 
 #include "uni_debug.h"
 
@@ -94,13 +95,14 @@ uni_property_value_t uni_property_nvs_get(const char* key, uni_property_type_t t
             break;
         case UNI_PROPERTY_TYPE_STRING:
             ret.str = str_ret;
-            err = nvs_get_str(nvs_handle, key, ret.str, &str_len);
+            memset(str_ret, 0, sizeof(str_ret));
+            err = nvs_get_str(nvs_handle, key, str_ret, &str_len);
             break;
     }
 
     if (err != ESP_OK) {
         // Might be valid if the key was not previously stored
-        logd("could not read property '%s' from NVS\n", key);
+        logd("could not read property '%s' from NVS, err=%#x\n", key, err);
         ret = def;
         /* falltrhough */
     }
