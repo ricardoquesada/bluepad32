@@ -28,6 +28,7 @@ limitations under the License.
 #include <esp_chip_info.h>
 #include <esp_console.h>
 #include <esp_idf_version.h>
+#include <esp_ota_ops.h>
 #include <esp_spi_flash.h>
 #include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
@@ -1167,6 +1168,8 @@ static void version(void) {
     esp_chip_info_t info;
     esp_chip_info(&info);
 
+    const esp_app_desc_t* app_desc = esp_ota_get_app_description();
+
     logi("Unijoysticle info:\n");
     logi("\tModel: %s\n", get_uni_model_from_nvs());
     logi("\tVendor: %s\n", get_uni_vendor_from_nvs());
@@ -1174,10 +1177,12 @@ static void version(void) {
     logi("\tDetected Model: Unijoysticle %s\n", uni_models[get_uni_model_from_pins()]);
     logi("\tMouse Emulation: %s\n", mouse_modes[get_mouse_emulation_from_nvs()]);
 
-    logi("\nBluepad32 Version: v%s\n", UNI_VERSION);
-    logi("IDF Version: %s\n", esp_get_idf_version());
+    logi("\nFirmware info:\n");
+    logi("\tBluepad32 Version: v%s (%s)\n", UNI_VERSION, app_desc->version);
+    logi("\tIDF Version: %s\n", app_desc->idf_ver);
+    logi("\tCompile Time: %s %s\n", app_desc->date, app_desc->time);
 
-    logi("Chip info:\n");
+    logi("\nChip info:\n");
     logi("\tModel: %s\n", info.model == CHIP_ESP32 ? "ESP32" : "Unknown");
     logi("\tCores: %d\n", info.cores);
     logi("\tFeature: %s%s%s%s%d%s\n", info.features & CHIP_FEATURE_WIFI_BGN ? "/802.11bgn" : "",

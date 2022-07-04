@@ -453,3 +453,8 @@ static void ds5_send_enable_lightbar_report(uni_hid_device_t* d) {
     ins->state = DS5_STATE_READY;
     uni_hid_device_set_ready_complete(d);
 }
+
+void uni_hid_parser_ds5_device_dump(uni_hid_device_t* d) {
+    ds5_instance_t* ins = get_ds5_instance(d);
+    logi("\tDS5: FW version %#x, HW version %#x\n", ins->fw_version, ins->hw_version);
+}

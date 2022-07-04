@@ -206,6 +206,23 @@ static wii_instance_t* get_wii_instance(uni_hid_device_t* d);
 static void wii_set_led(uni_hid_device_t* d, uni_gamepad_seat_t seat);
 static void wii_rumble_off(btstack_timer_source_t* ts);
 
+// Constants
+static const char* wii_devtype_names[] = {
+    "Unknown",                         // WII_DEVTYPE_UNK,
+    "Wii Pro Controller",              // WII_DEVTYPE_PRO_CONTROLLER
+    "Wii Mote 1st Gen",                // WII_DEVTYPE_REMOTE
+    "Wii Mote Motion Plus (2nd gen)",  // WII_DEVTYPE_REMOTE_MP
+};
+
+static const char* wii_exttype_names[] = {
+    "N/A",                 // WII_EXT_NONE
+    "Unknown",             // WII_EXT_UNK
+    "Nunchuck",            // WII_EXT_NUNCHUK
+    "Classic Controller",  // WII_EXT_CLASSIC_CONTROLLER
+    "Pro Controller",      // WII_EXT_U_PRO_CONTROLLER
+    "Balance Board"        // WII_EXT_BALANCE_BOARD
+};
+
 // process_ functions
 
 // Defined here: http://wiibrew.org/wiki/Wiimote#0x20:_Status
@@ -280,14 +297,11 @@ static void process_req_data_read_register(uni_hid_device_t* d, const uint8_t* r
             // Pro Controller: 00 00 a4 20 01 20
             ins->dev_type = WII_DEVTYPE_PRO_CONTROLLER;
             ins->ext_type = WII_EXT_U_PRO_CONTROLLER;
-            logi("Wii: Pro Controller extension found\n");
         } else if (ins->dev_type == WII_DEVTYPE_UNK) {
             if (d->product_id == 0x0330) {
                 ins->dev_type = WII_DEVTYPE_REMOTE_MP;
-                logi("Wii Remote MP detected\n");
             } else if (d->product_id == 0x0306) {
                 ins->dev_type = WII_DEVTYPE_REMOTE;
-                logi("Wii Remote detected\n");
             } else {
                 loge("Wii: Unknown product id: 0x%04x\n", d->product_id);
             }
@@ -298,17 +312,12 @@ static void process_req_data_read_register(uni_hid_device_t* d, const uint8_t* r
             if (report[10] == 0x00 && report[11] == 0x00) {
                 // Nunchuck: 00 00 a4 20 00 00
                 ins->ext_type = WII_EXT_NUNCHUK;
-                logi("Wii: Nunchuk extension found\n");
             } else if (report[10] == 0x04 && report[11] == 0x02) {
                 // Balance Board: 00 00 a4 20 04 02
                 ins->ext_type = WII_EXT_BALANCE_BOARD;
-                logi("Wii: Balance Board extension found\n");
             } else if (report[10] == 0x01 && report[11] == 0x01) {
                 // Classic / Classic Pro: 0? 00 a4 20 01 01
                 ins->ext_type = WII_EXT_CLASSIC_CONTROLLER;
-                logi(
-                    "Wii: Classic Controller / Classic Controller Pro extension "
-                    "found\n");
             } else {
                 loge("Wii: Unknown extension\n");
                 printf_hexdump(report, len);
@@ -320,6 +329,8 @@ static void process_req_data_read_register(uni_hid_device_t* d, const uint8_t* r
         } else {
             ins->state = WII_FSM_DEV_GUESSED;
         }
+
+        logi("Wii: Device: %s, Extension: %s\n", wii_devtype_names[ins->dev_type], wii_exttype_names[ins->ext_type]);
         wii_process_fsm(d);
     } else {
         loge("Wii: invalid response");
@@ -763,32 +774,37 @@ static balance_board_t process_balance_board(uni_hid_device_t* d, const uint8_t*
     return b2;
 }
 
-// Used for the Wii U Pro Controller
+// Used for the Wii U Pro Controller and Balance Board
 // Defined here:
 // http://wiibrew.org/wiki/Wiimote#0x34:_Core_Buttons_with_19_Extension_bytes
 static void process_drm_kee(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
     wii_instance_t* ins = get_wii_instance(d);
-    if (ins->ext_type != WII_EXT_U_PRO_CONTROLLER) {
+
+    if (ins->ext_type != WII_EXT_BALANCE_BOARD && ins->ext_type != WII_EXT_U_PRO_CONTROLLER) {
+        loge("Wii: unexpected Wii extension: got %d, want: %d OR %d", ins->ext_type, WII_EXT_U_PRO_CONTROLLER,
+             WII_EXT_BALANCE_BOARD);
+        return;
+    }
+
+    if (ins->ext_type == WII_EXT_BALANCE_BOARD) {
         //
         // Process Balance Board
         //
-        if (ins->ext_type == WII_EXT_BALANCE_BOARD) {
-            uni_gamepad_t* gp = &d->gamepad;
-            balance_board_t b = process_balance_board(d, &report[3], len - 3);
-            gp->axis_rx = b.tr;
-            gp->axis_ry = b.br;
-            gp->axis_x = b.tl;
-            gp->axis_y = b.bl;
+        uni_gamepad_t* gp = &d->gamepad;
+        balance_board_t b = process_balance_board(d, &report[3], len - 3);
+        gp->axis_rx = b.tr;
+        gp->axis_ry = b.br;
+        gp->axis_x = b.tl;
+        gp->axis_y = b.bl;
 
-            gp->updated_states |=
-                GAMEPAD_STATE_AXIS_X | GAMEPAD_STATE_AXIS_Y | GAMEPAD_STATE_AXIS_RX | GAMEPAD_STATE_AXIS_RY;
+        gp->updated_states |=
+            GAMEPAD_STATE_AXIS_X | GAMEPAD_STATE_AXIS_Y | GAMEPAD_STATE_AXIS_RX | GAMEPAD_STATE_AXIS_RY;
 
-            return;
-        } else {
-            loge("Wii: unexpected Wii extension: got %d, want: %d OR %d", ins->ext_type, WII_EXT_U_PRO_CONTROLLER,
-                 WII_EXT_BALANCE_BOARD);
-        }
+        return;
     }
+
+    // else WII_EXT_U_PRO_CONTROLLER
+
     /* DRM_KEE: BB*2 EE*19 */
     // Expecting something like:
     // 34 00 00 19 08 D5 07 20 08 21 08 FF FF CF 00 00 00 00 00 00 00 00
@@ -973,8 +989,7 @@ static void process_drm_e(uni_hid_device_t* d, const uint8_t* report, uint16_t l
     gp->updated_states |=
         GAMEPAD_STATE_MISC_BUTTON_SYSTEM | GAMEPAD_STATE_MISC_BUTTON_HOME | GAMEPAD_STATE_MISC_BUTTON_BACK;
 
-    // printf("lx=%d, ly=%d, rx=%d, ry=%d, lt=%d, rt=%d\n", lx, ly, rx, ry, lt,
-    // rt);
+    // printf("lx=%d, ly=%d, rx=%d, ry=%d, lt=%d, rt=%d\n", lx, ly, rx, ry, lt, rt);
     // printf_hexdump(report, len);
 }
 
@@ -1229,6 +1244,8 @@ static void wii_process_fsm(uni_hid_device_t* d) {
 void uni_hid_parser_wii_setup(uni_hid_device_t* d) {
     wii_instance_t* ins = get_wii_instance(d);
 
+    memset(ins, 0, sizeof(*ins));
+
     ins->state = WII_FSM_SETUP;
 
     // Start with 0xa40000 (all Wii devices, except for the Wii Remote Plus)
@@ -1400,4 +1417,9 @@ static void wii_read_mem(uni_hid_device_t* d, wii_read_type_t t, uint32_t offset
         // clang-format on
     };
     uni_hid_device_send_intr_report(d, report, sizeof(report));
+}
+
+void uni_hid_parser_wii_device_dump(uni_hid_device_t* d) {
+    wii_instance_t* ins = get_wii_instance(d);
+    logi("\tWii: device '%s', extension '%s'\n", wii_devtype_names[ins->dev_type], wii_exttype_names[ins->ext_type]);
 }

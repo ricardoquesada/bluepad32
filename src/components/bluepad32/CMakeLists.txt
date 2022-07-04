@@ -38,7 +38,7 @@ set(srcs "uni_bluetooth.c"
          "uni_property_nvs.c"
          "uni_utils.c")
 
-set(requires "nvs_flash" "btstack" "cmd_nvs" "cmd_system")
+set(requires "nvs_flash" "btstack" "cmd_nvs" "cmd_system" "app_update")
 
 # See: https://gitlab.com/ricardoquesada/bluepad32/-/issues/9
 if(DEFINED ENV{BLUEPAD32_ARDUINO})

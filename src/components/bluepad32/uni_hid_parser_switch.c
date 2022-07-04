@@ -1065,3 +1065,8 @@ void switch_setup_timeout_callback(btstack_timer_source_t* ts) {
     logi("Switch: setup timer timeout, failed state: 0x%02x\n", ins->state);
     process_fsm(d);
 }
+
+void uni_hid_parser_switch_device_dump(uni_hid_device_t* d) {
+    switch_instance_t* ins = get_switch_instance(d);
+    logi("\tSwitch: FW version %d.%d\n", ins->firmware_version_hi, ins->firmware_version_lo);
+}
