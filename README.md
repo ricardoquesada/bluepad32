@@ -46,7 +46,7 @@ Newer models like ESP32-Sx, ESP32-Cx, ESP32-Hx are **NOT** supported since they 
 
 ## Features
 
-* Supports most, if not all, modern Bluetooth gamepads (see below)
+* Supports most, if not all, modern Bluetooth gamepads and mice (see below)
 * Fast (very low latency)
 * Small footprint
 * Uses only one core (CPU0). The remaining one is free to use.

@@ -1581,7 +1581,7 @@ void uni_platform_unijoysticle_register_cmds(void) {
     set_gamepad_mode_args.value = arg_str1(NULL, NULL, "<mode>", "valid options: 'normal', 'enhanced' or 'mouse'");
     set_gamepad_mode_args.end = arg_end(2);
 
-    set_mouse_emulation_args.value = arg_str1(NULL, NULL, "<emulation>", "valid options: 'amiga', 'atarist' or 'auto'");
+    set_mouse_emulation_args.value = arg_str1(NULL, NULL, "<emulation>", "valid options: 'amiga' or 'atarist'");
     set_mouse_emulation_args.end = arg_end(2);
 
     set_autofire_cps_args.value = arg_int1(NULL, NULL, "<cps>", "clicks per second (cps)");
@@ -1618,7 +1618,7 @@ void uni_platform_unijoysticle_register_cmds(void) {
         .command = "set_mouse_emulation",
         .help =
             "Sets mouse emulation mode.\n"
-            "  Default: auto",
+            "  Default: amiga",
         .hint = NULL,
         .func = &cmd_set_mouse_emulation,
         .argtable = &set_mouse_emulation_args,
