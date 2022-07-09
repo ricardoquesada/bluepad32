@@ -414,6 +414,7 @@ void uni_hid_device_dump_all(void) {
         if (bd_addr_cmp(g_devices[i].conn.btaddr, zero_addr) == 0)
             continue;
         uni_hid_device_dump_device(&g_devices[i]);
+        logi("\n");
     }
 }
 

@@ -24,12 +24,14 @@ limitations under the License.
 #include <esp_console.h>
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #include <nvs.h>
 #include <nvs_flash.h>
 
 #include "sdkconfig.h"
 #include "uni_bluetooth.h"
 #include "uni_bt_setup.h"
+#include "uni_common.h"
 #include "uni_debug.h"
 #include "uni_hid_device.h"
 #include "uni_mouse_quadrature.h"
@@ -64,9 +66,13 @@ static struct {
     struct arg_end* end;
 } set_bluetooth_enabled_args;
 
-static int devices_info(int argc, char** argv) {
-    /* FIXME: Should be called from btstack thread */
-    uni_hid_device_dump_all();
+static int list_devices(int argc, char** argv) {
+    // FIXME: Should not belong to "bluetooth"
+    uni_bluetooth_dump_devices_safe();
+
+    // This function prints to console. print bp32> after a delay
+    TickType_t ticks = pdMS_TO_TICKS(250);
+    vTaskDelay(ticks);
     return 0;
 }
 
@@ -75,7 +81,7 @@ static int mouse_get(int argc, char** argv) {
     float scale = uni_mouse_quadrature_get_scale_factor();
 
     // ets_printf() doesn't support "%f"
-    sprintf(buf, "global mouse scale = %f\n", scale);
+    sprintf(buf, "%f\n", scale);
     logi(buf);
     return 0;
 }
@@ -115,7 +121,7 @@ static int get_gap_security_level(int argc, char** argv) {
     ARG_UNUSED(argv);
 
     int gap = uni_bt_setup_get_gap_security_level();
-    logi("GAP security level: %d\n", gap);
+    logi("%d\n", gap);
     return 0;
 }
 
@@ -163,6 +169,29 @@ static int set_bluetooth_enabled(int argc, char** argv) {
     return 0;
 }
 
+static int list_bluetooth_keys(int argc, char** argv) {
+    ARG_UNUSED(argc);
+    ARG_UNUSED(argv);
+
+    uni_bluetooth_list_keys_safe();
+
+    // This function prints to console. print bp32> after a delay
+    TickType_t ticks = pdMS_TO_TICKS(250);
+    vTaskDelay(ticks);
+    return 0;
+}
+
+static int del_bluetooth_keys(int argc, char** argv) {
+    ARG_UNUSED(argc);
+    ARG_UNUSED(argv);
+
+    uni_bluetooth_del_keys_safe();
+    // This function prints to console. print bp32> after a delay
+    TickType_t ticks = pdMS_TO_TICKS(250);
+    vTaskDelay(ticks);
+    return 0;
+}
+
 static void register_bluepad32() {
     mouse_set_args.value = arg_dbl1(NULL, NULL, "<value>", "Global mouse scale factor. Higher means faster");
     mouse_set_args.end = arg_end(2);
@@ -179,11 +208,11 @@ static void register_bluepad32() {
         arg_int1(NULL, NULL, "<0 | 1>", "Whether to enable Bluetooth incoming connections");
     set_bluetooth_enabled_args.end = arg_end(2);
 
-    const esp_console_cmd_t cmd_devices = {
-        .command = "devices",
-        .help = "Get information about connected devices",
+    const esp_console_cmd_t cmd_list_devices = {
+        .command = "list_devices",
+        .help = "List info about connected devices",
         .hint = NULL,
-        .func = &devices_info,
+        .func = &list_devices,
     };
 
     const esp_console_cmd_t cmd_get_mouse = {
@@ -247,13 +276,29 @@ static void register_bluepad32() {
         .argtable = &set_bluetooth_enabled_args,
     };
 
+    const esp_console_cmd_t cmd_list_bluetooth_keys = {
+        .command = "list_bluetooth_keys",
+        .help = "List stored Bluetooth keys",
+        .hint = NULL,
+        .func = &list_bluetooth_keys,
+    };
+
+    const esp_console_cmd_t cmd_del_bluetooth_keys = {
+        .command = "del_bluetooth_keys",
+        .help = "Delete stored Bluetooth keys. 'Unpairs' devices",
+        .hint = NULL,
+        .func = &del_bluetooth_keys,
+    };
+
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_set_gap_security_level));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_get_gap_security_level));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_set_gap_periodic_inquiry));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_get_gap_periodic_inquiry));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_devices));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_get_mouse));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_set_mouse));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_list_devices));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_list_bluetooth_keys));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_del_bluetooth_keys));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_set_bluetooth_enabled));
 }
 

@@ -65,15 +65,11 @@ static void maybe_delete_or_list_link_keys(void) {
         return;
     }
     int32_t delete_keys = uni_get_platform()->get_property(UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS);
-    if (delete_keys == 1)
+    if (delete_keys == 1) {
         logi("Deleting stored link keys:\n");
-    else
-        logi("Stored link keys:\n");
-
-    while (gap_link_key_iterator_get_next(&it, addr, link_key, &type)) {
-        logi("%s - type %u, key: ", bd_addr_to_str(addr), (int)type);
-        printf_hexdump(link_key, 16);
-        if (delete_keys) {
+        while (gap_link_key_iterator_get_next(&it, addr, link_key, &type)) {
+            logi("%s - type %u, key: ", bd_addr_to_str(addr), (int)type);
+            printf_hexdump(link_key, 16);
             gap_drop_link_key_for_bd_addr(addr);
         }
     }

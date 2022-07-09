@@ -1216,19 +1216,19 @@ static void get_gamepad_mode() {
 
     switch (ins->emu_mode) {
         case EMULATION_MODE_COMBO_JOY_JOY:
-            logi("Gamepad mode = enhanced\n");
+            logi("enhanced\n");
             break;
 
         case EMULATION_MODE_COMBO_JOY_MOUSE:
-            logi("Gamepad mode = mouse\n");
+            logi("mouse\n");
             break;
 
         case EMULATION_MODE_SINGLE_JOY:
-            logi("Gamepad mode = normal\n");
+            logi("normal\n");
             break;
 
         default:
-            logi("Gamepad mode = unknown\n");
+            logi("unknown\n");
             break;
     }
 }
@@ -1472,7 +1472,7 @@ static int cmd_get_mouse_emulation(int argc, char** argv) {
         return 1;
     }
 
-    logi("Mouse emulation: %s\n", mouse_modes[mode]);
+    logi("%s\n", mouse_modes[mode]);
     return 0;
 }
 

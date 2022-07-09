@@ -89,8 +89,7 @@ _Static_assert(INQUIRY_REMOTE_NAME_TIMEOUT_MS < HID_DEVICE_CONNECTION_TIMEOUT_MS
 // globals
 // Used to implement connection timeout and reconnect timer
 static btstack_timer_source_t hog_connection_timer;  // BLE only
-static btstack_context_callback_registration_t enable_bt_callback_registration;
-static btstack_context_callback_registration_t del_keys_callback_registration;
+static btstack_context_callback_registration_t cmd_callback_registration;
 #ifdef UNI_ENABLE_BLE
 static btstack_packet_callback_registration_t sm_event_callback_registration;
 static hid_protocol_mode_t protocol_mode = HID_PROTOCOL_MODE_REPORT;
@@ -103,8 +102,6 @@ static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint
 #endif  // UNI_ENABLE_BLE
 static bool adv_event_contains_hid_service(const uint8_t* packet);
 static void hog_connect(bd_addr_t addr, bd_addr_type_t addr_type);
-static void enable_new_connections_callback(void* context);
-static void bluetooth_del_keys_callback(void* context);
 
 static void on_l2cap_channel_closed(uint16_t channel, const uint8_t* packet, uint16_t size);
 static void on_l2cap_channel_opened(uint16_t channel, const uint8_t* packet, uint16_t size);
@@ -119,6 +116,14 @@ static void l2cap_create_interrupt_connection(uni_hid_device_t* d);
 static void inquiry_remote_name_timeout_callback(btstack_timer_source_t* ts);
 static uint8_t start_scan(void);
 static uint8_t stop_scan(void);
+
+enum {
+    CMD_BT_DEL_KEYS,
+    CMD_BT_LIST_KEYS,
+    CMD_BT_ENABLE,
+    CMD_BT_DISABLE,
+    CMD_DUMP_DEVICES,
+};
 
 // BLE only
 #ifdef UNI_ENABLE_BLE
@@ -630,14 +635,11 @@ static void inquiry_remote_name_timeout_callback(btstack_timer_source_t* ts) {
     uni_bluetooth_process_fsm(d);
 }
 
-// Deletes Bluetooth stored keys
-static void bluetooth_del_keys_callback(void* context) {
+static void bluetooth_del_keys() {
     bd_addr_t addr;
     link_key_t link_key;
     link_key_type_t type;
     btstack_link_key_iterator_t it;
-
-    ARG_UNUSED(context);
 
     int ok = gap_link_key_iterator_init(&it);
     if (!ok) {
@@ -646,15 +648,34 @@ static void bluetooth_del_keys_callback(void* context) {
     }
 
     while (gap_link_key_iterator_get_next(&it, addr, link_key, &type)) {
-        logi("Deleting key: %s - type %u\n", bd_addr_to_str(addr), (int)type);
+        logi("Deleting key: %s - type %u - key: ", bd_addr_to_str(addr), (int)type);
+        printf_hexdump(link_key, 16);
         gap_drop_link_key_for_bd_addr(addr);
     }
     gap_link_key_iterator_done(&it);
 }
 
-static void enable_new_connections_callback(void* context) {
-    bool enabled = (bool)context;
+static void bluetooth_list_keys() {
+    bd_addr_t addr;
+    link_key_t link_key;
+    link_key_type_t type;
+    btstack_link_key_iterator_t it;
 
+    int ok = gap_link_key_iterator_init(&it);
+    if (!ok) {
+        loge("Link key iterator not implemented\n");
+        return;
+    }
+
+    logi("Bluetooth keys:\n");
+    while (gap_link_key_iterator_get_next(&it, addr, link_key, &type)) {
+        logi("%s - type %u - key: ", bd_addr_to_str(addr), (int)type);
+        printf_hexdump(link_key, 16);
+    }
+    gap_link_key_iterator_done(&it);
+}
+
+static void enable_new_connections(bool enabled) {
     if (bt_scanning_enabled != enabled) {
         bt_scanning_enabled = enabled;
 
@@ -665,6 +686,27 @@ static void enable_new_connections_callback(void* context) {
     }
 
     uni_get_platform()->on_oob_event(UNI_PLATFORM_OOB_BLUETOOTH_ENABLED, (void*)enabled);
+}
+
+static void cmd_callback(void* context) {
+    int cmd = (int)context;
+    switch (cmd) {
+        case CMD_BT_DEL_KEYS:
+            bluetooth_del_keys();
+            break;
+        case CMD_BT_LIST_KEYS:
+            bluetooth_list_keys();
+            break;
+        case CMD_BT_ENABLE:
+            enable_new_connections(true);
+            break;
+        case CMD_BT_DISABLE:
+            enable_new_connections(false);
+            break;
+        case CMD_DUMP_DEVICES:
+            uni_hid_device_dump_all();
+            break;
+    }
 }
 
 static uint8_t start_scan(void) {
@@ -703,14 +745,27 @@ static uint8_t stop_scan(void) {
 //
 
 void uni_bluetooth_del_keys_safe(void) {
-    del_keys_callback_registration.callback = &bluetooth_del_keys_callback;
-    btstack_run_loop_execute_on_main_thread(&del_keys_callback_registration);
+    cmd_callback_registration.callback = &cmd_callback;
+    cmd_callback_registration.context = (void*)CMD_BT_DEL_KEYS;
+    btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
+}
+
+void uni_bluetooth_list_keys_safe(void) {
+    cmd_callback_registration.callback = &cmd_callback;
+    cmd_callback_registration.context = (void*)CMD_BT_LIST_KEYS;
+    btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
 }
 
 void uni_bluetooth_enable_new_connections_safe(bool enabled) {
-    enable_bt_callback_registration.callback = &enable_new_connections_callback;
-    enable_bt_callback_registration.context = (void*)(uintptr_t)enabled;
-    btstack_run_loop_execute_on_main_thread(&enable_bt_callback_registration);
+    cmd_callback_registration.callback = &cmd_callback;
+    cmd_callback_registration.context = (void*)(enabled ? CMD_BT_ENABLE : CMD_BT_DISABLE);
+    btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
+}
+
+void uni_bluetooth_dump_devices_safe(void) {
+    cmd_callback_registration.callback = &cmd_callback;
+    cmd_callback_registration.context = (void*)CMD_DUMP_DEVICES;
+    btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
 }
 
 void uni_bluetooth_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
