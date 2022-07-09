@@ -50,7 +50,8 @@ class Bluepad32 {
     void forgetBluetoothKeys();
 
     // Enable / Disable new Bluetooth connections.
-    // When enabled, the device is put in Discovery mode, and new pairs and connections are accepted.
+    // When enabled, the device is put in Discovery mode, and new pairs are accepted.
+    // When disabled, only devices that have paired before can connect.
     // Established connections are not affected.
     void enableNewBluetoothConnections(bool enabled);
 

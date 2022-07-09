@@ -29,19 +29,15 @@ typedef struct {
     uint8_t down;       // line 2 - X1 for quad mouse
     uint8_t left;       // line 3 - Y1 for quad mouse
     uint8_t right;      // line 4 - X2 for quad mouse
-    uint8_t pot_y;      // line 5 - Middle button for mouse
+    uint8_t button3;    // line 5 - Middle button for mouse, Pot Y (C64), Pot X (Amiga)
     uint8_t fire;       // line 6 - Left button for mouse
     uint8_t _power;     // line 7 - +5v. added as ref only
     uint8_t _ground;    // line 8 - ground. added as ref only
-    uint8_t pot_x;      // line 9 - Right button for mouse
+    uint8_t button2;    // line 9 - Right button for mouse, Pot X (C64), Pot Y (Amiga)
     uint8_t auto_fire;  // virtual button
 } uni_joystick_t;
 
 void uni_joy_to_single_joy_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t* out_joy);
 void uni_joy_to_combo_joy_joy_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t* out_joy1, uni_joystick_t* out_joy2);
-void uni_joy_to_single_mouse_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t* out_mouse);
-void uni_joy_to_combo_joy_mouse_from_gamepad(const uni_gamepad_t* gp,
-                                             uni_joystick_t* out_joy,
-                                             uni_joystick_t* out_mouse);
 
 #endif  // UNI_JOYSTICK_H

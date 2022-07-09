@@ -340,3 +340,8 @@ static void ds4_send_enable_lightbar_report(uni_hid_device_t* d) {
     };
     ds4_send_output_report(d, &out);
 }
+
+void uni_hid_parser_ds4_device_dump(uni_hid_device_t* d) {
+    ds4_instance_t* ins = get_ds4_instance(d);
+    logi("\tDS4: FW version %#x, HW version %#x\n", ins->fw_version, ins->hw_version);
+}

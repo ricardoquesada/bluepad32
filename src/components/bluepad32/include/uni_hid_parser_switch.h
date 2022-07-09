@@ -31,5 +31,6 @@ void uni_hid_parser_switch_parse_input_report(struct uni_hid_device_s* d, const 
 void uni_hid_parser_switch_set_player_leds(struct uni_hid_device_s* d, uint8_t leds);
 void uni_hid_parser_switch_set_rumble(struct uni_hid_device_s* d, uint8_t value, uint8_t duration);
 bool uni_hid_parser_switch_does_name_match(struct uni_hid_device_s* d, const char* name);
+void uni_hid_parser_switch_device_dump(struct uni_hid_device_s* d);
 
 #endif  // UNI_HID_PARSER_SWITCH_H

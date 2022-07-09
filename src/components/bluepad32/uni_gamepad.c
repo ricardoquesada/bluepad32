@@ -23,9 +23,45 @@ limitations under the License.
 #include "uni_common.h"
 #include "uni_config.h"
 #include "uni_debug.h"
+#include "uni_hid_device_vendors.h"
 
 static uni_gamepad_mappings_t map;
 static bool mappings_enabled = false;
+
+static struct {
+    uni_controller_type_t type;
+    char* name;
+} controller_names[] = {
+    {CONTROLLER_TYPE_UnknownSteamController, "Unknown Steam"},
+    {CONTROLLER_TYPE_SteamController, "Steam"},
+    {CONTROLLER_TYPE_SteamControllerV2, "Steam V2"},
+
+    {CONTROLLER_TYPE_XBox360Controller, "XBox 360"},
+    {CONTROLLER_TYPE_XBoxOneController, "XBox One"},
+    {CONTROLLER_TYPE_PS3Controller, "DualShock 3"},
+    {CONTROLLER_TYPE_PS4Controller, "DualShock 4"},
+    {CONTROLLER_TYPE_WiiController, "Wii"},
+    {CONTROLLER_TYPE_AppleController, "Apple"},
+    {CONTROLLER_TYPE_AndroidController, "Android"},
+    {CONTROLLER_TYPE_SwitchProController, "Switch Pro"},
+    {CONTROLLER_TYPE_SwitchJoyConLeft, "Switch JoyCon Left"},
+    {CONTROLLER_TYPE_SwitchJoyConRight, "Switch JoyCon Right"},
+    {CONTROLLER_TYPE_SwitchJoyConPair, "Switch JoyCon Pair"},
+    {CONTROLLER_TYPE_SwitchInputOnlyController, "Switch Input Only"},
+    {CONTROLLER_TYPE_MobileTouch, "Mobile Touch"},
+    {CONTROLLER_TYPE_XInputSwitchController, "XInput Switch"},
+    {CONTROLLER_TYPE_PS5Controller, "DualSense"},
+
+    {CONTROLLER_TYPE_iCadeController, "iCade"},
+    {CONTROLLER_TYPE_SmartTVRemoteController, "Smart TV Remote"},
+    {CONTROLLER_TYPE_8BitdoController, "8BitDo"},
+    {CONTROLLER_TYPE_GenericController, "Generic"},
+    {CONTROLLER_TYPE_NimbusController, "Nimbus"},
+    {CONTROLLER_TYPE_OUYAController, "OUYA"},
+
+    {CONTROLLER_TYPE_GenericKeyboard, "Keyboard"},
+    {CONTROLLER_TYPE_GenericMouse, "Mouse"},
+};
 
 // extern
 const uni_gamepad_mappings_t GAMEPAD_DEFAULT_MAPPINGS = {
@@ -58,6 +94,7 @@ const uni_gamepad_mappings_t GAMEPAD_DEFAULT_MAPPINGS = {
     .misc_button_home = UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_HOME,
     .misc_button_system = UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_SYSTEM,
 };
+
 const int AXIS_NORMALIZE_RANGE = 1024;  // 10-bit resolution (1024)
 const int AXIS_THRESHOLD = (1024 / 8);
 
@@ -170,4 +207,12 @@ void uni_gamepad_dump(const uni_gamepad_t* gp) {
          gp->updated_states                                           // state
 
     );
+}
+
+char* uni_gamepad_get_model_name(int type) {
+    for (size_t i = 0; i < ARRAY_SIZE(controller_names); i++) {
+        if (controller_names[i].type == type)
+            return controller_names[i].name;
+    }
+    return "Unknown";
 }

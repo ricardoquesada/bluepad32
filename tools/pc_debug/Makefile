@@ -6,7 +6,7 @@ CORE += main.c btstack_stdin_posix.c btstack_tlv_posix.c hci_dump_posix_fs.c
 
 COMMON += hci_transport_h2_libusb.c btstack_run_loop_posix.c le_device_db_tlv.c btstack_link_key_db_tlv.c wav_util.c btstack_network_posix.c
 COMMON += gatt_client.c att_dispatch.c hids_client.c
-COMMON += btstack_audio_portaudio.c btstack_chipset_zephyr.c rijndael.c
+COMMON += btstack_audio_portaudio.c btstack_chipset_zephyr.c rijndael.c hid_device.c
 
 include ${BTSTACK_ROOT}/example/Makefile.inc
 
@@ -87,6 +87,7 @@ bluepad32: ${CORE_OBJ} ${COMMON_OBJ} ${CLASSIC_OBJ} ${SDP_CLIENT} btstack_ring_b
 	${BLUEPAD32_ROOT}/uni_hid_parser_ds5.o \
 	${BLUEPAD32_ROOT}/uni_hid_parser_generic.o \
 	${BLUEPAD32_ROOT}/uni_hid_parser_icade.o \
+	${BLUEPAD32_ROOT}/uni_hid_parser_mouse.o \
 	${BLUEPAD32_ROOT}/uni_hid_parser_nimbus.o \
 	${BLUEPAD32_ROOT}/uni_hid_parser_ouya.o \
 	${BLUEPAD32_ROOT}/uni_hid_parser_smarttvremote.o \
@@ -94,9 +95,12 @@ bluepad32: ${CORE_OBJ} ${COMMON_OBJ} ${CLASSIC_OBJ} ${SDP_CLIENT} btstack_ring_b
 	${BLUEPAD32_ROOT}/uni_hid_parser_wii.o \
 	${BLUEPAD32_ROOT}/uni_hid_parser_xboxone.o \
 	${BLUEPAD32_ROOT}/uni_joystick.o \
+	${BLUEPAD32_ROOT}/uni_log.o \
 	${BLUEPAD32_ROOT}/uni_main.o \
 	${BLUEPAD32_ROOT}/uni_platform.o \
 	${BLUEPAD32_ROOT}/uni_platform_pc_debug.o \
+	${BLUEPAD32_ROOT}/uni_property.o \
+	${BLUEPAD32_ROOT}/uni_property_mem.o \
 	${BLUEPAD32_ROOT}/uni_utils.o
 	${CC} $^ ${CFLAGS} ${LDFLAGS} -o $@
 

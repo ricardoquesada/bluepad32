@@ -75,4 +75,20 @@ menu "Bluepad32"
             Enables UART output (console output).
             Highly recommended for debugging purposes.
             But must be disabled on AirLift / NINA platforms.
+
+    config BLUEPAD32_USB_CONSOLE_ENABLE
+        bool "Enable USB Console"
+        default  y
+        depends on BLUEPAD32_UART_OUTPUT_ENABLE
+        help
+            Enables the USB console.
+            User can interact with the Bluepad32 firmware via commands.
+
+    config BLUEPAD32_CONSOLE_NVS_COMMAND_ENABLE
+        bool "Enable NVS console commands"
+        default  n
+        depends on BLUEPAD32_USB_CONSOLE_ENABLE
+        help
+            Enables the NVS console commands. Useful for debugging.
+
 endmenu

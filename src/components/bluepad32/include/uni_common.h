@@ -26,12 +26,16 @@ extern "C" {
 // Some common macros
 
 #ifndef BIT
-#define BIT(nr) (1U << (nr))
+#define BIT(nr) (1ULL << (nr))
 #endif  // BIT
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 #endif  // ARRAY_SIZE
+
+#ifndef ARG_UNUSED
+#define ARG_UNUSED(x) (void)(sizeof(x))
+#endif  // ARG_UNUSED
 
 #ifdef __cplusplus
 }

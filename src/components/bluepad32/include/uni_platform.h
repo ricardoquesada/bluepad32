@@ -31,6 +31,7 @@ extern "C" {
 typedef enum {
     // The gamepad "System" button was pressed
     UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON,
+    UNI_PLATFORM_OOB_BLUETOOTH_ENABLED,
 } uni_platform_oob_event_t;
 
 typedef enum {
@@ -70,9 +71,11 @@ struct uni_platform {
     // Return -1 if property is not supported
     int32_t (*get_property)(uni_platform_property_t key);
 
-    // When a device (gamepad) generates an Out-of-Band event, like pressing the
-    // home button.
-    void (*on_device_oob_event)(uni_hid_device_t* d, uni_platform_oob_event_t event);
+    // Events that Bluepad32 sends to the platforms
+    void (*on_oob_event)(uni_platform_oob_event_t event, void* data);
+
+    // Print debug info about a device.
+    void (*device_dump)(uni_hid_device_t* d);
 };
 
 void uni_platform_init(int argc, const char** argv);

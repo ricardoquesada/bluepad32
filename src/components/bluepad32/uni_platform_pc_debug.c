@@ -107,7 +107,7 @@ static void pc_debug_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
         return;
     }
     prev = *gp;
-    // Print device Id before dumpting gamepad.
+    // Print device Id before dumping gamepad.
     logi("(%p) ", d);
     uni_gamepad_dump(gp);
 
@@ -148,15 +148,18 @@ static int32_t pc_debug_get_property(uni_platform_property_t key) {
     return g_delete_keys;
 }
 
-static void pc_debug_on_device_oob_event(uni_hid_device_t* d, uni_platform_oob_event_t event) {
-    if (d == NULL) {
-        loge("ERROR: pc_debug_on_device_gamepad_event: Invalid NULL device\n");
-        return;
-    }
+static void pc_debug_on_oob_event(uni_platform_oob_event_t event, void* data) {
     logi("pc_debug: on_device_oob_event(): %d\n", event);
 
     if (event != UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON) {
-        loge("ERROR: pc_debug_on_device_gamepad_event: unsupported event: 0x%04x\n", event);
+        logi("pc_debug_on_device_gamepad_event: unsupported event: 0x%04x\n", event);
+        return;
+    }
+
+    uni_hid_device_t* d = data;
+
+    if (d == NULL) {
+        loge("ERROR: pc_debug_on_device_gamepad_event: Invalid NULL device\n");
         return;
     }
 
@@ -196,17 +199,17 @@ static void trigger_event_on_gamepad(uni_hid_device_t* d) {
 // Entry Point
 //
 struct uni_platform* uni_platform_pc_debug_create(void) {
-    static struct uni_platform plat;
-
-    plat.name = "PC Debug";
-    plat.init = pc_debug_init;
-    plat.on_init_complete = pc_debug_on_init_complete;
-    plat.on_device_connected = pc_debug_on_device_connected;
-    plat.on_device_disconnected = pc_debug_on_device_disconnected;
-    plat.on_device_ready = pc_debug_on_device_ready;
-    plat.on_device_oob_event = pc_debug_on_device_oob_event;
-    plat.on_gamepad_data = pc_debug_on_gamepad_data;
-    plat.get_property = pc_debug_get_property;
+    static struct uni_platform plat = {
+        .name = "PC Debug",
+        .init = pc_debug_init,
+        .on_init_complete = pc_debug_on_init_complete,
+        .on_device_connected = pc_debug_on_device_connected,
+        .on_device_disconnected = pc_debug_on_device_disconnected,
+        .on_device_ready = pc_debug_on_device_ready,
+        .on_oob_event = pc_debug_on_oob_event,
+        .on_gamepad_data = pc_debug_on_gamepad_data,
+        .get_property = pc_debug_get_property,
+    };
 
     return &plat;
 }

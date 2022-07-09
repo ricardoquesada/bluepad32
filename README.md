@@ -46,11 +46,11 @@ Newer models like ESP32-Sx, ESP32-Cx, ESP32-Hx are **NOT** supported since they 
 
 ## Features
 
-* Supports most, if not all, modern Bluetooth gamepads (see below)
+* Supports most, if not all, modern Bluetooth gamepads and mice (see below)
 * Fast (very low latency)
 * Small footprint
 * Uses only one core (CPU0). The remaining one is free to use.
-* C99 based
+* C11 based
 * Open Source (see below)
 
 ## Supported controllers
@@ -69,17 +69,19 @@ Newer models like ESP32-Sx, ESP32-Cx, ESP32-Hx are **NOT** supported since they 
 * PC/Window gamepads
 * 8BitDo controllers
 * iCade
+* Mouse
 * And more
 
-See: [Supported gamepads][gamepads]
+See: [Supported gamepads][gamepads] and [supported mice][mice]
 
 [gamepads]: https://gitlab.com/ricardoquesada/bluepad32/blob/master/docs/supported_gamepads.md
+[mice]: https://gitlab.com/ricardoquesada/bluepad32/blob/master/docs/supported_mice.md
 
 ## How to compile it
 
 1. Install ESP-IDF
 
-    Install the ESP32 toolchain. Use version **4.4**. Might work on newer / older
+    Install the ESP32 toolchain. Use version **4.4.1**. Might work on newer / older
     ones, but not tested.
 
     * <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/>

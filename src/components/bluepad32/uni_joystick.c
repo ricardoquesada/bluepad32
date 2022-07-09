@@ -60,10 +60,10 @@ static void to_single_joy(const uni_gamepad_t* gp, uni_joystick_t* out_joy) {
 
     // Pots
     if (gp->updated_states & GAMEPAD_STATE_BRAKE) {
-        out_joy->pot_x = (gp->brake >> 2);  // convert from 1024 to 256
+        out_joy->button2 = (gp->brake >> 2);  // convert from 1024 to 256
     }
     if (gp->updated_states & GAMEPAD_STATE_THROTTLE) {
-        out_joy->pot_y = (gp->throttle >> 2);  // convert from 1024 to 256
+        out_joy->button3 = (gp->throttle >> 2);  // convert from 1024 to 256
     }
 }
 
@@ -78,12 +78,12 @@ void uni_joy_to_single_joy_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t*
 
     // 2nd Button for Atari ST / Amiga
     if (gp->updated_states & GAMEPAD_STATE_BUTTON_X) {
-        out_joy->pot_y |= ((gp->buttons & BUTTON_X) != 0);
+        out_joy->button2 |= ((gp->buttons & BUTTON_X) != 0);
     }
 
     // 3rd Button for Amiga
     if (gp->updated_states & GAMEPAD_STATE_BUTTON_Y) {
-        out_joy->pot_x |= ((gp->buttons & BUTTON_Y) != 0);
+        out_joy->button3 |= ((gp->buttons & BUTTON_Y) != 0);
     }
 }
 
@@ -119,42 +119,5 @@ void uni_joy_to_combo_joy_joy_from_gamepad(const uni_gamepad_t* gp,
     if (gp->updated_states & GAMEPAD_STATE_AXIS_RY) {
         out_joy1->up |= (gp->axis_ry < -AXIS_THRESHOLD);
         out_joy1->down |= (gp->axis_ry > AXIS_THRESHOLD);
-    }
-}
-
-// One gamepad controls one mouse: Unfinished
-void uni_joy_to_single_mouse_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t* out_mouse) {
-    to_single_joy(gp, out_mouse);
-}
-
-// One gamepad controls one mouse and one joystick: Unfinished
-void uni_joy_to_combo_joy_mouse_from_gamepad(const uni_gamepad_t* gp,
-                                             uni_joystick_t* out_joy,
-                                             uni_joystick_t* out_mouse) {
-    to_single_joy(gp, out_joy);
-
-    // Axis: RX and RY
-    if (gp->updated_states & GAMEPAD_STATE_AXIS_RX) {
-        out_mouse->left |= (gp->axis_rx < -AXIS_THRESHOLD);
-        out_mouse->right |= (gp->axis_rx > AXIS_THRESHOLD);
-    }
-    if (gp->updated_states & GAMEPAD_STATE_AXIS_RY) {
-        out_mouse->up |= (gp->axis_ry < -AXIS_THRESHOLD);
-        out_mouse->down |= (gp->axis_ry > AXIS_THRESHOLD);
-    }
-
-    // Buttom B is "mouse left button"
-    if (gp->updated_states & GAMEPAD_STATE_BUTTON_B) {
-        out_mouse->fire |= ((gp->buttons & BUTTON_B) != 0);
-    }
-
-    // Buttom X is "mouse middle button"
-    if (gp->updated_states & GAMEPAD_STATE_BUTTON_X) {
-        out_mouse->pot_x |= ((gp->buttons & BUTTON_X) != 0);
-    }
-
-    // Buttom Y is "mouse right button"
-    if (gp->updated_states & GAMEPAD_STATE_BUTTON_Y) {
-        out_mouse->pot_y |= ((gp->buttons & BUTTON_Y) != 0);
     }
 }

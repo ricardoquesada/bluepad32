@@ -19,6 +19,7 @@ limitations under the License.
 #include "uni_hid_parser_icade.h"
 
 #include "hid_usage.h"
+#include "uni_common.h"
 #include "uni_debug.h"
 #include "uni_hid_device.h"
 
@@ -104,7 +105,7 @@ void uni_hid_parser_icade_parse_usage(uni_hid_device_t* d,
                                       int32_t value) {
     uni_gamepad_t* gp = &d->gamepad;
     icade_instance_t* ins = get_icade_instance(d);
-    UNUSED(globals);
+    ARG_UNUSED(globals);
     if (usage_page != HID_USAGE_PAGE_KEYBOARD_KEYPAD)
         return;
 

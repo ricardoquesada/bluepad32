@@ -22,5 +22,6 @@ limitations under the License.
 #include "uni_platform.h"
 
 struct uni_platform* uni_platform_unijoysticle_create(void);
+void uni_platform_unijoysticle_register_cmds(void);
 
 #endif  // UNI_PLATFORM_UNIJOYSTICLE_H

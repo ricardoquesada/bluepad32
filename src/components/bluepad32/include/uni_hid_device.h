@@ -44,7 +44,8 @@ typedef enum {
     CONTROLLER_SUBTYPE_WIIMOTE_NCHK2JOYS,
     CONTROLLER_SUBTYPE_WIIMOTE_NCHKACCEL,
     CONTROLLER_SUBTYPE_WII_CLASSIC,
-    CONTROLLER_SUBTYPE_WIIUPRO
+    CONTROLLER_SUBTYPE_WIIUPRO,
+    CONTROLLER_SUBTYPE_WII_BALANCE_BOARD
 } uni_controller_subtype_t;
 
 typedef enum {
@@ -83,8 +84,10 @@ struct uni_hid_device_s {
     // Channels
     uint16_t hids_cid;  // BLE only
 
+    // TODO: Create a union of gamepad/mouse/keyboard structs
+    // At the moment "mouse" reuses gamepad struct, but it is a hack.
     // Gamepad
-    uint8_t controller_type;                      // type of controller. E.g: DualShock4, Switch ,etc.
+    uint16_t controller_type;                     // type of controller. E.g: DualShock4, Switch ,etc.
     uni_controller_subtype_t controller_subtype;  // sub-type of controller attached
     uni_gamepad_t gamepad;                        // gamepad state
 
@@ -178,5 +181,9 @@ void uni_hid_device_send_ctrl_report(uni_hid_device_t* d, const uint8_t* report,
 void uni_hid_device_send_queued_reports(uni_hid_device_t* d);
 
 bool uni_hid_device_does_require_hid_descriptor(uni_hid_device_t* d);
+
+bool uni_hid_device_is_gamepad(uni_hid_device_t* d);
+bool uni_hid_device_is_mouse(uni_hid_device_t* d);
+bool uni_hid_device_is_keyboard(uni_hid_device_t* d);
 
 #endif  // UNI_HID_DEVICE_H

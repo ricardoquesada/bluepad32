@@ -49,9 +49,8 @@ void uni_platform_init(int argc, const char** argv) {
 #error "Platform not defined. Set PLATFORM environment variable"
 #endif
 
-    _platform->init(argc, argv);
-
     logi("Platform: %s\n", _platform->name);
+    _platform->init(argc, argv);
 }
 
 struct uni_platform* uni_get_platform(void) {

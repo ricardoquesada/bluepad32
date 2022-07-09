@@ -44,6 +44,7 @@ limitations under the License.
 
 #include "sdkconfig.h"
 #include "uni_bluetooth.h"
+#include "uni_common.h"
 #include "uni_config.h"
 #include "uni_debug.h"
 #include "uni_esp32.h"
@@ -57,8 +58,8 @@ limitations under the License.
 // NINA / AirLift don't use the pre-designated IO_MUX pins for VSPI.
 // Instead it uses the GPIO matrix, that might not be suitable for fast SPI
 // communications.
-//#define GPIO_MOSI GPIO_NUM_23
-//#define GPIO_MISO GPIO_NUM_19
+// #define GPIO_MOSI GPIO_NUM_23
+// #define GPIO_MISO GPIO_NUM_19
 
 // The only difference between NINA and AirLift, seems to be the MOSI pin.
 #ifdef CONFIG_BLUEPAD32_PLATFORM_AIRLIFT
@@ -113,6 +114,10 @@ enum {
     PROPERTY_FLAG_RUMBLE = BIT(0),
     PROPERTY_FLAG_PLAYER_LEDS = BIT(1),
     PROPERTY_FLAG_PLAYER_LIGHTBAR = BIT(2),
+
+    PROPERTY_FLAG_GAMEPAD = BIT(13),
+    PROPERTY_FLAG_MOUSE = BIT(14),
+    PROPERTY_FLAG_KEYBOARD = BIT(15),
 };
 
 // This is sent via the wire. Adding new properties at the end Ok.
@@ -227,7 +232,7 @@ enum {
 // Command 0x00
 static int request_protocol_version(const uint8_t command[], uint8_t response[]) {
 #define PROTOCOL_VERSION_HI 0x01
-#define PROTOCOL_VERSION_LO 0x01
+#define PROTOCOL_VERSION_LO 0x02
 
     response[2] = 1;  // Number of parameters
     response[3] = 2;  // Param len
@@ -383,6 +388,18 @@ static int request_get_gamepad_properties(const uint8_t command[], uint8_t respo
     return 6 + sizeof(nina_gamepad_properties_t);
 }
 
+// Command 0x07
+static int request_enable_bluetooth_connections(const uint8_t command[], uint8_t response[]) {
+    bool enabled = command[4];
+    uni_bluetooth_enable_new_connections_safe(enabled);
+
+    response[2] = 1;  // total params
+    response[3] = 1;  // param len
+    response[4] = RESPONSE_OK;
+
+    return 5;
+}
+
 // Command 0x1a
 static int request_set_debug(const uint8_t command[], uint8_t response[]) {
     uni_esp32_enable_uart_output(command[4]);
@@ -492,14 +509,14 @@ const command_handler_t command_handlers[] = {
     // These 16 entries are NULL in NINA. Perhaps they are reserved for future
     // use? Seems to be safe to use them for Bluepad32 commands.
     request_protocol_version,
-    request_gamepads_data,            // data
-    request_set_gamepad_player_leds,  // the 4 LEDs that is available in many
-                                      // gamepads.
-    request_set_gamepad_color_led,    // available on DS4, DualSense
-    request_set_gamepad_rumble,       // available on DS4, Xbox, Switch, etc.
-    request_forget_bluetooth_keys,    // forget stored Bluetooth keys
-    request_get_gamepad_properties,   // get gamepad properties like BTAddr, VID/PID, etc.
-    NULL,
+    request_gamepads_data,                 // data
+    request_set_gamepad_player_leds,       // the 4 LEDs that is available in many
+                                           // gamepads.
+    request_set_gamepad_color_led,         // available on DS4, DualSense
+    request_set_gamepad_rumble,            // available on DS4, Xbox, Switch, etc.
+    request_forget_bluetooth_keys,         // forget stored Bluetooth keys
+    request_get_gamepad_properties,        // get gamepad properties like BTAddr, VID/PID, etc.
+    request_enable_bluetooth_connections,  // Enable/Disable bluetooth connection
     NULL,
     NULL,
     NULL,
@@ -673,7 +690,7 @@ static int process_request(const uint8_t command[], int command_len, uint8_t res
 
 // Called after a transaction is queued and ready for pickup by master.
 static void IRAM_ATTR spi_post_setup_cb(spi_slave_transaction_t* trans) {
-    UNUSED(trans);
+    ARG_UNUSED(trans);
     xSemaphoreGiveFromISR(_ready_semaphore, NULL);
 }
 
@@ -786,8 +803,8 @@ static void process_pending_requests(void) {
 // Platform Overrides
 //
 static void nina_init(int argc, const char** argv) {
-    UNUSED(argc);
-    UNUSED(argv);
+    ARG_UNUSED(argc);
+    ARG_UNUSED(argv);
 
     // First things first:
     // Set READY pin as not-ready (HIGH) so that SPI-master doesn't start the
@@ -878,6 +895,18 @@ static int nina_on_device_ready(uni_hid_device_t* d) {
                                       (d->report_parser.set_rumble ? PROPERTY_FLAG_RUMBLE : 0) |
                                       (d->report_parser.set_lightbar_color ? PROPERTY_FLAG_PLAYER_LIGHTBAR : 0);
 
+    // TODO: Most probably a device cannot be a mouse a keyboard and a gamepad at the same time,
+    // and 2 bits should be more than enough.
+    // But for simplicity, let's use one bit for each category.
+    if (uni_hid_device_is_mouse(d))
+        _gamepads_properties[idx].flags |= PROPERTY_FLAG_MOUSE;
+
+    if (uni_hid_device_is_keyboard(d))
+        _gamepads_properties[idx].flags |= PROPERTY_FLAG_KEYBOARD;
+
+    if (uni_hid_device_is_gamepad(d))
+        _gamepads_properties[idx].flags |= PROPERTY_FLAG_GAMEPAD;
+
     memcpy(_gamepads_properties[ins->gamepad_idx].btaddr, d->conn.btaddr, sizeof(_gamepads_properties[0].btaddr));
 
     if (d->report_parser.set_player_leds != NULL) {
@@ -923,10 +952,9 @@ static void nina_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
     xSemaphoreGive(_gamepad_mutex);
 }
 
-static void nina_on_device_oob_event(uni_hid_device_t* d, uni_platform_oob_event_t event) {
-    if (event != UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON)
-        return;
-
+static void nina_on_oob_event(uni_platform_oob_event_t event, void* data) {
+    ARG_UNUSED(event);
+    ARG_UNUSED(data);
     // TODO: Do something ?
 }
 
@@ -946,34 +974,34 @@ static nina_instance_t* get_nina_instance(uni_hid_device_t* d) {
 // Entry Point
 //
 struct uni_platform* uni_platform_nina_create(void) {
-    static struct uni_platform plat;
-
-    plat.name = "Arduino NINA";
-    plat.init = nina_init;
-    plat.on_init_complete = nina_on_init_complete;
-    plat.on_device_connected = nina_on_device_connected;
-    plat.on_device_disconnected = nina_on_device_disconnected;
-    plat.on_device_ready = nina_on_device_ready;
-    plat.on_device_oob_event = nina_on_device_oob_event;
-    plat.on_gamepad_data = nina_on_gamepad_data;
-    plat.get_property = nina_get_property;
+    static struct uni_platform plat = {
+        .name = "Arduino NINA",
+        .init = nina_init,
+        .on_init_complete = nina_on_init_complete,
+        .on_device_connected = nina_on_device_connected,
+        .on_device_disconnected = nina_on_device_disconnected,
+        .on_device_ready = nina_on_device_ready,
+        .on_oob_event = nina_on_oob_event,
+        .on_gamepad_data = nina_on_gamepad_data,
+        .get_property = nina_get_property,
+    };
 
     return &plat;
 }
 
 // AirLift and NINA are identical with the exception of the MOSI pin.
 struct uni_platform* uni_platform_airlift_create(void) {
-    static struct uni_platform plat;
-
-    plat.name = "Adafruit AirLift";
-    plat.init = nina_init;
-    plat.on_init_complete = nina_on_init_complete;
-    plat.on_device_connected = nina_on_device_connected;
-    plat.on_device_disconnected = nina_on_device_disconnected;
-    plat.on_device_ready = nina_on_device_ready;
-    plat.on_device_oob_event = nina_on_device_oob_event;
-    plat.on_gamepad_data = nina_on_gamepad_data;
-    plat.get_property = nina_get_property;
+    static struct uni_platform plat = {
+        .name = "Adafruit AirLift",
+        .init = nina_init,
+        .on_init_complete = nina_on_init_complete,
+        .on_device_connected = nina_on_device_connected,
+        .on_device_disconnected = nina_on_device_disconnected,
+        .on_device_ready = nina_on_device_ready,
+        .on_oob_event = nina_on_oob_event,
+        .on_gamepad_data = nina_on_gamepad_data,
+        .get_property = nina_get_property,
+    };
 
     return &plat;
 }

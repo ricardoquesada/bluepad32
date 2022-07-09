@@ -3,6 +3,7 @@ set(srcs "uni_bluetooth.c"
          "uni_bt_sdp.c"
          "uni_bt_setup.c"
          "uni_circular_buffer.c"
+         "uni_console.c"
          "uni_esp32.c"
          "uni_gamepad.c"
          "uni_hci_cmd.c"
@@ -15,6 +16,7 @@ set(srcs "uni_bluetooth.c"
          "uni_hid_parser_ds5.c"
          "uni_hid_parser_generic.c"
          "uni_hid_parser_icade.c"
+         "uni_hid_parser_mouse.c"
          "uni_hid_parser_nimbus.c"
          "uni_hid_parser_ouya.c"
          "uni_hid_parser_smarttvremote.c"
@@ -22,7 +24,9 @@ set(srcs "uni_bluetooth.c"
          "uni_hid_parser_wii.c"
          "uni_hid_parser_xboxone.c"
          "uni_joystick.c"
+         "uni_log.c"
          "uni_main.c"
+         "uni_mouse_quadrature.c"
          "uni_platform.c"
          "uni_platform_arduino.c"
          "uni_platform_arduino_bootstrap.cpp"
@@ -30,9 +34,11 @@ set(srcs "uni_bluetooth.c"
          "uni_platform_nina.c"
          "uni_platform_pc_debug.c"
          "uni_platform_unijoysticle.c"
+         "uni_property.c"
+         "uni_property_nvs.c"
          "uni_utils.c")
 
-set(requires "nvs_flash" "btstack")
+set(requires "nvs_flash" "btstack" "cmd_nvs" "cmd_system" "app_update")
 
 # See: https://gitlab.com/ricardoquesada/bluepad32/-/issues/9
 if(DEFINED ENV{BLUEPAD32_ARDUINO})

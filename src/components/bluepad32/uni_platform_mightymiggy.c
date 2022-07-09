@@ -28,6 +28,7 @@ limitations under the License.
 
 #include "sdkconfig.h"
 #include "uni_bluetooth.h"
+#include "uni_common.h"
 #include "uni_config.h"
 #include "uni_debug.h"
 #include "uni_gamepad.h"
@@ -2485,12 +2486,9 @@ static int mightymiggy_on_device_ready(uni_hid_device_t* d) {
     return ret;
 }
 
-static void mightymiggy_on_device_oob_event(uni_hid_device_t* d, uni_platform_oob_event_t event) {
-    if (d == NULL) {
-        mmloge("ERROR: mightymiggy_on_device_gamepad_event: Invalid NULL device\n");
-        return;
-    }
-
+static void mightymiggy_on_oob_event(uni_platform_oob_event_t event, void* data) {
+    ARG_UNUSED(event);
+    ARG_UNUSED(data);
     //~ logi ("'Misc' button pressed\n");
 
     //~ RuntimeControllerInfo* cinfo = getControllerInstance (d);
@@ -2824,17 +2822,17 @@ static int32_t mightymiggy_get_property(uni_platform_property_t key) {
 // MightyMiggy platform entry point
 //
 struct uni_platform* uni_platform_mightymiggy_create(void) {
-    static struct uni_platform plat;
-
-    plat.name = "MightyMiggy by SukkoPera <software@sukkology.net>";
-    plat.init = mightymiggy_init;
-    plat.on_init_complete = mightymiggy_on_init_complete;
-    plat.on_device_connected = mightymiggy_on_device_connected;
-    plat.on_device_disconnected = mightymiggy_on_device_disconnected;
-    plat.on_device_ready = mightymiggy_on_device_ready;
-    plat.on_device_oob_event = mightymiggy_on_device_oob_event;
-    plat.on_gamepad_data = mightymiggy_on_gamepad_data;
-    plat.get_property = mightymiggy_get_property;
+    static struct uni_platform plat = {
+        .name = "MightyMiggy by SukkoPera <software@sukkology.net>",
+        .init = mightymiggy_init,
+        .on_init_complete = mightymiggy_on_init_complete,
+        .on_device_connected = mightymiggy_on_device_connected,
+        .on_device_disconnected = mightymiggy_on_device_disconnected,
+        .on_device_ready = mightymiggy_on_device_ready,
+        .on_oob_event = mightymiggy_on_oob_event,
+        .on_gamepad_data = mightymiggy_on_gamepad_data,
+        .get_property = mightymiggy_get_property,
+    };
 
     return &plat;
 }

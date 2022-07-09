@@ -4,12 +4,119 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v3.5.0] - 2022-07-09
+### New
+- Console commands: New `list_bluetooth_keys` and `del_bluetooth_keys`
+  
+### Changed
+- Console commands: Rename `devices` to `list_devices`
+
+### Fixed
+- Bluetooth LED works as expected in Unijoysticle
+
+## [v3.5.0-rc0] - 2022-07-04
+### New
+- Mouse: Added support for:
+  - LogiLink ID0078A
+- Unijoysticle console commands:
+  - Be able to change the autofire "click-per-second" with:
+    `set_autofire_cps` and `get_autofire_cps`:
+  - `Be able to enable/disable incoming Bluetooth connections with:
+    `set_bluetooth_enabled`
+- Wii: Add support for Wii Balance Board
+
+### Changed
+- Console:
+  - `set_mouse_scale(value)` where a higher value means faster movement.
+     Before it meant "higher value == slower movement"
+  - `version` shows Unijoysticle, Bluepad32 and Chip info
+- Unijoysticle2 A500:
+  Bluetooth LED is also used as status:
+  Blink 1, 2 or 3 times means gamepad mode: "normal", "mouse" or "enhanced"
+  "Mode button" cycles between those 3 modes, and the BT LED is used as feedback.
+  "Swap button", when succeed, it blinks once. It fails it you try to swap when
+  a gamepad is in enhanced mode.
+- Unijoysticle2 auto-enable-bluetooth:
+  If Bluetooth is disabled via the console, then the "auto" feature is disabled.
+  The only way to enable bluetooth again is via the console, or with a reset.
+- Unijoysticle: `auto` mouse emulation deleted. Use `amiga` or `atarist` instead.
+- Platform: renamed `on_device_oob_event` to `on_oob_event`.
+  Bluetooth enabled/disabled OOB event is sent ot the platforms.
+- DualShock3: Can connect even on GAP Security Level 2.
+  No need to change the GAP level.
+- `uni_bluetooth_enable_new_connections()`, when disabled, paired devices can connect [Github Issue #21][github_issue_21]
+
+[github_issue_21]: https://github.com/ricardoquesada/bluepad32/issues/21
+
+## [3.5.0-beta1] - 2022-06-17
+## New
+- Arduino: Add "Console" class. An alternative to Arduino "Serial" that is
+  compatible with Bluepad32's USB console.
+- Property storage abstraction
+  API that allows to store key/values in non-volatile areas
+- Console. Added new commands:
+  `get` / `set_gap_security_level`: Similar to the `menuconfig` option, but no need to recompile it.
+  `get` / `set_gap_periodic_inquiry`: To change the new-connection/reconnection window
+- NINA/AirLift: Add support for "enable/disable new bluetooth connections"
+  - Add "type of controller" in GamepadProperty flags: gamepad, mouse or keyboard
+- Mouse: Added support for:
+  - Apple Magic Mouse 2nd gen
+  - Logitech M-RCL124 MX Revolution
+  - HP Z5000
+  - Some BK3632-based mice
+  - Updated list of [supported mice][supported_mice]
+
+## [3.5.0-beta0] - 2022-05-30
+### New
+- Mouse support:
+  Bluetooth BR/EDR mice supported. Only a few are supported at the moment.
+  This is to fine-tune the DPI. Mouse data is populated in the gamepad structure:
+  - axis_x / axis_y contains the mouse delta movements normalized from -127/127.
+  - Left button: A
+  - Right button: B
+  - Middle button: X
+- Mouse: Added "quadrature encoder" driver. Supports up to two
+   mice at the same time. Each mouse requires 2 timers. So if two mice are used
+   at the same time, that means that there are no HW timers left.
+- Unijoysticle: Supports Amiga/AtariST mouse. Two mice can be used at the same time.
+  - Unijoysticle v2+ / v2 A500: fully functional mouse on both ports
+  - Unijoysticle v2: fully functional mouse on Port #1. Right/Middle button not available on Port #2
+- Unijoysticle: Amiga/AtariST mouse emulation can be changed from `menuconfig` or console. See below.
+- Unijoysticle: Support for Unijoysticle v2 A500 (a new board that fits in the Amiga 500/1200)
+- Unijoysticle: New supported combinations to swap ports by pressing "system" gamepad button:
+  - Gamepad and Mouse
+  - Gamepad and Gamepad while both press "system" at the same time
+- Doc: List of supported mice is here: [supported mice][supported_mice]
+- console: Added a "USB console". Access it from `idf.py monitor` or `minicom`
+  It has the following commands:
+  - `set_mouse_emulation` / `get_mouse_emulation`
+  - `set_mouse_scale` / `get_mouse_scale`
+  - `set_gamepad_mode` / `get_gamepad_mode`
+  - `swap_ports`
+  - `devices`
+  - `tasks`, `version`, `help` and more
+
+[supported_mice]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/develop/docs/supported_mice.md
+
+### Changed
+- Unijoysticle v2: Added support for 2nd and 3rd button in Joystick #1.
+- Unijoysticle v2+: Swap 2nd with 3rd button.
+  - X is 2nd joystick button
+  - Y is 3rd joystick button
+
+### Fixed
+- DualSense/DualShock: reconnect works Ok [Bug #14][gitlab_bug_14]
+- Nintendo Switch Pro/JoyCon: reconnect works Ok [Bug #15][gitlab_bug_15]
+
+[gitlab_bug_14]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/14
+[gitlab_bug_15]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/15
+
 ## [3.1.1] - 2022-04-22
 ### Fixed
- - NINA/AirLift: Binaries are generated with UART console disabled. [Bug bp32-arduino #3][gitlab_bp32_arduino_03]
+- NINA/AirLift: Binaries are generated with UART console disabled. [Bug bp32-arduino #3][gitlab_bp32_arduino_03]
    UART console can be enabled/disabled from menuconfig and only when NINA/AirLift are not selected.
- - Cleanup connect/disconnect code
- - pc_debug: Enable extra compiler-warnings to check possible bugs
+- Cleanup connect/disconnect code
+- pc_debug: Enable extra compiler-warnings to check possible bugs
 
 [gitlab_bp32_arduino_03]: https://gitlab.com/ricardoquesada/bluepad32-arduino/-/issues/3
 

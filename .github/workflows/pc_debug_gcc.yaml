@@ -1,0 +1,24 @@
+name: Makefile GCC
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+      with:
+        submodules: 'recursive'
+
+    - name: Install dependencies
+      run: sudo apt -y install tzdata make pkg-config libusb-1.0-0-dev
+
+    - name: Compile
+      run: cd tools/pc_debug && make

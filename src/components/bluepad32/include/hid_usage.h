@@ -35,10 +35,11 @@ limitations under the License.
 // HID usages for Generic Desktop Page
 #define HID_USAGE_AXIS_X                        0x30
 #define HID_USAGE_AXIS_Y                        0x31
-#define HID_USAGE_AXIS_Z                        0X32
+#define HID_USAGE_AXIS_Z                        0x32
 #define HID_USAGE_AXIS_RX                       0x33
 #define HID_USAGE_AXIS_RY                       0x34
 #define HID_USAGE_AXIS_RZ                       0x35
+#define HID_USAGE_WHEEL                         0x38
 #define HID_USAGE_HAT                           0x39
 #define HID_USAGE_SYSTEM_MAIN_MENU              0x85
 #define HID_USAGE_DPAD_UP                       0x90
@@ -51,7 +52,7 @@ limitations under the License.
 #define HID_USAGE_BRAKE                         0xc5
 
 // HID usages for Generic Device Controls Page
-#define HID_USAGE_BATTERY_STRENGHT              0x20
+#define HID_USAGE_BATTERY_STRENGTH              0x20
 
 // HID usages for Keyboard / Keypad Page
 // KB=Keyboard, KP=Keypad
@@ -75,6 +76,7 @@ limitations under the License.
 #define HID_USAGE_AC_SEARCH                     0x0221
 #define HID_USAGE_AC_HOME                       0x0223
 #define HID_USAGE_AC_BACK                       0x0224
+#define HID_USAGE_AC_PAN                        0x0238
 
 // clang-format on
 

@@ -24,6 +24,7 @@ limitations under the License.
 
 #include "sdkconfig.h"
 #include "uni_bluetooth.h"
+#include "uni_common.h"
 #include "uni_config.h"
 #include "uni_debug.h"
 #include "uni_gamepad.h"
@@ -224,10 +225,9 @@ static void arduino_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
     xSemaphoreGive(_gamepad_mutex);
 }
 
-static void arduino_on_device_oob_event(uni_hid_device_t* d, uni_platform_oob_event_t event) {
-    if (event != UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON)
-        return;
-
+static void arduino_on_device_oob_event(uni_platform_oob_event_t event, void* data) {
+    ARG_UNUSED(event);
+    ARG_UNUSED(data);
     // TODO: Do something ?
 }
 
@@ -332,17 +332,17 @@ static arduino_instance_t* get_arduino_instance(uni_hid_device_t* d) {
 // Entry Point
 //
 struct uni_platform* uni_platform_arduino_create(void) {
-    static struct uni_platform plat;
-
-    plat.name = "Arduino";
-    plat.init = arduino_init;
-    plat.on_init_complete = arduino_on_init_complete;
-    plat.on_device_connected = arduino_on_device_connected;
-    plat.on_device_disconnected = arduino_on_device_disconnected;
-    plat.on_device_ready = arduino_on_device_ready;
-    plat.on_device_oob_event = arduino_on_device_oob_event;
-    plat.on_gamepad_data = arduino_on_gamepad_data;
-    plat.get_property = arduino_get_property;
+    static struct uni_platform plat = {
+        .name = "Arduino",
+        .init = arduino_init,
+        .on_init_complete = arduino_on_init_complete,
+        .on_device_connected = arduino_on_device_connected,
+        .on_device_disconnected = arduino_on_device_disconnected,
+        .on_device_ready = arduino_on_device_ready,
+        .on_oob_event = arduino_on_device_oob_event,
+        .on_gamepad_data = arduino_on_gamepad_data,
+        .get_property = arduino_get_property,
+    };
 
     return &plat;
 }
