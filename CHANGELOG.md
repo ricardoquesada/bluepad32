@@ -20,8 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - LogiLink ID0078A
 - Unijoysticle console commands:
   - Be able to change the autofire "click-per-second" with:
-    `set_autofire_cps` and `get_autofire_cps`:
-  - `Be able to enable/disable incoming Bluetooth connections with:
+    `set_autofire_cps` and `get_autofire_cps`.
+  - Be able to enable/disable incoming Bluetooth connections with:
     `set_bluetooth_enabled`
 - Wii: Add support for Wii Balance Board
 
