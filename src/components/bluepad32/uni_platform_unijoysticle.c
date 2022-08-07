@@ -25,6 +25,7 @@ limitations under the License.
 
 #include <argtable3/argtable3.h>
 #include <driver/gpio.h>
+#include <driver/timer.h>
 #include <esp_chip_info.h>
 #include <esp_console.h>
 #include <esp_idf_version.h>
@@ -81,6 +82,7 @@ limitations under the License.
 
 #define TASK_AUTOFIRE_PRIO (9)
 #define TASK_PUSH_BUTTON_PRIO (8)
+#define TASK_SYNC_IRQ_PRIO (9)
 #define TASK_BLINK_LED_PRIO (7)
 
 // Data coming from gamepad axis is different from mouse deltas.
@@ -93,6 +95,10 @@ limitations under the License.
 // This value was "calculated" using an AtariST 520.
 // Might not be true for newer models, like the Falcon.
 #define ATARIST_MOUSE_DELTA_MAX (28)
+
+//   80Mhz / 40000 = 2000Hz = tick every 0.5ms
+#define TIMER_DIVIDER (80 * 500)
+#define TIMER_ONE_MILLISECOND (2)
 
 enum {
     MOUSE_EMULATION_FROM_BOARD_MODEL,  // Used internally for NVS (Deprecated)
@@ -116,6 +122,12 @@ enum {
 };
 
 enum {
+    SYNC_IRQ_J1,
+    SYNC_IRQ_J2,
+    SYNC_IRQ_MAX,
+};
+
+enum {
     // Push buttons
     EVENT_BUTTON_0 = PUSH_BUTTON_0,
     EVENT_BUTTON_1 = PUSH_BUTTON_1,
@@ -123,6 +135,12 @@ enum {
     // Autofire group
     EVENT_AUTOFIRE_TRIGGER = 0,
     EVENT_AUTOFIRE_CONFIG = 1,
+
+    // Sync IRQ
+    EVENT_SYNC_IRQ_0 = SYNC_IRQ_J1,
+    EVENT_SYNC_IRQ_1 = SYNC_IRQ_J2,
+    EVENT_SYNC_TIMER_0 = SYNC_IRQ_J2 + 1,
+    EVENT_SYNC_TIMER_1 = SYNC_IRQ_J2 + 2,
 };
 
 typedef enum {
@@ -138,8 +156,8 @@ typedef enum {
     // Unijoysticle 2 A500 version
     BOARD_MODEL_UNIJOYSTICLE2_A500,
 
-    // Unijosyticle 2 ST520 version
-    BOARD_MODEL_UNIJOYSTICLE2_ST520,
+    // Unijosyticle 2 C64 version
+    BOARD_MODEL_UNIJOYSTICLE2_C64,
 
     // Unijosyticle Single port, like Arananet's Unijoy2Amiga
     BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT,
@@ -209,9 +227,7 @@ struct gpio_config {
     gpio_num_t port_b[JOY_MAX];
     gpio_num_t leds[LED_MAX];
     struct push_button push_buttons[PUSH_BUTTON_MAX];
-
-    // Autofire frequency. How fast is the autofire.
-    int autofire_freq_ms;
+    gpio_num_t sync_irq[SYNC_IRQ_MAX];
 };
 
 // The platform "instance"
@@ -243,8 +259,11 @@ static void handle_event_button(int button_idx);
 
 // GPIO Interrupt handlers
 static void IRAM_ATTR gpio_isr_handler_button(void* arg);
+static void IRAM_ATTR gpio_isr_handler_sync(void* arg);
+static bool IRAM_ATTR timer_isr_handler_sync(void* arg);
 
 static void pushbutton_event_task(void* arg);
+static void sync_irq_event_task(void* arg);
 static void auto_fire_task(void* arg);
 
 static esp_err_t safe_gpio_set_level(gpio_num_t gpio, int value);
@@ -280,6 +299,7 @@ const struct gpio_config gpio_config_univ2 = {
                          .gpio = -1,
                          .callback = NULL,
                      }},
+    .sync_irq = {-1, -1},
 };
 
 // Unijoysticle v2+: SMD version
@@ -295,6 +315,7 @@ const struct gpio_config gpio_config_univ2plus = {
                          .gpio = -1,
                          .callback = NULL,
                      }},
+    .sync_irq = {-1, -1},
 };
 
 // Unijoysticle v2 A500
@@ -310,6 +331,23 @@ const struct gpio_config gpio_config_univ2a500 = {
                          .gpio = GPIO_NUM_35,
                          .callback = swap_ports_cb,
                      }},
+    .sync_irq = {-1, -1},
+};
+
+// Unijoysticle v2 C64
+const struct gpio_config gpio_config_univ2c64 = {
+    .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, GPIO_NUM_33, GPIO_NUM_16},
+    .port_b = {GPIO_NUM_27, GPIO_NUM_25, GPIO_NUM_32, GPIO_NUM_17, GPIO_NUM_13, GPIO_NUM_21, GPIO_NUM_22},
+    .leds = {GPIO_NUM_5, GPIO_NUM_12, GPIO_NUM_15},
+    .push_buttons = {{
+                         .gpio = GPIO_NUM_34,
+                         .callback = cycle_gamepad_mode_cb,
+                     },
+                     {
+                         .gpio = GPIO_NUM_35,
+                         .callback = swap_ports_cb,
+                     }},
+    .sync_irq = {GPIO_NUM_36, GPIO_NUM_39},
 };
 
 // Arananet's Unijoy2Amiga
@@ -328,33 +366,34 @@ const struct gpio_config gpio_config_univ2singleport = {
                          .gpio = -1,
                          .callback = NULL,
                      }},
+    .sync_irq = {-1, -1},
 };
 
 static const bd_addr_t zero_addr = {0, 0, 0, 0, 0, 0};
 
 // Keep them in the order of the defines
-static char* uni_models[] = {
+static const char* uni_models[] = {
     "Unknown",        // BOARD_MODEL_UNK
     "2",              // BOARD_MODEL_UNIJOYSTICLE2,
     "2+",             // BOARD_MODEL_UNIJOYSTICLE2_PLUS,
     "2 A500",         // BOARD_MODEL_UNIJOYSTICLE2_A500,
-    "2 ST520",        // BOARD_MODEL_UNIJOYSTICLE2_ST520,
+    "2 C64",          // BOARD_MODEL_UNIJOYSTICLE2_C64,
     "2 Single port",  // BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT,
 };
 
 // Keep them in the order of the defines
-static char* mouse_modes[] = {
+static const char* mouse_modes[] = {
     "unknown",  // MOUSE_EMULATION_FROM_BOARD_MODEL
     "amiga",    // MOUSE_EMULATION_AMIGA
     "atarist",  // MOUSE_EMULATION_ATARIST
 };
 
 // --- Globals (RAM)
+static const struct gpio_config* g_gpio_config = NULL;
 
-const struct gpio_config* g_gpio_config = NULL;
-
-static EventGroupHandle_t g_event_group;
+static EventGroupHandle_t g_pushbutton_group;
 static EventGroupHandle_t g_autofire_group;
+static EventGroupHandle_t g_sync_irq_group;
 
 struct push_button_state g_push_buttons_state[PUSH_BUTTON_MAX] = {0};
 
@@ -407,9 +446,8 @@ static void unijoysticle_init(int argc, const char** argv) {
         case BOARD_MODEL_UNIJOYSTICLE2_A500:
             g_gpio_config = &gpio_config_univ2a500;
             break;
-        case BOARD_MODEL_UNIJOYSTICLE2_ST520:
-            // Shares the same GPIO pins as the A500 one
-            g_gpio_config = &gpio_config_univ2a500;
+        case BOARD_MODEL_UNIJOYSTICLE2_C64:
+            g_gpio_config = &gpio_config_univ2c64;
             break;
         case BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT:
             g_gpio_config = &gpio_config_univ2singleport;
@@ -450,6 +488,16 @@ static void unijoysticle_init(int argc, const char** argv) {
     // Turn off Bluetooth LED
     safe_gpio_set_level(g_gpio_config->leds[LED_BT], 0);
 
+    // Tasks should be created before the ISR, just in case an interrupt
+    // gets called before the Task-that-handles-the-ISR gets triggered.
+
+    // Split "events" from "auto_fire", since auto-fire is an on-going event.
+    g_pushbutton_group = xEventGroupCreate();
+    xTaskCreate(pushbutton_event_task, "bp.uni.button", 2048, NULL, TASK_PUSH_BUTTON_PRIO, NULL);
+
+    g_autofire_group = xEventGroupCreate();
+    xTaskCreate(auto_fire_task, "bp.uni.autofire", 2048, NULL, TASK_AUTOFIRE_PRIO, NULL);
+
     // Push Buttons
     ESP_ERROR_CHECK(gpio_install_isr_service(0));
     for (int i = 0; i < PUSH_BUTTON_MAX; i++) {
@@ -467,14 +515,6 @@ static void unijoysticle_init(int argc, const char** argv) {
         // "i" must match EVENT_BUTTON_0, value, etc.
         ESP_ERROR_CHECK(gpio_isr_handler_add(g_gpio_config->push_buttons[i].gpio, gpio_isr_handler_button, (void*)i));
     }
-
-    // Split "events" from "auto_fire", since auto-fire is an on-going event.
-    g_event_group = xEventGroupCreate();
-    xTaskCreate(pushbutton_event_task, "bp.uni.button", 2048, NULL, TASK_PUSH_BUTTON_PRIO, NULL);
-
-    g_autofire_group = xEventGroupCreate();
-    xTaskCreate(auto_fire_task, "bp.uni.autofire", 2048, NULL, TASK_AUTOFIRE_PRIO, NULL);
-    // xTaskCreatePinnedToCore(event_loop, "event_loop", 2048, NULL, portPRIVILEGE_BIT, NULL, 1);
 }
 
 static void unijoysticle_on_init_complete(void) {
@@ -528,9 +568,47 @@ static void unijoysticle_on_init_complete(void) {
         .a = g_gpio_config->port_b[y1],  // V-pulse (down)
         .b = g_gpio_config->port_b[y2]   // VQ-pulse (right)
     };
-    uni_mouse_quadrature_init(QUADRATURE_MOUSE_TASK_CPU);
-    uni_mouse_quadrature_setup_port(UNI_MOUSE_QUADRATURE_PORT_0, port_a_x, port_a_y);
-    uni_mouse_quadrature_setup_port(UNI_MOUSE_QUADRATURE_PORT_1, port_b_x, port_b_y);
+
+    board_model_t model = get_uni_model_from_pins();
+    if (model == BOARD_MODEL_UNIJOYSTICLE2_C64) {
+        gpio_config_t io_conf;
+        timer_config_t config = {
+            .divider = TIMER_DIVIDER,
+            .counter_dir = TIMER_COUNT_DOWN,
+            .counter_en = TIMER_START,
+            .alarm_en = TIMER_ALARM_EN,
+            .auto_reload = TIMER_AUTORELOAD_EN,
+        };
+
+        g_sync_irq_group = xEventGroupCreate();
+        xTaskCreate(sync_irq_event_task, "bp.uni.sync_irq", 2048, NULL, TASK_SYNC_IRQ_PRIO, NULL);
+
+        // Sync IRQs
+        for (int i = 0; i < SYNC_IRQ_MAX; i++) {
+            if (g_gpio_config->sync_irq[i] == -1)
+                continue;
+
+            // Set Interrupt handler
+            io_conf.intr_type = GPIO_INTR_NEGEDGE;
+            io_conf.mode = GPIO_MODE_INPUT;
+            io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+            // GPIOs 34~39 don't have internal Pull-up resistors.
+            io_conf.pull_up_en = (g_gpio_config->sync_irq[i] < GPIO_NUM_34) ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
+            io_conf.pin_bit_mask = BIT(g_gpio_config->sync_irq[i]);
+            ESP_ERROR_CHECK(gpio_config(&io_conf));
+            // "i" must match EVENT_SYNC_IRQ_0, etc.
+            ESP_ERROR_CHECK(gpio_isr_handler_add(g_gpio_config->sync_irq[i], gpio_isr_handler_sync, (void*)i));
+
+            // Set Timer handler
+            ESP_ERROR_CHECK(timer_init(TIMER_GROUP_1, TIMER_0 + i, &config));
+            timer_set_counter_value(TIMER_GROUP_1, TIMER_0 + i, TIMER_ONE_MILLISECOND);
+            timer_isr_callback_add(TIMER_GROUP_1, TIMER_0 + i, timer_isr_handler_sync, (void*)i, 0);
+        }
+    } else {
+        uni_mouse_quadrature_init(QUADRATURE_MOUSE_TASK_CPU);
+        uni_mouse_quadrature_setup_port(UNI_MOUSE_QUADRATURE_PORT_0, port_a_x, port_a_y);
+        uni_mouse_quadrature_setup_port(UNI_MOUSE_QUADRATURE_PORT_1, port_b_x, port_b_y);
+    }
 }
 
 static void unijoysticle_on_device_connected(uni_hid_device_t* d) {
@@ -871,16 +949,16 @@ static board_model_t get_uni_model_from_pins() {
     return BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT;
 #else
     // Cache value. Detection must only be done once.
-    static board_model_t _model = BOARD_MODEL_UNK;
-    if (_model != BOARD_MODEL_UNK)
-        return _model;
+    static board_model_t model = BOARD_MODEL_UNK;
+    if (model != BOARD_MODEL_UNK)
+        return model;
 
     // Detect hardware version based on GPIOs 4, 5, 15
     //              GPIO 4   GPIO 5    GPIO 15
     // Uni 2:       Hi       Hi        Hi
     // Uni 2+:      Low      Hi        Hi
     // Uni 2 A500:  Hi       Hi        Lo
-    // Uni 2 ST520: Low      Hi        Lo
+    // Uni 2 C64:   Low      Hi        Lo
     // Single port: Hi       Low       Hi
 
     gpio_set_direction(GPIO_NUM_4, GPIO_MODE_INPUT);
@@ -898,25 +976,25 @@ static board_model_t get_uni_model_from_pins() {
 
     logi("Unijoysticle: Board ID values: %d,%d,%d\n", gpio_4, gpio_5, gpio_15);
     if (gpio_5 == 0)
-        _model = BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT;
+        model = BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT;
     else if (gpio_4 == 1 && gpio_15 == 1)
-        _model = BOARD_MODEL_UNIJOYSTICLE2;
+        model = BOARD_MODEL_UNIJOYSTICLE2;
     else if (gpio_4 == 0 && gpio_15 == 1)
-        _model = BOARD_MODEL_UNIJOYSTICLE2_PLUS;
+        model = BOARD_MODEL_UNIJOYSTICLE2_PLUS;
     else if (gpio_4 == 1 && gpio_15 == 0)
-        _model = BOARD_MODEL_UNIJOYSTICLE2_A500;
+        model = BOARD_MODEL_UNIJOYSTICLE2_A500;
     else if (gpio_4 == 0 && gpio_15 == 0)
-        _model = BOARD_MODEL_UNIJOYSTICLE2_ST520;
+        model = BOARD_MODEL_UNIJOYSTICLE2_C64;
     else {
         logi("Unijoysticle: Invalid Board ID value: %d,%d,%d\n", gpio_4, gpio_5, gpio_15);
-        _model = BOARD_MODEL_UNIJOYSTICLE2;
+        model = BOARD_MODEL_UNIJOYSTICLE2;
     }
 
     // After detection, remove the pullup. The GPIOs might be used for something else after booting.
     gpio_set_pull_mode(GPIO_NUM_4, GPIO_FLOATING);
     gpio_set_pull_mode(GPIO_NUM_5, GPIO_FLOATING);
     gpio_set_pull_mode(GPIO_NUM_15, GPIO_FLOATING);
-    return _model;
+    return model;
 #endif  // !PLAT_UNIJOYSTICLE_SINGLE_PORT
 }
 
@@ -1037,7 +1115,7 @@ static void pushbutton_event_task(void* arg) {
     // timeout of 100s
     const TickType_t xTicksToWait = pdMS_TO_TICKS(100000);
     while (1) {
-        EventBits_t bits = xEventGroupWaitBits(g_event_group, BIT(EVENT_BUTTON_0) | BIT(EVENT_BUTTON_1), pdTRUE,
+        EventBits_t bits = xEventGroupWaitBits(g_pushbutton_group, BIT(EVENT_BUTTON_0) | BIT(EVENT_BUTTON_1), pdTRUE,
                                                pdFALSE, xTicksToWait);
 
         // timeout ?
@@ -1049,6 +1127,41 @@ static void pushbutton_event_task(void* arg) {
 
         if (bits & BIT(EVENT_BUTTON_1))
             handle_event_button(EVENT_BUTTON_1);
+    }
+}
+
+static void sync_irq_event_task(void* arg) {
+    // timeout of 100s
+    const TickType_t xTicksToWait = pdMS_TO_TICKS(100000);
+    while (1) {
+        EventBits_t bits = xEventGroupWaitBits(
+            g_sync_irq_group,
+            BIT(EVENT_SYNC_IRQ_0) | BIT(EVENT_SYNC_IRQ_1) | BIT(EVENT_SYNC_TIMER_0) | BIT(EVENT_SYNC_TIMER_1), pdTRUE,
+            pdFALSE, xTicksToWait);
+
+        // timeout ?
+        if (bits == 0)
+            continue;
+
+        // EVENT_SYNC_IRQ_ events come from the C64.
+        // They should be considered "hi" events.
+        if (bits & BIT(EVENT_SYNC_IRQ_0)) {
+            gpio_set_level(g_gpio_config->leds[LED_J1], 1);
+        }
+
+        if (bits & BIT(EVENT_SYNC_IRQ_1)) {
+            gpio_set_level(g_gpio_config->leds[LED_J2], 1);
+        }
+
+        // EVENT_SYNC_TIMER_* events come from the timer.
+        // Means that they should be considered as "low" events.
+        if (bits & BIT(EVENT_SYNC_TIMER_0)) {
+            gpio_set_level(g_gpio_config->leds[LED_J1], 0);
+        }
+
+        if (bits & BIT(EVENT_SYNC_TIMER_1)) {
+            gpio_set_level(g_gpio_config->leds[LED_J2], 0);
+        }
     }
 }
 
@@ -1090,6 +1203,21 @@ static void auto_fire_task(void* arg) {
     }
 }
 
+static void IRAM_ATTR gpio_isr_handler_sync(void* arg) {
+    int sync_idx = (int)arg;
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    xEventGroupSetBitsFromISR(g_sync_irq_group, BIT(sync_idx), &xHigherPriorityTaskWoken);
+    if (xHigherPriorityTaskWoken == pdTRUE)
+        portYIELD_FROM_ISR();
+}
+
+static bool IRAM_ATTR timer_isr_handler_sync(void* arg) {
+    int sync_idx = (int)arg + EVENT_SYNC_TIMER_0;
+    BaseType_t higher_priority_task_woken = pdFALSE;
+    xEventGroupSetBitsFromISR(g_sync_irq_group, BIT(sync_idx), &higher_priority_task_woken);
+    return higher_priority_task_woken;
+}
+
 static void IRAM_ATTR gpio_isr_handler_button(void* arg) {
     int button_idx = (int)arg;
 
@@ -1106,7 +1234,7 @@ static void IRAM_ATTR gpio_isr_handler_button(void* arg) {
 
     // Button pressed
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    xEventGroupSetBitsFromISR(g_event_group, BIT(button_idx), &xHigherPriorityTaskWoken);
+    xEventGroupSetBitsFromISR(g_pushbutton_group, BIT(button_idx), &xHigherPriorityTaskWoken);
     if (xHigherPriorityTaskWoken == pdTRUE)
         portYIELD_FROM_ISR();
 }
