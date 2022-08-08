@@ -426,6 +426,7 @@ static struct {
 } set_autofire_cps_args;
 
 static btstack_context_callback_registration_t cmd_callback_registration;
+static btstack_context_callback_registration_t syncirq_callback_registration;
 
 //
 // Platform Overrides
@@ -1130,6 +1131,22 @@ static void pushbutton_event_task(void* arg) {
     }
 }
 
+static void enable_rumble_callback(void *context) {
+    int seat = (int)context;
+    uni_hid_device_t* d;
+
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
+        d = uni_hid_device_get_instance_for_idx(i);
+        if (!uni_bt_conn_is_connected(&d->conn))
+            continue;
+        unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
+        if (ins->gamepad_seat != seat)
+            continue;
+        if (d->report_parser.set_rumble != NULL)
+            d->report_parser.set_rumble(d, 0x80 /* value */, 0x04 /* duration */);
+    }
+}
+
 static void sync_irq_event_task(void* arg) {
     // timeout of 100s
     const TickType_t xTicksToWait = pdMS_TO_TICKS(100000);
@@ -1147,10 +1164,16 @@ static void sync_irq_event_task(void* arg) {
         // They should be considered "hi" events.
         if (bits & BIT(EVENT_SYNC_IRQ_0)) {
             gpio_set_level(g_gpio_config->leds[LED_J1], 1);
+            syncirq_callback_registration.callback = &enable_rumble_callback;
+            syncirq_callback_registration.context = (void*)(GAMEPAD_SEAT_A);
+            btstack_run_loop_execute_on_main_thread(&syncirq_callback_registration);
         }
 
         if (bits & BIT(EVENT_SYNC_IRQ_1)) {
             gpio_set_level(g_gpio_config->leds[LED_J2], 1);
+            syncirq_callback_registration.callback = &enable_rumble_callback;
+            syncirq_callback_registration.context = (void*)(GAMEPAD_SEAT_B);
+            btstack_run_loop_execute_on_main_thread(&syncirq_callback_registration);
         }
 
         // EVENT_SYNC_TIMER_* events come from the timer.
@@ -1265,7 +1288,7 @@ static void handle_event_button(int button_idx) {
     logi("handle_event_button(%d): %d -> %d\n", button_idx, st->enabled, !st->enabled);
 
     st->enabled = !st->enabled;
-    pb->callback(button_idx);
+    //    pb->callback(button_idx);
 }
 
 static void cmd_callback(void* context) {
