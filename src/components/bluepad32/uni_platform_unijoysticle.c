@@ -341,7 +341,7 @@ const struct gpio_config gpio_config_univ2c64 = {
     .leds = {GPIO_NUM_5, GPIO_NUM_12, GPIO_NUM_15},
     .push_buttons = {{
                          .gpio = GPIO_NUM_34,
-                         .callback = cycle_gamepad_mode_cb,
+                         .callback = toggle_combo_enhanced_gamepad_cb,
                      },
                      {
                          .gpio = GPIO_NUM_35,
@@ -1288,7 +1288,7 @@ static void handle_event_button(int button_idx) {
     logi("handle_event_button(%d): %d -> %d\n", button_idx, st->enabled, !st->enabled);
 
     st->enabled = !st->enabled;
-    //    pb->callback(button_idx);
+    pb->callback(button_idx);
 }
 
 static void cmd_callback(void* context) {
@@ -1657,6 +1657,12 @@ static esp_err_t safe_gpio_set_level(gpio_num_t gpio, int value) {
 }
 
 static void maybe_enable_mouse_timers(void) {
+    // Mouse timers are not supported in C64 model
+    board_model_t model = get_uni_model_from_pins();
+    if (model == BOARD_MODEL_UNIJOYSTICLE2_C64) {
+        return;
+    }
+
     // Mouse support requires that the mouse timers are enabled.
     // Only enable them when needed
     bool enable_timer_0 = false;

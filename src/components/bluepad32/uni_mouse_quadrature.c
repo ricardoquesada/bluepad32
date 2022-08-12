@@ -90,6 +90,8 @@ static TaskHandle_t s_timer_tasks[UNI_MOUSE_QUADRATURE_PORT_MAX][UNI_MOUSE_QUADR
 // Bigger means slower movement.
 static float s_scale_factor;
 
+static bool initialized;
+
 static void process_quadrature(struct quadrature_state* q) {
     int a, b;
 
@@ -269,6 +271,8 @@ void uni_mouse_quadrature_init(int cpu_id) {
     // Create tasks
     xTaskCreatePinnedToCore(init_from_cpu_task, "uni.init_timers", TASK_TIMER_STACK_SIZE, NULL, TASK_TIMER_PRIO, NULL,
                             cpu_id);
+
+    initialized = true;
 }
 
 void uni_mouse_quadrature_setup_port(int port_idx,
@@ -292,9 +296,16 @@ void uni_mouse_quadrature_deinit() {
             s_timer_tasks[i][j] = NULL;
         }
     }
+
+    initialized = false;
 }
 
 void uni_mouse_quadrature_start(int port_idx) {
+    if (!initialized) {
+        loge("%s: Error, Not initialized\n");
+        return;
+    }
+
     if (port_idx < 0 || port_idx >= UNI_MOUSE_QUADRATURE_PORT_MAX) {
         loge("%s: Invalid port idx=%d\n", __func__, port_idx);
         return;
@@ -310,6 +321,11 @@ void uni_mouse_quadrature_start(int port_idx) {
 }
 
 void uni_mouse_quadrature_pause(int port_idx) {
+    if (!initialized) {
+        loge("%s: Error, Not initialized\n");
+        return;
+    }
+
     if (port_idx < 0 || port_idx >= UNI_MOUSE_QUADRATURE_PORT_MAX) {
         loge("%s: Invalid port idx=%d\n", __func__, port_idx);
         return;
@@ -326,6 +342,10 @@ void uni_mouse_quadrature_pause(int port_idx) {
 
 // Should be called everytime that mouse report is received.
 void uni_mouse_quadrature_update(int port_idx, int32_t dx, int32_t dy) {
+    if (!initialized) {
+        loge("%s: Error, Not initialized\n");
+        return;
+    }
     if (port_idx < 0 || port_idx >= UNI_MOUSE_QUADRATURE_PORT_MAX) {
         loge("%s: Invalid port idx=%d\n", __func__, port_idx);
         return;
