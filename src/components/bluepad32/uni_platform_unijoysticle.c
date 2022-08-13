@@ -345,7 +345,8 @@ const struct gpio_config gpio_config_univ2c64 = {
                      },
                      {
                          .gpio = GPIO_NUM_35,
-                         .callback = swap_ports_cb,
+                         //.callback = swap_ports_cb,
+                         .callback = NULL,
                      }},
     .sync_irq = {GPIO_NUM_36, GPIO_NUM_39},
 };
