@@ -626,7 +626,7 @@ void uni_hid_device_send_report(uni_hid_device_t* d, uint16_t cid, const uint8_t
 
     int err = l2cap_send(cid, (uint8_t*)report, len);
     if (err != 0) {
-        logi("Could not send report (error=0x%04x). Adding it to queue\n", err);
+        logd("Could not send report (error=0x%04x). Adding it to queue\n", err);
         if (uni_circular_buffer_put(&d->outgoing_buffer, cid, report, len) != 0) {
             loge("ERROR: ciruclar buffer full. Cannot queue report\n");
         }

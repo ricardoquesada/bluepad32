@@ -1163,14 +1163,14 @@ static void sync_irq_event_task(void* arg) {
         // EVENT_SYNC_IRQ_ events come from the C64.
         // They should be considered "hi" events.
         if (bits & BIT(EVENT_SYNC_IRQ_0)) {
-            gpio_set_level(g_gpio_config->leds[LED_J1], 1);
+            // gpio_set_level(g_gpio_config->leds[LED_J1], 1);
             syncirq_callback_registration.callback = &enable_rumble_callback;
             syncirq_callback_registration.context = (void*)(GAMEPAD_SEAT_A);
             btstack_run_loop_execute_on_main_thread(&syncirq_callback_registration);
         }
 
         if (bits & BIT(EVENT_SYNC_IRQ_1)) {
-            gpio_set_level(g_gpio_config->leds[LED_J2], 1);
+            // gpio_set_level(g_gpio_config->leds[LED_J2], 1);
             syncirq_callback_registration.callback = &enable_rumble_callback;
             syncirq_callback_registration.context = (void*)(GAMEPAD_SEAT_B);
             btstack_run_loop_execute_on_main_thread(&syncirq_callback_registration);
@@ -1179,11 +1179,11 @@ static void sync_irq_event_task(void* arg) {
         // EVENT_SYNC_TIMER_* events come from the timer.
         // Means that they should be considered as "low" events.
         if (bits & BIT(EVENT_SYNC_TIMER_0)) {
-            gpio_set_level(g_gpio_config->leds[LED_J1], 0);
+            // gpio_set_level(g_gpio_config->leds[LED_J1], 0);
         }
 
         if (bits & BIT(EVENT_SYNC_TIMER_1)) {
-            gpio_set_level(g_gpio_config->leds[LED_J2], 0);
+            // gpio_set_level(g_gpio_config->leds[LED_J2], 0);
         }
     }
 }
