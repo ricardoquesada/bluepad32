@@ -344,8 +344,9 @@ const struct gpio_config gpio_config_univ2c64 = {
                          .callback = toggle_combo_enhanced_gamepad_cb,
                      },
                      {
-                         .gpio = GPIO_NUM_35,
-                         //.callback = swap_ports_cb,
+                        //  .gpio = GPIO_NUM_35,
+                        //  .callback = swap_ports_cb,
+                         .gpio = -1,
                          .callback = NULL,
                      }},
     .sync_irq = {GPIO_NUM_36, GPIO_NUM_39},
@@ -503,7 +504,7 @@ static void unijoysticle_init(int argc, const char** argv) {
     // Push Buttons
     ESP_ERROR_CHECK(gpio_install_isr_service(0));
     for (int i = 0; i < PUSH_BUTTON_MAX; i++) {
-        if (g_gpio_config->push_buttons[i].gpio == -1)
+        if (g_gpio_config->push_buttons[i].gpio == -1 || g_gpio_config->push_buttons[i].callback == NULL)
             continue;
 
         io_conf.intr_type = GPIO_INTR_ANYEDGE;
