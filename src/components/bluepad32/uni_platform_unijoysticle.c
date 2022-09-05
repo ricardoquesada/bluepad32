@@ -1142,7 +1142,9 @@ static void enable_rumble_callback(void *context) {
         if (!uni_bt_conn_is_connected(&d->conn))
             continue;
         unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
-        if (ins->gamepad_seat != seat)
+        // Use mask instead of == since Rumble should be active when
+        // gamepad is in Enhanced Mode.
+        if ((ins->gamepad_seat & seat) == 0)
             continue;
         if (d->report_parser.set_rumble != NULL)
             d->report_parser.set_rumble(d, 0x80 /* value */, 0x04 /* duration */);
