@@ -274,8 +274,9 @@ static void toggle_combo_enhanced_gamepad_cb(int button_idx);
 static void cycle_gamepad_mode_cb(int button_idx);
 static void swap_ports_cb(int button_idx);
 
-// Commands
+// Commands or Event related
 static void swap_ports(void);
+static void try_swap_ports(uni_hid_device_t* d);
 static void set_gamepad_mode(emulation_mode_t mode);
 static void get_gamepad_mode(void);
 static void version(void);
@@ -344,8 +345,8 @@ const struct gpio_config gpio_config_univ2c64 = {
                          .callback = toggle_combo_enhanced_gamepad_cb,
                      },
                      {
-                        //  .gpio = GPIO_NUM_35,
-                        //  .callback = swap_ports_cb,
+                         //  .gpio = GPIO_NUM_35,
+                         //  .callback = swap_ports_cb,
                          .gpio = -1,
                          .callback = NULL,
                      }},
@@ -712,6 +713,20 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
     return 0;
 }
 
+static void test_select_button(uni_hid_device_t* d, uni_gamepad_t* gp) {
+    static bool already_pressed = false;
+
+    if (gp->misc_buttons & MISC_BUTTON_BACK) {
+        // 'Select' pressed
+        if (already_pressed)
+            return;
+        already_pressed = true;
+        try_swap_ports(d);
+    } else {
+        already_pressed = false;
+    }
+}
+
 static void unijoysticle_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
     int32_t axis_x;
     int32_t axis_y;
@@ -720,6 +735,8 @@ static void unijoysticle_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp)
         loge("ERROR: unijoysticle_on_device_gamepad_data: Invalid NULL device\n");
         return;
     }
+
+    test_select_button(d, gp);
 
     unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
 
@@ -800,7 +817,7 @@ static void unijoysticle_on_oob_event(uni_platform_oob_event_t event, void* data
     }
 
     if (event != UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON) {
-        logi("unijoysticle: Unsupported OOB event: %d\n", event);
+        loge("ERROR: unijoysticle_on_device_oob_event: unsupported event: 0x%04x\n", event);
         return;
     }
 
@@ -811,47 +828,7 @@ static void unijoysticle_on_oob_event(uni_platform_oob_event_t event, void* data
         return;
     }
 
-    if (event != UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON) {
-        loge("ERROR: unijoysticle_on_device_oob_event: unsupported event: 0x%04x\n", event);
-        return;
-    }
-
-    if (get_uni_model_from_pins() == BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT) {
-        logi("INFO: unijoysticle_on_device_oob_event: No effect in single port boards\n");
-        return;
-    }
-
-    unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
-
-    if (ins->gamepad_seat == GAMEPAD_SEAT_NONE) {
-        logi("unijoysticle: cannot swap port since device has joystick_port = GAMEPAD_SEAT_NONE\n");
-        return;
-    }
-
-    // This could happen if device is any Combo emu mode.
-    if (ins->gamepad_seat == (GAMEPAD_SEAT_A | GAMEPAD_SEAT_B)) {
-        logi(
-            "unijoysticle: cannot swap port since has more than one port associated with. Leave emu mode and try "
-            "again.\n");
-        return;
-    }
-
-    // Swap joystick ports except if there is a connected gamepad that doesn't have the "System" button pressed.
-    // Basically allow swapping mouse+gampead, or two gamepads while both are pressing the "system" button at the same
-    // time.
-    for (int j = 0; j < CONFIG_BLUEPAD32_MAX_DEVICES; j++) {
-        uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
-        unijoysticle_instance_t* tmp_ins = get_unijoysticle_instance(tmp_d);
-        if (uni_bt_conn_is_connected(&tmp_d->conn) && tmp_ins->gamepad_seat != GAMEPAD_SEAT_NONE &&
-            tmp_ins->emu_mode == EMULATION_MODE_SINGLE_JOY &&
-            ((tmp_d->gamepad.misc_buttons & MISC_BUTTON_SYSTEM) == 0)) {
-            logi("unijoysticle: to swap ports press 'system' button on both gamepads at the same time\n");
-            uni_hid_device_dump_all();
-            return;
-        }
-    }
-
-    swap_ports();
+    try_swap_ports(d);
 }
 
 static void unijoysticle_device_dump(uni_hid_device_t* d) {
@@ -1133,7 +1110,7 @@ static void pushbutton_event_task(void* arg) {
     }
 }
 
-static void enable_rumble_callback(void *context) {
+static void enable_rumble_callback(void* context) {
     int seat = (int)context;
     uni_hid_device_t* d;
 
@@ -1579,6 +1556,48 @@ static void swap_ports(void) {
     maybe_enable_mouse_timers();
 
     blink_bt_led(1);
+}
+
+// Call this function, instead of "swap_ports" when the user requested
+// a swap port from a button press.
+static void try_swap_ports(uni_hid_device_t* d) {
+    if (get_uni_model_from_pins() == BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT) {
+        logi("INFO: unijoysticle_on_device_oob_event: No effect in single port boards\n");
+        return;
+    }
+
+    unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
+
+    if (ins->gamepad_seat == GAMEPAD_SEAT_NONE) {
+        logi("unijoysticle: cannot swap port since device has joystick_port = GAMEPAD_SEAT_NONE\n");
+        return;
+    }
+
+    // This could happen if device is any Combo emu mode.
+    if (ins->gamepad_seat == (GAMEPAD_SEAT_A | GAMEPAD_SEAT_B)) {
+        logi(
+            "unijoysticle: cannot swap port since has more than one port associated with. Leave emu mode and try "
+            "again.\n");
+        return;
+    }
+
+    // Swap joystick ports except if there is a connected gamepad that doesn't have the "System" or "Select" button
+    // pressed. Basically allow:
+    //  - swapping mouse+gampead
+    //  - two gamepads while both are pressing the "system" or "select" button at the same time.
+    for (int j = 0; j < CONFIG_BLUEPAD32_MAX_DEVICES; j++) {
+        uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
+        unijoysticle_instance_t* tmp_ins = get_unijoysticle_instance(tmp_d);
+        if (uni_bt_conn_is_connected(&tmp_d->conn) && tmp_ins->gamepad_seat != GAMEPAD_SEAT_NONE &&
+            tmp_ins->emu_mode == EMULATION_MODE_SINGLE_JOY &&
+            ((tmp_d->gamepad.misc_buttons & (MISC_BUTTON_SYSTEM | MISC_BUTTON_BACK)) == 0)) {
+            logi("unijoysticle: to swap ports press 'system' button on both gamepads at the same time\n");
+            uni_hid_device_dump_all();
+            return;
+        }
+    }
+
+    swap_ports();
 }
 
 static void swap_ports_cb(int button_idx) {

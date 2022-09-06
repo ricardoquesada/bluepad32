@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v3.5.1] - 2022-09-05
+### Fixed
+- Unijoysticle can swap ports with "Select" button, in addition to the already suported "Home" button ([Github Issue #20][github_issue_20])
+  
+[github_issue_20]: https://github.com/ricardoquesada/bluepad32/issues/20
+
 ## [v3.5.0] - 2022-07-09
 ### New
 - Console commands: New `list_bluetooth_keys` and `del_bluetooth_keys`
