@@ -1070,9 +1070,9 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
 
     // Don't send rumble until 8BitDo rumble issue gets fixed
     // https://gitlab.com/ricardoquesada/unijoysticle2/-/issues/10
-//    if (!lightbar_or_led_set && d->report_parser.set_rumble != NULL) {
-//        d->report_parser.set_rumble(d, 0x80 /* value */, 0x04 /* duration */);
-//    }
+    //    if (!lightbar_or_led_set && d->report_parser.set_rumble != NULL) {
+    //        d->report_parser.set_rumble(d, 0x80 /* value */, 0x04 /* duration */);
+    //    }
 }
 
 static void joy_update_port(const uni_joystick_t* joy, const gpio_num_t* gpios) {
