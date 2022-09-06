@@ -5,15 +5,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [v3.5.1] - 2022-09-05
+### Changed
+- ESP-IDF: Using v4.4.1 hash 6d7877fcb8dda2ad971880b4e7ceda5b53c54019
+
 ### Fixed
 - Unijoysticle can swap ports with "Select" button, in addition to the already suported "Home" button ([Github Issue #20][github_issue_20])
-  
+- Unijoysticle: Don't send "rumble" when gamepad connects to prevent rumble-forever in 8BitDo controllers (Gitlab Issue #10)[gitlab_uni_issue_10]
+
 [github_issue_20]: https://github.com/ricardoquesada/bluepad32/issues/20
+[gitlab_uni_issue_10]: https://gitlab.com/ricardoquesada/unijoysticle2/-/issues/10
 
 ## [v3.5.0] - 2022-07-09
 ### New
 - Console commands: New `list_bluetooth_keys` and `del_bluetooth_keys`
-  
+
 ### Changed
 - Console commands: Rename `devices` to `list_devices`
 
