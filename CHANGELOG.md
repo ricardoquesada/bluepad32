@@ -11,8 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Unijoysticle can swap ports with "Select" button, in addition to the already suported "Home" button ([Github Issue #20][github_issue_20])
 - Xbox: Don't enable left/right actuators for rumble.
-    Trigger-right and Trigger-left actuatores are still enabled.
-    This is to prevent the rumble-forever in 8BitDo controllers (Gitlab Issue #10)[gitlab_uni_issue_10]
+  Trigger-right and Trigger-left actuatores are still enabled.
+  This is to prevent the rumble-forever in 8BitDo controllers ([Gitlab Issue #10][gitlab_uni_issue_10])
 
 [github_issue_20]: https://github.com/ricardoquesada/bluepad32/issues/20
 [gitlab_uni_issue_10]: https://gitlab.com/ricardoquesada/unijoysticle2/-/issues/10
