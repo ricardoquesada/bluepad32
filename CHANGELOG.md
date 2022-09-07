@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v3.5.1] - 2022-09-06
 ### Changed
-- ESP-IDF: Using v4.4.1 hash 6d7877fcb8dda2ad971880b4e7ceda5b53c54019
+- ESP-IDF: Using v4.4.2 hash 6d7877fcb8dda2ad971880b4e7ceda5b53c54019
 
 ### Fixed
 - Unijoysticle can swap ports with "Select" button, in addition to the already suported "Home" button ([Github Issue #20][github_issue_20])
