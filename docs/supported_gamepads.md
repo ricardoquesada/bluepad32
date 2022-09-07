@@ -40,7 +40,6 @@ List of supported gamepads with supported features, known bugs, etc.
 
 [![ddualsense_gamepad][dualsense]][11]
 
-- [Must be in PC mode][25]
 - Supported features: rumble, lightbar color, player LEDs
 
 [dualsense]: https://lh3.googleusercontent.com/pw/ACtC-3d1CVA-e5srBTDhTD6D-3BSWYi7MncfECPj_9bQJfcGOAKIHrP6g6Ha7xAD0trE59eN-Qv_U33MklCFPskPWRLjfFI4ITHEol8RAmTYNHFNrA-gwhoXEn2ks_M7UDDbxiKhNdaPNXexxgj5zzOtpBjiyw=-no
@@ -49,7 +48,6 @@ List of supported gamepads with supported features, known bugs, etc.
 
 [![ds4_gamepad][dualshock_4]][14]
 
-- [Must be in PC mode][25].
 - Supports both the 2013 (CUH-ZCT1) and 2016 (CUH-ZCT2) editions
 - Supported features: rumble, lightbar color
 - Some clones are known to work Ok
@@ -336,6 +334,5 @@ Many of the virtual buttons/pads are left unmapped, but could be mapped in the f
 [17]: http://www.gamingonfire.com/2014-amazon-fire-gaming-controller-1st-gen/
 [19]: https://www.amazon.com/OUYA-Wireless-Controller/dp/B002I0GX38?th=1
 [22]: https://www.amazon.com/Alexa-Voice-Remote-Amazon-Stick/dp/B071D41YC3
-[25]: https://www.techradar.com/how-to/gaming/how-to-use-the-ps4-dualshock-4-controller-on-a-pc-1309014
 [27]: https://en.wikipedia.org/wiki/Wii_U_Pro_Controller
 [29]: https://en.wikipedia.org/wiki/Wii_Remote
