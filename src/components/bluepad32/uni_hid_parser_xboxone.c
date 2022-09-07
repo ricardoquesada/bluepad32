@@ -442,8 +442,11 @@ void uni_hid_parser_xboxone_set_rumble(uni_hid_device_t* d, uint8_t value, uint8
         .enable_actuators = FF_RIGHT | FF_LEFT | FF_TRIGGER_LEFT | FF_TRIGGER_RIGHT,
         .force_left_trigger = value,
         .force_right_trigger = value,
-        .force_left = value,
-        .force_right = value,
+        // Don't enable force_left/force_right actuators.
+        // They keep vibrating forever on some 8BitDo controllers
+        // https://gitlab.com/ricardoquesada/unijoysticle2/-/issues/10
+        .force_left = 0,
+        .force_right = 0,
         .duration = duration,
         .start_delay = 0,
         .loop_count = 0,
