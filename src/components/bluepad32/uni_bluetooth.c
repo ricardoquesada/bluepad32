@@ -956,11 +956,17 @@ void uni_bluetooth_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
                         }
                         logi("Name: '%s'\n", name);
                         uni_hid_device_set_name(device, name);
-                        uni_bt_conn_set_state(&device->conn, UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED);
+                        // It could happen that the device is already connected, but the NAME_REQUEST
+                        // has just finished. So, do not update the state:
+                        // See: https://gitlab.com/ricardoquesada/bluepad32/-/issues/21
+                        if (uni_bt_conn_get_state(&device->conn) < UNI_BT_CONN_STATE_DEVICE_PENDING_READY) {
+                            // Only update state if the device is not already ready.
+                            uni_bt_conn_set_state(&device->conn, UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED);
+                            uni_bluetooth_process_fsm(device);
+                        }
+
                         // Remove timer
                         btstack_run_loop_remove_timer(&device->inquiry_remote_name_timer);
-
-                        uni_bluetooth_process_fsm(device);
                     }
                     break;
                 // L2CAP EVENTS
