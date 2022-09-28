@@ -34,14 +34,21 @@ $ export ESPPORT=COM??  #??? Try different ones
 $ esptool.py --port ${ESPPORT} --baud 115200 --before default_reset --after hard_reset write_flash 0x0000 bluepad32-unijoysticle-full.bin
 ```
 
-### GUI (ESP32 Flash Tool)
+### GUI (ESP32 Flash Download Tool)
 
-![flash_tool](https://lh3.googleusercontent.com/eO0uXc9kZHw2W1_UGiP9mw5QuzgD9gc0dIotrSUhIZW1cTVcfNIyi6grTNnSX5OryS0Bjs8hQ5PQtdg-fnxykzby5elywNT1rZ8ddtlRcTPdeJ9fS11eqrHP3TRecCHqHl9TdecncTE=-no)
+![flash_tool](https://lh3.googleusercontent.com/pw/ACtC-3c6KvmSei83mYKogxIadcq7tWamg41jsNk7pqJOpjnPhNoeN3uYjehB94wAja72mIDRNrhrWIqG0Sle1gxZHr0gANCSJyDFUcSfXMdoetUTynure2UrjRv7WkZEYnj0nqpiYJ54mwj85jDLkFrnD4jd-g=-no)
 
-If you are not familiar with command-line tools, you can try with the ESP32 Flash Tool (Windows only):
+Supported platforms: Windows only
 
-- Download: https://www.espressif.com/en/products/hardware/esp32/resources
+If you are not familiar with command-line tools, you can try with the ESP32 Flash Download Tool:
 
-A tutorial that explains how to use and from where to download is here:
+- Download: <https://www.espressif.com/en/support/download/other-tools>
 
-- Tutorial: [ESP32 Flash Tool tutorial](http://iot-bits.com/esp32/esp32-flash-download-tool-tutorial/)
+Parameters:
+
+- If asked about "chipType", select "ESP32"
+- Select "SPIDownload" tab
+- Click on "..." and select the `bluepad32-unijoysticle-full.bin` file
+- Set `0x0000` as address
+- Select the correct "COM" port
+- And then click "START"
