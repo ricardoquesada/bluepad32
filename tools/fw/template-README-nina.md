@@ -35,6 +35,7 @@ $ esptool.py --port ${ESPPORT} --baud 115200 --before default_reset write_flash 
 
 # Only valid for:
 #   * Nano RP2040 Connect
+#   * UNO WiFi Rev.2
 $ esptool.py --port ${ESPPORT} --baud 115200 --before no_reset write_flash 0x0000 bluepad32-nina-full.bin
 ```
 

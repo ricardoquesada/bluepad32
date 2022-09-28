@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] - ???
 ### Fixed
 - Bluetooth state machine: Don't update name if connection is already established ([Issue #21][gitlab_bug_21])
+- Doc: Update instructions about flashing Bluepad32 on UNI WiFi Rev.2
 
 [gitlab_bug_21]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/21
 
