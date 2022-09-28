@@ -8,6 +8,7 @@ These modules are present on some Arduino boards like:
 - [Arduino Nano RP2040 Connect][nano_rp2040]
 - [Arduino Nano 33 IoT][nano_33_iot]
 - [Arduino MKR WiFi 1010][mkr_wifi]
+- [Arduino UNO WiFi Rev.2][uni_wifi]
 
 NINA modules are co-processors, usually used only to bring WiFi or BLE to the main processor.
 
@@ -31,9 +32,10 @@ Bluepad32 firmware is "compatible-enough" with the original firmware:
 
 [nina-esp32]: https://www.u-blox.com/en/product/nina-w10-series-open-cpu
 [nina-fw]: https://github.com/arduino/nina-fw
-[nano_rp2040]: https://store.arduino.cc/usa/nano-rp2040-connect-with-headers
-[nano_33_iot]: https://store.arduino.cc/usa/nano-33-iot
-[mkr_wifi]: https://store.arduino.cc/usa/mkr-wifi-1010
+[nano_rp2040]: https://store-usa.arduino.cc/products/arduino-nano-rp2040-connect-with-headers
+[nano_33_iot]: https://store-usa.arduino.cc/products/arduino-nano-33-iot
+[mkr_wifi]: https://store-usa.arduino.cc/products/arduino-mkr-wifi-1010
+[uni_wifi]: https://store-usa.arduino.cc/products/arduino-uno-wifi-rev2
 
 ## Flashing Bluepad32 firmware
 
@@ -86,7 +88,7 @@ On Nano 32 IoT / MKR WIFI 1010, doing `idf.py flash` will just work.
 
 ```sh
 # Only valid for:
-#   * the Nano 33 IoT
+#   * Nano 33 IoT
 #   * MKR WIFI 1010
 
 # Port might be different
@@ -95,12 +97,13 @@ export ESPPORT=/dev/ttyACM0
 idf.py flash
 ```
 
-But on NANO RP2040 Connect, you have to flash it using the `--before no_reset` option,
+But on NANO RP2040 Connect and UNO WiFi Rev.2, you have to flash it using the `--before no_reset` option,
 and **NOT** `--before default_reset`. E.g:
 
 ```sh
 # Only valid for:
 #   * Nano RP2040 Connect
+#   * UNO WiFi Rev.2
 
 # Port might be different
 export ESPPORT=/dev/ttyACM0
