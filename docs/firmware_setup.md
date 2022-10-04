@@ -17,25 +17,29 @@ And then you can flash it either using:
 
 Supported platforms: Linux, macOS and Windows
 
-For Command Line tool, download `esptool.py`:
+Flashing your device from the command line requires [`esptool.py`](https://docs.espressif.com/projects/esptool/en/latest/esp32/) ([source code](https://github.com/espressif/esptool)):
 
-- Source Code: <https://github.com/espressif/esptool>
 - Ubuntu / Debian: `sudo apt install esptool`
-- macOS: `brew install esptool`
-- Windows and other OSs: `pip install esptool`
+- Fedora / Red Hat: `sudo dnf install esptool`
+- macOS with [Homebrew](https://brew.sh/) installed: `brew install esptool`
+- Windows, macOS without Homebrew, and other OSes: after installing Python, run `pip install esptool`. Python is [available for download here](https://www.python.org/downloads/). On Windows 10 and newer, you can also [install Python from the Microsoft Store](https://www.microsoft.com/store/productId/9PJPW5LDXLZ5) to get automatic updates.
 
-And:
+To flash your device:
 
 ```sh
 # Linux
-export ESPPORT=/dev/ttyUSB0
+export ESPPORT=/dev/ttyUSB0 # This may be different if you have multiple USB serial devices connected. 
 # macOS
 export ESPPORT=/dev/cu.SLAB_USBtoUART
 # Windows
-set ESPPORT=COM??  #??? Try different ones
+set ESPPORT=COM??  # You can find a list of COM devices in Device Manager.
+                   # Identify the correct COM port by watching to see which one appears when connecting
+                   # the device you intend to update.
 
-esptool.py --port ${ESPPORT} --baud 115200 --before default_reset --after hard_reset write_flash 0x0000 bluepad32-unijoysticle-full.bin
+python -m esptool --port ${ESPPORT} --baud 115200 --before default_reset --after hard_reset write_flash 0x0000 bluepad32-unijoysticle-full.bin
 ```
+
+On Linux, the flash operation may fail with a permissions error if you're not running as root. If you'd like to be able to flash as a standard user, you can instead change the permissions for the appropriate ttyUSB device to allow writes by unprivileged users.
 
 ## GUI (ESP32 Flash Download Tool)
 
