@@ -5,9 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased] - ???
+### Changed
+- BTstack: Updated to v1.5.4
+
 ### Fixed
 - Bluetooth state machine: Don't update name if connection is already established ([Issue #21][gitlab_bug_21])
 - Doc: Update instructions about flashing Bluepad32 on UNI WiFi Rev.2
+       Improved instructions regarding how to program the ESP32
 
 [gitlab_bug_21]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/21
 

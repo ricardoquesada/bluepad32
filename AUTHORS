@@ -19,6 +19,8 @@ Code contributors:
     - Fixes in ArduinoGamepad code
   - Gresoe:
     - Added Wii Balance Board support for Wii driver
+  - Kevin Brice:
+    - Improved documentation
 
 
 People who contributed with ideas and/or testing:
