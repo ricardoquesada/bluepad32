@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] - ???
 ### Changed
 - BTstack: Updated to v1.5.4
+- ESP-IDF: Tested with release/v4.4 hash (9269a536ac123677b165ff531369dfd1338ef103)
 
 ### Fixed
 - Bluetooth state machine: Don't update name if connection is already established ([Issue #21][gitlab_bug_21])
