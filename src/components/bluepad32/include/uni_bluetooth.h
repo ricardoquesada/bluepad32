@@ -47,6 +47,7 @@ void uni_bluetooth_enable_new_connections_safe(bool enabled);
 // TODO: Should be moved to a new file: uni_bt_state.c
 void uni_bluetooth_process_fsm(uni_hid_device_t* d);
 void uni_bluetooth_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
+void uni_bluetooth_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
 
 #ifdef __cplusplus
 }

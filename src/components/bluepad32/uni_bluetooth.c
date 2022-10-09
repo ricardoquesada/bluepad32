@@ -80,8 +80,7 @@
 // It seems that when UNI_ENABLE_BLE is enabled, it doesn't need it.
 // Probably related to one of the HCI events handled by the BLE code.
 #define UNI_ENABLE_SDP_QUERY_BEFORE_CONNECT 1
-// Experiment feature. Disabled until it is ready.
-// #define UNI_ENABLE_BLE 1
+
 
 #define INQUIRY_REMOTE_NAME_TIMEOUT_MS 4500
 _Static_assert(INQUIRY_REMOTE_NAME_TIMEOUT_MS < HID_DEVICE_CONNECTION_TIMEOUT_MS, "Timeout too big");
@@ -90,16 +89,15 @@ _Static_assert(INQUIRY_REMOTE_NAME_TIMEOUT_MS < HID_DEVICE_CONNECTION_TIMEOUT_MS
 // Used to implement connection timeout and reconnect timer
 static btstack_timer_source_t hog_connection_timer;  // BLE only
 static btstack_context_callback_registration_t cmd_callback_registration;
-#ifdef UNI_ENABLE_BLE
-static btstack_packet_callback_registration_t sm_event_callback_registration;
+#ifdef CONFIG_BLUEPAD32_ENABLE_BLE
 static hid_protocol_mode_t protocol_mode = HID_PROTOCOL_MODE_REPORT;
-#endif  // UNI_ENABLE_BLE
+#endif  // CONFIG_BLUEPAD32_ENABLE_BLE
 
 static bool bt_scanning_enabled = true;
 
-#ifdef UNI_ENABLE_BLE
+#ifdef CONFIG_BLUEPAD32_ENABLE_BLE
 static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
-#endif  // UNI_ENABLE_BLE
+#endif  // CONFIG_BLUEPAD32_ENABLE_BLE
 static bool adv_event_contains_hid_service(const uint8_t* packet);
 static void hog_connect(bd_addr_t addr, bd_addr_type_t addr_type);
 
@@ -126,7 +124,7 @@ enum {
 };
 
 // BLE only
-#ifdef UNI_ENABLE_BLE
+#ifdef CONFIG_BLUEPAD32_ENABLE_BLE
 static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     ARG_UNUSED(packet_type);
     ARG_UNUSED(channel);
@@ -168,7 +166,7 @@ static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint
             break;
     }
 }
-#endif  // UNI_ENABLE_BLE
+#endif  // CONFIG_BLUEPAD32_ENABLE_BLE
 
 /* HCI packet handler
  *
@@ -176,8 +174,8 @@ static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint
  * pairing. It also receives events generated during Identity Resolving see
  * Listing SMPacketHandler.
  */
-#ifdef UNI_ENABLE_BLE
-static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
+#ifdef CONFIG_BLUEPAD32_ENABLE_BLE
+void uni_bluetooth_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     ARG_UNUSED(channel);
     ARG_UNUSED(size);
 
@@ -219,7 +217,7 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
             break;
     }
 }
-#endif  // UNI_ENABLE_BLE
+#endif  // CONFIG_BLUEPAD32_ENABLE_BLE
 
 static void on_hci_connection_request(uint16_t channel, const uint8_t* packet, uint16_t size) {
     bd_addr_t event_addr;
@@ -714,10 +712,10 @@ static uint8_t start_scan(void) {
     logd("--> Scanning for new gamepads...\n");
     // Passive scanning, 100% (scan interval = scan window)
     // Start GAP BLE scan
-#ifdef UNI_ENABLE_BLE
+#ifdef CONFIG_BLUEPAD32_ENABLE_BLE
     gap_set_scan_parameters(0 /* type */, 48 /* interval */, 48 /* window */);
     gap_start_scan();
-#endif  // UNI_ENABLE_BLE
+#endif  // CONFIG_BLUEPAD32_ENABLE_BLE
 
     status =
         gap_inquiry_periodic_start(uni_bt_setup_get_gap_inquiry_lenght(), uni_bt_setup_get_gap_max_periodic_lenght(),
@@ -730,9 +728,9 @@ static uint8_t start_scan(void) {
 static uint8_t stop_scan(void) {
     uint8_t status;
     logi("--> Stop scanning for new gamepads\n");
-#ifdef UNI_ENABLE_BLE
+#ifdef CONFIG_BLUEPAD32_ENABLE_BLE
     gap_stop_scan();
-#endif  // UNI_ENABLE_BLE
+#endif  // CONFIG_BLUEPAD32_ENABLE_BLE
 
     status = gap_inquiry_stop();
     if (status)
@@ -774,10 +772,10 @@ void uni_bluetooth_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
     uni_hid_device_t* device;
     uint8_t status;
     uint16_t handle;
-#ifdef UNI_ENABLE_BLE
+#ifdef CONFIG_BLUEPAD32_ENABLE_BLE
     hci_con_handle_t con_handle;
     uint16_t hids_cid;
-#endif  // UNI_ENABLE_BLE
+#endif  // CONFIG_BLUEPAD32_ENABLE_BLE
 
     if (!uni_bt_setup_is_ready()) {
         uni_bt_setup_packet_handler(packet_type, channel, packet, size);
@@ -789,7 +787,7 @@ void uni_bluetooth_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
             event = hci_event_packet_get_type(packet);
             switch (event) {
                 // HCI EVENTS
-#ifdef UNI_ENABLE_BLE
+#ifdef CONFIG_BLUEPAD32_ENABLE_BLE
                 case HCI_EVENT_LE_META:  // BLE only
                     // wait for connection complete
                     // XXX: FIXME
@@ -831,7 +829,7 @@ void uni_bluetooth_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
                     }
                     device->hids_cid = hids_cid;
                     break;
-#endif  //  UNI_ENABLE_BLE
+#endif  //  CONFIG_BLUEPAD32_ENABLE_BLE
                 case HCI_EVENT_COMMAND_COMPLETE: {
                     uint16_t opcode = hci_event_command_complete_get_command_opcode(packet);
                     const uint8_t* param = hci_event_command_complete_get_return_parameters(packet);
