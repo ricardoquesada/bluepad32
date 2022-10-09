@@ -242,7 +242,8 @@ int uni_bt_setup(void) {
     gap_set_security_level(gap);
 
     gap_connectable_control(1);
-    // Enable discoverability once we our "BP32 BLE service"
+
+    // Enable once we add support for "BP32 BT Service"
     gap_discoverable_control(0);
 
     gap_set_page_scan_type(PAGE_SCAN_MODE_INTERLACED);
