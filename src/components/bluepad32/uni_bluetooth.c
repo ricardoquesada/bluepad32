@@ -632,7 +632,7 @@ static void inquiry_remote_name_timeout_callback(btstack_timer_source_t* ts) {
     uni_bluetooth_process_fsm(d);
 }
 
-static void bluetooth_del_keys() {
+static void bluetooth_del_keys(void) {
     bd_addr_t addr;
     link_key_t link_key;
     link_key_type_t type;
@@ -652,7 +652,7 @@ static void bluetooth_del_keys() {
     gap_link_key_iterator_done(&it);
 }
 
-static void bluetooth_list_keys() {
+static void bluetooth_list_keys(void) {
     bd_addr_t addr;
     link_key_t link_key;
     link_key_type_t type;
@@ -686,7 +686,7 @@ static void enable_new_connections(bool enabled) {
 }
 
 static void cmd_callback(void* context) {
-    int cmd = (int)context;
+    long cmd = (long)context;
     switch (cmd) {
         case CMD_BT_DEL_KEYS:
             bluetooth_del_keys();
@@ -702,6 +702,9 @@ static void cmd_callback(void* context) {
             break;
         case CMD_DUMP_DEVICES:
             uni_hid_device_dump_all();
+            break;
+        default:
+            loge("Unknown command: %#x\n", cmd);
             break;
     }
 }
@@ -755,7 +758,7 @@ void uni_bluetooth_list_keys_safe(void) {
 
 void uni_bluetooth_enable_new_connections_safe(bool enabled) {
     cmd_callback_registration.callback = &cmd_callback;
-    cmd_callback_registration.context = (void*)(enabled ? CMD_BT_ENABLE : CMD_BT_DISABLE);
+    cmd_callback_registration.context = (void*)(enabled ? (intptr_t)CMD_BT_ENABLE : (intptr_t)CMD_BT_DISABLE);
     btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
 }
 
