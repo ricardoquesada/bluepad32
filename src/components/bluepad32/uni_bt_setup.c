@@ -152,6 +152,9 @@ void uni_bt_setup_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t*
                 setup_call_next_fn();
             }
             break;
+        case BTSTACK_EVENT_POWERON_FAILED:
+            loge("Failed to initialize HCI. Please file a bug for Bluepad32\n");
+            break;
         default:
             break;
     }
@@ -233,9 +236,6 @@ int uni_bt_setup_get_gap_min_periodic_lenght(void) {
 }
 
 int uni_bt_setup(void) {
-    // Initialize L2CAP
-    l2cap_init();
-
     int gap = uni_bt_setup_get_gap_security_level();
     gap_set_security_level(gap);
 
@@ -247,6 +247,9 @@ int uni_bt_setup(void) {
     // gap_set_page_timeout(0x2000);
     // gap_set_page_scan_activity(0x50, 0x12);
     // gap_inquiry_set_scan_activity(0x50, 0x12);
+
+    // Initialize L2CAP
+    l2cap_init();
 
     // Needed for some incoming connections
     uni_bt_sdp_server_init();
