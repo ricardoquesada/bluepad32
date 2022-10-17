@@ -120,6 +120,7 @@ enum {
     CMD_BT_ENABLE,
     CMD_BT_DISABLE,
     CMD_DUMP_DEVICES,
+    CMD_DISCONNECT_DEVICE,
 };
 
 // BLE only
@@ -686,7 +687,11 @@ static void enable_new_connections(bool enabled) {
 }
 
 static void cmd_callback(void* context) {
-    long cmd = (long)context;
+    uni_hid_device_t* d;
+    uint32_t ctx = (uint32_t)context;
+    uint16_t cmd = ctx & 0xffff;
+    uint16_t args = ctx >> 16;
+
     switch (cmd) {
         case CMD_BT_DEL_KEYS:
             bluetooth_del_keys();
@@ -702,6 +707,14 @@ static void cmd_callback(void* context) {
             break;
         case CMD_DUMP_DEVICES:
             uni_hid_device_dump_all();
+            break;
+        case CMD_DISCONNECT_DEVICE:
+            d = uni_hid_device_get_instance_for_idx(args);
+            if (!d) {
+                loge("cmd_callback: Invalid device index: %d\n", args);
+                return;
+            }
+            uni_hid_device_disconnect(d);
             break;
         default:
             loge("Unknown command: %#x\n", cmd);
@@ -765,6 +778,13 @@ void uni_bluetooth_enable_new_connections_safe(bool enabled) {
 void uni_bluetooth_dump_devices_safe(void) {
     cmd_callback_registration.callback = &cmd_callback;
     cmd_callback_registration.context = (void*)CMD_DUMP_DEVICES;
+    btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
+}
+
+void uni_bluetooth_disconnect_device_safe(uni_hid_device_t* d) {
+    uint8_t idx = (uint8_t)uni_hid_device_get_idx_for_instance(d);
+    cmd_callback_registration.callback = &cmd_callback;
+    cmd_callback_registration.context = (void*)(CMD_DISCONNECT_DEVICE | (idx << 16));
     btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
 }
 

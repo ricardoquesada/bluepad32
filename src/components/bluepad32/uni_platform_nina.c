@@ -177,10 +177,11 @@ enum {
     PENDING_REQUEST_CMD_LIGHTBAR_COLOR = 1,
     PENDING_REQUEST_CMD_PLAYER_LEDS = 2,
     PENDING_REQUEST_CMD_RUMBLE = 3,
+    PENDING_REQUEST_CMD_DISCONNECT = 4,
 };
 
 typedef struct {
-    uint8_t device_idx;
+    uint8_t gamepad_idx;
     uint8_t cmd;
     uint8_t args[8];
 } pending_request_t;
@@ -281,8 +282,16 @@ static int request_set_gamepad_player_leds(const uint8_t command[], uint8_t resp
     // command[5]: param len
     // command[6]: leds
 
+    if (idx < 0 || idx >= CONFIG_BLUEPAD32_MAX_DEVICES) {
+        response[2] = 1;  // total params
+        response[3] = 1;  // param len
+        response[4] = RESPONSE_ERROR;
+
+        return 5;
+    }
+
     pending_request_t request = (pending_request_t){
-        .device_idx = idx,
+        .gamepad_idx = idx,
         .cmd = PENDING_REQUEST_CMD_PLAYER_LEDS,
         .args[0] = command[6],
     };
@@ -304,8 +313,16 @@ static int request_set_gamepad_color_led(const uint8_t command[], uint8_t respon
     // command[5]: param len
     // command[6-8]: RGB
 
+    if (idx < 0 || idx >= CONFIG_BLUEPAD32_MAX_DEVICES) {
+        response[2] = 1;  // total params
+        response[3] = 1;  // param len
+        response[4] = RESPONSE_ERROR;
+
+        return 5;
+    }
+
     pending_request_t request = (pending_request_t){
-        .device_idx = idx,
+        .gamepad_idx = idx,
         .cmd = PENDING_REQUEST_CMD_LIGHTBAR_COLOR,
         .args[0] = command[6],
         .args[1] = command[7],
@@ -329,8 +346,16 @@ static int request_set_gamepad_rumble(const uint8_t command[], uint8_t response[
     // command[5]: param len
     // command[6,7]: force, duration
 
+    if (idx < 0 || idx >= CONFIG_BLUEPAD32_MAX_DEVICES) {
+        response[2] = 1;  // total params
+        response[3] = 1;  // param len
+        response[4] = RESPONSE_ERROR;
+
+        return 5;
+    }
+
     pending_request_t request = (pending_request_t){
-        .device_idx = idx,
+        .gamepad_idx = idx,
         .cmd = PENDING_REQUEST_CMD_RUMBLE,
         .args[0] = command[6],
         .args[1] = command[7],
@@ -397,6 +422,31 @@ static int request_enable_bluetooth_connections(const uint8_t command[], uint8_t
     response[3] = 1;  // param len
     response[4] = RESPONSE_OK;
 
+    return 5;
+}
+
+// Command 0x08
+static int request_disconnect_gamepad(const uint8_t command[], uint8_t response[]) {
+    // command[2]: total params
+    // command[3]: param len
+    int idx = command[4];
+    uint8_t ret = RESPONSE_OK;
+
+    if (idx < 0 || idx >= CONFIG_BLUEPAD32_MAX_DEVICES) {
+        ret = RESPONSE_ERROR;
+        goto exit;
+    }
+
+    pending_request_t request = (pending_request_t){
+        .gamepad_idx = idx,
+        .cmd = PENDING_REQUEST_CMD_DISCONNECT,
+    };
+    xQueueSendToBack(_pending_queue, &request, (TickType_t)0);
+
+exit:
+    response[2] = 1;  // total params
+    response[3] = 1;  // param len
+    response[4] = ret;
     return 5;
 }
 
@@ -517,7 +567,7 @@ const command_handler_t command_handlers[] = {
     request_forget_bluetooth_keys,         // forget stored Bluetooth keys
     request_get_gamepad_properties,        // get gamepad properties like BTAddr, VID/PID, etc.
     request_enable_bluetooth_connections,  // Enable/Disable bluetooth connection
-    NULL,
+    request_disconnect_gamepad,            // Disconnect gamepad
     NULL,
     NULL,
     NULL,
@@ -772,7 +822,7 @@ static void process_pending_requests(void) {
     pending_request_t request;
 
     while (xQueueReceive(_pending_queue, &request, (TickType_t)0) == pdTRUE) {
-        int idx = request.device_idx;
+        int idx = request.gamepad_idx;
         uni_hid_device_t* d = uni_hid_device_get_instance_with_predicate(predicate_nina_index, (void*)idx);
         if (d == NULL) {
             loge("NINA: device cannot be found while processing pending request\n");
@@ -791,6 +841,14 @@ static void process_pending_requests(void) {
             case PENDING_REQUEST_CMD_RUMBLE:
                 if (d->report_parser.set_rumble != NULL)
                     d->report_parser.set_rumble(d, request.args[0], request.args[1]);
+                break;
+
+            case PENDING_REQUEST_CMD_DISCONNECT:
+                // Don't call "uni_hid_device_disconnect" since it will
+                // disconnec the "d" immediately and functions in the
+                // stack trace might depend on it. Instead call it from
+                // a callback.
+                uni_bluetooth_disconnect_device_safe(d);
                 break;
 
             default:

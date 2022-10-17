@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased] - ???
+### New
+- NINA/AirLift: Add command to disconnect gamepad
+
 ### Changed
 - BTstack: Updated to v1.5.4
 - ESP-IDF: Tested with release/v4.4 hash (9269a536ac123677b165ff531369dfd1338ef103)
