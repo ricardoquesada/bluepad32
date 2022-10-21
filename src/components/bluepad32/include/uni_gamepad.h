@@ -54,6 +54,7 @@ typedef enum {
     UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_SYSTEM,
     UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_BACK,
     UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_HOME,
+    UNI_GAMEPAD_MAPPING_MISC_BUTTON_TOUCHPAD,
 } uni_gamepad_mappings_misc_button_t;
 
 typedef enum {
@@ -96,6 +97,7 @@ enum {
     MISC_BUTTON_SYSTEM = BIT(UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_SYSTEM),  // AKA: PS, Xbox, etc.
     MISC_BUTTON_BACK = BIT(UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_BACK),      // AKA: Select, Share, -
     MISC_BUTTON_HOME = BIT(UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_HOME),      // AKA: Start, Options, +
+    MISC_BUTTON_TOUCHPAD = BIT(UNI_GAMEPAD_MAPPING_MISC_BUTTON_TOUCHPAD), // AKA: DS4/DS5 Touchpad
 };
 
 // GAMEPAD_STATE_ are used internally to determine which button event
@@ -146,6 +148,21 @@ typedef enum {
     GAMEPAD_SEAT_AB_MASK = (GAMEPAD_SEAT_A | GAMEPAD_SEAT_B),
 } uni_gamepad_seat_t;
 
+typedef struct __attribute__((packed)) {
+    uint8_t counter : 7; // Increments every time a finger is touching the touchpad
+    uint8_t touching : 1; // The top bit is cleared if the finger is touching the touchpad
+    uint16_t x : 12;
+    uint16_t y : 12;
+} uni_finger_t;
+
+typedef struct __attribute((packed)) {
+        uint8_t battery : 4;
+        uint8_t usb : 1;
+        uint8_t audio : 1;
+        uint8_t mic : 1;
+        uint8_t unknown : 1; // Extension port?
+} uni_GamePadStatus_t;
+
 // uni_gamepad_t is a virtual gamepad.
 // Different parsers should populate this virtual gamepad accordingly.
 // For example, the virtual gamepad doesn't have a Hat, but has a D-pad.
@@ -172,12 +189,11 @@ typedef enum {
 //  trigger's buttons & accelerator are shared physically.
 
 typedef struct {
-    // Usage Page: 0x01 (Generic Desktop Controls)
     uint8_t dpad;
-    int32_t axis_x;
-    int32_t axis_y;
-    int32_t axis_rx;
-    int32_t axis_ry;
+    uint16_t axis_x;
+    uint16_t axis_y;
+    uint16_t axis_rx;
+    uint16_t axis_ry;
 
     // Usage Page: 0x02 (Sim controls)
     int32_t brake;
@@ -191,11 +207,31 @@ typedef struct {
 
     // Misc buttons (from 0x0c (Consumer) and others)
     uint8_t misc_buttons;
+    uint32_t updated_states;
+
+    // Usage Page: 0x01 (Generic Desktop Controls)
+    uint8_t LeftHatX;
+    uint8_t LeftHatY;
+    uint8_t RightHatX;
+    uint8_t RightHatY;
+
+    // Usage Page: 0x02 (Sim controls)
+    uint8_t LTrigger;
+    uint8_t RTrigger;
+
+    // Buttons no Processing
+    uint8_t buttons2[3]; //Added for use with STM platform 
+
+    uni_finger_t finger[2];
+    uint8_t status;
+
+    int16_t gyroY, gyroZ, gyroX;
+    int16_t accY, accZ, accX;
 
     // FIXME: It might be OK to get rid of this variable. Or in any case, it
     // should be moved ouside uni_gamepad_t?
     // Indicates which states have been updated
-    uint32_t updated_states;
+    // uint32_t updated_states;
 } uni_gamepad_t;
 
 // Represents the mapping. Each entry contains the new button to be used,
