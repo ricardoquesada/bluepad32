@@ -22,6 +22,7 @@ limitations under the License.
 // Technical info taken from:
 // https://github.com/torvalds/linux/blob/master/drivers/hid/hid-sony.c
 // https://github.com/chrippa/ds4drv/blob/master/ds4drv/device.py
+// https://github.com/felis/USB_Host_Shield_2.0/blob/master/PS4Parser.h
 
 #include "uni_hid_parser_ds4.h"
 
@@ -82,39 +83,41 @@ typedef struct __attribute((packed)) {
     // Add missing data
 } ds4_input_report_t;
 
-typedef union __attribute__((packed)) {
-        struct {
-                uint8_t dpad : 4;
-                uint8_t square : 1;
-                uint8_t cross : 1;
-                uint8_t circle : 1;
-                uint8_t triangle : 1;
+//Couldn't get this format to work so stuck with buttons[3]
+// typedef union __attribute__((packed)) {
+//         struct {
+//                 uint8_t dpad : 4;
+//                 uint8_t square : 1;
+//                 uint8_t cross : 1;
+//                 uint8_t circle : 1;
+//                 uint8_t triangle : 1;
 
-                uint8_t l1 : 1;
-                uint8_t r1 : 1;
-                uint8_t l2 : 1;
-                uint8_t r2 : 1;
-                uint8_t share : 1;
-                uint8_t options : 1;
-                uint8_t l3 : 1;
-                uint8_t r3 : 1;
+//                 uint8_t l1 : 1;
+//                 uint8_t r1 : 1;
+//                 uint8_t l2 : 1;
+//                 uint8_t r2 : 1;
+//                 uint8_t share : 1;
+//                 uint8_t options : 1;
+//                 uint8_t l3 : 1;
+//                 uint8_t r3 : 1;
 
-                uint8_t ps : 1;
-                uint8_t touchpad : 1;
-                uint8_t reportCounter : 6;
-        } __attribute__((packed));
-        uint32_t val : 24;
-} PS4Buttons;
+//                 uint8_t ps : 1;
+//                 uint8_t touchpad : 1;
+//                 uint8_t reportCounter : 6;
+//         } __attribute__((packed));
+//         uint32_t val : 24;
+// } PS4Buttons;
 
 typedef struct __attribute((packed)) {
         uint8_t dummy; // I can not figure out what this data is for, it seems to change randomly, maybe a timestamp?
-        struct {
-                uint8_t counter : 7; // Increments every time a finger is touching the touchpad
-                uint8_t touching : 1; // The top bit is cleared if the finger is touching the touchpad
-                uint16_t x : 12;
-                uint16_t y : 12;
-        } __attribute__((packed)) finger[2]; // 0 = first finger, 1 = second finger
-} touchpadXY;
+        // struct {
+        //         uint8_t counter : 7; // Increments every time a finger is touching the touchpad
+        //         uint8_t touching : 1; // The top bit is cleared if the finger is touching the touchpad
+        //         uint16_t x : 12;
+        //         uint16_t y : 12;
+        // } __attribute__((packed))
+        uni_finger_t finger[2]; // 0 = first finger, 1 = second finger
+} touchpadXY_t;
 
 typedef struct __attribute((packed)) {
         uint8_t battery : 4;
@@ -122,8 +125,9 @@ typedef struct __attribute((packed)) {
         uint8_t audio : 1;
         uint8_t mic : 1;
         uint8_t unknown : 1; // Extension port?
-} PS4Status;
+} PS4Status_t;
 
+//Brought these structs from the felis/USB_Host_Shield: https://github.com/felis/USB_Host_Shield_2.0/blob/master/PS4Parser.h
 typedef struct __attribute((packed)) {
         /* Button and joystick values */
         uint8_t hatValue[4];
@@ -140,17 +144,17 @@ typedef struct __attribute((packed)) {
         int16_t accX, accZ, accY;
 
         uint8_t dummy2[5];
-        PS4Status status;
+        uint8_t status; //Could use PS4Status_t but wasn't doing any processing on ESP side for this byte
         uint8_t dummy3[3];
 
         /* The rest is data for the touchpad */
-        touchpadXY xy[3]; // It looks like it sends out three coordinates each time, this might be because the microcontroller inside the PS4 controller is much faster than the Bluetooth connection.
+        touchpadXY_t xy[3]; // It looks like it sends out three coordinates each time, this might be because the microcontroller inside the PS4 controller is much faster than the Bluetooth connection.
                           // The last data is read from the last position in the array while the oldest measurement is from the first position.
                           // The first position will also keep it's value after the finger is released, while the other two will set them to zero.
                           // Note that if you read fast enough from the device, then only the first one will contain any data.
 
         // The last three bytes are always: 0x00, 0x80, 0x00
-} PS4Data;
+} PS4Data_t;
 
 typedef struct __attribute((packed)) {
     uint8_t report_id;  // Must be DS4_FEATURE_REPORT_FIRMWARE_VERSION
@@ -257,83 +261,86 @@ void uni_hid_parser_ds4_parse_input_report(uni_hid_device_t* d, const uint8_t* r
         return;
     }
     uni_gamepad_t* gp = &d->gamepad;
-    // const PS4Data* r = (PS4Data*)&report[3];
-
-    // // Axis
-    // gp->axis_x = (r->hatValue[0] - 127);
-    // gp->axis_y = (r->hatValue[1] - 127);
-    // gp->axis_rx = (r->hatValue[2] - 127);
-    // gp->axis_ry = (r->hatValue[3] - 127);
-
-    // // Brake & throttle
-    // gp->brake = r->trigger[0];
-    // gp->throttle = r->trigger[1];
-
-    // //Gyro/Accelerometer Data
-    // gp->gyroX = r->gyroX;
-    // gp->gyroY = r->gyroY;
-    // gp->gyroZ = r->gyroZ;
-    // gp->accX = r->accX;
-    // gp->accY = r->accY;
-    // gp->accZ = r->accZ;
-
-    // //Touchpad Data
-    // gp->finger[0] = r->xy[2]->finger[0];
-    // gp->finger[1] = r->xy[2]->finger[1];
-
-    // //Status Byte: Battery, Aud, Mic
-    // gp->status = r->status;
-
-    // gp->jacobFlag = 1; //This is a flag that gets set everytime a report comes from the PS4
-
-    const ds4_input_report_t* r = (ds4_input_report_t*)&report[3];
-    printf("Report Raw: %s\n", &report[3]);
+    const PS4Data_t* r = (PS4Data_t*)&report[3];
 
     // Axis
-    gp->axis_x = (r->x - 127) * 4;
-    gp->axis_y = (r->y - 127) * 4;
-    gp->axis_rx = (r->rx - 127) * 4;
-    gp->axis_ry = (r->ry - 127) * 4;
+    gp->LeftHatX = (r->hatValue[0]);
+    gp->LeftHatY = (r->hatValue[1]);
+    gp->RightHatX = (r->hatValue[2]);
+    gp->RightHatY = (r->hatValue[3]);
+    
+    // Brake & throttle
+    gp->LTrigger = r->trigger[0];
+    gp->RTrigger = r->trigger[1];
+   
+    //Buttons
+    gp->buttons2[0] = r->buttons[0];
+    gp->buttons2[1] = r->buttons[1];
+    gp->buttons2[2] = r->buttons[2] & 0x03; //Tossing out the report Counter, Only care about PS and Touchpad Button
+    
+    //Gyro/Accelerometer Data
+    gp->gyroX = r->gyroX;
+    gp->gyroY = r->gyroY;
+    gp->gyroZ = r->gyroZ;
+    gp->accX = r->accX;
+    gp->accY = r->accY;
+    gp->accZ = r->accZ;
+
+    // //Touchpad Data
+    gp->finger[0] = r->xy[0].finger[0];
+    gp->finger[1] = r->xy[0].finger[1];
+
+    // //Status Byte: Battery, Aud, Mic
+    gp->status = r->status;
+
+    // const ds4_input_report_t* r = (ds4_input_report_t*)&report[3];
+
+    // Axis
+    // gp->axis_x = (r->hatValue[0] - 127) * 4;
+    // gp->axis_y = (r->hatValue[1] - 127) * 4;
+    // gp->axis_rx = (r->hatValue[2] - 127) * 4;
+    // gp->axis_ry = (r->hatValue[3] - 127) * 4;
 
     // Hat
-    uint8_t value = r->buttons[0] & 0xf;
-    if (value > 7)
-        value = 0xff; /* Center 0, 0 */
-    gp->dpad = uni_hid_parser_hat_to_dpad(value);
+    // uint8_t value = r->buttons[0] & 0xf;
+    // if (value > 7)
+    //     value = 0xff; /* Center 0, 0 */
+    // gp->dpad = uni_hid_parser_hat_to_dpad(value);
 
     // Buttons
     // TODO: ds4, ds5 have these buttons in common. Refactor.
-    if (r->buttons[0] & 0x10)
-        gp->buttons |= BUTTON_X;  // West
-    if (r->buttons[0] & 0x20)
-        gp->buttons |= BUTTON_A;  // South
-    if (r->buttons[0] & 0x40)
-        gp->buttons |= BUTTON_B;  // East
-    if (r->buttons[0] & 0x80)
-        gp->buttons |= BUTTON_Y;  // North
-    if (r->buttons[1] & 0x01)
-        gp->buttons |= BUTTON_SHOULDER_L;  // L1
-    if (r->buttons[1] & 0x02)
-        gp->buttons |= BUTTON_SHOULDER_R;  // R1
-    if (r->buttons[1] & 0x04)
-        gp->buttons |= BUTTON_TRIGGER_L;  // L2
-    if (r->buttons[1] & 0x08)
-        gp->buttons |= BUTTON_TRIGGER_R;  // R2
-    if (r->buttons[1] & 0x10)
-        gp->misc_buttons |= MISC_BUTTON_BACK;  // Share
-    if (r->buttons[1] & 0x20)
-        gp->misc_buttons |= MISC_BUTTON_HOME;  // Options
-    if (r->buttons[1] & 0x40)
-        gp->buttons |= BUTTON_THUMB_L;  // Thumb L
-    if (r->buttons[1] & 0x80)
-        gp->buttons |= BUTTON_THUMB_R;  // Thumb R
-    if (r->buttons[2] & 0x01)
-        gp->misc_buttons |= MISC_BUTTON_SYSTEM;  // PS
+    // if (r->buttons[0] & 0x10)
+    //     gp->buttons |= BUTTON_X;  // West
+    // if (r->buttons[0] & 0x20)
+    //     gp->buttons |= BUTTON_A;  // South
+    // if (r->buttons[0] & 0x40)
+    //     gp->buttons |= BUTTON_B;  // East
+    // if (r->buttons[0] & 0x80)
+    //     gp->buttons |= BUTTON_Y;  // North
+    // if (r->buttons[1] & 0x01)
+    //     gp->buttons |= BUTTON_SHOULDER_L;  // L1
+    // if (r->buttons[1] & 0x02)
+    //     gp->buttons |= BUTTON_SHOULDER_R;  // R1
+    // if (r->buttons[1] & 0x04)
+    //     gp->buttons |= BUTTON_TRIGGER_L;  // L2
+    // if (r->buttons[1] & 0x08)
+    //     gp->buttons |= BUTTON_TRIGGER_R;  // R2
+    // if (r->buttons[1] & 0x10)
+    //     gp->misc_buttons |= MISC_BUTTON_BACK;  // Share
+    // if (r->buttons[1] & 0x20)
+    //     gp->misc_buttons |= MISC_BUTTON_HOME;  // Options
+    // if (r->buttons[1] & 0x40)
+    //     gp->buttons |= BUTTON_THUMB_L;  // Thumb L
+    // if (r->buttons[1] & 0x80)
+    //     gp->buttons |= BUTTON_THUMB_R;  // Thumb R
+    // if (r->buttons[2] & 0x01)
+    //     gp->misc_buttons |= MISC_BUTTON_SYSTEM;  // PS
+    // if (r->buttons[2] & 0x02)
+    //     gp->misc_buttons |= MISC_BUTTON_TOUCHPAD;  // Touchpad Button //I'm not using but this looks like the format for general use
 
     // Brake & throttle
-    gp->brake = r->brake * 4;
-    gp->throttle = r->throttle * 4;
-    gp->jacobFlag = 1; //This is a flag that gets set everytime a report comes from the PS4
+    // gp->brake = r->trigger[0] * 4;
+    // gp->throttle = r->trigger[1] * 4;  
 }
 
 // uni_hid_parser_ds4_parse_usage() was removed since "stream" mode is the only
