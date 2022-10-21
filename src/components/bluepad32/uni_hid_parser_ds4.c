@@ -82,6 +82,76 @@ typedef struct __attribute((packed)) {
     // Add missing data
 } ds4_input_report_t;
 
+typedef union __attribute__((packed)) {
+        struct {
+                uint8_t dpad : 4;
+                uint8_t square : 1;
+                uint8_t cross : 1;
+                uint8_t circle : 1;
+                uint8_t triangle : 1;
+
+                uint8_t l1 : 1;
+                uint8_t r1 : 1;
+                uint8_t l2 : 1;
+                uint8_t r2 : 1;
+                uint8_t share : 1;
+                uint8_t options : 1;
+                uint8_t l3 : 1;
+                uint8_t r3 : 1;
+
+                uint8_t ps : 1;
+                uint8_t touchpad : 1;
+                uint8_t reportCounter : 6;
+        } __attribute__((packed));
+        uint32_t val : 24;
+} PS4Buttons;
+
+typedef struct __attribute((packed)) {
+        uint8_t dummy; // I can not figure out what this data is for, it seems to change randomly, maybe a timestamp?
+        struct {
+                uint8_t counter : 7; // Increments every time a finger is touching the touchpad
+                uint8_t touching : 1; // The top bit is cleared if the finger is touching the touchpad
+                uint16_t x : 12;
+                uint16_t y : 12;
+        } __attribute__((packed)) finger[2]; // 0 = first finger, 1 = second finger
+} touchpadXY;
+
+typedef struct __attribute((packed)) {
+        uint8_t battery : 4;
+        uint8_t usb : 1;
+        uint8_t audio : 1;
+        uint8_t mic : 1;
+        uint8_t unknown : 1; // Extension port?
+} PS4Status;
+
+typedef struct __attribute((packed)) {
+        /* Button and joystick values */
+        uint8_t hatValue[4];
+        
+        // PS4Buttons btn; //This union struct is not formatted right for this compiler yet
+        // Hat + buttons
+        uint8_t buttons[3];
+
+        uint8_t trigger[2];
+
+        /* Gyro and accelerometer values */
+        uint8_t dummy[3]; // First two looks random, while the third one might be some kind of status - it increments once in a while
+        int16_t gyroY, gyroZ, gyroX;
+        int16_t accX, accZ, accY;
+
+        uint8_t dummy2[5];
+        PS4Status status;
+        uint8_t dummy3[3];
+
+        /* The rest is data for the touchpad */
+        touchpadXY xy[3]; // It looks like it sends out three coordinates each time, this might be because the microcontroller inside the PS4 controller is much faster than the Bluetooth connection.
+                          // The last data is read from the last position in the array while the oldest measurement is from the first position.
+                          // The first position will also keep it's value after the finger is released, while the other two will set them to zero.
+                          // Note that if you read fast enough from the device, then only the first one will contain any data.
+
+        // The last three bytes are always: 0x00, 0x80, 0x00
+} PS4Data;
+
 typedef struct __attribute((packed)) {
     uint8_t report_id;  // Must be DS4_FEATURE_REPORT_FIRMWARE_VERSION
     char string_date[11];
@@ -187,7 +257,37 @@ void uni_hid_parser_ds4_parse_input_report(uni_hid_device_t* d, const uint8_t* r
         return;
     }
     uni_gamepad_t* gp = &d->gamepad;
+    // const PS4Data* r = (PS4Data*)&report[3];
+
+    // // Axis
+    // gp->axis_x = (r->hatValue[0] - 127);
+    // gp->axis_y = (r->hatValue[1] - 127);
+    // gp->axis_rx = (r->hatValue[2] - 127);
+    // gp->axis_ry = (r->hatValue[3] - 127);
+
+    // // Brake & throttle
+    // gp->brake = r->trigger[0];
+    // gp->throttle = r->trigger[1];
+
+    // //Gyro/Accelerometer Data
+    // gp->gyroX = r->gyroX;
+    // gp->gyroY = r->gyroY;
+    // gp->gyroZ = r->gyroZ;
+    // gp->accX = r->accX;
+    // gp->accY = r->accY;
+    // gp->accZ = r->accZ;
+
+    // //Touchpad Data
+    // gp->finger[0] = r->xy[2]->finger[0];
+    // gp->finger[1] = r->xy[2]->finger[1];
+
+    // //Status Byte: Battery, Aud, Mic
+    // gp->status = r->status;
+
+    // gp->jacobFlag = 1; //This is a flag that gets set everytime a report comes from the PS4
+
     const ds4_input_report_t* r = (ds4_input_report_t*)&report[3];
+    printf("Report Raw: %s\n", &report[3]);
 
     // Axis
     gp->axis_x = (r->x - 127) * 4;
@@ -233,6 +333,7 @@ void uni_hid_parser_ds4_parse_input_report(uni_hid_device_t* d, const uint8_t* r
     // Brake & throttle
     gp->brake = r->brake * 4;
     gp->throttle = r->throttle * 4;
+    gp->jacobFlag = 1; //This is a flag that gets set everytime a report comes from the PS4
 }
 
 // uni_hid_parser_ds4_parse_usage() was removed since "stream" mode is the only
