@@ -405,7 +405,7 @@ void uni_hid_device_delete(uni_hid_device_t* d) {
 }
 
 void uni_hid_device_dump_device(uni_hid_device_t* d) {
-    logi("%s\n", bd_addr_to_str(d->conn.btaddr));
+    logi("\tbtaddr: %s\n", bd_addr_to_str(d->conn.btaddr));
     logi("\tbt: handle=%d, ctrl_cid=0x%04x, intr_cid=0x%04x, cod=0x%08x, flags=0x%08x, incoming=%d\n", d->conn.handle,
          d->conn.control_cid, d->conn.interrupt_cid, d->cod, d->flags, d->conn.incoming);
     logi("\tmodel: vid=0x%04x, pid=0x%04x, model='%s', name='%s'\n", d->vendor_id, d->product_id,
@@ -421,7 +421,7 @@ void uni_hid_device_dump_all(void) {
     for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         if (bd_addr_cmp(g_devices[i].conn.btaddr, zero_addr) == 0)
             continue;
-        logi("idx=%d, ", i);
+        logi("idx=%d:\n", i);
         uni_hid_device_dump_device(&g_devices[i]);
         logi("\n");
     }
