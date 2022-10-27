@@ -421,6 +421,7 @@ void uni_hid_device_dump_all(void) {
     for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         if (bd_addr_cmp(g_devices[i].conn.btaddr, zero_addr) == 0)
             continue;
+        logi("idx=%d, ", i);
         uni_hid_device_dump_device(&g_devices[i]);
         logi("\n");
     }

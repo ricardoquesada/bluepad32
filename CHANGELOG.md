@@ -6,7 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ???
 ### New
-- NINA/AirLift: Add command to disconnect gamepad
+- NINA/AirLift: Add command to disconnect gamepad ([Github Issue #26][github_issue_26])
+- Console: Add "disconnect" command
 
 ### Changed
 - BTstack: Updated to v1.5.4
@@ -17,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Doc: Update instructions about flashing Bluepad32 on UNI WiFi Rev.2
        Improved instructions regarding how to program the ESP32
 
+[github_issue_26]: https://github.com/ricardoquesada/bluepad32/issues/26
 [gitlab_bug_21]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/21
 
 ## [v3.5.1] - 2022-09-06

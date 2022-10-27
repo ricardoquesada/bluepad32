@@ -781,8 +781,8 @@ void uni_bluetooth_dump_devices_safe(void) {
     btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
 }
 
-void uni_bluetooth_disconnect_device_safe(uni_hid_device_t* d) {
-    uint8_t idx = (uint8_t)uni_hid_device_get_idx_for_instance(d);
+void uni_bluetooth_disconnect_device_safe(int device_idx) {
+    uint8_t idx = (uint8_t)device_idx;
     cmd_callback_registration.callback = &cmd_callback;
     cmd_callback_registration.context = (void*)(CMD_DISCONNECT_DEVICE | (idx << 16));
     btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);

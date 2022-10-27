@@ -848,7 +848,8 @@ static void process_pending_requests(void) {
                 // disconnec the "d" immediately and functions in the
                 // stack trace might depend on it. Instead call it from
                 // a callback.
-                uni_bluetooth_disconnect_device_safe(d);
+                idx = uni_hid_device_get_idx_for_instance(d);
+                uni_bluetooth_disconnect_device_safe(idx);
                 break;
 
             default:
