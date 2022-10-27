@@ -55,17 +55,23 @@ bool uni_bt_conn_is_connected(uni_bt_conn_t* conn) {
 }
 
 void uni_bt_conn_disconnect(uni_bt_conn_t* conn) {
-    if (!uni_bt_conn_is_connected(conn)) {
-        logi("connection %s already disconnected, ignoring\n", bd_addr_to_str(conn->btaddr));
-        return;
-    }
-
     if (conn->handle) {
         gap_disconnect(conn->handle);
         conn->handle = 0;
+    } else {
+        // After calling gap_disconnect() we should not call l2cap_disonnect(),
+        // since gap_disconnect() will take care of it.
+        // But if the handle is not present, then call it manually.
+        if (conn->control_cid) {
+            l2cap_disconnect(conn->control_cid);
+            conn->control_cid = 0;
+        }
+
+        if (conn->interrupt_cid) {
+            l2cap_disconnect(conn->interrupt_cid);
+            conn->interrupt_cid = 0;
+        }
     }
 
-    // After calling gap_disconnect() we should not call l2cap_disonnect(),
-    // since gap_disconnect() will take care of it.
     uni_bt_conn_set_connected(conn, false);
 }
