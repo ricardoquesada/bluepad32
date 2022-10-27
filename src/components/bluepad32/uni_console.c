@@ -207,7 +207,7 @@ static int disconnect_device(int argc, char** argv) {
 
     idx = disconnect_device_args.idx->ival[0];
     if (idx < 0 || idx >= CONFIG_BLUEPAD32_MAX_DEVICES)
-            return 1;
+        return 1;
 
     uni_bluetooth_disconnect_device_safe(idx);
     return 0;
@@ -231,9 +231,8 @@ static void register_bluepad32() {
         arg_int1(NULL, NULL, "<0 | 1>", "Whether to enable Bluetooth incoming connections");
     set_bluetooth_enabled_args.end = arg_end(2);
 
-    snprintf(buf, sizeof(buf)-1, "<0-%d>", CONFIG_BLUEPAD32_MAX_DEVICES);
-    disconnect_device_args.idx =
-        arg_int1(NULL, NULL, buf, "Device index to disconnect");
+    snprintf(buf, sizeof(buf) - 1, "<0-%d>", CONFIG_BLUEPAD32_MAX_DEVICES);
+    disconnect_device_args.idx = arg_int1(NULL, NULL, buf, "Device index to disconnect");
     disconnect_device_args.end = arg_end(2);
 
     const esp_console_cmd_t cmd_list_devices = {
