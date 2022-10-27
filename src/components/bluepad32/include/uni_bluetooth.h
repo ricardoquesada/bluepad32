@@ -43,7 +43,7 @@ void uni_bluetooth_dump_devices_safe(void);
 // When disabled, only devices that have paired before can connect.
 void uni_bluetooth_enable_new_connections_safe(bool enabled);
 // Disconnects a device
-void uni_bluetooth_disconnect_device_safe(uni_hid_device_t* d);
+void uni_bluetooth_disconnect_device_safe(int device_idx);
 
 // Private functions.
 // TODO: Should be moved to a new file: uni_bt_state.c

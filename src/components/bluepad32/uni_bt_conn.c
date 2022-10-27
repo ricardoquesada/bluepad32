@@ -55,6 +55,10 @@ bool uni_bt_conn_is_connected(uni_bt_conn_t* conn) {
 }
 
 void uni_bt_conn_disconnect(uni_bt_conn_t* conn) {
+    if (conn->handle) {
+            gap_disconnect(conn->handle);
+            conn->handle = 0;
+    }
     if (conn->control_cid) {
         l2cap_disconnect(conn->control_cid);
         conn->control_cid = 0;
