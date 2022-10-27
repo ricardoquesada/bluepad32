@@ -93,6 +93,7 @@ menu "Bluepad32"
 
     config BLUEPAD32_ENABLE_BLE
         bool "Enable BLE (experimental)"
+        depends on BTDM_CTRL_MODE_BTDM
         default  n
         help
             Enables Bluetooth Low Energy.
