@@ -28,7 +28,8 @@ limitations under the License.
 #include "uni_common.h"
 #include "uni_debug.h"
 
-static char buf_gpio[32];
+static char buf_gpio_get[16];
+static char buf_gpio_set[16];
 
 static struct {
     struct arg_int* gpio_num;
@@ -99,13 +100,14 @@ static int cmd_gpio_set(int argc, char** argv) {
 }
 
 void uni_gpio_register_cmds(void) {
-    snprintf(buf_gpio, sizeof(buf_gpio) - 1, "<0-%d, none>", GPIO_NUM_MAX - 1);
+    snprintf(buf_gpio_get, sizeof(buf_gpio_get) - 1, "<0 - %d, none>", GPIO_NUM_MAX - 1);
+    snprintf(buf_gpio_set, sizeof(buf_gpio_set) - 1, "<0 - %d>", GPIO_NUM_MAX - 1);
 
-    gpio_get_args.gpio_num = arg_int1(NULL, NULL, buf_gpio, "GPIO number, or none for all GPIOs");
+    gpio_get_args.gpio_num = arg_int1(NULL, NULL, buf_gpio_get, "GPIO number, or none for all GPIOs");
     gpio_get_args.end = arg_end(2);
 
-    gpio_set_args.gpio_num = arg_int1(NULL, NULL, buf_gpio, "GPIO number");
-    gpio_set_args.value = arg_int1(NULL, NULL, "<0 - 1>", "GPIO value: 0=Low, 1=High");
+    gpio_set_args.gpio_num = arg_int1(NULL, NULL, buf_gpio_set, "GPIO number");
+    gpio_set_args.value = arg_int1(NULL, NULL, "<0 | 1>", "GPIO value: 0=Low, 1=High");
     gpio_set_args.end = arg_end(3);
 
     const esp_console_cmd_t gpio_get = {

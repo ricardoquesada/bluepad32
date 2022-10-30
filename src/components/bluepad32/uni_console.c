@@ -45,7 +45,7 @@ limitations under the License.
 static const char* TAG = "console";
 #define PROMPT_STR "bp32"
 
-static char buf_disconnect[32];
+static char buf_disconnect[16];
 
 static struct {
     struct arg_dbl* value;
@@ -232,7 +232,7 @@ static void register_bluepad32() {
         arg_int1(NULL, NULL, "<0 | 1>", "Whether to enable Bluetooth incoming connections");
     set_bluetooth_enabled_args.end = arg_end(2);
 
-    snprintf(buf_disconnect, sizeof(buf_disconnect) - 1, "<0-%d>", CONFIG_BLUEPAD32_MAX_DEVICES - 1);
+    snprintf(buf_disconnect, sizeof(buf_disconnect) - 1, "<0 - %d>", CONFIG_BLUEPAD32_MAX_DEVICES - 1);
     disconnect_device_args.idx = arg_int1(NULL, NULL, buf_disconnect, "Device index to disconnect");
     disconnect_device_args.end = arg_end(2);
 
