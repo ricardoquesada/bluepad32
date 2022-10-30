@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### New
 - NINA/AirLift: Add command to disconnect gamepad ([Github Issue #26][github_issue_26])
 - Console: Add "disconnect" command
+- Console: Add "gpio_get", "gpio_set" commands. Useful for testing
 
 ### Changed
 - BTstack: Updated to v1.5.4

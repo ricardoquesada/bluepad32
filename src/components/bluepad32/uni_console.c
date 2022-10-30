@@ -33,6 +33,7 @@ limitations under the License.
 #include "uni_bt_setup.h"
 #include "uni_common.h"
 #include "uni_debug.h"
+#include "uni_gpio.h"
 #include "uni_hid_device.h"
 #include "uni_mouse_quadrature.h"
 #include "uni_platform_unijoysticle.h"
@@ -43,6 +44,8 @@ limitations under the License.
 
 static const char* TAG = "console";
 #define PROMPT_STR "bp32"
+
+static char buf_disconnect[32];
 
 static struct {
     struct arg_dbl* value;
@@ -214,8 +217,6 @@ static int disconnect_device(int argc, char** argv) {
 }
 
 static void register_bluepad32() {
-    char buf[32];
-
     mouse_set_args.value = arg_dbl1(NULL, NULL, "<value>", "Global mouse scale factor. Higher means faster");
     mouse_set_args.end = arg_end(2);
 
@@ -231,8 +232,8 @@ static void register_bluepad32() {
         arg_int1(NULL, NULL, "<0 | 1>", "Whether to enable Bluetooth incoming connections");
     set_bluetooth_enabled_args.end = arg_end(2);
 
-    snprintf(buf, sizeof(buf) - 1, "<0-%d>", CONFIG_BLUEPAD32_MAX_DEVICES);
-    disconnect_device_args.idx = arg_int1(NULL, NULL, buf, "Device index to disconnect");
+    snprintf(buf_disconnect, sizeof(buf_disconnect) - 1, "<0-%d>", CONFIG_BLUEPAD32_MAX_DEVICES - 1);
+    disconnect_device_args.idx = arg_int1(NULL, NULL, buf_disconnect, "Device index to disconnect");
     disconnect_device_args.end = arg_end(2);
 
     const esp_console_cmd_t cmd_list_devices = {
@@ -322,6 +323,7 @@ static void register_bluepad32() {
         .help = "Disconnects a gamepad/mouse/etc.",
         .hint = NULL,
         .func = &disconnect_device,
+        .argtable = &disconnect_device_args,
     };
 
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_set_gap_security_level));
@@ -363,6 +365,8 @@ void uni_console_init(void) {
 #endif  // CONFIG_BLUEPAD32_CONSOLE_NVS_COMMAND_ENABLE
 
     register_bluepad32();
+    uni_gpio_register_cmds();
+
 #if CONFIG_BLUEPAD32_PLATFORM_UNIJOYSTICLE
     uni_platform_unijoysticle_register_cmds();
 #endif  // CONFIG_BLUEPAD32_PLATFORM_UNIJOYSTICLE
