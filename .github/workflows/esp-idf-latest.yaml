@@ -24,7 +24,7 @@ jobs:
     - name: Unijoysticle build
       uses: espressif/esp-idf-ci-action@main
       with:
-        esp_idf_version: v4.4
+        esp_idf_version: release-v4.4
         target: esp32
         path: 'src'
         command: 'idf.py -B build_plat_unijoysticle -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.plat_unijoysticle" build'
@@ -32,7 +32,7 @@ jobs:
     - name: AirLift build
       uses: espressif/esp-idf-ci-action@main
       with:
-        esp_idf_version: v4.4
+        esp_idf_version: release-v4.4
         target: esp32
         path: 'src'
         command: 'idf.py -B build_plat_airlift -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.plat_airlift" build'
@@ -40,7 +40,7 @@ jobs:
     - name: NINA build
       uses: espressif/esp-idf-ci-action@main
       with:
-        esp_idf_version: v4.4
+        esp_idf_version: release-v4.4
         target: esp32
         path: 'src'
         command: 'idf.py -B build_plat_nina -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.plat_nina" build'
@@ -48,7 +48,7 @@ jobs:
     - name: MightyMiggy build
       uses: espressif/esp-idf-ci-action@main
       with:
-        esp_idf_version: v4.4
+        esp_idf_version: release-v4.4
         target: esp32
         path: 'src'
         command: 'idf.py -B build_plat_mightymiggy -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.plat_mightymiggy" build'
