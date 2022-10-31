@@ -20,7 +20,9 @@ limitations under the License.
 #include "uni_gpio.h"
 
 #include <argtable3/argtable3.h>
+#include <driver/adc.h>
 #include <driver/gpio.h>
+#include <driver/ledc.h>
 #include <esp_console.h>
 #include <esp_log.h>
 
@@ -42,12 +44,14 @@ static struct {
     struct arg_end* end;
 } gpio_set_args;
 
-void uni_gpio_set_analog(int pin, uint8_t value) {
+int uni_gpio_analog_write(gpio_num_t pin, uint8_t value) {
     ARG_UNUSED(pin);
     ARG_UNUSED(value);
+
+    return 1;
 }
 
-uint8_t uni_gpio_get_analog(int pin) {
+uint16_t uni_gpio_analog_read(gpio_num_t pin) {
     ARG_UNUSED(pin);
 
     return 0;
