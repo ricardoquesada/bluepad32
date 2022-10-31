@@ -20,13 +20,14 @@ limitations under the License.
 #ifndef UNI_GPIO_H
 #define UNI_GPIO_H
 
-#include <stdbool.h>
 #include <stdint.h>
 
-void uni_gpio_set_level(int pin, bool value);
-bool uni_gpio_get_level(int pin);
-void uni_gpio_set_analog(int pin, uint8_t value);
-uint8_t uni_gpio_get_analog(int pin);
+#include <driver/gpio.h>
+
+// The inconsistency between read/write with uint8_t / uint16_t is to be
+// compatible with NINA protocol which has this inconsistency.
+int uni_gpio_analog_write(gpio_num_t pin, uint8_t value);
+uint16_t uni_gpio_analog_read(gpio_num_t pin);
 
 void uni_gpio_register_cmds(void);
 

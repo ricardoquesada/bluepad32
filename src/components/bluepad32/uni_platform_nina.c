@@ -49,6 +49,7 @@ limitations under the License.
 #include "uni_debug.h"
 #include "uni_esp32.h"
 #include "uni_gamepad.h"
+#include "uni_gpio.h"
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
 #include "uni_platform.h"
@@ -486,6 +487,7 @@ static int request_get_fw_version(const uint8_t command[], uint8_t response[]) {
 
 // Command 0x50
 static int request_set_pin_mode(const uint8_t command[], uint8_t response[]) {
+    uint8_t ret = RESPONSE_OK;
     enum {
         INPUT = 0,
         OUTPUT = 1,
@@ -495,6 +497,11 @@ static int request_set_pin_mode(const uint8_t command[], uint8_t response[]) {
     // command[2]: total params, should be 2
     // command[3]: param len, should be 1
     uint8_t pin = command[4];
+    if (pin >= GPIO_NUM_MAX) {
+        ret = RESPONSE_ERROR;
+        goto exit;
+    }
+
     // command[5]: param 2 len: should be 1
     uint8_t mode = command[6];
 
@@ -517,40 +524,85 @@ static int request_set_pin_mode(const uint8_t command[], uint8_t response[]) {
     }
     PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[pin], PIN_FUNC_GPIO);
 
+exit:
     response[2] = 1;  // number of parameters
     response[3] = 1;  // parameter 1 length
-    response[4] = RESPONSE_OK;
+    response[4] = ret;
     return 5;
 }
 
 // Command 0x51
 static int request_digital_write(const uint8_t command[], uint8_t response[]) {
+    uint8_t ret = RESPONSE_OK;
     // command[2]: total params, should be 2
     // command[3]: param len, should be 1
     uint8_t pin = command[4];
+    if (pin >= GPIO_NUM_MAX) {
+        ret = RESPONSE_ERROR;
+        goto exit;
+    }
+
     // command[5]: param len, should be 1
-    uint8_t value = command[6];
+    uint8_t value = !!command[6];
 
     gpio_set_level((gpio_num_t)pin, value);
 
+exit:
     response[2] = 1;  // total parameters
     response[3] = 1;  // param len
-    response[4] = RESPONSE_OK;
+    response[4] = ret;
+    return 5;
+}
+
+// Command 0x52
+static int request_analog_write(const uint8_t command[], uint8_t response[]) {
+    uint8_t ret = RESPONSE_OK;
+    // command[2]: total params, should be 2
+    // command[3]: param len, should be 1
+    uint8_t pin = command[4];
+    if (pin >= GPIO_NUM_MAX) {
+        ret = RESPONSE_ERROR;
+        goto exit;
+    }
+    // command[5]: param len, should be 1
+    uint8_t value = command[6];
+
+    uni_gpio_analog_write((gpio_num_t)pin, value);
+
+exit:
+    response[2] = 1;  // total parameters
+    response[3] = 1;  // param len
+    response[4] = ret;
     return 5;
 }
 
 // Command 0x53
 static int request_digital_read(const uint8_t command[], uint8_t response[]) {
+    // TODO: Not possible to return an error
     // command[2]: total params, should be 1
     // command[3]: param len, should be 1
     uint8_t pin = command[4];
-
     uint8_t value = gpio_get_level(pin);
 
     response[2] = 1;      // number of parameters
     response[3] = 1;      // parameter 1 length
     response[4] = value;  // response
     return 5;
+}
+
+// Command 0x54
+static int request_analog_read(const uint8_t command[], uint8_t response[]) {
+    // TODO: Not possible to return an error
+    // command[2]: total params, should be 1
+    // command[3]: param len, should be 1
+    uint8_t pin = command[4];
+    uint16_t value = uni_gpio_analog_read(pin);
+
+    response[2] = 1;             // number of parameters
+    response[3] = 2;             // parameter 1 length
+    response[4] = value & 0xff;  // response
+    response[5] = value >> 8;    // response
+    return 6;
 }
 
 typedef int (*command_handler_t)(const uint8_t command[], uint8_t response[] /* out */);
@@ -651,9 +703,9 @@ const command_handler_t command_handlers[] = {
     // 0x50 -> 0x5f
     request_set_pin_mode,   // setPinMode,
     request_digital_write,  // setDigitalWrite,
-    NULL,                   // setAnalogWrite,
+    request_analog_write,   // setAnalogWrite,
     request_digital_read,   // setDigitalRead,
-    NULL,                   // setAnalogRead,
+    request_analog_read,    // setAnalogRead,
     NULL,
     NULL,
     NULL,
