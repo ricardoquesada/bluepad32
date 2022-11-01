@@ -36,6 +36,7 @@ limitations under the License.
 #include <freertos/event_groups.h>
 #include <freertos/queue.h>
 
+#include "hal/gpio_types.h"
 #include "sdkconfig.h"
 #include "uni_bluetooth.h"
 #include "uni_bt_defines.h"
@@ -173,6 +174,13 @@ typedef enum {
     EMULATION_MODE_COMBO_JOY_MOUSE,
 } emulation_mode_t;
 
+typedef enum {
+    C64_POT_MODE_NORMAL,  // Pots are used for mouse, paddle, extra buttons
+    C64_POT_MODE_RUMBLE,  // Pots are used to toggle rumble
+
+    C64_POT_MODE_COUNT,
+} c64_pot_mode_t;
+
 // Console commands
 enum {
     CMD_SWAP_PORTS,
@@ -181,6 +189,9 @@ enum {
     CMD_SET_GAMEPAD_MODE_ENHANCED,  // Enhanced mode
     CMD_SET_GAMEPAD_MODE_MOUSE,     // Mouse mode
     CMD_GET_GAMEPAD_MODE,
+
+    CMD_SET_C64_POT_MODE_NORMAL,  // Used for mouse, paddle & extra buttons
+    CMD_SET_C64_POT_MODE_RUMBLE,  // C64 can enable rumble via Pots
 
     CMD_COUNT,
 };
@@ -253,6 +264,7 @@ static void process_mouse(uni_hid_device_t* d,
                           uint16_t buttons);
 static void joy_update_port(const uni_joystick_t* joy, const gpio_num_t* gpios);
 static int get_mouse_emulation_from_nvs(void);
+static int get_c64_pot_mode_from_nvs(void);
 
 // Interrupt handlers
 static void handle_event_button(int button_idx);
@@ -280,6 +292,7 @@ static void try_swap_ports(uni_hid_device_t* d);
 static void set_gamepad_mode(emulation_mode_t mode);
 static void get_gamepad_mode(void);
 static void version(void);
+static void set_c64_pot_mode(c64_pot_mode_t mode);
 
 static void set_button_mode(enum button_mode mode);
 static void blink_bt_led(int times);
@@ -391,6 +404,12 @@ static const char* mouse_modes[] = {
     "atarist",  // MOUSE_EMULATION_ATARIST
 };
 
+// Keep them in the order of the defines
+static const char* c64_pot_modes[] = {
+    "normal",  // C64_POT_MODE_NORMAL
+    "rumble",  // C64_POT_MODE_RUMBLE
+};
+
 // --- Globals (RAM)
 static const struct gpio_config* g_gpio_config = NULL;
 
@@ -412,6 +431,8 @@ static bool s_auto_enable_bluetooth = true;
 // When True, it means the "Unijosyticle" generated the Bluetooth-Enable event.
 static bool s_skip_next_enable_bluetooth_event = false;
 
+static TaskHandle_t s_sync_task;
+
 // For the console
 static struct {
     struct arg_str* value;
@@ -427,6 +448,11 @@ static struct {
     struct arg_int* value;
     struct arg_end* end;
 } set_autofire_cps_args;
+
+static struct {
+    struct arg_str* value;
+    struct arg_end* end;
+} set_c64_pot_mode_args;
 
 static btstack_context_callback_registration_t cmd_callback_registration;
 static btstack_context_callback_registration_t syncirq_callback_registration;
@@ -575,39 +601,8 @@ static void unijoysticle_on_init_complete(void) {
 
     board_model_t model = get_uni_model_from_pins();
     if (model == BOARD_MODEL_UNIJOYSTICLE2_C64) {
-        gpio_config_t io_conf;
-        timer_config_t config = {
-            .divider = TIMER_DIVIDER,
-            .counter_dir = TIMER_COUNT_DOWN,
-            .counter_en = TIMER_START,
-            .alarm_en = TIMER_ALARM_EN,
-            .auto_reload = TIMER_AUTORELOAD_EN,
-        };
-
-        g_sync_irq_group = xEventGroupCreate();
-        xTaskCreate(sync_irq_event_task, "bp.uni.sync_irq", 2048, NULL, TASK_SYNC_IRQ_PRIO, NULL);
-
-        // Sync IRQs
-        for (int i = 0; i < SYNC_IRQ_MAX; i++) {
-            if (g_gpio_config->sync_irq[i] == -1)
-                continue;
-
-            // Set Interrupt handler
-            io_conf.intr_type = GPIO_INTR_NEGEDGE;
-            io_conf.mode = GPIO_MODE_INPUT;
-            io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-            // GPIOs 34~39 don't have internal Pull-up resistors.
-            io_conf.pull_up_en = (g_gpio_config->sync_irq[i] < GPIO_NUM_34) ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
-            io_conf.pin_bit_mask = BIT(g_gpio_config->sync_irq[i]);
-            ESP_ERROR_CHECK(gpio_config(&io_conf));
-            // "i" must match EVENT_SYNC_IRQ_0, etc.
-            ESP_ERROR_CHECK(gpio_isr_handler_add(g_gpio_config->sync_irq[i], gpio_isr_handler_sync, (void*)i));
-
-            // Set Timer handler
-            ESP_ERROR_CHECK(timer_init(TIMER_GROUP_1, TIMER_0 + i, &config));
-            timer_set_counter_value(TIMER_GROUP_1, TIMER_0 + i, TIMER_ONE_MILLISECOND);
-            timer_isr_callback_add(TIMER_GROUP_1, TIMER_0 + i, timer_isr_handler_sync, (void*)i, 0);
-        }
+        int mode = get_c64_pot_mode_from_nvs();
+        set_c64_pot_mode(mode);
     } else {
         uni_mouse_quadrature_init(QUADRATURE_MOUSE_TASK_CPU);
         uni_mouse_quadrature_setup_port(UNI_MOUSE_QUADRATURE_PORT_0, port_a_x, port_a_y);
@@ -919,6 +914,24 @@ static int get_autofire_cps_from_nvs() {
     def.u8 = AUTOFIRE_CPS_DEFAULT;
 
     value = uni_property_get(UNI_PROPERTY_KEY_UNI_AUTOFIRE_CPS, UNI_PROPERTY_TYPE_U8, def);
+    return value.u8;
+}
+
+static void set_c64_pot_mode_to_nvs(int mode) {
+    uni_property_value_t value;
+    value.u8 = mode;
+
+    uni_property_set(UNI_PROPERTY_KEY_UNI_C64_POT_MODE, UNI_PROPERTY_TYPE_U8, value);
+    logi("Done\n");
+}
+
+static int get_c64_pot_mode_from_nvs(void) {
+    uni_property_value_t value;
+    uni_property_value_t def;
+
+    def.u8 = C64_POT_MODE_NORMAL;
+
+    value = uni_property_get(UNI_PROPERTY_KEY_UNI_C64_POT_MODE, UNI_PROPERTY_TYPE_U8, def);
     return value.u8;
 }
 
@@ -1290,6 +1303,12 @@ static void cmd_callback(void* context) {
         case CMD_GET_GAMEPAD_MODE:
             get_gamepad_mode();
             break;
+        case CMD_SET_C64_POT_MODE_NORMAL:
+            set_c64_pot_mode(C64_POT_MODE_NORMAL);
+            break;
+        case CMD_SET_C64_POT_MODE_RUMBLE:
+            set_c64_pot_mode(C64_POT_MODE_RUMBLE);
+            break;
         default:
             loge("Unijoysticle: invalid command: %d\n", cmd);
             break;
@@ -1441,6 +1460,83 @@ static void set_gamepad_mode(emulation_mode_t mode) {
     maybe_enable_mouse_timers();
 }
 
+static void set_c64_pot_mode(c64_pot_mode_t mode) {
+    // Change C64 Pot mode
+
+    gpio_config_t io_conf;
+
+    if (mode == C64_POT_MODE_NORMAL) {
+        set_c64_pot_mode_to_nvs(mode);
+
+        if (s_sync_task == NULL) {
+            // Nothing to do. "rumble" was not initialized.
+            return;
+        }
+        for (int i = 0; i < SYNC_IRQ_MAX; i++) {
+            if (g_gpio_config->sync_irq[i] == -1)
+                continue;
+            io_conf.intr_type = GPIO_INTR_DISABLE;
+            io_conf.mode = GPIO_MODE_INPUT;
+            io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+            // GPIOs 34~39 don't have internal Pull-up resistors.
+            io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+            io_conf.pin_bit_mask = BIT(g_gpio_config->sync_irq[i]);
+            ESP_ERROR_CHECK(gpio_config(&io_conf));
+
+            // "i" must match EVENT_SYNC_IRQ_0, etc.
+            gpio_isr_handler_remove(g_gpio_config->sync_irq[i]);
+
+            // Remove Timer handler
+            timer_isr_callback_remove(TIMER_GROUP_1, TIMER_0 + i);
+        }
+        vTaskDelete(s_sync_task);
+        s_sync_task = NULL;
+
+    } else if (mode == C64_POT_MODE_RUMBLE) {
+        set_c64_pot_mode_to_nvs(mode);
+
+        if (s_sync_task != NULL) {
+            // Nothing to do. "rumble" is already enabled
+            return;
+        }
+
+        timer_config_t config = {
+            .divider = TIMER_DIVIDER,
+            .counter_dir = TIMER_COUNT_DOWN,
+            .counter_en = TIMER_START,
+            .alarm_en = TIMER_ALARM_EN,
+            .auto_reload = TIMER_AUTORELOAD_EN,
+        };
+
+        g_sync_irq_group = xEventGroupCreate();
+        xTaskCreate(sync_irq_event_task, "bp.uni.sync_irq", 2048, NULL, TASK_SYNC_IRQ_PRIO, &s_sync_task);
+
+        // Sync IRQs
+        for (int i = 0; i < SYNC_IRQ_MAX; i++) {
+            if (g_gpio_config->sync_irq[i] == -1)
+                continue;
+
+            // Set Interrupt handler
+            io_conf.intr_type = GPIO_INTR_NEGEDGE;
+            io_conf.mode = GPIO_MODE_INPUT;
+            io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+            // GPIOs 34~39 don't have internal Pull-up resistors.
+            io_conf.pull_up_en = (g_gpio_config->sync_irq[i] < GPIO_NUM_34) ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
+            io_conf.pin_bit_mask = BIT(g_gpio_config->sync_irq[i]);
+            ESP_ERROR_CHECK(gpio_config(&io_conf));
+            // "i" must match EVENT_SYNC_IRQ_0, etc.
+            ESP_ERROR_CHECK(gpio_isr_handler_add(g_gpio_config->sync_irq[i], gpio_isr_handler_sync, (void*)i));
+
+            // Set Timer handler
+            ESP_ERROR_CHECK(timer_init(TIMER_GROUP_1, TIMER_0 + i, &config));
+            timer_set_counter_value(TIMER_GROUP_1, TIMER_0 + i, TIMER_ONE_MILLISECOND);
+            timer_isr_callback_add(TIMER_GROUP_1, TIMER_0 + i, timer_isr_handler_sync, (void*)i, 0);
+        }
+    } else {
+        loge("unijoysticle: unsupported gamepad mode: %d\n", mode);
+    }
+}
+
 static void toggle_combo_enhanced_gamepad_cb(int button_idx) {
     ARG_UNUSED(button_idx);
     static bool enabled = false;
@@ -1506,14 +1602,6 @@ static int cmd_set_gamepad_mode(int argc, char** argv) {
     return 0;
 }
 
-static int cmd_version(int argc, char** argv) {
-    ARG_UNUSED(argc);
-    ARG_UNUSED(argv);
-
-    version();
-    return 0;
-}
-
 static int cmd_get_gamepad_mode(int argc, char** argv) {
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
@@ -1521,6 +1609,51 @@ static int cmd_get_gamepad_mode(int argc, char** argv) {
     cmd_callback_registration.callback = &cmd_callback;
     cmd_callback_registration.context = (void*)CMD_GET_GAMEPAD_MODE;
     btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
+    return 0;
+}
+
+static int cmd_set_c64_pot_mode(int argc, char** argv) {
+    int nerrors = arg_parse(argc, argv, (void**)&set_c64_pot_mode_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, set_c64_pot_mode_args.end, argv[0]);
+        return 1;
+    }
+
+    int mode = 0;
+
+    if (strcmp(set_c64_pot_mode_args.value->sval[0], "normal") == 0) {
+        mode = CMD_SET_C64_POT_MODE_NORMAL;
+    } else if (strcmp(set_c64_pot_mode_args.value->sval[0], "rumble") == 0) {
+        mode = CMD_SET_C64_POT_MODE_RUMBLE;
+    } else {
+        loge("Invalid C64 Pot mode: : %s\n", set_c64_pot_mode_args.value->sval[0]);
+        loge("Valid values: 'normal' or 'rumble'\n");
+        return 1;
+    }
+
+    cmd_callback_registration.callback = &cmd_callback;
+    cmd_callback_registration.context = (void*)mode;
+    btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
+    return 0;
+}
+
+static int cmd_get_c64_pot_mode(int argc, char** argv) {
+    int mode = get_c64_pot_mode_from_nvs();
+
+    if (mode >= C64_POT_MODE_COUNT) {
+        logi("Invalid C64 Pot mode: %d\n", mode);
+        return 1;
+    }
+
+    logi("%s\n", c64_pot_modes[mode]);
+    return 0;
+}
+
+static int cmd_version(int argc, char** argv) {
+    ARG_UNUSED(argc);
+    ARG_UNUSED(argv);
+
+    version();
     return 0;
 }
 
@@ -1767,6 +1900,9 @@ void uni_platform_unijoysticle_register_cmds(void) {
     set_autofire_cps_args.value = arg_int1(NULL, NULL, "<cps>", "clicks per second (cps)");
     set_autofire_cps_args.end = arg_end(2);
 
+    set_c64_pot_mode_args.value = arg_str1(NULL, NULL, "<mode>", "valid options: 'normal' or 'rumble'");
+    set_c64_pot_mode_args.end = arg_end(2);
+
     const esp_console_cmd_t swap_ports = {
         .command = "swap_ports",
         .help = "Swaps joystick ports",
@@ -1828,6 +1964,23 @@ void uni_platform_unijoysticle_register_cmds(void) {
         .func = &cmd_get_autofire_cps,
     };
 
+    const esp_console_cmd_t set_c64_pot_mode = {
+        .command = "set_c64_pot_mode",
+        .help =
+            "Sets C64 Pot mode.\n"
+            "  Default: normal",
+        .hint = NULL,
+        .func = &cmd_set_c64_pot_mode,
+        .argtable = &set_c64_pot_mode_args,
+    };
+
+    const esp_console_cmd_t get_c64_pot_mode = {
+        .command = "get_c64_pot_mode",
+        .help = "Returns the C64 Pot mode",
+        .hint = NULL,
+        .func = &cmd_get_c64_pot_mode,
+    };
+
     const esp_console_cmd_t version = {
         .command = "version",
         .help = "Gets the Unijoysticle version info",
@@ -1844,6 +1997,11 @@ void uni_platform_unijoysticle_register_cmds(void) {
 
     ESP_ERROR_CHECK(esp_console_cmd_register(&set_autofire_cps));
     ESP_ERROR_CHECK(esp_console_cmd_register(&get_autofire_cps));
+
+    if (get_uni_model_from_pins() == BOARD_MODEL_UNIJOYSTICLE2_C64) {
+        ESP_ERROR_CHECK(esp_console_cmd_register(&set_c64_pot_mode));
+        ESP_ERROR_CHECK(esp_console_cmd_register(&get_c64_pot_mode));
+    }
 
     ESP_ERROR_CHECK(esp_console_cmd_register(&version));
 }
