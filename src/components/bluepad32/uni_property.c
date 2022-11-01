@@ -39,6 +39,7 @@ const char* UNI_PROPERTY_KEY_UNI_MODEL = "bp.uni.model";
 const char* UNI_PROPERTY_KEY_UNI_MOUSE_EMULATION = "bp.uni.mouseemu";
 const char* UNI_PROPERTY_KEY_UNI_SERIAL_NUMBER = "bp.uni.serial";
 const char* UNI_PROPERTY_KEY_UNI_VENDOR = "bp.uni.vendor";
+const char* UNI_PROPERTY_KEY_UNI_C64_POT_MODE = "bp.uni.c64pot";
 
 // TODO: Implement "property interface" instead of doing #ifdef
 
