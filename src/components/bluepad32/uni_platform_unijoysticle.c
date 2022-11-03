@@ -62,7 +62,7 @@ limitations under the License.
 #define PLAT_UNIJOYSTICLE_SINGLE_PORT 0
 
 // In some board models not all GPIOs are set. Macro to simplify code for that.
-#define SAFE_SET_BIT(__value) (__value == -1) ? 0 : (1ULL << __value)
+#define SAFE_SET_BIT64(__value) (__value == -1) ? 0 : (1ULL << __value)
 
 // CPU where the Quadrature task runs
 #define QUADRATURE_MOUSE_TASK_CPU 1
@@ -433,13 +433,13 @@ static void unijoysticle_init(int argc, const char** argv) {
     io_conf.pin_bit_mask = 0;
     // Setup pins for Port A & B
     for (int i = 0; i < JOY_MAX; i++) {
-        io_conf.pin_bit_mask |= SAFE_SET_BIT(g_gpio_config->port_a[i]);
-        io_conf.pin_bit_mask |= SAFE_SET_BIT(g_gpio_config->port_b[i]);
+        io_conf.pin_bit_mask |= SAFE_SET_BIT64(g_gpio_config->port_a[i]);
+        io_conf.pin_bit_mask |= SAFE_SET_BIT64(g_gpio_config->port_b[i]);
     }
 
     // Setup pins for LEDs
     for (int i = 0; i < LED_MAX; i++)
-        io_conf.pin_bit_mask |= SAFE_SET_BIT(g_gpio_config->leds[i]);
+        io_conf.pin_bit_mask |= SAFE_SET_BIT64(g_gpio_config->leds[i]);
 
     ESP_ERROR_CHECK(gpio_config(&io_conf));
 
@@ -477,7 +477,7 @@ static void unijoysticle_init(int argc, const char** argv) {
         // GPIOs 34~39 don't have internal Pull-up resistors.
         io_conf.pull_up_en =
             (g_gpio_config->push_buttons[i].gpio < GPIO_NUM_34) ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
-        io_conf.pin_bit_mask = BIT(g_gpio_config->push_buttons[i].gpio);
+        io_conf.pin_bit_mask = BIT64(g_gpio_config->push_buttons[i].gpio);
         ESP_ERROR_CHECK(gpio_config(&io_conf));
         // "i" must match EVENT_BUTTON_0, value, etc.
         ESP_ERROR_CHECK(gpio_isr_handler_add(g_gpio_config->push_buttons[i].gpio, gpio_isr_handler_button, (void*)i));

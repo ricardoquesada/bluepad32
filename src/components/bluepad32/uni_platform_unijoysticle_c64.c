@@ -243,8 +243,7 @@ void uni_platform_unijoysticle_c64_set_pot_mode(uni_platform_unijoysticle_c64_po
 
     gpio_config_t io_conf = {0};
 
-    if (mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_NORMAL ||
-        mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_RUMBLE) {
+    if (mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_NORMAL) {
         set_c64_pot_mode_to_nvs(mode);
 
         if (_sync_task == NULL) {
@@ -260,7 +259,7 @@ void uni_platform_unijoysticle_c64_set_pot_mode(uni_platform_unijoysticle_c64_po
             io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
             // GPIOs 34~39 don't have internal Pull-up resistors.
             io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
-            io_conf.pin_bit_mask = BIT(sync_irq);
+            io_conf.pin_bit_mask = BIT64(sync_irq);
             ESP_ERROR_CHECK(gpio_config(&io_conf));
 
             // "i" must match EVENT_SYNC_IRQ_0, etc.
@@ -303,7 +302,7 @@ void uni_platform_unijoysticle_c64_set_pot_mode(uni_platform_unijoysticle_c64_po
             io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
             // GPIOs 34~39 don't have internal Pull-up resistors.
             io_conf.pull_up_en = (gpio < GPIO_NUM_34) ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
-            io_conf.pin_bit_mask = BIT(gpio);
+            io_conf.pin_bit_mask = BIT64(gpio);
             ESP_ERROR_CHECK(gpio_config(&io_conf));
             // "i" must match EVENT_SYNC_IRQ_0, etc.
             ESP_ERROR_CHECK(gpio_isr_handler_add(gpio, gpio_isr_handler_sync, (void*)i));
