@@ -35,8 +35,8 @@ limitations under the License.
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
 #include <freertos/queue.h>
+#include <hal/gpio_types.h>
 
-#include "hal/gpio_types.h"
 #include "sdkconfig.h"
 #include "uni_bluetooth.h"
 #include "uni_bt_defines.h"
@@ -48,6 +48,7 @@ limitations under the License.
 #include "uni_joystick.h"
 #include "uni_mouse_quadrature.h"
 #include "uni_platform.h"
+#include "uni_platform_unijoysticle_c64.h"
 #include "uni_property.h"
 #include "uni_version.h"
 
@@ -83,7 +84,6 @@ limitations under the License.
 
 #define TASK_AUTOFIRE_PRIO (9)
 #define TASK_PUSH_BUTTON_PRIO (8)
-#define TASK_SYNC_IRQ_PRIO (9)
 #define TASK_BLINK_LED_PRIO (7)
 
 // Data coming from gamepad axis is different from mouse deltas.
@@ -123,12 +123,6 @@ enum {
 };
 
 enum {
-    SYNC_IRQ_J1,
-    SYNC_IRQ_J2,
-    SYNC_IRQ_MAX,
-};
-
-enum {
     // Push buttons
     EVENT_BUTTON_0 = PUSH_BUTTON_0,
     EVENT_BUTTON_1 = PUSH_BUTTON_1,
@@ -136,12 +130,6 @@ enum {
     // Autofire group
     EVENT_AUTOFIRE_TRIGGER = 0,
     EVENT_AUTOFIRE_CONFIG = 1,
-
-    // Sync IRQ
-    EVENT_SYNC_IRQ_0 = SYNC_IRQ_J1,
-    EVENT_SYNC_IRQ_1 = SYNC_IRQ_J2,
-    EVENT_SYNC_TIMER_0 = SYNC_IRQ_J2 + 1,
-    EVENT_SYNC_TIMER_1 = SYNC_IRQ_J2 + 2,
 };
 
 typedef enum {
@@ -165,36 +153,6 @@ typedef enum {
 
     BOARD_MODEL_COUNT,
 } board_model_t;
-
-// Different emulation modes
-typedef enum {
-    EMULATION_MODE_SINGLE_JOY,  // Basic mode
-    EMULATION_MODE_SINGLE_MOUSE,
-    EMULATION_MODE_COMBO_JOY_JOY,  // Enhanced mode
-    EMULATION_MODE_COMBO_JOY_MOUSE,
-} emulation_mode_t;
-
-typedef enum {
-    C64_POT_MODE_NORMAL,  // Pots are used for mouse, paddle, extra buttons
-    C64_POT_MODE_RUMBLE,  // Pots are used to toggle rumble
-
-    C64_POT_MODE_COUNT,
-} c64_pot_mode_t;
-
-// Console commands
-enum {
-    CMD_SWAP_PORTS,
-
-    CMD_SET_GAMEPAD_MODE_NORMAL,    // Basic mode
-    CMD_SET_GAMEPAD_MODE_ENHANCED,  // Enhanced mode
-    CMD_SET_GAMEPAD_MODE_MOUSE,     // Mouse mode
-    CMD_GET_GAMEPAD_MODE,
-
-    CMD_SET_C64_POT_MODE_NORMAL,  // Used for mouse, paddle & extra buttons
-    CMD_SET_C64_POT_MODE_RUMBLE,  // C64 can enable rumble via Pots
-
-    CMD_COUNT,
-};
 
 enum button_mode {
     BUTTON_MODE_NORMAL = 0,  // No special mode
@@ -238,23 +196,13 @@ struct gpio_config {
     gpio_num_t port_b[JOY_MAX];
     gpio_num_t leds[LED_MAX];
     struct push_button push_buttons[PUSH_BUTTON_MAX];
-    gpio_num_t sync_irq[SYNC_IRQ_MAX];
+    gpio_num_t sync_irq[UNI_PLATFORM_UNIJOYSTICLE_C64_SYNC_IRQ_MAX];
 };
-
-// The platform "instance"
-typedef struct unijoysticle_instance_s {
-    emulation_mode_t emu_mode;             // type of controller to emulate
-    uni_gamepad_seat_t gamepad_seat;       // which "seat" (port) is being used
-    uni_gamepad_seat_t prev_gamepad_seat;  // which "seat" (port) was used before
-                                           // switching emu mode
-} unijoysticle_instance_t;
-_Static_assert(sizeof(unijoysticle_instance_t) < HID_DEVICE_MAX_PLATFORM_DATA, "Unijoysticle intance too big");
 
 // --- Function declaration
 
 static board_model_t get_uni_model_from_pins();
 
-static unijoysticle_instance_t* get_unijoysticle_instance(const uni_hid_device_t* d);
 static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat);
 static void process_joystick(uni_hid_device_t* d, uni_gamepad_seat_t seat, const uni_joystick_t* joy);
 static void process_mouse(uni_hid_device_t* d,
@@ -264,18 +212,14 @@ static void process_mouse(uni_hid_device_t* d,
                           uint16_t buttons);
 static void joy_update_port(const uni_joystick_t* joy, const gpio_num_t* gpios);
 static int get_mouse_emulation_from_nvs(void);
-static int get_c64_pot_mode_from_nvs(void);
 
 // Interrupt handlers
 static void handle_event_button(int button_idx);
 
 // GPIO Interrupt handlers
 static void IRAM_ATTR gpio_isr_handler_button(void* arg);
-static void IRAM_ATTR gpio_isr_handler_sync(void* arg);
-static bool IRAM_ATTR timer_isr_handler_sync(void* arg);
 
 static void pushbutton_event_task(void* arg);
-static void sync_irq_event_task(void* arg);
 static void auto_fire_task(void* arg);
 
 static esp_err_t safe_gpio_set_level(gpio_num_t gpio, int value);
@@ -287,12 +231,19 @@ static void cycle_gamepad_mode_cb(int button_idx);
 static void swap_ports_cb(int button_idx);
 
 // Commands or Event related
+static int cmd_swap_ports(int argc, char** argv);
+static int cmd_set_gamepad_mode(int argc, char** argv);
+static int cmd_get_gamepad_mode(int argc, char** argv);
+static int cmd_set_mouse_emulation(int argc, char** argv);
+static int cmd_get_mouse_emulation(int argc, char** argv);
+static int cmd_set_autofire_cps(int argc, char** argv);
+static int cmd_get_autofire_cps(int argc, char** argv);
+static int cmd_version(int argc, char** argv);
 static void swap_ports(void);
 static void try_swap_ports(uni_hid_device_t* d);
-static void set_gamepad_mode(emulation_mode_t mode);
+static void set_gamepad_mode(uni_platform_unijoysticle_emulation_mode_t mode);
 static void get_gamepad_mode(void);
 static void version(void);
-static void set_c64_pot_mode(c64_pot_mode_t mode);
 
 static void set_button_mode(enum button_mode mode);
 static void blink_bt_led(int times);
@@ -404,18 +355,11 @@ static const char* mouse_modes[] = {
     "atarist",  // MOUSE_EMULATION_ATARIST
 };
 
-// Keep them in the order of the defines
-static const char* c64_pot_modes[] = {
-    "normal",  // C64_POT_MODE_NORMAL
-    "rumble",  // C64_POT_MODE_RUMBLE
-};
-
 // --- Globals (RAM)
 static const struct gpio_config* g_gpio_config = NULL;
 
 static EventGroupHandle_t g_pushbutton_group;
 static EventGroupHandle_t g_autofire_group;
-static EventGroupHandle_t g_sync_irq_group;
 
 struct push_button_state g_push_buttons_state[PUSH_BUTTON_MAX] = {0};
 
@@ -430,8 +374,6 @@ static bool s_auto_enable_bluetooth = true;
 // TODO: The Bluetooth Event should have an originator, instead of using this hack.
 // When True, it means the "Unijosyticle" generated the Bluetooth-Enable event.
 static bool s_skip_next_enable_bluetooth_event = false;
-
-static TaskHandle_t s_sync_task;
 
 // For the console
 static struct {
@@ -449,13 +391,7 @@ static struct {
     struct arg_end* end;
 } set_autofire_cps_args;
 
-static struct {
-    struct arg_str* value;
-    struct arg_end* end;
-} set_c64_pot_mode_args;
-
 static btstack_context_callback_registration_t cmd_callback_registration;
-static btstack_context_callback_registration_t syncirq_callback_registration;
 
 //
 // Platform Overrides
@@ -488,7 +424,8 @@ static void unijoysticle_init(int argc, const char** argv) {
     }
     logi("Hardware detected: %s\n", uni_models[model]);
 
-    gpio_config_t io_conf;
+    gpio_config_t io_conf = {0};
+
     io_conf.intr_type = GPIO_INTR_DISABLE;
     io_conf.mode = GPIO_MODE_OUTPUT;
     io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
@@ -601,8 +538,7 @@ static void unijoysticle_on_init_complete(void) {
 
     board_model_t model = get_uni_model_from_pins();
     if (model == BOARD_MODEL_UNIJOYSTICLE2_C64) {
-        int mode = get_c64_pot_mode_from_nvs();
-        set_c64_pot_mode(mode);
+        uni_platform_unijoysticle_c64_on_init_complete();
     } else {
         uni_mouse_quadrature_init(QUADRATURE_MOUSE_TASK_CPU);
         uni_mouse_quadrature_setup_port(UNI_MOUSE_QUADRATURE_PORT_0, port_a_x, port_a_y);
@@ -632,17 +568,19 @@ static void unijoysticle_on_device_disconnected(uni_hid_device_t* d) {
         loge("ERROR: unijoysticle_on_device_disconnected: Invalid NULL device\n");
         return;
     }
-    unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
+    uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
 
     if (ins->gamepad_seat != GAMEPAD_SEAT_NONE) {
         // Turn off the LEDs
-        if (ins->gamepad_seat == GAMEPAD_SEAT_A || ins->emu_mode == EMULATION_MODE_COMBO_JOY_JOY)
+        if (ins->gamepad_seat == GAMEPAD_SEAT_A ||
+            ins->emu_mode == UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_JOY)
             safe_gpio_set_level(g_gpio_config->leds[LED_J1], 0);
-        if (ins->gamepad_seat == GAMEPAD_SEAT_B || ins->emu_mode == EMULATION_MODE_COMBO_JOY_JOY)
+        if (ins->gamepad_seat == GAMEPAD_SEAT_B ||
+            ins->emu_mode == UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_JOY)
             safe_gpio_set_level(g_gpio_config->leds[LED_J2], 0);
 
         ins->gamepad_seat = GAMEPAD_SEAT_NONE;
-        ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
+        ins->emu_mode = UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_SINGLE_JOY;
     }
 
     // Regarless of how many connections are active, enable Bluetooth connections.
@@ -656,7 +594,7 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
         loge("ERROR: unijoysticle_on_device_ready: Invalid NULL device\n");
         return -1;
     }
-    unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
+    uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
 
     // Some safety checks. These conditions should not happen
     if ((ins->gamepad_seat != GAMEPAD_SEAT_NONE) || (!uni_hid_device_has_controller_type(d))) {
@@ -667,7 +605,7 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
     uint32_t used_joystick_ports = 0;
     for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(i);
-        used_joystick_ports |= get_unijoysticle_instance(tmp_d)->gamepad_seat;
+        used_joystick_ports |= uni_platform_unijoysticle_get_instance(tmp_d)->gamepad_seat;
     }
 
     // Either two gamepads are connected, or one is in Enhanced mode.
@@ -679,19 +617,19 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
     if (get_uni_model_from_pins() == BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT) {
         // Single port boards only supports one port, so keep using SEAT A
         wanted_seat = GAMEPAD_SEAT_A;
-        ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
+        ins->emu_mode = UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_SINGLE_JOY;
 
     } else {
         // Try with Port B, assume it is a joystick
         wanted_seat = GAMEPAD_SEAT_B;
-        ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
+        ins->emu_mode = UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_SINGLE_JOY;
 
         // ... unless it is a mouse which should try with PORT A.
         // Amiga/Atari ST use mice in PORT A. Undefined on the C64, but
         // most apps use it in PORT A as well.
         if (uni_hid_device_is_mouse(d)) {
             wanted_seat = GAMEPAD_SEAT_A;
-            ins->emu_mode = EMULATION_MODE_SINGLE_MOUSE;
+            ins->emu_mode = UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_SINGLE_MOUSE;
         }
 
         // If wanted port is already assigned, try with the next one.
@@ -733,18 +671,18 @@ static void unijoysticle_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp)
 
     test_select_button(d, gp);
 
-    unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
+    uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
 
     uni_joystick_t joy, joy_ext;
     memset(&joy, 0, sizeof(joy));
     memset(&joy_ext, 0, sizeof(joy_ext));
 
     switch (ins->emu_mode) {
-        case EMULATION_MODE_SINGLE_JOY:
+        case UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_SINGLE_JOY:
             uni_joy_to_single_joy_from_gamepad(gp, &joy);
             process_joystick(d, ins->gamepad_seat, &joy);
             break;
-        case EMULATION_MODE_SINGLE_MOUSE:
+        case UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_SINGLE_MOUSE:
             axis_x = gp->axis_x;
             axis_y = gp->axis_y;
             if (get_mouse_emulation_from_nvs() == MOUSE_EMULATION_ATARIST) {
@@ -759,12 +697,12 @@ static void unijoysticle_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp)
             }
             process_mouse(d, ins->gamepad_seat, axis_x, axis_y, gp->buttons);
             break;
-        case EMULATION_MODE_COMBO_JOY_JOY:
+        case UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_JOY:
             uni_joy_to_combo_joy_joy_from_gamepad(gp, &joy, &joy_ext);
             process_joystick(d, GAMEPAD_SEAT_A, &joy);
             process_joystick(d, GAMEPAD_SEAT_B, &joy_ext);
             break;
-        case EMULATION_MODE_COMBO_JOY_MOUSE:
+        case UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_MOUSE:
             // Allow to control the mouse with both axis. Use case:
             // - Right axis: easier to control with the right thumb (for right handed people)
             // - Left axis: easier to drag a window (move + button pressed)
@@ -827,23 +765,119 @@ static void unijoysticle_on_oob_event(uni_platform_oob_event_t event, void* data
 }
 
 static void unijoysticle_device_dump(uni_hid_device_t* d) {
-    unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
+    uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
 
     logi("\tunijoysticle: ");
     if (uni_hid_device_is_mouse(d)) {
         logi("type=mouse, ");
     } else {
         logi("type=gamepad, mode=");
-        if (ins->emu_mode == EMULATION_MODE_COMBO_JOY_JOY)
+        if (ins->emu_mode == UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_JOY)
             logi("enhanced, ");
-        else if (ins->emu_mode == EMULATION_MODE_COMBO_JOY_MOUSE)
+        else if (ins->emu_mode == UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_MOUSE)
             logi("mouse, ");
-        else if (ins->emu_mode == EMULATION_MODE_SINGLE_JOY)
+        else if (ins->emu_mode == UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_SINGLE_JOY)
             logi("normal, ");
         else
             logi("unk, ");
     }
     logi("seat=0x%02x\n", ins->gamepad_seat);
+}
+
+static void unijoysticle_register_cmds(void) {
+    set_gamepad_mode_args.value = arg_str1(NULL, NULL, "<mode>", "valid options: 'normal', 'enhanced' or 'mouse'");
+    set_gamepad_mode_args.end = arg_end(2);
+
+    set_mouse_emulation_args.value = arg_str1(NULL, NULL, "<emulation>", "valid options: 'amiga' or 'atarist'");
+    set_mouse_emulation_args.end = arg_end(2);
+
+    set_autofire_cps_args.value = arg_int1(NULL, NULL, "<cps>", "clicks per second (cps)");
+    set_autofire_cps_args.end = arg_end(2);
+
+    const esp_console_cmd_t swap_ports = {
+        .command = "swap_ports",
+        .help = "Swaps joystick ports",
+        .hint = NULL,
+        .func = &cmd_swap_ports,
+    };
+
+    const esp_console_cmd_t set_gamepad_mode = {
+        .command = "set_gamepad_mode",
+        .help =
+            "Sets the gamepad mode.\n"
+            "  At least one gamepad must be connected.\n"
+            "  Default: normal",
+        .hint = NULL,
+        .func = &cmd_set_gamepad_mode,
+        .argtable = &set_gamepad_mode_args,
+    };
+
+    const esp_console_cmd_t get_gamepad_mode = {
+        .command = "get_gamepad_mode",
+        .help =
+            "Returns the gamepad mode.\n"
+            "  At least one gamepad must be connected",
+        .hint = NULL,
+        .func = &cmd_get_gamepad_mode,
+    };
+
+    const esp_console_cmd_t set_mouse_emulation = {
+        .command = "set_mouse_emulation",
+        .help =
+            "Sets mouse emulation mode.\n"
+            "  Default: amiga",
+        .hint = NULL,
+        .func = &cmd_set_mouse_emulation,
+        .argtable = &set_mouse_emulation_args,
+    };
+
+    const esp_console_cmd_t get_mouse_emulation = {
+        .command = "get_mouse_emulation",
+        .help = "Returns mouse emulation mode",
+        .hint = NULL,
+        .func = &cmd_get_mouse_emulation,
+    };
+
+    const esp_console_cmd_t set_autofire_cps = {
+        .command = "set_autofire_cps",
+        .help =
+            "Sets the autofire 'clicks per second' (cps)\n"
+            "Default: 7",
+        .hint = NULL,
+        .func = &cmd_set_autofire_cps,
+        .argtable = &set_autofire_cps_args,
+    };
+
+    const esp_console_cmd_t get_autofire_cps = {
+        .command = "get_autofire_cps",
+        .help = "Returns the autofire 'clicks per second' (cps)",
+        .hint = NULL,
+        .func = &cmd_get_autofire_cps,
+    };
+
+    const esp_console_cmd_t version = {
+        .command = "version",
+        .help = "Gets the Unijoysticle version info",
+        .hint = NULL,
+        .func = &cmd_version,
+    };
+
+    ESP_ERROR_CHECK(esp_console_cmd_register(&swap_ports));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&set_gamepad_mode));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&get_gamepad_mode));
+
+    ESP_ERROR_CHECK(esp_console_cmd_register(&set_autofire_cps));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&get_autofire_cps));
+
+    if (get_uni_model_from_pins() == BOARD_MODEL_UNIJOYSTICLE2_C64) {
+        uni_platform_unijoysticle_c64_register_cmds();
+    } else {
+        // Mouse emulation does not work in C64 Model
+        ESP_ERROR_CHECK(esp_console_cmd_register(&set_mouse_emulation));
+        ESP_ERROR_CHECK(esp_console_cmd_register(&get_mouse_emulation));
+    }
+
+    ESP_ERROR_CHECK(esp_console_cmd_register(&version));
 }
 
 //
@@ -917,24 +951,6 @@ static int get_autofire_cps_from_nvs() {
     return value.u8;
 }
 
-static void set_c64_pot_mode_to_nvs(int mode) {
-    uni_property_value_t value;
-    value.u8 = mode;
-
-    uni_property_set(UNI_PROPERTY_KEY_UNI_C64_POT_MODE, UNI_PROPERTY_TYPE_U8, value);
-    logi("Done\n");
-}
-
-static int get_c64_pot_mode_from_nvs(void) {
-    uni_property_value_t value;
-    uni_property_value_t def;
-
-    def.u8 = C64_POT_MODE_NORMAL;
-
-    value = uni_property_get(UNI_PROPERTY_KEY_UNI_C64_POT_MODE, UNI_PROPERTY_TYPE_U8, def);
-    return value.u8;
-}
-
 static board_model_t get_uni_model_from_pins() {
 #if PLAT_UNIJOYSTICLE_SINGLE_PORT
     // Legacy: Only needed for Arananet's Unijoy2Amiga.
@@ -991,10 +1007,6 @@ static board_model_t get_uni_model_from_pins() {
 #endif  // !PLAT_UNIJOYSTICLE_SINGLE_PORT
 }
 
-static unijoysticle_instance_t* get_unijoysticle_instance(const uni_hid_device_t* d) {
-    return (unijoysticle_instance_t*)&d->platform_data[0];
-}
-
 static void process_mouse(uni_hid_device_t* d,
                           uni_gamepad_seat_t seat,
                           int32_t delta_x,
@@ -1044,7 +1056,7 @@ static void process_joystick(uni_hid_device_t* d, uni_gamepad_seat_t seat, const
 }
 
 static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
-    unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
+    uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
     ins->gamepad_seat = seat;
 
     logi("unijoysticle: device %s has new gamepad seat: %d\n", bd_addr_to_str(d->conn.btaddr), seat);
@@ -1056,7 +1068,7 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
         if (tmp_d == NULL)
             continue;
         if (bd_addr_cmp(tmp_d->conn.btaddr, zero_addr) != 0) {
-            all_seats |= get_unijoysticle_instance(tmp_d)->gamepad_seat;
+            all_seats |= uni_platform_unijoysticle_get_instance(tmp_d)->gamepad_seat;
         }
     }
 
@@ -1123,65 +1135,6 @@ static void pushbutton_event_task(void* arg) {
     }
 }
 
-static void enable_rumble_callback(void* context) {
-    int seat = (int)context;
-    uni_hid_device_t* d;
-
-    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
-        d = uni_hid_device_get_instance_for_idx(i);
-        if (!uni_bt_conn_is_connected(&d->conn))
-            continue;
-        unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
-        // Use mask instead of == since Rumble should be active when
-        // gamepad is in Enhanced Mode.
-        if ((ins->gamepad_seat & seat) == 0)
-            continue;
-        if (d->report_parser.set_rumble != NULL)
-            d->report_parser.set_rumble(d, 0x80 /* value */, 0x04 /* duration */);
-    }
-}
-
-static void sync_irq_event_task(void* arg) {
-    // timeout of 100s
-    const TickType_t xTicksToWait = pdMS_TO_TICKS(100000);
-    while (1) {
-        EventBits_t bits = xEventGroupWaitBits(
-            g_sync_irq_group,
-            BIT(EVENT_SYNC_IRQ_0) | BIT(EVENT_SYNC_IRQ_1) | BIT(EVENT_SYNC_TIMER_0) | BIT(EVENT_SYNC_TIMER_1), pdTRUE,
-            pdFALSE, xTicksToWait);
-
-        // timeout ?
-        if (bits == 0)
-            continue;
-
-        // EVENT_SYNC_IRQ_ events come from the C64.
-        // They should be considered "hi" events.
-        if (bits & BIT(EVENT_SYNC_IRQ_0)) {
-            // gpio_set_level(g_gpio_config->leds[LED_J1], 1);
-            syncirq_callback_registration.callback = &enable_rumble_callback;
-            syncirq_callback_registration.context = (void*)(GAMEPAD_SEAT_A);
-            btstack_run_loop_execute_on_main_thread(&syncirq_callback_registration);
-        }
-
-        if (bits & BIT(EVENT_SYNC_IRQ_1)) {
-            // gpio_set_level(g_gpio_config->leds[LED_J2], 1);
-            syncirq_callback_registration.callback = &enable_rumble_callback;
-            syncirq_callback_registration.context = (void*)(GAMEPAD_SEAT_B);
-            btstack_run_loop_execute_on_main_thread(&syncirq_callback_registration);
-        }
-
-        // EVENT_SYNC_TIMER_* events come from the timer.
-        // Means that they should be considered as "low" events.
-        if (bits & BIT(EVENT_SYNC_TIMER_0)) {
-            // gpio_set_level(g_gpio_config->leds[LED_J1], 0);
-        }
-
-        if (bits & BIT(EVENT_SYNC_TIMER_1)) {
-            // gpio_set_level(g_gpio_config->leds[LED_J2], 0);
-        }
-    }
-}
-
 static void auto_fire_task(void* arg) {
     // timeout of 100s
     const TickType_t timeout = pdMS_TO_TICKS(100000);
@@ -1218,21 +1171,6 @@ static void auto_fire_task(void* arg) {
             }
         }
     }
-}
-
-static void IRAM_ATTR gpio_isr_handler_sync(void* arg) {
-    int sync_idx = (int)arg;
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    xEventGroupSetBitsFromISR(g_sync_irq_group, BIT(sync_idx), &xHigherPriorityTaskWoken);
-    if (xHigherPriorityTaskWoken == pdTRUE)
-        portYIELD_FROM_ISR();
-}
-
-static bool IRAM_ATTR timer_isr_handler_sync(void* arg) {
-    int sync_idx = (int)arg + EVENT_SYNC_TIMER_0;
-    BaseType_t higher_priority_task_woken = pdFALSE;
-    xEventGroupSetBitsFromISR(g_sync_irq_group, BIT(sync_idx), &higher_priority_task_woken);
-    return higher_priority_task_woken;
 }
 
 static void IRAM_ATTR gpio_isr_handler_button(void* arg) {
@@ -1286,28 +1224,28 @@ static void handle_event_button(int button_idx) {
 }
 
 static void cmd_callback(void* context) {
-    int cmd = (int)context;
+    uni_platform_unijoysticle_cmd_t cmd = (uni_platform_unijoysticle_cmd_t)context;
     switch (cmd) {
-        case CMD_SWAP_PORTS:
+        case UNI_PLATFORM_UNIJOYSTICLE_CMD_SWAP_PORTS:
             swap_ports();
             break;
-        case CMD_SET_GAMEPAD_MODE_ENHANCED:
-            set_gamepad_mode(EMULATION_MODE_COMBO_JOY_JOY);
+        case UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_ENHANCED:
+            set_gamepad_mode(UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_JOY);
             break;
-        case CMD_SET_GAMEPAD_MODE_MOUSE:
-            set_gamepad_mode(EMULATION_MODE_COMBO_JOY_MOUSE);
+        case UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_MOUSE:
+            set_gamepad_mode(UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_MOUSE);
             break;
-        case CMD_SET_GAMEPAD_MODE_NORMAL:
-            set_gamepad_mode(EMULATION_MODE_SINGLE_JOY);
+        case UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NORMAL:
+            set_gamepad_mode(UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_SINGLE_JOY);
             break;
-        case CMD_GET_GAMEPAD_MODE:
+        case UNI_PLATFORM_UNIJOYSTICLE_CMD_GET_GAMEPAD_MODE:
             get_gamepad_mode();
             break;
-        case CMD_SET_C64_POT_MODE_NORMAL:
-            set_c64_pot_mode(C64_POT_MODE_NORMAL);
+        case UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_C64_POT_MODE_NORMAL:
+            uni_platform_unijoysticle_c64_set_pot_mode(UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_NORMAL);
             break;
-        case CMD_SET_C64_POT_MODE_RUMBLE:
-            set_c64_pot_mode(C64_POT_MODE_RUMBLE);
+        case UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_C64_POT_MODE_RUMBLE:
+            uni_platform_unijoysticle_c64_set_pot_mode(UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_RUMBLE);
             break;
         default:
             loge("Unijoysticle: invalid command: %d\n", cmd);
@@ -1363,18 +1301,18 @@ static void get_gamepad_mode() {
         return;
     }
 
-    unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
+    uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
 
     switch (ins->emu_mode) {
-        case EMULATION_MODE_COMBO_JOY_JOY:
+        case UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_JOY:
             logi("enhanced\n");
             break;
 
-        case EMULATION_MODE_COMBO_JOY_MOUSE:
+        case UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_MOUSE:
             logi("mouse\n");
             break;
 
-        case EMULATION_MODE_SINGLE_JOY:
+        case UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_SINGLE_JOY:
             logi("normal\n");
             break;
 
@@ -1384,7 +1322,7 @@ static void get_gamepad_mode() {
     }
 }
 
-static void set_gamepad_mode(emulation_mode_t mode) {
+static void set_gamepad_mode(uni_platform_unijoysticle_emulation_mode_t mode) {
     // Change emulation mode
     int num_devices = 0;
     uni_hid_device_t* d = NULL;
@@ -1404,24 +1342,25 @@ static void set_gamepad_mode(emulation_mode_t mode) {
         return;
     }
 
-    unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
+    uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
 
     if (ins->emu_mode == mode)
         return;
 
-    if (ins->emu_mode != EMULATION_MODE_COMBO_JOY_JOY && ins->emu_mode != EMULATION_MODE_COMBO_JOY_MOUSE &&
-        ins->emu_mode != EMULATION_MODE_SINGLE_JOY)
+    if (ins->emu_mode != UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_JOY &&
+        ins->emu_mode != UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_MOUSE &&
+        ins->emu_mode != UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_SINGLE_JOY)
         return;
 
     switch (mode) {
-        case EMULATION_MODE_COMBO_JOY_JOY:
+        case UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_JOY:
             if (num_devices != 1) {
                 loge("unijoysticle: cannot change mode. Expected num_devices=1, actual=%d\n", num_devices);
                 set_button_mode(BUTTON_MODE_NORMAL);
                 return;
             }
 
-            ins->emu_mode = EMULATION_MODE_COMBO_JOY_JOY;
+            ins->emu_mode = UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_JOY;
             ins->prev_gamepad_seat = ins->gamepad_seat;
             set_gamepad_seat(d, GAMEPAD_SEAT_A | GAMEPAD_SEAT_B);
             logi("unijoysticle: Gamepad mode = enhanced\n");
@@ -1431,23 +1370,23 @@ static void set_gamepad_mode(emulation_mode_t mode) {
             set_button_mode(BUTTON_MODE_ENHANCED);
             break;
 
-        case EMULATION_MODE_COMBO_JOY_MOUSE:
-            if (ins->emu_mode == EMULATION_MODE_COMBO_JOY_JOY) {
+        case UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_MOUSE:
+            if (ins->emu_mode == UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_JOY) {
                 set_gamepad_seat(d, ins->prev_gamepad_seat);
                 maybe_enable_bluetooth(num_devices < 2);
             }
-            ins->emu_mode = EMULATION_MODE_COMBO_JOY_MOUSE;
+            ins->emu_mode = UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_MOUSE;
             logi("unijoysticle: Gamepad mode = mouse\n");
 
             set_button_mode(BUTTON_MODE_MOUSE);
             break;
 
-        case EMULATION_MODE_SINGLE_JOY:
-            if (ins->emu_mode == EMULATION_MODE_COMBO_JOY_JOY) {
+        case UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_SINGLE_JOY:
+            if (ins->emu_mode == UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_JOY) {
                 set_gamepad_seat(d, ins->prev_gamepad_seat);
                 maybe_enable_bluetooth(num_devices < 2);
             }
-            ins->emu_mode = EMULATION_MODE_SINGLE_JOY;
+            ins->emu_mode = UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_SINGLE_JOY;
             logi("unijoysticle: Gamepad mode = normal\n");
 
             set_button_mode(BUTTON_MODE_NORMAL);
@@ -1460,92 +1399,14 @@ static void set_gamepad_mode(emulation_mode_t mode) {
     maybe_enable_mouse_timers();
 }
 
-static void set_c64_pot_mode(c64_pot_mode_t mode) {
-    // Change C64 Pot mode
-
-    gpio_config_t io_conf;
-
-    if (mode == C64_POT_MODE_NORMAL) {
-        set_c64_pot_mode_to_nvs(mode);
-
-        if (s_sync_task == NULL) {
-            // Nothing to do. "rumble" was not initialized.
-            return;
-        }
-        for (int i = 0; i < SYNC_IRQ_MAX; i++) {
-            if (g_gpio_config->sync_irq[i] == -1)
-                continue;
-            io_conf.intr_type = GPIO_INTR_DISABLE;
-            io_conf.mode = GPIO_MODE_INPUT;
-            io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-            // GPIOs 34~39 don't have internal Pull-up resistors.
-            io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
-            io_conf.pin_bit_mask = BIT(g_gpio_config->sync_irq[i]);
-            ESP_ERROR_CHECK(gpio_config(&io_conf));
-
-            // "i" must match EVENT_SYNC_IRQ_0, etc.
-            gpio_isr_handler_remove(g_gpio_config->sync_irq[i]);
-
-            // Remove Timer handler
-            timer_isr_callback_remove(TIMER_GROUP_1, TIMER_0 + i);
-        }
-        vTaskDelete(s_sync_task);
-        s_sync_task = NULL;
-
-    } else if (mode == C64_POT_MODE_RUMBLE) {
-        set_c64_pot_mode_to_nvs(mode);
-
-        if (s_sync_task != NULL) {
-            // Nothing to do. "rumble" is already enabled
-            return;
-        }
-
-        timer_config_t config = {
-            .divider = TIMER_DIVIDER,
-            .counter_dir = TIMER_COUNT_DOWN,
-            .counter_en = TIMER_START,
-            .alarm_en = TIMER_ALARM_EN,
-            .auto_reload = TIMER_AUTORELOAD_EN,
-        };
-
-        g_sync_irq_group = xEventGroupCreate();
-        xTaskCreate(sync_irq_event_task, "bp.uni.sync_irq", 2048, NULL, TASK_SYNC_IRQ_PRIO, &s_sync_task);
-
-        // Sync IRQs
-        for (int i = 0; i < SYNC_IRQ_MAX; i++) {
-            if (g_gpio_config->sync_irq[i] == -1)
-                continue;
-
-            // Set Interrupt handler
-            io_conf.intr_type = GPIO_INTR_NEGEDGE;
-            io_conf.mode = GPIO_MODE_INPUT;
-            io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-            // GPIOs 34~39 don't have internal Pull-up resistors.
-            io_conf.pull_up_en = (g_gpio_config->sync_irq[i] < GPIO_NUM_34) ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
-            io_conf.pin_bit_mask = BIT(g_gpio_config->sync_irq[i]);
-            ESP_ERROR_CHECK(gpio_config(&io_conf));
-            // "i" must match EVENT_SYNC_IRQ_0, etc.
-            ESP_ERROR_CHECK(gpio_isr_handler_add(g_gpio_config->sync_irq[i], gpio_isr_handler_sync, (void*)i));
-
-            // Set Timer handler
-            ESP_ERROR_CHECK(timer_init(TIMER_GROUP_1, TIMER_0 + i, &config));
-            timer_set_counter_value(TIMER_GROUP_1, TIMER_0 + i, TIMER_ONE_MILLISECOND);
-            timer_isr_callback_add(TIMER_GROUP_1, TIMER_0 + i, timer_isr_handler_sync, (void*)i, 0);
-        }
-    } else {
-        loge("unijoysticle: unsupported gamepad mode: %d\n", mode);
-    }
-}
-
 static void toggle_combo_enhanced_gamepad_cb(int button_idx) {
     ARG_UNUSED(button_idx);
     static bool enabled = false;
 
     enabled = !enabled;
 
-    cmd_callback_registration.callback = &cmd_callback;
-    cmd_callback_registration.context = (void*)(enabled ? CMD_SET_GAMEPAD_MODE_ENHANCED : CMD_SET_GAMEPAD_MODE_NORMAL);
-    btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
+    uni_platform_unijoysticle_run_cmd(enabled ? UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_ENHANCED
+                                              : UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NORMAL);
 }
 
 // Cycles between different gamepad modes: normal -> mouse -> enhanced -> normal -> ...
@@ -1557,22 +1418,20 @@ static void cycle_gamepad_mode_cb(int button_idx) {
 
     switch (desired_mode) {
         case BUTTON_MODE_NORMAL:
-            cmd = CMD_SET_GAMEPAD_MODE_NORMAL;
+            cmd = UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NORMAL;
             break;
         case BUTTON_MODE_MOUSE:
-            cmd = CMD_SET_GAMEPAD_MODE_MOUSE;
+            cmd = UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_MOUSE;
             break;
         case BUTTON_MODE_ENHANCED:
-            cmd = CMD_SET_GAMEPAD_MODE_ENHANCED;
+            cmd = UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_ENHANCED;
             break;
         default:
             loge("Unijoysticle: Invalid desired button mode %d\n", desired_mode);
             return;
     }
 
-    cmd_callback_registration.callback = &cmd_callback;
-    cmd_callback_registration.context = (void*)cmd;
-    btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
+    uni_platform_unijoysticle_run_cmd(cmd);
 }
 
 static int cmd_set_gamepad_mode(int argc, char** argv) {
@@ -1582,23 +1441,21 @@ static int cmd_set_gamepad_mode(int argc, char** argv) {
         return 1;
     }
 
-    int mode = 0;
+    uni_platform_unijoysticle_cmd_t mode;
 
     if (strcmp(set_gamepad_mode_args.value->sval[0], "normal") == 0) {
-        mode = CMD_SET_GAMEPAD_MODE_NORMAL;
+        mode = UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NORMAL;
     } else if (strcmp(set_gamepad_mode_args.value->sval[0], "enhanced") == 0) {
-        mode = CMD_SET_GAMEPAD_MODE_ENHANCED;
+        mode = UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_ENHANCED;
     } else if (strcmp(set_gamepad_mode_args.value->sval[0], "mouse") == 0) {
-        mode = CMD_SET_GAMEPAD_MODE_MOUSE;
+        mode = UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_MOUSE;
     } else {
         loge("Invalid mouse emulation: %s\n", set_gamepad_mode_args.value->sval[0]);
         loge("Valid values: 'normal', 'enhanced', or 'mouse'\n");
         return 1;
     }
 
-    cmd_callback_registration.callback = &cmd_callback;
-    cmd_callback_registration.context = (void*)mode;
-    btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
+    uni_platform_unijoysticle_run_cmd(mode);
     return 0;
 }
 
@@ -1606,46 +1463,7 @@ static int cmd_get_gamepad_mode(int argc, char** argv) {
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
 
-    cmd_callback_registration.callback = &cmd_callback;
-    cmd_callback_registration.context = (void*)CMD_GET_GAMEPAD_MODE;
-    btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
-    return 0;
-}
-
-static int cmd_set_c64_pot_mode(int argc, char** argv) {
-    int nerrors = arg_parse(argc, argv, (void**)&set_c64_pot_mode_args);
-    if (nerrors != 0) {
-        arg_print_errors(stderr, set_c64_pot_mode_args.end, argv[0]);
-        return 1;
-    }
-
-    int mode = 0;
-
-    if (strcmp(set_c64_pot_mode_args.value->sval[0], "normal") == 0) {
-        mode = CMD_SET_C64_POT_MODE_NORMAL;
-    } else if (strcmp(set_c64_pot_mode_args.value->sval[0], "rumble") == 0) {
-        mode = CMD_SET_C64_POT_MODE_RUMBLE;
-    } else {
-        loge("Invalid C64 Pot mode: : %s\n", set_c64_pot_mode_args.value->sval[0]);
-        loge("Valid values: 'normal' or 'rumble'\n");
-        return 1;
-    }
-
-    cmd_callback_registration.callback = &cmd_callback;
-    cmd_callback_registration.context = (void*)mode;
-    btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
-    return 0;
-}
-
-static int cmd_get_c64_pot_mode(int argc, char** argv) {
-    int mode = get_c64_pot_mode_from_nvs();
-
-    if (mode >= C64_POT_MODE_COUNT) {
-        logi("Invalid C64 Pot mode: %d\n", mode);
-        return 1;
-    }
-
-    logi("%s\n", c64_pot_modes[mode]);
+    uni_platform_unijoysticle_run_cmd(UNI_PLATFORM_UNIJOYSTICLE_CMD_GET_GAMEPAD_MODE);
     return 0;
 }
 
@@ -1659,16 +1477,16 @@ static int cmd_version(int argc, char** argv) {
 
 static void swap_ports(void) {
     uni_hid_device_t* d;
-    unijoysticle_instance_t* ins;
+    uni_platform_unijoysticle_instance_t* ins;
     uni_gamepad_seat_t prev_seat, new_seat;
 
     for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         d = uni_hid_device_get_instance_for_idx(i);
         if (uni_bt_conn_is_connected(&d->conn)) {
-            ins = get_unijoysticle_instance(d);
+            ins = uni_platform_unijoysticle_get_instance(d);
 
             // Don't swap if gamepad is in Enahnced mode
-            if (ins->emu_mode == EMULATION_MODE_COMBO_JOY_JOY) {
+            if (ins->emu_mode == UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_JOY) {
                 // Should it blink oncea on error?
                 return;
             }
@@ -1699,7 +1517,7 @@ static void try_swap_ports(uni_hid_device_t* d) {
         return;
     }
 
-    unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
+    uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
 
     if (ins->gamepad_seat == GAMEPAD_SEAT_NONE) {
         logi("unijoysticle: cannot swap port since device has joystick_port = GAMEPAD_SEAT_NONE\n");
@@ -1720,9 +1538,9 @@ static void try_swap_ports(uni_hid_device_t* d) {
     //  - two gamepads while both are pressing the "system" or "select" button at the same time.
     for (int j = 0; j < CONFIG_BLUEPAD32_MAX_DEVICES; j++) {
         uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
-        unijoysticle_instance_t* tmp_ins = get_unijoysticle_instance(tmp_d);
+        uni_platform_unijoysticle_instance_t* tmp_ins = uni_platform_unijoysticle_get_instance(tmp_d);
         if (uni_bt_conn_is_connected(&tmp_d->conn) && tmp_ins->gamepad_seat != GAMEPAD_SEAT_NONE &&
-            tmp_ins->emu_mode == EMULATION_MODE_SINGLE_JOY &&
+            tmp_ins->emu_mode == UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_SINGLE_JOY &&
             ((tmp_d->gamepad.misc_buttons & (MISC_BUTTON_SYSTEM | MISC_BUTTON_BACK)) == 0)) {
             logi("unijoysticle: to swap ports press 'system' button on both gamepads at the same time\n");
             uni_hid_device_dump_all();
@@ -1736,18 +1554,14 @@ static void try_swap_ports(uni_hid_device_t* d) {
 static void swap_ports_cb(int button_idx) {
     ARG_UNUSED(button_idx);
 
-    cmd_callback_registration.callback = &cmd_callback;
-    cmd_callback_registration.context = (void*)CMD_SWAP_PORTS;
-    btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
+    uni_platform_unijoysticle_run_cmd(UNI_PLATFORM_UNIJOYSTICLE_CMD_SWAP_PORTS);
 }
 
 static int cmd_swap_ports(int argc, char** argv) {
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
 
-    cmd_callback_registration.callback = &cmd_callback;
-    cmd_callback_registration.context = (void*)CMD_SWAP_PORTS;
-    btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
+    uni_platform_unijoysticle_run_cmd(UNI_PLATFORM_UNIJOYSTICLE_CMD_SWAP_PORTS);
     return 0;
 }
 
@@ -1827,10 +1641,11 @@ static void maybe_enable_mouse_timers(void) {
     for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         uni_hid_device_t* d = uni_hid_device_get_instance_for_idx(i);
         if (uni_bt_conn_is_connected(&d->conn)) {
-            unijoysticle_instance_t* ins = get_unijoysticle_instance(d);
+            uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
 
             // COMBO_JOY_MOUSE counts as real mouse.
-            if (ins->emu_mode == EMULATION_MODE_COMBO_JOY_MOUSE || ins->emu_mode == EMULATION_MODE_SINGLE_MOUSE) {
+            if (ins->emu_mode == UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_MOUSE ||
+                ins->emu_mode == UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_SINGLE_MOUSE) {
                 if (ins->gamepad_seat == GAMEPAD_SEAT_A)
                     enable_timer_0 = true;
                 else if (ins->gamepad_seat == GAMEPAD_SEAT_B)
@@ -1890,121 +1705,6 @@ static void maybe_enable_bluetooth(bool enabled) {
 //
 // Public
 //
-void uni_platform_unijoysticle_register_cmds(void) {
-    set_gamepad_mode_args.value = arg_str1(NULL, NULL, "<mode>", "valid options: 'normal', 'enhanced' or 'mouse'");
-    set_gamepad_mode_args.end = arg_end(2);
-
-    set_mouse_emulation_args.value = arg_str1(NULL, NULL, "<emulation>", "valid options: 'amiga' or 'atarist'");
-    set_mouse_emulation_args.end = arg_end(2);
-
-    set_autofire_cps_args.value = arg_int1(NULL, NULL, "<cps>", "clicks per second (cps)");
-    set_autofire_cps_args.end = arg_end(2);
-
-    set_c64_pot_mode_args.value = arg_str1(NULL, NULL, "<mode>", "valid options: 'normal' or 'rumble'");
-    set_c64_pot_mode_args.end = arg_end(2);
-
-    const esp_console_cmd_t swap_ports = {
-        .command = "swap_ports",
-        .help = "Swaps joystick ports",
-        .hint = NULL,
-        .func = &cmd_swap_ports,
-    };
-
-    const esp_console_cmd_t set_gamepad_mode = {
-        .command = "set_gamepad_mode",
-        .help =
-            "Sets the gamepad mode.\n"
-            "  At least one gamepad must be connected.\n"
-            "  Default: normal",
-        .hint = NULL,
-        .func = &cmd_set_gamepad_mode,
-        .argtable = &set_gamepad_mode_args,
-    };
-
-    const esp_console_cmd_t get_gamepad_mode = {
-        .command = "get_gamepad_mode",
-        .help =
-            "Returns the gamepad mode.\n"
-            "  At least one gamepad must be connected",
-        .hint = NULL,
-        .func = &cmd_get_gamepad_mode,
-    };
-
-    const esp_console_cmd_t set_mouse_emulation = {
-        .command = "set_mouse_emulation",
-        .help =
-            "Sets mouse emulation mode.\n"
-            "  Default: amiga",
-        .hint = NULL,
-        .func = &cmd_set_mouse_emulation,
-        .argtable = &set_mouse_emulation_args,
-    };
-
-    const esp_console_cmd_t get_mouse_emulation = {
-        .command = "get_mouse_emulation",
-        .help = "Returns mouse emulation mode",
-        .hint = NULL,
-        .func = &cmd_get_mouse_emulation,
-    };
-
-    const esp_console_cmd_t set_autofire_cps = {
-        .command = "set_autofire_cps",
-        .help =
-            "Sets the autofire 'clicks per second' (cps)\n"
-            "Default: 7",
-        .hint = NULL,
-        .func = &cmd_set_autofire_cps,
-        .argtable = &set_autofire_cps_args,
-    };
-
-    const esp_console_cmd_t get_autofire_cps = {
-        .command = "get_autofire_cps",
-        .help = "Returns the autofire 'clicks per second' (cps)",
-        .hint = NULL,
-        .func = &cmd_get_autofire_cps,
-    };
-
-    const esp_console_cmd_t set_c64_pot_mode = {
-        .command = "set_c64_pot_mode",
-        .help =
-            "Sets C64 Pot mode.\n"
-            "  Default: normal",
-        .hint = NULL,
-        .func = &cmd_set_c64_pot_mode,
-        .argtable = &set_c64_pot_mode_args,
-    };
-
-    const esp_console_cmd_t get_c64_pot_mode = {
-        .command = "get_c64_pot_mode",
-        .help = "Returns the C64 Pot mode",
-        .hint = NULL,
-        .func = &cmd_get_c64_pot_mode,
-    };
-
-    const esp_console_cmd_t version = {
-        .command = "version",
-        .help = "Gets the Unijoysticle version info",
-        .hint = NULL,
-        .func = &cmd_version,
-    };
-
-    ESP_ERROR_CHECK(esp_console_cmd_register(&swap_ports));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&set_gamepad_mode));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&get_gamepad_mode));
-
-    ESP_ERROR_CHECK(esp_console_cmd_register(&set_mouse_emulation));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&get_mouse_emulation));
-
-    ESP_ERROR_CHECK(esp_console_cmd_register(&set_autofire_cps));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&get_autofire_cps));
-
-    if (get_uni_model_from_pins() == BOARD_MODEL_UNIJOYSTICLE2_C64) {
-        ESP_ERROR_CHECK(esp_console_cmd_register(&set_c64_pot_mode));
-        ESP_ERROR_CHECK(esp_console_cmd_register(&get_c64_pot_mode));
-    }
-
-    ESP_ERROR_CHECK(esp_console_cmd_register(&version));
-}
 
 struct uni_platform* uni_platform_unijoysticle_create(void) {
     static struct uni_platform plat = {
@@ -2018,7 +1718,22 @@ struct uni_platform* uni_platform_unijoysticle_create(void) {
         .on_gamepad_data = unijoysticle_on_gamepad_data,
         .get_property = unijoysticle_get_property,
         .device_dump = unijoysticle_device_dump,
+        .register_console_cmds = unijoysticle_register_cmds,
     };
 
     return &plat;
+}
+
+void uni_platform_unijoysticle_run_cmd(uni_platform_unijoysticle_cmd_t cmd) {
+    cmd_callback_registration.callback = &cmd_callback;
+    cmd_callback_registration.context = (void*)cmd;
+    btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
+}
+
+gpio_num_t uni_platform_unijoysticle_get_gpio_sync_irq(int idx) {
+    return g_gpio_config->sync_irq[idx];
+}
+
+uni_platform_unijoysticle_instance_t* uni_platform_unijoysticle_get_instance(const uni_hid_device_t* d) {
+    return (uni_platform_unijoysticle_instance_t*)&d->platform_data[0];
 }

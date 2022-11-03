@@ -36,7 +36,7 @@ limitations under the License.
 #include "uni_gpio.h"
 #include "uni_hid_device.h"
 #include "uni_mouse_quadrature.h"
-#include "uni_platform_unijoysticle.h"
+#include "uni_platform.h"
 
 #ifdef CONFIG_ESP_CONSOLE_USB_CDC
 #error This example is incompatible with USB CDC console. Please try "console_usb" example instead.
@@ -367,9 +367,9 @@ void uni_console_init(void) {
     register_bluepad32();
     uni_gpio_register_cmds();
 
-#if CONFIG_BLUEPAD32_PLATFORM_UNIJOYSTICLE
-    uni_platform_unijoysticle_register_cmds();
-#endif  // CONFIG_BLUEPAD32_PLATFORM_UNIJOYSTICLE
+
+    if (uni_get_platform()->register_console_cmds)
+        uni_get_platform()->register_console_cmds();
 
     ESP_ERROR_CHECK(esp_console_new_repl_uart(&uart_config, &repl_config, &repl));
 
