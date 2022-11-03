@@ -76,6 +76,9 @@ struct uni_platform {
 
     // Print debug info about a device.
     void (*device_dump)(uni_hid_device_t* d);
+
+    // Register console commands. Optional
+    void (*register_console_cmds)(void);
 };
 
 void uni_platform_init(int argc, const char** argv);
