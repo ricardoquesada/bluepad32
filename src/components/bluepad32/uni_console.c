@@ -367,7 +367,6 @@ void uni_console_init(void) {
     register_bluepad32();
     uni_gpio_register_cmds();
 
-
     if (uni_get_platform()->register_console_cmds)
         uni_get_platform()->register_console_cmds();
 

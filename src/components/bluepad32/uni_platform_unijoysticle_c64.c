@@ -243,7 +243,8 @@ void uni_platform_unijoysticle_c64_set_pot_mode(uni_platform_unijoysticle_c64_po
 
     gpio_config_t io_conf = {0};
 
-    if (mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_NORMAL || mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_RUMBLE) {
+    if (mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_NORMAL ||
+        mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_RUMBLE) {
         set_c64_pot_mode_to_nvs(mode);
 
         if (_sync_task == NULL) {
