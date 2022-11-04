@@ -48,6 +48,18 @@ typedef enum {
     UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_MOUSE,
 } uni_platform_unijoysticle_emulation_mode_t;
 
+enum {
+    UNI_PLATFORM_UNIJOYSTICLE_JOY_UP,       // Pin 1
+    UNI_PLATFORM_UNIJOYSTICLE_JOY_DOWN,     // Pin 2
+    UNI_PLATFORM_UNIJOYSTICLE_JOY_LEFT,     // Pin 3
+    UNI_PLATFORM_UNIJOYSTICLE_JOY_RIGHT,    // Pin 4
+    UNI_PLATFORM_UNIJOYSTICLE_JOY_FIRE,     // Pin 6
+    UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2,  // Pin 9, AKA Pot X (C64), Pot Y (Amiga)
+    UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3,  // Pin 5, AKA Pot Y (C64), Pot X (Amiga)
+
+    UNI_PLATFORM_UNIJOYSTICLE_JOY_MAX,
+};
+
 // The platform "instance"
 typedef struct uni_platform_unijoysticle_instance_s {
     uni_platform_unijoysticle_emulation_mode_t emu_mode;  // type of controller to emulate
@@ -62,6 +74,8 @@ struct uni_platform* uni_platform_unijoysticle_create(void);
 // Can be called from any thread. The command will get executed in the btthread.
 void uni_platform_unijoysticle_run_cmd(uni_platform_unijoysticle_cmd_t cmd);
 gpio_num_t uni_platform_unijoysticle_get_gpio_sync_irq(int idx);
+gpio_num_t uni_platform_unijoysticle_get_gpio_port_a(int idx);
+gpio_num_t uni_platform_unijoysticle_get_gpio_port_b(int idx);
 uni_platform_unijoysticle_instance_t* uni_platform_unijoysticle_get_instance(const uni_hid_device_t* d);
 
 #endif  // UNI_PLATFORM_UNIJOYSTICLE_H

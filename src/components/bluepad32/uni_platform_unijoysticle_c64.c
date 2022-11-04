@@ -321,3 +321,7 @@ void uni_platform_unijoysticle_c64_on_init_complete(void) {
     int mode = get_c64_pot_mode_from_nvs();
     uni_platform_unijoysticle_c64_set_pot_mode(mode);
 }
+
+void uni_platform_unijoysticle_c64_version(void) {
+    logi("\tPot mode: %s\n", c64_pot_modes[get_c64_pot_mode_from_nvs()]);
+}
