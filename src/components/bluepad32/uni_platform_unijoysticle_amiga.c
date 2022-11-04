@@ -20,17 +20,11 @@ limitations under the License.
 
 #include "uni_platform_unijoysticle_amiga.h"
 
-#include <math.h>
 #include <stdbool.h>
 
 #include <argtable3/argtable3.h>
-#include <driver/gpio.h>
-#include <driver/timer.h>
 #include <esp_console.h>
-#include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
-#include <freertos/event_groups.h>
-#include <hal/gpio_types.h>
 
 #include "sdkconfig.h"
 #include "uni_common.h"
