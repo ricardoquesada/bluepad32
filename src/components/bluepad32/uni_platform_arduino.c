@@ -16,6 +16,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
+#include "sdkconfig.h"
+
+#ifdef CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 #include "uni_platform_arduino.h"
 
 #include <esp_arduino_version.h>
@@ -28,7 +31,7 @@ limitations under the License.
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
 
-#include "sdkconfig.h"
+
 #include "uni_bluetooth.h"
 #include "uni_common.h"
 #include "uni_config.h"
@@ -395,3 +398,5 @@ struct uni_platform* uni_platform_arduino_create(void) {
 
     return &plat;
 }
+
+#endif // CONFIG_BLUEPAD32_PLATFORM_ARDUINO
