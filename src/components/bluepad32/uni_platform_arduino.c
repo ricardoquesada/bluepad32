@@ -18,6 +18,12 @@ limitations under the License.
 
 #include "uni_platform_arduino.h"
 
+#include <esp_arduino_version.h>
+#include <esp_chip_info.h>
+#include <esp_console.h>
+#include <esp_idf_version.h>
+#include <esp_ota_ops.h>
+#include <esp_spi_flash.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
@@ -31,6 +37,7 @@ limitations under the License.
 #include "uni_hid_device.h"
 #include "uni_platform.h"
 #include "uni_platform_arduino_bootstrap.h"
+#include "uni_version.h"
 
 //
 // Globals
@@ -321,6 +328,47 @@ int arduino_forget_bluetooth_keys(void) {
     return UNI_ARDUINO_OK;
 }
 
+static void version(void) {
+    esp_chip_info_t info;
+    esp_chip_info(&info);
+
+    const esp_app_desc_t* app_desc = esp_ota_get_app_description();
+
+    logi("\nFirmware info:\n");
+    logi("\tBluepad32 Version: v%s (%s)\n", UNI_VERSION, app_desc->version);
+    logi("\tArduino Core Version: v%d.%d.%d\n", ESP_ARDUINO_VERSION_MAJOR, ESP_ARDUINO_VERSION_MINOR,
+         ESP_ARDUINO_VERSION_PATCH);
+    logi("\tIDF Version: %s\n", app_desc->idf_ver);
+    logi("\tCompile Time: %s %s\n", app_desc->date, app_desc->time);
+
+    logi("\nChip info:\n");
+    logi("\tModel: %s\n", info.model == CHIP_ESP32 ? "ESP32" : "Unknown");
+    logi("\tCores: %d\n", info.cores);
+    logi("\tFeature: %s%s%s%s%d%s\n", info.features & CHIP_FEATURE_WIFI_BGN ? "/802.11bgn" : "",
+         info.features & CHIP_FEATURE_BLE ? "/BLE" : "", info.features & CHIP_FEATURE_BT ? "/BT" : "",
+         info.features & CHIP_FEATURE_EMB_FLASH ? "/Embedded-Flash:" : "/External-Flash:",
+         spi_flash_get_chip_size() / (1024 * 1024), " MB");
+    logi("\tRevision Number: %d\n", info.revision);
+}
+
+static int cmd_version(int argc, char** argv) {
+    ARG_UNUSED(argc);
+    ARG_UNUSED(argv);
+
+    version();
+    return 0;
+}
+
+static void arduino_register_cmds(void) {
+    const esp_console_cmd_t version = {
+        .command = "version",
+        .help = "Gets the Firmware version",
+        .hint = NULL,
+        .func = &cmd_version,
+    };
+    ESP_ERROR_CHECK(esp_console_cmd_register(&version));
+}
+
 //
 // Helpers
 //
@@ -342,6 +390,7 @@ struct uni_platform* uni_platform_arduino_create(void) {
         .on_oob_event = arduino_on_device_oob_event,
         .on_gamepad_data = arduino_on_gamepad_data,
         .get_property = arduino_get_property,
+        .register_console_cmds = arduino_register_cmds,
     };
 
     return &plat;

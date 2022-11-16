@@ -155,7 +155,7 @@ void uni_bt_setup_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t*
             }
             break;
         case BTSTACK_EVENT_POWERON_FAILED:
-            loge("Failed to initialize HCI. Please file a bug for Bluepad32\n");
+            loge("Failed to initialize HCI. Please file a Bluepad32 bug\n");
             break;
         default:
             break;
