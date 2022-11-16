@@ -31,7 +31,6 @@ limitations under the License.
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
 
-
 #include "uni_bluetooth.h"
 #include "uni_common.h"
 #include "uni_config.h"
@@ -399,4 +398,4 @@ struct uni_platform* uni_platform_arduino_create(void) {
     return &plat;
 }
 
-#endif // CONFIG_BLUEPAD32_PLATFORM_ARDUINO
+#endif  // CONFIG_BLUEPAD32_PLATFORM_ARDUINO
