@@ -76,11 +76,6 @@
 #include "uni_hid_parser.h"
 #include "uni_platform.h"
 
-// Needed for DualShock4 version1.
-// It seems that when UNI_ENABLE_BLE is enabled, it doesn't need it.
-// Probably related to one of the HCI events handled by the BLE code.
-#define UNI_ENABLE_SDP_QUERY_BEFORE_CONNECT 1
-
 #define INQUIRY_REMOTE_NAME_TIMEOUT_MS 4500
 _Static_assert(INQUIRY_REMOTE_NAME_TIMEOUT_MS < HID_DEVICE_CONNECTION_TIMEOUT_MS, "Timeout too big");
 
