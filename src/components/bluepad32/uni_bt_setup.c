@@ -53,7 +53,9 @@ static fn_t setup_fns[] = {
 };
 static setup_state_t setup_state = SETUP_STATE_BTSTACK_IN_PROGRESS;
 static btstack_packet_callback_registration_t hci_event_callback_registration;
+#ifdef CONFIG_BLUEPAD32_ENABLE_BLE
 static btstack_packet_callback_registration_t sm_event_callback_registration;
+#endif
 
 static void maybe_delete_or_list_link_keys(void) {
     bd_addr_t addr;
