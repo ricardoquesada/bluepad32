@@ -95,7 +95,6 @@ void uni_hid_parser_xboxone_parse_usage(uni_hid_device_t* d,
                                         uint16_t usage_page,
                                         uint16_t usage,
                                         int32_t value) {
-    // print_parser_globals(globals);
     xboxone_instance_t* ins = get_xboxone_instance(d);
     if (ins->version == XBOXONE_FIRMWARE_V3_1) {
         parse_usage_firmware_v3_1(d, globals, usage_page, usage, value);

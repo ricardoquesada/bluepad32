@@ -38,7 +38,6 @@ void uni_hid_parser_smarttvremote_parse_usage(uni_hid_device_t* d,
                                               int32_t value) {
     ARG_UNUSED(globals);
     uni_gamepad_t* gp = &d->gamepad;
-    // print_parser_globals(globals);
     switch (usage_page) {
         case HID_USAGE_PAGE_GENERIC_DEVICE_CONTROLS:
             switch (usage) {

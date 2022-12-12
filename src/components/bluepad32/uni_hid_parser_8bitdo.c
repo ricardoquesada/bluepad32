@@ -58,7 +58,6 @@ void uni_hid_parser_8bitdo_parse_usage(uni_hid_device_t* d,
                                        uint16_t usage_page,
                                        uint16_t usage,
                                        int32_t value) {
-    // print_parser_globals(globals);
     uint8_t hat;
     uni_gamepad_t* gp = &d->gamepad;
     switch (usage_page) {
@@ -114,8 +113,12 @@ void uni_hid_parser_8bitdo_parse_usage(uni_hid_device_t* d,
                     if (value)
                         gp->buttons |= BUTTON_A;
                     break;
-                case 0x03:  // Not mapped
-                    // SN30 Pro: Home button
+                case 0x03:
+                    // Home Button for:
+                    // M30
+                    // SN30 Pro FW pre v2 (?)
+                    if (value)
+                        gp->misc_buttons |= MISC_BUTTON_SYSTEM;
                     break;
                 case 0x04:  // Button X
                     if (value)
@@ -126,6 +129,8 @@ void uni_hid_parser_8bitdo_parse_usage(uni_hid_device_t* d,
                         gp->buttons |= BUTTON_X;
                     break;
                 case 0x06:  // No used
+                    if (value)
+                        logi("8Bitdo: Unexpected PAGE_BUTTON usage=0x06\n");
                     break;
                 case 0x07:
                     if (value)
@@ -153,7 +158,10 @@ void uni_hid_parser_8bitdo_parse_usage(uni_hid_device_t* d,
                     if (value)
                         gp->misc_buttons |= MISC_BUTTON_HOME;
                     break;
-                case 0x0d:  // Unsupported
+                case 0x0d:
+                    // Home Button for SN30 Pro FW v2+
+                    if (value)
+                        gp->misc_buttons |= MISC_BUTTON_SYSTEM;
                     break;
                 case 0x0e:
                     // SN30 Pro and gamepads with "thumb" buttons.
@@ -166,6 +174,8 @@ void uni_hid_parser_8bitdo_parse_usage(uni_hid_device_t* d,
                         gp->buttons |= BUTTON_THUMB_R;
                     break;
                 case 0x10:  // Not mapped
+                    if (value)
+                        logi("8Bitdo: Unexpected PAGE_BUTTON usage=0x10\n");
                     break;
                 default:
                     logi("8Bitdo: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
@@ -173,6 +183,18 @@ void uni_hid_parser_8bitdo_parse_usage(uni_hid_device_t* d,
             }
             break;
         }
+        case HID_USAGE_PAGE_GENERIC_DEVICE_CONTROLS:
+            switch (usage) {
+                case HID_USAGE_BATTERY_STRENGTH:
+                    gp->battery = value;
+                    break;
+                default:
+                    if (value)
+                        logi("Android: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage,
+                             value);
+                    break;
+            }
+            break;
         // unknown usage page
         default:
             logi("8Bitdo: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
