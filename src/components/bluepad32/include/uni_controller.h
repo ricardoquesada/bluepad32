@@ -53,6 +53,8 @@ typedef struct {
     uint8_t battery;
 } uni_controller_t;
 
+void uni_controller_dump(const uni_controller_t* ctl);
+
 #ifdef __cplusplus
 }
 #endif

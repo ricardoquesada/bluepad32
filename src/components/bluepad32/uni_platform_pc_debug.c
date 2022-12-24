@@ -98,46 +98,55 @@ static int pc_debug_on_device_ready(uni_hid_device_t* d) {
     return 0;
 }
 
-static void pc_debug_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
+static void pc_debug_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl) {
     static uint8_t leds = 0;
     static uint8_t enabled = true;
-    static uni_gamepad_t prev = {0};
+    static uni_controller_t prev = {0};
+    uni_gamepad_t* gp;
 
-    if (memcmp(&prev, gp, sizeof(*gp)) == 0) {
+    if (memcmp(&prev, ctl, sizeof(*ctl)) == 0) {
         return;
     }
-    prev = *gp;
+    prev = *ctl;
     // Print device Id before dumping gamepad.
     logi("(%p) ", d);
-    uni_gamepad_dump(gp);
+    uni_controller_dump(ctl);
 
-    // Debugging
-    // Axis ry: control rumble
-    if ((gp->buttons & BUTTON_A) && d->report_parser.set_rumble != NULL) {
-        d->report_parser.set_rumble(d, 128, 128);
-    }
-    // Buttons: Control LEDs On/Off
-    if ((gp->buttons & BUTTON_B) && d->report_parser.set_player_leds != NULL) {
-        d->report_parser.set_player_leds(d, leds++ & 0x0f);
-    }
-    // Axis: control RGB color
-    if ((gp->buttons & BUTTON_X) && d->report_parser.set_lightbar_color != NULL) {
-        uint8_t r = (gp->axis_x * 256) / 512;
-        uint8_t g = (gp->axis_y * 256) / 512;
-        uint8_t b = (gp->axis_rx * 256) / 512;
-        d->report_parser.set_lightbar_color(d, r, g, b);
-    }
+    switch (ctl->klass) {
+        case UNI_CONTROLLER_CLASS_GAMEPAD:
+            gp = &ctl->gamepad;
 
-    // Toggle Bluetooth connections
-    if ((gp->buttons & BUTTON_SHOULDER_L) && enabled) {
-        logi("*** Disabling Bluetooth connections\n");
-        uni_bluetooth_enable_new_connections_safe(false);
-        enabled = false;
-    }
-    if ((gp->buttons & BUTTON_SHOULDER_R) && !enabled) {
-        logi("*** Enabling Bluetooth connections\n");
-        uni_bluetooth_enable_new_connections_safe(true);
-        enabled = true;
+            // Debugging
+            // Axis ry: control rumble
+            if ((gp->buttons & BUTTON_A) && d->report_parser.set_rumble != NULL) {
+                d->report_parser.set_rumble(d, 128, 128);
+            }
+            // Buttons: Control LEDs On/Off
+            if ((gp->buttons & BUTTON_B) && d->report_parser.set_player_leds != NULL) {
+                d->report_parser.set_player_leds(d, leds++ & 0x0f);
+            }
+            // Axis: control RGB color
+            if ((gp->buttons & BUTTON_X) && d->report_parser.set_lightbar_color != NULL) {
+                uint8_t r = (gp->axis_x * 256) / 512;
+                uint8_t g = (gp->axis_y * 256) / 512;
+                uint8_t b = (gp->axis_rx * 256) / 512;
+                d->report_parser.set_lightbar_color(d, r, g, b);
+            }
+
+            // Toggle Bluetooth connections
+            if ((gp->buttons & BUTTON_SHOULDER_L) && enabled) {
+                logi("*** Disabling Bluetooth connections\n");
+                uni_bluetooth_enable_new_connections_safe(false);
+                enabled = false;
+            }
+            if ((gp->buttons & BUTTON_SHOULDER_R) && !enabled) {
+                logi("*** Enabling Bluetooth connections\n");
+                uni_bluetooth_enable_new_connections_safe(true);
+                enabled = true;
+            }
+            break;
+        default:
+            break;
     }
 }
 
@@ -207,7 +216,7 @@ struct uni_platform* uni_platform_pc_debug_create(void) {
         .on_device_disconnected = pc_debug_on_device_disconnected,
         .on_device_ready = pc_debug_on_device_ready,
         .on_oob_event = pc_debug_on_oob_event,
-        .on_gamepad_data = pc_debug_on_gamepad_data,
+        .on_controller_data = pc_debug_on_controller_data,
         .get_property = pc_debug_get_property,
     };
 

@@ -25,6 +25,8 @@ extern "C" {
 
 #include <stdint.h>
 
+#include "uni_common.h"
+
 enum {
     MOUSE_BUTTON_LEFT = BIT(0),
     MOUSE_BUTTON_RIGHT = BIT(1),
@@ -44,6 +46,8 @@ typedef struct {
     uint16_t buttons;
     uint8_t misc_buttons;
 } uni_mouse_t;
+
+void uni_mouse_dump(const uni_mouse_t* ms);
 
 #ifdef __cplusplus
 }

@@ -16,27 +16,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
-#ifndef UNI_BALANCE_BOARD_H
-#define UNI_BALANCE_BOARD_H
+#include "uni_mouse.h"
+#include "uni_log.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#include <stdint.h>
-
-typedef struct {
-    uint16_t tr;      // Top right
-    uint16_t br;      // Bottom right
-    uint16_t tl;      // Top left
-    uint16_t bl;      // Bottom left
-    int temperature;  // Temperature
-} uni_balance_board_t;
-
-void uni_balance_board_dump(const uni_balance_board_t* bb);
-
-#ifdef __cplusplus
+void uni_mouse_dump(const uni_mouse_t* ms) {
+    logi("delta_x=%d, delta_y=%d, buttons=%#x, misc_buttons=%#x\n", ms->delta_x, ms->delta_y, ms->buttons,
+         ms->misc_buttons);
 }
-#endif
-
-#endif  // UNI_BALANCE_BOARD_H

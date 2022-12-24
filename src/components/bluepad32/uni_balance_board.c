@@ -16,27 +16,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
-#ifndef UNI_BALANCE_BOARD_H
-#define UNI_BALANCE_BOARD_H
+#include "uni_balance_board.h"
+#include "uni_log.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#include <stdint.h>
-
-typedef struct {
-    uint16_t tr;      // Top right
-    uint16_t br;      // Bottom right
-    uint16_t tl;      // Top left
-    uint16_t bl;      // Bottom left
-    int temperature;  // Temperature
-} uni_balance_board_t;
-
-void uni_balance_board_dump(const uni_balance_board_t* bb);
-
-#ifdef __cplusplus
+void uni_balance_board_dump(const uni_balance_board_t* bb) {
+    logi("tl=%d, tr=%d, bl=%d, br=%d, temperature=%d\n", bb->tl, bb->tr, bb->bl, bb->br, bb->temperature);
 }
-#endif
-
-#endif  // UNI_BALANCE_BOARD_H

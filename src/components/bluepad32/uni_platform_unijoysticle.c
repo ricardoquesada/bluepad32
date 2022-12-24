@@ -38,6 +38,7 @@ limitations under the License.
 #include <hal/gpio_types.h>
 
 #include "sdkconfig.h"
+#include "uni_balance_board.h"
 #include "uni_bluetooth.h"
 #include "uni_common.h"
 #include "uni_config.h"
@@ -177,6 +178,7 @@ static void process_mouse(uni_hid_device_t* d,
                           int32_t delta_y,
                           uint16_t buttons);
 static void process_gamepad(uni_hid_device_t* d, uni_gamepad_t* gp);
+static void process_balance_board(uni_hid_device_t* d, uni_balance_board_t* bb);
 static void joy_update_port(const uni_joystick_t* joy, const gpio_num_t* gpios);
 
 // Interrupt handlers
@@ -574,6 +576,8 @@ static void unijoysticle_on_controller_data(uni_hid_device_t* d, uni_controller_
         case UNI_CONTROLLER_CLASS_MOUSE:
             process_mouse(d, ins->seat, ctl->mouse.delta_x, ctl->mouse.delta_y, ctl->mouse.buttons);
             break;
+        case UNI_CONTROLLER_CLASS_BALANCE_BOARD:
+            process_balance_board(d, &ctl->balance_board);
         default:
             break;
     }
@@ -886,6 +890,10 @@ static void process_gamepad(uni_hid_device_t* d, uni_gamepad_t* gp) {
             loge("unijoysticle: Unsupported emulation mode: %d\n", ins->gamepad_mode);
             break;
     }
+}
+
+static void process_balance_board(uni_hid_device_t* d, uni_balance_board_t* bb) {
+    logd("bb tl=%d, tr=%d, bl=%d, br=%d, temperature=%d\n", bb->tl, bb->tr, bb->bl, bb->br, bb->temperature);
 }
 
 static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {

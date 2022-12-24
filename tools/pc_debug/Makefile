@@ -71,11 +71,13 @@ clean:
 	-rm -f bluepad32
 
 bluepad32: ${CORE_OBJ} ${COMMON_OBJ} ${CLASSIC_OBJ} ${SDP_CLIENT} btstack_ring_buffer.o btstack_hid_parser.o \
+	${BLUEPAD32_ROOT}/uni_balance_board.o \
 	${BLUEPAD32_ROOT}/uni_bluetooth.o \
 	${BLUEPAD32_ROOT}/uni_bt_conn.o \
 	${BLUEPAD32_ROOT}/uni_bt_sdp.o \
 	${BLUEPAD32_ROOT}/uni_bt_setup.o \
 	${BLUEPAD32_ROOT}/uni_circular_buffer.o \
+	${BLUEPAD32_ROOT}/uni_controller.o \
 	${BLUEPAD32_ROOT}/uni_gamepad.o \
 	${BLUEPAD32_ROOT}/uni_hci_cmd.o \
 	${BLUEPAD32_ROOT}/uni_hid_device.o \
@@ -97,6 +99,7 @@ bluepad32: ${CORE_OBJ} ${COMMON_OBJ} ${CLASSIC_OBJ} ${SDP_CLIENT} btstack_ring_b
 	${BLUEPAD32_ROOT}/uni_joystick.o \
 	${BLUEPAD32_ROOT}/uni_log.o \
 	${BLUEPAD32_ROOT}/uni_main.o \
+	${BLUEPAD32_ROOT}/uni_mouse.o \
 	${BLUEPAD32_ROOT}/uni_platform.o \
 	${BLUEPAD32_ROOT}/uni_platform_pc_debug.o \
 	${BLUEPAD32_ROOT}/uni_property.o \
