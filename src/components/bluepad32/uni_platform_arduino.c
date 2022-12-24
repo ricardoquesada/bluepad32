@@ -57,7 +57,7 @@ _Static_assert(sizeof(arduino_instance_t) < HID_DEVICE_MAX_PLATFORM_DATA, "Ardui
 
 static QueueHandle_t _pending_queue = NULL;
 static SemaphoreHandle_t _controller_mutex = NULL;
-static arduino_gamepad_t _controllers[CONFIG_BLUEPAD32_MAX_DEVICES];
+static arduino_controller_t _controllers[CONFIG_BLUEPAD32_MAX_DEVICES];
 static int _used_controllers = 0;
 
 static arduino_instance_t* get_arduino_instance(uni_hid_device_t* d);
@@ -93,9 +93,9 @@ typedef struct {
 // Be extra careful when calling code that runs on the other CPU
 
 static void arduino_init(int argc, const char** argv) {
-    memset(&_gamepads, 0, sizeof(_gamepads));
+    memset(&_controllers, 0, sizeof(_controllers));
     for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
-        _gamepads[i].idx = UNI_ARDUINO_GAMEPAD_INVALID;
+        _controllers[i].idx = UNI_ARDUINO_GAMEPAD_INVALID;
     }
 }
 
@@ -166,17 +166,17 @@ static void arduino_on_device_disconnected(uni_hid_device_t* d) {
                  CONFIG_BLUEPAD32_MAX_DEVICES);
             return;
         }
-        _used_gamepads--;
+        _used_controllers--;
 
-        memset(&_gamepads[ins->controller_idx], 0, sizeof(_gamepads[0]));
-        _gamepads[ins->controller_idx].idx = UNI_ARDUINO_GAMEPAD_INVALID;
+        memset(&_controllers[ins->controller_idx], 0, sizeof(_controllers[0]));
+        _controllers[ins->controller_idx].idx = UNI_ARDUINO_GAMEPAD_INVALID;
 
         ins->controller_idx = UNI_ARDUINO_GAMEPAD_INVALID;
     }
 }
 
 static int arduino_on_device_ready(uni_hid_device_t* d) {
-    if (_used_gamepads == CONFIG_BLUEPAD32_MAX_DEVICES) {
+    if (_used_controllers == CONFIG_BLUEPAD32_MAX_DEVICES) {
         // No more available seats, reject connection
         logi("Arduino: More available seats\n");
         return -1;
@@ -190,21 +190,21 @@ static int arduino_on_device_ready(uni_hid_device_t* d) {
 
     // Find first available gamepad
     for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
-        if (_gamepads[i].idx == UNI_ARDUINO_GAMEPAD_INVALID) {
-            _gamepads[i].idx = i;
+        if (_controllers[i].idx == UNI_ARDUINO_GAMEPAD_INVALID) {
+            _controllers[i].idx = i;
 
-            memcpy(_gamepads[i].properties.btaddr, d->conn.btaddr, sizeof(_gamepads[0].properties.btaddr));
-            _gamepads[i].properties.type = d->controller_type;
-            _gamepads[i].properties.subtype = d->controller_type;
-            _gamepads[i].properties.vendor_id = d->vendor_id;
-            _gamepads[i].properties.product_id = d->product_id;
-            _gamepads[i].properties.flags =
+            memcpy(_controllers[i].properties.btaddr, d->conn.btaddr, sizeof(_controllers[0].properties.btaddr));
+            _controllers[i].properties.type = d->controller_type;
+            _controllers[i].properties.subtype = d->controller_type;
+            _controllers[i].properties.vendor_id = d->vendor_id;
+            _controllers[i].properties.product_id = d->product_id;
+            _controllers[i].properties.flags =
                 (d->report_parser.set_player_leds ? ARDUINO_PROPERTY_FLAG_PLAYER_LEDS : 0) |
                 (d->report_parser.set_rumble ? ARDUINO_PROPERTY_FLAG_RUMBLE : 0) |
                 (d->report_parser.set_lightbar_color ? ARDUINO_PROPERTY_FLAG_PLAYER_LIGHTBAR : 0);
 
             ins->controller_idx = i;
-            _used_gamepads++;
+            _used_controllers++;
             break;
         }
     }
@@ -218,7 +218,7 @@ static int arduino_on_device_ready(uni_hid_device_t* d) {
     return 0;
 }
 
-static void arduino_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
+static void arduino_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl) {
     process_pending_requests();
 
     arduino_instance_t* ins = get_arduino_instance(d);
@@ -230,7 +230,7 @@ static void arduino_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
 
     // Populate gamepad data on shared struct.
     xSemaphoreTake(_controller_mutex, portMAX_DELAY);
-    _gamepads[ins->controller_idx].data = *gp;
+    _controllers[ins->controller_idx].data = *ctl;
     xSemaphoreGive(_controller_mutex);
 }
 
@@ -251,11 +251,24 @@ static int32_t arduino_get_property(uni_platform_property_t key) {
 int arduino_get_gamepad_data(int idx, arduino_gamepad_data_t* out_data) {
     if (idx < 0 || idx >= CONFIG_BLUEPAD32_MAX_DEVICES)
         return UNI_ARDUINO_ERROR;
-    if (_gamepads[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID)
+    if (_controllers[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID)
         return UNI_ARDUINO_ERROR;
 
     xSemaphoreTake(_controller_mutex, portMAX_DELAY);
-    *out_data = _gamepads[idx].data;
+    *out_data = _controllers[idx].data.gamepad;
+    xSemaphoreGive(_controller_mutex);
+
+    return UNI_ARDUINO_OK;
+}
+
+int arduino_get_controller_data(int idx, arduino_controller_data_t* out_data) {
+    if (idx < 0 || idx >= CONFIG_BLUEPAD32_MAX_DEVICES)
+        return UNI_ARDUINO_ERROR;
+    if (_controllers[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID)
+        return UNI_ARDUINO_ERROR;
+
+    xSemaphoreTake(_controller_mutex, portMAX_DELAY);
+    *out_data = _controllers[idx].data;
     xSemaphoreGive(_controller_mutex);
 
     return UNI_ARDUINO_OK;
@@ -268,11 +281,11 @@ int arduino_get_gamepad_properties(int idx, arduino_gamepad_properties_t* out_pr
 int arduino_get_controller_properties(int idx, arduino_controller_properties_t* out_properties) {
     if (idx < 0 || idx >= CONFIG_BLUEPAD32_MAX_DEVICES)
         return UNI_ARDUINO_ERROR;
-    if (_gamepads[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID)
+    if (_controllers[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID)
         return UNI_ARDUINO_ERROR;
 
     xSemaphoreTake(_controller_mutex, portMAX_DELAY);
-    *out_properties = _gamepads[idx].properties;
+    *out_properties = _controllers[idx].properties;
     xSemaphoreGive(_controller_mutex);
 
     return UNI_ARDUINO_OK;
@@ -281,7 +294,7 @@ int arduino_get_controller_properties(int idx, arduino_controller_properties_t* 
 int arduino_set_player_leds(int idx, uint8_t leds) {
     if (idx < 0 || idx >= CONFIG_BLUEPAD32_MAX_DEVICES)
         return UNI_ARDUINO_ERROR;
-    if (_gamepads[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID)
+    if (_controllers[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID)
         return UNI_ARDUINO_ERROR;
 
     pending_request_t request = (pending_request_t){
@@ -297,7 +310,7 @@ int arduino_set_player_leds(int idx, uint8_t leds) {
 int arduino_set_lightbar_color(int idx, uint8_t r, uint8_t g, uint8_t b) {
     if (idx < 0 || idx >= CONFIG_BLUEPAD32_MAX_DEVICES)
         return UNI_ARDUINO_ERROR;
-    if (_gamepads[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID)
+    if (_controllers[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID)
         return UNI_ARDUINO_ERROR;
 
     pending_request_t request = (pending_request_t){
@@ -315,7 +328,7 @@ int arduino_set_lightbar_color(int idx, uint8_t r, uint8_t g, uint8_t b) {
 int arduino_set_rumble(int idx, uint8_t force, uint8_t duration) {
     if (idx < 0 || idx >= CONFIG_BLUEPAD32_MAX_DEVICES)
         return UNI_ARDUINO_ERROR;
-    if (_gamepads[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID)
+    if (_controllers[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID)
         return UNI_ARDUINO_ERROR;
 
     pending_request_t request = (pending_request_t){
@@ -394,7 +407,7 @@ struct uni_platform* uni_platform_arduino_create(void) {
         .on_device_disconnected = arduino_on_device_disconnected,
         .on_device_ready = arduino_on_device_ready,
         .on_oob_event = arduino_on_device_oob_event,
-        .on_gamepad_data = arduino_on_gamepad_data,
+        .on_controller_data = arduino_on_controller_data,
         .get_property = arduino_get_property,
         .register_console_cmds = arduino_register_cmds,
     };
