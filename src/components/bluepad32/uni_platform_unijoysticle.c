@@ -41,6 +41,7 @@ limitations under the License.
 #include "uni_bluetooth.h"
 #include "uni_common.h"
 #include "uni_config.h"
+#include "uni_controller.h"
 #include "uni_debug.h"
 #include "uni_gamepad.h"
 #include "uni_hid_device.h"
@@ -561,15 +562,10 @@ static void test_select_button(uni_hid_device_t* d, uni_gamepad_t* gp) {
     }
 }
 
-static void unijoysticle_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) {
-    if (d == NULL) {
-        loge("ERROR: unijoysticle_on_device_gamepad_data: Invalid NULL device\n");
-        return;
-    }
+static void unijoysticle_process_gamepad(uni_hid_device_t* d, uni_gamepad_t* gp) {
+    uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
 
     test_select_button(d, gp);
-
-    uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
 
     uni_joystick_t joy, joy_ext;
     memset(&joy, 0, sizeof(joy));
@@ -579,9 +575,6 @@ static void unijoysticle_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp)
         case UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_SINGLE_JOY:
             uni_joy_to_single_joy_from_gamepad(gp, &joy);
             process_joystick(d, ins->gamepad_seat, &joy);
-            break;
-        case UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_SINGLE_MOUSE:
-            process_mouse(d, ins->gamepad_seat, gp->axis_x, gp->axis_y, gp->buttons);
             break;
         case UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_JOY:
             uni_joy_to_combo_joy_joy_from_gamepad(gp, &joy, &joy_ext);
@@ -602,6 +595,29 @@ static void unijoysticle_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp)
             break;
         default:
             loge("unijoysticle: Unsupported emulation mode: %d\n", ins->emu_mode);
+            break;
+    }
+}
+
+static void unijoysticle_process_mouse(uni_hid_device_t* d, uni_mouse_t* mouse) {
+    uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
+    process_mouse(d, ins->gamepad_seat, mouse->delta_x, mouse->delta_y, mouse->buttons);
+}
+
+static void unijoysticle_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl) {
+    if (d == NULL) {
+        loge("ERROR: unijoysticle_on_device_gamepad_data: Invalid NULL device\n");
+        return;
+    }
+
+    switch (ctl->klass) {
+        case UNI_CONTROLLER_CLASS_GAMEPAD:
+            unijoysticle_process_gamepad(d, &ctl->gamepad);
+            break;
+        case UNI_CONTROLLER_CLASS_MOUSE:
+            unijoysticle_process_mouse(d, &ctl->mouse);
+            break;
+        default:
             break;
     }
 }
@@ -1478,7 +1494,7 @@ struct uni_platform* uni_platform_unijoysticle_create(void) {
         .on_device_disconnected = unijoysticle_on_device_disconnected,
         .on_device_ready = unijoysticle_on_device_ready,
         .on_oob_event = unijoysticle_on_oob_event,
-        .on_gamepad_data = unijoysticle_on_gamepad_data,
+        .on_controller_data = unijoysticle_on_controller_data,
         .get_property = unijoysticle_get_property,
         .device_dump = unijoysticle_device_dump,
         .register_console_cmds = unijoysticle_register_cmds,
