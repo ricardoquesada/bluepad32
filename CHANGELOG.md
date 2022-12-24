@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - 8BitDo: Updated support for SN30 Pro FW v2 and M30
 
+### Fixed
+- Unijoysticle: "cycle" button works correctly when mouse and gamepad are
+  connected at the same time.
+
 ## [v3.5.2] - 2022-12-04
 ### New
 - Arduino: Add "version" console command

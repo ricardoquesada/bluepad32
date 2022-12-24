@@ -42,9 +42,11 @@ typedef enum {
 
 // Different emulation modes
 typedef enum {
+    UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_NONE,             // None. Should not happen
     UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_SINGLE_JOY,       // Basic mode
     UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_JOY,    // Enhanced mode: Dual stick mode
     UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_MOUSE,  // Gamepad behaves like mouse
+    UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COUNT,
 } uni_platform_unijoysticle_emulation_mode_t;
 
 enum {

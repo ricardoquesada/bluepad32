@@ -1166,7 +1166,8 @@ static void set_gamepad_mode(uni_platform_unijoysticle_emulation_mode_t mode) {
         uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
         if (uni_bt_conn_is_connected(&tmp_d->conn)) {
             num_devices++;
-            if (!uni_hid_device_is_mouse(tmp_d) && d == NULL) {
+            if (uni_hid_device_is_gamepad(tmp_d) && d == NULL) {
+                // Get the first valid gamepad device
                 d = tmp_d;
             }
         }
@@ -1180,18 +1181,24 @@ static void set_gamepad_mode(uni_platform_unijoysticle_emulation_mode_t mode) {
 
     uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
 
-    if (ins->gamepad_mode == mode)
+    if (ins->gamepad_mode == mode) {
+        logi("unijoysticle: Already in gamepad mode %d\n", mode);
         return;
+    }
 
-    if (ins->gamepad_mode != UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_JOY &&
-        ins->gamepad_mode != UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_MOUSE &&
-        ins->gamepad_mode != UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_SINGLE_JOY)
+    if (ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_NONE ||
+        ins->gamepad_mode >= UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COUNT) {
+        logi("unijoysticle: Unexpected gamepad mode: %d\n", ins->gamepad_mode);
         return;
+    }
 
     switch (mode) {
         case UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_JOY:
             if (num_devices != 1) {
                 loge("unijoysticle: cannot change mode. Expected num_devices=1, actual=%d\n", num_devices);
+
+                // Reset to "normal" mode
+                ins->gamepad_mode = UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_SINGLE_JOY;
                 set_button_mode(BUTTON_MODE_NORMAL);
                 return;
             }
