@@ -37,8 +37,8 @@ limitations under the License.
 
 #include "hid_usage.h"
 #include "uni_common.h"
+#include "uni_controller.h"
 #include "uni_debug.h"
-#include "uni_gamepad.h"
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
 #include "uni_hid_parser_wii.h"
@@ -182,8 +182,8 @@ static void process_req_status(uni_hid_device_t* d, const uint8_t* report, uint1
 static void process_req_data(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
 static void process_req_return(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
 static void process_drm_k(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
-static void process_drm_k_vertical(uni_gamepad_t* gp, const uint8_t* data);
-static void process_drm_k_horizontal(uni_gamepad_t* gp, const uint8_t* data);
+static void process_drm_k_vertical(uni_controller_t* ctl, const uint8_t* data);
+static void process_drm_k_horizontal(uni_controller_t* ctl, const uint8_t* data);
 static void process_drm_ka(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
 static void process_drm_ke(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
 static void process_drm_kae(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
@@ -505,57 +505,49 @@ static void process_drm_k(uni_hid_device_t* d, const uint8_t* report, uint16_t l
         return;
     }
 
-    uni_gamepad_t* gp = &d->gamepad;
+    uni_controller_t* ctl = &d->controller;
     const uint8_t* data = &report[1];
     wii_instance_t* ins = get_wii_instance(d);
 
     if (ins->flags & WII_FLAGS_VERTICAL) {
-        process_drm_k_vertical(gp, data);
+        process_drm_k_vertical(ctl, data);
     } else {
-        process_drm_k_horizontal(gp, data);
+        process_drm_k_horizontal(ctl, data);
     }
     // Process misc buttons
-    gp->misc_buttons |= (data[1] & 0x80) ? MISC_BUTTON_SYSTEM : 0;  // Button "home"
-    gp->misc_buttons |= (data[0] & 0x10) ? MISC_BUTTON_HOME : 0;    // Button "+"
-    gp->misc_buttons |= (data[1] & 0x10) ? MISC_BUTTON_BACK : 0;    // Button "-"
-    gp->updated_states |=
-        GAMEPAD_STATE_MISC_BUTTON_SYSTEM | GAMEPAD_STATE_MISC_BUTTON_HOME | GAMEPAD_STATE_MISC_BUTTON_BACK;
+    ctl->gamepad.misc_buttons |= (data[1] & 0x80) ? MISC_BUTTON_SYSTEM : 0;  // Button "home"
+    ctl->gamepad.misc_buttons |= (data[0] & 0x10) ? MISC_BUTTON_HOME : 0;    // Button "+"
+    ctl->gamepad.misc_buttons |= (data[1] & 0x10) ? MISC_BUTTON_BACK : 0;    // Button "-"
 }
 
 // Used for WiiMote in Sideways Mode (Directions and A/B/X/Y Buttons only).
-static void process_drm_k_horizontal(uni_gamepad_t* gp, const uint8_t* data) {
+static void process_drm_k_horizontal(uni_controller_t* ctl, const uint8_t* data) {
     // dpad
-    gp->dpad |= (data[0] & 0x01) ? DPAD_DOWN : 0;
-    gp->dpad |= (data[0] & 0x02) ? DPAD_UP : 0;
-    gp->dpad |= (data[0] & 0x04) ? DPAD_RIGHT : 0;
-    gp->dpad |= (data[0] & 0x08) ? DPAD_LEFT : 0;
-    gp->updated_states |= GAMEPAD_STATE_DPAD;
+    ctl->gamepad.dpad |= (data[0] & 0x01) ? DPAD_DOWN : 0;
+    ctl->gamepad.dpad |= (data[0] & 0x02) ? DPAD_UP : 0;
+    ctl->gamepad.dpad |= (data[0] & 0x04) ? DPAD_RIGHT : 0;
+    ctl->gamepad.dpad |= (data[0] & 0x08) ? DPAD_LEFT : 0;
 
     // buttons
-    gp->buttons |= (data[1] & 0x04) ? BUTTON_Y : 0;  // Shoulder button
-    gp->buttons |= (data[1] & 0x08) ? BUTTON_X : 0;  // Big button "A"
-    gp->buttons |= (data[1] & 0x02) ? BUTTON_A : 0;  // Button "1"
-    gp->buttons |= (data[1] & 0x01) ? BUTTON_B : 0;  // Button "2"
-    gp->updated_states |=
-        GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B | GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y;
+    ctl->gamepad.buttons |= (data[1] & 0x04) ? BUTTON_Y : 0;  // Shoulder button
+    ctl->gamepad.buttons |= (data[1] & 0x08) ? BUTTON_X : 0;  // Big button "A"
+    ctl->gamepad.buttons |= (data[1] & 0x02) ? BUTTON_A : 0;  // Button "1"
+    ctl->gamepad.buttons |= (data[1] & 0x01) ? BUTTON_B : 0;  // Button "2"
 }
 
 // Used for WiiMote in Vertical Mode (Directions and A/B/X/Y Buttons only).
-static void process_drm_k_vertical(uni_gamepad_t* gp, const uint8_t* data) {
+static void process_drm_k_vertical(uni_controller_t* ctl, const uint8_t* data) {
     // dpad
-    gp->dpad |= (data[0] & 0x01) ? DPAD_LEFT : 0;
-    gp->dpad |= (data[0] & 0x02) ? DPAD_RIGHT : 0;
-    gp->dpad |= (data[0] & 0x04) ? DPAD_DOWN : 0;
-    gp->dpad |= (data[0] & 0x08) ? DPAD_UP : 0;
-    gp->updated_states |= GAMEPAD_STATE_DPAD;
+    ctl->gamepad.dpad |= (data[0] & 0x01) ? DPAD_LEFT : 0;
+    ctl->gamepad.dpad |= (data[0] & 0x02) ? DPAD_RIGHT : 0;
+    ctl->gamepad.dpad |= (data[0] & 0x04) ? DPAD_DOWN : 0;
+    ctl->gamepad.dpad |= (data[0] & 0x08) ? DPAD_UP : 0;
 
     // buttons
-    gp->buttons |= (data[1] & 0x04) ? BUTTON_A : 0;  // Shoulder button
-    gp->buttons |= (data[1] & 0x08) ? BUTTON_B : 0;  // Big button "A"
-    gp->buttons |= (data[1] & 0x02) ? BUTTON_X : 0;  // Button "1"
-    gp->buttons |= (data[1] & 0x01) ? BUTTON_Y : 0;  // Button "2"
-    gp->updated_states |=
-        GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B | GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y;
+    ctl->gamepad.buttons |= (data[1] & 0x04) ? BUTTON_A : 0;  // Shoulder button
+    ctl->gamepad.buttons |= (data[1] & 0x08) ? BUTTON_B : 0;  // Big button "A"
+    ctl->gamepad.buttons |= (data[1] & 0x02) ? BUTTON_X : 0;  // Button "1"
+    ctl->gamepad.buttons |= (data[1] & 0x01) ? BUTTON_Y : 0;  // Button "2"
 }
 
 // Used for WiiMote in Accelerometer Mode. Defined here:
@@ -582,7 +574,7 @@ static void process_drm_ka(uni_hid_device_t* d, const uint8_t* report, uint16_t 
     // printf_hexdump(report, len);
     // logi("Wii: x=%d, y=%d, z=%d\n", sx, sy, sz);
 
-    uni_gamepad_t* gp = &d->gamepad;
+    uni_controller_t* ctl = &d->controller;
 #ifdef ENABLE_ACCEL_WHEEL_MODE
 
     // Is the wheel in resting position, don't read accelerometer
@@ -591,51 +583,47 @@ static void process_drm_ka(uni_hid_device_t* d, const uint8_t* report, uint16_t 
         // logd("Wii: Wheel in resting position, do nothing");
     } else {
         // Dpad works as dpad, useful to navigate menus.
-        gp->dpad |= (report[1] & 0x01) ? DPAD_DOWN : 0;
-        gp->dpad |= (report[1] & 0x02) ? DPAD_UP : 0;
-        gp->dpad |= (report[1] & 0x04) ? DPAD_RIGHT : 0;
-        gp->dpad |= (report[1] & 0x08) ? DPAD_LEFT : 0;
+        ctl->gamepad.dpad |= (report[1] & 0x01) ? DPAD_DOWN : 0;
+        ctl->gamepad.dpad |= (report[1] & 0x02) ? DPAD_UP : 0;
+        ctl->gamepad.dpad |= (report[1] & 0x04) ? DPAD_RIGHT : 0;
+        ctl->gamepad.dpad |= (report[1] & 0x08) ? DPAD_LEFT : 0;
 
         // Button "1" is Brake (down), and button "2" is Throttle (up)
         // Buttons "1" and "2" can override values from Dpad.
-        gp->dpad |= (report[2] & 0x02) ? DPAD_DOWN : 0;  // Button "1"
-        gp->dpad |= (report[2] & 0x01) ? DPAD_UP : 0;    // Button "2"
+        ctl->gamepad.dpad |= (report[2] & 0x02) ? DPAD_DOWN : 0;  // Button "1"
+        ctl->gamepad.dpad |= (report[2] & 0x01) ? DPAD_UP : 0;    // Button "2"
 
         // Accelerometer overrides Dpad values.
         if (sy > accel_threshold) {
-            gp->dpad |= DPAD_LEFT;
-            gp->dpad &= ~DPAD_RIGHT;
+            ctl->gamepad.dpad |= DPAD_LEFT;
+            ctl->gamepad.dpad &= ~DPAD_RIGHT;
         } else if (sy < -accel_threshold) {
-            gp->dpad |= DPAD_RIGHT;
-            gp->dpad &= ~DPAD_LEFT;
+            ctl->gamepad.dpad |= DPAD_RIGHT;
+            ctl->gamepad.dpad &= ~DPAD_LEFT;
         }
     }
 
 #else   // !ENABLE_ACCEL_WHEEL_MODE
     if (sx < -accel_threshold) {
-        gp->dpad |= DPAD_LEFT;
+        ctl->gamepad.dpad |= DPAD_LEFT;
     } else if (sx > accel_threshold) {
-        gp->dpad |= DPAD_RIGHT;
+        ctl->gamepad.dpad |= DPAD_RIGHT;
     }
     if (sy < -accel_threshold) {
-        gp->dpad |= DPAD_UP;
+        ctl->gamepad.dpad |= DPAD_UP;
     } else if (sy > (accel_threshold / 2)) {
         // Threshold for down is 50% because it is not as easy to tilt the
         // device down as it is it to tilt it up.
-        gp->dpad |= DPAD_DOWN;
+        ctl->gamepad.dpad |= DPAD_DOWN;
     }
 #endif  // ! ENABLE_ACCEL_WHEEL_MODE
-    gp->updated_states |= GAMEPAD_STATE_DPAD;
 
-    gp->buttons |= (report[2] & 0x08) ? BUTTON_A : 0;  // Big button "A"
-    gp->buttons |= (report[2] & 0x04) ? BUTTON_B : 0;  // Button Shoulder
-    gp->updated_states |= GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B;
+    ctl->gamepad.buttons |= (report[2] & 0x08) ? BUTTON_A : 0;  // Big button "A"
+    ctl->gamepad.buttons |= (report[2] & 0x04) ? BUTTON_B : 0;  // Button Shoulder
 
-    gp->misc_buttons |= (report[2] & 0x80) ? MISC_BUTTON_SYSTEM : 0;  // Button "home"
-    gp->misc_buttons |= (report[2] & 0x10) ? MISC_BUTTON_BACK : 0;    // Button "-"
-    gp->misc_buttons |= (report[1] & 0x10) ? MISC_BUTTON_HOME : 0;    // Button "+"
-    gp->updated_states |=
-        GAMEPAD_STATE_MISC_BUTTON_SYSTEM | GAMEPAD_STATE_MISC_BUTTON_BACK | GAMEPAD_STATE_MISC_BUTTON_HOME;
+    ctl->gamepad.misc_buttons |= (report[2] & 0x80) ? MISC_BUTTON_SYSTEM : 0;  // Button "home"
+    ctl->gamepad.misc_buttons |= (report[2] & 0x10) ? MISC_BUTTON_BACK : 0;    // Button "-"
+    ctl->gamepad.misc_buttons |= (report[1] & 0x10) ? MISC_BUTTON_HOME : 0;    // Button "+"
 }
 
 // Used in WiiMote + Nunchuk Mode
@@ -659,24 +647,22 @@ static void process_drm_ke(uni_hid_device_t* d, const uint8_t* report, uint16_t 
     // Process Nunchuk
     //
     nunchuk_t n = process_nunchuk(&report[3], len - 3);
-    uni_gamepad_t* gp = &d->gamepad;
+    uni_controller_t* ctl = &d->controller;
     const int factor = (AXIS_NORMALIZE_RANGE / 2) / 128;
     // When VERTICAL mode is enabled, Nunchuk behaves as "right" joystick,
     // and the Wii remote behaves as the "left" joystick.
     if (ins->flags == WII_FLAGS_VERTICAL) {
         // Treat Nunchuk as "right" joypad.
-        gp->axis_rx = n.sx * factor;
-        gp->axis_ry = n.sy * factor;
-        gp->updated_states |= GAMEPAD_STATE_AXIS_RX | GAMEPAD_STATE_AXIS_RY;
-        gp->buttons |= n.bc ? BUTTON_B : 0;
-        gp->buttons |= n.bz ? BUTTON_SHOULDER_R : 0;  // Autofire
+        ctl->gamepad.axis_rx = n.sx * factor;
+        ctl->gamepad.axis_ry = n.sy * factor;
+        ctl->gamepad.buttons |= n.bc ? BUTTON_B : 0;
+        ctl->gamepad.buttons |= n.bz ? BUTTON_SHOULDER_R : 0;  // Autofire
     } else {
         // Treat Nunchuk as "left" joypad.
-        gp->axis_x = n.sx * factor;
-        gp->axis_y = n.sy * factor;
-        gp->updated_states |= GAMEPAD_STATE_AXIS_X | GAMEPAD_STATE_AXIS_Y;
-        gp->buttons |= n.bc ? BUTTON_A : 0;
-        gp->buttons |= n.bz ? BUTTON_B : 0;
+        ctl->gamepad.axis_x = n.sx * factor;
+        ctl->gamepad.axis_y = n.sy * factor;
+        ctl->gamepad.buttons |= n.bc ? BUTTON_A : 0;
+        ctl->gamepad.buttons |= n.bz ? BUTTON_B : 0;
     }
 
     //
@@ -684,29 +670,24 @@ static void process_drm_ke(uni_hid_device_t* d, const uint8_t* report, uint16_t 
     //
 
     // dpad
-    gp->dpad |= (report[1] & 0x01) ? DPAD_LEFT : 0;
-    gp->dpad |= (report[1] & 0x02) ? DPAD_RIGHT : 0;
-    gp->dpad |= (report[1] & 0x04) ? DPAD_DOWN : 0;
-    gp->dpad |= (report[1] & 0x08) ? DPAD_UP : 0;
-    gp->updated_states |= GAMEPAD_STATE_DPAD;
+    ctl->gamepad.dpad |= (report[1] & 0x01) ? DPAD_LEFT : 0;
+    ctl->gamepad.dpad |= (report[1] & 0x02) ? DPAD_RIGHT : 0;
+    ctl->gamepad.dpad |= (report[1] & 0x04) ? DPAD_DOWN : 0;
+    ctl->gamepad.dpad |= (report[1] & 0x08) ? DPAD_UP : 0;
 
-    gp->buttons |= (report[2] & 0x04) ? BUTTON_A : 0;  // Shoulder button
+    ctl->gamepad.buttons |= (report[2] & 0x04) ? BUTTON_A : 0;  // Shoulder button
     if (ins->flags == WII_FLAGS_VERTICAL) {
-        gp->buttons |= (report[2] & 0x08) ? BUTTON_SHOULDER_L : 0;  // Big button "A"
+        ctl->gamepad.buttons |= (report[2] & 0x08) ? BUTTON_SHOULDER_L : 0;  // Big button "A"
     } else {
         // If "vertical" not enabled, update Button B as well
-        gp->buttons |= (report[2] & 0x08) ? BUTTON_B : 0;  // Big button "A"
+        ctl->gamepad.buttons |= (report[2] & 0x08) ? BUTTON_B : 0;  // Big button "A"
     }
-    gp->buttons |= (report[2] & 0x02) ? BUTTON_X : 0;  // Button "1"
-    gp->buttons |= (report[2] & 0x01) ? BUTTON_Y : 0;  // Button "2"
-    gp->updated_states |= GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B | GAMEPAD_STATE_BUTTON_X |
-                          GAMEPAD_STATE_BUTTON_Y | GAMEPAD_STATE_BUTTON_SHOULDER_L | GAMEPAD_STATE_BUTTON_SHOULDER_R;
+    ctl->gamepad.buttons |= (report[2] & 0x02) ? BUTTON_X : 0;  // Button "1"
+    ctl->gamepad.buttons |= (report[2] & 0x01) ? BUTTON_Y : 0;  // Button "2"
 
-    gp->misc_buttons |= (report[2] & 0x80) ? MISC_BUTTON_SYSTEM : 0;  // Button "home"
-    gp->misc_buttons |= (report[2] & 0x10) ? MISC_BUTTON_BACK : 0;    // Button "-"
-    gp->misc_buttons |= (report[1] & 0x10) ? MISC_BUTTON_HOME : 0;    // Button "+"
-    gp->updated_states |=
-        GAMEPAD_STATE_MISC_BUTTON_SYSTEM | GAMEPAD_STATE_MISC_BUTTON_BACK | GAMEPAD_STATE_MISC_BUTTON_HOME;
+    ctl->gamepad.misc_buttons |= (report[2] & 0x80) ? MISC_BUTTON_SYSTEM : 0;  // Button "home"
+    ctl->gamepad.misc_buttons |= (report[2] & 0x10) ? MISC_BUTTON_BACK : 0;    // Button "-"
+    ctl->gamepad.misc_buttons |= (report[1] & 0x10) ? MISC_BUTTON_HOME : 0;    // Button "+"
 }
 
 // Defined here:
@@ -790,15 +771,13 @@ static void process_drm_kee(uni_hid_device_t* d, const uint8_t* report, uint16_t
         //
         // Process Balance Board
         //
-        uni_gamepad_t* gp = &d->gamepad;
+        uni_controller_t* ctl = &d->controller;
         balance_board_t b = process_balance_board(d, &report[3], len - 3);
-        gp->axis_rx = b.tr;
-        gp->axis_ry = b.br;
-        gp->axis_x = b.tl;
-        gp->axis_y = b.bl;
-
-        gp->updated_states |=
-            GAMEPAD_STATE_AXIS_X | GAMEPAD_STATE_AXIS_Y | GAMEPAD_STATE_AXIS_RX | GAMEPAD_STATE_AXIS_RY;
+        ctl->balance_board.tr = b.tr;
+        ctl->balance_board.br = b.br;
+        ctl->balance_board.tl = b.tl;
+        ctl->balance_board.bl = b.bl;
+        ctl->klass = UNI_CONTROLLER_CLASS_BALANCE_BOARD;
 
         return;
     }
@@ -855,7 +834,7 @@ static void process_drm_kee(uni_hid_device_t* d, const uint8_t* report, uint16_t
         loge("wii remote drm_kee: invalid report len %d\n", len);
         return;
     }
-    uni_gamepad_t* gp = &d->gamepad;
+    uni_controller_t* ctl = &d->controller;
     const uint8_t* data = &report[3];
 
     // Process axis
@@ -876,41 +855,33 @@ static void process_drm_kee(uni_hid_device_t* d, const uint8_t* report, uint16_t
     ry = ry * 512 / 1280;
 
     // Y is inverted
-    gp->axis_x = lx;
-    gp->axis_y = -ly;
-    gp->axis_rx = rx;
-    gp->axis_ry = -ry;
-    gp->updated_states |= GAMEPAD_STATE_AXIS_X | GAMEPAD_STATE_AXIS_Y | GAMEPAD_STATE_AXIS_RX | GAMEPAD_STATE_AXIS_RY;
+    ctl->gamepad.axis_x = lx;
+    ctl->gamepad.axis_y = -ly;
+    ctl->gamepad.axis_rx = rx;
+    ctl->gamepad.axis_ry = -ry;
 
     // Process Dpad
-    gp->dpad |= !(data[8] & 0x80) ? DPAD_RIGHT : 0;  // BDR
-    gp->dpad |= !(data[8] & 0x40) ? DPAD_DOWN : 0;   // BDD
-    gp->dpad |= !(data[9] & 0x02) ? DPAD_LEFT : 0;   // BDL
-    gp->dpad |= !(data[9] & 0x01) ? DPAD_UP : 0;     // BDU
-    gp->updated_states |= GAMEPAD_STATE_DPAD;
+    ctl->gamepad.dpad |= !(data[8] & 0x80) ? DPAD_RIGHT : 0;  // BDR
+    ctl->gamepad.dpad |= !(data[8] & 0x40) ? DPAD_DOWN : 0;   // BDD
+    ctl->gamepad.dpad |= !(data[9] & 0x02) ? DPAD_LEFT : 0;   // BDL
+    ctl->gamepad.dpad |= !(data[9] & 0x01) ? DPAD_UP : 0;     // BDU
 
     // Process buttons. A,B -> B,A; X,Y -> Y,X; trigger <--> shoulder
-    gp->buttons |= !(data[9] & 0x10) ? BUTTON_B : 0;           // BA
-    gp->buttons |= !(data[9] & 0x40) ? BUTTON_A : 0;           // BB
-    gp->buttons |= !(data[9] & 0x08) ? BUTTON_Y : 0;           // BX
-    gp->buttons |= !(data[9] & 0x20) ? BUTTON_X : 0;           // BY
-    gp->buttons |= !(data[9] & 0x80) ? BUTTON_TRIGGER_L : 0;   // BZL
-    gp->buttons |= !(data[9] & 0x04) ? BUTTON_TRIGGER_R : 0;   // BZR
-    gp->buttons |= !(data[8] & 0x20) ? BUTTON_SHOULDER_L : 0;  // BLT
-    gp->buttons |= !(data[8] & 0x02) ? BUTTON_SHOULDER_R : 0;  // BRT
-    gp->buttons |= !(data[10] & 0x02) ? BUTTON_THUMB_L : 0;    // LTHUM
-    gp->buttons |= !(data[10] & 0x01) ? BUTTON_THUMB_R : 0;    // RTHUM
-    gp->updated_states |= GAMEPAD_STATE_BUTTON_SHOULDER_L | GAMEPAD_STATE_BUTTON_SHOULDER_R |
-                          GAMEPAD_STATE_BUTTON_TRIGGER_L | GAMEPAD_STATE_BUTTON_TRIGGER_R | GAMEPAD_STATE_BUTTON_A |
-                          GAMEPAD_STATE_BUTTON_B | GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y |
-                          GAMEPAD_STATE_BUTTON_THUMB_L | GAMEPAD_STATE_BUTTON_THUMB_R;
+    ctl->gamepad.buttons |= !(data[9] & 0x10) ? BUTTON_B : 0;           // BA
+    ctl->gamepad.buttons |= !(data[9] & 0x40) ? BUTTON_A : 0;           // BB
+    ctl->gamepad.buttons |= !(data[9] & 0x08) ? BUTTON_Y : 0;           // BX
+    ctl->gamepad.buttons |= !(data[9] & 0x20) ? BUTTON_X : 0;           // BY
+    ctl->gamepad.buttons |= !(data[9] & 0x80) ? BUTTON_TRIGGER_L : 0;   // BZL
+    ctl->gamepad.buttons |= !(data[9] & 0x04) ? BUTTON_TRIGGER_R : 0;   // BZR
+    ctl->gamepad.buttons |= !(data[8] & 0x20) ? BUTTON_SHOULDER_L : 0;  // BLT
+    ctl->gamepad.buttons |= !(data[8] & 0x02) ? BUTTON_SHOULDER_R : 0;  // BRT
+    ctl->gamepad.buttons |= !(data[10] & 0x02) ? BUTTON_THUMB_L : 0;    // LTHUM
+    ctl->gamepad.buttons |= !(data[10] & 0x01) ? BUTTON_THUMB_R : 0;    // RTHUM
 
     // Process misc buttons
-    gp->misc_buttons |= !(data[8] & 0x08) ? MISC_BUTTON_SYSTEM : 0;  // BH
-    gp->misc_buttons |= !(data[8] & 0x04) ? MISC_BUTTON_HOME : 0;    // B+
-    gp->misc_buttons |= !(data[8] & 0x10) ? MISC_BUTTON_BACK : 0;    // B-
-    gp->updated_states |=
-        GAMEPAD_STATE_MISC_BUTTON_SYSTEM | GAMEPAD_STATE_MISC_BUTTON_HOME | GAMEPAD_STATE_MISC_BUTTON_BACK;
+    ctl->gamepad.misc_buttons |= !(data[8] & 0x08) ? MISC_BUTTON_SYSTEM : 0;  // BH
+    ctl->gamepad.misc_buttons |= !(data[8] & 0x04) ? MISC_BUTTON_HOME : 0;    // B+
+    ctl->gamepad.misc_buttons |= !(data[8] & 0x10) ? MISC_BUTTON_BACK : 0;    // B-
 }
 
 // Used for the Wii Classic Controller (includes Pro?). Defined here:
@@ -930,7 +901,7 @@ static void process_drm_e(uni_hid_device_t* d, const uint8_t* report, uint16_t l
     // http://wiibrew.org/wiki/Wiimote/Extension_Controllers/Classic_Controller
 
     const uint8_t* data = &report[1];
-    uni_gamepad_t* gp = &d->gamepad;
+    uni_controller_t* ctl = &d->controller;
 
     // Axis
     int lx = data[0] & 0b00111111;
@@ -946,48 +917,39 @@ static void process_drm_e(uni_hid_device_t* d, const uint8_t* report, uint16_t l
     ly *= (AXIS_NORMALIZE_RANGE / 2 / 32);
     rx *= (AXIS_NORMALIZE_RANGE / 2 / 16);
     ry *= (AXIS_NORMALIZE_RANGE / 2 / 16);
-    gp->axis_x = lx;
-    gp->axis_y = -ly;
-    gp->axis_rx = rx;
-    gp->axis_ry = -ry;
-    gp->updated_states |= GAMEPAD_STATE_AXIS_X | GAMEPAD_STATE_AXIS_Y | GAMEPAD_STATE_AXIS_RX | GAMEPAD_STATE_AXIS_RY;
+    ctl->gamepad.axis_x = lx;
+    ctl->gamepad.axis_y = -ly;
+    ctl->gamepad.axis_rx = rx;
+    ctl->gamepad.axis_ry = -ry;
 
     // Accel / Brake
     int lt = (data[2] & 0b01100000) >> 2 | (data[3] & 0b11100000) >> 5;
     int rt = data[3] & 0b00011111;
-    gp->brake = lt * (AXIS_NORMALIZE_RANGE / 32);
-    gp->throttle = rt * (AXIS_NORMALIZE_RANGE / 32);
-    gp->updated_states |= GAMEPAD_STATE_BRAKE | GAMEPAD_STATE_THROTTLE;
+    ctl->gamepad.brake = lt * (AXIS_NORMALIZE_RANGE / 32);
+    ctl->gamepad.throttle = rt * (AXIS_NORMALIZE_RANGE / 32);
 
     // dpad
-    gp->dpad |= (data[4] & 0b10000000) ? 0 : DPAD_RIGHT;
-    gp->dpad |= (data[4] & 0b01000000) ? 0 : DPAD_DOWN;
-    gp->dpad |= (data[5] & 0b00000001) ? 0 : DPAD_UP;
-    gp->dpad |= (data[5] & 0b00000010) ? 0 : DPAD_LEFT;
-    gp->updated_states |= GAMEPAD_STATE_DPAD;
+    ctl->gamepad.dpad |= (data[4] & 0b10000000) ? 0 : DPAD_RIGHT;
+    ctl->gamepad.dpad |= (data[4] & 0b01000000) ? 0 : DPAD_DOWN;
+    ctl->gamepad.dpad |= (data[5] & 0b00000001) ? 0 : DPAD_UP;
+    ctl->gamepad.dpad |= (data[5] & 0b00000010) ? 0 : DPAD_LEFT;
 
     // Buttons A,B,X,Y
-    gp->buttons |= (data[5] & 0b01000000) ? 0 : BUTTON_A;
-    gp->buttons |= (data[5] & 0b00010000) ? 0 : BUTTON_B;
-    gp->buttons |= (data[5] & 0b00100000) ? 0 : BUTTON_X;
-    gp->buttons |= (data[5] & 0b00001000) ? 0 : BUTTON_Y;
-    gp->updated_states |=
-        GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B | GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y;
+    ctl->gamepad.buttons |= (data[5] & 0b01000000) ? 0 : BUTTON_A;
+    ctl->gamepad.buttons |= (data[5] & 0b00010000) ? 0 : BUTTON_B;
+    ctl->gamepad.buttons |= (data[5] & 0b00100000) ? 0 : BUTTON_X;
+    ctl->gamepad.buttons |= (data[5] & 0b00001000) ? 0 : BUTTON_Y;
 
     // Shoulder / Trigger
-    gp->buttons |= (data[4] & 0b00100000) ? 0 : BUTTON_SHOULDER_L;  // BLT
-    gp->buttons |= (data[4] & 0b00000010) ? 0 : BUTTON_SHOULDER_R;  // BRT
-    gp->buttons |= (data[5] & 0b10000000) ? 0 : BUTTON_TRIGGER_L;   // BZL
-    gp->buttons |= (data[5] & 0b00000100) ? 0 : BUTTON_TRIGGER_R;   // BZR
-    gp->updated_states |= GAMEPAD_STATE_BUTTON_SHOULDER_L | GAMEPAD_STATE_BUTTON_SHOULDER_R |
-                          GAMEPAD_STATE_BUTTON_TRIGGER_L | GAMEPAD_STATE_BUTTON_TRIGGER_R;
+    ctl->gamepad.buttons |= (data[4] & 0b00100000) ? 0 : BUTTON_SHOULDER_L;  // BLT
+    ctl->gamepad.buttons |= (data[4] & 0b00000010) ? 0 : BUTTON_SHOULDER_R;  // BRT
+    ctl->gamepad.buttons |= (data[5] & 0b10000000) ? 0 : BUTTON_TRIGGER_L;   // BZL
+    ctl->gamepad.buttons |= (data[5] & 0b00000100) ? 0 : BUTTON_TRIGGER_R;   // BZR
 
     // Buttons Misc
-    gp->misc_buttons |= (data[4] & 0b00001000) ? 0 : MISC_BUTTON_SYSTEM;  // Home
-    gp->misc_buttons |= (data[4] & 0b00000100) ? 0 : MISC_BUTTON_HOME;    // +
-    gp->misc_buttons |= (data[4] & 0b00010000) ? 0 : MISC_BUTTON_BACK;    // -
-    gp->updated_states |=
-        GAMEPAD_STATE_MISC_BUTTON_SYSTEM | GAMEPAD_STATE_MISC_BUTTON_HOME | GAMEPAD_STATE_MISC_BUTTON_BACK;
+    ctl->gamepad.misc_buttons |= (data[4] & 0b00001000) ? 0 : MISC_BUTTON_SYSTEM;  // Home
+    ctl->gamepad.misc_buttons |= (data[4] & 0b00000100) ? 0 : MISC_BUTTON_HOME;    // +
+    ctl->gamepad.misc_buttons |= (data[4] & 0b00010000) ? 0 : MISC_BUTTON_BACK;    // -
 
     // printf("lx=%d, ly=%d, rx=%d, ry=%d, lt=%d, rt=%d\n", lx, ly, rx, ry, lt, rt);
     // printf_hexdump(report, len);
@@ -1266,10 +1228,8 @@ void uni_hid_parser_wii_setup(uni_hid_device_t* d) {
 
 void uni_hid_parser_wii_init_report(uni_hid_device_t* d) {
     // Reset old state. Each report contains a full-state.
-    d->gamepad.updated_states = 0;
-    d->gamepad.dpad = 0;
-    d->gamepad.buttons = 0;
-    d->gamepad.misc_buttons = 0;
+    memset(&d->controller, 0, sizeof(d->controller));
+    d->controller.klass = UNI_CONTROLLER_CLASS_GAMEPAD;
 }
 
 void uni_hid_parser_wii_parse_input_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {

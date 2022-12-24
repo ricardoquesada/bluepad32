@@ -25,6 +25,7 @@ limitations under the License.
 #include "uni_bt_defines.h"
 #include "uni_circular_buffer.h"
 #include "uni_config.h"
+#include "uni_controller.h"
 #include "uni_debug.h"
 #include "uni_gamepad.h"
 #include "uni_hid_device_vendors.h"
@@ -594,22 +595,21 @@ void uni_hid_device_set_connection_handle(uni_hid_device_t* d, hci_con_handle_t 
     d->conn.handle = handle;
 }
 
-void uni_hid_device_process_gamepad(uni_hid_device_t* d) {
+void uni_hid_device_process_controller(uni_hid_device_t* d) {
     uni_gamepad_t gp;
-
     if (uni_bt_conn_get_state(&d->conn) != UNI_BT_CONN_STATE_DEVICE_READY) {
         return;
     }
 
-    // Don't propagate the event if there are no changes in the gamepad state.
-    // This could happen when a gamepad process a "control" report instead of
-    // data.
-    if (d->gamepad.updated_states == 0)
-        return;
+    if (d->controller.klass == UNI_CONTROLLER_CLASS_GAMEPAD) {
+        gp = uni_gamepad_remap(&d->controller.gamepad);
+        d->controller.gamepad = gp;
+    }
 
-    gp = uni_gamepad_remap(&d->gamepad);
-
-    uni_get_platform()->on_gamepad_data(d, &gp);
+    if (uni_get_platform()->on_controller_data != NULL)
+        uni_get_platform()->on_controller_data(d, &d->controller);
+    else if (uni_get_platform()->on_gamepad_data != NULL)
+        uni_get_platform()->on_gamepad_data(d, &d->controller.gamepad);
 
     // FIXME: each backend should decide what to do with misc buttons
     process_misc_button_system(d);
@@ -736,12 +736,7 @@ static void misc_button_enable_callback(btstack_timer_source_t* ts) {
 
 // process_mic_button_system swaps joystick port A and B only if there is one device attached.
 static void process_misc_button_system(uni_hid_device_t* d) {
-    if ((d->gamepad.updated_states & GAMEPAD_STATE_MISC_BUTTON_SYSTEM) == 0) {
-        // System button released (or never have been pressed). Return, and clean wait_release button.
-        return;
-    }
-
-    if ((d->gamepad.misc_buttons & MISC_BUTTON_SYSTEM) == 0) {
+    if ((d->controller.gamepad.misc_buttons & MISC_BUTTON_SYSTEM) == 0) {
         // System button released ?
         d->misc_button_wait_release &= ~MISC_BUTTON_SYSTEM;
         return;
@@ -775,12 +770,7 @@ static void process_misc_button_system(uni_hid_device_t* d) {
 
 // process_misc_button_home dumps uni_hid_device debug info in the console.
 static void process_misc_button_home(uni_hid_device_t* d) {
-    if ((d->gamepad.updated_states & GAMEPAD_STATE_MISC_BUTTON_HOME) == 0) {
-        // Home button not available, not pressed or released.
-        return;
-    }
-
-    if ((d->gamepad.misc_buttons & MISC_BUTTON_HOME) == 0) {
+    if ((d->controller.gamepad.misc_buttons & MISC_BUTTON_HOME) == 0) {
         // Home button released ? Clear "wait" flag.
         d->misc_button_wait_release &= ~MISC_BUTTON_HOME;
         return;

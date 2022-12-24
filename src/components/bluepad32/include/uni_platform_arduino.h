@@ -44,6 +44,7 @@ enum {
     ARDUINO_PROPERTY_FLAG_PLAYER_LIGHTBAR = BIT(2),
 };
 
+typedef uni_controller_t arduino_controller_data_t;
 typedef uni_gamepad_t arduino_gamepad_data_t;
 
 typedef struct {
@@ -53,21 +54,26 @@ typedef struct {
     uint16_t vendor_id;   // VID
     uint16_t product_id;  // PID
     uint16_t flags;       // Features like Rumble, LEDs, etc.
-} arduino_gamepad_properties_t;
+} arduino_controller_properties_t;
+typedef arduino_controller_properties_t arduino_gamepad_properties_t;
 
 typedef struct {
     int8_t idx;  // Gamepad index
-    arduino_gamepad_data_t data;
+    arduino_controller_data_t data;
 
     // TODO: To reduce RAM, the properties should be calculated at "request time", and
     // not store them "forever".
-    arduino_gamepad_properties_t properties;
-} arduino_gamepad_t;
+    arduino_controller_properties_t properties;
+} arduino_controller_t;
 
 struct uni_platform* uni_platform_arduino_create(void);
 
+// Deprecated: Call arduino_get_controller_data() instead.
 int arduino_get_gamepad_data(int idx, arduino_gamepad_data_t* out_data);
+int arduino_get_controller_data(int idx, arduino_controller_data_t* out_data);
+// Deprecated: Call arduino_get_controller_properties () instead.
 int arduino_get_gamepad_properties(int idx, arduino_gamepad_properties_t* out_properties);
+int arduino_get_controller_properties(int idx, arduino_gamepad_properties_t* out_properties);
 int arduino_set_player_leds(int idx, uint8_t leds);
 int arduino_set_lightbar_color(int idx, uint8_t r, uint8_t g, uint8_t b);
 int arduino_set_rumble(int idx, uint8_t force, uint8_t duration);

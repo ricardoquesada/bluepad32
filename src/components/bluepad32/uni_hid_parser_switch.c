@@ -23,6 +23,7 @@ limitations under the License.
 #include "uni_hid_parser_switch.h"
 
 #include <assert.h>
+#include "uni_controller.h"
 
 #define ENABLE_SPI_FLASH_DUMP 0
 
@@ -323,32 +324,9 @@ void uni_hid_parser_switch_setup(struct uni_hid_device_s* d) {
 }
 
 void uni_hid_parser_switch_init_report(uni_hid_device_t* d) {
-    uni_gamepad_t* gp = &d->gamepad;
-    memset(gp, 0, sizeof(*gp));
-
-    // It is safe to set the reported states just once, here.
-
-    // Common to all controllers.
-    gp->updated_states = GAMEPAD_STATE_AXIS_X | GAMEPAD_STATE_AXIS_Y;
-    gp->updated_states |=
-        GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y | GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B;
-    gp->updated_states |= GAMEPAD_STATE_BUTTON_TRIGGER_L | GAMEPAD_STATE_BUTTON_TRIGGER_R |
-                          GAMEPAD_STATE_BUTTON_SHOULDER_L | GAMEPAD_STATE_BUTTON_SHOULDER_R;
-    gp->updated_states |=
-        GAMEPAD_STATE_BUTTON_THUMB_L | GAMEPAD_STATE_MISC_BUTTON_SYSTEM | GAMEPAD_STATE_MISC_BUTTON_HOME;
-
-    // Only valid for Pro Controller.
-    switch_instance_t* ins = get_switch_instance(d);
-    if (ins->controller_type == SWITCH_CONTROLLER_TYPE_PRO) {
-        gp->updated_states |= GAMEPAD_STATE_AXIS_RX | GAMEPAD_STATE_AXIS_RY;
-        gp->updated_states |= GAMEPAD_STATE_DPAD;
-        gp->updated_states |= GAMEPAD_STATE_BUTTON_THUMB_R | GAMEPAD_STATE_MISC_BUTTON_BACK;
-    }
-
-    // Only valid for SNES Controller.
-    if (ins->controller_type == SWITCH_CONTROLLER_TYPE_SNES) {
-        gp->updated_states |= GAMEPAD_STATE_DPAD;
-    }
+    uni_controller_t* ctl = &d->controller;
+    memset(ctl, 0, sizeof(*ctl));
+    ctl->klass = UNI_CONTROLLER_CLASS_GAMEPAD;
 }
 
 void uni_hid_parser_switch_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len) {
@@ -631,46 +609,46 @@ static void parse_report_30(struct uni_hid_device_s* d, const uint8_t* report, i
 // Shared both by Switch Pro Controller and Switch SNES.
 static void parse_report_30_pro_controller(uni_hid_device_t* d, const struct switch_report_30_s* r) {
     switch_instance_t* ins = get_switch_instance(d);
-    uni_gamepad_t* gp = &d->gamepad;
+    uni_controller_t* ctl = &d->controller;
     // Buttons "right"
-    gp->buttons |= (r->buttons_right & 0b00000001) ? BUTTON_X : 0;           // Y
-    gp->buttons |= (r->buttons_right & 0b00000010) ? BUTTON_Y : 0;           // X
-    gp->buttons |= (r->buttons_right & 0b00000100) ? BUTTON_A : 0;           // B
-    gp->buttons |= (r->buttons_right & 0b00001000) ? BUTTON_B : 0;           // A
-    gp->buttons |= (r->buttons_right & 0b01000000) ? BUTTON_SHOULDER_R : 0;  // R
-    gp->buttons |= (r->buttons_right & 0b10000000) ? BUTTON_TRIGGER_R : 0;   // ZR
+    ctl->gamepad.buttons |= (r->buttons_right & 0b00000001) ? BUTTON_X : 0;           // Y
+    ctl->gamepad.buttons |= (r->buttons_right & 0b00000010) ? BUTTON_Y : 0;           // X
+    ctl->gamepad.buttons |= (r->buttons_right & 0b00000100) ? BUTTON_A : 0;           // B
+    ctl->gamepad.buttons |= (r->buttons_right & 0b00001000) ? BUTTON_B : 0;           // A
+    ctl->gamepad.buttons |= (r->buttons_right & 0b01000000) ? BUTTON_SHOULDER_R : 0;  // R
+    ctl->gamepad.buttons |= (r->buttons_right & 0b10000000) ? BUTTON_TRIGGER_R : 0;   // ZR
 
     // Buttons "left"
-    gp->dpad |= (r->buttons_left & 0b00000001) ? DPAD_DOWN : 0;
-    gp->dpad |= (r->buttons_left & 0b00000010) ? DPAD_UP : 0;
-    gp->dpad |= (r->buttons_left & 0b00000100) ? DPAD_RIGHT : 0;
-    gp->dpad |= (r->buttons_left & 0b00001000) ? DPAD_LEFT : 0;
-    gp->buttons |= (r->buttons_left & 0b01000000) ? BUTTON_SHOULDER_L : 0;  // L
-    gp->buttons |= (r->buttons_left & 0b10000000) ? BUTTON_TRIGGER_L : 0;   // ZL
+    ctl->gamepad.dpad |= (r->buttons_left & 0b00000001) ? DPAD_DOWN : 0;
+    ctl->gamepad.dpad |= (r->buttons_left & 0b00000010) ? DPAD_UP : 0;
+    ctl->gamepad.dpad |= (r->buttons_left & 0b00000100) ? DPAD_RIGHT : 0;
+    ctl->gamepad.dpad |= (r->buttons_left & 0b00001000) ? DPAD_LEFT : 0;
+    ctl->gamepad.buttons |= (r->buttons_left & 0b01000000) ? BUTTON_SHOULDER_L : 0;  // L
+    ctl->gamepad.buttons |= (r->buttons_left & 0b10000000) ? BUTTON_TRIGGER_L : 0;   // ZL
 
     // Misc
-    gp->misc_buttons |= (r->buttons_misc & 0b00000001) ? MISC_BUTTON_BACK : 0;    // -
-    gp->misc_buttons |= (r->buttons_misc & 0b00000010) ? MISC_BUTTON_HOME : 0;    // +
-    gp->misc_buttons |= (r->buttons_misc & 0b00010000) ? MISC_BUTTON_SYSTEM : 0;  // Home
-    gp->misc_buttons |= (r->buttons_misc & 0b00100000) ? 0 : 0;                   // Capture (unused)
+    ctl->gamepad.misc_buttons |= (r->buttons_misc & 0b00000001) ? MISC_BUTTON_BACK : 0;    // -
+    ctl->gamepad.misc_buttons |= (r->buttons_misc & 0b00000010) ? MISC_BUTTON_HOME : 0;    // +
+    ctl->gamepad.misc_buttons |= (r->buttons_misc & 0b00010000) ? MISC_BUTTON_SYSTEM : 0;  // Home
+    ctl->gamepad.misc_buttons |= (r->buttons_misc & 0b00100000) ? 0 : 0;                   // Capture (unused)
 
     // Sticks, not present on SNES model.
     if (ins->controller_type == SWITCH_CONTROLLER_TYPE_PRO) {
         // Thumbs
-        gp->buttons |= (r->buttons_misc & 0b00000100) ? BUTTON_THUMB_R : 0;  // Thumb R
-        gp->buttons |= (r->buttons_misc & 0b00001000) ? BUTTON_THUMB_L : 0;  // Thumb L
+        ctl->gamepad.buttons |= (r->buttons_misc & 0b00000100) ? BUTTON_THUMB_R : 0;  // Thumb R
+        ctl->gamepad.buttons |= (r->buttons_misc & 0b00001000) ? BUTTON_THUMB_L : 0;  // Thumb L
 
         // Stick left
         int16_t lx = r->stick_left[0] | ((r->stick_left[1] & 0x0f) << 8);
-        gp->axis_x = calibrate_axis(lx, ins->cal_x);
+        ctl->gamepad.axis_x = calibrate_axis(lx, ins->cal_x);
         int16_t ly = (r->stick_left[1] >> 4) | (r->stick_left[2] << 4);
-        gp->axis_y = -calibrate_axis(ly, ins->cal_y);
+        ctl->gamepad.axis_y = -calibrate_axis(ly, ins->cal_y);
 
         // Stick right
         int16_t rx = r->stick_right[0] | ((r->stick_right[1] & 0x0f) << 8);
-        gp->axis_rx = calibrate_axis(rx, ins->cal_rx);
+        ctl->gamepad.axis_rx = calibrate_axis(rx, ins->cal_rx);
         int16_t ry = (r->stick_right[1] >> 4) | (r->stick_right[2] << 4);
-        gp->axis_ry = -calibrate_axis(ry, ins->cal_ry);
+        ctl->gamepad.axis_ry = -calibrate_axis(ry, ins->cal_ry);
         logd("uncalibrated values: x=%d,y=%d,rx=%d,ry=%d\n", lx, ly, rx, ry);
     }
 }
@@ -678,59 +656,59 @@ static void parse_report_30_pro_controller(uni_hid_device_t* d, const struct swi
 static void parse_report_30_joycon_left(uni_hid_device_t* d, const struct switch_report_30_s* r) {
     // JoyCons are treated as standalone controllers. So the buttons/axis are
     // "rotated".
-    uni_gamepad_t* gp = &d->gamepad;
+    uni_controller_t* ctl = &d->controller;
     switch_instance_t* ins = get_switch_instance(d);
 
     // Axis (left and only stick)
     int16_t lx = r->stick_left[0] | ((r->stick_left[1] & 0x0f) << 8);
-    gp->axis_y = -calibrate_axis(lx, ins->cal_x);
+    ctl->gamepad.axis_y = -calibrate_axis(lx, ins->cal_x);
     int16_t ly = (r->stick_left[1] >> 4) | (r->stick_left[2] << 4);
-    gp->axis_x = -calibrate_axis(ly, ins->cal_y);
+    ctl->gamepad.axis_x = -calibrate_axis(ly, ins->cal_y);
 
     // Buttons
-    gp->buttons |= (r->buttons_left & 0b00000001) ? BUTTON_B : 0;
-    gp->buttons |= (r->buttons_left & 0b00000010) ? BUTTON_X : 0;
-    gp->buttons |= (r->buttons_left & 0b00000100) ? BUTTON_Y : 0;
-    gp->buttons |= (r->buttons_left & 0b00001000) ? BUTTON_A : 0;
-    gp->buttons |= (r->buttons_left & 0b00010000) ? BUTTON_SHOULDER_R : 0;  // SR
-    gp->buttons |= (r->buttons_left & 0b00100000) ? BUTTON_SHOULDER_L : 0;  // SL
-    gp->buttons |= (r->buttons_left & 0b01000000) ? BUTTON_TRIGGER_L : 0;   // L
-    gp->buttons |= (r->buttons_left & 0b10000000) ? BUTTON_TRIGGER_R : 0;   // ZL
-    gp->buttons |= (r->buttons_misc & 0b00001000) ? BUTTON_THUMB_L : 0;
+    ctl->gamepad.buttons |= (r->buttons_left & 0b00000001) ? BUTTON_B : 0;
+    ctl->gamepad.buttons |= (r->buttons_left & 0b00000010) ? BUTTON_X : 0;
+    ctl->gamepad.buttons |= (r->buttons_left & 0b00000100) ? BUTTON_Y : 0;
+    ctl->gamepad.buttons |= (r->buttons_left & 0b00001000) ? BUTTON_A : 0;
+    ctl->gamepad.buttons |= (r->buttons_left & 0b00010000) ? BUTTON_SHOULDER_R : 0;  // SR
+    ctl->gamepad.buttons |= (r->buttons_left & 0b00100000) ? BUTTON_SHOULDER_L : 0;  // SL
+    ctl->gamepad.buttons |= (r->buttons_left & 0b01000000) ? BUTTON_TRIGGER_L : 0;   // L
+    ctl->gamepad.buttons |= (r->buttons_left & 0b10000000) ? BUTTON_TRIGGER_R : 0;   // ZL
+    ctl->gamepad.buttons |= (r->buttons_misc & 0b00001000) ? BUTTON_THUMB_L : 0;
 
     // Misc buttons
     // Since the JoyCon is in horizontal mode, map "-" / "Capture" as if they where "-" and "+"
-    gp->misc_buttons |= (r->buttons_misc & 0b00000001) ? MISC_BUTTON_BACK : 0;  // -
-    gp->misc_buttons |= (r->buttons_misc & 0b00100000) ? MISC_BUTTON_HOME : 0;  // Capture
+    ctl->gamepad.misc_buttons |= (r->buttons_misc & 0b00000001) ? MISC_BUTTON_BACK : 0;  // -
+    ctl->gamepad.misc_buttons |= (r->buttons_misc & 0b00100000) ? MISC_BUTTON_HOME : 0;  // Capture
 }
 
 static void parse_report_30_joycon_right(uni_hid_device_t* d, const struct switch_report_30_s* r) {
     // JoyCons are treated as standalone controllers. So the buttons/axis are
     // "rotated".
-    uni_gamepad_t* gp = &d->gamepad;
+    uni_controller_t* ctl = &d->controller;
     switch_instance_t* ins = get_switch_instance(d);
 
     // Axis (left and only stick)
     int16_t rx = r->stick_right[0] | ((r->stick_right[1] & 0x0f) << 8);
-    gp->axis_y = calibrate_axis(rx, ins->cal_rx);
+    ctl->gamepad.axis_y = calibrate_axis(rx, ins->cal_rx);
     int16_t ry = (r->stick_right[1] >> 4) | (r->stick_right[2] << 4);
-    gp->axis_x = calibrate_axis(ry, ins->cal_ry);
+    ctl->gamepad.axis_x = calibrate_axis(ry, ins->cal_ry);
 
     // Buttons
-    gp->buttons |= (r->buttons_right & 0b00000001) ? BUTTON_Y : 0;
-    gp->buttons |= (r->buttons_right & 0b00000010) ? BUTTON_B : 0;
-    gp->buttons |= (r->buttons_right & 0b00000100) ? BUTTON_X : 0;
-    gp->buttons |= (r->buttons_right & 0b00001000) ? BUTTON_A : 0;
-    gp->buttons |= (r->buttons_right & 0b00010000) ? BUTTON_SHOULDER_R : 0;  // SR
-    gp->buttons |= (r->buttons_right & 0b00100000) ? BUTTON_SHOULDER_L : 0;  // SL
-    gp->buttons |= (r->buttons_right & 0b01000000) ? BUTTON_TRIGGER_L : 0;   // R
-    gp->buttons |= (r->buttons_right & 0b10000000) ? BUTTON_TRIGGER_R : 0;   // ZR
-    gp->buttons |= (r->buttons_misc & 0b00000100) ? BUTTON_THUMB_L : 0;
+    ctl->gamepad.buttons |= (r->buttons_right & 0b00000001) ? BUTTON_Y : 0;
+    ctl->gamepad.buttons |= (r->buttons_right & 0b00000010) ? BUTTON_B : 0;
+    ctl->gamepad.buttons |= (r->buttons_right & 0b00000100) ? BUTTON_X : 0;
+    ctl->gamepad.buttons |= (r->buttons_right & 0b00001000) ? BUTTON_A : 0;
+    ctl->gamepad.buttons |= (r->buttons_right & 0b00010000) ? BUTTON_SHOULDER_R : 0;  // SR
+    ctl->gamepad.buttons |= (r->buttons_right & 0b00100000) ? BUTTON_SHOULDER_L : 0;  // SL
+    ctl->gamepad.buttons |= (r->buttons_right & 0b01000000) ? BUTTON_TRIGGER_L : 0;   // R
+    ctl->gamepad.buttons |= (r->buttons_right & 0b10000000) ? BUTTON_TRIGGER_R : 0;   // ZR
+    ctl->gamepad.buttons |= (r->buttons_misc & 0b00000100) ? BUTTON_THUMB_L : 0;
 
     // Misc buttons
     // Since the JoyCon is in horizontal mode, map "Home" / "+" as if they where "-" and "+"
-    gp->misc_buttons |= (r->buttons_misc & 0b00010000) ? MISC_BUTTON_BACK : 0;  // Home
-    gp->misc_buttons |= (r->buttons_misc & 0b00000010) ? MISC_BUTTON_HOME : 0;  // +
+    ctl->gamepad.misc_buttons |= (r->buttons_misc & 0b00010000) ? MISC_BUTTON_BACK : 0;  // Home
+    ctl->gamepad.misc_buttons |= (r->buttons_misc & 0b00000010) ? MISC_BUTTON_HOME : 0;  // +
 }
 
 // Process 0x3f input report: SWITCH_INPUT_BUTTON_EVENT
@@ -740,35 +718,35 @@ static void parse_report_3f(struct uni_hid_device_s* d, const uint8_t* report, i
     // Expecting something like:
     // (a1) 3F 00 00 08 D0 81 0F 88 F0 81 6F 8E
     ARG_UNUSED(len);
-    uni_gamepad_t* gp = &d->gamepad;
+    uni_controller_t* ctl = &d->controller;
     const struct switch_report_3f_s* r = (const struct switch_report_3f_s*)&report[1];
 
     // Button main
-    gp->buttons |= (r->buttons_main & 0b00000001) ? BUTTON_A : 0;           // B
-    gp->buttons |= (r->buttons_main & 0b00000010) ? BUTTON_B : 0;           // A
-    gp->buttons |= (r->buttons_main & 0b00000100) ? BUTTON_X : 0;           // Y
-    gp->buttons |= (r->buttons_main & 0b00001000) ? BUTTON_Y : 0;           // X
-    gp->buttons |= (r->buttons_main & 0b00010000) ? BUTTON_SHOULDER_L : 0;  // L
-    gp->buttons |= (r->buttons_main & 0b00100000) ? BUTTON_SHOULDER_R : 0;  // R
-    gp->buttons |= (r->buttons_main & 0b01000000) ? BUTTON_TRIGGER_L : 0;   // ZL
-    gp->buttons |= (r->buttons_main & 0b10000000) ? BUTTON_TRIGGER_R : 0;   // ZR
+    ctl->gamepad.buttons |= (r->buttons_main & 0b00000001) ? BUTTON_A : 0;           // B
+    ctl->gamepad.buttons |= (r->buttons_main & 0b00000010) ? BUTTON_B : 0;           // A
+    ctl->gamepad.buttons |= (r->buttons_main & 0b00000100) ? BUTTON_X : 0;           // Y
+    ctl->gamepad.buttons |= (r->buttons_main & 0b00001000) ? BUTTON_Y : 0;           // X
+    ctl->gamepad.buttons |= (r->buttons_main & 0b00010000) ? BUTTON_SHOULDER_L : 0;  // L
+    ctl->gamepad.buttons |= (r->buttons_main & 0b00100000) ? BUTTON_SHOULDER_R : 0;  // R
+    ctl->gamepad.buttons |= (r->buttons_main & 0b01000000) ? BUTTON_TRIGGER_L : 0;   // ZL
+    ctl->gamepad.buttons |= (r->buttons_main & 0b10000000) ? BUTTON_TRIGGER_R : 0;   // ZR
 
     // Button aux
-    gp->misc_buttons |= (r->buttons_aux & 0b00000001) ? MISC_BUTTON_BACK : 0;    // -
-    gp->misc_buttons |= (r->buttons_aux & 0b00000010) ? MISC_BUTTON_HOME : 0;    // +
-    gp->buttons |= (r->buttons_aux & 0b00000100) ? BUTTON_THUMB_L : 0;           // Thumb L
-    gp->buttons |= (r->buttons_aux & 0b00001000) ? BUTTON_THUMB_R : 0;           // Thumb R
-    gp->misc_buttons |= (r->buttons_aux & 0b00010000) ? MISC_BUTTON_SYSTEM : 0;  // Home
-    gp->misc_buttons |= (r->buttons_aux & 0b00100000) ? 0 : 0;                   // Capture (unused)
+    ctl->gamepad.misc_buttons |= (r->buttons_aux & 0b00000001) ? MISC_BUTTON_BACK : 0;    // -
+    ctl->gamepad.misc_buttons |= (r->buttons_aux & 0b00000010) ? MISC_BUTTON_HOME : 0;    // +
+    ctl->gamepad.buttons |= (r->buttons_aux & 0b00000100) ? BUTTON_THUMB_L : 0;           // Thumb L
+    ctl->gamepad.buttons |= (r->buttons_aux & 0b00001000) ? BUTTON_THUMB_R : 0;           // Thumb R
+    ctl->gamepad.misc_buttons |= (r->buttons_aux & 0b00010000) ? MISC_BUTTON_SYSTEM : 0;  // Home
+    ctl->gamepad.misc_buttons |= (r->buttons_aux & 0b00100000) ? 0 : 0;                   // Capture (unused)
 
     // Dpad
-    gp->dpad = uni_hid_parser_hat_to_dpad(r->hat);
+    ctl->gamepad.dpad = uni_hid_parser_hat_to_dpad(r->hat);
 
     // Axis
-    gp->axis_x = ((r->x_msb << 8) | r->x_lsb) * AXIS_NORMALIZE_RANGE / 65536 - AXIS_NORMALIZE_RANGE / 2;
-    gp->axis_y = ((r->y_msb << 8) | r->y_lsb) * AXIS_NORMALIZE_RANGE / 65536 - AXIS_NORMALIZE_RANGE / 2;
-    gp->axis_rx = ((r->rx_msb << 8) | r->rx_lsb) * AXIS_NORMALIZE_RANGE / 65536 - AXIS_NORMALIZE_RANGE / 2;
-    gp->axis_ry = ((r->ry_msb << 8) | r->ry_lsb) * AXIS_NORMALIZE_RANGE / 65536 - AXIS_NORMALIZE_RANGE / 2;
+    ctl->gamepad.axis_x = ((r->x_msb << 8) | r->x_lsb) * AXIS_NORMALIZE_RANGE / 65536 - AXIS_NORMALIZE_RANGE / 2;
+    ctl->gamepad.axis_y = ((r->y_msb << 8) | r->y_lsb) * AXIS_NORMALIZE_RANGE / 65536 - AXIS_NORMALIZE_RANGE / 2;
+    ctl->gamepad.axis_rx = ((r->rx_msb << 8) | r->rx_lsb) * AXIS_NORMALIZE_RANGE / 65536 - AXIS_NORMALIZE_RANGE / 2;
+    ctl->gamepad.axis_ry = ((r->ry_msb << 8) | r->ry_lsb) * AXIS_NORMALIZE_RANGE / 65536 - AXIS_NORMALIZE_RANGE / 2;
 }
 
 static void fsm_dump_rom(struct uni_hid_device_s* d) {

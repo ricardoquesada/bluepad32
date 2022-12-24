@@ -183,19 +183,14 @@ typedef struct {
     int32_t brake;
     int32_t throttle;
 
-    // Usage Page: 0x06 (Generic dev controls)
-    uint16_t battery;
-
     // Usage Page: 0x09 (Button)
     uint16_t buttons;
 
     // Misc buttons (from 0x0c (Consumer) and others)
     uint8_t misc_buttons;
 
-    // FIXME: It might be OK to get rid of this variable. Or in any case, it
-    // should be moved ouside uni_gamepad_t?
-    // Indicates which states have been updated
-    uint32_t updated_states;
+    int16_t gyro[3];
+    int16_t accel[3];
 } uni_gamepad_t;
 
 // Represents the mapping. Each entry contains the new button to be used,

@@ -28,8 +28,10 @@ limitations under the License.
 #include "uni_hid_parser.h"
 
 void uni_hid_parser_smarttvremote_init_report(uni_hid_device_t* d) {
-    // Reset old state. Each report contains a full-state.
-    d->gamepad.updated_states = 0;
+    uni_controller_t* ctl = &d->controller;
+    memset(ctl, 0, sizeof(*ctl));
+
+    ctl->klass = UNI_CONTROLLER_CLASS_GAMEPAD;
 }
 void uni_hid_parser_smarttvremote_parse_usage(uni_hid_device_t* d,
                                               hid_globals_t* globals,
@@ -37,12 +39,12 @@ void uni_hid_parser_smarttvremote_parse_usage(uni_hid_device_t* d,
                                               uint16_t usage,
                                               int32_t value) {
     ARG_UNUSED(globals);
-    uni_gamepad_t* gp = &d->gamepad;
+    uni_controller_t* ctl = &d->controller;
     switch (usage_page) {
         case HID_USAGE_PAGE_GENERIC_DEVICE_CONTROLS:
             switch (usage) {
                 case HID_USAGE_BATTERY_STRENGTH:
-                    gp->battery = value;
+                    ctl->battery = value;
                     break;
                 default:
                     logi(
@@ -61,47 +63,29 @@ void uni_hid_parser_smarttvremote_parse_usage(uni_hid_device_t* d,
                     break;
                 case HID_USAGE_KB_RIGHT_ARROW:
                     if (value)
-                        gp->dpad |= DPAD_RIGHT;
-                    else
-                        gp->dpad &= ~DPAD_RIGHT;
-                    gp->updated_states |= GAMEPAD_STATE_DPAD;
+                        ctl->gamepad.dpad |= DPAD_RIGHT;
                     break;
                 case HID_USAGE_KB_LEFT_ARROW:
                     if (value)
-                        gp->dpad |= DPAD_LEFT;
-                    else
-                        gp->dpad &= ~DPAD_LEFT;
-                    gp->updated_states |= GAMEPAD_STATE_DPAD;
+                        ctl->gamepad.dpad |= DPAD_LEFT;
                     break;
                 case HID_USAGE_KB_DOWN_ARROW:
                     if (value)
-                        gp->dpad |= DPAD_DOWN;
-                    else
-                        gp->dpad &= ~DPAD_DOWN;
-                    gp->updated_states |= GAMEPAD_STATE_DPAD;
+                        ctl->gamepad.dpad |= DPAD_DOWN;
                     break;
                 case HID_USAGE_KB_UP_ARROW:
                     if (value)
-                        gp->dpad |= DPAD_UP;
-                    else
-                        gp->dpad &= ~DPAD_UP;
-                    gp->updated_states |= GAMEPAD_STATE_DPAD;
+                        ctl->gamepad.dpad |= DPAD_UP;
                     break;
                 case HID_USAGE_KP_ENTER:
                     if (value)
-                        gp->buttons |= BUTTON_A;
-                    else
-                        gp->buttons &= ~BUTTON_A;
-                    gp->updated_states |= GAMEPAD_STATE_BUTTON_A;
+                        ctl->gamepad.buttons |= BUTTON_A;
                     break;
                 case HID_USAGE_KB_POWER:
                     break;                      // unmapped apparently
                 case HID_USAGE_KB_RESERVED_F1:  // Back button (reserved)
                     if (value)
-                        gp->misc_buttons |= MISC_BUTTON_BACK;
-                    else
-                        gp->misc_buttons &= ~MISC_BUTTON_BACK;
-                    gp->updated_states |= GAMEPAD_STATE_MISC_BUTTON_BACK;
+                        ctl->gamepad.misc_buttons |= MISC_BUTTON_BACK;
                     break;
                 default:
                     logi(
@@ -115,10 +99,7 @@ void uni_hid_parser_smarttvremote_parse_usage(uni_hid_device_t* d,
             switch (usage) {
                 case HID_USAGE_MENU:
                     if (value)
-                        gp->misc_buttons |= MISC_BUTTON_SYSTEM;
-                    else
-                        gp->misc_buttons &= ~MISC_BUTTON_SYSTEM;
-                    gp->updated_states |= GAMEPAD_STATE_MISC_BUTTON_SYSTEM;
+                        ctl->gamepad.misc_buttons |= MISC_BUTTON_SYSTEM;
                     break;
                 case HID_USAGE_MEDIA_SELECT_TV:
                 case HID_USAGE_FAST_FORWARD:
@@ -131,10 +112,7 @@ void uni_hid_parser_smarttvremote_parse_usage(uni_hid_device_t* d,
                     break;
                 case HID_USAGE_AC_HOME:
                     if (value)
-                        gp->misc_buttons |= MISC_BUTTON_HOME;
-                    else
-                        gp->misc_buttons &= ~MISC_BUTTON_HOME;
-                    gp->updated_states |= GAMEPAD_STATE_MISC_BUTTON_HOME;
+                        ctl->gamepad.misc_buttons |= MISC_BUTTON_HOME;
                     break;
                 default:
                     logi(

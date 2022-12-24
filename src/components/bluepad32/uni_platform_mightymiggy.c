@@ -2550,73 +2550,55 @@ static void mightymiggy_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) 
     RuntimeControllerInfo* cinfo = getControllerInstance(d);
 
     // Convert data to our internal representation, starting with analog sticks
-    if (gp->updated_states & GAMEPAD_STATE_AXIS_X) {
-        cinfo->leftAnalog.x = constrain16(gp->axis_x, BLUEPAD32_ANALOG_MIN, BLUEPAD32_ANALOG_MAX);
-    }
-    if (gp->updated_states & GAMEPAD_STATE_AXIS_Y) {
-        cinfo->leftAnalog.y = constrain16(gp->axis_y, BLUEPAD32_ANALOG_MIN, BLUEPAD32_ANALOG_MAX);
-    }
-    if (gp->updated_states & GAMEPAD_STATE_AXIS_RX) {
-        cinfo->rightAnalog.x = constrain16(gp->axis_rx, BLUEPAD32_ANALOG_MIN, BLUEPAD32_ANALOG_MAX);
-    }
-    if (gp->updated_states & GAMEPAD_STATE_AXIS_RY) {
-        cinfo->rightAnalog.y = constrain16(gp->axis_ry, BLUEPAD32_ANALOG_MIN, BLUEPAD32_ANALOG_MAX);
-    }
+    cinfo->leftAnalog.x = constrain16(gp->axis_x, BLUEPAD32_ANALOG_MIN, BLUEPAD32_ANALOG_MAX);
+    cinfo->leftAnalog.y = constrain16(gp->axis_y, BLUEPAD32_ANALOG_MIN, BLUEPAD32_ANALOG_MAX);
+    cinfo->rightAnalog.x = constrain16(gp->axis_rx, BLUEPAD32_ANALOG_MIN, BLUEPAD32_ANALOG_MAX);
+    cinfo->rightAnalog.y = constrain16(gp->axis_ry, BLUEPAD32_ANALOG_MIN, BLUEPAD32_ANALOG_MAX);
 
     // D-Pad
-    if (gp->updated_states & GAMEPAD_STATE_DPAD) {
-        if ((gp->dpad & 0x01) != 0) {
-            cinfo->buttonWord |= BTN_PAD_UP;
-        } else {
-            cinfo->buttonWord &= ~BTN_PAD_UP;
-        }
-        if ((gp->dpad & 0x02) != 0) {
-            cinfo->buttonWord |= BTN_PAD_DOWN;
-        } else {
-            cinfo->buttonWord &= ~BTN_PAD_DOWN;
-        }
-        if ((gp->dpad & 0x04) != 0) {
-            cinfo->buttonWord |= BTN_PAD_RIGHT;
-        } else {
-            cinfo->buttonWord &= ~BTN_PAD_RIGHT;
-        }
-        if ((gp->dpad & 0x08) != 0) {
-            cinfo->buttonWord |= BTN_PAD_LEFT;
-        } else {
-            cinfo->buttonWord &= ~BTN_PAD_LEFT;
-        }
+    if ((gp->dpad & 0x01) != 0) {
+        cinfo->buttonWord |= BTN_PAD_UP;
+    } else {
+        cinfo->buttonWord &= ~BTN_PAD_UP;
+    }
+    if ((gp->dpad & 0x02) != 0) {
+        cinfo->buttonWord |= BTN_PAD_DOWN;
+    } else {
+        cinfo->buttonWord &= ~BTN_PAD_DOWN;
+    }
+    if ((gp->dpad & 0x04) != 0) {
+        cinfo->buttonWord |= BTN_PAD_RIGHT;
+    } else {
+        cinfo->buttonWord &= ~BTN_PAD_RIGHT;
+    }
+    if ((gp->dpad & 0x08) != 0) {
+        cinfo->buttonWord |= BTN_PAD_LEFT;
+    } else {
+        cinfo->buttonWord &= ~BTN_PAD_LEFT;
     }
 
     // "Ordinary" buttons
     switch (d->controller_subtype) {
         default:
-            if (gp->updated_states & GAMEPAD_STATE_BUTTON_A) {
-                if ((gp->buttons & BUTTON_A) != 0) {
-                    cinfo->buttonWord |= BTN_A;
-                } else {
-                    cinfo->buttonWord &= ~BTN_A;
-                }
+            if ((gp->buttons & BUTTON_A) != 0) {
+                cinfo->buttonWord |= BTN_A;
+            } else {
+                cinfo->buttonWord &= ~BTN_A;
             }
-            if (gp->updated_states & GAMEPAD_STATE_BUTTON_B) {
-                if ((gp->buttons & BUTTON_B) != 0) {
-                    cinfo->buttonWord |= BTN_B;
-                } else {
-                    cinfo->buttonWord &= ~BTN_B;
-                }
+            if ((gp->buttons & BUTTON_B) != 0) {
+                cinfo->buttonWord |= BTN_B;
+            } else {
+                cinfo->buttonWord &= ~BTN_B;
             }
-            if (gp->updated_states & GAMEPAD_STATE_BUTTON_X) {
-                if ((gp->buttons & BUTTON_X) != 0) {
-                    cinfo->buttonWord |= BTN_X;
-                } else {
-                    cinfo->buttonWord &= ~BTN_X;
-                }
+            if ((gp->buttons & BUTTON_X) != 0) {
+                cinfo->buttonWord |= BTN_X;
+            } else {
+                cinfo->buttonWord &= ~BTN_X;
             }
-            if (gp->updated_states & GAMEPAD_STATE_BUTTON_Y) {
-                if ((gp->buttons & BUTTON_Y) != 0) {
-                    cinfo->buttonWord |= BTN_Y;
-                } else {
-                    cinfo->buttonWord &= ~BTN_Y;
-                }
+            if ((gp->buttons & BUTTON_Y) != 0) {
+                cinfo->buttonWord |= BTN_Y;
+            } else {
+                cinfo->buttonWord &= ~BTN_Y;
             }
             break;
         case CONTROLLER_SUBTYPE_WIIMOTE_HORIZ:
@@ -2624,82 +2606,62 @@ static void mightymiggy_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) 
              * using a Wiimote in sideways mode does not work out too well with
              * how we map them to the DB-9 port, so let's make a special case.
              */
-            if (gp->updated_states & GAMEPAD_STATE_BUTTON_A) {
-                // This is actually button "1", fits nicely to our B1!
-                if ((gp->buttons & BUTTON_A) != 0) {
-                    cinfo->buttonWord |= BTN_X;
-                } else {
-                    cinfo->buttonWord &= ~BTN_X;
-                }
+            // This is actually button "1", fits nicely to our B1!
+            if ((gp->buttons & BUTTON_A) != 0) {
+                cinfo->buttonWord |= BTN_X;
+            } else {
+                cinfo->buttonWord &= ~BTN_X;
             }
-            if (gp->updated_states & GAMEPAD_STATE_BUTTON_B) {
-                // Button "2" -> B2
-                if ((gp->buttons & BUTTON_B) != 0) {
-                    cinfo->buttonWord |= BTN_A;
-                } else {
-                    cinfo->buttonWord &= ~BTN_A;
-                }
+            // Button "2" -> B2
+            if ((gp->buttons & BUTTON_B) != 0) {
+                cinfo->buttonWord |= BTN_A;
+            } else {
+                cinfo->buttonWord &= ~BTN_A;
             }
-            if (gp->updated_states & GAMEPAD_STATE_BUTTON_X) {
-                // Button "A" (The big one)
-                if ((gp->buttons & BUTTON_X) != 0) {
-                    cinfo->buttonWord |= BTN_B;
-                } else {
-                    cinfo->buttonWord &= ~BTN_B;
-                }
+            // Button "A" (The big one)
+            if ((gp->buttons & BUTTON_X) != 0) {
+                cinfo->buttonWord |= BTN_B;
+            } else {
+                cinfo->buttonWord &= ~BTN_B;
             }
-            if (gp->updated_states & GAMEPAD_STATE_BUTTON_Y) {
-                // Button "B" (Trigger)
-                if ((gp->buttons & BUTTON_Y) != 0) {
-                    cinfo->buttonWord |= BTN_Y;
-                } else {
-                    cinfo->buttonWord &= ~BTN_Y;
-                }
+            // Button "B" (Trigger)
+            if ((gp->buttons & BUTTON_Y) != 0) {
+                cinfo->buttonWord |= BTN_Y;
+            } else {
+                cinfo->buttonWord &= ~BTN_Y;
             }
             break;
     }
 
-    if (gp->updated_states & GAMEPAD_STATE_BUTTON_SHOULDER_L) {
-        if ((gp->buttons & BUTTON_SHOULDER_L) != 0) {
-            cinfo->buttonWord |= BTN_SHOULDER_L;
-        } else {
-            cinfo->buttonWord &= ~BTN_SHOULDER_L;
-        }
+    if ((gp->buttons & BUTTON_SHOULDER_L) != 0) {
+        cinfo->buttonWord |= BTN_SHOULDER_L;
+    } else {
+        cinfo->buttonWord &= ~BTN_SHOULDER_L;
     }
-    if (gp->updated_states & GAMEPAD_STATE_BUTTON_SHOULDER_R) {
-        if ((gp->buttons & BUTTON_SHOULDER_R) != 0) {
-            cinfo->buttonWord |= BTN_SHOULDER_R;
-        } else {
-            cinfo->buttonWord &= ~BTN_SHOULDER_R;
-        }
+    if ((gp->buttons & BUTTON_SHOULDER_R) != 0) {
+        cinfo->buttonWord |= BTN_SHOULDER_R;
+    } else {
+        cinfo->buttonWord &= ~BTN_SHOULDER_R;
     }
-    if (gp->updated_states & GAMEPAD_STATE_BUTTON_TRIGGER_L) {
-        if ((gp->buttons & BUTTON_TRIGGER_L) != 0) {
-            cinfo->buttonWord |= BTN_TRIGGER_L;
-        } else {
-            cinfo->buttonWord &= ~BTN_TRIGGER_L;
-        }
+    if ((gp->buttons & BUTTON_TRIGGER_L) != 0) {
+        cinfo->buttonWord |= BTN_TRIGGER_L;
+    } else {
+        cinfo->buttonWord &= ~BTN_TRIGGER_L;
     }
-    if (gp->updated_states & GAMEPAD_STATE_BUTTON_TRIGGER_R) {
-        if ((gp->buttons & BUTTON_TRIGGER_R) != 0) {
-            cinfo->buttonWord |= BTN_TRIGGER_R;
-        } else {
-            cinfo->buttonWord &= ~BTN_TRIGGER_R;
-        }
+    if ((gp->buttons & BUTTON_TRIGGER_R) != 0) {
+        cinfo->buttonWord |= BTN_TRIGGER_R;
+    } else {
+        cinfo->buttonWord &= ~BTN_TRIGGER_R;
     }
-    if (gp->updated_states & GAMEPAD_STATE_BUTTON_THUMB_L) {
-        if ((gp->buttons & BUTTON_THUMB_L) != 0) {
-            cinfo->buttonWord |= BTN_THUMB_L;
-        } else {
-            cinfo->buttonWord &= ~BTN_THUMB_L;
-        }
+    if ((gp->buttons & BUTTON_THUMB_L) != 0) {
+        cinfo->buttonWord |= BTN_THUMB_L;
+    } else {
+        cinfo->buttonWord &= ~BTN_THUMB_L;
     }
-    if (gp->updated_states & GAMEPAD_STATE_BUTTON_THUMB_R) {
-        if ((gp->buttons & BUTTON_THUMB_R) != 0) {
-            cinfo->buttonWord |= BTN_THUMB_R;
-        } else {
-            cinfo->buttonWord &= ~BTN_THUMB_R;
-        }
+    if ((gp->buttons & BUTTON_THUMB_R) != 0) {
+        cinfo->buttonWord |= BTN_THUMB_R;
+    } else {
+        cinfo->buttonWord &= ~BTN_THUMB_R;
     }
 
 #ifdef USE_PEDALS_AS_TRIGGERS
@@ -2707,19 +2669,15 @@ static void mightymiggy_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) 
      * accelerator (right) and brake (left). Let's map them to the triggers.
      */
     if (d->controller_type == CONTROLLER_TYPE_AndroidController) {
-        if (gp->updated_states & GAMEPAD_STATE_THROTTLE) {
-            if (gp->throttle > PEDAL_THRESHOLD) {
-                cinfo->buttonWord |= BTN_TRIGGER_R;
-            } else {
-                cinfo->buttonWord &= ~BTN_TRIGGER_R;
-            }
+        if (gp->throttle > PEDAL_THRESHOLD) {
+            cinfo->buttonWord |= BTN_TRIGGER_R;
+        } else {
+            cinfo->buttonWord &= ~BTN_TRIGGER_R;
         }
-        if (gp->updated_states & GAMEPAD_STATE_BRAKE) {
-            if (gp->brake > PEDAL_THRESHOLD) {
-                cinfo->buttonWord |= BTN_TRIGGER_L;
-            } else {
-                cinfo->buttonWord &= ~BTN_TRIGGER_L;
-            }
+        if (gp->brake > PEDAL_THRESHOLD) {
+            cinfo->buttonWord |= BTN_TRIGGER_L;
+        } else {
+            cinfo->buttonWord &= ~BTN_TRIGGER_L;
         }
     }
 #endif
@@ -2729,26 +2687,20 @@ static void mightymiggy_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) 
      * controller decoding functions, they have to manually patched. We'll
      * need to ask the author why!
      */
-    if (gp->updated_states & GAMEPAD_STATE_MISC_BUTTON_BACK) {
-        if ((gp->misc_buttons & MISC_BUTTON_BACK) != 0) {
-            cinfo->buttonWord |= BTN_BACK;
-        } else {
-            cinfo->buttonWord &= ~BTN_BACK;
-        }
+    if ((gp->misc_buttons & MISC_BUTTON_BACK) != 0) {
+        cinfo->buttonWord |= BTN_BACK;
+    } else {
+        cinfo->buttonWord &= ~BTN_BACK;
     }
-    if (gp->updated_states & GAMEPAD_STATE_MISC_BUTTON_HOME) {
-        if ((gp->misc_buttons & MISC_BUTTON_HOME) != 0) {
-            cinfo->buttonWord |= BTN_HOME;
-        } else {
-            cinfo->buttonWord &= ~BTN_HOME;
-        }
+    if ((gp->misc_buttons & MISC_BUTTON_HOME) != 0) {
+        cinfo->buttonWord |= BTN_HOME;
+    } else {
+        cinfo->buttonWord &= ~BTN_HOME;
     }
-    if (gp->updated_states & GAMEPAD_STATE_MISC_BUTTON_SYSTEM) {
-        if ((gp->misc_buttons & MISC_BUTTON_SYSTEM) != 0) {
-            cinfo->buttonWord |= BTN_SYSTEM;
-        } else {
-            cinfo->buttonWord &= ~BTN_SYSTEM;
-        }
+    if ((gp->misc_buttons & MISC_BUTTON_SYSTEM) != 0) {
+        cinfo->buttonWord |= BTN_SYSTEM;
+    } else {
+        cinfo->buttonWord &= ~BTN_SYSTEM;
     }
 
     dumpButtons(cinfo->buttonWord);

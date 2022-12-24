@@ -135,10 +135,6 @@ uni_gamepad_t uni_gamepad_remap(const uni_gamepad_t* gp) {
     if (!mappings_enabled)
         return *gp;
 
-    // Notice that "updated_states" is not updated. So the "bits" might not
-    // correspond to the right button after the mappings. But it seems it is safe
-    // to leave it as it is, since "update_states" should not used by the platforms.
-
     if (gp->buttons & BUTTON_A)
         new_gp.buttons |= BIT(map.button_a);
     if (gp->buttons & BUTTON_B)
@@ -201,11 +197,9 @@ void uni_gamepad_set_mappings(const uni_gamepad_mappings_t* mappings) {
 }
 
 void uni_gamepad_dump(const uni_gamepad_t* gp) {
-    logi("dpad=0x%02x, x=%d, y=%d, rx=%d, ry=%d, brake=%d, accel=%d, buttons=0x%08x, misc=0x%02x, state=0x%04x\n",
-         gp->dpad, gp->axis_x, gp->axis_y, gp->axis_rx, gp->axis_ry,  // axis
-         gp->brake, gp->throttle, gp->buttons, gp->misc_buttons,      // misc
-         gp->updated_states                                           // state
-
+    logi("dpad=0x%02x, x=%d, y=%d, rx=%d, ry=%d, brake=%d, accel=%d, buttons=0x%08x, misc=0x%02x\n", gp->dpad,
+         gp->axis_x, gp->axis_y, gp->axis_rx, gp->axis_ry,       // axis
+         gp->brake, gp->throttle, gp->buttons, gp->misc_buttons  // misc
     );
 }
 

@@ -1367,7 +1367,7 @@ static void try_swap_ports(uni_hid_device_t* d) {
         uni_platform_unijoysticle_instance_t* tmp_ins = uni_platform_unijoysticle_get_instance(tmp_d);
         if (uni_bt_conn_is_connected(&tmp_d->conn) && tmp_ins->gamepad_seat != GAMEPAD_SEAT_NONE &&
             tmp_ins->emu_mode == UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_SINGLE_JOY &&
-            ((tmp_d->gamepad.misc_buttons & (MISC_BUTTON_SYSTEM | MISC_BUTTON_BACK)) == 0)) {
+            ((tmp_d->controller.gamepad.misc_buttons & (MISC_BUTTON_SYSTEM | MISC_BUTTON_BACK)) == 0)) {
             logi("unijoysticle: to swap ports press 'system' button on both gamepads at the same time\n");
             uni_hid_device_dump_all();
             return;

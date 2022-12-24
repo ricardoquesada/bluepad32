@@ -66,7 +66,11 @@ struct uni_platform {
     int (*on_device_ready)(uni_hid_device_t* d);
 
     // Indicates that a gamepad button and/or stick was pressed and/or released.
+    // Deprecated. Use on_controller_data instead
     void (*on_gamepad_data)(uni_hid_device_t* d, uni_gamepad_t* gp);
+
+    // Indicates that a controller button, stick, gyro, etc. has changed.
+    void (*on_controller_data)(uni_hid_device_t* d, uni_controller_t* ctl);
 
     // Return -1 if property is not supported
     int32_t (*get_property)(uni_platform_property_t key);

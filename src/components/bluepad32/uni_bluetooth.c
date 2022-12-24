@@ -560,7 +560,7 @@ static void on_l2cap_data_packet(uint16_t channel, const uint8_t* packet, uint16
 
     // Skip the first byte, which is always 0xa1
     uni_hid_parse_input_report(d, &packet[1], size - 1);
-    uni_hid_device_process_gamepad(d);
+    uni_hid_device_process_controller(d);
 }
 
 // BLE only

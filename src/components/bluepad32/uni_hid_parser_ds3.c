@@ -123,21 +123,10 @@ static void ds3_update_led(uni_hid_device_t* d, uint8_t player_leds);
 static void ds3_send_output_report(uni_hid_device_t* d, ds3_output_report_t* out);
 
 void uni_hid_parser_ds3_init_report(uni_hid_device_t* d) {
-    uni_gamepad_t* gp = &d->gamepad;
-    memset(gp, 0, sizeof(*gp));
+    uni_controller_t* ctl = &d->controller;
+    memset(ctl, 0, sizeof(*ctl));
 
-    // Only report 0x01 is supported which is a "full report". It is safe to set
-    // the reported states just once, here:
-    gp->updated_states = GAMEPAD_STATE_AXIS_X | GAMEPAD_STATE_AXIS_Y | GAMEPAD_STATE_AXIS_RX | GAMEPAD_STATE_AXIS_RY;
-    gp->updated_states |= GAMEPAD_STATE_BRAKE | GAMEPAD_STATE_THROTTLE;
-    gp->updated_states |= GAMEPAD_STATE_DPAD;
-    gp->updated_states |=
-        GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y | GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B;
-    gp->updated_states |= GAMEPAD_STATE_BUTTON_TRIGGER_L | GAMEPAD_STATE_BUTTON_TRIGGER_R |
-                          GAMEPAD_STATE_BUTTON_SHOULDER_L | GAMEPAD_STATE_BUTTON_SHOULDER_R;
-    gp->updated_states |= GAMEPAD_STATE_BUTTON_THUMB_L | GAMEPAD_STATE_BUTTON_THUMB_R;
-    gp->updated_states |=
-        GAMEPAD_STATE_MISC_BUTTON_BACK | GAMEPAD_STATE_MISC_BUTTON_HOME | GAMEPAD_STATE_MISC_BUTTON_SYSTEM;
+    ctl->klass = UNI_CONTROLLER_CLASS_GAMEPAD;
 }
 
 void uni_hid_parser_ds3_parse_input_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
@@ -161,53 +150,53 @@ void uni_hid_parser_ds3_parse_input_report(uni_hid_device_t* d, const uint8_t* r
         return;
     }
 
-    uni_gamepad_t* gp = &d->gamepad;
+    uni_controller_t* ctl = &d->controller;
 
     // Axis
-    gp->axis_x = (r->x - 127) * 4;
-    gp->axis_y = (r->y - 127) * 4;
-    gp->axis_rx = (r->rx - 127) * 4;
-    gp->axis_ry = (r->ry - 127) * 4;
+    ctl->gamepad.axis_x = (r->x - 127) * 4;
+    ctl->gamepad.axis_y = (r->y - 127) * 4;
+    ctl->gamepad.axis_rx = (r->rx - 127) * 4;
+    ctl->gamepad.axis_ry = (r->ry - 127) * 4;
 
     // Brake & throttle
-    gp->brake = r->brake * 4;
-    gp->throttle = r->throttle * 4;
+    ctl->gamepad.brake = r->brake * 4;
+    ctl->gamepad.throttle = r->throttle * 4;
 
     // Buttons
     if (r->buttons[0] & 0x01)
-        gp->misc_buttons |= MISC_BUTTON_BACK;  // Select
+        ctl->gamepad.misc_buttons |= MISC_BUTTON_BACK;  // Select
     if (r->buttons[0] & 0x02)
-        gp->buttons |= BUTTON_THUMB_L;  // Thumb L
+        ctl->gamepad.buttons |= BUTTON_THUMB_L;  // Thumb L
     if (r->buttons[0] & 0x04)
-        gp->buttons |= BUTTON_THUMB_R;  // Thumb R
+        ctl->gamepad.buttons |= BUTTON_THUMB_R;  // Thumb R
     if (r->buttons[0] & 0x08)
-        gp->misc_buttons |= MISC_BUTTON_HOME;  // Start
+        ctl->gamepad.misc_buttons |= MISC_BUTTON_HOME;  // Start
     if (r->buttons[0] & 0x10)
-        gp->dpad |= DPAD_UP;  // Dpad up
+        ctl->gamepad.dpad |= DPAD_UP;  // Dpad up
     if (r->buttons[0] & 0x20)
-        gp->dpad |= DPAD_RIGHT;  // Dpad right
+        ctl->gamepad.dpad |= DPAD_RIGHT;  // Dpad right
     if (r->buttons[0] & 0x40)
-        gp->dpad |= DPAD_DOWN;  // Dpad down
+        ctl->gamepad.dpad |= DPAD_DOWN;  // Dpad down
     if (r->buttons[0] & 0x80)
-        gp->dpad |= DPAD_LEFT;  // Dpad left
+        ctl->gamepad.dpad |= DPAD_LEFT;  // Dpad left
     if (r->buttons[1] & 0x01)
-        gp->buttons |= BUTTON_TRIGGER_L;  // L2
+        ctl->gamepad.buttons |= BUTTON_TRIGGER_L;  // L2
     if (r->buttons[1] & 0x02)
-        gp->buttons |= BUTTON_TRIGGER_R;  // R2
+        ctl->gamepad.buttons |= BUTTON_TRIGGER_R;  // R2
     if (r->buttons[1] & 0x04)
-        gp->buttons |= BUTTON_SHOULDER_L;  // L1
+        ctl->gamepad.buttons |= BUTTON_SHOULDER_L;  // L1
     if (r->buttons[1] & 0x08)
-        gp->buttons |= BUTTON_SHOULDER_R;  // R1
+        ctl->gamepad.buttons |= BUTTON_SHOULDER_R;  // R1
     if (r->buttons[1] & 0x10)
-        gp->buttons |= BUTTON_Y;  // West
+        ctl->gamepad.buttons |= BUTTON_Y;  // West
     if (r->buttons[1] & 0x20)
-        gp->buttons |= BUTTON_B;  // South
+        ctl->gamepad.buttons |= BUTTON_B;  // South
     if (r->buttons[1] & 0x40)
-        gp->buttons |= BUTTON_A;  // East
+        ctl->gamepad.buttons |= BUTTON_A;  // East
     if (r->buttons[1] & 0x80)
-        gp->buttons |= BUTTON_X;  // North
+        ctl->gamepad.buttons |= BUTTON_X;  // North
     if (r->buttons[2] & 0x01)
-        gp->misc_buttons |= MISC_BUTTON_SYSTEM;  // PS
+        ctl->gamepad.misc_buttons |= MISC_BUTTON_SYSTEM;  // PS
 }
 
 void uni_hid_parser_ds3_set_player_leds(uni_hid_device_t* d, uint8_t leds) {

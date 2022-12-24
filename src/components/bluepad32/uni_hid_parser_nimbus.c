@@ -25,8 +25,10 @@ limitations under the License.
 #include "uni_hid_parser.h"
 
 void uni_hid_parser_nimbus_init_report(uni_hid_device_t* d) {
-    // Reset old state. Each report contains a full-state.
-    d->gamepad.updated_states = 0;
+    uni_controller_t* ctl = &d->controller;
+    memset(ctl, 0, sizeof(*ctl));
+
+    ctl->klass = UNI_CONTROLLER_CLASS_GAMEPAD;
 }
 
 void uni_hid_parser_nimbus_parse_usage(uni_hid_device_t* d,
@@ -35,39 +37,33 @@ void uni_hid_parser_nimbus_parse_usage(uni_hid_device_t* d,
                                        uint16_t usage,
                                        int32_t value) {
     uint8_t hat;
-    uni_gamepad_t* gp = &d->gamepad;
+    uni_controller_t* ctl = &d->controller;
     switch (usage_page) {
         case HID_USAGE_PAGE_GENERIC_DESKTOP:
             switch (usage) {
                 case HID_USAGE_AXIS_X:
-                    gp->axis_x = uni_hid_parser_process_axis(globals, value);
-                    gp->updated_states |= GAMEPAD_STATE_AXIS_X;
+                    ctl->gamepad.axis_x = uni_hid_parser_process_axis(globals, value);
                     break;
                 case HID_USAGE_AXIS_Y:
                     // iOS devices seems to have axis Y inverted
-                    gp->axis_y = -uni_hid_parser_process_axis(globals, value);
-                    gp->updated_states |= GAMEPAD_STATE_AXIS_Y;
+                    ctl->gamepad.axis_y = -uni_hid_parser_process_axis(globals, value);
                     break;
                 case HID_USAGE_AXIS_Z:
-                    gp->axis_rx = uni_hid_parser_process_axis(globals, value);
-                    gp->updated_states |= GAMEPAD_STATE_AXIS_RX;
+                    ctl->gamepad.axis_rx = uni_hid_parser_process_axis(globals, value);
                     break;
                 case HID_USAGE_AXIS_RZ:
                     // iOS devices seems to have axis Y inverted
-                    gp->axis_ry = -uni_hid_parser_process_axis(globals, value);
-                    gp->updated_states |= GAMEPAD_STATE_AXIS_RY;
+                    ctl->gamepad.axis_ry = -uni_hid_parser_process_axis(globals, value);
                     break;
                 case HID_USAGE_HAT:
                     hat = uni_hid_parser_process_hat(globals, value);
-                    gp->dpad = uni_hid_parser_hat_to_dpad(hat);
-                    gp->updated_states |= GAMEPAD_STATE_DPAD;
+                    ctl->gamepad.dpad = uni_hid_parser_hat_to_dpad(hat);
                     break;
                 case HID_USAGE_DPAD_UP:
                 case HID_USAGE_DPAD_DOWN:
                 case HID_USAGE_DPAD_RIGHT:
                 case HID_USAGE_DPAD_LEFT:
-                    uni_hid_parser_process_dpad(usage, value, &gp->dpad);
-                    gp->updated_states |= GAMEPAD_STATE_DPAD;
+                    uni_hid_parser_process_dpad(usage, value, &ctl->gamepad.dpad);
                     break;
                 default:
                     logi("Nimbus: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
@@ -77,12 +73,10 @@ void uni_hid_parser_nimbus_parse_usage(uni_hid_device_t* d,
         case HID_USAGE_PAGE_SIMULATION_CONTROLS:
             switch (usage) {
                 case HID_USAGE_ACCELERATOR:
-                    gp->throttle = uni_hid_parser_process_pedal(globals, value);
-                    gp->updated_states |= GAMEPAD_STATE_THROTTLE;
+                    ctl->gamepad.throttle = uni_hid_parser_process_pedal(globals, value);
                     break;
                 case HID_USAGE_BRAKE:
-                    gp->brake = uni_hid_parser_process_pedal(globals, value);
-                    gp->updated_states |= GAMEPAD_STATE_BRAKE;
+                    ctl->gamepad.brake = uni_hid_parser_process_pedal(globals, value);
                     break;
                 default:
                     logi("Nimbus: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
@@ -92,7 +86,7 @@ void uni_hid_parser_nimbus_parse_usage(uni_hid_device_t* d,
         case HID_USAGE_PAGE_GENERIC_DEVICE_CONTROLS:
             switch (usage) {
                 case HID_USAGE_BATTERY_STRENGTH:
-                    gp->battery = value;
+                    ctl->battery = value;
                     break;
                 default:
                     logi("Nimbus: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
@@ -103,45 +97,27 @@ void uni_hid_parser_nimbus_parse_usage(uni_hid_device_t* d,
             switch (usage) {
                 case 0x01:  // Button A
                     if (value)
-                        gp->buttons |= BUTTON_A;
-                    else
-                        gp->buttons &= ~BUTTON_A;
-                    gp->updated_states |= GAMEPAD_STATE_BUTTON_A;
+                        ctl->gamepad.buttons |= BUTTON_A;
                     break;
                 case 0x02:  // Button B
                     if (value)
-                        gp->buttons |= BUTTON_B;
-                    else
-                        gp->buttons &= ~BUTTON_B;
-                    gp->updated_states |= GAMEPAD_STATE_BUTTON_B;
+                        ctl->gamepad.buttons |= BUTTON_B;
                     break;
                 case 0x03:  // Button X
                     if (value)
-                        gp->buttons |= BUTTON_X;
-                    else
-                        gp->buttons &= ~BUTTON_X;
-                    gp->updated_states |= GAMEPAD_STATE_BUTTON_X;
+                        ctl->gamepad.buttons |= BUTTON_X;
                     break;
                 case 0x04:  // Button Y
                     if (value)
-                        gp->buttons |= BUTTON_Y;
-                    else
-                        gp->buttons &= ~BUTTON_Y;
-                    gp->updated_states |= GAMEPAD_STATE_BUTTON_Y;
+                        ctl->gamepad.buttons |= BUTTON_Y;
                     break;
                 case 0x05:
                     if (value)
-                        gp->buttons |= BUTTON_SHOULDER_L;
-                    else
-                        gp->buttons &= ~BUTTON_SHOULDER_L;
-                    gp->updated_states |= GAMEPAD_STATE_BUTTON_SHOULDER_L;
+                        ctl->gamepad.buttons |= BUTTON_SHOULDER_L;
                     break;
                 case 0x06:
                     if (value)
-                        gp->buttons |= BUTTON_SHOULDER_R;
-                    else
-                        gp->buttons &= ~BUTTON_SHOULDER_R;
-                    gp->updated_states |= GAMEPAD_STATE_BUTTON_SHOULDER_R;
+                        ctl->gamepad.buttons |= BUTTON_SHOULDER_R;
                     break;
                 case 0x07:
                     // FIXME: On the Steelseries Nimbus, 0x07 / 0x08 are
@@ -149,21 +125,13 @@ void uni_hid_parser_nimbus_parse_usage(uni_hid_device_t* d,
                     // is valid for all iOS controllers. Treating both as buttons and
                     // pedals. More samples needed.
                     if (value)
-                        gp->buttons |= BUTTON_TRIGGER_L;
-                    else
-                        gp->buttons &= ~BUTTON_TRIGGER_L;
-                    gp->updated_states |= GAMEPAD_STATE_BUTTON_TRIGGER_L;
-                    gp->brake = uni_hid_parser_process_pedal(globals, value);
-                    gp->updated_states |= GAMEPAD_STATE_BRAKE;
+                        ctl->gamepad.buttons |= BUTTON_TRIGGER_L;
+                    ctl->gamepad.brake = uni_hid_parser_process_pedal(globals, value);
                     break;
                 case 0x08:
                     if (value)
-                        gp->buttons |= BUTTON_TRIGGER_R;
-                    else
-                        gp->buttons &= ~BUTTON_TRIGGER_R;
-                    gp->updated_states |= GAMEPAD_STATE_BUTTON_TRIGGER_R;
-                    gp->throttle = uni_hid_parser_process_pedal(globals, value);
-                    gp->updated_states |= GAMEPAD_STATE_THROTTLE;
+                        ctl->gamepad.buttons |= BUTTON_TRIGGER_R;
+                    ctl->gamepad.throttle = uni_hid_parser_process_pedal(globals, value);
                     break;
                 default:
                     logi("Nimbus: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
@@ -176,10 +144,7 @@ void uni_hid_parser_nimbus_parse_usage(uni_hid_device_t* d,
                     break;
                 case HID_USAGE_AC_HOME:
                     if (value)
-                        gp->misc_buttons |= MISC_BUTTON_SYSTEM;
-                    else
-                        gp->misc_buttons &= ~MISC_BUTTON_SYSTEM;
-                    gp->updated_states |= GAMEPAD_STATE_MISC_BUTTON_SYSTEM;
+                        ctl->gamepad.misc_buttons |= MISC_BUTTON_SYSTEM;
                     break;
                 case HID_USAGE_AC_BACK:
                     break;

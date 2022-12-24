@@ -25,6 +25,7 @@ limitations under the License.
 
 #include "uni_bt_conn.h"
 #include "uni_circular_buffer.h"
+#include "uni_controller.h"
 #include "uni_gamepad.h"
 #include "uni_hid_parser.h"
 
@@ -89,7 +90,7 @@ struct uni_hid_device_s {
     // Gamepad
     uint16_t controller_type;                     // type of controller. E.g: DualShock4, Switch ,etc.
     uni_controller_subtype_t controller_subtype;  // sub-type of controller attached
-    uni_gamepad_t gamepad;                        // gamepad state
+    uni_controller_t controller;                  // What kind of controller it is
 
     // Functions used to parse the usage page/usage.
     uni_report_parser_t report_parser;
@@ -172,7 +173,7 @@ bool uni_hid_device_guess_controller_type_from_name(uni_hid_device_t* d, const c
 void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d);
 bool uni_hid_device_has_controller_type(uni_hid_device_t* d);
 
-void uni_hid_device_process_gamepad(uni_hid_device_t* d);
+void uni_hid_device_process_controller(uni_hid_device_t* d);
 
 void uni_hid_device_set_connection_handle(uni_hid_device_t* d, hci_con_handle_t handle);
 

@@ -128,21 +128,10 @@ void uni_hid_parser_ds4_setup(struct uni_hid_device_s* d) {
 }
 
 void uni_hid_parser_ds4_init_report(uni_hid_device_t* d) {
-    uni_gamepad_t* gp = &d->gamepad;
-    memset(gp, 0, sizeof(*gp));
+    uni_controller_t* ctl = &d->controller;
+    memset(ctl, 0, sizeof(*ctl));
 
-    // Only report 0x11 is supported which is a "full report". It is safe to set
-    // the reported states just once, here:
-    gp->updated_states = GAMEPAD_STATE_AXIS_X | GAMEPAD_STATE_AXIS_Y | GAMEPAD_STATE_AXIS_RX | GAMEPAD_STATE_AXIS_RY;
-    gp->updated_states |= GAMEPAD_STATE_BRAKE | GAMEPAD_STATE_THROTTLE;
-    gp->updated_states |= GAMEPAD_STATE_DPAD;
-    gp->updated_states |=
-        GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y | GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B;
-    gp->updated_states |= GAMEPAD_STATE_BUTTON_TRIGGER_L | GAMEPAD_STATE_BUTTON_TRIGGER_R |
-                          GAMEPAD_STATE_BUTTON_SHOULDER_L | GAMEPAD_STATE_BUTTON_SHOULDER_R;
-    gp->updated_states |= GAMEPAD_STATE_BUTTON_THUMB_L | GAMEPAD_STATE_BUTTON_THUMB_R;
-    gp->updated_states |=
-        GAMEPAD_STATE_MISC_BUTTON_BACK | GAMEPAD_STATE_MISC_BUTTON_HOME | GAMEPAD_STATE_MISC_BUTTON_SYSTEM;
+    ctl->klass = UNI_CONTROLLER_CLASS_GAMEPAD;
 }
 
 void uni_hid_parser_ds4_parse_feature_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
@@ -186,53 +175,53 @@ void uni_hid_parser_ds4_parse_input_report(uni_hid_device_t* d, const uint8_t* r
         loge("DS4: Unexpected report len: got %d, want: 78\n", len);
         return;
     }
-    uni_gamepad_t* gp = &d->gamepad;
+    uni_controller_t* ctl = &d->controller;
     const ds4_input_report_t* r = (ds4_input_report_t*)&report[3];
 
     // Axis
-    gp->axis_x = (r->x - 127) * 4;
-    gp->axis_y = (r->y - 127) * 4;
-    gp->axis_rx = (r->rx - 127) * 4;
-    gp->axis_ry = (r->ry - 127) * 4;
+    ctl->gamepad.axis_x = (r->x - 127) * 4;
+    ctl->gamepad.axis_y = (r->y - 127) * 4;
+    ctl->gamepad.axis_rx = (r->rx - 127) * 4;
+    ctl->gamepad.axis_ry = (r->ry - 127) * 4;
 
     // Hat
     uint8_t value = r->buttons[0] & 0xf;
     if (value > 7)
         value = 0xff; /* Center 0, 0 */
-    gp->dpad = uni_hid_parser_hat_to_dpad(value);
+    ctl->gamepad.dpad = uni_hid_parser_hat_to_dpad(value);
 
     // Buttons
     // TODO: ds4, ds5 have these buttons in common. Refactor.
     if (r->buttons[0] & 0x10)
-        gp->buttons |= BUTTON_X;  // West
+        ctl->gamepad.buttons |= BUTTON_X;  // West
     if (r->buttons[0] & 0x20)
-        gp->buttons |= BUTTON_A;  // South
+        ctl->gamepad.buttons |= BUTTON_A;  // South
     if (r->buttons[0] & 0x40)
-        gp->buttons |= BUTTON_B;  // East
+        ctl->gamepad.buttons |= BUTTON_B;  // East
     if (r->buttons[0] & 0x80)
-        gp->buttons |= BUTTON_Y;  // North
+        ctl->gamepad.buttons |= BUTTON_Y;  // North
     if (r->buttons[1] & 0x01)
-        gp->buttons |= BUTTON_SHOULDER_L;  // L1
+        ctl->gamepad.buttons |= BUTTON_SHOULDER_L;  // L1
     if (r->buttons[1] & 0x02)
-        gp->buttons |= BUTTON_SHOULDER_R;  // R1
+        ctl->gamepad.buttons |= BUTTON_SHOULDER_R;  // R1
     if (r->buttons[1] & 0x04)
-        gp->buttons |= BUTTON_TRIGGER_L;  // L2
+        ctl->gamepad.buttons |= BUTTON_TRIGGER_L;  // L2
     if (r->buttons[1] & 0x08)
-        gp->buttons |= BUTTON_TRIGGER_R;  // R2
+        ctl->gamepad.buttons |= BUTTON_TRIGGER_R;  // R2
     if (r->buttons[1] & 0x10)
-        gp->misc_buttons |= MISC_BUTTON_BACK;  // Share
+        ctl->gamepad.misc_buttons |= MISC_BUTTON_BACK;  // Share
     if (r->buttons[1] & 0x20)
-        gp->misc_buttons |= MISC_BUTTON_HOME;  // Options
+        ctl->gamepad.misc_buttons |= MISC_BUTTON_HOME;  // Options
     if (r->buttons[1] & 0x40)
-        gp->buttons |= BUTTON_THUMB_L;  // Thumb L
+        ctl->gamepad.buttons |= BUTTON_THUMB_L;  // Thumb L
     if (r->buttons[1] & 0x80)
-        gp->buttons |= BUTTON_THUMB_R;  // Thumb R
+        ctl->gamepad.buttons |= BUTTON_THUMB_R;  // Thumb R
     if (r->buttons[2] & 0x01)
-        gp->misc_buttons |= MISC_BUTTON_SYSTEM;  // PS
+        ctl->gamepad.misc_buttons |= MISC_BUTTON_SYSTEM;  // PS
 
     // Brake & throttle
-    gp->brake = r->brake * 4;
-    gp->throttle = r->throttle * 4;
+    ctl->gamepad.brake = r->brake * 4;
+    ctl->gamepad.throttle = r->throttle * 4;
 }
 
 // uni_hid_parser_ds4_parse_usage() was removed since "stream" mode is the only

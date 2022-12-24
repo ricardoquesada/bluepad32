@@ -27,6 +27,7 @@ limitations under the License.
 
 #include "hid_usage.h"
 #include "uni_common.h"
+#include "uni_controller.h"
 #include "uni_debug.h"
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
@@ -152,11 +153,9 @@ void uni_hid_parser_mouse_parse_input_report(struct uni_hid_device_s* d, const u
 
 void uni_hid_parser_mouse_init_report(uni_hid_device_t* d) {
     // Reset old state. Each report contains a full-state.
-    uni_gamepad_t* gp = &d->gamepad;
-    memset(gp, 0, sizeof(*gp));
-    gp->updated_states = GAMEPAD_STATE_AXIS_X | GAMEPAD_STATE_AXIS_Y | GAMEPAD_STATE_BUTTON_A | GAMEPAD_STATE_BUTTON_B |
-                         GAMEPAD_STATE_BUTTON_X | GAMEPAD_STATE_BUTTON_Y | GAMEPAD_STATE_BUTTON_SHOULDER_L |
-                         GAMEPAD_STATE_BUTTON_SHOULDER_R;
+    uni_controller_t* ctl = &d->controller;
+    memset(ctl, 0, sizeof(*ctl));
+    ctl->klass = UNI_CONTROLLER_CLASS_MOUSE;
 }
 
 void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
@@ -166,21 +165,21 @@ void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
                                       int32_t value) {
     ARG_UNUSED(globals);
     // TODO: should be a union of gamepad/mouse/keyboard
-    uni_gamepad_t* gp = &d->gamepad;
+    uni_controller_t* ctl = &d->controller;
     switch (usage_page) {
         case HID_USAGE_PAGE_GENERIC_DESKTOP: {
             switch (usage) {
                 case HID_USAGE_AXIS_X:
                     // Mouse delta X
                     // Negative: left, positive: right.
-                    gp->axis_x = process_mouse_delta(d, value);
+                    ctl->mouse.delta_x = process_mouse_delta(d, value);
                     // printf("min: %d, max: %d\n", globals->logical_minimum, globals->logical_maximum);
                     // printf("delta x old value: %d -> new value: %d\n", value, gp->axis_x);
                     break;
                 case HID_USAGE_AXIS_Y:
                     // Mouse delta Y
                     // Negative: up, positive: down.
-                    gp->axis_y = process_mouse_delta(d, value);
+                    ctl->mouse.delta_y = process_mouse_delta(d, value);
                     break;
                 case HID_USAGE_WHEEL:
                     // TODO: do something
@@ -196,35 +195,35 @@ void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
             switch (usage) {
                 case 0x01:  // Left click
                     if (value)
-                        gp->buttons |= BUTTON_A;
+                        ctl->mouse.buttons |= MOUSE_BUTTON_LEFT;
                     break;
                 case 0x02:  // Right click
                     if (value)
-                        gp->buttons |= BUTTON_B;
+                        ctl->mouse.buttons |= MOUSE_BUTTON_RIGHT;
                     break;
                 case 0x03:  // Middle click
                     if (value)
-                        gp->buttons |= BUTTON_X;
+                        ctl->mouse.buttons |= MOUSE_BUTTON_MIDDLE;
                     break;
                 case 0x04:  // Back button
                     if (value)
-                        gp->buttons |= BUTTON_SHOULDER_L;
+                        ctl->mouse.buttons |= MOUSE_BUTTON_AUX_0;
                     break;
                 case 0x05:  // Forward button
                     if (value)
-                        gp->buttons |= BUTTON_SHOULDER_R;
+                        ctl->mouse.buttons |= MOUSE_BUTTON_AUX_1;
                     break;
                 case 0x06:  // Logitech M535 Tilt Wheel Left
                     if (value)
-                        gp->buttons |= BUTTON_SHOULDER_L;
+                        ctl->mouse.buttons |= MOUSE_BUTTON_AUX_2;
                     break;
                 case 0x07:  // Logitech M535 Tilt Wheel Right
                     if (value)
-                        gp->buttons |= BUTTON_SHOULDER_R;
+                        ctl->mouse.buttons |= MOUSE_BUTTON_AUX_3;
                     break;
                 case 0x08:  // Logitech M535 (???)
                     if (value)
-                        gp->buttons |= BUTTON_Y;
+                        ctl->mouse.buttons |= MOUSE_BUTTON_AUX_4;
                     break;
                 case 0x09:  // Logitech M-RCL124
                 case 0x0a:
@@ -246,7 +245,7 @@ void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
             switch (usage) {
                 case HID_USAGE_BATTERY_STRENGTH:
                     logd("Mouse: Battery strength: %d\n", value);
-                    gp->battery = value;
+                    ctl->battery = value;
                     break;
                 default:
                     logi("Mouse: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
