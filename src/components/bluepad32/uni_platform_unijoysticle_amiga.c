@@ -235,11 +235,12 @@ void uni_platform_unijoysticle_amiga_maybe_enable_mouse_timers(void) {
             uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
 
             // COMBO_JOY_MOUSE counts as real mouse.
-            if (ins->emu_mode == UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_MOUSE ||
-                ins->emu_mode == UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_SINGLE_MOUSE) {
-                if (ins->gamepad_seat == GAMEPAD_SEAT_A)
+            if ((uni_hid_device_is_gamepad(d) &&
+                 ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_MOUSE) ||
+                uni_hid_device_is_mouse(d)) {
+                if (ins->seat == GAMEPAD_SEAT_A)
                     enable_timer_0 = true;
-                else if (ins->gamepad_seat == GAMEPAD_SEAT_B)
+                else if (ins->seat == GAMEPAD_SEAT_B)
                     enable_timer_1 = true;
             }
         }

@@ -42,10 +42,9 @@ typedef enum {
 
 // Different emulation modes
 typedef enum {
-    UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_SINGLE_JOY,  // Basic mode
-    UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_SINGLE_MOUSE,
-    UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_JOY,  // Enhanced mode
-    UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_MOUSE,
+    UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_SINGLE_JOY,       // Basic mode
+    UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_JOY,    // Enhanced mode: Dual stick mode
+    UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_MOUSE,  // Gamepad behaves like mouse
 } uni_platform_unijoysticle_emulation_mode_t;
 
 enum {
@@ -62,10 +61,10 @@ enum {
 
 // The platform "instance"
 typedef struct uni_platform_unijoysticle_instance_s {
-    uni_platform_unijoysticle_emulation_mode_t emu_mode;  // type of controller to emulate
-    uni_gamepad_seat_t gamepad_seat;                      // which "seat" (port) is being used
-    uni_gamepad_seat_t prev_gamepad_seat;                 // which "seat" (port) was used before
-                                                          // switching emu mode
+    uni_platform_unijoysticle_emulation_mode_t gamepad_mode;  // type of gamepad mode
+    uni_gamepad_seat_t seat;                                  // which "seat" (port) is being used
+    uni_gamepad_seat_t prev_seat;                             // which "seat" (port) was used before
+                                                              // switching emu mode
 } uni_platform_unijoysticle_instance_t;
 _Static_assert(sizeof(uni_platform_unijoysticle_instance_t) < HID_DEVICE_MAX_PLATFORM_DATA,
                "Unijoysticle intance too big");
