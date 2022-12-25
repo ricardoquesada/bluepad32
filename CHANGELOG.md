@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Unijoysticle: "cycle" button works correctly when mouse and gamepad are
   connected at the same time.
+- DualShock4, DualSense, Wii Balance Board: report battery status ([Github Issue #25][github_issue_25])
+
+[github_issue_25]: https://github.com/ricardoquesada/bluepad32/issues/25
 
 ## [v3.5.2] - 2022-12-04
 ### New
