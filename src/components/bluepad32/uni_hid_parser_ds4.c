@@ -38,7 +38,7 @@ limitations under the License.
 #define DS4_FEATURE_REPORT_FIRMWARE_VERSION_SIZE 49
 #define DS4_FEATURE_REPORT_CALIBRATION 0x02
 #define DS4_FEATURE_REPORT_CALIBRATION_SIZE 37
-#define DS4_STATUS_BATTERY_CAPACITY GENMASK(3,0)
+#define DS4_STATUS_BATTERY_CAPACITY GENMASK(3, 0)
 
 typedef struct {
     btstack_timer_source_t rumble_timer;
@@ -83,8 +83,8 @@ typedef struct __attribute((packed)) {
     // Motion sensors
     uint16_t sensor_timestamp;
     uint8_t sensor_temperature;
-    uint16_t gyro[3]; // x, y, z
-    uint16_t accel[3]; // x, y, z
+    uint16_t gyro[3];   // x, y, z
+    uint16_t accel[3];  // x, y, z
     uint8_t reserved[5];
     uint8_t status[2];
 
