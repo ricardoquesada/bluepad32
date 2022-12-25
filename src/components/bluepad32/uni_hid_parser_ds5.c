@@ -37,6 +37,7 @@ limitations under the License.
 #define DS5_FEATURE_REPORT_PAIRING_INFO_SIZE 20
 #define DS5_FEATURE_REPORT_FIRMWARE_VERSION 0x20
 #define DS5_FEATURE_REPORT_FIRMWARE_VERSION_SIZE 64
+#define DS5_STATUS_BATTERY_CAPACITY GENMASK(3,0)
 
 enum {
     // Values for flag 0
@@ -288,6 +289,9 @@ void uni_hid_parser_ds5_parse_input_report(uni_hid_device_t* d, const uint8_t* r
         ctl->gamepad.buttons |= BUTTON_THUMB_R;  // Thumb R
     if (r->buttons[2] & 0x01)
         ctl->gamepad.misc_buttons |= MISC_BUTTON_SYSTEM;  // PS
+
+    // Value goes from 0 to 10. Make it from 0 to 250.
+    ctl->battery = (r->status & DS5_STATUS_BATTERY_CAPACITY) * 25;
 }
 
 // uni_hid_parser_ds5_parse_usage() was removed since "stream" mode is the only one supported.

@@ -34,5 +34,5 @@ void uni_controller_dump(const uni_controller_t* ctl) {
             logi("uni_controller_dump: Unsupported controller class: %d\n", ctl->klass);
             break;
     }
-    logi("battery: %d\n", ctl->battery);
+    logi(", battery=%d\n", ctl->battery);
 }

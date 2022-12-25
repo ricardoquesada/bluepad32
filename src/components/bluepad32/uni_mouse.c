@@ -20,6 +20,7 @@ limitations under the License.
 #include "uni_log.h"
 
 void uni_mouse_dump(const uni_mouse_t* ms) {
-    logi("delta_x=%d, delta_y=%d, buttons=%#x, misc_buttons=%#x\n", ms->delta_x, ms->delta_y, ms->buttons,
+    // Don't add "\n"
+    logi("delta_x=%d, delta_y=%d, buttons=%#x, misc_buttons=%#x", ms->delta_x, ms->delta_y, ms->buttons,
          ms->misc_buttons);
 }

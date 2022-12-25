@@ -20,5 +20,6 @@ limitations under the License.
 #include "uni_log.h"
 
 void uni_balance_board_dump(const uni_balance_board_t* bb) {
-    logi("tl=%d, tr=%d, bl=%d, br=%d, temperature=%d\n", bb->tl, bb->tr, bb->bl, bb->br, bb->temperature);
+    // Don't add "\n"
+    logi("tl=%d, tr=%d, bl=%d, br=%d, temperature=%d", bb->tl, bb->tr, bb->bl, bb->br, bb->temperature);
 }

@@ -38,6 +38,7 @@ limitations under the License.
 #define DS4_FEATURE_REPORT_FIRMWARE_VERSION_SIZE 49
 #define DS4_FEATURE_REPORT_CALIBRATION 0x02
 #define DS4_FEATURE_REPORT_CALIBRATION_SIZE 37
+#define DS4_STATUS_BATTERY_CAPACITY GENMASK(3,0)
 
 typedef struct {
     btstack_timer_source_t rumble_timer;
@@ -78,6 +79,14 @@ typedef struct __attribute((packed)) {
     // Brake & throttle
     uint8_t brake;
     uint8_t throttle;
+
+    // Motion sensors
+    uint16_t sensor_timestamp;
+    uint8_t sensor_temperature;
+    uint16_t gyro[3]; // x, y, z
+    uint16_t accel[3]; // x, y, z
+    uint8_t reserved[5];
+    uint8_t status[2];
 
     // Add missing data
 } ds4_input_report_t;
@@ -175,6 +184,7 @@ void uni_hid_parser_ds4_parse_input_report(uni_hid_device_t* d, const uint8_t* r
         loge("DS4: Unexpected report len: got %d, want: 78\n", len);
         return;
     }
+
     uni_controller_t* ctl = &d->controller;
     const ds4_input_report_t* r = (ds4_input_report_t*)&report[3];
 
@@ -222,6 +232,9 @@ void uni_hid_parser_ds4_parse_input_report(uni_hid_device_t* d, const uint8_t* r
     // Brake & throttle
     ctl->gamepad.brake = r->brake * 4;
     ctl->gamepad.throttle = r->throttle * 4;
+
+    // Value goes from 0 to 10. Make it from 0 to 250.
+    ctl->battery = (r->status[0] & DS4_STATUS_BATTERY_CAPACITY) * 25;
 }
 
 // uni_hid_parser_ds4_parse_usage() was removed since "stream" mode is the only

@@ -33,6 +33,14 @@ extern "C" {
 #define BIT64(nr) (1ULL << (nr))
 #endif  // BIT64
 
+#ifndef GENMASK
+#define GENMASK(h, l) (((BIT(h) << 1) - 1) ^ (BIT(l) - 1))
+#endif // GENMASK
+
+#ifndef GENMASK64
+#define GENMASK64(h, l) (((BIT64(h) << 1) - 1) ^ (BIT64(l) - 1))
+#endif // GENMASK64
+
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 #endif  // ARRAY_SIZE
