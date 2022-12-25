@@ -19,6 +19,7 @@ limitations under the License.
 #include "uni_hid_parser_8bitdo.h"
 
 #include "hid_usage.h"
+#include "uni_controller.h"
 #include "uni_debug.h"
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"

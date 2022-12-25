@@ -105,6 +105,7 @@ void uni_hid_parser_icade_parse_usage(uni_hid_device_t* d,
                                       int32_t value) {
     uni_controller_t* ctl = &d->controller;
     ctl->klass = UNI_CONTROLLER_CLASS_GAMEPAD;
+    ctl->battery = UNI_CONTROLLER_BATTERY_NOT_AVAILABLE;
 
     icade_instance_t* ins = get_icade_instance(d);
     ARG_UNUSED(globals);

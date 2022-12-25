@@ -234,7 +234,8 @@ void uni_hid_parser_ds4_parse_input_report(uni_hid_device_t* d, const uint8_t* r
     ctl->gamepad.throttle = r->throttle * 4;
 
     // Value goes from 0 to 10. Make it from 0 to 250.
-    ctl->battery = (r->status[0] & DS4_STATUS_BATTERY_CAPACITY) * 25;
+    // The +1 is to avoid having a value of 0, which means "battery unavailable".
+    ctl->battery = (r->status[0] & DS4_STATUS_BATTERY_CAPACITY) * 25 + 1;
 }
 
 // uni_hid_parser_ds4_parse_usage() was removed since "stream" mode is the only

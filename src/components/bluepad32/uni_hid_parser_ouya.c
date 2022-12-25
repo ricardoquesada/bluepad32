@@ -25,7 +25,9 @@ limitations under the License.
 
 void uni_hid_parser_ouya_init_report(uni_hid_device_t* d) {
     // Reset old state. Each report contains a full-state.
-    d->controller.klass = UNI_CONTROLLER_CLASS_GAMEPAD;
+    uni_controller_t* ctl = &d->controller;
+    memset(ctl, 0, sizeof(*ctl));
+    ctl->klass = UNI_CONTROLLER_CLASS_GAMEPAD;
 }
 
 void uni_hid_parser_ouya_parse_usage(uni_hid_device_t* d,
@@ -56,10 +58,7 @@ void uni_hid_parser_ouya_parse_usage(uni_hid_device_t* d,
                     ctl->gamepad.throttle = uni_hid_parser_process_pedal(globals, value);
                     break;
                 default:
-                    logi(
-                        "OUYA: Unsupported usage page=0x%04x, page=0x%04x, "
-                        "value=0x%04x\n",
-                        usage_page, usage, value);
+                    logi("OUYA: Unsupported usage page=0x%04x, page=0x%04x, value=0x%04x\n", usage_page, usage, value);
                     break;
             }
             break;
@@ -68,100 +67,67 @@ void uni_hid_parser_ouya_parse_usage(uni_hid_device_t* d,
                 case 1:
                     if (value)
                         ctl->gamepad.buttons |= BUTTON_A;
-                    else
-                        ctl->gamepad.buttons &= ~BUTTON_A;
                     break;
                 case 2:
                     if (value)
                         ctl->gamepad.buttons |= BUTTON_X;
-                    else
-                        ctl->gamepad.buttons &= ~BUTTON_X;
                     break;
                 case 3:
                     if (value)
                         ctl->gamepad.buttons |= BUTTON_Y;
-                    else
-                        ctl->gamepad.buttons &= ~BUTTON_Y;
                     break;
                 case 4:
                     if (value)
                         ctl->gamepad.buttons |= BUTTON_B;
-                    else
-                        ctl->gamepad.buttons &= ~BUTTON_B;
                     break;
                 case 5:
                     if (value)
                         ctl->gamepad.buttons |= BUTTON_SHOULDER_L;
-                    else
-                        ctl->gamepad.buttons &= ~BUTTON_SHOULDER_L;
                     break;
                 case 6:
                     if (value)
                         ctl->gamepad.buttons |= BUTTON_SHOULDER_R;
-                    else
-                        ctl->gamepad.buttons &= ~BUTTON_SHOULDER_R;
                     break;
                 case 7:
                     if (value)
                         ctl->gamepad.buttons |= BUTTON_THUMB_L;
-                    else
-                        ctl->gamepad.buttons &= ~BUTTON_THUMB_L;
                     break;
                 case 8:
                     if (value)
                         ctl->gamepad.buttons |= BUTTON_THUMB_R;
-                    else
-                        ctl->gamepad.buttons &= ~BUTTON_THUMB_R;
                     break;
                 case 9:
                     if (value)
                         ctl->gamepad.dpad |= DPAD_UP;
-                    else
-                        ctl->gamepad.dpad &= ~DPAD_UP;
                     break;
                 case 0x0a:
                     if (value)
                         ctl->gamepad.dpad |= DPAD_DOWN;
-                    else
-                        ctl->gamepad.dpad &= ~DPAD_DOWN;
                     break;
                 case 0x0b:
                     if (value)
                         ctl->gamepad.dpad |= DPAD_LEFT;
-                    else
-                        ctl->gamepad.dpad &= ~DPAD_LEFT;
                     break;
                 case 0x0c:
                     if (value)
                         ctl->gamepad.dpad |= DPAD_RIGHT;
-                    else
-                        ctl->gamepad.dpad &= ~DPAD_RIGHT;
                     break;
                 case 0x0d:  // Triggered by Brake pedal
                     if (value)
                         ctl->gamepad.buttons |= BUTTON_TRIGGER_L;
-                    else
-                        ctl->gamepad.buttons &= ~BUTTON_TRIGGER_L;
                     break;
                 case 0x0e:  // Triggered by Accelerator pedal
                     if (value)
                         ctl->gamepad.buttons |= BUTTON_TRIGGER_R;
-                    else
-                        ctl->gamepad.buttons &= ~BUTTON_TRIGGER_R;
                     break;
                 case 0x0f:
                     if (value)
                         ctl->gamepad.misc_buttons |= MISC_BUTTON_SYSTEM;
-                    else
-                        ctl->gamepad.misc_buttons &= ~MISC_BUTTON_SYSTEM;
                     break;
                 case 0x10:  // Not mapped but reported.
                     break;
                 default:
-                    logi(
-                        "OUYA: Unsupported usage page=0x%04x, page=0x%04x, "
-                        "value=0x%04x\n",
-                        usage_page, usage, value);
+                    logi("OUYA: Unsupported usage page=0x%04x, page=0x%04x, value=0x%04x\n", usage_page, usage, value);
                     break;
             }
             break;

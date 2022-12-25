@@ -244,7 +244,6 @@ void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
         case HID_USAGE_PAGE_GENERIC_DEVICE_CONTROLS: {
             switch (usage) {
                 case HID_USAGE_BATTERY_STRENGTH:
-                    logd("Mouse: Battery strength: %d\n", value);
                     ctl->battery = value;
                     break;
                 default:

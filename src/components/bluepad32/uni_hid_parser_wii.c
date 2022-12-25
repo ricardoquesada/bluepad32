@@ -49,6 +49,8 @@ static const uint32_t WII_DUMP_ROM_DATA_ADDR_START = 0x0000;
 static const uint32_t WII_DUMP_ROM_DATA_ADDR_END = 0x1700;
 #endif  // ENABLE_EEPROM_DUMP
 
+#define DRM_KEE_BATTERY_MASK GENMASK(6, 4)
+
 enum wii_flags {
     WII_FLAGS_NONE = 0,
     WII_FLAGS_VERTICAL = BIT(0),
@@ -779,6 +781,8 @@ static void process_drm_kee(uni_hid_device_t* d, const uint8_t* report, uint16_t
         ctl->balance_board.bl = b.bl;
         ctl->balance_board.temperature = b.temperature;
         ctl->battery = b.battery;
+        if (ctl->battery < UNI_CONTROLLER_BATTERY_EMPTY)
+            ctl->battery = UNI_CONTROLLER_BATTERY_EMPTY;
         ctl->klass = UNI_CONTROLLER_CLASS_BALANCE_BOARD;
 
         return;
@@ -884,6 +888,14 @@ static void process_drm_kee(uni_hid_device_t* d, const uint8_t* report, uint16_t
     ctl->gamepad.misc_buttons |= !(data[8] & 0x08) ? MISC_BUTTON_SYSTEM : 0;  // BH
     ctl->gamepad.misc_buttons |= !(data[8] & 0x04) ? MISC_BUTTON_HOME : 0;    // B+
     ctl->gamepad.misc_buttons |= !(data[8] & 0x10) ? MISC_BUTTON_BACK : 0;    // B-
+
+    // Value is in -1,255 range. Should be normalized.
+    int bat = (data[10] & DRM_KEE_BATTERY_MASK) * 4 - 1;
+    if (bat < UNI_CONTROLLER_BATTERY_EMPTY)
+        bat = UNI_CONTROLLER_BATTERY_EMPTY;
+    if (bat > UNI_CONTROLLER_BATTERY_FULL)
+        bat = UNI_CONTROLLER_BATTERY_FULL;
+    ctl->battery = bat;
 }
 
 // Used for the Wii Classic Controller (includes Pro?). Defined here:

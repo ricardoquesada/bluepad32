@@ -40,6 +40,13 @@ typedef enum {
     UNI_CONTROLLER_CLASS_COUNT,
 } uni_controller_class_t;
 
+enum {
+    // Matches spec which says "Null values indicate unknown battery status"
+    UNI_CONTROLLER_BATTERY_NOT_AVAILABLE = 0,
+    UNI_CONTROLLER_BATTERY_EMPTY = 1,
+    UNI_CONTROLLER_BATTERY_FULL = 255,
+};
+
 // Type that supports all kind of controllers.
 // Add a new type to the union if needed.
 // Common field, like "battery", should be placed outside the union.
@@ -50,7 +57,7 @@ typedef struct {
         uni_mouse_t mouse;
         uni_balance_board_t balance_board;
     };
-    uint8_t battery;
+    uint8_t battery;  // 0=emtpy, 254=full, 255=battery report not available
 } uni_controller_t;
 
 void uni_controller_dump(const uni_controller_t* ctl);
