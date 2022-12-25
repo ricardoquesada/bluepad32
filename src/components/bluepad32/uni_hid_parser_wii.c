@@ -777,6 +777,8 @@ static void process_drm_kee(uni_hid_device_t* d, const uint8_t* report, uint16_t
         ctl->balance_board.br = b.br;
         ctl->balance_board.tl = b.tl;
         ctl->balance_board.bl = b.bl;
+        ctl->balance_board.temperature = b.temperature;
+        ctl->battery = b.battery;
         ctl->klass = UNI_CONTROLLER_CLASS_BALANCE_BOARD;
 
         return;
