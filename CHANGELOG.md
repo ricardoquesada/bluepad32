@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   gamepad, mouse, keyboard, balance board. And possible more.
 
 ### Changed
+- ESP-IDF: Updated to v5.0
+- BTstack: Updated to v1.5.5
 - 8BitDo: Updated support for SN30 Pro FW v2 and M30
 
 ### Fixed

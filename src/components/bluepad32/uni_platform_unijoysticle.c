@@ -20,6 +20,7 @@ limitations under the License.
 
 #include "uni_platform_unijoysticle.h"
 
+#include <inttypes.h>
 #include <math.h>
 #include <stdbool.h>
 
@@ -28,9 +29,9 @@ limitations under the License.
 #include <driver/timer.h>
 #include <esp_chip_info.h>
 #include <esp_console.h>
+#include <esp_flash.h>
 #include <esp_idf_version.h>
 #include <esp_ota_ops.h>
-#include <esp_spi_flash.h>
 #include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
@@ -185,7 +186,7 @@ static void joy_update_port(const uni_joystick_t* joy, const gpio_num_t* gpios);
 static void handle_event_button(int button_idx);
 
 // GPIO Interrupt handlers
-static void IRAM_ATTR gpio_isr_handler_button(void* arg);
+static void gpio_isr_handler_button(void* arg);
 
 static void pushbutton_event_task(void* arg);
 static void auto_fire_task(void* arg);
@@ -1014,7 +1015,7 @@ static void auto_fire_task(void* arg) {
     }
 }
 
-static void IRAM_ATTR gpio_isr_handler_button(void* arg) {
+static void gpio_isr_handler_button(void* arg) {
     int button_idx = (int)arg;
 
     // Stored din ROM
@@ -1096,9 +1097,10 @@ static void cmd_callback(void* context) {
 
 static void version(void) {
     esp_chip_info_t info;
+    uint32_t flash_size;
     esp_chip_info(&info);
 
-    const esp_app_desc_t* app_desc = esp_ota_get_app_description();
+    const esp_app_desc_t* app_desc = esp_app_get_description();
 
     logi("Unijoysticle info:\n");
     logi("\tModel: %s\n", get_uni_model_from_nvs());
@@ -1110,6 +1112,11 @@ static void version(void) {
     else
         uni_platform_unijoysticle_amiga_version();
 
+    if (esp_flash_get_size(NULL, &flash_size) != ESP_OK) {
+        loge("Flash size failed\n");
+        flash_size = 0;
+    }
+
     logi("\nFirmware info:\n");
     logi("\tBluepad32 Version: v%s (%s)\n", UNI_VERSION, app_desc->version);
     logi("\tIDF Version: %s\n", app_desc->idf_ver);
@@ -1118,10 +1125,10 @@ static void version(void) {
     logi("\nChip info:\n");
     logi("\tModel: %s\n", info.model == CHIP_ESP32 ? "ESP32" : "Unknown");
     logi("\tCores: %d\n", info.cores);
-    logi("\tFeature: %s%s%s%s%d%s\n", info.features & CHIP_FEATURE_WIFI_BGN ? "/802.11bgn" : "",
+    logi("\tFeature: %s%s%s%s" PRIu32 "%s\n", info.features & CHIP_FEATURE_WIFI_BGN ? "/802.11bgn" : "",
          info.features & CHIP_FEATURE_BLE ? "/BLE" : "", info.features & CHIP_FEATURE_BT ? "/BT" : "",
-         info.features & CHIP_FEATURE_EMB_FLASH ? "/Embedded-Flash:" : "/External-Flash:",
-         spi_flash_get_chip_size() / (1024 * 1024), " MB");
+         info.features & CHIP_FEATURE_EMB_FLASH ? "/Embedded-Flash:" : "/External-Flash:", flash_size / (1024 * 1024),
+         " MB");
     logi("\tRevision Number: %d\n", info.revision);
 }
 

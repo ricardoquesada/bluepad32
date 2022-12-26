@@ -32,7 +32,6 @@ limitations under the License.
 
 #include "uni_platform_nina.h"
 
-#include <driver/gpio.h>
 #include <driver/spi_slave.h>
 #include <driver/uart.h>
 #include <esp_timer.h>
@@ -40,6 +39,7 @@ limitations under the License.
 #include <freertos/event_groups.h>
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
+#include <hal/gpio_ll.h>
 #include <math.h>
 
 #include "sdkconfig.h"
@@ -877,12 +877,12 @@ static int process_request(const uint8_t command[], int command_len, uint8_t res
 }
 
 // Called after a transaction is queued and ready for pickup by master.
-static void IRAM_ATTR spi_post_setup_cb(spi_slave_transaction_t* trans) {
+static void spi_post_setup_cb(spi_slave_transaction_t* trans) {
     ARG_UNUSED(trans);
     xSemaphoreGiveFromISR(_ready_semaphore, NULL);
 }
 
-static void IRAM_ATTR isr_handler_on_chip_select(void* arg) {
+static void isr_handler_on_chip_select(void* arg) {
     gpio_set_level(GPIO_READY, 1);
 }
 

@@ -153,7 +153,7 @@ static void timer_task(void* arg) {
     }
 }
 
-static bool IRAM_ATTR timer_handler(void* arg) {
+static bool timer_handler(void* arg) {
     uint32_t a = (uint32_t)arg;
     uint16_t port_idx = (a >> 16);
     uint16_t encoder_idx = (a & 0xffff);

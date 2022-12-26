@@ -559,7 +559,7 @@ enum {
 
 static EventGroupHandle_t evGrpCd32;
 
-static xQueueHandle controllerUpdateQueue = NULL;
+static QueueHandle_t controllerUpdateQueue = NULL;
 
 //! @}		// End of global variables
 
@@ -1837,7 +1837,7 @@ static void stateMachine(RuntimeControllerInfo* cinfo) {
     cinfo->previousButtonWord = cinfo->buttonWord;
 }
 
-static void IRAM_ATTR gpio_isr_handler_button(void* arg) {
+static void gpio_isr_handler_button(void* arg) {
     mmlogd("Button ISR running on core %d\n", xPortGetCoreID());
 
     // Button released?
@@ -1867,7 +1867,7 @@ static void IRAM_ATTR gpio_isr_handler_button(void* arg) {
  *
  * Called on clock pin rising, this function shall shift out next bit.
  */
-static void IRAM_ATTR onClockEdge(void* arg) {
+static void onClockEdge(void* arg) {
     RuntimeControllerInfo* cinfo = (RuntimeControllerInfo*)arg;
 
 #ifdef ENABLE_INSTRUMENTATION
@@ -1895,7 +1895,7 @@ static void IRAM_ATTR onClockEdge(void* arg) {
  * for CD32 mode, sample buttons and shift out the first bit on FALLING edges,
  * and restore Atari-style signals on RISING edges.
  */
-static void IRAM_ATTR onPadModeChange(void* arg) {
+static void onPadModeChange(void* arg) {
     RuntimeControllerInfo* cinfo = (RuntimeControllerInfo*)arg;
 
     if (gpio_get_level(cinfo->joyPins[PIN_NO_MODE]) == 0) {

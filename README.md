@@ -81,7 +81,7 @@ See: [Supported gamepads][gamepads] and [supported mice][mice]
 
 1. Install ESP-IDF
 
-    Install the ESP32 toolchain. Use version **4.4.1**. Might work on newer / older
+    Install the ESP32 toolchain. Use version **5.0**. Might work on newer / older
     ones, but not tested.
 
     * <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/>

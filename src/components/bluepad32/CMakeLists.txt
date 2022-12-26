@@ -44,7 +44,7 @@ set(srcs "uni_balance_board.c"
          "uni_property_nvs.c"
          "uni_utils.c")
 
-set(requires "nvs_flash" "btstack" "cmd_nvs" "cmd_system" "app_update")
+set(requires "nvs_flash" "btstack" "cmd_nvs" "cmd_system" "app_update" "esp_timer")
 
 # See: https://gitlab.com/ricardoquesada/bluepad32/-/issues/9
 if(DEFINED ENV{BLUEPAD32_ARDUINO})

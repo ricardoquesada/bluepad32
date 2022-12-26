@@ -7,106 +7,94 @@
    CONDITIONS OF ANY KIND, either express or implied.
 */
 
-#include <stdio.h>
+#include "cmd_nvs.h"
 #include <errno.h>
-#include <string.h>
-#include <stdlib.h>
 #include <inttypes.h>
-#include "esp_log.h"
-#include "esp_console.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "argtable3/argtable3.h"
+#include "esp_console.h"
+#include "esp_err.h"
+#include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
-#include "esp_err.h"
-#include "cmd_nvs.h"
 #include "nvs.h"
 
 typedef struct {
     nvs_type_t type;
-    const char *str;
+    const char* str;
 } type_str_pair_t;
 
 static const type_str_pair_t type_str_pair[] = {
-    { NVS_TYPE_I8, "i8" },
-    { NVS_TYPE_U8, "u8" },
-    { NVS_TYPE_U16, "u16" },
-    { NVS_TYPE_I16, "i16" },
-    { NVS_TYPE_U32, "u32" },
-    { NVS_TYPE_I32, "i32" },
-    { NVS_TYPE_U64, "u64" },
-    { NVS_TYPE_I64, "i64" },
-    { NVS_TYPE_STR, "str" },
-    { NVS_TYPE_BLOB, "blob" },
-    { NVS_TYPE_ANY, "any" },
+    {NVS_TYPE_I8, "i8"},   {NVS_TYPE_U8, "u8"},     {NVS_TYPE_U16, "u16"}, {NVS_TYPE_I16, "i16"},
+    {NVS_TYPE_U32, "u32"}, {NVS_TYPE_I32, "i32"},   {NVS_TYPE_U64, "u64"}, {NVS_TYPE_I64, "i64"},
+    {NVS_TYPE_STR, "str"}, {NVS_TYPE_BLOB, "blob"}, {NVS_TYPE_ANY, "any"},
 };
 
 static const size_t TYPE_STR_PAIR_SIZE = sizeof(type_str_pair) / sizeof(type_str_pair[0]);
-static const char *ARG_TYPE_STR = "type can be: i8, u8, i16, u16 i32, u32 i64, u64, str, blob";
+static const char* ARG_TYPE_STR = "type can be: i8, u8, i16, u16 i32, u32 i64, u64, str, blob";
 static char current_namespace[16] = "storage";
-static const char *TAG = "cmd_nvs";
+static const char* TAG = "cmd_nvs";
 
 static struct {
-    struct arg_str *key;
-    struct arg_str *type;
-    struct arg_str *value;
-    struct arg_end *end;
+    struct arg_str* key;
+    struct arg_str* type;
+    struct arg_str* value;
+    struct arg_end* end;
 } set_args;
 
 static struct {
-    struct arg_str *key;
-    struct arg_str *type;
-    struct arg_end *end;
+    struct arg_str* key;
+    struct arg_str* type;
+    struct arg_end* end;
 } get_args;
 
 static struct {
-    struct arg_str *key;
-    struct arg_end *end;
+    struct arg_str* key;
+    struct arg_end* end;
 } erase_args;
 
 static struct {
-    struct arg_str *namespace;
-    struct arg_end *end;
+    struct arg_str* namespace;
+    struct arg_end* end;
 } erase_all_args;
 
 static struct {
-    struct arg_str *namespace;
-    struct arg_end *end;
+    struct arg_str* namespace;
+    struct arg_end* end;
 } namespace_args;
 
 static struct {
-    struct arg_str *partition;
-    struct arg_str *namespace;
-    struct arg_str *type;
-    struct arg_end *end;
+    struct arg_str* partition;
+    struct arg_str* namespace;
+    struct arg_str* type;
+    struct arg_end* end;
 } list_args;
 
-
-static nvs_type_t str_to_type(const char *type)
-{
+static nvs_type_t str_to_type(const char* type) {
     for (int i = 0; i < TYPE_STR_PAIR_SIZE; i++) {
-        const type_str_pair_t *p = &type_str_pair[i];
+        const type_str_pair_t* p = &type_str_pair[i];
         if (strcmp(type, p->str) == 0) {
-            return  p->type;
+            return p->type;
         }
     }
 
     return NVS_TYPE_ANY;
 }
 
-static const char *type_to_str(nvs_type_t type)
-{
+static const char* type_to_str(nvs_type_t type) {
     for (int i = 0; i < TYPE_STR_PAIR_SIZE; i++) {
-        const type_str_pair_t *p = &type_str_pair[i];
+        const type_str_pair_t* p = &type_str_pair[i];
         if (p->type == type) {
-            return  p->str;
+            return p->str;
         }
     }
 
     return "Unknown";
 }
 
-static esp_err_t store_blob(nvs_handle_t nvs, const char *key, const char *str_values)
-{
+static esp_err_t store_blob(nvs_handle_t nvs, const char* key, const char* str_values) {
     uint8_t value;
     size_t str_len = strlen(str_values);
     size_t blob_len = str_len / 2;
@@ -116,7 +104,7 @@ static esp_err_t store_blob(nvs_handle_t nvs, const char *key, const char *str_v
         return ESP_ERR_NVS_TYPE_MISMATCH;
     }
 
-    char *blob = (char *)malloc(blob_len);
+    char* blob = (char*)malloc(blob_len);
     if (blob == NULL) {
         return ESP_ERR_NO_MEM;
     }
@@ -152,17 +140,14 @@ static esp_err_t store_blob(nvs_handle_t nvs, const char *key, const char *str_v
     return err;
 }
 
-static void print_blob(const char *blob, size_t len)
-{
+static void print_blob(const char* blob, size_t len) {
     for (int i = 0; i < len; i++) {
         printf("%02x", blob[i]);
     }
     printf("\n");
 }
 
-
-static esp_err_t set_value_in_nvs(const char *key, const char *str_type, const char *str_value)
-{
+static esp_err_t set_value_in_nvs(const char* key, const char* str_type, const char* str_value) {
     esp_err_t err;
     nvs_handle_t nvs;
     bool range_error = false;
@@ -249,8 +234,7 @@ static esp_err_t set_value_in_nvs(const char *key, const char *str_type, const c
     return err;
 }
 
-static esp_err_t get_value_from_nvs(const char *key, const char *str_type)
-{
+static esp_err_t get_value_from_nvs(const char* key, const char* str_type) {
     nvs_handle_t nvs;
     esp_err_t err;
 
@@ -292,12 +276,12 @@ static esp_err_t get_value_from_nvs(const char *key, const char *str_type)
     } else if (type == NVS_TYPE_I32) {
         int32_t value;
         if ((err = nvs_get_i32(nvs, key, &value)) == ESP_OK) {
-            printf("%d\n", value);
+            printf("%" PRIi32 "\n", value);
         }
     } else if (type == NVS_TYPE_U32) {
         uint32_t value;
         if ((err = nvs_get_u32(nvs, key, &value)) == ESP_OK) {
-            printf("%u\n", value);
+            printf("%" PRIu32 "\n", value);
         }
     } else if (type == NVS_TYPE_I64) {
         int64_t value;
@@ -306,23 +290,23 @@ static esp_err_t get_value_from_nvs(const char *key, const char *str_type)
         }
     } else if (type == NVS_TYPE_U64) {
         uint64_t value;
-        if ( (err = nvs_get_u64(nvs, key, &value)) == ESP_OK) {
+        if ((err = nvs_get_u64(nvs, key, &value)) == ESP_OK) {
             printf("%llu\n", value);
         }
     } else if (type == NVS_TYPE_STR) {
         size_t len;
-        if ( (err = nvs_get_str(nvs, key, NULL, &len)) == ESP_OK) {
-            char *str = (char *)malloc(len);
-            if ( (err = nvs_get_str(nvs, key, str, &len)) == ESP_OK) {
+        if ((err = nvs_get_str(nvs, key, NULL, &len)) == ESP_OK) {
+            char* str = (char*)malloc(len);
+            if ((err = nvs_get_str(nvs, key, str, &len)) == ESP_OK) {
                 printf("%s\n", str);
             }
             free(str);
         }
     } else if (type == NVS_TYPE_BLOB) {
         size_t len;
-        if ( (err = nvs_get_blob(nvs, key, NULL, &len)) == ESP_OK) {
-            char *blob = (char *)malloc(len);
-            if ( (err = nvs_get_blob(nvs, key, blob, &len)) == ESP_OK) {
+        if ((err = nvs_get_blob(nvs, key, NULL, &len)) == ESP_OK) {
+            char* blob = (char*)malloc(len);
+            if ((err = nvs_get_blob(nvs, key, blob, &len)) == ESP_OK) {
                 print_blob(blob, len);
             }
             free(blob);
@@ -333,8 +317,7 @@ static esp_err_t get_value_from_nvs(const char *key, const char *str_type)
     return err;
 }
 
-static esp_err_t erase(const char *key)
-{
+static esp_err_t erase(const char* key) {
     nvs_handle_t nvs;
 
     esp_err_t err = nvs_open(current_namespace, NVS_READWRITE, &nvs);
@@ -352,8 +335,7 @@ static esp_err_t erase(const char *key)
     return err;
 }
 
-static esp_err_t erase_all(const char *name)
-{
+static esp_err_t erase_all(const char* name) {
     nvs_handle_t nvs;
 
     esp_err_t err = nvs_open(name, NVS_READWRITE, &nvs);
@@ -370,39 +352,47 @@ static esp_err_t erase_all(const char *name)
     return ESP_OK;
 }
 
-static int list(const char *part, const char *name, const char *str_type)
-{
+static int list(const char* part, const char* name, const char* str_type) {
     nvs_type_t type = str_to_type(str_type);
 
-    nvs_iterator_t it = nvs_entry_find(part, NULL, type);
-    if (it == NULL) {
-        ESP_LOGE(TAG, "No such enty was found");
+    nvs_iterator_t it = NULL;
+    esp_err_t result = nvs_entry_find(part, NULL, type, &it);
+    if (result == ESP_ERR_NVS_NOT_FOUND) {
+        ESP_LOGE(TAG, "No such entry was found");
+        return 1;
+    }
+
+    if (result != ESP_OK) {
+        ESP_LOGE(TAG, "NVS error: %s", esp_err_to_name(result));
         return 1;
     }
 
     do {
         nvs_entry_info_t info;
         nvs_entry_info(it, &info);
-        it = nvs_entry_next(it);
+        result = nvs_entry_next(&it);
 
-        printf("namespace '%s', key '%s', type '%s' \n",
-               info.namespace_name, info.key, type_to_str(info.type));
-    } while (it != NULL);
+        printf("namespace '%s', key '%s', type '%s' \n", info.namespace_name, info.key, type_to_str(info.type));
+    } while (result == ESP_OK);
+
+    if (result != ESP_ERR_NVS_NOT_FOUND) {  // the last iteration ran into an internal error
+        ESP_LOGE(TAG, "NVS error %s at current iteration, stopping.", esp_err_to_name(result));
+        return 1;
+    }
 
     return 0;
 }
 
-static int set_value(int argc, char **argv)
-{
-    int nerrors = arg_parse(argc, argv, (void **) &set_args);
+static int set_value(int argc, char** argv) {
+    int nerrors = arg_parse(argc, argv, (void**)&set_args);
     if (nerrors != 0) {
         arg_print_errors(stderr, set_args.end, argv[0]);
         return 1;
     }
 
-    const char *key = set_args.key->sval[0];
-    const char *type = set_args.type->sval[0];
-    const char *values = set_args.value->sval[0];
+    const char* key = set_args.key->sval[0];
+    const char* type = set_args.type->sval[0];
+    const char* values = set_args.value->sval[0];
 
     esp_err_t err = set_value_in_nvs(key, type, values);
 
@@ -414,16 +404,15 @@ static int set_value(int argc, char **argv)
     return 0;
 }
 
-static int get_value(int argc, char **argv)
-{
-    int nerrors = arg_parse(argc, argv, (void **) &get_args);
+static int get_value(int argc, char** argv) {
+    int nerrors = arg_parse(argc, argv, (void**)&get_args);
     if (nerrors != 0) {
         arg_print_errors(stderr, get_args.end, argv[0]);
         return 1;
     }
 
-    const char *key = get_args.key->sval[0];
-    const char *type = get_args.type->sval[0];
+    const char* key = get_args.key->sval[0];
+    const char* type = get_args.type->sval[0];
 
     esp_err_t err = get_value_from_nvs(key, type);
 
@@ -435,15 +424,14 @@ static int get_value(int argc, char **argv)
     return 0;
 }
 
-static int erase_value(int argc, char **argv)
-{
-    int nerrors = arg_parse(argc, argv, (void **) &erase_args);
+static int erase_value(int argc, char** argv) {
+    int nerrors = arg_parse(argc, argv, (void**)&erase_args);
     if (nerrors != 0) {
         arg_print_errors(stderr, erase_args.end, argv[0]);
         return 1;
     }
 
-    const char *key = erase_args.key->sval[0];
+    const char* key = erase_args.key->sval[0];
 
     esp_err_t err = erase(key);
 
@@ -455,15 +443,14 @@ static int erase_value(int argc, char **argv)
     return 0;
 }
 
-static int erase_namespace(int argc, char **argv)
-{
-    int nerrors = arg_parse(argc, argv, (void **) &erase_all_args);
+static int erase_namespace(int argc, char** argv) {
+    int nerrors = arg_parse(argc, argv, (void**)&erase_all_args);
     if (nerrors != 0) {
         arg_print_errors(stderr, erase_all_args.end, argv[0]);
         return 1;
     }
 
-    const char *name = erase_all_args.namespace->sval[0];
+    const char* name = erase_all_args.namespace->sval[0];
 
     esp_err_t err = erase_all(name);
     if (err != ESP_OK) {
@@ -474,41 +461,38 @@ static int erase_namespace(int argc, char **argv)
     return 0;
 }
 
-static int set_namespace(int argc, char **argv)
-{
-    int nerrors = arg_parse(argc, argv, (void **) &namespace_args);
+static int set_namespace(int argc, char** argv) {
+    int nerrors = arg_parse(argc, argv, (void**)&namespace_args);
     if (nerrors != 0) {
         arg_print_errors(stderr, namespace_args.end, argv[0]);
         return 1;
     }
 
-    const char *namespace = namespace_args.namespace->sval[0];
+    const char* namespace = namespace_args.namespace->sval[0];
     strlcpy(current_namespace, namespace, sizeof(current_namespace));
     ESP_LOGI(TAG, "Namespace set to '%s'", current_namespace);
     return 0;
 }
 
-static int list_entries(int argc, char **argv)
-{
+static int list_entries(int argc, char** argv) {
     list_args.partition->sval[0] = "";
     list_args.namespace->sval[0] = "";
     list_args.type->sval[0] = "";
 
-    int nerrors = arg_parse(argc, argv, (void **) &list_args);
+    int nerrors = arg_parse(argc, argv, (void**)&list_args);
     if (nerrors != 0) {
         arg_print_errors(stderr, list_args.end, argv[0]);
         return 1;
     }
 
-    const char *part = list_args.partition->sval[0];
-    const char *name = list_args.namespace->sval[0];
-    const char *type = list_args.type->sval[0];
+    const char* part = list_args.partition->sval[0];
+    const char* name = list_args.namespace->sval[0];
+    const char* type = list_args.type->sval[0];
 
     return list(part, name, type);
 }
 
-void register_nvs(void)
-{
+void register_nvs(void) {
     set_args.key = arg_str1(NULL, NULL, "<key>", "key of the value to be set");
     set_args.type = arg_str1(NULL, NULL, "<type>", ARG_TYPE_STR);
 
@@ -533,61 +517,54 @@ void register_nvs(void)
     list_args.type = arg_str0("t", "type", "<type>", ARG_TYPE_STR);
     list_args.end = arg_end(2);
 
-    const esp_console_cmd_t set_cmd = {
-        .command = "nvs_set",
-        .help = "Set key-value pair in selected namespace.\n"
-        "Examples:\n"
-        " nvs_set VarName i32 -v 123 \n"
-        " nvs_set VarName str -v YourString \n"
-        " nvs_set VarName blob -v 0123456789abcdef \n",
-        .hint = NULL,
-        .func = &set_value,
-        .argtable = &set_args
-    };
+    const esp_console_cmd_t set_cmd = {.command = "nvs_set",
+                                       .help =
+                                           "Set key-value pair in selected namespace.\n"
+                                           "Examples:\n"
+                                           " nvs_set VarName i32 -v 123 \n"
+                                           " nvs_set VarName str -v YourString \n"
+                                           " nvs_set VarName blob -v 0123456789abcdef \n",
+                                       .hint = NULL,
+                                       .func = &set_value,
+                                       .argtable = &set_args};
 
-    const esp_console_cmd_t get_cmd = {
-        .command = "nvs_get",
-        .help = "Get key-value pair from selected namespace. \n"
-        "Example: nvs_get VarName i32",
-        .hint = NULL,
-        .func = &get_value,
-        .argtable = &get_args
-    };
+    const esp_console_cmd_t get_cmd = {.command = "nvs_get",
+                                       .help =
+                                           "Get key-value pair from selected namespace. \n"
+                                           "Example: nvs_get VarName i32",
+                                       .hint = NULL,
+                                       .func = &get_value,
+                                       .argtable = &get_args};
 
-    const esp_console_cmd_t erase_cmd = {
-        .command = "nvs_erase",
-        .help = "Erase key-value pair from current namespace",
-        .hint = NULL,
-        .func = &erase_value,
-        .argtable = &erase_args
-    };
+    const esp_console_cmd_t erase_cmd = {.command = "nvs_erase",
+                                         .help = "Erase key-value pair from current namespace",
+                                         .hint = NULL,
+                                         .func = &erase_value,
+                                         .argtable = &erase_args};
 
-    const esp_console_cmd_t erase_namespace_cmd = {
-        .command = "nvs_erase_namespace",
-        .help = "Erases specified namespace",
-        .hint = NULL,
-        .func = &erase_namespace,
-        .argtable = &erase_all_args
-    };
+    const esp_console_cmd_t erase_namespace_cmd = {.command = "nvs_erase_namespace",
+                                                   .help = "Erases specified namespace",
+                                                   .hint = NULL,
+                                                   .func = &erase_namespace,
+                                                   .argtable = &erase_all_args};
 
-    const esp_console_cmd_t namespace_cmd = {
-        .command = "nvs_namespace",
-        .help = "Set current namespace",
-        .hint = NULL,
-        .func = &set_namespace,
-        .argtable = &namespace_args
-    };
+    const esp_console_cmd_t namespace_cmd = {.command = "nvs_namespace",
+                                             .help = "Set current namespace",
+                                             .hint = NULL,
+                                             .func = &set_namespace,
+                                             .argtable = &namespace_args};
 
     const esp_console_cmd_t list_entries_cmd = {
         .command = "nvs_list",
-        .help = "List stored key-value pairs stored in NVS."
-        "Namespace and type can be specified to print only those key-value pairs.\n"
-        "Following command list variables stored inside 'nvs' partition, under namespace 'storage' with type uint32_t"
-        "Example: nvs_list nvs -n storage -t u32 \n",
+        .help =
+            "List stored key-value pairs stored in NVS."
+            "Namespace and type can be specified to print only those key-value pairs.\n"
+            "Following command list variables stored inside 'nvs' partition, under namespace 'storage' with type "
+            "uint32_t"
+            "Example: nvs_list nvs -n storage -t u32 \n",
         .hint = NULL,
         .func = &list_entries,
-        .argtable = &list_args
-    };
+        .argtable = &list_args};
 
     ESP_ERROR_CHECK(esp_console_cmd_register(&set_cmd));
     ESP_ERROR_CHECK(esp_console_cmd_register(&get_cmd));

@@ -28,7 +28,7 @@ To flash your device:
 
 ```sh
 # Linux
-export ESPPORT=/dev/ttyUSB0 # This may be different if you have multiple USB serial devices connected. 
+export ESPPORT=/dev/ttyUSB0 # This may be different if you have multiple USB serial devices connected.
 # macOS
 export ESPPORT=/dev/cu.SLAB_USBtoUART
 # Windows
@@ -64,13 +64,13 @@ Parameters:
 
 ## For Windows
 
-1. Install [ESP-IDF v4.4][esp-idf-windows-installer]. For further info, read: [ESP-IDF Getting Started for Windows][esp-idf-windows-setup]
+1. Install [ESP-IDF v5.0][esp-idf-windows-installer]. For further info, read: [ESP-IDF Getting Started for Windows][esp-idf-windows-setup]
 
    * Either the Online or Offline version shoud work
    * When asked which components to install, don't change anything. Default options are Ok.
    * When asked whether ESP can modify the system, answer "Yes"
 
-2. Launch the "ESP-IDF v4.4 CMD" (type that in the Windows search box)
+2. Launch the "ESP-IDF v5.0 CMD" (type that in the Windows search box)
 
 3. From the ESP-IDF cmd, clone Bluepad32 repo
 
@@ -112,7 +112,7 @@ Parameters:
     ```
 
 [esp-idf-windows-setup]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/windows-setup.html
-[esp-idf-windows-installer]: https://dl.espressif.com/dl/esp-idf/?idf=4.4
+[esp-idf-windows-installer]: https://dl.espressif.com/dl/esp-idf/?idf=5.0
 
 ## For Linux / macOS
 
@@ -139,7 +139,7 @@ Parameters:
     # Needs to be done just once
     # Clone the ESP-IDF git repo
     mkdir ~/esp && cd ~/esp
-    git clone -b release/v4.4 --recursive https://github.com/espressif/esp-idf.git
+    git clone -b release/v5.0 --recursive https://github.com/espressif/esp-idf.git
 
     # Then install the toolchain
     cd ~/esp/esp-idf

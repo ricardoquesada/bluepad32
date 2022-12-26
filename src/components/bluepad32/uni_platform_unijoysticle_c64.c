@@ -53,8 +53,8 @@ enum {
 static int get_c64_pot_mode_from_nvs(void);
 
 // GPIO Interrupt handlers
-static void IRAM_ATTR gpio_isr_handler_sync(void* arg);
-static bool IRAM_ATTR timer_isr_handler_sync(void* arg);
+static void gpio_isr_handler_sync(void* arg);
+static bool timer_isr_handler_sync(void* arg);
 static void sync_irq_event_task(void* arg);
 
 // --- Consts (ROM)
@@ -157,7 +157,7 @@ static void sync_irq_event_task(void* arg) {
     }
 }
 
-static void IRAM_ATTR gpio_isr_handler_sync(void* arg) {
+static void gpio_isr_handler_sync(void* arg) {
     int sync_idx = (int)arg;
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     xEventGroupSetBitsFromISR(_sync_irq_group, BIT(sync_idx), &xHigherPriorityTaskWoken);
@@ -165,7 +165,7 @@ static void IRAM_ATTR gpio_isr_handler_sync(void* arg) {
         portYIELD_FROM_ISR();
 }
 
-static bool IRAM_ATTR timer_isr_handler_sync(void* arg) {
+static bool timer_isr_handler_sync(void* arg) {
     int sync_idx = (int)arg + EVENT_SYNC_TIMER_0;
     BaseType_t higher_priority_task_woken = pdFALSE;
     xEventGroupSetBitsFromISR(_sync_irq_group, BIT(sync_idx), &higher_priority_task_woken);
