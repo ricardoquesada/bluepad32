@@ -69,11 +69,11 @@
 #include "uni_bt_setup.h"
 #include "uni_common.h"
 #include "uni_config.h"
-#include "uni_debug.h"
 #include "uni_hci_cmd.h"
 #include "uni_hid_device.h"
 #include "uni_hid_device_vendors.h"
 #include "uni_hid_parser.h"
+#include "uni_log.h"
 #include "uni_platform.h"
 
 #define INQUIRY_REMOTE_NAME_TIMEOUT_MS 4500

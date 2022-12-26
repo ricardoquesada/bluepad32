@@ -22,7 +22,7 @@ limitations under the License.
 #include <nvs_flash.h>
 #include <string.h>
 
-#include "uni_debug.h"
+#include "uni_log.h"
 
 static const char* STORAGE_NAMESPACE = "bp32";
 

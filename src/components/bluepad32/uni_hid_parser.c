@@ -19,9 +19,9 @@ limitations under the License.
 #include "uni_hid_parser.h"
 
 #include "hid_usage.h"
-#include "uni_debug.h"
 #include "uni_gamepad.h"
 #include "uni_hid_device.h"
+#include "uni_log.h"
 
 // HID Usage Tables:
 // https://www.usb.org/sites/default/files/documents/hut1_12v2.pdf

@@ -24,9 +24,9 @@ limitations under the License.
 #include "hid_usage.h"
 #include "uni_common.h"
 #include "uni_controller.h"
-#include "uni_debug.h"
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
+#include "uni_log.h"
 
 void uni_hid_parser_android_init_report(uni_hid_device_t* d) {
     // Reset old state. Each report contains a full-state.

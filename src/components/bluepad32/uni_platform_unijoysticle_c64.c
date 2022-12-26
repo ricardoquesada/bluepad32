@@ -32,7 +32,7 @@ limitations under the License.
 #include "uni_bluetooth.h"
 #include "uni_common.h"
 #include "uni_config.h"
-#include "uni_debug.h"
+#include "uni_log.h"
 #include "uni_platform_unijoysticle.h"
 #include "uni_property.h"
 

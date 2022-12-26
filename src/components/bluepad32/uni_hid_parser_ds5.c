@@ -26,9 +26,9 @@ limitations under the License.
 #include "hid_usage.h"
 #include "uni_common.h"
 #include "uni_config.h"
-#include "uni_debug.h"
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
+#include "uni_log.h"
 #include "uni_utils.h"
 
 #define DS5_FEATURE_REPORT_CALIBRATION 0x05

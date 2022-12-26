@@ -28,7 +28,7 @@ limitations under the License.
 
 #include "sdkconfig.h"
 #include "uni_common.h"
-#include "uni_debug.h"
+#include "uni_log.h"
 
 static char buf_gpio_get[16];
 static char buf_gpio_set[16];

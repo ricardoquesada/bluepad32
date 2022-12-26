@@ -26,9 +26,9 @@ limitations under the License.
 
 #include "hid_usage.h"
 #include "uni_controller.h"
-#include "uni_debug.h"
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
+#include "uni_log.h"
 
 // Supported Xbox One firmware revisions.
 // Probably there are more revisions, but I only found two in the "wild".

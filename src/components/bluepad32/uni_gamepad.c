@@ -19,11 +19,12 @@ limitations under the License.
 #include "uni_gamepad.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 
 #include "uni_common.h"
 #include "uni_config.h"
-#include "uni_debug.h"
 #include "uni_hid_device_vendors.h"
+#include "uni_log.h"
 
 static uni_gamepad_mappings_t map;
 static bool mappings_enabled = false;

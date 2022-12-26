@@ -23,9 +23,9 @@ limitations under the License.
 
 #include "hid_usage.h"
 #include "uni_common.h"
-#include "uni_debug.h"
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
+#include "uni_log.h"
 
 void uni_hid_parser_smarttvremote_init_report(uni_hid_device_t* d) {
     uni_controller_t* ctl = &d->controller;
@@ -47,10 +47,8 @@ void uni_hid_parser_smarttvremote_parse_usage(uni_hid_device_t* d,
                     ctl->battery = value;
                     break;
                 default:
-                    logi(
-                        "SmartTVRemote: Unsupported page: 0x%04x, usage: 0x%04x, "
-                        "value=0x%x\n",
-                        usage_page, usage, value);
+                    logi("SmartTVRemote: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage,
+                         value);
                     break;
             }
             break;
@@ -88,10 +86,8 @@ void uni_hid_parser_smarttvremote_parse_usage(uni_hid_device_t* d,
                         ctl->gamepad.misc_buttons |= MISC_BUTTON_BACK;
                     break;
                 default:
-                    logi(
-                        "SmartTVRemote: Unsupported page: 0x%04x, usage: 0x%04x, "
-                        "value=0x%x\n",
-                        usage_page, usage, value);
+                    logi("SmartTVRemote: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage,
+                         value);
                     break;
             }
             break;
@@ -115,20 +111,15 @@ void uni_hid_parser_smarttvremote_parse_usage(uni_hid_device_t* d,
                         ctl->gamepad.misc_buttons |= MISC_BUTTON_HOME;
                     break;
                 default:
-                    logi(
-                        "SmartTVRemote: Unsupported page: 0x%04x, usage: 0x%04x, "
-                        "value=0x%x\n",
-                        usage_page, usage, value);
+                    logi("SmartTVRemote: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage,
+                         value);
                     break;
             }
             break;
         }
         // unknown usage page
         default:
-            logi(
-                "SmartTVRemote: Unsupported page: 0x%04x, usage: 0x%04x, "
-                "value=0x%x\n",
-                usage_page, usage, value);
+            logi("SmartTVRemote: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
             break;
     }
 }

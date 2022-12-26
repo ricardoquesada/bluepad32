@@ -28,8 +28,8 @@ limitations under the License.
 #include "uni_bt_sdp.h"
 #include "uni_common.h"
 #include "uni_config.h"
-#include "uni_debug.h"
 #include "uni_hci_cmd.h"
+#include "uni_log.h"
 #include "uni_platform.h"
 #include "uni_property.h"
 

@@ -30,11 +30,11 @@ limitations under the License.
 #include "uni_bluetooth.h"
 #include "uni_common.h"
 #include "uni_config.h"
-#include "uni_debug.h"
 #include "uni_gamepad.h"
 #include "uni_hid_device.h"
 #include "uni_hid_device_vendors.h"
 #include "uni_joystick.h"
+#include "uni_log.h"
 
 /** \def MMBOARD_REV_B
  *

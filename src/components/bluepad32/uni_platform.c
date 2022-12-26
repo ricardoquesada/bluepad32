@@ -19,7 +19,7 @@ limitations under the License.
 #include "uni_platform.h"
 
 #include "sdkconfig.h"
-#include "uni_debug.h"
+#include "uni_log.h"
 #include "uni_platform_arduino.h"
 #include "uni_platform_mightymiggy.h"
 #include "uni_platform_nina.h"

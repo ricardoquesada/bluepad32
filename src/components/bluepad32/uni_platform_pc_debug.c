@@ -24,9 +24,9 @@ limitations under the License.
 #include <string.h>
 
 #include "uni_bluetooth.h"
-#include "uni_debug.h"
 #include "uni_gamepad.h"
 #include "uni_hid_device.h"
+#include "uni_log.h"
 
 //
 // Globals

@@ -20,9 +20,9 @@ limitations under the License.
 
 #include "hid_usage.h"
 #include "uni_controller.h"
-#include "uni_debug.h"
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
+#include "uni_log.h"
 
 // 8Bitdo controllers support different "modes":
 // - Nintendo Switch: it impersonates the Nintendo Switch controller

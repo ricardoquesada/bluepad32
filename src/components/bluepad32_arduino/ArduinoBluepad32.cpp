@@ -11,7 +11,7 @@
 #include <Arduino.h>
 #include <inttypes.h>
 #include <uni_bluetooth.h>
-#include <uni_debug.h>
+#include <uni_log.h>
 #include <uni_platform_arduino.h>
 #include <uni_version.h>
 

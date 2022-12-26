@@ -20,9 +20,9 @@ limitations under the License.
 
 #include "hid_usage.h"
 #include "uni_common.h"
-#include "uni_debug.h"
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
+#include "uni_log.h"
 
 void uni_hid_parser_nimbus_init_report(uni_hid_device_t* d) {
     uni_controller_t* ctl = &d->controller;

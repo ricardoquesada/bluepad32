@@ -29,10 +29,10 @@ limitations under the License.
 
 #include "hid_usage.h"
 #include "uni_config.h"
-#include "uni_debug.h"
 #include "uni_gamepad.h"
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
+#include "uni_log.h"
 
 static const uint16_t DUALSHOCK3_VID = 0x054c;  // Sony
 static const uint16_t DUALSHOCK3_PID = 0x0268;  // DualShock 3

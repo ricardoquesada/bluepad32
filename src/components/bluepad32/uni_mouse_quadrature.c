@@ -32,7 +32,7 @@ limitations under the License.
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
-#include "uni_debug.h"
+#include "uni_log.h"
 #include "uni_property.h"
 
 // Probably I could use a smaller divider, and only do "1 tick per 80us".

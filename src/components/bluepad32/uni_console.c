@@ -32,9 +32,9 @@ limitations under the License.
 #include "uni_bluetooth.h"
 #include "uni_bt_setup.h"
 #include "uni_common.h"
-#include "uni_debug.h"
 #include "uni_gpio.h"
 #include "uni_hid_device.h"
+#include "uni_log.h"
 #include "uni_mouse_quadrature.h"
 #include "uni_platform.h"
 

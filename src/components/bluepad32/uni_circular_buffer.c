@@ -20,7 +20,7 @@ limitations under the License.
 
 #include <string.h>
 
-#include "uni_debug.h"
+#include "uni_log.h"
 
 uint8_t uni_circular_buffer_put(uni_circular_buffer_t* b, int16_t cid, const void* data, int len) {
     if (uni_circular_buffer_is_full(b)) {

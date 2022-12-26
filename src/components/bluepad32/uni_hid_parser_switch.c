@@ -37,10 +37,10 @@ limitations under the License.
 #include "hid_usage.h"
 #include "uni_bt_conn.h"
 #include "uni_common.h"
-#include "uni_debug.h"
 #include "uni_gamepad.h"
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
+#include "uni_log.h"
 
 // Support for Nintendo Switch Pro gamepad and JoyCons.
 

@@ -18,16 +18,15 @@ limitations under the License.
 
 #include "uni_main.h"
 
+#include "sdkconfig.h"
 #include "uni_bt_setup.h"
 #include "uni_config.h"
 #include "uni_console.h"
-#include "uni_debug.h"
 #include "uni_hid_device.h"
+#include "uni_log.h"
 #include "uni_platform.h"
 #include "uni_property.h"
 #include "uni_version.h"
-
-#include "sdkconfig.h"
 
 // Main entry point, runs forever
 int uni_main(int argc, const char** argv) {

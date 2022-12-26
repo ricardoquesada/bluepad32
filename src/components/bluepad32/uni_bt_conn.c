@@ -20,7 +20,7 @@ limitations under the License.
 
 #include <string.h>
 
-#include "uni_debug.h"
+#include "uni_log.h"
 
 void uni_bt_conn_init(uni_bt_conn_t* conn) {
     memset(conn, 0, sizeof(*conn));

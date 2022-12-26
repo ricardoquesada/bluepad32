@@ -52,7 +52,7 @@
 
 #include "uni_bluetooth.h"
 #include "uni_common.h"
-#include "uni_debug.h"
+#include "uni_log.h"
 
 #define MAX_ATTRIBUTE_VALUE_SIZE 512  // Apparently PS4 has a 470-bytes report
 
