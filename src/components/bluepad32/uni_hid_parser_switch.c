@@ -575,6 +575,28 @@ static void process_input_subcmd_reply(struct uni_hid_device_s* d, const uint8_t
             loge("Switch: Error, unexpected subcmd_id=0x%02x in report 0x21\n", r->subcmd_id);
             break;
     }
+
+    // Update battery
+    int battery = r->bat_con >> 5;
+    switch(battery) {
+        case 0:
+            d->controller.battery = UNI_CONTROLLER_BATTERY_EMPTY;
+            break;
+        case 1:
+            d->controller.battery = 64;
+            break;
+        case 2:
+            d->controller.battery = 128;
+            break;
+        case 3:
+            d->controller.battery = 192;
+            break;
+        case 4:
+            d->controller.battery = UNI_CONTROLLER_BATTERY_FULL;
+            break;
+        default:
+            loge("Switch: invalid battery value: %d\n", battery);
+    }
     process_fsm(d);
 }
 
