@@ -23,30 +23,23 @@ limitations under the License.
 #include <stdbool.h>
 
 #include <argtable3/argtable3.h>
-#include <driver/timer.h>
 #include <esp_console.h>
+#include <esp_err.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
 
 #include "sdkconfig.h"
-#include "uni_bluetooth.h"
 #include "uni_common.h"
-#include "uni_config.h"
 #include "uni_log.h"
 #include "uni_platform_unijoysticle.h"
 #include "uni_property.h"
 
 #define TASK_SYNC_IRQ_PRIO (9)
 
-// 80Mhz / 40000 = 2000Hz = tick every 0.5ms
-#define TIMER_DIVIDER (80 * 500)
-#define TIMER_ONE_MILLISECOND (2)
 
 enum {
     EVENT_SYNC_IRQ_0,
     EVENT_SYNC_IRQ_1,
-    EVENT_SYNC_TIMER_0,
-    EVENT_SYNC_TIMER_1,
 };
 
 // --- Function declaration
@@ -54,7 +47,6 @@ static int get_c64_pot_mode_from_nvs(void);
 
 // GPIO Interrupt handlers
 static void gpio_isr_handler_sync(void* arg);
-static bool timer_isr_handler_sync(void* arg);
 static void sync_irq_event_task(void* arg);
 
 // --- Consts (ROM)
@@ -68,6 +60,7 @@ static const char* c64_pot_modes[] = {
 // Globals to the file
 static EventGroupHandle_t _sync_irq_group;
 static TaskHandle_t _sync_task;
+
 
 static struct {
     struct arg_str* value;
@@ -122,7 +115,7 @@ static void sync_irq_event_task(void* arg) {
     while (1) {
         EventBits_t bits = xEventGroupWaitBits(
             _sync_irq_group,
-            BIT(EVENT_SYNC_IRQ_0) | BIT(EVENT_SYNC_IRQ_1) | BIT(EVENT_SYNC_TIMER_0) | BIT(EVENT_SYNC_TIMER_1), pdTRUE,
+            BIT(EVENT_SYNC_IRQ_0) | BIT(EVENT_SYNC_IRQ_1), pdTRUE,
             pdFALSE, xTicksToWait);
 
         // timeout ?
@@ -144,16 +137,6 @@ static void sync_irq_event_task(void* arg) {
             syncirq_callback_registration.context = (void*)(GAMEPAD_SEAT_B);
             btstack_run_loop_execute_on_main_thread(&syncirq_callback_registration);
         }
-
-        // EVENT_SYNC_TIMER_* events come from the timer.
-        // Means that they should be considered as "low" events.
-        if (bits & BIT(EVENT_SYNC_TIMER_0)) {
-            // gpio_set_level(g_gpio_config->leds[LED_J1], 0);
-        }
-
-        if (bits & BIT(EVENT_SYNC_TIMER_1)) {
-            // gpio_set_level(g_gpio_config->leds[LED_J2], 0);
-        }
     }
 }
 
@@ -163,13 +146,6 @@ static void gpio_isr_handler_sync(void* arg) {
     xEventGroupSetBitsFromISR(_sync_irq_group, BIT(sync_idx), &xHigherPriorityTaskWoken);
     if (xHigherPriorityTaskWoken == pdTRUE)
         portYIELD_FROM_ISR();
-}
-
-static bool timer_isr_handler_sync(void* arg) {
-    int sync_idx = (int)arg + EVENT_SYNC_TIMER_0;
-    BaseType_t higher_priority_task_woken = pdFALSE;
-    xEventGroupSetBitsFromISR(_sync_irq_group, BIT(sync_idx), &higher_priority_task_woken);
-    return higher_priority_task_woken;
 }
 
 static int cmd_set_c64_pot_mode(int argc, char** argv) {
@@ -261,9 +237,6 @@ void uni_platform_unijoysticle_c64_set_pot_mode(uni_platform_unijoysticle_c64_po
 
             // "i" must match EVENT_SYNC_IRQ_0, etc.
             gpio_isr_handler_remove(sync_irq);
-
-            // Remove Timer handler
-            timer_isr_callback_remove(TIMER_GROUP_1, TIMER_0 + i);
         }
         vTaskDelete(_sync_task);
         _sync_task = NULL;
@@ -275,14 +248,6 @@ void uni_platform_unijoysticle_c64_set_pot_mode(uni_platform_unijoysticle_c64_po
             // Nothing to do. "rumble" is already enabled
             return;
         }
-
-        timer_config_t config = {
-            .divider = TIMER_DIVIDER,
-            .counter_dir = TIMER_COUNT_DOWN,
-            .counter_en = TIMER_START,
-            .alarm_en = TIMER_ALARM_EN,
-            .auto_reload = TIMER_AUTORELOAD_EN,
-        };
 
         _sync_irq_group = xEventGroupCreate();
         xTaskCreate(sync_irq_event_task, "bp.uni.sync_irq", 2048, NULL, TASK_SYNC_IRQ_PRIO, &_sync_task);
@@ -303,11 +268,6 @@ void uni_platform_unijoysticle_c64_set_pot_mode(uni_platform_unijoysticle_c64_po
             ESP_ERROR_CHECK(gpio_config(&io_conf));
             // "i" must match EVENT_SYNC_IRQ_0, etc.
             ESP_ERROR_CHECK(gpio_isr_handler_add(gpio, gpio_isr_handler_sync, (void*)i));
-
-            // Set Timer handler
-            ESP_ERROR_CHECK(timer_init(TIMER_GROUP_1, TIMER_0 + i, &config));
-            timer_set_counter_value(TIMER_GROUP_1, TIMER_0 + i, TIMER_ONE_MILLISECOND);
-            timer_isr_callback_add(TIMER_GROUP_1, TIMER_0 + i, timer_isr_handler_sync, (void*)i, 0);
         }
     } else {
         loge("unijoysticle: unsupported gamepad mode: %d\n", mode);
