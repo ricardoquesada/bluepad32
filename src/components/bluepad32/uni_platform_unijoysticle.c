@@ -1125,10 +1125,12 @@ static void version(void) {
     logi("\nChip info:\n");
     logi("\tModel: %s\n", info.model == CHIP_ESP32 ? "ESP32" : "Unknown");
     logi("\tCores: %d\n", info.cores);
+#if 0
     logi("\tFeature: %s%s%s%s" PRIu32 "%s\n", info.features & CHIP_FEATURE_WIFI_BGN ? "/802.11bgn" : "",
          info.features & CHIP_FEATURE_BLE ? "/BLE" : "", info.features & CHIP_FEATURE_BT ? "/BT" : "",
          info.features & CHIP_FEATURE_EMB_FLASH ? "/Embedded-Flash:" : "/External-Flash:", flash_size / (1024 * 1024),
          " MB");
+#endif
     logi("\tRevision Number: %d\n", info.revision);
 }
 
