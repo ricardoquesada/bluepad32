@@ -8,28 +8,37 @@
 */
 
 #include "cmd_system.h"
+
 #include <ctype.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include "argtable3/argtable3.h"
-#include "driver/rtc_io.h"
-#include "driver/uart.h"
-#include "esp_chip_info.h"
-#include "esp_console.h"
-#include "esp_flash.h"
-#include "esp_log.h"
-#include "esp_sleep.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+
+#include <argtable3/argtable3.h>
+#include <driver/rtc_io.h>
+#include <driver/uart.h>
+#include <esp_chip_info.h>
+#include <esp_console.h>
+#include <esp_flash.h>
+#include <esp_log.h>
+#include <esp_sleep.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
 #include "sdkconfig.h"
 
 #ifdef CONFIG_FREERTOS_USE_STATS_FORMATTING_FUNCTIONS
 #define WITH_TASKS_INFO 1
 #endif
 
+// Arduino and Unijoysticle overrides have their own "version" command that calls this one.
+// So, don't register "version"
+#if defined(CONFIG_BLUEPAD32_PLATFORM_UNIJOYSTICLE) || defined(CONFIG_BLUEPAD32_PLATFORM_ARDUINO)
 #define WITH_VERSION 0
+#else
+#define WITH_VERSION 1
+#endif
 
 static const char* TAG = "cmd_system";
 
@@ -69,7 +78,6 @@ void register_system(void) {
     register_system_sleep();
 }
 
-#if WITH_VERSION
 /* 'version' command */
 static int get_version(int argc, char** argv) {
     const char* model;
@@ -117,6 +125,7 @@ static int get_version(int argc, char** argv) {
     return 0;
 }
 
+#if WITH_VERSION
 static void register_version(void) {
     const esp_console_cmd_t cmd = {
         .command = "version",
@@ -433,4 +442,8 @@ static void register_log_level(void) {
                                    .func = &log_level,
                                    .argtable = &log_level_args};
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
+}
+
+void cmd_system_version(void) {
+    get_version(0, NULL);
 }

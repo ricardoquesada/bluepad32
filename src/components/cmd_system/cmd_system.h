@@ -21,6 +21,9 @@ void register_system_common(void);
 // Register deep and light sleep functions
 void register_system_sleep(void);
 
+// Execute "version" command
+void cmd_system_version(void);
+
 #ifdef __cplusplus
 }
 #endif

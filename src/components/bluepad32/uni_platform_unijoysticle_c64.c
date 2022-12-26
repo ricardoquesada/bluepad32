@@ -36,7 +36,6 @@ limitations under the License.
 
 #define TASK_SYNC_IRQ_PRIO (9)
 
-
 enum {
     EVENT_SYNC_IRQ_0,
     EVENT_SYNC_IRQ_1,
@@ -60,7 +59,6 @@ static const char* c64_pot_modes[] = {
 // Globals to the file
 static EventGroupHandle_t _sync_irq_group;
 static TaskHandle_t _sync_task;
-
 
 static struct {
     struct arg_str* value;
@@ -113,10 +111,8 @@ static void sync_irq_event_task(void* arg) {
     // timeout of 100s
     const TickType_t xTicksToWait = pdMS_TO_TICKS(100000);
     while (1) {
-        EventBits_t bits = xEventGroupWaitBits(
-            _sync_irq_group,
-            BIT(EVENT_SYNC_IRQ_0) | BIT(EVENT_SYNC_IRQ_1), pdTRUE,
-            pdFALSE, xTicksToWait);
+        EventBits_t bits = xEventGroupWaitBits(_sync_irq_group, BIT(EVENT_SYNC_IRQ_0) | BIT(EVENT_SYNC_IRQ_1), pdTRUE,
+                                               pdFALSE, xTicksToWait);
 
         // timeout ?
         if (bits == 0)

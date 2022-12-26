@@ -31,6 +31,7 @@ limitations under the License.
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
 
+#include "cmd_system.h"
 #include "uni_bluetooth.h"
 #include "uni_common.h"
 #include "uni_config.h"
@@ -357,17 +358,10 @@ static void version(void) {
     logi("\tBluepad32 Version: v%s (%s)\n", UNI_VERSION, app_desc->version);
     logi("\tArduino Core Version: v%d.%d.%d\n", ESP_ARDUINO_VERSION_MAJOR, ESP_ARDUINO_VERSION_MINOR,
          ESP_ARDUINO_VERSION_PATCH);
-    logi("\tIDF Version: %s\n", app_desc->idf_ver);
     logi("\tCompile Time: %s %s\n", app_desc->date, app_desc->time);
 
-    logi("\nChip info:\n");
-    logi("\tModel: %s\n", info.model == CHIP_ESP32 ? "ESP32" : "Unknown");
-    logi("\tCores: %d\n", info.cores);
-    logi("\tFeature: %s%s%s%s%d%s\n", info.features & CHIP_FEATURE_WIFI_BGN ? "/802.11bgn" : "",
-         info.features & CHIP_FEATURE_BLE ? "/BLE" : "", info.features & CHIP_FEATURE_BT ? "/BT" : "",
-         info.features & CHIP_FEATURE_EMB_FLASH ? "/Embedded-Flash:" : "/External-Flash:",
-         spi_flash_get_chip_size() / (1024 * 1024), " MB");
-    logi("\tRevision Number: %d\n", info.revision);
+    logi("\n");
+    cmd_system_version();
 }
 
 static int cmd_version(int argc, char** argv) {

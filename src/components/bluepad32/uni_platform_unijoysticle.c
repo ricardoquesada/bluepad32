@@ -37,6 +37,7 @@ limitations under the License.
 #include <freertos/queue.h>
 #include <hal/gpio_types.h>
 
+#include "cmd_system.h"
 #include "sdkconfig.h"
 #include "uni_balance_board.h"
 #include "uni_bluetooth.h"
@@ -1118,19 +1119,10 @@ static void version(void) {
 
     logi("\nFirmware info:\n");
     logi("\tBluepad32 Version: v%s (%s)\n", UNI_VERSION, app_desc->version);
-    logi("\tIDF Version: %s\n", app_desc->idf_ver);
     logi("\tCompile Time: %s %s\n", app_desc->date, app_desc->time);
 
-    logi("\nChip info:\n");
-    logi("\tModel: %s\n", info.model == CHIP_ESP32 ? "ESP32" : "Unknown");
-    logi("\tCores: %d\n", info.cores);
-#if 0
-    logi("\tFeature: %s%s%s%s" PRIu32 "%s\n", info.features & CHIP_FEATURE_WIFI_BGN ? "/802.11bgn" : "",
-         info.features & CHIP_FEATURE_BLE ? "/BLE" : "", info.features & CHIP_FEATURE_BT ? "/BT" : "",
-         info.features & CHIP_FEATURE_EMB_FLASH ? "/Embedded-Flash:" : "/External-Flash:", flash_size / (1024 * 1024),
-         " MB");
-#endif
-    logi("\tRevision Number: %d\n", info.revision);
+    logi("\n");
+    cmd_system_version();
 }
 
 static void get_gamepad_mode() {
