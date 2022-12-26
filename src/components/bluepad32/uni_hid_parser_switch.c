@@ -578,7 +578,7 @@ static void process_input_subcmd_reply(struct uni_hid_device_s* d, const uint8_t
 
     // Update battery
     int battery = r->bat_con >> 5;
-    switch(battery) {
+    switch (battery) {
         case 0:
             d->controller.battery = UNI_CONTROLLER_BATTERY_EMPTY;
             break;
