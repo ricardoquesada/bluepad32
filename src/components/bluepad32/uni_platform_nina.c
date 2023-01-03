@@ -1103,11 +1103,11 @@ static int nina_on_device_ready(uni_hid_device_t* d) {
     if (uni_hid_device_is_gamepad(d))
         _controllers_properties[idx].flags |= PROPERTY_FLAG_GAMEPAD;
 
-    memcpy(_controllers_properties[ins->controller_idx].btaddr, d->conn.btaddr,
+    memcpy(_controllers_properties[idx].btaddr, d->conn.btaddr,
            sizeof(_controllers_properties[0].btaddr));
 
     if (d->report_parser.set_player_leds != NULL) {
-        d->report_parser.set_player_leds(d, (1 << ins->controller_idx));
+        d->report_parser.set_player_leds(d, (1 << idx));
     }
     return 0;
 }

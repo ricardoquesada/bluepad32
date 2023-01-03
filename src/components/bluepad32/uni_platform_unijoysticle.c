@@ -1100,7 +1100,11 @@ static void version(void) {
     uint32_t flash_size;
     esp_chip_info(&info);
 
+#if ESP_IDF_VERSION_MAJOR == 4
+    const esp_app_desc_t* app_desc = esp_ota_get_app_description();
+#else
     const esp_app_desc_t* app_desc = esp_app_get_description();
+#endif
 
     logi("Unijoysticle info:\n");
     logi("\tModel: %s\n", get_uni_model_from_nvs());
