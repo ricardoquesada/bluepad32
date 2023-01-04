@@ -55,3 +55,31 @@ build-esp-idf-5.0:
   artifacts:
     paths:
       - tools/fw/artifacts
+
+build-esp-idf-4.4:
+  image: espressif/idf:release-v4.4
+  variables:
+    GIT_SUBMODULE_STRATEGY: normal
+  stage: build
+  before_script:
+    - pushd .
+    - cd external/btstack
+    - git apply < ../patches/0001-hci-allow-bonding-when-client-doesn-t-request-it.patch
+    - git apply < ../patches/0002-l2cap-allow-incoming-connection-with-not-enough.patch
+    - cd port/esp32
+    - IDF_PATH=../../../../src/ ./integrate_btstack.py
+    - popd
+  script:
+    - pushd .
+    - cd tools/fw
+    - ./build.py nina
+    - popd
+  after_script:
+    - pushd .
+    - cd tools/fw
+    - mkdir artifacts
+    - cp bluepad32*.tar.gz artifacts/
+    - popd
+  artifacts:
+    paths:
+      - tools/fw/artifacts
