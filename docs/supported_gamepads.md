@@ -222,7 +222,7 @@ Classic Controller can be used.
 [![8bitdo SN30 Pro][8bitdo_sn30_pro_img]][8bitdo_sn30_pro]
 
 - Tested with: [8BitDo SN30 Pro][8bitdo_sn30_pro], [8BitDo Arcade Stick][8bitdo_arcade_stick],
-  [8BitDo Lite][8bitdo_lite], [8BitDo NES30][8bitdo_nes30]
+  [8BitDo Lite][8bitdo_lite], [8BitDo NES30][8bitdo_nes30], [8BitDo M30][8bitdo_m30]
 - All 8BitDo modes are supported: *Switch*, *Android*, *Windows* and *macOS*.
 - Known issues: [issue #10][issue_10]
 
@@ -231,6 +231,7 @@ Classic Controller can be used.
 [8bitdo_lite]: https://www.8bitdo.com/lite/
 [8bitdo_sn30_pro]: https://www.8bitdo.com/sn30-pro-g-classic-or-sn30-pro-sn/
 [8bitdo_arcade_stick]: https://www.8bitdo.com/arcade-stick/
+[8bitdo_m30]: https://www.8bitdo.com/m30/
 [issue_10]: https://gitlab.com/ricardoquesada/unijoysticle2/issues/10
 
 ## iCade Family
