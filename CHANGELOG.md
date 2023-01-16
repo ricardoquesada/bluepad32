@@ -4,13 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] -
+## [v3.6.0-rc0] - 2023-01-16
 ### New
 - Platforms: Receive "controller" instead of "gamepad". A controller can be a:
-  gamepad, mouse, keyboard, balance board. And possible more.
+  gamepad, mouse, keyboard, balance board. And possible more. Battery is reported
+  in the new Controller API.
+- Arduino & NINA: Updated to support the new "controller" inteface. The old interface
+  is still working, but the client calls the new one.
 
 ### Changed
-- ESP-IDF: Updated to v5.0
+- ESP-IDF: Added support for v5.0 but:
+  - Arduino still requires v4.4 until esp32-core supports v5.0
+  - NINA requires Legacy Flash SPI that was removed in v5.0
+  - Unijoysticle, AirLift and MightyMiggy are the ones that can use v5.0 ATM
 - BTstack: Updated to v1.5.5
 - 8BitDo: Updated support for SN30 Pro FW v2 and M30
 
