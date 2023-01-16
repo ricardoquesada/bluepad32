@@ -14,23 +14,25 @@
 
 #include <functional>
 
-#include "ArduinoGamepad.h"
+#include "ArduinoController.h"
 
 // Arduino friendly define. Matches the one used in "bluepad32-arduino" (NINA) project.
-#define BP32_MAX_GAMEPADS CONFIG_BLUEPAD32_MAX_DEVICES
+#define BP32_MAX_CONTROLLERS CONFIG_BLUEPAD32_MAX_DEVICES
+#define BP32_MAX_GAMEPADS BP32_MAX_CONTROLLERS
 
-typedef std::function<void(GamepadPtr gamepad)> GamepadCallback;
+typedef std::function<void(ControllerPtr controller)> ControllerCallback;
+using GamepadCallback = ControllerCallback;
 
 class Bluepad32 {
-    // This is used internally by SPI, and then copied into the Gamepad::State of
-    // each gamepad
-    int _prevConnectedGamepads;
+    // This is used internally by SPI, and then copied into the Controller::State of
+    // each controller
+    int _prevConnectedControllers;
 
     // This is what the user receives
-    Gamepad _gamepads[BP32_MAX_GAMEPADS];
+    Controller _controllers[BP32_MAX_CONTROLLERS];
 
-    GamepadCallback _onConnect;
-    GamepadCallback _onDisconnect;
+    ControllerCallback _onConnect;
+    ControllerCallback _onDisconnect;
 
    public:
     Bluepad32();
@@ -41,10 +43,10 @@ class Bluepad32 {
     const char* firmwareVersion() const;
     void setDebug(uint8_t on);
 
-    // Gamepad
+    // Controller
     void update();
 
-    // When a gamepad is paired to the ESP32, the ESP32 stores keys to enable reconnection.
+    // When a controller is paired to the ESP32, the ESP32 stores keys to enable reconnection.
     // If you want to "forget" (delete) the keys from ESP32, you should call this
     // function.
     void forgetBluetoothKeys();
@@ -55,7 +57,7 @@ class Bluepad32 {
     // Established connections are not affected.
     void enableNewBluetoothConnections(bool enabled);
 
-    void setup(const GamepadCallback& onConnect, const GamepadCallback& onDisconnect);
+    void setup(const ControllerCallback& onConnect, const ControllerCallback& onDisconnect);
 
    private:
     void checkProtocol();
