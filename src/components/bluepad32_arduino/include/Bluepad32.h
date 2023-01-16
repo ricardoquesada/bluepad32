@@ -7,6 +7,7 @@
 #include "ArduinoBluepad32.h"
 #include "ArduinoConsole.h"
 #include "ArduinoController.h"
+#include "ArduinoControllerData.h"
 #include "ArduinoControllerProperties.h"
 #include "ArduinoGamepad.h"
 #include "ArduinoGamepadProperties.h"

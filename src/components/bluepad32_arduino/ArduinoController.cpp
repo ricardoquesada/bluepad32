@@ -89,10 +89,6 @@ String Controller::getModelName() const {
     return "Unknown";
 }
 
-ControllerProperties Controller::getProperties() const {
-    return _properties;
-}
-
 // Private functions
 void Controller::onConnected() {
     _connected = true;
