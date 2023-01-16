@@ -11,5 +11,4 @@
 #include "ArduinoGamepad.h"
 #include "ArduinoGamepadProperties.h"
 
-
 #endif  // BP32_BLUEPAD32_H

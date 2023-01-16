@@ -14,5 +14,4 @@
 using GamepadProperties = ControllerProperties;
 using GamepadPropertiesPtr = ControllerPropertiesPtr;
 
-
 #endif  // BP32_ARDUINO_GAMEPAD_PROPERTIES_H

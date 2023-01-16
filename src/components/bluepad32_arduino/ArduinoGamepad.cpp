@@ -2,4 +2,4 @@
 // SPDX-License-Identifier: Apache-2.0 or LGPL-2.1-or-later
 
 // Empty on purpose.
-// Instead, see ArduinoController.cpp 
+// Instead, see ArduinoController.cpp
