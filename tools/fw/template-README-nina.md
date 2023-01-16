@@ -1,6 +1,55 @@
 # Bluepad32 firmware for NINA
 
-## How to flash the firmware
+To flash Bluepad32 in NINA, there are two options
+
+* Using `arduino-fwuploader` (recommended)
+* or Using `esptool.py`
+
+## Flash using arduino-fwuploader
+
+### Download arduino-fwuploader
+
+Download latest binary from here: https://github.com/arduino/arduino-fwuploader/releases
+
+### Select correct board name
+
+* `arduino:samd:mkrwifi1010` for Arduino MKR WiFi 1010
+* `arduino:samd:nano_33_iot` for Arduino NANO 33 IoT
+* `arduino:samd:mkrvidor4000` for Arduino MKR Vidor 4000
+* `arduino:megaavr:uno2018` for Arduino Uno WiFi Rev2
+* `arduino:mbed_nano:nanorp2040connect` for Arduino Nano RP2040 Connect
+
+You can see all boards names by doing:
+```shell
+$ arduino-fwuploader firmware list
+```
+
+### Flash it
+
+```shell
+# Replace name and address with the correct ones
+export BOARD=arduino:samd:nano_33_iot
+export ADDRESS=/dev/ttyACM0
+$ arduino-fwuploader flash -b $BOARD -a $ADDRESS -i bluepad32-nina-full.bin
+```
+
+### Verify
+
+To verify that the flash was successful, do:
+
+```shell
+$ arduino-fwuploader flash get-version -b $BOARD -a $ADDRESS
+```
+
+And you should see:
+
+```
+...
+
+Firmware version installed: Bluepad32 for NINA v3.6.0-rc0
+```
+
+## or Flash using esptool.py
 
 ### Download `esptool.py`
 

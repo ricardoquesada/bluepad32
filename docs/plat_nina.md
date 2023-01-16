@@ -9,6 +9,7 @@ These modules are present on some Arduino boards like:
 - [Arduino Nano 33 IoT][nano_33_iot]
 - [Arduino MKR WiFi 1010][mkr_wifi]
 - [Arduino UNO WiFi Rev.2][uni_wifi]
+- [Arduino Arduino MKR Vidor 4000][mkr_vidor_4000]
 
 NINA modules are co-processors, usually used only to bring WiFi or BLE to the main processor.
 
@@ -36,14 +37,60 @@ Bluepad32 firmware is "compatible-enough" with the original firmware:
 [nano_33_iot]: https://store-usa.arduino.cc/products/arduino-nano-33-iot
 [mkr_wifi]: https://store-usa.arduino.cc/products/arduino-mkr-wifi-1010
 [uni_wifi]: https://store-usa.arduino.cc/products/arduino-uno-wifi-rev2
+[mkr_vidor_4000]: https://store.arduino.cc/products/arduino-mkr-vidor-4000
 
-## Flashing Bluepad32 firmware
+## Flashing pre-compiled Bluepad32 firmware
 
 To flash Bluepad32 firmware, you have to:
 
+### Download arduino-fwuploader
+
+Download latest binary from here: https://github.com/arduino/arduino-fwuploader/releases
+
+### Select correct board name
+
+* `arduino:samd:mkrwifi1010` for Arduino MKR WiFi 1010
+* `arduino:samd:nano_33_iot` for Arduino NANO 33 IoT
+* `arduino:samd:mkrvidor4000` for Arduino MKR Vidor 4000
+* `arduino:megaavr:uno2018` for Arduino Uno WiFi Rev2
+* `arduino:mbed_nano:nanorp2040connect` for Arduino Nano RP2040 Connect
+
+You can see all boards names by doing:
+```shell
+$ arduino-fwuploader firmware list
+```
+
+### Flash it
+
+```shell
+# Replace name and address with the correct ones
+export BOARD=arduino:samd:nano_33_iot
+export ADDRESS=/dev/ttyACM0
+$ arduino-fwuploader flash -b $BOARD -a $ADDRESS -i bluepad32-nina-full.bin
+```
+
+### Verify
+
+To verify that the flash was successful, do:
+
+```shell
+$ arduino-fwuploader flash get-version -b $BOARD -a $ADDRESS
+```
+
+And you should see:
+
+```
+...
+
+Firmware version installed: Bluepad32 for NINA v3.6.0-rc0
+```
+
+## Flashing self-compiled Bluepad32 firmware
+
+To flash a self-compiled firmware, you should do:
+
 1. Put the Arduino board in "pass-through" mode
-2. Flash pre-compiled version
-3. Or compile it yourself and flash it.
+2. Compile it yourself and flash it.
 
 ### 1. Put Arduino board in "passthrough" mode
 
@@ -57,17 +104,7 @@ Before flash Bluepad32 firmware, you have to put the Arduino board in "pass-thro
 
 Compile it and flash it to the Arduino board.
 
-### 2. Flash a pre-compiled firmware
-
-You can grab a precompiled firmware from here (choose latest version):
-
-- https://gitlab.com/ricardoquesada/bluepad32/tags
-
-And download the `bluepad32-nina-xxx.zip` file.
-
-Unzip it, and follow the instructions described in the `README.md` file.
-
-### 3. Or compile it yourself and flash it
+### 2. Compile it yourself and flash it
 
 Install the requirements described here: [README.md][readme].
 
