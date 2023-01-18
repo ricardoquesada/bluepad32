@@ -66,7 +66,7 @@ $ arduino-fwuploader firmware list
 # Replace name and address with the correct ones
 export BOARD=arduino:samd:nano_33_iot
 export ADDRESS=/dev/ttyACM0
-$ arduino-fwuploader flash -b $BOARD -a $ADDRESS -i bluepad32-nina-full.bin
+$ arduino-fwuploader firmware flash -b $BOARD -a $ADDRESS -i bluepad32-nina-full.bin
 ```
 
 ### Verify
@@ -74,7 +74,7 @@ $ arduino-fwuploader flash -b $BOARD -a $ADDRESS -i bluepad32-nina-full.bin
 To verify that the flash was successful, do:
 
 ```shell
-$ arduino-fwuploader flash get-version -b $BOARD -a $ADDRESS
+$ arduino-fwuploader firmware get-version -b $BOARD -a $ADDRESS
 ```
 
 And you should see:
