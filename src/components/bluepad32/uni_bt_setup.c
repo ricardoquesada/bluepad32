@@ -125,6 +125,11 @@ static void setup_call_next_fn(void) {
         if (status)
             loge("Failed to start period inquiry, error=0x%02x\n", status);
 
+#ifdef CONFIG_BLUEPAD32_ENABLE_BLE
+        gap_set_scan_parameters(0 /* type */, 48 /* interval */, 48 /* window */);
+        gap_start_scan();
+#endif // CONFIG_BLUEPAD32_ENABLE_BLE
+
         uni_get_platform()->on_init_complete();
         uni_get_platform()->on_oob_event(UNI_PLATFORM_OOB_BLUETOOTH_ENABLED, (void*)true);
     }

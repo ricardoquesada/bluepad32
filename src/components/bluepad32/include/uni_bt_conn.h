@@ -24,6 +24,12 @@ limitations under the License.
 #include <btstack.h>
 
 typedef enum {
+    UNI_BT_CONN_PROTOCOL_NONE,
+    UNI_BT_CONN_PROTOCOL_BR_EDR,
+    UNI_BT_CONN_PROTOCOL_BLE,
+} uni_bt_conn_protocol_t;
+
+typedef enum {
     UNI_BT_CONN_STATE_DEVICE_NONE,  // Must be the first state
 
     UNI_BT_CONN_STATE_DEVICE_DISCOVERED,
@@ -60,11 +66,13 @@ typedef struct {
     bool connected;
 
     uni_bt_conn_state_t state;
+    uni_bt_conn_protocol_t protocol;
 } uni_bt_conn_t;
 
 void uni_bt_conn_init(uni_bt_conn_t* conn);
 void uni_bt_conn_set_state(uni_bt_conn_t* conn, uni_bt_conn_state_t state);
 uni_bt_conn_state_t uni_bt_conn_get_state(uni_bt_conn_t* conn);
+void uni_bt_conn_set_protocol(uni_bt_conn_t* conn, uni_bt_conn_protocol_t protocol);
 void uni_bt_conn_get_address(uni_bt_conn_t* conn, bd_addr_t out_addr);
 bool uni_bt_conn_is_incoming(uni_bt_conn_t* conn);
 void uni_bt_conn_set_connected(uni_bt_conn_t* conn, bool connected);

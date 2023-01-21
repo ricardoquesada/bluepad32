@@ -30,6 +30,11 @@ void uni_bt_conn_set_state(uni_bt_conn_t* conn, uni_bt_conn_state_t state) {
     conn->state = state;
 }
 
+void uni_bt_conn_set_protocol(uni_bt_conn_t* conn, uni_bt_conn_protocol_t protocol) {
+    conn->protocol = protocol;
+}
+
+
 uni_bt_conn_state_t uni_bt_conn_get_state(uni_bt_conn_t* conn) {
     return conn->state;
 }

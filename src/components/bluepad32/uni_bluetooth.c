@@ -356,13 +356,17 @@ static void on_gap_event_advertising_report(uint16_t channel, const uint8_t* pac
     if (adv_event_contains_hid_service(packet) == false)
         return;
 
+    printf_hexdump(packet, size);
+
     // store remote device address and type
     gap_event_advertising_report_get_address(packet, addr);
     addr_type = gap_event_advertising_report_get_address_type(packet);
     // connect
-    logi("Found, connect to device with %s address %s ...\n", addr_type == 0 ? "public" : "random",
-         bd_addr_to_str(addr));
-    hog_connect(addr, addr_type);
+    if (!uni_hid_device_get_instance_for_address(addr)) {
+        logi("Found, connect to device with %s address %s ...\n", addr_type == 0 ? "public" : "random",
+             bd_addr_to_str(addr));
+        hog_connect(addr, addr_type);
+    }
 }
 
 static void on_l2cap_channel_opened(uint16_t channel, const uint8_t* packet, uint16_t size) {
@@ -567,7 +571,7 @@ static void on_l2cap_data_packet(uint16_t channel, const uint8_t* packet, uint16
 static void hog_connection_timeout(btstack_timer_source_t* ts) {
     ARG_UNUSED(ts);
 
-    logi("Timeout - abort connection\n");
+    logi("HOG Timeout - abort connection\n");
     gap_connect_cancel();
 }
 
@@ -587,7 +591,9 @@ static void hog_connect(bd_addr_t addr, bd_addr_type_t addr_type) {
         loge("\nError: no more available device slots\n");
         return;
     }
+    uni_bt_conn_set_protocol(&d->conn, UNI_BT_CONN_PROTOCOL_BLE);
     uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_DISCOVERED);
+    // uni_bluetooth_process_fsm(d);
 }
 
 // BLE only
