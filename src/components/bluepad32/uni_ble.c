@@ -61,6 +61,38 @@
 static uint8_t hid_descriptor_storage[500];
 static btstack_packet_callback_registration_t sm_event_callback_registration;
 
+static void parse_report(uint8_t* packet, uint16_t size) {
+    uint16_t service_index;
+    uint16_t hids_cid;
+    uni_hid_device_t* device;
+    const uint8_t* descriptor_data;
+    uint16_t descriptor_len;
+    const uint8_t* report_data;
+    uint16_t report_len;
+
+    service_index = gattservice_subevent_hid_report_get_service_index(packet);
+    hids_cid = gattservice_subevent_hid_report_get_hids_cid(packet);
+    device = uni_hid_device_get_instance_for_hids_cid(hids_cid);
+
+    if (!device) {
+        loge("BLE parser report: Invalid device\n");
+        return;
+    }
+
+    if (device->hid_descriptor_len == 0) {
+        descriptor_data = hids_client_descriptor_storage_get_descriptor_data(hids_cid, service_index);
+        descriptor_len = hids_client_descriptor_storage_get_descriptor_len(hids_cid, service_index);
+
+        device->hid_descriptor_len = descriptor_len;
+        memcpy(device->hid_descriptor, descriptor_data, sizeof(device->hid_descriptor));
+    }
+    report_data = gattservice_subevent_hid_report_get_report(packet);
+    report_len = gattservice_subevent_hid_report_get_report_len(packet);
+
+    uni_hid_parse_input_report(device, report_data, report_len);
+    uni_hid_device_process_controller(device);
+}
+
 void uni_ble_device_information_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     /* LISTING_PAUSE */
     UNUSED(packet_type);
@@ -210,6 +242,10 @@ void uni_ble_device_information_packet_handler(uint8_t packet_type, uint16_t cha
             uni_hid_device_set_vendor_id(device, gattservice_subevent_device_information_pnp_id_get_vendor_id(packet));
             uni_hid_device_set_product_id(device,
                                           gattservice_subevent_device_information_pnp_id_get_product_id(packet));
+
+            uni_hid_device_guess_controller_type_from_pid_vid(device);
+            uni_hid_device_set_ready(device);
+
             break;
 
         default:
@@ -240,9 +276,14 @@ void uni_ble_hids_client_packet_handler(uint8_t packet_type, uint16_t channel, u
                     logi("HID service client connected, found %d services\n",
                          gattservice_subevent_hid_service_connected_get_num_instances(packet));
 
-                    // store device as bonded
-                    // XXX: todo
-                    logi("Ready - please start typing or mousing..\n");
+                    // XXX TODO: store device as bonded
+                    hids_cid = gattservice_subevent_hid_service_connected_get_hids_cid(packet);
+                    device = uni_hid_device_get_instance_for_hids_cid(hids_cid);
+                    if (!device) {
+                        loge("Hids Cid: Could not find valid device\n");
+                        break;
+                    }
+                    logi("Controller ready!\n");
                     break;
                 default:
                     loge("HID service client connection failed, err 0x%02x.\n", status);
@@ -251,18 +292,14 @@ void uni_ble_hids_client_packet_handler(uint8_t packet_type, uint16_t channel, u
             break;
 
         case GATTSERVICE_SUBEVENT_HID_REPORT:
-            logi("GATTSERVICE_SUBEVENT_HID_REPORT\n");
+            logd("GATTSERVICE_SUBEVENT_HID_REPORT\n");
             hids_cid = gattservice_subevent_hid_report_get_hids_cid(packet);
             device = uni_hid_device_get_instance_for_hids_cid(hids_cid);
             if (!device) {
                 loge("GATT HID REPORT: Could not find valid HID device\n");
             }
 
-            printf_hexdump(gattservice_subevent_hid_report_get_report(packet),
-                           gattservice_subevent_hid_report_get_report_len(packet));
-
-            // uni_hid_parse_input_report(device, gattservice_subevent_hid_report_get_report(packet),
-            // gattservice_subevent_hid_report_get_report_len(packet)); uni_hid_device_process_controller(device);
+            parse_report(packet, size);
             break;
         case GATTSERVICE_SUBEVENT_HID_INFORMATION:
             logi(

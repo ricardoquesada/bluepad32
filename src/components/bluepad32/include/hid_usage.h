@@ -30,7 +30,7 @@ limitations under the License.
 #define HID_USAGE_PAGE_GENERIC_DEVICE_CONTROLS  0x06
 #define HID_USAGE_PAGE_KEYBOARD_KEYPAD          0x07
 #define HID_USAGE_PAGE_BUTTON                   0x09
-#define HID_USAGE_PAGE_CONSUMER                 0x0C
+#define HID_USAGE_PAGE_CONSUMER                 0x0c
 
 // HID usages for Generic Desktop Page
 #define HID_USAGE_AXIS_X                        0x30
@@ -67,6 +67,9 @@ limitations under the License.
 // HID usages for Consumer Page
 #define HID_USAGE_MENU                          0x40
 #define HID_USAGE_MEDIA_SELECT_TV               0x89
+#define HID_USAGE_PLAY                          0xb0
+#define HID_USAGE_PAUSE                         0xb1
+#define HID_USAGE_RECORD                        0xb2
 #define HID_USAGE_FAST_FORWARD                  0xb3
 #define HID_USAGE_REWIND                        0xb4
 #define HID_USAGE_PLAY_PAUSE                    0xcd

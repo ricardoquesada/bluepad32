@@ -149,10 +149,7 @@ static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
                     ctl->battery = value;
                     break;
                 default:
-                    logi(
-                        "Xbox One: Unsupported page: 0x%04x, usage: 0x%04x, "
-                        "value=0x%x\n",
-                        usage_page, usage, value);
+                    logi("Xbox One: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
                     break;
             }
             break;
@@ -207,10 +204,7 @@ static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
                     break;
                 }
                 default:
-                    logi(
-                        "Xbox One: Unsupported page: 0x%04x, usage: 0x%04x, "
-                        "value=0x%x\n",
-                        usage_page, usage, value);
+                    logi("Xbox One: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
                     break;
             }
             break;
@@ -219,13 +213,12 @@ static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
         case HID_USAGE_PAGE_CONSUMER:
             // New in Xbox One firmware v4.8
             switch (usage) {
+                case HID_USAGE_RECORD:  // FW 5.15.5
+                    break;
                 case HID_USAGE_AC_BACK:
                     break;
                 default:
-                    logi(
-                        "Xbox One: Unsupported page: 0x%04x, usage: 0x%04x, "
-                        "value=0x%x\n",
-                        usage_page, usage, value);
+                    logi("Xbox One: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
                     break;
             }
             break;
@@ -290,10 +283,7 @@ static void parse_usage_firmware_v4_8(uni_hid_device_t* d,
                     ctl->gamepad.brake = uni_hid_parser_process_pedal(globals, value);
                     break;
                 default:
-                    logi(
-                        "Xbox One: Unsupported page: 0x%04x, usage: 0x%04x, "
-                        "value=0x%x\n",
-                        usage_page, usage, value);
+                    logi("Xbox One: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
                     break;
             }
             break;
@@ -304,10 +294,7 @@ static void parse_usage_firmware_v4_8(uni_hid_device_t* d,
                     ctl->battery = value;
                     break;
                 default:
-                    logi(
-                        "Xbox One: Unsupported page: 0x%04x, usage: 0x%04x, "
-                        "value=0x%x\n",
-                        usage_page, usage, value);
+                    logi("Xbox One: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
                     break;
             }
             break;
@@ -363,10 +350,7 @@ static void parse_usage_firmware_v4_8(uni_hid_device_t* d,
                         ctl->gamepad.buttons |= BUTTON_THUMB_R;
                     break;
                 default:
-                    logi(
-                        "Xbox One: Unsupported page: 0x%04x, usage: 0x%04x, "
-                        "value=0x%x\n",
-                        usage_page, usage, value);
+                    logi("Xbox One: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
                     break;
             }
             break;
@@ -374,15 +358,15 @@ static void parse_usage_firmware_v4_8(uni_hid_device_t* d,
 
         case HID_USAGE_PAGE_CONSUMER:
             switch (usage) {
-                case 0x0224:  // Back
+                case HID_USAGE_RECORD:
+                    // FW 5.15.5
+                    break;
+                case HID_USAGE_AC_BACK:  // Back
                     if (value)
                         ctl->gamepad.misc_buttons |= MISC_BUTTON_BACK;
                     break;
                 default:
-                    logi(
-                        "Xbox One: Unsupported page: 0x%04x, usage: 0x%04x, "
-                        "value=0x%x\n",
-                        usage_page, usage, value);
+                    logi("Xbox One: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
                     break;
             }
             break;

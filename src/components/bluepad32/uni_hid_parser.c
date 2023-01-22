@@ -26,7 +26,7 @@ limitations under the License.
 // HID Usage Tables:
 // https://www.usb.org/sites/default/files/documents/hut1_12v2.pdf
 
-void uni_hid_parse_input_report(uni_hid_device_t* d, const uint8_t* report, uint16_t report_len) {
+void uni_hid_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t report_len) {
     btstack_hid_parser_t parser;
 
     uni_report_parser_t* rp = &d->report_parser;
