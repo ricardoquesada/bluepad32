@@ -70,6 +70,8 @@ static void parse_report(uint8_t* packet, uint16_t size) {
     const uint8_t* report_data;
     uint16_t report_len;
 
+    ARG_UNUSED(size);
+
     service_index = gattservice_subevent_hid_report_get_service_index(packet);
     hids_cid = gattservice_subevent_hid_report_get_hids_cid(packet);
     device = uni_hid_device_get_instance_for_hids_cid(hids_cid);
@@ -79,6 +81,9 @@ static void parse_report(uint8_t* packet, uint16_t size) {
         return;
     }
 
+    // FIXME: Copying the HID descriptor should be done at setup time since some device, like Xbox requires it
+    // to set the correct parser.
+    // But not clear how to get the "service_index" from setup
     if (device->hid_descriptor_len == 0) {
         descriptor_data = hids_client_descriptor_storage_get_descriptor_data(hids_cid, service_index);
         descriptor_len = hids_client_descriptor_storage_get_descriptor_len(hids_cid, service_index);
