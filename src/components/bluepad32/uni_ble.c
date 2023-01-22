@@ -604,9 +604,6 @@ void uni_ble_on_gap_event_advertising_report(const uint8_t* packet, uint16_t siz
         return;
     }
 
-    // FIXME: Shuld I stop scan ???
-    gap_stop_scan();
-
     logi("Found, connect to device with %s address %s ...\n", addr_type == 0 ? "public" : "random",
          bd_addr_to_str(addr));
 
