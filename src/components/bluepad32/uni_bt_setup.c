@@ -290,7 +290,6 @@ int uni_bt_setup(void) {
     // btstack_stdin_setup(stdin_process);
     hci_set_master_slave_policy(HCI_ROLE_MASTER);
 
-
 #ifdef CONFIG_BLUEPAD32_ENABLE_BLE
     uni_ble_setup();
 #endif  // CONFIG_BLUEPAD32_ENABLE_BLE
