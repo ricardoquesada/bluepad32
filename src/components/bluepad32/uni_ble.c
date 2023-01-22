@@ -533,7 +533,6 @@ void uni_ble_on_gap_event_advertising_report(const uint8_t* packet, uint16_t siz
     }
 }
 
-
 void uni_ble_setup(void) {
     // register for events from Security Manager
     sm_event_callback_registration.callback = &uni_ble_sm_packet_handler;
