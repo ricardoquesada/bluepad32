@@ -51,6 +51,7 @@
 
 #include "sdkconfig.h"
 #include "uni_bt_conn.h"
+#include "uni_bt_defines.h"
 #include "uni_common.h"
 #include "uni_config.h"
 #include "uni_hid_device.h"
@@ -78,21 +79,86 @@ static void hog_connect(bd_addr_t addr, bd_addr_type_t addr_type) {
     btstack_run_loop_set_timer_handler(&hog_connection_timer, &hog_connection_timeout);
     btstack_run_loop_add_timer(&hog_connection_timer);
     gap_connect(addr, addr_type);
-
-    uni_hid_device_t* d = uni_hid_device_create(addr);
-    if (!d) {
-        loge("\nError: no more available device slots\n");
-        return;
-    }
-    uni_bt_conn_set_protocol(&d->conn, UNI_BT_CONN_PROTOCOL_BLE);
-    uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_DISCOVERED);
-    // uni_bluetooth_process_fsm(d);
 }
 
-static bool adv_event_contains_hid_service(const uint8_t* packet) {
-    const uint8_t* ad_data = gap_event_advertising_report_get_data(packet);
-    uint16_t ad_len = gap_event_advertising_report_get_data_length(packet);
-    return ad_data_contains_uuid16(ad_len, ad_data, ORG_BLUETOOTH_SERVICE_HUMAN_INTERFACE_DEVICE);
+static void get_advertisement_data(const uint8_t* adv_data, uint8_t adv_size, uint16_t* appearance, char* name) {
+    ad_context_t context;
+
+    for (ad_iterator_init(&context, adv_size, (uint8_t*)adv_data); ad_iterator_has_more(&context);
+         ad_iterator_next(&context)) {
+        uint8_t data_type = ad_iterator_get_data_type(&context);
+        uint8_t size = ad_iterator_get_data_len(&context);
+        const uint8_t* data = ad_iterator_get_data(&context);
+
+        int i;
+        // Assigned Numbers GAP
+
+        switch (data_type) {
+            case BLUETOOTH_DATA_TYPE_FLAGS:
+                break;
+            case BLUETOOTH_DATA_TYPE_INCOMPLETE_LIST_OF_16_BIT_SERVICE_CLASS_UUIDS:
+            case BLUETOOTH_DATA_TYPE_COMPLETE_LIST_OF_16_BIT_SERVICE_CLASS_UUIDS:
+            case BLUETOOTH_DATA_TYPE_LIST_OF_16_BIT_SERVICE_SOLICITATION_UUIDS:
+                break;
+            case BLUETOOTH_DATA_TYPE_INCOMPLETE_LIST_OF_32_BIT_SERVICE_CLASS_UUIDS:
+            case BLUETOOTH_DATA_TYPE_COMPLETE_LIST_OF_32_BIT_SERVICE_CLASS_UUIDS:
+            case BLUETOOTH_DATA_TYPE_LIST_OF_32_BIT_SERVICE_SOLICITATION_UUIDS:
+                break;
+            case BLUETOOTH_DATA_TYPE_INCOMPLETE_LIST_OF_128_BIT_SERVICE_CLASS_UUIDS:
+            case BLUETOOTH_DATA_TYPE_COMPLETE_LIST_OF_128_BIT_SERVICE_CLASS_UUIDS:
+            case BLUETOOTH_DATA_TYPE_LIST_OF_128_BIT_SERVICE_SOLICITATION_UUIDS:
+                break;
+            case BLUETOOTH_DATA_TYPE_SHORTENED_LOCAL_NAME:
+            case BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME:
+                for (i = 0; i < size; i++) {
+                    name[i] = data[i];
+                }
+                name[size] = 0;
+                break;
+            case BLUETOOTH_DATA_TYPE_TX_POWER_LEVEL:
+                break;
+            case BLUETOOTH_DATA_TYPE_SLAVE_CONNECTION_INTERVAL_RANGE:
+                break;
+            case BLUETOOTH_DATA_TYPE_SERVICE_DATA:
+                break;
+            case BLUETOOTH_DATA_TYPE_PUBLIC_TARGET_ADDRESS:
+            case BLUETOOTH_DATA_TYPE_RANDOM_TARGET_ADDRESS:
+                break;
+            case BLUETOOTH_DATA_TYPE_APPEARANCE:
+                // https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.gap.appearance.xml
+                *appearance = little_endian_read_16(data, 0);
+                break;
+            case BLUETOOTH_DATA_TYPE_ADVERTISING_INTERVAL:
+                break;
+            case BLUETOOTH_DATA_TYPE_3D_INFORMATION_DATA:
+                break;
+            case BLUETOOTH_DATA_TYPE_MANUFACTURER_SPECIFIC_DATA:  // Manufacturer Specific Data
+                break;
+            case BLUETOOTH_DATA_TYPE_CLASS_OF_DEVICE:
+                logi("class of device: %#x\n", little_endian_read_16(data, 0));
+                break;
+            case BLUETOOTH_DATA_TYPE_SIMPLE_PAIRING_HASH_C:
+            case BLUETOOTH_DATA_TYPE_SIMPLE_PAIRING_RANDOMIZER_R:
+            case BLUETOOTH_DATA_TYPE_DEVICE_ID:
+                logi("device id: %#x\n", little_endian_read_16(data, 0));
+                break;
+            case BLUETOOTH_DATA_TYPE_SECURITY_MANAGER_OUT_OF_BAND_FLAGS:
+            default:
+                printf("Advertising Data Type 0x%2x not handled yet", data_type);
+                break;
+        }
+    }
+}
+
+static void adv_event_get_data(const uint8_t* packet, uint16_t* appearance, char* name) {
+    const uint8_t* ad_data;
+    uint16_t ad_len;
+
+    ad_data = gap_event_advertising_report_get_data(packet);
+    ad_len = gap_event_advertising_report_get_data_length(packet);
+
+    // if (!ad_data_contains_uuid16(ad_len, ad_data, ORG_BLUETOOTH_SERVICE_HUMAN_INTERFACE_DEVICE))
+    get_advertisement_data(ad_data, ad_len, appearance, name);
 }
 
 static void parse_report(uint8_t* packet, uint16_t size) {
@@ -132,7 +198,7 @@ static void parse_report(uint8_t* packet, uint16_t size) {
     uni_hid_device_process_controller(device);
 }
 
-void uni_ble_device_information_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
+static void device_information_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     /* LISTING_PAUSE */
     UNUSED(packet_type);
     UNUSED(channel);
@@ -165,6 +231,9 @@ void uni_ble_device_information_packet_handler(uint8_t packet_type, uint16_t cha
                 case ERROR_CODE_SUCCESS:
                     loge("Device Information service found\n");
                     sm_request_pairing(con_handle);
+                    // device = uni_hid_device_get_instance_for_connection_handle(con_handle);
+                    // if (device)
+                    //     uni_hid_device_set_ready(device);
                     break;
                 default:
                     logi("Device Information service client connection failed, err 0x%02x.\n", status);
@@ -292,7 +361,7 @@ void uni_ble_device_information_packet_handler(uint8_t packet_type, uint16_t cha
     }
 }
 
-void uni_ble_hids_client_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
+static void hids_client_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     ARG_UNUSED(packet_type);
     ARG_UNUSED(channel);
     ARG_UNUSED(size);
@@ -376,7 +445,7 @@ void uni_ble_hids_client_packet_handler(uint8_t packet_type, uint16_t channel, u
  * pairing. It also receives events generated during Identity Resolving see
  * Listing SMPacketHandler.
  */
-void uni_ble_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
+static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     ARG_UNUSED(channel);
     ARG_UNUSED(size);
     bd_addr_t addr;
@@ -470,7 +539,7 @@ void uni_ble_on_connection_complete(const uint8_t* packet, uint16_t size) {
 
     // Once the "information service" is done, the pairing will be requested
     uni_hid_device_set_connection_handle(device, con_handle);
-    status = device_information_service_client_query(con_handle, uni_ble_device_information_packet_handler);
+    status = device_information_service_client_query(con_handle, device_information_packet_handler);
     if (status != ERROR_CODE_SUCCESS) {
         loge("Failed to set device information client: %#x\n", status);
     }
@@ -490,8 +559,8 @@ void uni_ble_on_encryption_change(const uint8_t* packet, uint16_t size) {
         loge("Device not found for connection handle: 0x%04x\n", con_handle);
         return;
     }
-    // This event is also triggered by Classic, and might crash the stack. Real case:
-    // Connect a Wii , disconnect it, and try re-connection
+    // This event is also triggered by Classic, and might crash the stack.
+    // Real case: Connect a Wii , disconnect it, and try re-connection
     if (device->conn.protocol != UNI_BT_CONN_PROTOCOL_BLE)
         // Abort on non BLE connections
         return;
@@ -504,7 +573,7 @@ void uni_ble_on_encryption_change(const uint8_t* packet, uint16_t size) {
     }
     // continue - query primary services
     logi("Search for HID service.\n");
-    status = hids_client_connect(con_handle, uni_ble_hids_client_packet_handler, HID_PROTOCOL_MODE_REPORT, &hids_cid);
+    status = hids_client_connect(con_handle, hids_client_packet_handler, HID_PROTOCOL_MODE_REPORT, &hids_cid);
     if (status != ERROR_CODE_SUCCESS) {
         logi("HID client connection failed, status 0x%02x\n", status);
     }
@@ -514,28 +583,66 @@ void uni_ble_on_encryption_change(const uint8_t* packet, uint16_t size) {
 void uni_ble_on_gap_event_advertising_report(const uint8_t* packet, uint16_t size) {
     bd_addr_t addr;
     bd_addr_type_t addr_type;
+    uint16_t appearance;
+    char name[64];
+
+    appearance = 0;
+    name[0] = 0;
 
     ARG_UNUSED(size);
 
-    if (adv_event_contains_hid_service(packet) == false) {
+    gap_event_advertising_report_get_address(packet, addr);
+    adv_event_get_data(packet, &appearance, name);
+
+    if (appearance != UNI_BT_HID_APPEARANCE_GAMEPAD && appearance != UNI_BT_HID_APPEARANCE_JOYSTICK &&
+        appearance != UNI_BT_HID_APPEARANCE_MOUSE)
+        return;
+
+    addr_type = gap_event_advertising_report_get_address_type(packet);
+    if (uni_hid_device_get_instance_for_address(addr)) {
+        // Ignore, address already found
         return;
     }
 
-    // store remote device address and type
-    gap_event_advertising_report_get_address(packet, addr);
-    addr_type = gap_event_advertising_report_get_address_type(packet);
-    // connect
-    if (!uni_hid_device_get_instance_for_address(addr)) {
-        gap_stop_scan();
-        logi("Found, connect to device with %s address %s ...\n", addr_type == 0 ? "public" : "random",
-             bd_addr_to_str(addr));
-        hog_connect(addr, addr_type);
+    // FIXME: Shuld I stop scan ???
+    gap_stop_scan();
+
+    logi("Found, connect to device with %s address %s ...\n", addr_type == 0 ? "public" : "random",
+         bd_addr_to_str(addr));
+
+    uni_hid_device_t* d = uni_hid_device_create(addr);
+    if (!d) {
+        loge("Error: no more available device slots\n");
+        return;
     }
+
+    // FIXME: This is to be compatible with legacy BR/EDR code
+    switch (appearance) {
+        case UNI_BT_HID_APPEARANCE_MOUSE:
+            uni_hid_device_set_cod(d, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE);
+            logi("Device identified as Mouse\n");
+            break;
+        case UNI_BT_HID_APPEARANCE_JOYSTICK:
+            uni_hid_device_set_cod(d, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_JOYSTICK);
+            logi("Device identified as Joystick\n");
+            break;
+        case UNI_BT_HID_APPEARANCE_GAMEPAD:
+            uni_hid_device_set_cod(d, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_GAMEPAD);
+            logi("Device identified as Gamepad\n");
+            break;
+        default:
+            loge("Unsupported appearance: %#x\n", appearance);
+            break;
+    }
+    uni_bt_conn_set_protocol(&d->conn, UNI_BT_CONN_PROTOCOL_BLE);
+    uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_DISCOVERED);
+    uni_hid_device_set_name(d, name);
+    hog_connect(addr, addr_type);
 }
 
 void uni_ble_setup(void) {
     // register for events from Security Manager
-    sm_event_callback_registration.callback = &uni_ble_sm_packet_handler;
+    sm_event_callback_registration.callback = &sm_packet_handler;
     sm_add_event_handler(&sm_event_callback_registration);
 
     // Setup LE device db

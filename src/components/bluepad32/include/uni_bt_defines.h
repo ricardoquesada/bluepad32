@@ -42,6 +42,14 @@ limitations under the License.
 #define UNI_BT_COD_MINOR_JOYSTICK           0b00000100
 // clang-format on
 
+// Taken from Bluetooth Appearance Values:
+// https://specificationrefs.bluetooth.com/assigned-values/Appearance%20Values.pdf
+// clang-format off
+#define UNI_BT_HID_APPEARANCE_MOUSE         0x3c2
+#define UNI_BT_HID_APPEARANCE_JOYSTICK      0x3c3
+#define UNI_BT_HID_APPEARANCE_GAMEPAD       0x3c4
+// clang-format on
+
 // Parameters used in different Bluetooth functions
 #define UNI_BT_L2CAP_CHANNEL_MTU 0xffff  // Max MTU. DualShock requires at least a 79-byte packet
 
