@@ -303,6 +303,7 @@ int uni_bt_setup(void) {
     // setup LE device db
     le_device_db_init();
     sm_init();
+    sm_set_io_capabilities(IO_CAPABILITY_NO_INPUT_NO_OUTPUT);
     gatt_client_init();
     hids_client_init(hid_descriptor_storage, sizeof(hid_descriptor_storage));
     scan_parameters_service_client_init();
