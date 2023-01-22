@@ -60,6 +60,40 @@
 // Temporal space for SDP in BLE
 static uint8_t hid_descriptor_storage[500];
 static btstack_packet_callback_registration_t sm_event_callback_registration;
+static btstack_timer_source_t hog_connection_timer;
+
+static void hog_connection_timeout(btstack_timer_source_t* ts) {
+    ARG_UNUSED(ts);
+
+    logi("HOG Timeout - abort connection\n");
+    gap_connect_cancel();
+}
+
+/**
+ * Connect to remote device but set timer for timeout
+ */
+static void hog_connect(bd_addr_t addr, bd_addr_type_t addr_type) {
+    // set timer
+    btstack_run_loop_set_timer(&hog_connection_timer, 10000);
+    btstack_run_loop_set_timer_handler(&hog_connection_timer, &hog_connection_timeout);
+    btstack_run_loop_add_timer(&hog_connection_timer);
+    gap_connect(addr, addr_type);
+
+    uni_hid_device_t* d = uni_hid_device_create(addr);
+    if (!d) {
+        loge("\nError: no more available device slots\n");
+        return;
+    }
+    uni_bt_conn_set_protocol(&d->conn, UNI_BT_CONN_PROTOCOL_BLE);
+    uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_DISCOVERED);
+    // uni_bluetooth_process_fsm(d);
+}
+
+static bool adv_event_contains_hid_service(const uint8_t* packet) {
+    const uint8_t* ad_data = gap_event_advertising_report_get_data(packet);
+    uint16_t ad_len = gap_event_advertising_report_get_data_length(packet);
+    return ad_data_contains_uuid16(ad_len, ad_data, ORG_BLUETOOTH_SERVICE_HUMAN_INTERFACE_DEVICE);
+}
 
 static void parse_report(uint8_t* packet, uint16_t size) {
     uint16_t service_index;
@@ -249,7 +283,6 @@ void uni_ble_device_information_packet_handler(uint8_t packet_type, uint16_t cha
                                           gattservice_subevent_device_information_pnp_id_get_product_id(packet));
 
             uni_hid_device_guess_controller_type_from_pid_vid(device);
-            uni_hid_device_set_ready(device);
 
             break;
 
@@ -288,7 +321,7 @@ void uni_ble_hids_client_packet_handler(uint8_t packet_type, uint16_t channel, u
                         loge("Hids Cid: Could not find valid device\n");
                         break;
                     }
-                    logi("Controller ready!\n");
+                    uni_hid_device_set_ready(device);
                     break;
                 default:
                     loge("HID service client connection failed, err 0x%02x.\n", status);
@@ -412,6 +445,94 @@ void uni_ble_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* p
             break;
     }
 }
+
+void uni_ble_on_connection_complete(const uint8_t* packet, uint16_t size) {
+    uni_hid_device_t* device;
+    hci_con_handle_t con_handle;
+    uint8_t status;
+    bd_addr_t event_addr;
+
+    ARG_UNUSED(size);
+
+    // wait for connection complete
+    // XXX: FIXME
+    if (hci_event_le_meta_get_subevent_code(packet) != HCI_SUBEVENT_LE_CONNECTION_COMPLETE)
+        return;
+
+    btstack_run_loop_remove_timer(&hog_connection_timer);
+    hci_subevent_le_connection_complete_get_peer_address(packet, event_addr);
+    device = uni_hid_device_get_instance_for_address(event_addr);
+    if (!device) {
+        loge("Device not found for addr: %s\n", bd_addr_to_str(event_addr));
+        return;
+    }
+    con_handle = hci_subevent_le_connection_complete_get_connection_handle(packet);
+
+    // Once the "information service" is done, the pairing will be requested
+    uni_hid_device_set_connection_handle(device, con_handle);
+    status = device_information_service_client_query(con_handle, uni_ble_device_information_packet_handler);
+    if (status != ERROR_CODE_SUCCESS) {
+        loge("Failed to set device information client: %#x\n", status);
+    }
+}
+
+void uni_ble_on_encryption_change(const uint8_t* packet, uint16_t size) {
+    uni_hid_device_t* device;
+    hci_con_handle_t con_handle;
+    uint8_t status;
+    uint16_t hids_cid;
+
+    ARG_UNUSED(size);
+
+    con_handle = hci_event_encryption_change_get_connection_handle(packet);
+    device = uni_hid_device_get_instance_for_connection_handle(con_handle);
+    if (!device) {
+        loge("Device not found for connection handle: 0x%04x\n", con_handle);
+        return;
+    }
+    // This event is also triggered by Classic, and might crash the stack. Real case:
+    // Connect a Wii , disconnect it, and try re-connection
+    if (device->conn.protocol != UNI_BT_CONN_PROTOCOL_BLE)
+        // Abort on non BLE connections
+        return;
+
+    logi("Connection encrypted: %u\n", hci_event_encryption_change_get_encryption_enabled(packet));
+    if (hci_event_encryption_change_get_encryption_enabled(packet) == 0) {
+        logi("Encryption failed -> abort\n");
+        gap_disconnect(con_handle);
+        return;
+    }
+    // continue - query primary services
+    logi("Search for HID service.\n");
+    status = hids_client_connect(con_handle, uni_ble_hids_client_packet_handler, HID_PROTOCOL_MODE_REPORT, &hids_cid);
+    if (status != ERROR_CODE_SUCCESS) {
+        logi("HID client connection failed, status 0x%02x\n", status);
+    }
+    device->hids_cid = hids_cid;
+}
+
+void uni_ble_on_gap_event_advertising_report(const uint8_t* packet, uint16_t size) {
+    bd_addr_t addr;
+    bd_addr_type_t addr_type;
+
+    ARG_UNUSED(size);
+
+    if (adv_event_contains_hid_service(packet) == false) {
+        return;
+    }
+
+    // store remote device address and type
+    gap_event_advertising_report_get_address(packet, addr);
+    addr_type = gap_event_advertising_report_get_address_type(packet);
+    // connect
+    if (!uni_hid_device_get_instance_for_address(addr)) {
+        gap_stop_scan();
+        logi("Found, connect to device with %s address %s ...\n", addr_type == 0 ? "public" : "random",
+             bd_addr_to_str(addr));
+        hog_connect(addr, addr_type);
+    }
+}
+
 
 void uni_ble_setup(void) {
     // register for events from Security Manager

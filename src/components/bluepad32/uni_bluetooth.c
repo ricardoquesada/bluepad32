@@ -82,20 +82,15 @@ _Static_assert(INQUIRY_REMOTE_NAME_TIMEOUT_MS < HID_DEVICE_CONNECTION_TIMEOUT_MS
 
 // globals
 // Used to implement connection timeout and reconnect timer
-static btstack_timer_source_t hog_connection_timer;  // BLE only
 static btstack_context_callback_registration_t cmd_callback_registration;
 
 static bool bt_scanning_enabled = true;
-
-static bool adv_event_contains_hid_service(const uint8_t* packet);
-static void hog_connect(bd_addr_t addr, bd_addr_type_t addr_type);
 
 static void on_l2cap_channel_closed(uint16_t channel, const uint8_t* packet, uint16_t size);
 static void on_l2cap_channel_opened(uint16_t channel, const uint8_t* packet, uint16_t size);
 static void on_l2cap_incoming_connection(uint16_t channel, const uint8_t* packet, uint16_t size);
 static void on_l2cap_data_packet(uint16_t channel, const uint8_t* packet, uint16_t sizel);
 static void on_gap_inquiry_result(uint16_t channel, const uint8_t* packet, uint16_t size);
-static void on_gap_event_advertising_report(uint16_t channel, const uint8_t* packet, uint16_t size);
 static void on_hci_connection_complete(uint16_t channel, const uint8_t* packet, uint16_t size);
 static void on_hci_connection_request(uint16_t channel, const uint8_t* packet, uint16_t size);
 static void l2cap_create_control_connection(uni_hid_device_t* d);
@@ -241,32 +236,6 @@ static void on_gap_inquiry_result(uint16_t channel, const uint8_t* packet, uint1
             }
         }
         uni_bluetooth_process_fsm(device);
-    }
-}
-
-// BLE only
-static void on_gap_event_advertising_report(uint16_t channel, const uint8_t* packet, uint16_t size) {
-    bd_addr_t addr;
-    bd_addr_type_t addr_type;
-
-    ARG_UNUSED(channel);
-    ARG_UNUSED(size);
-
-    if (adv_event_contains_hid_service(packet) == false) {
-        return;
-    }
-    logi("on_gap_event_advertising_report\n");
-    printf_hexdump(packet, size);
-
-    // store remote device address and type
-    gap_event_advertising_report_get_address(packet, addr);
-    addr_type = gap_event_advertising_report_get_address_type(packet);
-    // connect
-    if (!uni_hid_device_get_instance_for_address(addr)) {
-        gap_stop_scan();
-        logi("Found, connect to device with %s address %s ...\n", addr_type == 0 ? "public" : "random",
-             bd_addr_to_str(addr));
-        hog_connect(addr, addr_type);
     }
 }
 
@@ -468,42 +437,6 @@ static void on_l2cap_data_packet(uint16_t channel, const uint8_t* packet, uint16
     uni_hid_device_process_controller(d);
 }
 
-// BLE only
-static void hog_connection_timeout(btstack_timer_source_t* ts) {
-    ARG_UNUSED(ts);
-
-    logi("HOG Timeout - abort connection\n");
-    gap_connect_cancel();
-}
-
-/**
- * Connect to remote device but set timer for timeout
- * BLE only
- */
-static void hog_connect(bd_addr_t addr, bd_addr_type_t addr_type) {
-    // set timer
-    btstack_run_loop_set_timer(&hog_connection_timer, 10000);
-    btstack_run_loop_set_timer_handler(&hog_connection_timer, &hog_connection_timeout);
-    btstack_run_loop_add_timer(&hog_connection_timer);
-    gap_connect(addr, addr_type);
-
-    uni_hid_device_t* d = uni_hid_device_create(addr);
-    if (!d) {
-        loge("\nError: no more available device slots\n");
-        return;
-    }
-    uni_bt_conn_set_protocol(&d->conn, UNI_BT_CONN_PROTOCOL_BLE);
-    uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_DISCOVERED);
-    // uni_bluetooth_process_fsm(d);
-}
-
-// BLE only
-static bool adv_event_contains_hid_service(const uint8_t* packet) {
-    const uint8_t* ad_data = gap_event_advertising_report_get_data(packet);
-    uint16_t ad_len = gap_event_advertising_report_get_data_length(packet);
-    return ad_data_contains_uuid16(ad_len, ad_data, ORG_BLUETOOTH_SERVICE_HUMAN_INTERFACE_DEVICE);
-}
-
 static void l2cap_create_control_connection(uni_hid_device_t* d) {
     uint8_t status;
     status = l2cap_create_channel(uni_bluetooth_packet_handler, d->conn.btaddr, BLUETOOTH_PSM_HID_CONTROL,
@@ -696,10 +629,6 @@ void uni_bluetooth_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
     uni_hid_device_t* device;
     uint8_t status;
     uint16_t handle;
-#ifdef CONFIG_BLUEPAD32_ENABLE_BLE
-    hci_con_handle_t con_handle;
-    uint16_t hids_cid;
-#endif  // CONFIG_BLUEPAD32_ENABLE_BLE
 
     if (!uni_bt_setup_is_ready()) {
         uni_bt_setup_packet_handler(packet_type, channel, packet, size);
@@ -712,55 +641,11 @@ void uni_bluetooth_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
             switch (event) {
                 // HCI EVENTS
 #ifdef CONFIG_BLUEPAD32_ENABLE_BLE
-                case HCI_EVENT_LE_META:  // BLE only
-                    // wait for connection complete
-                    // XXX: FIXME
-                    if (hci_event_le_meta_get_subevent_code(packet) != HCI_SUBEVENT_LE_CONNECTION_COMPLETE)
-                        break;
-                    btstack_run_loop_remove_timer(&hog_connection_timer);
-                    hci_subevent_le_connection_complete_get_peer_address(packet, event_addr);
-                    device = uni_hid_device_get_instance_for_address(event_addr);
-                    if (!device) {
-                        loge("Device not found for addr: %s\n", bd_addr_to_str(event_addr));
-                        break;
-                    }
-                    con_handle = hci_subevent_le_connection_complete_get_connection_handle(packet);
-
-                    // Once the "information service" is done, the pairing will be requested
-                    uni_hid_device_set_connection_handle(device, con_handle);
-                    logi("**** BOOO 0\n");
-                    status =
-                        device_information_service_client_query(con_handle, uni_ble_device_information_packet_handler);
-                    if (status != ERROR_CODE_SUCCESS) {
-                        loge("Failed to set device information client: %#x\n", status);
-                    }
+                case HCI_EVENT_LE_META:
+                    uni_ble_on_connection_complete(packet, size);
                     break;
-                case HCI_EVENT_ENCRYPTION_CHANGE:  // BLE only
-                    con_handle = hci_event_encryption_change_get_connection_handle(packet);
-                    device = uni_hid_device_get_instance_for_connection_handle(con_handle);
-                    if (!device) {
-                        loge("Device not found for connection handle: 0x%04x\n", con_handle);
-                        break;
-                    }
-                    // This event is also triggered by Classic, and might crash the stack. Real case:
-                    // Connect a Wii , disconnect it, and try re-connection
-                    if (device->conn.protocol != UNI_BT_CONN_PROTOCOL_BLE)
-                        // Abort on non BLE connections
-                        break;
-                    logi("Connection encrypted: %u\n", hci_event_encryption_change_get_encryption_enabled(packet));
-                    if (hci_event_encryption_change_get_encryption_enabled(packet) == 0) {
-                        logi("Encryption failed -> abort\n");
-                        gap_disconnect(con_handle);
-                        break;
-                    }
-                    // continue - query primary services
-                    logi("Search for HID service.\n");
-                    status = hids_client_connect(con_handle, uni_ble_hids_client_packet_handler,
-                                                 HID_PROTOCOL_MODE_REPORT, &hids_cid);
-                    if (status != ERROR_CODE_SUCCESS) {
-                        logi("HID client connection failed, status 0x%02x\n", status);
-                    }
-                    device->hids_cid = hids_cid;
+                case HCI_EVENT_ENCRYPTION_CHANGE:
+                    uni_ble_on_encryption_change(packet, size);
                     break;
 #endif  //  CONFIG_BLUEPAD32_ENABLE_BLE
                 case HCI_EVENT_COMMAND_COMPLETE: {
@@ -932,8 +817,8 @@ void uni_bluetooth_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
                     // This can happen when "exit periodic inquiry" is called.
                     // Just do nothing, don't call "start_scan" again.
                     break;
-                case GAP_EVENT_ADVERTISING_REPORT:  // BLE only
-                    on_gap_event_advertising_report(channel, packet, size);
+                case GAP_EVENT_ADVERTISING_REPORT:
+                    uni_ble_on_gap_event_advertising_report(packet, size);
                     break;
                 // GATT EVENTS (BLE only)
                 case GATT_EVENT_LONG_CHARACTERISTIC_VALUE_QUERY_RESULT:

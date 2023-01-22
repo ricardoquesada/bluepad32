@@ -29,6 +29,10 @@ void uni_ble_device_information_packet_handler(uint8_t packet_type, uint16_t cha
 void uni_ble_hids_client_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
 void uni_ble_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
 
+void uni_ble_on_connection_complete(const uint8_t* packet, uint16_t size);
+void uni_ble_on_encryption_change(const uint8_t* packet, uint16_t size);
+void uni_ble_on_gap_event_advertising_report(const uint8_t* packet, uint16_t size);
+
 void uni_ble_setup(void);
 
 #ifdef __cplusplus
