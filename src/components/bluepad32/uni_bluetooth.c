@@ -131,15 +131,15 @@ static void device_information_service_gatt_client_event_handler(uint8_t packet_
     UNUSED(size);
 
     uint8_t code;
+    uint8_t status;
     uint8_t att_status;
     hci_con_handle_t con_handle;
+    uni_hid_device_t* device;
 
     if (hci_event_packet_get_type(packet) != HCI_EVENT_GATTSERVICE_META) {
         return;
     }
-    logi("channel: %#x\n", channel);
-    printf_hexdump(packet, size);
-    uint8_t status;
+
     code = hci_event_gattservice_meta_get_subevent_code(packet);
     switch (code) {
         case GATTSERVICE_SUBEVENT_SCAN_PARAMETERS_SERVICE_CONNECTED:
@@ -152,16 +152,15 @@ static void device_information_service_gatt_client_event_handler(uint8_t packet_
 
         case GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_DONE:
             status = gattservice_subevent_device_information_done_get_att_status(packet);
+            con_handle = gattservice_subevent_device_information_done_get_con_handle(packet);
             switch (status) {
                 case ERROR_CODE_SUCCESS:
                     loge("Device Information service found\n");
-                    // riq riq riq
-                    con_handle = gattservice_subevent_device_information_done_get_con_handle(packet);
                     sm_request_pairing(con_handle);
                     break;
                 default:
                     logi("Device Information service client connection failed, err 0x%02x.\n", status);
-                    // gap_disconnect(connection_handle);
+                    gap_disconnect(con_handle);
                     break;
             }
             break;
@@ -177,95 +176,103 @@ static void device_information_service_gatt_client_event_handler(uint8_t packet_
         case GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_MODEL_NUMBER:
             att_status = gattservice_subevent_device_information_model_number_get_att_status(packet);
             if (att_status != ATT_ERROR_SUCCESS) {
-                printf("Model Number read failed, ATT Error 0x%02x\n", att_status);
+                logi("Model Number read failed, ATT Error 0x%02x\n", att_status);
             } else {
-                printf("Model Number:     %s\n",
-                       gattservice_subevent_device_information_model_number_get_value(packet));
+                logi("Model Number:     %s\n", gattservice_subevent_device_information_model_number_get_value(packet));
             }
             break;
 
         case GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_SERIAL_NUMBER:
             att_status = gattservice_subevent_device_information_serial_number_get_att_status(packet);
             if (att_status != ATT_ERROR_SUCCESS) {
-                printf("Serial Number read failed, ATT Error 0x%02x\n", att_status);
+                logi("Serial Number read failed, ATT Error 0x%02x\n", att_status);
             } else {
-                printf("Serial Number:    %s\n",
-                       gattservice_subevent_device_information_serial_number_get_value(packet));
+                logi("Serial Number:    %s\n", gattservice_subevent_device_information_serial_number_get_value(packet));
             }
             break;
 
         case GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_HARDWARE_REVISION:
             att_status = gattservice_subevent_device_information_hardware_revision_get_att_status(packet);
             if (att_status != ATT_ERROR_SUCCESS) {
-                printf("Hardware Revision read failed, ATT Error 0x%02x\n", att_status);
+                logi("Hardware Revision read failed, ATT Error 0x%02x\n", att_status);
             } else {
-                printf("Hardware Revision: %s\n",
-                       gattservice_subevent_device_information_hardware_revision_get_value(packet));
+                logi("Hardware Revision: %s\n",
+                     gattservice_subevent_device_information_hardware_revision_get_value(packet));
             }
             break;
 
         case GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_FIRMWARE_REVISION:
             att_status = gattservice_subevent_device_information_firmware_revision_get_att_status(packet);
             if (att_status != ATT_ERROR_SUCCESS) {
-                printf("Firmware Revision read failed, ATT Error 0x%02x\n", att_status);
+                logi("Firmware Revision read failed, ATT Error 0x%02x\n", att_status);
             } else {
-                printf("Firmware Revision: %s\n",
-                       gattservice_subevent_device_information_firmware_revision_get_value(packet));
+                logi("Firmware Revision: %s\n",
+                     gattservice_subevent_device_information_firmware_revision_get_value(packet));
             }
             break;
 
         case GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_SOFTWARE_REVISION:
             att_status = gattservice_subevent_device_information_software_revision_get_att_status(packet);
             if (att_status != ATT_ERROR_SUCCESS) {
-                printf("Software Revision read failed, ATT Error 0x%02x\n", att_status);
+                logi("Software Revision read failed, ATT Error 0x%02x\n", att_status);
             } else {
-                printf("Software Revision: %s\n",
-                       gattservice_subevent_device_information_software_revision_get_value(packet));
+                logi("Software Revision: %s\n",
+                     gattservice_subevent_device_information_software_revision_get_value(packet));
             }
             break;
 
         case GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_SYSTEM_ID:
             att_status = gattservice_subevent_device_information_system_id_get_att_status(packet);
             if (att_status != ATT_ERROR_SUCCESS) {
-                printf("System ID read failed, ATT Error 0x%02x\n", att_status);
+                logi("System ID read failed, ATT Error 0x%02x\n", att_status);
             } else {
                 uint32_t manufacturer_identifier_low =
                     gattservice_subevent_device_information_system_id_get_manufacturer_id_low(packet);
                 uint8_t manufacturer_identifier_high =
                     gattservice_subevent_device_information_system_id_get_manufacturer_id_high(packet);
 
-                printf("Manufacturer ID:  0x%02x%08x\n", manufacturer_identifier_high, manufacturer_identifier_low);
-                printf("Organizationally Unique ID:  0x%06x\n",
-                       gattservice_subevent_device_information_system_id_get_organizationally_unique_id(packet));
+                logi("Manufacturer ID:  0x%02x%08x\n", manufacturer_identifier_high, manufacturer_identifier_low);
+                logi("Organizationally Unique ID:  0x%06x\n",
+                     gattservice_subevent_device_information_system_id_get_organizationally_unique_id(packet));
             }
             break;
 
         case GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_IEEE_REGULATORY_CERTIFICATION:
             att_status = gattservice_subevent_device_information_ieee_regulatory_certification_get_att_status(packet);
             if (att_status != ATT_ERROR_SUCCESS) {
-                printf("IEEE Regulatory Certification read failed, ATT Error 0x%02x\n", att_status);
+                logi("IEEE Regulatory Certification read failed, ATT Error 0x%02x\n", att_status);
             } else {
-                printf("value_a:          0x%04x\n",
-                       gattservice_subevent_device_information_ieee_regulatory_certification_get_value_a(packet));
-                printf("value_b:          0x%04x\n",
-                       gattservice_subevent_device_information_ieee_regulatory_certification_get_value_b(packet));
+                logi("value_a:          0x%04x\n",
+                     gattservice_subevent_device_information_ieee_regulatory_certification_get_value_a(packet));
+                logi("value_b:          0x%04x\n",
+                     gattservice_subevent_device_information_ieee_regulatory_certification_get_value_b(packet));
             }
             break;
 
         case GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_PNP_ID:
+            con_handle = gattservice_subevent_device_information_pnp_id_get_con_handle(packet);
+            device = uni_hid_device_get_instance_for_connection_handle(con_handle);
+            if (!device) {
+                loge("Invalid device for in GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_PNP_ID");
+                break;
+            }
+
             att_status = gattservice_subevent_device_information_pnp_id_get_att_status(packet);
             if (att_status != ATT_ERROR_SUCCESS) {
-                printf("PNP ID read failed, ATT Error 0x%02x\n", att_status);
+                logi("PNP ID read failed, ATT Error 0x%02x\n", att_status);
             } else {
-                printf("Vendor Source ID: 0x%02x\n",
-                       gattservice_subevent_device_information_pnp_id_get_vendor_source_id(packet));
-                printf("Vendor  ID:       0x%04x\n",
-                       gattservice_subevent_device_information_pnp_id_get_vendor_id(packet));
-                printf("Product ID:       0x%04x\n",
-                       gattservice_subevent_device_information_pnp_id_get_product_id(packet));
-                printf("Product Version:  0x%04x\n",
-                       gattservice_subevent_device_information_pnp_id_get_product_version(packet));
+                logi("Vendor Source ID: 0x%02x\n",
+                     gattservice_subevent_device_information_pnp_id_get_vendor_source_id(packet));
+                logi("Vendor  ID:       0x%04x\n",
+                     gattservice_subevent_device_information_pnp_id_get_vendor_id(packet));
+                logi("Product ID:       0x%04x\n",
+                     gattservice_subevent_device_information_pnp_id_get_product_id(packet));
+                logi("Product Version:  0x%04x\n",
+                     gattservice_subevent_device_information_pnp_id_get_product_version(packet));
             }
+            uni_hid_device_set_vendor_id(device, gattservice_subevent_device_information_pnp_id_get_vendor_id(packet));
+            uni_hid_device_set_product_id(device,
+                                          gattservice_subevent_device_information_pnp_id_get_product_id(packet));
             break;
 
         default:
