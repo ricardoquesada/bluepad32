@@ -57,6 +57,10 @@
 #include "uni_hid_parser.h"
 #include "uni_log.h"
 
+// Temporal space for SDP in BLE
+static uint8_t hid_descriptor_storage[500];
+static btstack_packet_callback_registration_t sm_event_callback_registration;
+
 void uni_ble_device_information_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     /* LISTING_PAUSE */
     UNUSED(packet_type);
@@ -365,4 +369,19 @@ void uni_ble_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* p
             loge("Unkown SM packet type: %#x\n", type);
             break;
     }
+}
+
+void uni_ble_setup(void) {
+    // register for events from Security Manager
+    sm_event_callback_registration.callback = &uni_ble_sm_packet_handler;
+    sm_add_event_handler(&sm_event_callback_registration);
+
+    // Setup LE device db
+    le_device_db_init();
+    sm_init();
+    sm_set_io_capabilities(IO_CAPABILITY_NO_INPUT_NO_OUTPUT);
+    gatt_client_init();
+    hids_client_init(hid_descriptor_storage, sizeof(hid_descriptor_storage));
+    scan_parameters_service_client_init();
+    device_information_service_client_init();
 }

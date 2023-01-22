@@ -34,9 +34,6 @@ limitations under the License.
 #include "uni_platform.h"
 #include "uni_property.h"
 
-// SDP
-static uint8_t hid_descriptor_storage[500];
-
 typedef enum {
     SETUP_STATE_BTSTACK_IN_PROGRESS,
     SETUP_STATE_BLUEPAD32_IN_PROGRESS,
@@ -57,9 +54,6 @@ static fn_t setup_fns[] = {
 };
 static setup_state_t setup_state = SETUP_STATE_BTSTACK_IN_PROGRESS;
 static btstack_packet_callback_registration_t hci_event_callback_registration;
-#ifdef CONFIG_BLUEPAD32_ENABLE_BLE
-static btstack_packet_callback_registration_t sm_event_callback_registration;
-#endif
 
 static void maybe_delete_or_list_link_keys(void) {
     bd_addr_t addr;
@@ -296,19 +290,9 @@ int uni_bt_setup(void) {
     // btstack_stdin_setup(stdin_process);
     hci_set_master_slave_policy(HCI_ROLE_MASTER);
 
-#ifdef CONFIG_BLUEPAD32_ENABLE_BLE
-    // register for events from Security Manager
-    sm_event_callback_registration.callback = &uni_ble_sm_packet_handler;
-    sm_add_event_handler(&sm_event_callback_registration);
 
-    // setup LE device db
-    le_device_db_init();
-    sm_init();
-    sm_set_io_capabilities(IO_CAPABILITY_NO_INPUT_NO_OUTPUT);
-    gatt_client_init();
-    hids_client_init(hid_descriptor_storage, sizeof(hid_descriptor_storage));
-    scan_parameters_service_client_init();
-    device_information_service_client_init();
+#ifdef CONFIG_BLUEPAD32_ENABLE_BLE
+    uni_ble_setup();
 #endif  // CONFIG_BLUEPAD32_ENABLE_BLE
 
     // Disable stdout buffering
