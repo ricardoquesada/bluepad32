@@ -23,6 +23,7 @@ limitations under the License.
 #include <btstack.h>
 
 #include "sdkconfig.h"
+#include "uni_ble.h"
 #include "uni_bluetooth.h"
 #include "uni_bt_defines.h"
 #include "uni_bt_sdp.h"
@@ -297,7 +298,7 @@ int uni_bt_setup(void) {
 
 #ifdef CONFIG_BLUEPAD32_ENABLE_BLE
     // register for events from Security Manager
-    sm_event_callback_registration.callback = &uni_bluetooth_sm_packet_handler;
+    sm_event_callback_registration.callback = &uni_ble_sm_packet_handler;
     sm_add_event_handler(&sm_event_callback_registration);
 
     // setup LE device db
