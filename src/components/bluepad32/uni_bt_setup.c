@@ -305,6 +305,8 @@ int uni_bt_setup(void) {
     sm_init();
     gatt_client_init();
     hids_client_init(hid_descriptor_storage, sizeof(hid_descriptor_storage));
+    scan_parameters_service_client_init();
+    device_information_service_client_init();
 #endif  // CONFIG_BLUEPAD32_ENABLE_BLE
 
     // Disable stdout buffering

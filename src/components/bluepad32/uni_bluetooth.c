@@ -83,14 +83,15 @@ _Static_assert(INQUIRY_REMOTE_NAME_TIMEOUT_MS < HID_DEVICE_CONNECTION_TIMEOUT_MS
 // Used to implement connection timeout and reconnect timer
 static btstack_timer_source_t hog_connection_timer;  // BLE only
 static btstack_context_callback_registration_t cmd_callback_registration;
-#ifdef CONFIG_BLUEPAD32_ENABLE_BLE
-static hid_protocol_mode_t protocol_mode = HID_PROTOCOL_MODE_REPORT;
-#endif  // CONFIG_BLUEPAD32_ENABLE_BLE
 
 static bool bt_scanning_enabled = true;
 
 #ifdef CONFIG_BLUEPAD32_ENABLE_BLE
 static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
+static void device_information_service_gatt_client_event_handler(uint8_t packet_type,
+                                                                 uint16_t channel,
+                                                                 uint8_t* packet,
+                                                                 uint16_t size);
 #endif  // CONFIG_BLUEPAD32_ENABLE_BLE
 static bool adv_event_contains_hid_service(const uint8_t* packet);
 static void hog_connect(bd_addr_t addr, bd_addr_type_t addr_type);
@@ -120,12 +121,53 @@ enum {
 
 // BLE only
 #ifdef CONFIG_BLUEPAD32_ENABLE_BLE
+static void device_information_service_gatt_client_event_handler(uint8_t packet_type,
+                                                                 uint16_t channel,
+                                                                 uint8_t* packet,
+                                                                 uint16_t size) {
+    /* LISTING_PAUSE */
+    UNUSED(packet_type);
+    UNUSED(channel);
+    UNUSED(size);
+
+    if (hci_event_packet_get_type(packet) != HCI_EVENT_GATTSERVICE_META) {
+        return;
+    }
+    uint8_t status;
+    switch (hci_event_gattservice_meta_get_subevent_code(packet)) {
+        case GATTSERVICE_SUBEVENT_SCAN_PARAMETERS_SERVICE_CONNECTED:
+            printf("PnP ID: vendor source ID 0x%02X, vendor ID 0x%02X, product ID 0x%02X, product version 0x%02X\n",
+                   gattservice_subevent_device_information_pnp_id_get_vendor_source_id(packet),
+                   gattservice_subevent_device_information_pnp_id_get_vendor_id(packet),
+                   gattservice_subevent_device_information_pnp_id_get_product_id(packet),
+                   gattservice_subevent_device_information_pnp_id_get_product_version(packet));
+            break;
+
+        case GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_DONE:
+            status = gattservice_subevent_device_information_done_get_att_status(packet);
+            switch (status) {
+                case ERROR_CODE_SUCCESS:
+                    printf("Device Information service found\n");
+                    break;
+                default:
+                    printf("Device Information service client connection failed, err 0x%02x.\n", status);
+                    // gap_disconnect(connection_handle);
+                    break;
+            }
+            break;
+        default:
+            break;
+    }
+}
+
 static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     ARG_UNUSED(packet_type);
     ARG_UNUSED(channel);
     ARG_UNUSED(size);
 
     uint8_t status;
+    uint16_t hids_cid;
+    uni_hid_device_t* device;
 
     if (hci_event_packet_get_type(packet) != HCI_EVENT_GATTSERVICE_META) {
         return;
@@ -152,10 +194,43 @@ static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint
 
         case GATTSERVICE_SUBEVENT_HID_REPORT:
             logi("GATTSERVICE_SUBEVENT_HID_REPORT\n");
+            hids_cid = gattservice_subevent_hid_report_get_hids_cid(packet);
+            device = uni_hid_device_get_instance_for_hids_cid(hids_cid);
+            if (!device) {
+                loge("GATT HID REPORT: Could not find valid HID device\n");
+            }
+
             printf_hexdump(gattservice_subevent_hid_report_get_report(packet),
                            gattservice_subevent_hid_report_get_report_len(packet));
+
+            // uni_hid_parse_input_report(device, gattservice_subevent_hid_report_get_report(packet), gattservice_subevent_hid_report_get_report_len(packet));
+            // uni_hid_device_process_controller(device);
+            break;
+        case GATTSERVICE_SUBEVENT_HID_INFORMATION:
+            logi(
+                "Hid Information: service index %d, USB HID 0x%02X, country code %d, remote wake %d, normally "
+                "connectable %d\n",
+                gattservice_subevent_hid_information_get_service_index(packet),
+                gattservice_subevent_hid_information_get_base_usb_hid_version(packet),
+                gattservice_subevent_hid_information_get_country_code(packet),
+                gattservice_subevent_hid_information_get_remote_wake(packet),
+                gattservice_subevent_hid_information_get_normally_connectable(packet));
             break;
 
+        case GATTSERVICE_SUBEVENT_HID_PROTOCOL_MODE:
+            logi("Protocol Mode: service index %d, mode 0x%02X (Boot mode: 0x%02X, Report mode 0x%02X)\n",
+                 gattservice_subevent_hid_protocol_mode_get_service_index(packet),
+                 gattservice_subevent_hid_protocol_mode_get_protocol_mode(packet), HID_PROTOCOL_MODE_BOOT,
+                 HID_PROTOCOL_MODE_REPORT);
+            break;
+
+        case GATTSERVICE_SUBEVENT_HID_SERVICE_REPORTS_NOTIFICATION:
+            if (gattservice_subevent_hid_service_reports_notification_get_configuration(packet) == 0) {
+                logi("Reports disabled\n");
+            } else {
+                logi("Reports enabled\n");
+            }
+            break;
         default:
             logi("Unsupported gatt client event: 0x%02x\n", hci_event_gattservice_meta_get_subevent_code(packet));
             break;
@@ -175,12 +250,14 @@ void uni_bluetooth_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint
     ARG_UNUSED(size);
     bd_addr_t addr;
     uni_hid_device_t* device;
-    uint16_t hids_cid;
+    uint8_t status;
+    uint8_t type;
 
     if (packet_type != HCI_EVENT_PACKET)
         return;
 
-    switch (hci_event_packet_get_type(packet)) {
+    type = hci_event_packet_get_type(packet);
+    switch (type) {
         case SM_EVENT_JUST_WORKS_REQUEST:
             logi("Just works requested\n");
             sm_just_works_confirm(sm_event_just_works_request_get_handle(packet));
@@ -201,14 +278,10 @@ void uni_bluetooth_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint
                 break;
             }
 
-            switch (sm_event_pairing_complete_get_status(packet)) {
+            status = sm_event_pairing_complete_get_status(packet);
+            switch (status) {
                 case ERROR_CODE_SUCCESS:
                     logi("Pairing complete, success\n");
-
-                    // continue - query primary services
-                    printf("Search for HID service.\n");
-                    hids_client_connect(device->conn.handle, handle_gatt_client_event, protocol_mode, &hids_cid);
-                    device->hids_cid = hids_cid;
                     break;
                 case ERROR_CODE_CONNECTION_TIMEOUT:
                     logi("Pairing failed, timeout\n");
@@ -220,10 +293,12 @@ void uni_bluetooth_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint
                     logi("Pairing failed, reason = %u\n", sm_event_pairing_complete_get_reason(packet));
                     break;
                 default:
+                    loge("Unkown status: %#x\n", status);
                     break;
             }
             break;
         default:
+            loge("Unkown SM packet type: %#x\n", type);
             break;
     }
 }
@@ -861,11 +936,18 @@ void uni_bluetooth_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
                     }
                     // continue - query primary services
                     logi("Search for HID service.\n");
-                    status = hids_client_connect(con_handle, handle_gatt_client_event, protocol_mode, &hids_cid);
+                    status =
+                        hids_client_connect(con_handle, handle_gatt_client_event, HID_PROTOCOL_MODE_REPORT, &hids_cid);
                     if (status != ERROR_CODE_SUCCESS) {
                         logi("HID client connection failed, status 0x%02x\n", status);
                     }
                     device->hids_cid = hids_cid;
+
+                    status = device_information_service_client_query(
+                        con_handle, device_information_service_gatt_client_event_handler);
+                    if (status != ERROR_CODE_SUCCESS) {
+                        loge("Failed to set device information client: %#x\n", status);
+                    }
                     break;
 #endif  //  CONFIG_BLUEPAD32_ENABLE_BLE
                 case HCI_EVENT_COMMAND_COMPLETE: {
