@@ -199,18 +199,24 @@ static void parse_report(uint8_t* packet, uint16_t size) {
 }
 
 static void device_information_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
-    /* LISTING_PAUSE */
-    UNUSED(packet_type);
-    UNUSED(channel);
-    UNUSED(size);
-
     uint8_t code;
     uint8_t status;
     uint8_t att_status;
     hci_con_handle_t con_handle;
     uni_hid_device_t* device;
+    uint8_t event_type;
 
-    if (hci_event_packet_get_type(packet) != HCI_EVENT_GATTSERVICE_META) {
+    UNUSED(channel);
+    UNUSED(size);
+
+    if (packet_type != HCI_EVENT_PACKET) {
+        loge("sm_packet_handler: unsupported packet type: %#x\n", packet_type);
+        return;
+    }
+
+    event_type = hci_event_packet_get_type(packet);
+    if (event_type != HCI_EVENT_GATTSERVICE_META) {
+        loge("device_information_packet_handler: unsupported event type: %#x\n", event_type);
         return;
     }
 
@@ -362,15 +368,22 @@ static void device_information_packet_handler(uint8_t packet_type, uint16_t chan
 }
 
 static void hids_client_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
-    ARG_UNUSED(packet_type);
-    ARG_UNUSED(channel);
-    ARG_UNUSED(size);
-
     uint8_t status;
     uint16_t hids_cid;
     uni_hid_device_t* device;
+    uint8_t event_type;
 
-    if (hci_event_packet_get_type(packet) != HCI_EVENT_GATTSERVICE_META) {
+    ARG_UNUSED(channel);
+    ARG_UNUSED(size);
+
+    if (packet_type != HCI_EVENT_PACKET) {
+        loge("sm_packet_handler: unsupported packet type: %#x\n", packet_type);
+        return;
+    }
+
+    event_type = hci_event_packet_get_type(packet);
+    if (event_type != HCI_EVENT_GATTSERVICE_META) {
+        loge("hids_client_packet_handler: unsupported event type: %#x\n", event_type);
         return;
     }
 
@@ -453,8 +466,10 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
     uint8_t status;
     uint8_t type;
 
-    if (packet_type != HCI_EVENT_PACKET)
+    if (packet_type != HCI_EVENT_PACKET) {
+        loge("sm_packet_handler: unsupported packet type: %#x\n", packet_type);
         return;
+    }
 
     type = hci_event_packet_get_type(packet);
     switch (type) {
