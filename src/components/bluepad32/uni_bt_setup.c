@@ -33,6 +33,9 @@ limitations under the License.
 #include "uni_platform.h"
 #include "uni_property.h"
 
+// SDP
+static uint8_t hid_descriptor_storage[500];
+
 typedef enum {
     SETUP_STATE_BTSTACK_IN_PROGRESS,
     SETUP_STATE_BLUEPAD32_IN_PROGRESS,
@@ -301,6 +304,7 @@ int uni_bt_setup(void) {
     le_device_db_init();
     sm_init();
     gatt_client_init();
+    hids_client_init(hid_descriptor_storage, sizeof(hid_descriptor_storage));
 #endif  // CONFIG_BLUEPAD32_ENABLE_BLE
 
     // Disable stdout buffering

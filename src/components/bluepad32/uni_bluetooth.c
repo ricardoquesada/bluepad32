@@ -173,6 +173,9 @@ static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint
 void uni_bluetooth_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     ARG_UNUSED(channel);
     ARG_UNUSED(size);
+    bd_addr_t addr;
+    uni_hid_device_t* device;
+    uint16_t hids_cid;
 
     if (packet_type != HCI_EVENT_PACKET)
         return;
@@ -191,15 +194,27 @@ void uni_bluetooth_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint
             logi("Display Passkey: %" PRIu32 "\n", sm_event_passkey_display_number_get_passkey(packet));
             break;
         case SM_EVENT_PAIRING_COMPLETE:
+            sm_event_pairing_complete_get_address(packet, addr);
+            device = uni_hid_device_get_instance_for_address(addr);
+            if (!device) {
+                loge("SM_EVENT_PAIRING_COMPLETE: Invalid device");
+                break;
+            }
+
             switch (sm_event_pairing_complete_get_status(packet)) {
                 case ERROR_CODE_SUCCESS:
                     logi("Pairing complete, success\n");
+
+                    // continue - query primary services
+                    printf("Search for HID service.\n");
+                    hids_client_connect(device->conn.handle, handle_gatt_client_event, protocol_mode, &hids_cid);
+                    device->hids_cid = hids_cid;
                     break;
                 case ERROR_CODE_CONNECTION_TIMEOUT:
                     logi("Pairing failed, timeout\n");
                     break;
                 case ERROR_CODE_REMOTE_USER_TERMINATED_CONNECTION:
-                    logi("Pairing faileed, disconnected\n");
+                    logi("Pairing failed, disconnected\n");
                     break;
                 case ERROR_CODE_AUTHENTICATION_FAILURE:
                     logi("Pairing failed, reason = %u\n", sm_event_pairing_complete_get_reason(packet));
@@ -1024,6 +1039,10 @@ void uni_bluetooth_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
                     break;
                 case GAP_EVENT_ADVERTISING_REPORT:  // BLE only
                     on_gap_event_advertising_report(channel, packet, size);
+                    break;
+                // GATT EVENTS (BLE only)
+                case GATT_EVENT_LONG_CHARACTERISTIC_VALUE_QUERY_RESULT:
+                    logd("--> GATT_EVENT_LONG_CHARACTERISTIC_VALUE_QUERY_RESULT\n");
                     break;
                 default:
                     break;
