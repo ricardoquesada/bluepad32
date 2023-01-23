@@ -116,8 +116,6 @@ uni_hid_device_t* uni_hid_device_get_instance_for_hids_cid(uint16_t cid) {
 }
 
 uni_hid_device_t* uni_hid_device_get_instance_for_connection_handle(hci_con_handle_t handle) {
-    if (handle == 0)
-        return NULL;
     for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         if (g_devices[i].conn.handle == handle) {
             return &g_devices[i];
@@ -403,6 +401,7 @@ void uni_hid_device_delete(uni_hid_device_t* d) {
     btstack_run_loop_remove_timer(&d->connection_timer);
 
     memset(d, 0, sizeof(*d));
+    uni_bt_conn_init(&d->conn);
 }
 
 void uni_hid_device_dump_device(uni_hid_device_t* d) {

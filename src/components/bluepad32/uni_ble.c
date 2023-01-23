@@ -89,9 +89,6 @@ static void hog_connect(bd_addr_t addr, bd_addr_type_t addr_type) {
     btstack_run_loop_set_timer_handler(&hog_connection_timer, &hog_connection_timeout);
     btstack_run_loop_add_timer(&hog_connection_timer);
     gap_connect(addr, addr_type);
-
-    // Fixme: to make it easier to debug
-    // gap_stop_scan();
 }
 
 static void get_advertisement_data(const uint8_t* adv_data, uint8_t adv_size, uint16_t* appearance, char* name) {
@@ -565,19 +562,15 @@ void uni_ble_on_connection_complete(const uint8_t* packet, uint16_t size) {
 
     ARG_UNUSED(size);
 
-    // wait for connection complete
-    // XXX: FIXME
-    if (hci_event_le_meta_get_subevent_code(packet) != HCI_SUBEVENT_LE_CONNECTION_COMPLETE)
-        return;
-
     btstack_run_loop_remove_timer(&hog_connection_timer);
     hci_subevent_le_connection_complete_get_peer_address(packet, event_addr);
     device = uni_hid_device_get_instance_for_address(event_addr);
     if (!device) {
-        loge("Device not found for addr: %s\n", bd_addr_to_str(event_addr));
+        loge("uni_ble_on_connection_complete: Device not found for addr: %s\n", bd_addr_to_str(event_addr));
         return;
     }
     con_handle = hci_subevent_le_connection_complete_get_connection_handle(packet);
+    logi("Using con_handle: %#x\n", con_handle);
 
     uni_hid_device_set_connection_handle(device, con_handle);
     sm_request_pairing(con_handle);
@@ -593,7 +586,7 @@ void uni_ble_on_encryption_change(const uint8_t* packet, uint16_t size) {
     con_handle = hci_event_encryption_change_get_connection_handle(packet);
     device = uni_hid_device_get_instance_for_connection_handle(con_handle);
     if (!device) {
-        loge("Device not found for connection handle: 0x%04x\n", con_handle);
+        loge("uni_ble_on_encryption_change: Device not found for connection handle: 0x%04x\n", con_handle);
         return;
     }
     // This event is also triggered by Classic, and might crash the stack.
@@ -652,15 +645,15 @@ void uni_ble_on_gap_event_advertising_report(const uint8_t* packet, uint16_t siz
     switch (appearance) {
         case UNI_BT_HID_APPEARANCE_MOUSE:
             uni_hid_device_set_cod(d, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE);
-            logi("Device identified as Mouse\n");
+            logi("Device '%s' identified as Mouse\n", name);
             break;
         case UNI_BT_HID_APPEARANCE_JOYSTICK:
             uni_hid_device_set_cod(d, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_JOYSTICK);
-            logi("Device identified as Joystick\n");
+            logi("Device '%s' identified as Joystick\n", name);
             break;
         case UNI_BT_HID_APPEARANCE_GAMEPAD:
             uni_hid_device_set_cod(d, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_GAMEPAD);
-            logi("Device identified as Gamepad\n");
+            logi("Device '%s' identified as Gamepad\n", name);
             break;
         default:
             loge("Unsupported appearance: %#x\n", appearance);
@@ -669,6 +662,10 @@ void uni_ble_on_gap_event_advertising_report(const uint8_t* packet, uint16_t siz
     uni_bt_conn_set_protocol(&d->conn, UNI_BT_CONN_PROTOCOL_BLE);
     uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_DISCOVERED);
     uni_hid_device_set_name(d, name);
+
+    // Fixme: to make it easier to debug
+    gap_stop_scan();
+
     hog_connect(addr, addr_type);
 }
 

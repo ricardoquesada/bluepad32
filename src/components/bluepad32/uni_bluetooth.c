@@ -642,7 +642,8 @@ void uni_bluetooth_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
                 // HCI EVENTS
 #ifdef CONFIG_BLUEPAD32_ENABLE_BLE
                 case HCI_EVENT_LE_META:
-                    uni_ble_on_connection_complete(packet, size);
+                    if (hci_event_le_meta_get_subevent_code(packet) == HCI_SUBEVENT_LE_CONNECTION_COMPLETE)
+                        uni_ble_on_connection_complete(packet, size);
                     break;
                 case HCI_EVENT_ENCRYPTION_CHANGE:
                     uni_ble_on_encryption_change(packet, size);
