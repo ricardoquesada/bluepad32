@@ -40,6 +40,16 @@
  * Unijoysticle additions based on the following BlueKitchen's test/example
  */
 
+/*
+ * Execution order:
+ *  uni_ble_on_gap_event_advertising_report()
+ *      -> hog_connect()
+ *  sm_packet_handler()
+ *  device_information_packet_handler()
+ *  hids_client_packet_handler()
+ *  uni_hid_device_set_ready()
+ */
+
 #include "uni_ble.h"
 
 #include <btstack.h>
@@ -79,6 +89,9 @@ static void hog_connect(bd_addr_t addr, bd_addr_type_t addr_type) {
     btstack_run_loop_set_timer_handler(&hog_connection_timer, &hog_connection_timeout);
     btstack_run_loop_add_timer(&hog_connection_timer);
     gap_connect(addr, addr_type);
+
+    // Fixme: to make it easier to debug
+    // gap_stop_scan();
 }
 
 static void get_advertisement_data(const uint8_t* adv_data, uint8_t adv_size, uint16_t* appearance, char* name) {
@@ -198,6 +211,98 @@ static void parse_report(uint8_t* packet, uint16_t size) {
     uni_hid_device_process_controller(device);
 }
 
+static void hids_client_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
+    uint8_t status;
+    uint16_t hids_cid;
+    uni_hid_device_t* device;
+    uint8_t event_type;
+    hid_protocol_mode_t protocol_mode;
+
+    ARG_UNUSED(packet_type);
+    ARG_UNUSED(channel);
+    ARG_UNUSED(size);
+
+#if 0
+    // FIXME: Bug in BTStack??? This comparison fails because packet_type is HCI_EVENT_GATTSERVICE_META
+    if (packet_type != HCI_EVENT_PACKET) {
+        loge("hids_client_packet_handler: unsupported packet type: %#x\n", packet_type);
+        return;
+    }
+#endif
+
+    event_type = hci_event_packet_get_type(packet);
+    if (event_type != HCI_EVENT_GATTSERVICE_META) {
+        loge("hids_client_packet_handler: unsupported event type: %#x\n", event_type);
+        return;
+    }
+
+    switch (hci_event_gattservice_meta_get_subevent_code(packet)) {
+        case GATTSERVICE_SUBEVENT_HID_SERVICE_CONNECTED:
+            status = gattservice_subevent_hid_service_connected_get_status(packet);
+            logi("GATTSERVICE_SUBEVENT_HID_SERVICE_CONNECTED, status=0x%02x\n", status);
+            switch (status) {
+                case ERROR_CODE_SUCCESS:
+                    protocol_mode = gattservice_subevent_hid_service_connected_get_protocol_mode(packet);
+                    logi("HID service client connected, found %d services, protocol_mode=%d\n",
+                         gattservice_subevent_hid_service_connected_get_num_instances(packet), protocol_mode);
+
+                    // XXX TODO: store device as bonded
+                    hids_cid = gattservice_subevent_hid_service_connected_get_hids_cid(packet);
+                    device = uni_hid_device_get_instance_for_hids_cid(hids_cid);
+                    if (!device) {
+                        loge("Hids Cid: Could not find valid device\n");
+                        break;
+                    }
+                    uni_hid_device_guess_controller_type_from_pid_vid(device);
+                    uni_hid_device_set_ready(device);
+                    break;
+                default:
+                    loge("HID service client connection failed, err 0x%02x.\n", status);
+                    break;
+            }
+            break;
+
+        case GATTSERVICE_SUBEVENT_HID_REPORT:
+            logd("GATTSERVICE_SUBEVENT_HID_REPORT\n");
+            hids_cid = gattservice_subevent_hid_report_get_hids_cid(packet);
+            device = uni_hid_device_get_instance_for_hids_cid(hids_cid);
+            if (!device) {
+                loge("GATT HID REPORT: Could not find valid HID device\n");
+            }
+
+            parse_report(packet, size);
+            break;
+        case GATTSERVICE_SUBEVENT_HID_INFORMATION:
+            logi(
+                "Hid Information: service index %d, USB HID 0x%02X, country code %d, remote wake %d, normally "
+                "connectable %d\n",
+                gattservice_subevent_hid_information_get_service_index(packet),
+                gattservice_subevent_hid_information_get_base_usb_hid_version(packet),
+                gattservice_subevent_hid_information_get_country_code(packet),
+                gattservice_subevent_hid_information_get_remote_wake(packet),
+                gattservice_subevent_hid_information_get_normally_connectable(packet));
+            break;
+
+        case GATTSERVICE_SUBEVENT_HID_PROTOCOL_MODE:
+            logi("Protocol Mode: service index %d, mode 0x%02X (Boot mode: 0x%02X, Report mode 0x%02X)\n",
+                 gattservice_subevent_hid_protocol_mode_get_service_index(packet),
+                 gattservice_subevent_hid_protocol_mode_get_protocol_mode(packet), HID_PROTOCOL_MODE_BOOT,
+                 HID_PROTOCOL_MODE_REPORT);
+            break;
+
+        case GATTSERVICE_SUBEVENT_HID_SERVICE_REPORTS_NOTIFICATION:
+            if (gattservice_subevent_hid_service_reports_notification_get_configuration(packet) == 0) {
+                logi("Reports disabled\n");
+            } else {
+                logi("Reports enabled\n");
+            }
+            break;
+        default:
+            logi("Unsupported gatt client event: 0x%02x\n", hci_event_gattservice_meta_get_subevent_code(packet));
+            break;
+    }
+}
+
 static void device_information_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     uint8_t code;
     uint8_t status;
@@ -205,6 +310,7 @@ static void device_information_packet_handler(uint8_t packet_type, uint16_t chan
     hci_con_handle_t con_handle;
     uni_hid_device_t* device;
     uint8_t event_type;
+    uint16_t hids_cid;
 
     UNUSED(channel);
     UNUSED(size);
@@ -236,10 +342,18 @@ static void device_information_packet_handler(uint8_t packet_type, uint16_t chan
             switch (status) {
                 case ERROR_CODE_SUCCESS:
                     loge("Device Information service found\n");
-                    sm_request_pairing(con_handle);
-                    // device = uni_hid_device_get_instance_for_connection_handle(con_handle);
-                    // if (device)
-                    //     uni_hid_device_set_ready(device);
+                    device = uni_hid_device_get_instance_for_connection_handle(con_handle);
+                    if (!device)
+                        loge("Device not found!\n");
+
+                    // continue - query primary services
+                    logi("Search for HID service.\n");
+                    status = hids_client_connect(con_handle, hids_client_packet_handler, HID_PROTOCOL_MODE_REPORT,
+                                                 &hids_cid);
+                    if (status != ERROR_CODE_SUCCESS) {
+                        logi("HID client connection failed, status 0x%02x\n", status);
+                    }
+                    device->hids_cid = hids_cid;
                     break;
                 default:
                     logi("Device Information service client connection failed, err 0x%02x.\n", status);
@@ -365,98 +479,6 @@ static void device_information_packet_handler(uint8_t packet_type, uint16_t chan
     }
 }
 
-static void hids_client_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
-    uint8_t status;
-    uint16_t hids_cid;
-    uni_hid_device_t* device;
-    uint8_t event_type;
-    hid_protocol_mode_t protocol_mode;
-
-    ARG_UNUSED(packet_type);
-    ARG_UNUSED(channel);
-    ARG_UNUSED(size);
-
-#if 0
-    // FIXME: Bug in BTStack??? This comparison fails because packet_type is HCI_EVENT_GATTSERVICE_META
-    if (packet_type != HCI_EVENT_PACKET) {
-        loge("hids_client_packet_handler: unsupported packet type: %#x\n", packet_type);
-        return;
-    }
-#endif
-
-    event_type = hci_event_packet_get_type(packet);
-    if (event_type != HCI_EVENT_GATTSERVICE_META) {
-        loge("hids_client_packet_handler: unsupported event type: %#x\n", event_type);
-        return;
-    }
-
-    switch (hci_event_gattservice_meta_get_subevent_code(packet)) {
-        case GATTSERVICE_SUBEVENT_HID_SERVICE_CONNECTED:
-            status = gattservice_subevent_hid_service_connected_get_status(packet);
-            logi("GATTSERVICE_SUBEVENT_HID_SERVICE_CONNECTED, status=0x%02x\n", status);
-            switch (status) {
-                case ERROR_CODE_SUCCESS:
-                    protocol_mode = gattservice_subevent_hid_service_connected_get_protocol_mode(packet);
-                    logi("HID service client connected, found %d services, protocol_mode=%d\n",
-                         gattservice_subevent_hid_service_connected_get_num_instances(packet), protocol_mode);
-
-                    // XXX TODO: store device as bonded
-                    hids_cid = gattservice_subevent_hid_service_connected_get_hids_cid(packet);
-                    device = uni_hid_device_get_instance_for_hids_cid(hids_cid);
-                    if (!device) {
-                        loge("Hids Cid: Could not find valid device\n");
-                        break;
-                    }
-                    uni_hid_device_guess_controller_type_from_pid_vid(device);
-                    uni_hid_device_set_ready(device);
-                    break;
-                default:
-                    loge("HID service client connection failed, err 0x%02x.\n", status);
-                    break;
-            }
-            break;
-
-        case GATTSERVICE_SUBEVENT_HID_REPORT:
-            logd("GATTSERVICE_SUBEVENT_HID_REPORT\n");
-            hids_cid = gattservice_subevent_hid_report_get_hids_cid(packet);
-            device = uni_hid_device_get_instance_for_hids_cid(hids_cid);
-            if (!device) {
-                loge("GATT HID REPORT: Could not find valid HID device\n");
-            }
-
-            parse_report(packet, size);
-            break;
-        case GATTSERVICE_SUBEVENT_HID_INFORMATION:
-            logi(
-                "Hid Information: service index %d, USB HID 0x%02X, country code %d, remote wake %d, normally "
-                "connectable %d\n",
-                gattservice_subevent_hid_information_get_service_index(packet),
-                gattservice_subevent_hid_information_get_base_usb_hid_version(packet),
-                gattservice_subevent_hid_information_get_country_code(packet),
-                gattservice_subevent_hid_information_get_remote_wake(packet),
-                gattservice_subevent_hid_information_get_normally_connectable(packet));
-            break;
-
-        case GATTSERVICE_SUBEVENT_HID_PROTOCOL_MODE:
-            logi("Protocol Mode: service index %d, mode 0x%02X (Boot mode: 0x%02X, Report mode 0x%02X)\n",
-                 gattservice_subevent_hid_protocol_mode_get_service_index(packet),
-                 gattservice_subevent_hid_protocol_mode_get_protocol_mode(packet), HID_PROTOCOL_MODE_BOOT,
-                 HID_PROTOCOL_MODE_REPORT);
-            break;
-
-        case GATTSERVICE_SUBEVENT_HID_SERVICE_REPORTS_NOTIFICATION:
-            if (gattservice_subevent_hid_service_reports_notification_get_configuration(packet) == 0) {
-                logi("Reports disabled\n");
-            } else {
-                logi("Reports enabled\n");
-            }
-            break;
-        default:
-            logi("Unsupported gatt client event: 0x%02x\n", hci_event_gattservice_meta_get_subevent_code(packet));
-            break;
-    }
-}
-
 /* HCI packet handler
  *
  * text The SM packet handler receives Security Manager Events required for
@@ -464,12 +486,13 @@ static void hids_client_packet_handler(uint8_t packet_type, uint16_t channel, ui
  * Listing SMPacketHandler.
  */
 static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
-    ARG_UNUSED(channel);
-    ARG_UNUSED(size);
     bd_addr_t addr;
     uni_hid_device_t* device;
     uint8_t status;
     uint8_t type;
+
+    ARG_UNUSED(channel);
+    ARG_UNUSED(size);
 
     if (packet_type != HCI_EVENT_PACKET) {
         loge("sm_packet_handler: unsupported packet type: %#x\n", packet_type);
@@ -538,7 +561,6 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
 void uni_ble_on_connection_complete(const uint8_t* packet, uint16_t size) {
     uni_hid_device_t* device;
     hci_con_handle_t con_handle;
-    uint8_t status;
     bd_addr_t event_addr;
 
     ARG_UNUSED(size);
@@ -557,19 +579,14 @@ void uni_ble_on_connection_complete(const uint8_t* packet, uint16_t size) {
     }
     con_handle = hci_subevent_le_connection_complete_get_connection_handle(packet);
 
-    // Once the "information service" is done, the pairing will be requested
     uni_hid_device_set_connection_handle(device, con_handle);
-    status = device_information_service_client_query(con_handle, device_information_packet_handler);
-    if (status != ERROR_CODE_SUCCESS) {
-        loge("Failed to set device information client: %#x\n", status);
-    }
+    sm_request_pairing(con_handle);
 }
 
 void uni_ble_on_encryption_change(const uint8_t* packet, uint16_t size) {
     uni_hid_device_t* device;
     hci_con_handle_t con_handle;
     uint8_t status;
-    uint16_t hids_cid;
 
     ARG_UNUSED(size);
 
@@ -591,13 +608,11 @@ void uni_ble_on_encryption_change(const uint8_t* packet, uint16_t size) {
         gap_disconnect(con_handle);
         return;
     }
-    // continue - query primary services
-    logi("Search for HID service.\n");
-    status = hids_client_connect(con_handle, hids_client_packet_handler, HID_PROTOCOL_MODE_REPORT, &hids_cid);
+
+    status = device_information_service_client_query(con_handle, device_information_packet_handler);
     if (status != ERROR_CODE_SUCCESS) {
-        logi("HID client connection failed, status 0x%02x\n", status);
+        loge("Failed to set device information client: %#x\n", status);
     }
-    device->hids_cid = hids_cid;
 }
 
 void uni_ble_on_gap_event_advertising_report(const uint8_t* packet, uint16_t size) {
@@ -633,7 +648,7 @@ void uni_ble_on_gap_event_advertising_report(const uint8_t* packet, uint16_t siz
         return;
     }
 
-    // FIXME: This is to be compatible with legacy BR/EDR code
+    // FIXME: Using CODs to make it compatible with legacy BR/EDR code.
     switch (appearance) {
         case UNI_BT_HID_APPEARANCE_MOUSE:
             uni_hid_device_set_cod(d, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE);
