@@ -210,7 +210,7 @@ static void device_information_packet_handler(uint8_t packet_type, uint16_t chan
     UNUSED(size);
 
     if (packet_type != HCI_EVENT_PACKET) {
-        loge("sm_packet_handler: unsupported packet type: %#x\n", packet_type);
+        loge("device_information_packet_handler: unsupported packet type: %#x\n", packet_type);
         return;
     }
 
@@ -357,8 +357,6 @@ static void device_information_packet_handler(uint8_t packet_type, uint16_t chan
             uni_hid_device_set_product_id(device,
                                           gattservice_subevent_device_information_pnp_id_get_product_id(packet));
 
-            uni_hid_device_guess_controller_type_from_pid_vid(device);
-
             break;
 
         default:
@@ -372,14 +370,19 @@ static void hids_client_packet_handler(uint8_t packet_type, uint16_t channel, ui
     uint16_t hids_cid;
     uni_hid_device_t* device;
     uint8_t event_type;
+    hid_protocol_mode_t protocol_mode;
 
+    ARG_UNUSED(packet_type);
     ARG_UNUSED(channel);
     ARG_UNUSED(size);
 
+#if 0
+    // FIXME: Bug in BTStack??? This comparison fails because packet_type is HCI_EVENT_GATTSERVICE_META
     if (packet_type != HCI_EVENT_PACKET) {
-        loge("sm_packet_handler: unsupported packet type: %#x\n", packet_type);
+        loge("hids_client_packet_handler: unsupported packet type: %#x\n", packet_type);
         return;
     }
+#endif
 
     event_type = hci_event_packet_get_type(packet);
     if (event_type != HCI_EVENT_GATTSERVICE_META) {
@@ -393,8 +396,9 @@ static void hids_client_packet_handler(uint8_t packet_type, uint16_t channel, ui
             logi("GATTSERVICE_SUBEVENT_HID_SERVICE_CONNECTED, status=0x%02x\n", status);
             switch (status) {
                 case ERROR_CODE_SUCCESS:
-                    logi("HID service client connected, found %d services\n",
-                         gattservice_subevent_hid_service_connected_get_num_instances(packet));
+                    protocol_mode = gattservice_subevent_hid_service_connected_get_protocol_mode(packet);
+                    logi("HID service client connected, found %d services, protocol_mode=%d\n",
+                         gattservice_subevent_hid_service_connected_get_num_instances(packet), protocol_mode);
 
                     // XXX TODO: store device as bonded
                     hids_cid = gattservice_subevent_hid_service_connected_get_hids_cid(packet);
@@ -403,6 +407,7 @@ static void hids_client_packet_handler(uint8_t packet_type, uint16_t channel, ui
                         loge("Hids Cid: Could not find valid device\n");
                         break;
                     }
+                    uni_hid_device_guess_controller_type_from_pid_vid(device);
                     uni_hid_device_set_ready(device);
                     break;
                 default:

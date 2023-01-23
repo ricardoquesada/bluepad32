@@ -81,6 +81,8 @@ typedef struct {
 
 // clang-format off
 static const uni_controller_description_t arrControllers[] = {
+	{ MAKE_CONTROLLER_ID( 0x0000, 0x0000 ), CONTROLLER_TYPE_Unknown, NULL },  // Bluepad32: Make it first entry
+
 	{ MAKE_CONTROLLER_ID( 0x0079, 0x181a ), CONTROLLER_TYPE_PS3Controller, NULL },	// Venom Arcade Stick
 	{ MAKE_CONTROLLER_ID( 0x0079, 0x1844 ), CONTROLLER_TYPE_PS3Controller, NULL },	// From SDL
 	{ MAKE_CONTROLLER_ID( 0x044f, 0xb315 ), CONTROLLER_TYPE_PS3Controller, NULL },	// Firestorm Dual Analog 3
@@ -458,7 +460,6 @@ static const uni_controller_description_t arrControllers[] = {
 	{ MAKE_CONTROLLER_ID( 0x146b, 0x0611 ), CONTROLLER_TYPE_XBoxOneController, NULL },	// Xbox Controller Mode for NACON Revolution 3
 
 	// These have been added via Minidump for unrecognized Xinput controller assert
-	{ MAKE_CONTROLLER_ID( 0x0000, 0x0000 ), CONTROLLER_TYPE_XBox360Controller, NULL },	// Unknown Controller
 	{ MAKE_CONTROLLER_ID( 0x045e, 0x02a2 ), CONTROLLER_TYPE_XBox360Controller, NULL },	// Unknown Controller - Microsoft VID
 	{ MAKE_CONTROLLER_ID( 0x0e6f, 0x1414 ), CONTROLLER_TYPE_XBox360Controller, NULL },	// Unknown Controller
 	{ MAKE_CONTROLLER_ID( 0x0e6f, 0x0159 ), CONTROLLER_TYPE_XBox360Controller, NULL },	// Unknown Controller
