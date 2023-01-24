@@ -65,8 +65,9 @@ static void misc_button_enable_callback(btstack_timer_source_t* ts);
 static void device_connection_timeout(btstack_timer_source_t* ts);
 static void start_connection_timeout(uni_hid_device_t* d);
 
-void uni_hid_device_init(void) {
-    memset(g_devices, 0, sizeof(g_devices));
+void uni_hid_device_setup(void) {
+    for (int i = 0; i < ARRAY_SIZE(g_devices); i++)
+        uni_hid_device_init(&g_devices[i]);
 }
 
 uni_hid_device_t* uni_hid_device_create(bd_addr_t address) {
@@ -76,7 +77,6 @@ uni_hid_device_t* uni_hid_device_create(bd_addr_t address) {
 
             memset(&g_devices[i], 0, sizeof(g_devices[i]));
             memcpy(g_devices[i].conn.btaddr, address, 6);
-            g_devices[i].hids_cid = -1;
 
             // Delete device if it doesn't have a connection
             start_connection_timeout(&g_devices[i]);
@@ -84,6 +84,17 @@ uni_hid_device_t* uni_hid_device_create(bd_addr_t address) {
         }
     }
     return NULL;
+}
+
+void uni_hid_device_init(uni_hid_device_t* d) {
+    if (d == NULL) {
+        loge("Invalid device\n");
+        return;
+    }
+    memset(d, 0, sizeof(*d));
+    d->hids_cid = -1;
+
+    uni_bt_conn_init(&d->conn);
 }
 
 uni_hid_device_t* uni_hid_device_get_instance_for_address(bd_addr_t addr) {
@@ -116,6 +127,8 @@ uni_hid_device_t* uni_hid_device_get_instance_for_hids_cid(uint16_t cid) {
 }
 
 uni_hid_device_t* uni_hid_device_get_instance_for_connection_handle(hci_con_handle_t handle) {
+    if (handle == UNI_BT_CONN_HANDLE_INVALID)
+        return NULL;
     for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         if (g_devices[i].conn.handle == handle) {
             return &g_devices[i];
@@ -400,8 +413,7 @@ void uni_hid_device_delete(uni_hid_device_t* d) {
     // Remove the timer. If it was still running, it will crash if the handler gets called.
     btstack_run_loop_remove_timer(&d->connection_timer);
 
-    memset(d, 0, sizeof(*d));
-    uni_bt_conn_init(&d->conn);
+    uni_hid_device_init(d);
 }
 
 void uni_hid_device_dump_device(uni_hid_device_t* d) {

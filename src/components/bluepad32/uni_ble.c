@@ -78,6 +78,9 @@ static void hog_connection_timeout(btstack_timer_source_t* ts) {
 
     logi("HOG Timeout - abort connection\n");
     gap_connect_cancel();
+
+    // Resume scanning
+    gap_start_scan();
 }
 
 /**
@@ -526,7 +529,7 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
             sm_event_pairing_complete_get_address(packet, addr);
             device = uni_hid_device_get_instance_for_address(addr);
             if (!device) {
-                loge("SM_EVENT_PAIRING_COMPLETE: Invalid device");
+                loge("SM_EVENT_PAIRING_COMPLETE: Invalid device\n");
                 break;
             }
 
@@ -574,6 +577,9 @@ void uni_ble_on_connection_complete(const uint8_t* packet, uint16_t size) {
 
     uni_hid_device_set_connection_handle(device, con_handle);
     sm_request_pairing(con_handle);
+
+    // Resume scanning
+    gap_start_scan();
 }
 
 void uni_ble_on_encryption_change(const uint8_t* packet, uint16_t size) {
@@ -663,7 +669,8 @@ void uni_ble_on_gap_event_advertising_report(const uint8_t* packet, uint16_t siz
     uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_DISCOVERED);
     uni_hid_device_set_name(d, name);
 
-    // Fixme: to make it easier to debug
+    // Stop scan, otherwise it will be able to connect.
+    // Happens in ESP32, but not in libusb
     gap_stop_scan();
 
     hog_connect(addr, addr_type);

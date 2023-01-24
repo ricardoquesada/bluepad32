@@ -38,7 +38,7 @@ int uni_main(int argc, const char** argv) {
 
     uni_property_init();
     uni_platform_init(argc, argv);
-    uni_hid_device_init();
+    uni_hid_device_setup();
 
     // Continue with bluetooth setup.
     uni_bt_setup();

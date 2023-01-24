@@ -24,7 +24,7 @@ limitations under the License.
 
 void uni_bt_conn_init(uni_bt_conn_t* conn) {
     memset(conn, 0, sizeof(*conn));
-    conn->handle = -1;
+    conn->handle = UNI_BT_CONN_HANDLE_INVALID;
 }
 
 void uni_bt_conn_set_state(uni_bt_conn_t* conn, uni_bt_conn_state_t state) {
@@ -62,7 +62,7 @@ bool uni_bt_conn_is_connected(uni_bt_conn_t* conn) {
 void uni_bt_conn_disconnect(uni_bt_conn_t* conn) {
     if (conn->handle) {
         gap_disconnect(conn->handle);
-        conn->handle = -1;
+        conn->handle = UNI_BT_CONN_HANDLE_INVALID;
     } else {
         // After calling gap_disconnect() we should not call l2cap_disonnect(),
         // since gap_disconnect() will take care of it.

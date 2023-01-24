@@ -23,6 +23,8 @@ limitations under the License.
 
 #include <btstack.h>
 
+#define UNI_BT_CONN_HANDLE_INVALID 0xffff
+
 typedef enum {
     UNI_BT_CONN_PROTOCOL_NONE,
     UNI_BT_CONN_PROTOCOL_BR_EDR,

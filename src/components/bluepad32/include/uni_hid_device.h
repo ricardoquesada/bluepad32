@@ -122,7 +122,7 @@ typedef struct uni_hid_device_s uni_hid_device_t;
 // Callback function used as in get_instance_with_predicate
 typedef uint8_t (*uni_hid_device_predicate_t)(uni_hid_device_t* d, void* data);
 
-void uni_hid_device_init(void);
+void uni_hid_device_setup();
 
 uni_hid_device_t* uni_hid_device_create(bd_addr_t address);
 
@@ -137,6 +137,8 @@ uni_hid_device_t* uni_hid_device_get_first_device_with_state(uni_bt_conn_state_t
 uni_hid_device_t* uni_hid_device_get_instance_with_predicate(uni_hid_device_predicate_t predicate, void* data);
 uni_hid_device_t* uni_hid_device_get_instance_for_idx(int idx);
 int uni_hid_device_get_idx_for_instance(uni_hid_device_t* d);
+
+void uni_hid_device_init(uni_hid_device_t* d);
 
 void uni_hid_device_set_ready(uni_hid_device_t* d);
 void uni_hid_device_set_ready_complete(uni_hid_device_t* d);

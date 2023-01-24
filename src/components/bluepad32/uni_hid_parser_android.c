@@ -167,6 +167,12 @@ void uni_hid_parser_android_parse_usage(uni_hid_device_t* d,
                     if (value)
                         ctl->gamepad.buttons |= BUTTON_THUMB_R;
                     break;
+                case 0x11:
+                    // Stadia controller: Capture button
+                    break;
+                case 0x12:
+                    // Stadia controller: Google Assistant button
+                    break;
                 default:
                     // Only report unsupported values if they are 1.
                     if (value)
