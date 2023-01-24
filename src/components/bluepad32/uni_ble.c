@@ -91,7 +91,7 @@ static void hog_disconnect(hci_con_handle_t con_handle) {
     uni_hid_device_delete(device);
 
     // Resume scanning
-    gap_start_scan();
+    // gap_start_scan();
 }
 
 static void get_advertisement_data(const uint8_t* adv_data, uint8_t adv_size, uint16_t* appearance, char* name) {
@@ -612,7 +612,7 @@ void uni_ble_on_connection_complete(const uint8_t* packet, uint16_t size) {
     sm_request_pairing(con_handle);
 
     // Resume scanning
-    gap_start_scan();
+    // gap_start_scan();
 }
 
 void uni_ble_on_encryption_change(const uint8_t* packet, uint16_t size) {
@@ -714,8 +714,10 @@ void uni_ble_setup(void) {
     le_device_db_init();
 
     sm_init();
+    // Legacy paring:
     sm_set_io_capabilities(IO_CAPABILITY_NO_INPUT_NO_OUTPUT);
-    sm_set_authentication_requirements(SM_AUTHREQ_BONDING);
+    sm_set_authentication_requirements(0);
+    // sm_set_authentication_requirements(SM_AUTHREQ_BONDING);
 
     gatt_client_init();
     hids_client_init(hid_descriptor_storage, sizeof(hid_descriptor_storage));
