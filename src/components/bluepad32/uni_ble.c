@@ -715,9 +715,15 @@ void uni_ble_setup(void) {
 
     sm_init();
     // Legacy paring:
+    // sm_set_io_capabilities(IO_CAPABILITY_NO_INPUT_NO_OUTPUT);
+    // sm_set_authentication_requirements(0);
+
+    // Enable LE Secure Connections Only mode - disables Legacy pairing
+    sm_set_secure_connections_only_mode(true);
+
+    // LE Secure Connections, Just Works
     sm_set_io_capabilities(IO_CAPABILITY_NO_INPUT_NO_OUTPUT);
-    sm_set_authentication_requirements(0);
-    // sm_set_authentication_requirements(SM_AUTHREQ_BONDING);
+    sm_set_authentication_requirements(SM_AUTHREQ_SECURE_CONNECTION);
 
     gatt_client_init();
     hids_client_init(hid_descriptor_storage, sizeof(hid_descriptor_storage));
