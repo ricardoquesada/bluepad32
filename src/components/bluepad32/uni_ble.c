@@ -71,27 +71,27 @@
 // Temporal space for SDP in BLE
 static uint8_t hid_descriptor_storage[500];
 static btstack_packet_callback_registration_t sm_event_callback_registration;
-static btstack_timer_source_t hog_connection_timer;
-
-static void hog_connection_timeout(btstack_timer_source_t* ts) {
-    ARG_UNUSED(ts);
-
-    logi("HOG Timeout - abort connection\n");
-    gap_connect_cancel();
-
-    // Resume scanning
-    gap_start_scan();
-}
 
 /**
  * Connect to remote device but set timer for timeout
  */
 static void hog_connect(bd_addr_t addr, bd_addr_type_t addr_type) {
-    // set timer
-    btstack_run_loop_set_timer(&hog_connection_timer, 10000);
-    btstack_run_loop_set_timer_handler(&hog_connection_timer, &hog_connection_timeout);
-    btstack_run_loop_add_timer(&hog_connection_timer);
+    // Stop scan, otherwise it will be able to connect.
+    // Happens in ESP32, but not in libusb
+    gap_stop_scan();
+
     gap_connect(addr, addr_type);
+}
+
+static void hog_disconnect(hci_con_handle_t con_handle) {
+    uni_hid_device_t* device;
+
+    gap_disconnect(con_handle);
+    device = uni_hid_device_get_instance_for_connection_handle(con_handle);
+    uni_hid_device_delete(device);
+
+    // Resume scanning
+    gap_start_scan();
 }
 
 static void get_advertisement_data(const uint8_t* adv_data, uint8_t adv_size, uint16_t* appearance, char* name) {
@@ -190,7 +190,7 @@ static void parse_report(uint8_t* packet, uint16_t size) {
     device = uni_hid_device_get_instance_for_hids_cid(hids_cid);
 
     if (!device) {
-        loge("BLE parser report: Invalid device\n");
+        loge("BLE parser report: Invalid device for hids_cid=%d\n", hids_cid);
         return;
     }
 
@@ -250,7 +250,7 @@ static void hids_client_packet_handler(uint8_t packet_type, uint16_t channel, ui
                     hids_cid = gattservice_subevent_hid_service_connected_get_hids_cid(packet);
                     device = uni_hid_device_get_instance_for_hids_cid(hids_cid);
                     if (!device) {
-                        loge("Hids Cid: Could not find valid device\n");
+                        loge("Hids Cid: Could not find valid device for hids_cid=%d\n", hids_cid);
                         break;
                     }
                     uni_hid_device_guess_controller_type_from_pid_vid(device);
@@ -264,12 +264,6 @@ static void hids_client_packet_handler(uint8_t packet_type, uint16_t channel, ui
 
         case GATTSERVICE_SUBEVENT_HID_REPORT:
             logd("GATTSERVICE_SUBEVENT_HID_REPORT\n");
-            hids_cid = gattservice_subevent_hid_report_get_hids_cid(packet);
-            device = uni_hid_device_get_instance_for_hids_cid(hids_cid);
-            if (!device) {
-                loge("GATT HID REPORT: Could not find valid HID device\n");
-            }
-
             parse_report(packet, size);
             break;
         case GATTSERVICE_SUBEVENT_HID_INFORMATION:
@@ -343,8 +337,10 @@ static void device_information_packet_handler(uint8_t packet_type, uint16_t chan
                 case ERROR_CODE_SUCCESS:
                     loge("Device Information service found\n");
                     device = uni_hid_device_get_instance_for_connection_handle(con_handle);
-                    if (!device)
+                    if (!device) {
                         loge("Device not found!\n");
+                        break;
+                    }
 
                     // continue - query primary services
                     logi("Search for HID service.\n");
@@ -352,12 +348,15 @@ static void device_information_packet_handler(uint8_t packet_type, uint16_t chan
                                                  &hids_cid);
                     if (status != ERROR_CODE_SUCCESS) {
                         logi("HID client connection failed, status 0x%02x\n", status);
+                        hog_disconnect(con_handle);
+                        break;
                     }
+                    logi("Using hids_cid=%d\n", hids_cid);
                     device->hids_cid = hids_cid;
                     break;
                 default:
                     logi("Device Information service client connection failed, err 0x%02x.\n", status);
-                    gap_disconnect(con_handle);
+                    hog_disconnect(con_handle);
                     break;
             }
             break;
@@ -525,6 +524,40 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
         case SM_EVENT_PAIRING_STARTED:
             logi("SM_EVENT_PAIRING_STARTED\n");
             break;
+        case SM_EVENT_IDENTITY_CREATED:
+            sm_event_identity_created_get_identity_address(packet, addr);
+            logi("Identity created: type %u address %s\n", sm_event_identity_created_get_identity_addr_type(packet),
+                 bd_addr_to_str(addr));
+            break;
+        case SM_EVENT_REENCRYPTION_STARTED:
+            sm_event_reencryption_complete_get_address(packet, addr);
+            logi("Bonding information exists for addr type %u, identity addr %s -> start re-encryption\n",
+                 sm_event_reencryption_started_get_addr_type(packet), bd_addr_to_str(addr));
+            break;
+        case SM_EVENT_REENCRYPTION_COMPLETE:
+            switch (sm_event_reencryption_complete_get_status(packet)) {
+                case ERROR_CODE_SUCCESS:
+                    logi("Re-encryption complete, success\n");
+                    break;
+                case ERROR_CODE_CONNECTION_TIMEOUT:
+                    logi("Re-encryption failed, timeout\n");
+                    break;
+                case ERROR_CODE_REMOTE_USER_TERMINATED_CONNECTION:
+                    logi("Re-encryption failed, disconnected\n");
+                    break;
+                case ERROR_CODE_PIN_OR_KEY_MISSING:
+                    logi("Re-encryption failed, bonding information missing\n\n");
+                    logi("Assuming remote lost bonding information\n");
+                    logi("Deleting local bonding information and start new pairing...\n");
+                    sm_event_reencryption_complete_get_address(packet, addr);
+                    type = sm_event_reencryption_started_get_addr_type(packet);
+                    gap_delete_bonding(type, addr);
+                    sm_request_pairing(sm_event_reencryption_complete_get_handle(packet));
+                    break;
+                default:
+                    break;
+            }
+            break;
         case SM_EVENT_PAIRING_COMPLETE:
             sm_event_pairing_complete_get_address(packet, addr);
             device = uni_hid_device_get_instance_for_address(addr);
@@ -551,6 +584,7 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
                     loge("Unkown paring status: %#x\n", status);
                     break;
             }
+            hog_disconnect(device->conn.handle);
             break;
         default:
             loge("Unkown SM packet type: %#x\n", type);
@@ -565,7 +599,6 @@ void uni_ble_on_connection_complete(const uint8_t* packet, uint16_t size) {
 
     ARG_UNUSED(size);
 
-    btstack_run_loop_remove_timer(&hog_connection_timer);
     hci_subevent_le_connection_complete_get_peer_address(packet, event_addr);
     device = uni_hid_device_get_instance_for_address(event_addr);
     if (!device) {
@@ -604,7 +637,7 @@ void uni_ble_on_encryption_change(const uint8_t* packet, uint16_t size) {
     logi("Connection encrypted: %u\n", hci_event_encryption_change_get_encryption_enabled(packet));
     if (hci_event_encryption_change_get_encryption_enabled(packet) == 0) {
         logi("Encryption failed -> abort\n");
-        gap_disconnect(con_handle);
+        hog_disconnect(con_handle);
         return;
     }
 
@@ -669,10 +702,6 @@ void uni_ble_on_gap_event_advertising_report(const uint8_t* packet, uint16_t siz
     uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_DISCOVERED);
     uni_hid_device_set_name(d, name);
 
-    // Stop scan, otherwise it will be able to connect.
-    // Happens in ESP32, but not in libusb
-    gap_stop_scan();
-
     hog_connect(addr, addr_type);
 }
 
@@ -683,8 +712,11 @@ void uni_ble_setup(void) {
 
     // Setup LE device db
     le_device_db_init();
+
     sm_init();
     sm_set_io_capabilities(IO_CAPABILITY_NO_INPUT_NO_OUTPUT);
+    sm_set_authentication_requirements(SM_AUTHREQ_BONDING);
+
     gatt_client_init();
     hids_client_init(hid_descriptor_storage, sizeof(hid_descriptor_storage));
     scan_parameters_service_client_init();

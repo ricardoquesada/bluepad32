@@ -66,7 +66,7 @@ static void device_connection_timeout(btstack_timer_source_t* ts);
 static void start_connection_timeout(uni_hid_device_t* d);
 
 void uni_hid_device_setup(void) {
-    for (int i = 0; i < ARRAY_SIZE(g_devices); i++)
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++)
         uni_hid_device_init(&g_devices[i]);
 }
 
@@ -92,7 +92,7 @@ void uni_hid_device_init(uni_hid_device_t* d) {
         return;
     }
     memset(d, 0, sizeof(*d));
-    d->hids_cid = -1;
+    d->hids_cid = 0xffff;
 
     uni_bt_conn_init(&d->conn);
 }

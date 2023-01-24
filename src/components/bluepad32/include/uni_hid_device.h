@@ -122,7 +122,7 @@ typedef struct uni_hid_device_s uni_hid_device_t;
 // Callback function used as in get_instance_with_predicate
 typedef uint8_t (*uni_hid_device_predicate_t)(uni_hid_device_t* d, void* data);
 
-void uni_hid_device_setup();
+void uni_hid_device_setup(void);
 
 uni_hid_device_t* uni_hid_device_create(bd_addr_t address);
 
