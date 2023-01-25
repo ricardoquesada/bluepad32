@@ -516,10 +516,13 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
             logi("SM_EVENT_PAIRING_STARTED\n");
             break;
         case SM_EVENT_IDENTITY_RESOLVING_FAILED:
-            logi("SM_EVENT_IDENTITY_RESOLVING_FAILED\n");
+            sm_event_identity_created_get_address(packet, addr);
+            logi("Identity resolving failed for %s\n\n", bd_addr_to_str(addr));
             break;
         case SM_EVENT_IDENTITY_RESOLVING_SUCCEEDED:
-            logi("SM_EVENT_IDENTITY_RESOLVING_SUCCEEDED\n");
+            sm_event_identity_resolving_succeeded_get_identity_address(packet, addr);
+            logi("Identity resolved: type %u address %s\n",
+                 sm_event_identity_resolving_succeeded_get_identity_addr_type(packet), bd_addr_to_str(addr));
             break;
         case SM_EVENT_PAIRING_STARTED:
             logi("SM_EVENT_PAIRING_STARTED\n");
@@ -584,7 +587,7 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
                     loge("Unkown paring status: %#x\n", status);
                     break;
             }
-            hog_disconnect(device->conn.handle);
+            // hog_disconnect(device->conn.handle);
             break;
         default:
             loge("Unkown SM packet type: %#x\n", type);
@@ -592,30 +595,49 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
     }
 }
 
-void uni_ble_on_connection_complete(const uint8_t* packet, uint16_t size) {
+void uni_ble_on_hci_event_le_meta(const uint8_t* packet, uint16_t size) {
     uni_hid_device_t* device;
     hci_con_handle_t con_handle;
     bd_addr_t event_addr;
+    uint8_t subevent;
 
     ARG_UNUSED(size);
 
-    hci_subevent_le_connection_complete_get_peer_address(packet, event_addr);
-    device = uni_hid_device_get_instance_for_address(event_addr);
-    if (!device) {
-        loge("uni_ble_on_connection_complete: Device not found for addr: %s\n", bd_addr_to_str(event_addr));
-        return;
+    subevent = hci_event_le_meta_get_subevent_code(packet);
+
+    switch (subevent) {
+        case HCI_SUBEVENT_LE_CONNECTION_COMPLETE:
+            hci_subevent_le_connection_complete_get_peer_address(packet, event_addr);
+            device = uni_hid_device_get_instance_for_address(event_addr);
+            if (!device) {
+                loge("uni_ble_on_connection_complete: Device not found for addr: %s\n", bd_addr_to_str(event_addr));
+                break;
+            }
+            con_handle = hci_subevent_le_connection_complete_get_connection_handle(packet);
+            logi("Using con_handle: %#x\n", con_handle);
+
+            uni_hid_device_set_connection_handle(device, con_handle);
+            sm_request_pairing(con_handle);
+
+            // Resume scanning
+            // gap_start_scan();
+            break;
+
+        case HCI_SUBEVENT_LE_ADVERTISING_REPORT:
+            // Safely ignore it, we handle the GAP advertising report instead
+            break;
+
+        case HCI_SUBEVENT_LE_READ_REMOTE_FEATURES_COMPLETE:
+            // Ignore it
+            break;
+
+        default:
+            logi("Unsupported LE_META sub-event: %#x\n", subevent);
+            break;
     }
-    con_handle = hci_subevent_le_connection_complete_get_connection_handle(packet);
-    logi("Using con_handle: %#x\n", con_handle);
-
-    uni_hid_device_set_connection_handle(device, con_handle);
-    sm_request_pairing(con_handle);
-
-    // Resume scanning
-    // gap_start_scan();
 }
 
-void uni_ble_on_encryption_change(const uint8_t* packet, uint16_t size) {
+void uni_ble_on_hci_event_encryption_change(const uint8_t* packet, uint16_t size) {
     uni_hid_device_t* device;
     hci_con_handle_t con_handle;
     uint8_t status;
@@ -705,6 +727,26 @@ void uni_ble_on_gap_event_advertising_report(const uint8_t* packet, uint16_t siz
     hog_connect(addr, addr_type);
 }
 
+void uni_ble_delete_bonded_keys(void) {
+    bd_addr_t entry_address;
+    int i;
+
+    logi("Deleting stored BLE link keys:\n");
+
+    for (i = 0; i < le_device_db_max_count(); i++) {
+        int entry_address_type = (int)BD_ADDR_TYPE_UNKNOWN;
+        le_device_db_info(i, &entry_address_type, entry_address, NULL);
+
+        // skip unused entries
+        if (entry_address_type == (int)BD_ADDR_TYPE_UNKNOWN)
+            continue;
+
+        logi("%s - type %u\n", bd_addr_to_str(entry_address), (int)entry_address_type);
+        gap_delete_bonding((bd_addr_type_t)entry_address_type, entry_address);
+    }
+    logi(".\n");
+}
+
 void uni_ble_setup(void) {
     // register for events from Security Manager
     sm_event_callback_registration.callback = &sm_packet_handler;
@@ -714,17 +756,17 @@ void uni_ble_setup(void) {
     le_device_db_init();
 
     sm_init();
-    // Legacy paring:
-    sm_set_io_capabilities(IO_CAPABILITY_NO_INPUT_NO_OUTPUT);
-    sm_set_authentication_requirements(0);
+
+    // Legacy paring, Just Works
+    // sm_set_io_capabilities(IO_CAPABILITY_NO_INPUT_NO_OUTPUT);
+    // sm_set_authentication_requirements(SM_AUTHREQ_BONDING);
 
     // Enable LE Secure Connections Only mode - disables Legacy pairing
-    // sm_set_secure_connections_only_mode(true);
-    // gap_set_secure_connections_only_mode(true);
-
+    sm_set_secure_connections_only_mode(true);
+    gap_set_secure_connections_only_mode(true);
     // LE Secure Connections, Just Works
-    // sm_set_authentication_requirements(SM_AUTHREQ_SECURE_CONNECTION);
-    sm_set_authentication_requirements(SM_AUTHREQ_BONDING);
+    sm_set_io_capabilities(IO_CAPABILITY_NO_INPUT_NO_OUTPUT);
+    sm_set_authentication_requirements(SM_AUTHREQ_SECURE_CONNECTION);
 
     gatt_client_init();
     hids_client_init(hid_descriptor_storage, sizeof(hid_descriptor_storage));

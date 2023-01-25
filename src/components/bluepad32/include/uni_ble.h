@@ -25,10 +25,11 @@ extern "C" {
 
 #include <inttypes.h>
 
-void uni_ble_on_connection_complete(const uint8_t* packet, uint16_t size);
-void uni_ble_on_encryption_change(const uint8_t* packet, uint16_t size);
+void uni_ble_on_hci_event_le_meta(const uint8_t* packet, uint16_t size);
+void uni_ble_on_hci_event_encryption_change(const uint8_t* packet, uint16_t size);
 void uni_ble_on_gap_event_advertising_report(const uint8_t* packet, uint16_t size);
 
+void uni_ble_delete_bonded_keys(void);
 void uni_ble_setup(void);
 
 #ifdef __cplusplus
