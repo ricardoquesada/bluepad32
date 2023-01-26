@@ -766,7 +766,7 @@ void uni_ble_setup(void) {
     gap_set_secure_connections_only_mode(true);
     // LE Secure Connections, Just Works
     sm_set_io_capabilities(IO_CAPABILITY_NO_INPUT_NO_OUTPUT);
-    sm_set_authentication_requirements(SM_AUTHREQ_SECURE_CONNECTION);
+    sm_set_authentication_requirements(SM_AUTHREQ_SECURE_CONNECTION|SM_AUTHREQ_BONDING);
 
     gatt_client_init();
     hids_client_init(hid_descriptor_storage, sizeof(hid_descriptor_storage));

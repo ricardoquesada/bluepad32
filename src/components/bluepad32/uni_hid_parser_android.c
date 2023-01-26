@@ -173,6 +173,16 @@ void uni_hid_parser_android_parse_usage(uni_hid_device_t* d,
                 case 0x12:
                     // Stadia controller: Google Assistant button
                     break;
+                case 0x13:
+                    // Stadia: LT. It reports both LT and Brake
+                    if (value)
+                        ctl->gamepad.buttons |= BUTTON_TRIGGER_L;
+                    break;
+                case 0x14:
+                    // Stadia: RT. It reports both RT and Gas
+                    if (value)
+                        ctl->gamepad.buttons |= BUTTON_TRIGGER_R;
+                    break;
                 default:
                     // Only report unsupported values if they are 1.
                     if (value)
