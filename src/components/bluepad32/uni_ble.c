@@ -756,17 +756,35 @@ void uni_ble_setup(void) {
     le_device_db_init();
 
     sm_init();
-
-    // Legacy paring, Just Works
-    // sm_set_io_capabilities(IO_CAPABILITY_NO_INPUT_NO_OUTPUT);
-    // sm_set_authentication_requirements(SM_AUTHREQ_BONDING);
-
-    // Enable LE Secure Connections Only mode - disables Legacy pairing
-    sm_set_secure_connections_only_mode(true);
-    gap_set_secure_connections_only_mode(true);
-    // LE Secure Connections, Just Works
     sm_set_io_capabilities(IO_CAPABILITY_NO_INPUT_NO_OUTPUT);
-    sm_set_authentication_requirements(SM_AUTHREQ_SECURE_CONNECTION | SM_AUTHREQ_BONDING);
+
+    // TL;DR:
+    // Enable Secure connection, disable bonding
+
+    // Legacy paring, Just Works in ESP32
+    // - Stadia: Ok
+    // - MS mouse: Ok
+    // - Xbox 3 buttons: flaky, fails to connect or connects
+    // - Xbox 2 buttons: flaky, fails to connect or connects
+    // sm_set_authentication_requirements(0);
+
+    // Secure connection + NO bonding in ESP32:
+    // - Stadia: Ok
+    // - MS mouse: Ok
+    // - Xbox 3 buttons: Ok
+    // - Xbox 2 buttons: fails to connect
+    // sm_set_secure_connections_only_mode(true);
+    // gap_set_secure_connections_only_mode(true);
+    sm_set_authentication_requirements(SM_AUTHREQ_SECURE_CONNECTION);
+
+    // Secure connection + bonding in ESP32:
+    // - Stadia: Ok
+    // - MS mouse: Ok... but disconnects after 10 seconds
+    // - Xbox 3 buttons: fails to connect
+    // - Xbox 2 buttons: fails to connect
+    // sm_set_authentication_requirements(SM_AUTHREQ_SECURE_CONNECTION | SM_AUTHREQ_BONDING);
+
+    // libusb works with mostly any configuration
 
     gatt_client_init();
     hids_client_init(hid_descriptor_storage, sizeof(hid_descriptor_storage));
