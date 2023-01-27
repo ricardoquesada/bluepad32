@@ -254,6 +254,7 @@ static void hids_client_packet_handler(uint8_t packet_type, uint16_t channel, ui
                         break;
                     }
                     uni_hid_device_guess_controller_type_from_pid_vid(device);
+                    uni_hid_device_connect(device);
                     uni_hid_device_set_ready(device);
                     break;
                 default:
