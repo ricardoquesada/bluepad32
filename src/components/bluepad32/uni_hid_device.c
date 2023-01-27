@@ -417,9 +417,28 @@ void uni_hid_device_delete(uni_hid_device_t* d) {
 }
 
 void uni_hid_device_dump_device(uni_hid_device_t* d) {
+    char* conn_type;
+    gap_connection_type_t type;
+
+    type = gap_get_connection_type(d->conn.handle);
+    switch (type) {
+        case GAP_CONNECTION_ACL:
+            conn_type = "ACL";
+            break;
+        case GAP_CONNECTION_SCO:
+            conn_type = "SCO";
+            break;
+        case GAP_CONNECTION_LE:
+            conn_type = "BLE";
+            break;
+        default:
+            conn_type = "Invalid";
+            break;
+    }
+
     logi("\tbtaddr: %s\n", bd_addr_to_str(d->conn.btaddr));
-    logi("\tbt: handle=%d, ctrl_cid=0x%04x, intr_cid=0x%04x, cod=0x%08x, flags=0x%08x, incoming=%d\n", d->conn.handle,
-         d->conn.control_cid, d->conn.interrupt_cid, d->cod, d->flags, d->conn.incoming);
+    logi("\tbt: handle=%d (%s), ctrl_cid=0x%04x, intr_cid=0x%04x, cod=0x%08x, flags=0x%08x, incoming=%d\n",
+         d->conn.handle, conn_type, d->conn.control_cid, d->conn.interrupt_cid, d->cod, d->flags, d->conn.incoming);
     logi("\tmodel: vid=0x%04x, pid=0x%04x, model='%s', name='%s'\n", d->vendor_id, d->product_id,
          uni_gamepad_get_model_name(d->controller_type), d->name);
     if (uni_get_platform()->device_dump)
