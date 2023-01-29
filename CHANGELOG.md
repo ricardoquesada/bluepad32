@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v3.6.0-rc1] - 2023-01-29
+### New
+- BLE support (experimental). Enable it from "idf.py menuconfig" or
+  from console with "set_ble_enabled". It is disabled by default
+  Tested with:
+  - Xbox Wireless Controller with Firmware 5.15
+  - Stadia Controller with BLE Firmware
+  - Microsoft BLE mouse
+
+### Changed
+- Refactored a bit the Bluetooth code to better support BLE
+
+### Fixed
+- "disconnect" console command also deletes the connected device
+
 ## [v3.6.0-rc0] - 2023-01-16
 ### New
 - Platforms: Receive "controller" instead of "gamepad". A controller can be a:
