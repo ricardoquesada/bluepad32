@@ -25,11 +25,13 @@ limitations under the License.
 // Globals
 // Keep them sorted
 // Keys name should not be longer than NVS_KEY_NAME_MAX_SIZE (16 chars).
+const char* UNI_PROPERTY_KEY_BLE_ENABLED = "bp.ble.enabled";
 const char* UNI_PROPERTY_KEY_GAP_INQ_LEN = "bp.gap.inq_len";
 const char* UNI_PROPERTY_KEY_GAP_LEVEL = "bp.gap.level";
 const char* UNI_PROPERTY_KEY_GAP_MAX_PERIODIC_LEN = "bp.gap.max_len";
 const char* UNI_PROPERTY_KEY_GAP_MIN_PERIODIC_LEN = "bp.gap.min_len";
 const char* UNI_PROPERTY_KEY_MOUSE_SCALE = "bp.mouse.scale";
+
 
 // Unijoysticle only
 // TODO: Move them to the Unijoysticle file.

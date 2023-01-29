@@ -29,6 +29,7 @@ limitations under the License.
 #include <nvs_flash.h>
 
 #include "sdkconfig.h"
+#include "uni_ble.h"
 #include "uni_bluetooth.h"
 #include "uni_bt_setup.h"
 #include "uni_common.h"
@@ -67,7 +68,12 @@ static struct {
 static struct {
     struct arg_int* enabled;
     struct arg_end* end;
-} set_bluetooth_enabled_args;
+} set_incoming_connections_enabled_args;
+
+static struct {
+    struct arg_int* enabled;
+    struct arg_end* end;
+} set_ble_enabled_args;
 
 static struct {
     struct arg_int* idx;
@@ -163,17 +169,32 @@ static int get_gap_periodic_inquiry(int argc, char** argv) {
     return 0;
 }
 
-static int set_bluetooth_enabled(int argc, char** argv) {
+static int set_incoming_connections_enabled(int argc, char** argv) {
     int enabled;
 
-    int nerrors = arg_parse(argc, argv, (void**)&set_bluetooth_enabled_args);
+    int nerrors = arg_parse(argc, argv, (void**)&set_incoming_connections_enabled_args);
     if (nerrors != 0) {
-        arg_print_errors(stderr, set_bluetooth_enabled_args.end, argv[0]);
+        arg_print_errors(stderr, set_incoming_connections_enabled_args.end, argv[0]);
         return 1;
     }
 
-    enabled = set_bluetooth_enabled_args.enabled->ival[0];
+    enabled = set_incoming_connections_enabled_args.enabled->ival[0];
     uni_bluetooth_enable_new_connections_safe(!!enabled);
+    return 0;
+}
+
+static int set_ble_enabled(int argc, char** argv) {
+    int enabled;
+
+    int nerrors = arg_parse(argc, argv, (void**)&set_ble_enabled_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, set_ble_enabled_args.end, argv[0]);
+        return 1;
+    }
+
+    enabled = set_ble_enabled_args.enabled->ival[0];
+    uni_ble_set_enabled(!!enabled);
+    logi("Done. Restart required. Type 'restart' + Enter\n");
     return 0;
 }
 
@@ -228,9 +249,9 @@ static void register_bluepad32() {
     set_gap_periodic_inquiry_args.len = arg_int1(NULL, NULL, "<len>", "Inquiry length. Must be less than <min>");
     set_gap_periodic_inquiry_args.end = arg_end(4);
 
-    set_bluetooth_enabled_args.enabled =
+    set_incoming_connections_enabled_args.enabled =
         arg_int1(NULL, NULL, "<0 | 1>", "Whether to enable Bluetooth incoming connections");
-    set_bluetooth_enabled_args.end = arg_end(2);
+    set_incoming_connections_enabled_args.end = arg_end(2);
 
     snprintf(buf_disconnect, sizeof(buf_disconnect) - 1, "<0 - %d>", CONFIG_BLUEPAD32_MAX_DEVICES - 1);
     disconnect_device_args.idx = arg_int1(NULL, NULL, buf_disconnect, "Device index to disconnect");
@@ -296,12 +317,20 @@ static void register_bluepad32() {
         .func = &get_gap_periodic_inquiry,
     };
 
-    const esp_console_cmd_t cmd_set_bluetooth_enabled = {
-        .command = "set_bluetooth_enabled",
+    const esp_console_cmd_t cmd_set_incoming_connections_enabled = {
+        .command = "set_incoming_connections_enabled",
         .help = "Set Bluetooth incoming connections enabled",
         .hint = NULL,
-        .func = &set_bluetooth_enabled,
-        .argtable = &set_bluetooth_enabled_args,
+        .func = &set_incoming_connections_enabled,
+        .argtable = &set_incoming_connections_enabled_args,
+    };
+
+    const esp_console_cmd_t cmd_set_ble_enabled = {
+        .command = "set_ble_enabled",
+        .help = "Set Bluetooth Low Energy (BLE) enabled",
+        .hint = NULL,
+        .func = &set_ble_enabled,
+        .argtable = &set_ble_enabled_args,
     };
 
     const esp_console_cmd_t cmd_list_bluetooth_keys = {
@@ -335,7 +364,8 @@ static void register_bluepad32() {
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_list_devices));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_list_bluetooth_keys));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_del_bluetooth_keys));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_set_bluetooth_enabled));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_set_incoming_connections_enabled));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_set_ble_enabled));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_disconnect_device));
 }
 

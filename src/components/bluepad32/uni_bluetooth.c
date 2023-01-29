@@ -640,14 +640,12 @@ void uni_bluetooth_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
             event = hci_event_packet_get_type(packet);
             switch (event) {
                 // HCI EVENTS
-#ifdef CONFIG_BLUEPAD32_ENABLE_BLE
                 case HCI_EVENT_LE_META:
                     uni_ble_on_hci_event_le_meta(packet, size);
                     break;
                 case HCI_EVENT_ENCRYPTION_CHANGE:
                     uni_ble_on_hci_event_encryption_change(packet, size);
                     break;
-#endif  //  CONFIG_BLUEPAD32_ENABLE_BLE
                 case HCI_EVENT_COMMAND_COMPLETE: {
                     uint16_t opcode = hci_event_command_complete_get_command_opcode(packet);
                     const uint8_t* param = hci_event_command_complete_get_return_parameters(packet);

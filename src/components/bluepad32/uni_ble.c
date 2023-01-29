@@ -67,6 +67,7 @@
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
 #include "uni_log.h"
+#include "uni_property.h"
 
 static bool is_scanning;
 
@@ -666,7 +667,12 @@ void uni_ble_on_hci_event_encryption_change(const uint8_t* packet, uint16_t size
 
     ARG_UNUSED(size);
 
+    // Might be called from BR/EDR connections.
+    // Only handle BLE in this function.
     con_handle = hci_event_encryption_change_get_connection_handle(packet);
+    if (gap_get_connection_type(con_handle) != GAP_CONNECTION_LE)
+        return;
+
     device = uni_hid_device_get_instance_for_connection_handle(con_handle);
     if (!device) {
         loge("uni_ble_on_encryption_change: Device not found for connection handle: 0x%04x\n", con_handle);
@@ -845,10 +851,24 @@ void uni_ble_disconnect(hci_con_handle_t conn_handle) {
     hog_disconnect(conn_handle);
 }
 
+void uni_ble_set_enabled(bool enabled) {
+    // Called from different Task. Don't call btstack functions.
+    uni_property_value_t val;
+
+    val.u8 = enabled;
+
+    uni_property_set(UNI_PROPERTY_KEY_BLE_ENABLED, UNI_PROPERTY_TYPE_U8, val);
+}
+
 bool uni_ble_is_enabled() {
-#ifdef CONFIG_BLUEPAD32_ENABLE_BLE
-    return true;
+    uni_property_value_t val;
+    uni_property_value_t def;
+
+#ifdef CONFIG_BLUEPAD32_ENABLE_BLE_BY_DEFAULT
+    def.u8 = 1;
 #else
-    return false;
-#endif  // !CONFIG_BLUEPAD32_ENABLE_BLE
+    def.u8 = 1;
+#endif  // CONFIG_BLUEPAD32_ENABLE_BLE_BY_DEFAULT
+    val = uni_property_get(UNI_PROPERTY_KEY_BLE_ENABLED, UNI_PROPERTY_TYPE_U8, def);
+    return val.u8;
 }

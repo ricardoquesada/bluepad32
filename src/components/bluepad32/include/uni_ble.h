@@ -42,6 +42,7 @@ void uni_ble_disconnect(hci_con_handle_t conn_handle);
 void uni_ble_delete_bonded_keys(void);
 void uni_ble_setup(void);
 
+void uni_ble_set_enabled(bool enabled);
 bool uni_ble_is_enabled(void);
 
 #ifdef __cplusplus

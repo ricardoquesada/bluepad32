@@ -30,6 +30,7 @@ typedef enum {
 
 // Bluepad32-global properties
 // Keep them sorted
+extern const char* UNI_PROPERTY_KEY_BLE_ENABLED;
 extern const char* UNI_PROPERTY_KEY_GAP_INQ_LEN;
 extern const char* UNI_PROPERTY_KEY_GAP_LEVEL;
 extern const char* UNI_PROPERTY_KEY_GAP_MAX_PERIODIC_LEN;

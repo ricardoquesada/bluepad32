@@ -91,12 +91,13 @@ menu "Bluepad32"
         help
             Enables the NVS console commands. Useful for debugging.
 
-    config BLUEPAD32_ENABLE_BLE
-        bool "Enable BLE (experimental)"
+    config BLUEPAD32_ENABLE_BLE_BY_DEFAULT
+        bool "Enable BLE by default (experimental)"
         depends on BTDM_CTRL_MODE_BTDM
         default  n
         help
-            Enables Bluetooth Low Energy.
+            Enables Bluetooth Low Energy by default.
             Needed for some mice and gamepads that only work with BLE.
+            Can be overriden from the console by using the command "set_ble_enabled"
 
 endmenu
