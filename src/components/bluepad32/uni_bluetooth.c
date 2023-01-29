@@ -550,6 +550,7 @@ static void cmd_callback(void* context) {
                 return;
             }
             uni_hid_device_disconnect(d);
+            uni_hid_device_delete(d);
             break;
         default:
             loge("Unknown command: %#x\n", cmd);
@@ -560,13 +561,11 @@ static void cmd_callback(void* context) {
 static uint8_t start_scan(void) {
     uint8_t status;
     logd("--> Scanning for new gamepads...\n");
-    // Passive scanning, 100% (scan interval = scan window)
-    // Start GAP BLE scan
-#ifdef CONFIG_BLUEPAD32_ENABLE_BLE
-    gap_set_scan_parameters(0 /* type */, 48 /* interval */, 48 /* window */);
-    gap_start_scan();
-#endif  // CONFIG_BLUEPAD32_ENABLE_BLE
 
+    // BLE
+    uni_ble_scan_start();
+
+    // BR/EDR
     status =
         gap_inquiry_periodic_start(uni_bt_setup_get_gap_inquiry_lenght(), uni_bt_setup_get_gap_max_periodic_lenght(),
                                    uni_bt_setup_get_gap_min_periodic_lenght());
@@ -578,10 +577,11 @@ static uint8_t start_scan(void) {
 static uint8_t stop_scan(void) {
     uint8_t status;
     logi("--> Stop scanning for new gamepads\n");
-#ifdef CONFIG_BLUEPAD32_ENABLE_BLE
-    gap_stop_scan();
-#endif  // CONFIG_BLUEPAD32_ENABLE_BLE
 
+    // BLE
+    uni_ble_scan_stop();
+
+    // BR/EDR
     status = gap_inquiry_stop();
     if (status)
         loge("Error: cannot stop inquiry (0x%02x), please try again\n", status);
@@ -736,6 +736,7 @@ void uni_bluetooth_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
                     device = uni_hid_device_get_instance_for_connection_handle(handle);
                     if (device) {
                         logi("Device %s disconnected, deleting it\n", bd_addr_to_str(device->conn.btaddr));
+                        uni_hid_device_disconnect(device);
                         uni_hid_device_delete(device);
                         device = NULL;
                     }

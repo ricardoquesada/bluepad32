@@ -22,6 +22,7 @@ limitations under the License.
 #include <sys/time.h>
 
 #include "sdkconfig.h"
+#include "uni_ble.h"
 #include "uni_bt_defines.h"
 #include "uni_circular_buffer.h"
 #include "uni_config.h"
@@ -378,29 +379,32 @@ void uni_hid_device_connect(uni_hid_device_t* d) {
 }
 
 void uni_hid_device_disconnect(uni_hid_device_t* d) {
+    // Might be called from different states... perhaps the device was already connected.
+    // Or perhaps it got disconnected in the middle of a connection.
+    bool connected = false;
+
     if (d == NULL) {
         loge("uni_hid_device_disconnect: invalid hid device: NULL\n");
         return;
     }
 
     logi("Disconnecting device: %s\n", bd_addr_to_str(d->conn.btaddr));
-    if (!d->conn.connected) {
-        logi("Device %s already disconnected, ignoring\n", bd_addr_to_str(d->conn.btaddr));
-        return;
-    }
+
+    connected = d->conn.connected;
+
+    // Cleanup BLE
+    uni_ble_disconnect(d->conn.handle);
 
     // Close possible open connections
     uni_bt_conn_disconnect(&d->conn);
-
-    // Tell platforms
-    uni_hid_device_on_connected(d, false);
 
     // Disconnected, so no longer needs the timers
     btstack_run_loop_remove_timer(&d->connection_timer);
     btstack_run_loop_remove_timer(&d->inquiry_remote_name_timer);
 
-    // TODO: If the inquiry_remote_name_timeout_callback is associated with this device,
-    // then it should be removed as well.
+    // If it was already connected, tell platforms
+    if (connected)
+        uni_hid_device_on_connected(d, false);
 }
 
 void uni_hid_device_delete(uni_hid_device_t* d) {

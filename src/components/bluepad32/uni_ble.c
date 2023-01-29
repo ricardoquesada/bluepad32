@@ -37,7 +37,7 @@
 
 /*
  * Copyright (C) 2023 Ricardo Quesada
- * Unijoysticle additions based on the following BlueKitchen's test/example
+ * Unijoysticle additions based on BlueKitchen's test/example code
  */
 
 /*
@@ -68,6 +68,8 @@
 #include "uni_hid_parser.h"
 #include "uni_log.h"
 
+static bool is_scanning;
+
 // Temporal space for SDP in BLE
 static uint8_t hid_descriptor_storage[500];
 static btstack_packet_callback_registration_t sm_event_callback_registration;
@@ -79,19 +81,29 @@ static void hog_connect(bd_addr_t addr, bd_addr_type_t addr_type) {
     // Stop scan, otherwise it will be able to connect.
     // Happens in ESP32, but not in libusb
     gap_stop_scan();
+    logi("BLE scan -> 0\n");
 
     gap_connect(addr, addr_type);
 }
 
+static void resume_scanning_hint(void) {
+    // Resume scanning, only if it was scanning before connecting
+    if (is_scanning) {
+        gap_start_scan();
+        logi("BLE scan -> 1\n");
+    }
+}
+
 static void hog_disconnect(hci_con_handle_t con_handle) {
+    // MUST not call uni_hid_device_disconnect(), called from it.
     uni_hid_device_t* device;
 
+    loge("**** hog_disconnect()\n");
     gap_disconnect(con_handle);
     device = uni_hid_device_get_instance_for_connection_handle(con_handle);
-    uni_hid_device_delete(device);
 
-    // Resume scanning
-    // gap_start_scan();
+    hids_client_disconnect(device->hids_cid);
+    resume_scanning_hint();
 }
 
 static void get_advertisement_data(const uint8_t* adv_data, uint8_t adv_size, uint16_t* appearance, char* name) {
@@ -256,6 +268,7 @@ static void hids_client_packet_handler(uint8_t packet_type, uint16_t channel, ui
                     uni_hid_device_guess_controller_type_from_pid_vid(device);
                     uni_hid_device_connect(device);
                     uni_hid_device_set_ready(device);
+                    resume_scanning_hint();
                     break;
                 default:
                     loge("HID service client connection failed, err 0x%02x.\n", status);
@@ -588,8 +601,16 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
                     loge("Unkown paring status: %#x\n", status);
                     break;
             }
+
+            if (status == ERROR_CODE_SUCCESS)
+                return;
+
+            // TODO: Double check
+            // Do not disconnect. Sometimes it appears as "failure" although
+            // the connection as Ok (???)
             // hog_disconnect(device->conn.handle);
             break;
+
         default:
             loge("Unkown SM packet type: %#x\n", type);
             break;
@@ -732,6 +753,9 @@ void uni_ble_delete_bonded_keys(void) {
     bd_addr_t entry_address;
     int i;
 
+    if (!uni_ble_is_enabled())
+        return;
+
     logi("Deleting stored BLE link keys:\n");
 
     for (i = 0; i < le_device_db_max_count(); i++) {
@@ -749,6 +773,8 @@ void uni_ble_delete_bonded_keys(void) {
 }
 
 void uni_ble_setup(void) {
+    if (!uni_ble_is_enabled())
+        return;
     // register for events from Security Manager
     sm_event_callback_registration.callback = &sm_packet_handler;
     sm_add_event_handler(&sm_event_callback_registration);
@@ -769,6 +795,8 @@ void uni_ble_setup(void) {
     // - Xbox 2 buttons: flaky, fails to connect or connects
     // sm_set_authentication_requirements(0);
 
+    sm_set_authentication_requirements(SM_AUTHREQ_BONDING);
+
     // Secure connection + NO bonding in ESP32:
     // - Stadia: Ok
     // - MS mouse: Ok
@@ -776,7 +804,7 @@ void uni_ble_setup(void) {
     // - Xbox 2 buttons: fails to connect
     // sm_set_secure_connections_only_mode(true);
     // gap_set_secure_connections_only_mode(true);
-    sm_set_authentication_requirements(SM_AUTHREQ_SECURE_CONNECTION);
+    // sm_set_authentication_requirements(SM_AUTHREQ_SECURE_CONNECTION);
 
     // Secure connection + bonding in ESP32:
     // - Stadia: Ok
@@ -791,4 +819,36 @@ void uni_ble_setup(void) {
     hids_client_init(hid_descriptor_storage, sizeof(hid_descriptor_storage));
     scan_parameters_service_client_init();
     device_information_service_client_init();
+
+    gap_set_scan_parameters(0 /* type: passive */, 48 /* interval */, 48 /* window */);
+}
+
+void uni_ble_scan_start(void) {
+    if (!uni_ble_is_enabled())
+        return;
+
+    gap_start_scan();
+    logi("BLE scan -> 1\n");
+    is_scanning = true;
+}
+
+void uni_ble_scan_stop(void) {
+    if (!uni_ble_is_enabled())
+        return;
+
+    gap_stop_scan();
+    logi("BLE scan -> 0\n");
+    is_scanning = false;
+}
+
+void uni_ble_disconnect(hci_con_handle_t conn_handle) {
+    hog_disconnect(conn_handle);
+}
+
+bool uni_ble_is_enabled() {
+#ifdef CONFIG_BLUEPAD32_ENABLE_BLE
+    return true;
+#else
+    return false;
+#endif  // !CONFIG_BLUEPAD32_ENABLE_BLE
 }

@@ -24,13 +24,25 @@ extern "C" {
 #endif
 
 #include <inttypes.h>
+#include <stdbool.h>
+
+#include <btstack.h>
+#include <btstack_config.h>
 
 void uni_ble_on_hci_event_le_meta(const uint8_t* packet, uint16_t size);
 void uni_ble_on_hci_event_encryption_change(const uint8_t* packet, uint16_t size);
 void uni_ble_on_gap_event_advertising_report(const uint8_t* packet, uint16_t size);
 
+void uni_ble_scan_start(void);
+void uni_ble_scan_stop(void);
+
+// Called from uni_hid_device_disconnect()
+void uni_ble_disconnect(hci_con_handle_t conn_handle);
+
 void uni_ble_delete_bonded_keys(void);
 void uni_ble_setup(void);
+
+bool uni_ble_is_enabled(void);
 
 #ifdef __cplusplus
 }
