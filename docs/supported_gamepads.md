@@ -4,9 +4,9 @@
 
 [Supported gamepads]:https://lh3.googleusercontent.com/pw/AM-JKLXpmyDvNXZ_LmlmBSYObRZDhwuY6hHXXBzAicFw1YH1QNSgZrpiPWXZMiPNM0ATgrockqGf5bLsI3fWceJtQQEj2_OroHs1SrxsgmS8Rh4XHlnFolchomsTPVC7o5zi4pXGQkhGEFbinoh3-ub_a4lQIw=-no?authuser=0
 
-## Bluetooth Classic controllers
+## Bluetooth controllers
 
-List of supported Bluetooth Classic controllers
+List of supported Bluetooth controllers
 
 - DualSense (PS5)
 - DUALSHOCK 4 (PS4) controller, both 2013 and 2016 editions
@@ -15,7 +15,7 @@ List of supported Bluetooth Classic controllers
 - Nintendo Switch JoyCons
 - Nintendo Wii U Pro controller
 - Nintendo Wii Remote and Remote Motion Plus, including Nunchuk and Classic Controller
-- Xbox Wireless controller (model 1708)
+- Xbox Wireless controllers: model 1708 and 1914
 - 8BitDo controllers
 - Android controllers
 - iCade controllers
@@ -23,14 +23,7 @@ List of supported Bluetooth Classic controllers
 - OUYA controllers
 - Some TV remote controls, like the Amazon Fire TV
 
-If you have a Bluetooth Classic gamepad and is not on that list, please file a bug.
-
-## Bluetooth BLE: Not supported ATM
-
-Not every Bluetooth HID controller is "Classic". Some of them are "BLE" (low energy).
-"BLE" controllers are **not supported** at the moment, like:
-
-- Xbox Wireless controller model 1914
+If you have a Bluetooth gamepad and is not on that list, please file a bug.
 
 # Supported gamepads
 
@@ -182,13 +175,28 @@ Classic Controller can be used.
 
 ## Xbox Wireless (model 1708)
 
-[![Xbox One S][xbox_one_s]][13]
+[![Xbox 1708][xbox_1708]][xbox_1708_ebay]
 
-- Must be the *model 1708* (released in 2016) and not earlier. *Model 1797* might work. Newer models, like 1914, are not supported ATM.
-- Supports both "old" (firmware 3.1) and "new" (firmware 4.8) Xbox One mappings
-- Supported features: rumble
+- This is the "2 button" model
+- Must be the *model 1708* (released in 2016) and not earlier. *Model 1797* should work.
+- Supports firmwars: 3.1 (BR/ERD), 4.8 (BR/ERD), 5.15 (BLE)
+- Supported features: rumble on BR/ERD
 
-[xbox_one_s]: https://lh3.googleusercontent.com/YmONc-MhVZhnE8HVRgzH7FKSpT_29MLeIF70U5AfrcBuCtuNJ2Ln5xkmSpNqO0myrFpnDLbFvR2TRTRu0xcqvP3cLNaq1BBpruEAn-Z7vBbwzNtaXx7eQaLLF7aa8tt2Wa0IcYxeD08=-no
+[xbox_1708_ebay]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw=xbox+wireless+controller+1708&_sacat=0
+[xbox_1708]: https://lh3.googleusercontent.com/YmONc-MhVZhnE8HVRgzH7FKSpT_29MLeIF70U5AfrcBuCtuNJ2Ln5xkmSpNqO0myrFpnDLbFvR2TRTRu0xcqvP3cLNaq1BBpruEAn-Z7vBbwzNtaXx7eQaLLF7aa8tt2Wa0IcYxeD08=-no
+
+## Xbox Wireless (model 1914)
+
+[![Xbox 1914][xbox_1914]][xbox_1914_ebay]
+
+- This is the "3 button" model
+- Must be the *model 1914*. Other "3 button" models should work as well.
+- Supports firmware 5.15
+- Supported features: N/A
+- BLE must be enabled in Bluepad32
+
+[xbox_1914_ebay]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw=xbox+wireless+controller+1914&_sacat=0
+[xbox_1914]: https://lh3.googleusercontent.com/pw/AMWts8BjOU-jTHHhK6S7PFfyvRpBr8FlUhKdoebHK83tp536cRWaX2yfo1CiXnDyWe8RGg7CMtjc4DiU-Fji0Er-88Vtr7RXSGfF3xKoel6VRmogMwSWWdKbQswxzB3wULe06nOYRrVpcqJUkgeKF4hotwyxaw=-no?authuser=0
 
 ## Android
 
@@ -198,6 +206,17 @@ Classic Controller can be used.
 
 [android_gamepad]: https://lh3.googleusercontent.com/S3H1pEGYGT5aVTwF3ySWHF7vqbonDYR0UxOLJBxFe5At6Q4AP_4TQUCaNOiEXD22U4H3C0lVP1E3m26H3QM4rIbgp1wysbQoSt1NpD61snlWES5N5zGUgx20c2sfFCKZL4w_Gl66Y1s=-no
 [stratus_duo]: https://steelseries.com/gaming-controllers/stratus-duo
+
+## Stadia Controller
+
+[![Stadia Controller][stadia_controller]][stadia_ebay]
+
+- Controller must be [flashed with Bluetooth firmware][stadia_instructions]
+- BLE must be enabled in Bluepad32
+
+[stadia_ebay]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw=stadia+controller&_sacat=0
+[stadia_instructions]: https://stadia.google.com/controller/index_en_US.html
+[stadia_controller]: https://lh3.googleusercontent.com/pw/AMWts8BsCTnzKGc0UEQ7JaXXG84UIwCwXMFOnF0_JC6pTKptxh8xFIxyxsilC1hZmJ8z9U102-MR60ecBoHiHCSH5hINvsWcQ1Q4l1iFgJaMISAawpCgJlEShlAg0-SIw9rjAmTrSXhEHo0uUNZzFV9MVmxUBA=-no?authuser=0
 
 ## SteelSeries Nimbus
 
@@ -267,6 +286,8 @@ Classic Controller can be used.
 
 In general, any Bluetooth Classic (not BLE) controller that supports HID is supported, or should be easy to support it.
 
+BLE controllers are supported, but this is an experimental feature as of Bluepad32 v3.6
+
 There many *generic* Bluetooth controllers that sometimes are offered as gifts in conferences. Usually these *generic* Bluetooth controllers have different connection modes. Use the HID one.
 
 - Select Button + X + Right trigger to enter into Gamepad mode
@@ -328,7 +349,6 @@ Many of the virtual buttons/pads are left unmapped, but could be mapped in the f
 [1]: https://lh3.googleusercontent.com/sfRd1qSHaxe4he4lt63Xjsr_ejmrthB00bPpIj4CwuUOyzKy3otIrdsPqhy_Y0U78Ibcw5bssuUOgKxNsvhvq6AQGlmigtj2tWA67HQHEaDU4tEmq850Z47rwRW9EzAhFGi6XrgUhUI=-no
 [11]: https://www.playstation.com/en-us/accessories/dualsense-wireless-controller/
 [12]: https://www.playstation.com/en-us/explore/accessories/dualshock-3-ps3/
-[13]: https://www.xbox.com/en-US/xbox-one/accessories/controllers/xbox-wireless-controller
 [14]: https://www.playstation.com/en-us/explore/accessories/gaming-controllers/dualshock-4/
 [15]: https://www.asus.com/us/Home-Entertainment/Gamepad-TV500BG/
 [16]: https://www.amazon.com/PowerA-MOGA-Pro-Power-Electronic-Games/dp/B00FB5RBJM?th=1

@@ -1,9 +1,8 @@
 # Supported mice
 
-TL;DR: Only a few mice are supported at the moment. Eventually the list will grow.
-
 Remember:
 * Mouse support is a **BETA feature**. Expect bugs.
+* BLE Mouse support is **EXPERIMENTAL feature**. And is disabled by default.
 * Most importantly, [file a bug when you find a bug][file_bug].
 
 So far, this is the list of recommended mouse to try:
@@ -154,16 +153,24 @@ So far, this is the list of recommended mouse to try:
 [hxsj_link]: https://www.aliexpress.com/item/2251832655917599.html?spm=a2g0o.order_list.0.0.51181802sRakLf&gatewayAdapt=4itemAdapt
 [hxsj_photo]: https://lh3.googleusercontent.com/pw/AM-JKLWFE3NScoHsri7JIS2u6YkE1PK3r6QGXyzPrZQnTDemXwKHrzHlblqdxpG5ooUx-v3KUWeBj08TGNyYGPc_pMim87eJsBN1FcO-oQGSYdEKeac3WSrk-UKAnw_yygMVVfFE5aXiKC6HiB5TcJ58940YQQ=-no
 
-## Other supported / not supported mice
+## Other supported
 
-In theory any Bluetooth BR/EDR (AKA "Classic") mouse shuold work. Notice that mice that only support Bluetooth LE (AKA BLE) are not supported ATM.
+In theory any Bluetooth mouse should work.
 
-Most modern mice are BLE only. But there are still some modern mice that support BR/EDR.
-But not all modern BR/EDR mice might work Ok. There is an bug in ESP32 with BK3632-based mice. See:
+Most modern mice are BLE only, and BLE mice are supported,
+although BLE is experimental as of Bluepad32 v3.6.
+
+Regarding non-BLE mice, some might work, some might not. See:
 
 * https://github.com/espressif/arduino-esp32/issues/6193 (Please, go and say "please fix it")
 
 Summary:
+
+|           | Should work                                                |
+| --------- | -------------------------------------------------------------- |
+| Bluetooth | BLE **only** (AKA "LE", "Low Energy",  "BT 5.0")               |
+| Search for | "BLE mouse"                                                   |
+|            | Bluetooth mice since late 2010's                              |
 
 |            | Should work                                           |
 | ---------- | ----------------------------------------------------- |
@@ -175,10 +182,6 @@ Summary:
 | --------- | ----------------------------------------------------------- |
 | Bluetooth | "Tri-Mode BT 3.0, BT 5.0, 2.4Gz"                            |
 | Bug       | See [Issue#18][gitlab_issue_18], [Issue BK3632][bk3632_bug] |
-
-|           | Should NOT work                                                |
-| --------- | -------------------------------------------------------------- |
-| Bluetooth | BLE **only** (AKA "LE", "Low Energy",  "BT 5.0")               |
 
 
 [bk3632_bug]: https://github.com/espressif/arduino-esp32/issues/6193
