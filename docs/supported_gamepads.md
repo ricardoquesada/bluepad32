@@ -53,7 +53,6 @@ List of supported gamepads with supported features, known bugs, etc.
 
 - Supported features: rumble, player LEDs
 - Requires that the [DS3 is manually paired][pair_ds3] to the Unijoysticle device.
-- Disabled by default since it conflicts with Nintendo Switch. Enable it via `idf.py menuconfig`
 - Some clones are known to work Ok
 
 [dualshock_3]: https://lh3.googleusercontent.com/pw/ACtC-3dEBJYkdIpF5_icFUY7n7otgw5LPpLyviKS14JL2EJtuiDBt6Kk-XcKlIIP9JCgT0yxJVN1KuW-JICpilYKhMGfDxQt6vjJm8r_lRS1R9IyOX4iBlUQoIrflt9KmSjXBjcJlS81cmKaGB166HF608v5MA=-no
