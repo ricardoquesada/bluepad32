@@ -32,7 +32,6 @@ const char* UNI_PROPERTY_KEY_GAP_MAX_PERIODIC_LEN = "bp.gap.max_len";
 const char* UNI_PROPERTY_KEY_GAP_MIN_PERIODIC_LEN = "bp.gap.min_len";
 const char* UNI_PROPERTY_KEY_MOUSE_SCALE = "bp.mouse.scale";
 
-
 // Unijoysticle only
 // TODO: Move them to the Unijoysticle file.
 // Keep them sorted
