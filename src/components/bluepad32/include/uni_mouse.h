@@ -44,6 +44,7 @@ typedef struct {
     int32_t delta_x;
     int32_t delta_y;
     uint16_t buttons;
+    int8_t scroll_wheel;
     uint8_t misc_buttons;
 } uni_mouse_t;
 

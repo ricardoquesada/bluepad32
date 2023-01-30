@@ -9,9 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - BLE support (experimental). Enable it from "idf.py menuconfig" or
   from console with "set_ble_enabled". It is disabled by default
   Tested with:
-  - Xbox Wireless Controller with Firmware 5.15
+  - Xbox Wireless Controller model 1914 with Firmware 5.15
+  - Xbox Wireless Controller model 1708 with Firmware 5.15
   - Stadia Controller with BLE Firmware
   - Microsoft BLE mouse
+  - Generic BLE mouse
+ - Mouse: Add "scroll_wheel" property. Updated when the mouse scroll wheel is moved.
 
 ### Changed
 - Refactored a bit the Bluetooth code to better support BLE

@@ -182,7 +182,7 @@ void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
                     ctl->mouse.delta_y = process_mouse_delta(d, value);
                     break;
                 case HID_USAGE_WHEEL:
-                    // TODO: do something
+                    ctl->mouse.scroll_wheel = value;
                     break;
                 default:
                     logi("Mouse: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);

@@ -108,6 +108,7 @@ typedef struct __attribute__((packed)) {
     int32_t delta_y;
     uint8_t buttons;
     uint8_t misc_buttons;
+    int8_t scroll_wheel;
 } nina_mouse_t;
 
 typedef struct __attribute__((packed)) {
@@ -1139,6 +1140,7 @@ static void nina_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl) 
             _controllers[ins->controller_idx].mouse.delta_y = ctl->mouse.delta_y;
             _controllers[ins->controller_idx].mouse.buttons = ctl->mouse.buttons;
             _controllers[ins->controller_idx].mouse.misc_buttons = ctl->mouse.misc_buttons;
+            _controllers[ins->controller_idx].mouse.scroll_wheel = ctl->mouse.scroll_wheel;
             break;
         case UNI_CONTROLLER_CLASS_BALANCE_BOARD:
             break;
