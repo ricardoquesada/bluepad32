@@ -173,6 +173,17 @@ Classic Controller can be used.
 
 [wii_classic_controller_img]: https://lh3.googleusercontent.com/nX-CyjcmorkW90mP8RybO_pJ7ezM4EJk1tsqkz8HAuLkHBAasccZzq5h-A74Ez-h7Zmv5hpsuBu5n66EeThwRUnLTIu8ffk2MstEMBjHiGrcNoyq-XAC9zeh97Kz8GDBDLqmujmm2J0=-no
 
+## Nintendo Wii Balance Board
+
+[![Balance Board][balance_board_img]][balance_board_ebay]
+
+[balance_board_ebay]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw=wii+balance+board&_sacat=0
+
+- Supports the 4 corners
+- Supports temperature
+
+[balance_board_img]: https://lh3.googleusercontent.com/pw/AMWts8A_VYYwZteJp4zrYRuvmYeVQrGFB14g7p7SzPRLPaCmENNA2kF5ylG-MZDOPrf5FAWXGd5oN--BxQ0viilUtZOpr4v0p0ELZLWXM064Z78_QlGW65Ks5N1yyOwUf4SmSRRCQHhezKKX5HyklUtlAsw9TA=-no?authuser=0
+
 ## Xbox Wireless (model 1708)
 
 [![Xbox 1708][xbox_1708]][xbox_1708_ebay]

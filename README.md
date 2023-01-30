@@ -64,9 +64,10 @@ Newer models like ESP32-Sx, ESP32-Cx, ESP32-Hx are **NOT** supported since they 
 * Nintendo Switch JoyCon
 * Nintendo Wii U controller
 * Nintendo Wii Remote + accesories
-* Xbox Wireless controller (model 1708)
-* Android gamepads
-* PC/Window gamepads
+* Xbox Wireless controller (models 1708 and 1914)
+* Android controllers
+* Stadia controller
+* PC/Window controller
 * 8BitDo controllers
 * iCade
 * Mouse
@@ -81,7 +82,7 @@ See: [Supported gamepads][gamepads] and [supported mice][mice]
 
 1. Install ESP-IDF
 
-    Install the ESP32 toolchain. Use version **5.0**. Might work on newer / older
+    Install the ESP32 toolchain. Use version **4.4** or **5.0**. Might work on newer / older
     ones, but not tested.
 
     * <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/>
