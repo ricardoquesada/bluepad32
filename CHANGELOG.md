@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Refactored a bit the Bluetooth code to better support BLE
+- Console command: "set_bluetooth_enabled" renamed to "set_incoming_connections_enabled"
 
 ### Fixed
 - "disconnect" console command also deletes the connected device
