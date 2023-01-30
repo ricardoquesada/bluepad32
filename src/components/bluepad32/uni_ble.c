@@ -100,7 +100,8 @@ static void hog_disconnect(hci_con_handle_t con_handle) {
     uni_hid_device_t* device;
 
     loge("**** hog_disconnect()\n");
-    gap_disconnect(con_handle);
+    if (gap_get_connection_type(con_handle) != GAP_CONNECTION_INVALID)
+        gap_disconnect(con_handle);
     device = uni_hid_device_get_instance_for_connection_handle(con_handle);
 
     hids_client_disconnect(device->hids_cid);
@@ -779,8 +780,6 @@ void uni_ble_delete_bonded_keys(void) {
 }
 
 void uni_ble_setup(void) {
-    if (!uni_ble_is_enabled())
-        return;
     // register for events from Security Manager
     sm_event_callback_registration.callback = &sm_packet_handler;
     sm_add_event_handler(&sm_event_callback_registration);
@@ -867,7 +866,7 @@ bool uni_ble_is_enabled() {
 #ifdef CONFIG_BLUEPAD32_ENABLE_BLE_BY_DEFAULT
     def.u8 = 1;
 #else
-    def.u8 = 1;
+    def.u8 = 0;
 #endif  // CONFIG_BLUEPAD32_ENABLE_BLE_BY_DEFAULT
     val = uni_property_get(UNI_PROPERTY_KEY_BLE_ENABLED, UNI_PROPERTY_TYPE_U8, def);
     return val.u8;

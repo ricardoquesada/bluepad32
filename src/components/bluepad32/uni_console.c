@@ -250,8 +250,11 @@ static void register_bluepad32() {
     set_gap_periodic_inquiry_args.end = arg_end(4);
 
     set_incoming_connections_enabled_args.enabled =
-        arg_int1(NULL, NULL, "<0 | 1>", "Whether to enable Bluetooth incoming connections");
+        arg_int1(NULL, NULL, "<0 | 1>", "Whether to allow Bluetooth incoming connections");
     set_incoming_connections_enabled_args.end = arg_end(2);
+
+    set_ble_enabled_args.enabled = arg_int1(NULL, NULL, "<0 | 1>", "Whether to enable Bluetooth Low Energy (BLE)");
+    set_ble_enabled_args.end = arg_end(2);
 
     snprintf(buf_disconnect, sizeof(buf_disconnect) - 1, "<0 - %d>", CONFIG_BLUEPAD32_MAX_DEVICES - 1);
     disconnect_device_args.idx = arg_int1(NULL, NULL, buf_disconnect, "Device index to disconnect");

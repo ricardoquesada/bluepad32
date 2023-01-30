@@ -60,7 +60,7 @@ bool uni_bt_conn_is_connected(uni_bt_conn_t* conn) {
 }
 
 void uni_bt_conn_disconnect(uni_bt_conn_t* conn) {
-    if (conn->handle) {
+    if (gap_get_connection_type(conn->handle) != GAP_CONNECTION_INVALID) {
         gap_disconnect(conn->handle);
         conn->handle = UNI_BT_CONN_HANDLE_INVALID;
     } else {
