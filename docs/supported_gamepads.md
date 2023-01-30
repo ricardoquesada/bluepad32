@@ -183,19 +183,20 @@ Classic Controller can be used.
 
 [balance_board_img]: https://lh3.googleusercontent.com/pw/AMWts8A_VYYwZteJp4zrYRuvmYeVQrGFB14g7p7SzPRLPaCmENNA2kF5ylG-MZDOPrf5FAWXGd5oN--BxQ0viilUtZOpr4v0p0ELZLWXM064Z78_QlGW65Ks5N1yyOwUf4SmSRRCQHhezKKX5HyklUtlAsw9TA=-no?authuser=0
 
-## Xbox Wireless (model 1708)
+## Xbox Wireless (model 1708, 2 buttons)
 
 [![Xbox 1708][xbox_1708]][xbox_1708_ebay]
 
 - This is the "2 button" model
 - Must be the *model 1708* (released in 2016) and not earlier. *Model 1797* should work.
 - Supports firmwars: 3.1 (BR/ERD), 4.8 (BR/ERD), 5.15 (BLE)
-- Supported features: rumble on BR/ERD
+- Supported features: rumble
+- If using firmware v5.15 then BLE must be enabled in Bluepad32
 
 [xbox_1708_ebay]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw=xbox+wireless+controller+1708&_sacat=0
 [xbox_1708]: https://lh3.googleusercontent.com/YmONc-MhVZhnE8HVRgzH7FKSpT_29MLeIF70U5AfrcBuCtuNJ2Ln5xkmSpNqO0myrFpnDLbFvR2TRTRu0xcqvP3cLNaq1BBpruEAn-Z7vBbwzNtaXx7eQaLLF7aa8tt2Wa0IcYxeD08=-no
 
-## Xbox Wireless (model 1914)
+## Xbox Wireless (model 1914, 3 buttons)
 
 [![Xbox 1914][xbox_1914]][xbox_1914_ebay]
 
