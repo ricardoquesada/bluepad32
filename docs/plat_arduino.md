@@ -7,7 +7,7 @@ In other words, if you already have Arduino working on ESP32 module, you can hav
 
 But there is catch:
 
-* It only works on ESP-IDF v5.0 or newer
+* It only works using ESP-IDF (in particular version v4.4)
 * Arduino IDE is not supported yet, but you can use [Visual Studio Code + ESP-IDF plugin][vscode-plugin] (highly recommended!)
 
 Are you still interested ? Good, then you must follow these instructions:
