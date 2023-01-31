@@ -130,6 +130,7 @@ class Controller {
     //
     int32_t deltaX() const { return _data.mouse.delta_x; }
     int32_t deltaY() const { return _data.mouse.delta_y; }
+    int8_t scrollWheel() const { return _data.mouse.scroll_wheel; }
 
     //
     // Wii Balance Board related
