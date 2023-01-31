@@ -5,9 +5,12 @@
 * update `src/version.txt` and `uni_version.h`
 * update `CHANGELOG.md`
 * update `AUTHORS`
-* merge `develop` into `main`
+* merge `main` into `develop`... and solve possible conflicts on `develop` first
+* then merge `develop` into `main`
 
   ```sh
+  git merge main
+  # Solve possible conflicts
   git checkout main
   git merge develop
   ```
