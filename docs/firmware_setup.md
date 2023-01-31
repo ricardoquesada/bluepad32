@@ -62,6 +62,8 @@ Parameters:
 
 # Compiling + flashing firmware
 
+Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity only the instructions for v5.0 are mentioned.
+
 ## For Windows
 
 1. Install [ESP-IDF v5.0][esp-idf-windows-installer]. For further info, read: [ESP-IDF Getting Started for Windows][esp-idf-windows-setup]
