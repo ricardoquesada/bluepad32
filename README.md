@@ -25,8 +25,9 @@ Add Bluetooth gamepad support to your projects easily. Supported platforms:
   * [or on the Commodore Amiga][amiga]
   * [ULX3S][ulx3s], an FPGA console
 
-Note: Only the original ESP32 is supported, which supports Bluetooth Classic.
-Newer models like ESP32-Sx, ESP32-Cx, ESP32-Hx are **NOT** supported since they don't support Bluetooth Classic.
+Note: Only the original **ESP32** and **ESP32-Pico** are supported, since they are the only ones
+in the ESP32 family to support Bluetooth BR/EDR.
+Newer models like ESP32-Sx, ESP32-Cx, ESP32-Hx are **NOT** supported since they don't support Bluetooth BR/EDR.
 
 [airlift_example]: https://gitlab.com/ricardoquesada/quico
 [airlift_video]: https://twitter.com/makermelissa/status/1482596378282913793
