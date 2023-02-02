@@ -266,7 +266,7 @@ const struct gpio_config gpio_config_univ2a500 = {
     .sync_irq = {-1, -1},
 };
 
-// Unijoysticle v2 C64
+// Unijoysticle v2 C64 / Flash Party edition
 const struct gpio_config gpio_config_univ2c64 = {
     .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, GPIO_NUM_33, GPIO_NUM_16},
     .port_b = {GPIO_NUM_27, GPIO_NUM_25, GPIO_NUM_32, GPIO_NUM_17, GPIO_NUM_13, GPIO_NUM_21, GPIO_NUM_22},
@@ -276,10 +276,16 @@ const struct gpio_config gpio_config_univ2c64 = {
                          .callback = toggle_combo_enhanced_gamepad_cb,
                      },
                      {
-                         //  .gpio = GPIO_NUM_35,
-                         //  .callback = swap_ports_cb,
+#ifdef CONFIG_BLUEPAD32_UNIJOYSTICLE_ENABLE_SWAP_FOR_C64
+                         .gpio = GPIO_NUM_35,
+                         .callback = swap_ports_cb,
+#else
+                         // Uncomment for Flash Party edition
+                         // since GPIO 35 is floating and generates false positives.
                          .gpio = -1,
                          .callback = NULL,
+#endif
+
                      }},
     .sync_irq = {GPIO_NUM_36, GPIO_NUM_39},
 };

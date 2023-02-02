@@ -100,4 +100,14 @@ menu "Bluepad32"
             Needed for some mice and gamepads that only work with BLE.
             Can be overriden from the console by using the command "set_ble_enabled"
 
+    config BLUEPAD32_UNIJOYSTICLE_ENABLE_SWAP_FOR_C64
+        bool "Enable Swap Button on Unijoysticle2 C64"
+        depends on BLUEPAD32_PLATFORM_UNIJOYSTICLE
+        default y
+        help
+            Enables Swap button in for the Unijoysticle2 C64.
+            By enabling it, if the firmware is used in the FlashParty Edition,
+            then the Swap button might trigger unexpectedly.
+            So, unless you are using FlashParty Edition, leave this feature enabled.
+
 endmenu
