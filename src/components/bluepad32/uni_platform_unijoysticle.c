@@ -383,7 +383,7 @@ static void unijoysticle_init(int argc, const char** argv) {
             g_gpio_config = &gpio_config_univ2;
             break;
     }
-    logi("Hardware detected: %s\n", uni_models[model]);
+    logi("Hardware detected: Unijoysticle%s\n", uni_models[model]);
 
     gpio_config_t io_conf = {0};
 
