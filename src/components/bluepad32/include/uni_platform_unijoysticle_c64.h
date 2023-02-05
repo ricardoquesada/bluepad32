@@ -19,6 +19,8 @@ limitations under the License.
 #ifndef UNI_PLATFORM_UNIJOYSTICLE_C64_H
 #define UNI_PLATFORM_UNIJOYSTICLE_C64_H
 
+#include <driver/gpio.h>
+
 // Number of SYNC IRQs. One for each port
 #define UNI_PLATFORM_UNIJOYSTICLE_C64_SYNC_IRQ_MAX 2
 
@@ -30,7 +32,7 @@ typedef enum {
 } uni_platform_unijoysticle_c64_pot_mode_t;
 
 void uni_platform_unijoysticle_c64_register_cmds(void);
-void uni_platform_unijoysticle_c64_on_init_complete(void);
+void uni_platform_unijoysticle_c64_on_init_complete(const gpio_num_t* port_a, const gpio_num_t* port_b);
 void uni_platform_unijoysticle_c64_set_pot_mode(uni_platform_unijoysticle_c64_pot_mode_t mode);
 void uni_platform_unijoysticle_c64_version(void);
 

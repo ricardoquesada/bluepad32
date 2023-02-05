@@ -30,6 +30,7 @@ limitations under the License.
 
 #include "sdkconfig.h"
 #include "uni_common.h"
+#include "uni_gpio.h"
 #include "uni_log.h"
 #include "uni_platform_unijoysticle.h"
 #include "uni_property.h"
@@ -270,9 +271,16 @@ void uni_platform_unijoysticle_c64_set_pot_mode(uni_platform_unijoysticle_c64_po
     }
 }
 
-void uni_platform_unijoysticle_c64_on_init_complete(void) {
+void uni_platform_unijoysticle_c64_on_init_complete(const gpio_num_t* port_a, const gpio_num_t* port_b) {
     int mode = get_c64_pot_mode_from_nvs();
     uni_platform_unijoysticle_c64_set_pot_mode(mode);
+
+    // C64 uses pull-ups for Pot-x, Pot-y, so the value needs to be "inversed" in order to be off.
+    uni_gpio_set_level(port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2], 1);
+    uni_gpio_set_level(port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3], 1);
+
+    uni_gpio_set_level(port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2], 1);
+    uni_gpio_set_level(port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3], 1);
 }
 
 void uni_platform_unijoysticle_c64_version(void) {

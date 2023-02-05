@@ -31,4 +31,7 @@ uint16_t uni_gpio_analog_read(gpio_num_t pin);
 
 void uni_gpio_register_cmds(void);
 
+// Safe version of gpio_set_level.
+esp_err_t uni_gpio_set_level(gpio_num_t gpio, int value);
+
 #endif  // UNI_GPIO_H

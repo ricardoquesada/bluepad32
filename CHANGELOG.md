@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] - ???
 ### Changed
 - BLE is enabled by default
+- Unijoysticle C64: C64GS buttons work.
+  - Supports the official C64GS 2nd button
+  - Supports the unofficial 3rd button
 
 ## [v3.6.0] - 2023-02-04
 ### New

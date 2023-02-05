@@ -133,3 +133,9 @@ void uni_gpio_register_cmds(void) {
     ESP_ERROR_CHECK(esp_console_cmd_register(&gpio_get));
     ESP_ERROR_CHECK(esp_console_cmd_register(&gpio_set));
 }
+
+esp_err_t uni_gpio_set_level(gpio_num_t gpio, int value) {
+    if (gpio == -1)
+        return ESP_OK;
+    return gpio_set_level(gpio, value);
+}

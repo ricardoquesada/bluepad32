@@ -45,6 +45,7 @@ limitations under the License.
 #include "uni_config.h"
 #include "uni_controller.h"
 #include "uni_gamepad.h"
+#include "uni_gpio.h"
 #include "uni_hid_device.h"
 #include "uni_joystick.h"
 #include "uni_log.h"
@@ -191,7 +192,6 @@ static void gpio_isr_handler_button(void* arg);
 static void pushbutton_event_task(void* arg);
 static void auto_fire_task(void* arg);
 
-static esp_err_t safe_gpio_set_level(gpio_num_t gpio, int value);
 static void maybe_enable_mouse_timers(void);
 
 // Button callbacks, called from a task that is not BT main thread
@@ -406,15 +406,15 @@ static void unijoysticle_init(int argc, const char** argv) {
 
     // Set low all joystick GPIOs... just in case.
     for (int i = 0; i < UNI_PLATFORM_UNIJOYSTICLE_JOY_MAX; i++) {
-        ESP_ERROR_CHECK(safe_gpio_set_level(g_gpio_config->port_a[i], 0));
-        ESP_ERROR_CHECK(safe_gpio_set_level(g_gpio_config->port_b[i], 0));
+        ESP_ERROR_CHECK(uni_gpio_set_level(g_gpio_config->port_a[i], 0));
+        ESP_ERROR_CHECK(uni_gpio_set_level(g_gpio_config->port_b[i], 0));
     }
 
     // Turn On Player LEDs
-    safe_gpio_set_level(g_gpio_config->leds[LED_J1], 1);
-    safe_gpio_set_level(g_gpio_config->leds[LED_J2], 1);
+    uni_gpio_set_level(g_gpio_config->leds[LED_J1], 1);
+    uni_gpio_set_level(g_gpio_config->leds[LED_J2], 1);
     // Turn off Bluetooth LED
-    safe_gpio_set_level(g_gpio_config->leds[LED_BT], 0);
+    uni_gpio_set_level(g_gpio_config->leds[LED_BT], 0);
 
     // Tasks should be created before the ISR, just in case an interrupt
     // gets called before the Task-that-handles-the-ISR gets triggered.
@@ -447,15 +447,19 @@ static void unijoysticle_init(int argc, const char** argv) {
 
 static void unijoysticle_on_init_complete(void) {
     // Turn off LEDs
-    safe_gpio_set_level(g_gpio_config->leds[LED_J1], 0);
-    safe_gpio_set_level(g_gpio_config->leds[LED_J2], 0);
+    uni_gpio_set_level(g_gpio_config->leds[LED_J1], 0);
+    uni_gpio_set_level(g_gpio_config->leds[LED_J2], 0);
 
     board_model_t model = get_uni_model_from_pins();
 
-    if (model == BOARD_MODEL_UNIJOYSTICLE2_C64)
-        uni_platform_unijoysticle_c64_on_init_complete();
-    else
+    if (model == BOARD_MODEL_UNIJOYSTICLE2_C64) {
+        // The only one that has special needs is the C64 which
+        // has the Pots and needs to be initialized differently.
+        uni_platform_unijoysticle_c64_on_init_complete(g_gpio_config->port_a, g_gpio_config->port_b);
+    } else {
+        // The rest of the boards use the Amiga configuration
         uni_platform_unijoysticle_amiga_on_init_complete();
+    }
 }
 
 static void unijoysticle_on_device_connected(uni_hid_device_t* d) {
@@ -485,9 +489,9 @@ static void unijoysticle_on_device_disconnected(uni_hid_device_t* d) {
     if (ins->seat != GAMEPAD_SEAT_NONE) {
         // Turn off the LEDs
         if (ins->seat == GAMEPAD_SEAT_A || ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_JOY)
-            safe_gpio_set_level(g_gpio_config->leds[LED_J1], 0);
+            uni_gpio_set_level(g_gpio_config->leds[LED_J1], 0);
         if (ins->seat == GAMEPAD_SEAT_B || ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_JOY)
-            safe_gpio_set_level(g_gpio_config->leds[LED_J2], 0);
+            uni_gpio_set_level(g_gpio_config->leds[LED_J2], 0);
 
         ins->seat = GAMEPAD_SEAT_NONE;
         ins->gamepad_mode = UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_SINGLE_JOY;
@@ -605,7 +609,7 @@ static void unijoysticle_on_oob_event(uni_platform_oob_event_t event, void* data
     if (event == UNI_PLATFORM_OOB_BLUETOOTH_ENABLED) {
         // Turn on/off the BT led
         bool enabled = (bool)data;
-        safe_gpio_set_level(g_gpio_config->leds[LED_BT], enabled);
+        uni_gpio_set_level(g_gpio_config->leds[LED_BT], enabled);
         s_bluetooth_led_on = enabled;
 
         logi("unijoysticle: Bluetooth discovery mode is %s\n", enabled ? "enabled" : "disabled");
@@ -922,8 +926,8 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
 
     bool status_a = ((all_seats & GAMEPAD_SEAT_A) != 0);
     bool status_b = ((all_seats & GAMEPAD_SEAT_B) != 0);
-    safe_gpio_set_level(g_gpio_config->leds[LED_J1], status_a);
-    safe_gpio_set_level(g_gpio_config->leds[LED_J2], status_b);
+    uni_gpio_set_level(g_gpio_config->leds[LED_J1], status_a);
+    uni_gpio_set_level(g_gpio_config->leds[LED_J2], status_b);
 
     bool lightbar_or_led_set = false;
     if (d->report_parser.set_lightbar_color != NULL) {
@@ -950,18 +954,25 @@ static void joy_update_port(const uni_joystick_t* joy, const gpio_num_t* gpios) 
     logd("up=%d, down=%d, left=%d, right=%d, fire=%d, bt2=%d, bt3=%d\n", joy->up, joy->down, joy->left, joy->right,
          joy->fire, joy->button2, joy->button3);
 
-    safe_gpio_set_level(gpios[0], !!joy->up);
-    safe_gpio_set_level(gpios[1], !!joy->down);
-    safe_gpio_set_level(gpios[2], !!joy->left);
-    safe_gpio_set_level(gpios[3], !!joy->right);
+    uni_gpio_set_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_UP], !!joy->up);
+    uni_gpio_set_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_DOWN], !!joy->down);
+    uni_gpio_set_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_LEFT], !!joy->left);
+    uni_gpio_set_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_RIGHT], !!joy->right);
 
     // Only update fire if auto-fire is off. Otherwise it will conflict.
     if (!joy->auto_fire) {
-        safe_gpio_set_level(gpios[4], !!joy->fire);
+        uni_gpio_set_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_FIRE], !!joy->fire);
     }
 
-    safe_gpio_set_level(gpios[5], !!joy->button2);
-    safe_gpio_set_level(gpios[6], !!joy->button3);
+    if (get_uni_model_from_pins() == BOARD_MODEL_UNIJOYSTICLE2_C64) {
+        // TODO: Move to unijoysticle_c64 file
+        // Reverse, since these pins are attached to Pull up
+        uni_gpio_set_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2], !joy->button2);
+        uni_gpio_set_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3], !joy->button3);
+    } else {
+        uni_gpio_set_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2], !!joy->button2);
+        uni_gpio_set_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3], !!joy->button3);
+    }
 }
 
 static void pushbutton_event_task(void* arg) {
@@ -1004,16 +1015,16 @@ static void auto_fire_task(void* arg) {
         if (bits & BIT(EVENT_AUTOFIRE_TRIGGER)) {
             while (g_autofire_a_enabled || g_autofire_b_enabled) {
                 if (g_autofire_a_enabled)
-                    safe_gpio_set_level(g_gpio_config->port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_FIRE], 1);
+                    uni_gpio_set_level(g_gpio_config->port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_FIRE], 1);
                 if (g_autofire_b_enabled)
-                    safe_gpio_set_level(g_gpio_config->port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_FIRE], 1);
+                    uni_gpio_set_level(g_gpio_config->port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_FIRE], 1);
 
                 vTaskDelay(delay_ticks);
 
                 if (g_autofire_a_enabled)
-                    safe_gpio_set_level(g_gpio_config->port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_FIRE], 0);
+                    uni_gpio_set_level(g_gpio_config->port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_FIRE], 0);
                 if (g_autofire_b_enabled)
-                    safe_gpio_set_level(g_gpio_config->port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_FIRE], 0);
+                    uni_gpio_set_level(g_gpio_config->port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_FIRE], 0);
 
                 vTaskDelay(delay_ticks);
             }
@@ -1448,13 +1459,6 @@ static int cmd_get_autofire_cps(int argc, char** argv) {
     return 0;
 }
 
-// In some boards, not all GPIOs are set. If so, don't try change their values.
-static esp_err_t safe_gpio_set_level(gpio_num_t gpio, int value) {
-    if (gpio == -1)
-        return ESP_OK;
-    return gpio_set_level(gpio, value);
-}
-
 static void maybe_enable_mouse_timers(void) {
     // Mouse timers are not supported in C64 model
     board_model_t model = get_uni_model_from_pins();
@@ -1469,12 +1473,12 @@ static void task_blink_bt_led(void* arg) {
     int times = (int)arg;
 
     while (times--) {
-        safe_gpio_set_level(g_gpio_config->leds[LED_BT], 0);
+        uni_gpio_set_level(g_gpio_config->leds[LED_BT], 0);
         vTaskDelay(pdMS_TO_TICKS(100));
-        safe_gpio_set_level(g_gpio_config->leds[LED_BT], 1);
+        uni_gpio_set_level(g_gpio_config->leds[LED_BT], 1);
         vTaskDelay(pdMS_TO_TICKS(100));
     }
-    safe_gpio_set_level(g_gpio_config->leds[LED_BT], s_bluetooth_led_on);
+    uni_gpio_set_level(g_gpio_config->leds[LED_BT], s_bluetooth_led_on);
 
     // Kill itself
     vTaskDelete(NULL);
