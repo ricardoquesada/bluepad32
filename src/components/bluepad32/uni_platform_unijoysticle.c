@@ -965,10 +965,9 @@ static void joy_update_port(const uni_joystick_t* joy, const gpio_num_t* gpios) 
     }
 
     if (get_uni_model_from_pins() == BOARD_MODEL_UNIJOYSTICLE2_C64) {
-        // TODO: Move to unijoysticle_c64 file
-        // Reverse, since these pins are attached to Pull up
-        uni_gpio_set_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2], !joy->button2);
-        uni_gpio_set_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3], !joy->button3);
+        // C64 decides how to handle it.
+        uni_platform_unijoysticle_c64_set_pot_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2], joy->button2);
+        uni_platform_unijoysticle_c64_set_pot_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3], joy->button3);
     } else {
         uni_gpio_set_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2], !!joy->button2);
         uni_gpio_set_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3], !!joy->button3);

@@ -57,9 +57,10 @@ static const char* c64_pot_modes[] = {
     "rumble",  // C64_POT_MODE_RUMBLE
 };
 
-// Globals to the file
+// Globals to the file (RAM)
 static EventGroupHandle_t _sync_irq_group;
 static TaskHandle_t _sync_task;
+uni_platform_unijoysticle_c64_pot_mode_t _pot_mode = UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_INVALID;
 
 static struct {
     struct arg_str* value;
@@ -211,6 +212,11 @@ void uni_platform_unijoysticle_c64_register_cmds(void) {
 void uni_platform_unijoysticle_c64_set_pot_mode(uni_platform_unijoysticle_c64_pot_mode_t mode) {
     // Change C64 Pot mode
 
+    if (_pot_mode == mode)
+        return;
+
+    _pot_mode = mode;
+
     gpio_config_t io_conf = {0};
 
     if (mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_NORMAL) {
@@ -271,16 +277,28 @@ void uni_platform_unijoysticle_c64_set_pot_mode(uni_platform_unijoysticle_c64_po
     }
 }
 
+void uni_platform_unijoysticle_c64_set_pot_level(gpio_num_t gpio_num, uint8_t level) {
+    if (_pot_mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_NORMAL) {
+        // Reverse since it is connected to pull-up
+        uni_gpio_set_level(gpio_num, !level);
+    } else if (_pot_mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_RUMBLE) {
+        // Leave it disabled to allow the SYNC to reach ESP32 without interference
+        uni_gpio_set_level(gpio_num, !!level);
+    } else {
+        loge("unijoysticle: unsupported gamepad mode: %d\n", _pot_mode);
+    }
+}
+
 void uni_platform_unijoysticle_c64_on_init_complete(const gpio_num_t* port_a, const gpio_num_t* port_b) {
     int mode = get_c64_pot_mode_from_nvs();
     uni_platform_unijoysticle_c64_set_pot_mode(mode);
 
     // C64 uses pull-ups for Pot-x, Pot-y, so the value needs to be "inversed" in order to be off.
-    uni_gpio_set_level(port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2], 1);
-    uni_gpio_set_level(port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3], 1);
+    uni_platform_unijoysticle_c64_set_pot_level(port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2], 1);
+    uni_platform_unijoysticle_c64_set_pot_level(port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3], 1);
 
-    uni_gpio_set_level(port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2], 1);
-    uni_gpio_set_level(port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3], 1);
+    uni_platform_unijoysticle_c64_set_pot_level(port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2], 1);
+    uni_platform_unijoysticle_c64_set_pot_level(port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3], 1);
 }
 
 void uni_platform_unijoysticle_c64_version(void) {
