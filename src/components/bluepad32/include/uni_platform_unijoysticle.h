@@ -34,8 +34,9 @@ typedef enum {
     UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_MOUSE,     // Mouse mode
     UNI_PLATFORM_UNIJOYSTICLE_CMD_GET_GAMEPAD_MODE,
 
-    UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_C64_POT_MODE_NORMAL,  // Used for mouse, paddle & extra buttons
-    UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_C64_POT_MODE_RUMBLE,  // C64 can enable rumble via Pots
+    UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_C64_POT_MODE_3BUTTONS,  // Used for mouse, paddle & 3 buttons
+    UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_C64_POT_MODE_5BUTTONS,  // Used for mouse, paddle & 5 buttons (select + start)
+    UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_C64_POT_MODE_RUMBLE,    // C64 can enable rumble via Pots
 
     UNI_PLATFORM_UNIJOYSTICLE_CMD_COUNT,
 } uni_platform_unijoysticle_cmd_t;

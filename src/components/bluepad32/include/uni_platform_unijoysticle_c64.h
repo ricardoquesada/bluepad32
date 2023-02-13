@@ -26,10 +26,11 @@ limitations under the License.
 #define UNI_PLATFORM_UNIJOYSTICLE_C64_SYNC_IRQ_MAX 2
 
 typedef enum {
-    UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_NORMAL,  // Pots are used for mouse, paddle, extra buttons
-    UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_RUMBLE,  // Pots are used to toggle rumble
+    UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_INVALID,   // Invalid
+    UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_3BUTTONS,  // Pots are used for mouse, paddle, extra buttons
+    UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_5BUTTONS,  // Pots are used for mouse, paddle, extra buttons
+    UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_RUMBLE,    // Pots are used to toggle rumble
 
-    UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_INVALID,  // Invalid
     UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_COUNT,
 } uni_platform_unijoysticle_c64_pot_mode_t;
 

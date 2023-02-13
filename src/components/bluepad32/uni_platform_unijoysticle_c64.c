@@ -53,8 +53,10 @@ static void sync_irq_event_task(void* arg);
 
 // Keep them in the order of the defines
 static const char* c64_pot_modes[] = {
-    "normal",  // C64_POT_MODE_NORMAL
-    "rumble",  // C64_POT_MODE_RUMBLE
+    "invalid",   // UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_INVALID,
+    "3buttons",  // UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_3BUTTONS
+    "5buttons",  // UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_5BUTTONS
+    "rumble",    // UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_RUMBLE
 };
 
 // Globals to the file (RAM)
@@ -85,7 +87,7 @@ static int get_c64_pot_mode_from_nvs(void) {
     uni_property_value_t value;
     uni_property_value_t def;
 
-    def.u8 = UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_NORMAL;
+    def.u8 = UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_3BUTTONS;
 
     value = uni_property_get(UNI_PROPERTY_KEY_UNI_C64_POT_MODE, UNI_PROPERTY_TYPE_U8, def);
     return value.u8;
@@ -155,13 +157,15 @@ static int cmd_set_c64_pot_mode(int argc, char** argv) {
 
     int mode = 0;
 
-    if (strcmp(set_c64_pot_mode_args.value->sval[0], "normal") == 0) {
-        mode = UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_C64_POT_MODE_NORMAL;
+    if (strcmp(set_c64_pot_mode_args.value->sval[0], "3buttons") == 0) {
+        mode = UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_C64_POT_MODE_3BUTTONS;
+    } else if (strcmp(set_c64_pot_mode_args.value->sval[0], "5buttons") == 0) {
+        mode = UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_C64_POT_MODE_5BUTTONS;
     } else if (strcmp(set_c64_pot_mode_args.value->sval[0], "rumble") == 0) {
         mode = UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_C64_POT_MODE_RUMBLE;
     } else {
         loge("Invalid C64 Pot mode: : %s\n", set_c64_pot_mode_args.value->sval[0]);
-        loge("Valid values: 'normal' or 'rumble'\n");
+        loge("Valid values: '3buttons', '5buttons' or 'rumble'\n");
         return 1;
     }
 
@@ -219,7 +223,8 @@ void uni_platform_unijoysticle_c64_set_pot_mode(uni_platform_unijoysticle_c64_po
 
     gpio_config_t io_conf = {0};
 
-    if (mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_NORMAL) {
+    if (mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_3BUTTONS ||
+        mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_5BUTTONS) {
         set_c64_pot_mode_to_nvs(mode);
 
         if (_sync_task == NULL) {
@@ -278,7 +283,8 @@ void uni_platform_unijoysticle_c64_set_pot_mode(uni_platform_unijoysticle_c64_po
 }
 
 void uni_platform_unijoysticle_c64_set_pot_level(gpio_num_t gpio_num, uint8_t level) {
-    if (_pot_mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_NORMAL) {
+    if (_pot_mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_3BUTTONS ||
+        _pot_mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_5BUTTONS) {
         // Reverse since it is connected to pull-up
         uni_gpio_set_level(gpio_num, !level);
     } else if (_pot_mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_RUMBLE) {
@@ -294,11 +300,11 @@ void uni_platform_unijoysticle_c64_on_init_complete(const gpio_num_t* port_a, co
     uni_platform_unijoysticle_c64_set_pot_mode(mode);
 
     // C64 uses pull-ups for Pot-x, Pot-y, so the value needs to be "inversed" in order to be off.
-    uni_platform_unijoysticle_c64_set_pot_level(port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2], 1);
-    uni_platform_unijoysticle_c64_set_pot_level(port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3], 1);
+    uni_platform_unijoysticle_c64_set_pot_level(port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2], 0);
+    uni_platform_unijoysticle_c64_set_pot_level(port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3], 0);
 
-    uni_platform_unijoysticle_c64_set_pot_level(port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2], 1);
-    uni_platform_unijoysticle_c64_set_pot_level(port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3], 1);
+    uni_platform_unijoysticle_c64_set_pot_level(port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2], 0);
+    uni_platform_unijoysticle_c64_set_pot_level(port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3], 0);
 }
 
 void uni_platform_unijoysticle_c64_version(void) {

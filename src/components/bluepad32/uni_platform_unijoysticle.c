@@ -1099,8 +1099,11 @@ static void cmd_callback(void* context) {
         case UNI_PLATFORM_UNIJOYSTICLE_CMD_GET_GAMEPAD_MODE:
             get_gamepad_mode();
             break;
-        case UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_C64_POT_MODE_NORMAL:
-            uni_platform_unijoysticle_c64_set_pot_mode(UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_NORMAL);
+        case UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_C64_POT_MODE_3BUTTONS:
+            uni_platform_unijoysticle_c64_set_pot_mode(UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_3BUTTONS);
+            break;
+        case UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_C64_POT_MODE_5BUTTONS:
+            uni_platform_unijoysticle_c64_set_pot_mode(UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_5BUTTONS);
             break;
         case UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_C64_POT_MODE_RUMBLE:
             uni_platform_unijoysticle_c64_set_pot_mode(UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_RUMBLE);
