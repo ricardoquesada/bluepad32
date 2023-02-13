@@ -22,6 +22,9 @@ limitations under the License.
 #include <driver/gpio.h>
 #include <stdint.h>
 
+#include "uni_gamepad.h"
+#include "uni_hid_device.h"
+
 // Number of SYNC IRQs. One for each port
 #define UNI_PLATFORM_UNIJOYSTICLE_C64_SYNC_IRQ_MAX 2
 
@@ -39,5 +42,10 @@ void uni_platform_unijoysticle_c64_on_init_complete(const gpio_num_t* port_a, co
 void uni_platform_unijoysticle_c64_set_pot_mode(uni_platform_unijoysticle_c64_pot_mode_t mode);
 void uni_platform_unijoysticle_c64_version(void);
 void uni_platform_unijoysticle_c64_set_pot_level(gpio_num_t gpio_num, uint8_t level);
+void uni_platform_unijoysticle_c64_process_gamepad(uni_hid_device_t* d,
+                                                   uni_gamepad_t* gp,
+                                                   uni_gamepad_seat_t seat,
+                                                   const gpio_num_t* port_a,
+                                                   const gpio_num_t* port_b);
 
 #endif  // UNI_PLATFORM_UNIJOYSTICLE_C64_H

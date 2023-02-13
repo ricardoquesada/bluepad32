@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased] - ???
+### New
+- C64: Add support for 5button mode, in addition to 3button and rumble.
+  - Info about 5 button mode here: https://github.com/crystalct/5plusbuttonsJoystick
+
 ### Changed
 - BLE is enabled by default
 - Unijoysticle C64: C64GS buttons work.

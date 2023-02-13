@@ -310,3 +310,40 @@ void uni_platform_unijoysticle_c64_on_init_complete(const gpio_num_t* port_a, co
 void uni_platform_unijoysticle_c64_version(void) {
     logi("\tPot mode: %s\n", c64_pot_modes[get_c64_pot_mode_from_nvs()]);
 }
+
+void uni_platform_unijoysticle_c64_process_gamepad(uni_hid_device_t* d,
+                                                   uni_gamepad_t* gp,
+                                                   uni_gamepad_seat_t seat,
+                                                   const gpio_num_t* port_a,
+                                                   const gpio_num_t* port_b) {
+    int mode = get_c64_pot_mode_from_nvs();
+    if (mode != UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_5BUTTONS)
+        return;
+
+    // No need to set the values to 0.
+    // Since they were already set to 0 by the callee.
+
+    // "Select" Button
+    if (gp->misc_buttons & MISC_BUTTON_BACK) {
+        if (seat & GAMEPAD_SEAT_A) {
+            uni_gpio_set_level(port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_UP], 1);
+            uni_gpio_set_level(port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_DOWN], 1);
+        }
+        if (seat & GAMEPAD_SEAT_B) {
+            uni_gpio_set_level(port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_UP], 1);
+            uni_gpio_set_level(port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_DOWN], 1);
+        }
+    }
+
+    // "Start" buttons
+    if (gp->misc_buttons & MISC_BUTTON_HOME) {
+        if (seat & GAMEPAD_SEAT_A) {
+            uni_gpio_set_level(port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_LEFT], 1);
+            uni_gpio_set_level(port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_RIGHT], 1);
+        }
+        if (seat & GAMEPAD_SEAT_B) {
+            uni_gpio_set_level(port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_LEFT], 1);
+            uni_gpio_set_level(port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_RIGHT], 1);
+        }
+    }
+}

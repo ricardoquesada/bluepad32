@@ -869,8 +869,6 @@ static void process_joystick(uni_hid_device_t* d, uni_gamepad_seat_t seat, const
 static void process_gamepad(uni_hid_device_t* d, uni_gamepad_t* gp) {
     uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
 
-    test_select_button(d, gp);
-
     uni_joystick_t joy, joy_ext;
     memset(&joy, 0, sizeof(joy));
     memset(&joy_ext, 0, sizeof(joy_ext));
@@ -900,6 +898,15 @@ static void process_gamepad(uni_hid_device_t* d, uni_gamepad_t* gp) {
         default:
             loge("unijoysticle: Unsupported emulation mode: %d\n", ins->gamepad_mode);
             break;
+    }
+
+    // Must be done at the end of the function.
+    // These functions can override already set values.
+    board_model_t model = get_uni_model_from_pins();
+    if (model == BOARD_MODEL_UNIJOYSTICLE2_C64) {
+        uni_platform_unijoysticle_c64_process_gamepad(d, gp, ins->seat, g_gpio_config->port_a, g_gpio_config->port_b);
+    } else {
+        test_select_button(d, gp);
     }
 }
 
