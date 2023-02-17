@@ -189,9 +189,9 @@ Classic Controller can be used.
 
 - This is the "2 button" model
 - Must be the *model 1708* (released in 2016) and not earlier. *Model 1797* should work.
-- Supports firmwars: 3.1 (BR/ERD), 4.8 (BR/ERD), 5.15 (BLE)
+- Supports Xbox Controller firmware: v3.1 (BR/ERD), v4.8 (BR/ERD), v5.15 (BLE)
 - Supported features: rumble
-- If using firmware v5.15 then BLE must be enabled in Bluepad32
+- Pair instructions: Same as model "1914", see below.
 
 [xbox_1708_ebay]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw=xbox+wireless+controller+1708&_sacat=0
 [xbox_1708]: https://lh3.googleusercontent.com/YmONc-MhVZhnE8HVRgzH7FKSpT_29MLeIF70U5AfrcBuCtuNJ2Ln5xkmSpNqO0myrFpnDLbFvR2TRTRu0xcqvP3cLNaq1BBpruEAn-Z7vBbwzNtaXx7eQaLLF7aa8tt2Wa0IcYxeD08=-no
@@ -201,10 +201,13 @@ Classic Controller can be used.
 [![Xbox 1914][xbox_1914]][xbox_1914_ebay]
 
 - This is the "3 button" model
-- Must be the *model 1914*. Other "3 button" models should work as well.
-- Supports firmware 5.15
+- Should be *model 1914*. Other "3 button" models should work as well.
+- Supports Xbox Controller firmware: v5.15
 - Supported features: N/A
-- BLE must be enabled in Bluepad32
+- Pair instructions:
+  - Turn on your controller by pressing the Xbox button.
+  - Press the controller’s Pair button for 3 seconds and release.
+  - Done. Bluepad32 will connect to it once it receives the "advertisement" broadcast message.
 
 [xbox_1914_ebay]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw=xbox+wireless+controller+1914&_sacat=0
 [xbox_1914]: https://lh3.googleusercontent.com/pw/AMWts8BjOU-jTHHhK6S7PFfyvRpBr8FlUhKdoebHK83tp536cRWaX2yfo1CiXnDyWe8RGg7CMtjc4DiU-Fji0Er-88Vtr7RXSGfF3xKoel6VRmogMwSWWdKbQswxzB3wULe06nOYRrVpcqJUkgeKF4hotwyxaw=-no?authuser=0
