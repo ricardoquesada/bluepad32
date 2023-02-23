@@ -34,8 +34,10 @@ List of supported gamepads with supported features, known bugs, etc.
 [![ddualsense_gamepad][dualsense]][11]
 
 - Supported features: rumble, lightbar color, player LEDs
+- Pair instructions: While pressing and holding the Create button, press and hold the PS button until the light bar blinks ([Sony official instructions][dualsense_pair_instructions]).
 
 [dualsense]: https://lh3.googleusercontent.com/pw/ACtC-3d1CVA-e5srBTDhTD6D-3BSWYi7MncfECPj_9bQJfcGOAKIHrP6g6Ha7xAD0trE59eN-Qv_U33MklCFPskPWRLjfFI4ITHEol8RAmTYNHFNrA-gwhoXEn2ks_M7UDDbxiKhNdaPNXexxgj5zzOtpBjiyw=-no
+[dualsense_pair_instructions]: https://www.playstation.com/en-us/support/hardware/pair-dualsense-controller-bluetooth/
 
 ## Sony DUALSHOCK 4 (PS4)
 
@@ -44,8 +46,12 @@ List of supported gamepads with supported features, known bugs, etc.
 - Supports both the 2013 (CUH-ZCT1) and 2016 (CUH-ZCT2) editions
 - Supported features: rumble, lightbar color
 - Some clones are known to work Ok
+- Pair instructions: While pressing and holding the SHARE button, press and hold the PS Button until the light bar flashes ([Sony official instructions][dualshock4_pair_instructions]).
+
 
 [dualshock_4]: https://lh3.googleusercontent.com/_0sAxKXbSkk4g8rWJzTNxAirz2hD632jW4TGjGVOwjoac8sD4AfiN9PA1HdGWhm_ujcVygDlEG-LENPemF7IyFhqVsHgVHfCMVeFVjBbeDl-fUUjdMbRYAE8FiKdyWM_UBNUNmVy9Ro=-no
+[dualshock4_pair_instructions]:  https://www.playstation.com/en-us/support/hardware/ps4-pair-dualshock-4-wireless-with-pc-or-mac/
+
 
 ## Sony DUALSHOCK 3 (PS3)
 
