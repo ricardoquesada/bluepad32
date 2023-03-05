@@ -64,6 +64,7 @@ typedef enum {
   CONTROLLER_TYPE_GenericController = 53,        // (Bluepad32)
   CONTROLLER_TYPE_NimbusController = 54,         // (Bluepad32)
   CONTROLLER_TYPE_OUYAController = 55,           // (Bluepad32)
+  CONTROLLER_TYPE_PSMoveController = 56,		 // (Bluepad32)
 
   CONTROLLER_TYPE_LastController,  // Don't add game controllers below this enumeration -
                                    // this enumeration can change value
@@ -689,7 +690,8 @@ static const uni_controller_description_t arrControllers[] = {
     { MAKE_CONTROLLER_ID(0x057e, 0x2019), CONTROLLER_TYPE_SwitchProController, NULL }, // Nintendo Online N64 Controller
     { MAKE_CONTROLLER_ID(0x057e, 0x201e), CONTROLLER_TYPE_SwitchProController, NULL }, // Nintendo Online SEGA Genesis Controller
 
-
+	// Sony
+	{ MAKE_CONTROLLER_ID( 0x054c, 0x03d5 ), CONTROLLER_TYPE_PSMoveController, NULL },	   // Sony PS Move (Motion Controller)
 	// Bluepad32 addons to here.
 };
 // clang-format on
