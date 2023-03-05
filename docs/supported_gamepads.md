@@ -58,11 +58,22 @@ List of supported gamepads with supported features, known bugs, etc.
 [![ds3_gamepad][dualshock_3]][12]
 
 - Supported features: rumble, player LEDs
-- Requires that the [DS3 is manually paired][pair_ds3] to the Unijoysticle device.
+- Requires that the [DS3 is manually paired][pair_ds3] to the device.
 - Some clones are known to work Ok
 
 [dualshock_3]: https://lh3.googleusercontent.com/pw/ACtC-3dEBJYkdIpF5_icFUY7n7otgw5LPpLyviKS14JL2EJtuiDBt6Kk-XcKlIIP9JCgT0yxJVN1KuW-JICpilYKhMGfDxQt6vjJm8r_lRS1R9IyOX4iBlUQoIrflt9KmSjXBjcJlS81cmKaGB166HF608v5MA=-no
 [pair_ds3]: pair_ds3.md
+
+## Sony Motion Controller
+
+[![Sony Motion Controller][psmove_img]][psmove_ebay]
+
+- Supported features: buttons
+- Requires that the [controller is manually paired][psmove_pair] to the device.
+
+[psmove_img]: https://lh3.googleusercontent.com/pw/AMWts8BzubFwU-wHy0En5sqr1Rezbu9wj_kAM4Bchu86-P7EgDOS2SSyt490IeGHYp2a50JrG6WgSXEVQyUX_qgdpsn8rSjCCdc968WhOAMGKOsqYe6ZjvG1hraET1VNzoVfZrNJkuWNuBpkezLDAt9exoXvZg=-no?authuser=0
+[psmove_ebay]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw=sony+playstation+ps3+move+motion+controller&_sacat=0
+[psmove_pair]: https://github.com/thp/psmoveapi
 
 ## Nintendo Switch Pro
 
