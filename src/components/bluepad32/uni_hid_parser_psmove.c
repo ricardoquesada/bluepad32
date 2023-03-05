@@ -42,27 +42,23 @@ typedef enum psmove_fsm {
 // psmove_instance_t represents data used by the psmove driver instance.
 typedef struct psmove_instance_s {
     psmove_fsm_t state;
-    uint8_t player_leds;  // bitmap of LEDs
+    uint8_t led_rgb[3];
 } psmove_instance_t;
 _Static_assert(sizeof(psmove_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "PSMove intance too big");
 
 // As defined here:
-// https://github.com/ros-drivers/joystick_drivers/blob/52e8fcfb5619382a04756207b228fbc569f9a3ca/ps3joy/scripts/ps3joy_node.py#L276
+// https://github.com/thp/psmoveapi/blob/master/src/psmove.c#L123
 typedef struct __attribute((packed)) {
-    uint8_t transation_type;  // 0x52
-    uint8_t report_id;        // 0x01
-    uint8_t padding0;
-    uint8_t motor_right_duration;  // 0xff == forever
-    uint8_t motor_right_enabled;   // 0 or 1
-    uint8_t motor_left_duration;   // 0xff == forever
-    uint8_t motor_left_force;      // 0-255
-    uint8_t padding1[4];
-    uint8_t player_leds;
-    uint8_t led4[5];  // 0xff, 0x27, 0x10, 0x00, 0x32,
-    uint8_t led3[5];  // ditto above
-    uint8_t led2[5];  // ditto above
-    uint8_t led1[5];  // ditto above
-    uint8_t reserved[5];
+    /* Report related */
+    uint8_t transaction_type; /* type of transaction: should be 0xa2 */
+    uint8_t report_id;        /* report Id: should be 0x06 */
+
+    /* Data related */
+    uint8_t _zero;       /* must be zero */
+    uint8_t led_rgb[3];  /* RGB for LED */
+    uint8_t rumble2;     /* unknown, should be 0x00 for now */
+    uint8_t rumble;      /* rumble value, 0x00..0xff */
+    uint8_t _padding[2]; /* must be zero */
 } psmove_output_report_t;
 
 typedef struct __attribute((packed)) {
@@ -107,7 +103,6 @@ typedef struct __attribute((packed)) {
 } psmove_input_report_t;
 
 static psmove_instance_t* get_psmove_instance(uni_hid_device_t* d);
-static void psmove_update_led(uni_hid_device_t* d, uint8_t player_leds);
 static void psmove_send_output_report(uni_hid_device_t* d, psmove_output_report_t* out);
 
 void uni_hid_parser_psmove_init_report(uni_hid_device_t* d) {
@@ -119,11 +114,6 @@ void uni_hid_parser_psmove_init_report(uni_hid_device_t* d) {
 
 void uni_hid_parser_psmove_parse_input_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
     // printf_hexdump(report, len);
-
-    psmove_instance_t* ins = get_psmove_instance(d);
-    if (ins->state == PSMOVE_FSM_REQUIRES_LED_UPDATE) {
-        psmove_update_led(d, ins->player_leds);
-    }
 
     // Report len should be 45, at least in PS Move DS3
     if (len < sizeof(psmove_input_report_t)) {
@@ -184,38 +174,29 @@ void uni_hid_parser_psmove_parse_input_report(uni_hid_device_t* d, const uint8_t
         ctl->battery = r->battery * 51;
 }
 
-void uni_hid_parser_psmove_set_player_leds(uni_hid_device_t* d, uint8_t leds) {
-    psmove_instance_t* ins = get_psmove_instance(d);
-    // Always update instance value. It could be used by rumble.
-    ins->player_leds = leds;
+void uni_hid_parser_psmove_set_rumble(uni_hid_device_t* d, uint8_t value, uint8_t duration) {
+    ARG_UNUSED(duration);
 
-    // It seems that if a LED update is sent before the "request stream report",
-    // then the stream report is ignored.
-    // Update LED after stream report is set.
-    if (ins->state <= PSMOVE_FSM_REQUIRES_LED_UPDATE) {
-        ins->state = PSMOVE_FSM_REQUIRES_LED_UPDATE;
-        return;
-    }
-    psmove_update_led(d, leds);
+    psmove_instance_t* ins = get_psmove_instance(d);
+    psmove_output_report_t out = {
+        .report_id = 0x06,
+        // Don't overwrite LED RGB
+        .led_rgb[0] = ins->led_rgb[0],
+        .led_rgb[1] = ins->led_rgb[1],
+        .led_rgb[2] = ins->led_rgb[2],
+        .rumble = value,
+    };
+
+    psmove_send_output_report(d, &out);
 }
 
-void uni_hid_parser_psmove_set_rumble(uni_hid_device_t* d, uint8_t value, uint8_t duration) {
-    if (duration == 0xff)
-        duration = 0xfe;
-    uint8_t right = !!value;
-    uint8_t left = value;
-
-    psmove_output_report_t out = {0};
-    out.motor_right_duration = duration;
-    out.motor_right_enabled = right;
-    out.motor_left_duration = duration;
-    out.motor_left_force = left;
-
-    // Don't overwrite Player LEDs
-    // LED cmd. LED1==2, LED2==4, etc...
-    psmove_instance_t* ins = get_psmove_instance(d);
-    out.player_leds = ins->player_leds << 1;
-
+void uni_hid_parser_psmove_set_lightbar_color(uni_hid_device_t* d, uint8_t r, uint8_t g, uint8_t b) {
+    psmove_output_report_t out = {
+        .report_id = 0x06,
+        .led_rgb[0] = r,
+        .led_rgb[1] = g,
+        .led_rgb[2] = b,
+    };
     psmove_send_output_report(d, &out);
 }
 
@@ -223,17 +204,6 @@ void uni_hid_parser_psmove_setup(struct uni_hid_device_s* d) {
     psmove_instance_t* ins = get_psmove_instance(d);
     memset(ins, 0, sizeof(*ins));
 
-    // Dual Shock 3 Sixasis requires a magic packet to be sent in order to enable reports. Taken from:
-    // https://github.com/torvalds/linux/blob/1d1df41c5a33359a00e919d54eaebfb789711fdc/drivers/hid/hid-sony.c#L1684
-    static uint8_t sixaxisEnableReports[] = {(HID_MESSAGE_TYPE_SET_REPORT << 4) | HID_REPORT_TYPE_FEATURE,
-                                             0xf4,  // Report ID
-                                             0x42,
-                                             0x03,
-                                             0x00,
-                                             0x00};
-    uni_hid_device_send_ctrl_report(d, (uint8_t*)&sixaxisEnableReports, sizeof(sixaxisEnableReports));
-
-    // TODO: should set "ready_complete" once we receive an ack from psmove regaring report id 0xf4 (???)
     uni_hid_device_set_ready_complete(d);
 }
 
@@ -244,30 +214,10 @@ static psmove_instance_t* get_psmove_instance(uni_hid_device_t* d) {
     return (psmove_instance_t*)&d->parser_data[0];
 }
 
-static void psmove_update_led(uni_hid_device_t* d, uint8_t player_leds) {
-    psmove_instance_t* ins = get_psmove_instance(d);
-    ins->state = PSMOVE_FSM_LED_UPDATED;
-
-    psmove_output_report_t out = {0};
-
-    // LED cmd. LED1==2, LED2==4, etc...
-    out.player_leds = player_leds << 1;
-
-    psmove_send_output_report(d, &out);
-}
-
 static void psmove_send_output_report(uni_hid_device_t* d, psmove_output_report_t* out) {
-    out->transation_type = 0x52;  // SET_REPORT output
-    out->report_id = 0x01;
+    /* Should be 0xa2 */
+    out->transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT;
 
-    // Default LEDs configuration.
-    static const uint8_t leds[] = {
-        0xff, 0x27, 0x10, 0x00, 0x32,  // Led4
-        0xff, 0x27, 0x10, 0x00, 0x32,  // Led3
-        0xff, 0x27, 0x10, 0x00, 0x32,  // Led2
-        0xff, 0x27, 0x10, 0x00, 0x32,  // Led1
-    };
-    memcpy(&out->led4, leds, sizeof(leds));
-
-    uni_hid_device_send_ctrl_report(d, (uint8_t*)out, sizeof(*out));
+    // uni_hid_device_send_ctrl_report(d, (uint8_t*)out, sizeof(*out));
+    uni_hid_device_send_intr_report(d, (uint8_t*)out, sizeof(*out));
 }

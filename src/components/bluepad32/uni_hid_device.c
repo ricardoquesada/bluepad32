@@ -543,7 +543,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             d->report_parser.setup = uni_hid_parser_psmove_setup;
             d->report_parser.init_report = uni_hid_parser_psmove_init_report;
             d->report_parser.parse_input_report = uni_hid_parser_psmove_parse_input_report;
-            d->report_parser.set_player_leds = uni_hid_parser_psmove_set_player_leds;
+            d->report_parser.set_lightbar_color = uni_hid_parser_psmove_set_lightbar_color;
             d->report_parser.set_rumble = uni_hid_parser_psmove_set_rumble;
             logi("Device detected as PS Move: 0x%02x\n", type);
             break;
