@@ -17,7 +17,7 @@ Might slightly vary from board to board, but basically what you have to do is:
 2. Flash the right "Passthrough" firmware for your board.
    - Details here: [Adafruit's Upgrade AirLift firmware][adafruit-airlift-upgrade]
 
-[adafruit-airlift-upgrade]: https://learn.adafruit.com/upgrading-esp32-firmware/upgrade-an-airlift-all-in-one-board
+[adafruit-airlift-upgrade]: https://learn.adafruit.com/upgrading-esp32-firmware/upgrade-all-in-one-esp32-airlift-firmware
 
 ### Flash the firmware
 
