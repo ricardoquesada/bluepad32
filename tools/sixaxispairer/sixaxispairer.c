@@ -28,14 +28,17 @@
 
 #include <hidapi/hidapi.h>
 
-#define VENDOR        0x054c
-#define PRODUCT       0x0268
+#define VENDOR_SONY     0x054c
+#define PRODUCT_PS3NAV  0x042f
+#define PRODUCT_PS3     0x0268
+#define PRODUCT_PS4     0x05c4
 /* 0xf5   == (0x03f5 & ~(3 << 8))
  * 0x03f5 == (0xf5 | (3 << 8))
  * HIDAPI will automatically add (3 << 8 to the report id.
  * Other tools for setting the report id use hid libraries which
  * don't automatically do this. */
-#define MAC_REPORT_ID 0xf5
+#define MAC_REPORT_ID_PS3 0xf5
+#define MAC_REPORT_ID_PS4 0x12
 
 static unsigned char char_to_nible(char c)
 {
@@ -79,32 +82,58 @@ static int mac_to_bytes(const char *in, size_t in_len, unsigned char *out, size_
     return 1;
 }
 
-static void pair_device(hid_device *dev, const char *mac, size_t mac_len)
+static void pair_device(hid_device *dev, unsigned short product_id, const char *mac, size_t mac_len)
 {
-    unsigned char buf[8];
-    int           ret;
+    int ret;
+    if (product_id == PRODUCT_PS4)
+    {
+        unsigned char buf[16];
 
-    memset(buf, 0, sizeof(buf));
-    buf[0] = MAC_REPORT_ID;
-    buf[1] = 0x0;
-    if ((mac_len != 12 && mac_len != 17) || !mac_to_bytes(mac, mac_len, buf+2, sizeof(buf)-2)) {
-        printf("Invalid mac\n");
-        return;
+        memset(buf, 0, sizeof(buf));
+        buf[0] = MAC_REPORT_ID_PS4;
+        buf[1] = 0xEE;
+        buf[2] = 0x45;
+        buf[3] = 0x84;
+        buf[4] = 0x66;
+        buf[5] = 0x15;
+        buf[6] = 0xA4;
+        buf[7] = 0x08;
+        buf[8] = 0x25;
+        buf[9] = 0x00;
+        if ((mac_len != 12 && mac_len != 17) || !mac_to_bytes(mac, mac_len, buf+10, 6)) {
+            printf("Invalid mac\n");
+            return;
+        }
+
+        ret = hid_send_feature_report(dev, buf, sizeof(buf));
     }
+    else
+    {
+        unsigned char buf[8];
+        int           ret;
 
-    ret = hid_send_feature_report(dev, buf, sizeof(buf));
+        memset(buf, 0, sizeof(buf));
+        buf[0] = MAC_REPORT_ID_PS3;
+        buf[1] = 0x0;
+        if ((mac_len != 12 && mac_len != 17) || !mac_to_bytes(mac, mac_len, buf+2, sizeof(buf)-2)) {
+            printf("Invalid mac\n");
+            return;
+        }
+
+        ret = hid_send_feature_report(dev, buf, sizeof(buf));
+    }
     if (ret == -1) {
         printf("Failed to set mac\n");
     }
 }
 
-static void show_pairing(hid_device *dev)
+static void show_pairing(hid_device *dev, unsigned short product_id)
 {
     unsigned char buf[8];
     int           ret;
 
     memset(buf, 0, sizeof(buf));
-    buf[0] = MAC_REPORT_ID;
+    buf[0] = (product_id == PRODUCT_PS4) ? MAC_REPORT_ID_PS4 : MAC_REPORT_ID_PS3;
     buf[1] = 0x0;
 
     ret = hid_get_feature_report(dev, buf, sizeof(buf));
@@ -115,10 +144,38 @@ static void show_pairing(hid_device *dev)
     printf("%02x:%02x:%02x:%02x:%02x:%02x\n", buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]);
 }
 
-int main(int argc, char **argv)
+char process_device(unsigned short vendor_id, unsigned short product_id, int argc, char **argv)
 {
     hid_device *dev;
 
+    dev = hid_open(vendor_id, product_id, NULL);
+    if (dev == NULL) {
+        return 1;
+    }
+    switch (product_id)
+    {
+        case PRODUCT_PS3:
+            printf("Found PS3 Controller\n");
+            break;
+        case PRODUCT_PS3NAV:
+            printf("Found PS3 Navigation Controller\n");
+            break;
+        case PRODUCT_PS4:
+            printf("Found PS4 Controller\n");
+            break;
+    }
+    if (argc == 2) {
+        pair_device(dev, product_id, argv[1], strlen(argv[1]));
+    } else {
+        show_pairing(dev, product_id);
+    }
+
+    hid_close(dev);
+    return 0;
+}
+
+int main(int argc, char **argv)
+{
     if ((argc != 1 && argc != 2) ||
         (argc == 2 && (strncmp(argv[1], "-h", 2) == 0 || strncmp(argv[1], "--help", 6) == 0)))
     {
@@ -126,8 +183,10 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    dev = hid_open(VENDOR, PRODUCT, NULL);
-    if (dev == NULL) {
+    if (process_device(VENDOR_SONY, PRODUCT_PS3, argc, argv) &&
+        process_device(VENDOR_SONY, PRODUCT_PS3NAV, argc, argv) &&
+        process_device(VENDOR_SONY, PRODUCT_PS4, argc, argv))
+    {
         fprintf(stderr, "Could not find SixAxis controller\n");
         return 0;
     }
