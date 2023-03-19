@@ -188,15 +188,7 @@ int main(int argc, char **argv)
         process_device(VENDOR_SONY, PRODUCT_PS4, argc, argv))
     {
         fprintf(stderr, "Could not find SixAxis controller\n");
-        return 0;
+        return 1;
     }
-
-    if (argc == 2) {
-        pair_device(dev, argv[1], strlen(argv[1]));
-    } else {
-        show_pairing(dev);
-    }
-
-    hid_close(dev);
     return 0;
 }
