@@ -27,7 +27,38 @@ limitations under the License.
 #include <soc/io_mux_reg.h>
 #include <stddef.h>
 
+#include <btstack_port_esp32.h>
+#include <btstack_run_loop.h>
+#include <hci_dump.h>
+#include <hci_dump_embedded_stdout.h>
+
+#include "uni_main.h"
+
 _Static_assert(CONFIG_BTDM_CTRL_BR_EDR_MAX_ACL_CONN >= 2, "Max ACL must be >= 2");
+
+// This function should be called from "app_main"
+int uni_esp32_main(void) {
+    // hci_dump_open(NULL, HCI_DUMP_STDOUT);
+
+#ifdef CONFIG_BLUEPAD32_UART_OUTPUT_ENABLE
+    uni_esp32_enable_uart_output(1);
+#else
+    // Adafruit Airlift modules have the UART RX/TX (GPIO 1 / 3) wired with the
+    // controller so they can't be used for logging. In fact they can generate
+    // noise and can break the communication with the controller.
+    uni_esp32_enable_uart_output(0);
+#endif
+
+    // Configure BTstack for ESP32 VHCI Controller
+    btstack_init();
+
+    // hci_dump_init(hci_dump_embedded_stdout_get_instance());
+
+    // Init Bluepad32, and does not return.
+    uni_main(0, NULL);
+
+    return 0;
+}
 
 // Code taken from nina-fw
 // https://github.com/adafruit/nina-fw/blob/master/main/sketch.ino.cpp

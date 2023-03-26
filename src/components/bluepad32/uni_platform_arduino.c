@@ -409,4 +409,11 @@ struct uni_platform* uni_platform_arduino_create(void) {
     return &plat;
 }
 
+//
+// Autostart
+//
+int app_main(void) {
+    return uni_esp32_main();
+}
+
 #endif  // CONFIG_BLUEPAD32_PLATFORM_ARDUINO

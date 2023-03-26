@@ -4,7 +4,7 @@ set(requires "bluepad32")
 
 # See: https://gitlab.com/ricardoquesada/bluepad32/-/issues/9
 if(DEFINED ENV{BLUEPAD32_ARDUINO})
-    list(APPEND srcs "arduino_main.cpp")
+    list(APPEND srcs "sketch.cpp")
     list(APPEND requires "bluepad32_arduino" "arduino")
 endif()
 
