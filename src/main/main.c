@@ -16,8 +16,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
+#include "sdkconfig.h"
+#ifndef CONFIG_BLUEPAD32_PLATFORM_ARDUINO
+
+// Not needed in Arduino platform since it has "autostart" code defined in
+// uni_platform_arduino.
+
 #include "uni_esp32.h"
 
 int app_main(void) {
     return uni_esp32_main();
 }
+
+#endif  //  CONFIG_BLUEPAD32_PLATFORM_ARDUINO
