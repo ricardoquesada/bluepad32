@@ -32,6 +32,7 @@ typedef enum {
     UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NORMAL,    // Basic mode
     UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_ENHANCED,  // Enhanced mode
     UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_MOUSE,     // Mouse mode
+    UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NEXT,      // Set the "next" gamepad mode in the list
     UNI_PLATFORM_UNIJOYSTICLE_CMD_GET_GAMEPAD_MODE,
 
     UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_C64_POT_MODE_3BUTTONS,  // Used for mouse, paddle & 3 buttons
@@ -43,12 +44,13 @@ typedef enum {
 
 // Different emulation modes
 typedef enum {
-    UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_NONE,             // None. Should not happen
-    UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_SINGLE_JOY,       // Basic mode
-    UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_JOY,    // Enhanced mode: Dual stick mode
-    UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_MOUSE,  // Gamepad behaves like mouse
-    UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COUNT,
-} uni_platform_unijoysticle_emulation_mode_t;
+    UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NONE,      // None. Should not happen
+    UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL,    // Regular mode, controls one joystick
+    UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_ENHANCED,  // Enhanced mode: Dual stick mode, controls two joysticks
+    UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_MOUSE,     // Gamepad behaves like mouse
+
+    UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_COUNT,
+} uni_platform_unijoysticle_gamepad_mode_t;
 
 enum {
     UNI_PLATFORM_UNIJOYSTICLE_JOY_UP,       // Pin 1
@@ -64,10 +66,10 @@ enum {
 
 // The platform "instance"
 typedef struct uni_platform_unijoysticle_instance_s {
-    uni_platform_unijoysticle_emulation_mode_t gamepad_mode;  // type of gamepad mode
-    uni_gamepad_seat_t seat;                                  // which "seat" (port) is being used
-    uni_gamepad_seat_t prev_seat;                             // which "seat" (port) was used before
-                                                              // switching emu mode
+    uni_platform_unijoysticle_gamepad_mode_t gamepad_mode;  // type of emulation mode
+    uni_gamepad_seat_t seat;                                // which "seat" (port) is being used
+    uni_gamepad_seat_t prev_seat;                           // which "seat" (port) was used before
+                                                            // switching emu mode
 } uni_platform_unijoysticle_instance_t;
 _Static_assert(sizeof(uni_platform_unijoysticle_instance_t) < HID_DEVICE_MAX_PLATFORM_DATA,
                "Unijoysticle intance too big");

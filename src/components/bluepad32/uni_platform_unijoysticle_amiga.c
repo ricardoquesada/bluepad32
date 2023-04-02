@@ -235,8 +235,7 @@ void uni_platform_unijoysticle_amiga_maybe_enable_mouse_timers(void) {
             uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
 
             // COMBO_JOY_MOUSE counts as real mouse.
-            if ((uni_hid_device_is_gamepad(d) &&
-                 ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_EMULATION_MODE_COMBO_JOY_MOUSE) ||
+            if ((uni_hid_device_is_gamepad(d) && ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_MOUSE) ||
                 uni_hid_device_is_mouse(d)) {
                 if (ins->seat == GAMEPAD_SEAT_A)
                     enable_timer_0 = true;
