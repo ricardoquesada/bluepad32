@@ -5,7 +5,7 @@ DS3 gamepad with ESP32.
 
 ```
 $ make sixaxispairer
-$ ./sixaxispairer XX:XX:XX:XX:XX:XX
+$ sudo ./sixaxispairer XX:XX:XX:XX:XX:XX
 ```
 
 [docs_pairer]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/docs/pair_ds3.md

@@ -1,4 +1,4 @@
-# How to pair a DUALSHOCK3 (sixaxis) gamepad with the ESP32
+# How to pair a DUALSHOCK3 (sixaxis) & Motion Controller with the ESP32
 
 The DUALSHOCK3 gamepad does not implement the entire Bluetooth stack. It requires "manual pairing" in order to work.
 
@@ -50,7 +50,7 @@ In this example, the ESP32 Address is "CC:50:E3:AF:E2:96".
 Plug in the DS3 gamepad to your PC. Should work on all Linux, Mac and Windows,
 although I only tested it on Linux.
 
-### Pair it
+### Pair DS3
 
 Install [HIDAPI][hidapi]. For Debian-based OSs, do:
 ```
@@ -69,10 +69,27 @@ For MacOS, Windows: I don't know, you are in your own.
 ```sh
 $ cd bluepad32/tools
 $ make sixaxispairer
-$ ./sixaxispairer XX:XX:XX:XX:XX:XX  # Following our example, it should be CC:50:E3:AF:E2:96
+$ sudo ./sixaxispairer XX:XX:XX:XX:XX:XX  # Following our example, it should be CC:50:E3:AF:E2:96
 ```
 
 [hidapi]: https://github.com/signal11/hidapi
+
+### Pair Motion Controller / Navigator
+
+Use [PS Move API][psmoveapi].
+E.g.:
+
+```sh
+# To list the connected devices to your Linux machine
+$ sudo psmove list
+```
+
+```sh
+# To list the connected devices to your Linux machine
+$ sudo psmove pair XX:XX:XX:XX:XX:XX  # Following our example, it should be CC:50:E3:AF:E2:96
+```
+
+[psmoveapi]: https://github.com/thp/psmoveapi
 
 ### Unplug DS3 from computer
 
