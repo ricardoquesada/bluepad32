@@ -4,9 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - ???
+## [v3.6.2] - 2023-04-02
 ### New
 - Add support for Sony Motion Controller
+- Unijoysticle: Gamepad button "Start" triggers "gamepad change mode".
+  It is useful to switch back an forth from "gamepad" to "mouse" mode without the need
+  to press the "black button" on the Unijoysticle.
+  On V2+ / A500 it cycles between: normal -> mouse -> enhanced modes
+  On V2 / C64 it cycles between: normal -> enhanced modes.
 
 ## [v3.6.1] - 2023-03-04
 ### New
