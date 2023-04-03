@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to press the "black button" on the Unijoysticle.
   On V2+ / A500 it cycles between: normal -> mouse -> enhanced modes
   On V2 / C64 it cycles between: normal -> enhanced modes.
+- tools/sixaxixpairer: Supports PS3 Nav controllers
+
+### Changed
+- Arduino: `app_main` is part of Bluepad32
+  This makes it easier to port Bluepad32 to Arduino IDE.
+  Arduino user: need to update the example code, otherwise two `app_main` functions
+  will get compiled and the linker wil complain about it.
 
 ## [v3.6.1] - 2023-03-04
 ### New

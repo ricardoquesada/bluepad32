@@ -21,6 +21,8 @@ Code contributors:
     - Added Wii Balance Board support for Wii driver
   - Kevin Brice:
     - Improved documentation
+  - rimim:
+    - Add support for PS3 Nav controllers in tools/sixaxispairer
 
 
 People who contributed with ideas and/or testing:
