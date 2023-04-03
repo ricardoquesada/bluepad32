@@ -79,6 +79,10 @@ See: [Supported gamepads][gamepads] and [supported mice][mice]
 [gamepads]: https://gitlab.com/ricardoquesada/bluepad32/blob/master/docs/supported_gamepads.md
 [mice]: https://gitlab.com/ricardoquesada/bluepad32/blob/master/docs/supported_mice.md
 
+## Pre-compiled binaries
+
+* https://gitlab.com/ricardoquesada/bluepad32/-/releases
+
 ## How to compile it
 
 1. Install ESP-IDF
