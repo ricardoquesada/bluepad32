@@ -10,8 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unijoysticle: Gamepad button "Start" triggers "gamepad change mode".
   It is useful to switch back an forth from "gamepad" to "mouse" mode without the need
   to press the "black button" on the Unijoysticle.
-  On V2+ / A500 it cycles between: normal -> mouse -> enhanced modes
-  On V2 / C64 it cycles between: normal -> enhanced modes.
+  - On V2+ / A500 it cycles between: `normal` -> `mouse` -> `enhanced` modes
+  - On V2 / C64 it cycles between: `normal` -> `enhanced` modes.
 - tools/sixaxixpairer: Supports PS3 Nav controllers
 
 ### Changed
