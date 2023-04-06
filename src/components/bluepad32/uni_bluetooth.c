@@ -270,7 +270,10 @@ static void on_l2cap_channel_opened(uint16_t channel, const uint8_t* packet, uin
             logi("Probably GAP-security-related issues. Set GAP security to 2\n");
         }
         logi("Removing key for device: %s.\n", bd_addr_to_str(address));
+#ifdef UNI_ENABLE_BREDR
+        // TODO: Move to uni_bt_bredr.c
         gap_drop_link_key_for_bd_addr(device->conn.btaddr);
+#endif  // UNI_ENABLE_BREDR
         uni_hid_device_disconnect(device);
         uni_hid_device_delete(device);
         /* 'device' is destroyed, don't use */
@@ -470,43 +473,13 @@ static void inquiry_remote_name_timeout_callback(btstack_timer_source_t* ts) {
 }
 
 static void bluetooth_del_keys(void) {
-    bd_addr_t addr;
-    link_key_t link_key;
-    link_key_type_t type;
-    btstack_link_key_iterator_t it;
-
-    int ok = gap_link_key_iterator_init(&it);
-    if (!ok) {
-        loge("Link key iterator not implemented\n");
-        return;
-    }
-
-    while (gap_link_key_iterator_get_next(&it, addr, link_key, &type)) {
-        logi("Deleting key: %s - type %u - key: ", bd_addr_to_str(addr), (int)type);
-        printf_hexdump(link_key, 16);
-        gap_drop_link_key_for_bd_addr(addr);
-    }
-    gap_link_key_iterator_done(&it);
+    uni_bt_bredr_delete_bonded_keys();
+    uni_bt_le_delete_bonded_keys();
 }
 
 static void bluetooth_list_keys(void) {
-    bd_addr_t addr;
-    link_key_t link_key;
-    link_key_type_t type;
-    btstack_link_key_iterator_t it;
-
-    int ok = gap_link_key_iterator_init(&it);
-    if (!ok) {
-        loge("Link key iterator not implemented\n");
-        return;
-    }
-
-    logi("Bluetooth keys:\n");
-    while (gap_link_key_iterator_get_next(&it, addr, link_key, &type)) {
-        logi("%s - type %u - key: ", bd_addr_to_str(addr), (int)type);
-        printf_hexdump(link_key, 16);
-    }
-    gap_link_key_iterator_done(&it);
+    uni_bt_bredr_list_bonded_keys();
+    uni_bt_le_list_bonded_keys();
 }
 
 static void enable_new_connections(bool enabled) {
@@ -647,6 +620,8 @@ void uni_bluetooth_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
                     break;
                 }
                 case HCI_EVENT_PIN_CODE_REQUEST: {
+#ifdef UNI_ENABLE_BREDR
+                    // TODO: Move to uni_bt_bredr.c
                     bool is_mouse = false;
 
                     logi("--> HCI_EVENT_PIN_CODE_REQUEST\n");
@@ -682,6 +657,7 @@ void uni_bluetooth_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
                         printf_hexdump(pin_code, sizeof(pin_code));
                         gap_pin_code_response_binary(event_addr, pin_code, sizeof(pin_code));
                     }
+#endif  // UNI_ENABLE_BREDR
                     break;
                 }
                 case HCI_EVENT_USER_CONFIRMATION_REQUEST:
@@ -822,6 +798,9 @@ void uni_bluetooth_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
 }
 
 void uni_bluetooth_process_fsm(uni_hid_device_t* d) {
+#ifdef UNI_ENABLE_BREDR
+    // TODO: Move to uni_bt_bredr.c
+
     // A device can be in the following states:
     // - discovered (which might or might not have a name)
     // - received incoming connection
@@ -947,4 +926,5 @@ void uni_bluetooth_process_fsm(uni_hid_device_t* d) {
             }
         }
     }
+#endif  // UNI_ENABLE_BREDR
 }

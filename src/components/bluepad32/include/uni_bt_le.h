@@ -41,6 +41,7 @@ void uni_bt_le_scan_stop(void);
 // Called from uni_hid_device_disconnect()
 void uni_bt_le_disconnect(uni_bt_conn_t* conn);
 
+void uni_bt_le_list_bonded_keys(void);
 void uni_bt_le_delete_bonded_keys(void);
 void uni_bt_le_setup(void);
 

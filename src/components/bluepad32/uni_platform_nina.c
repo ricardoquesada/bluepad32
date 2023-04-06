@@ -236,14 +236,14 @@ static int spi_transfer(uint8_t out[], uint8_t in[], size_t len) {
 
     spi_slave_transaction_t slv_trans = {.length = len * 8, .trans_len = 0, .tx_buffer = out, .rx_buffer = in};
 
-    esp_err_t ret = spi_slave_queue_trans(VSPI_HOST, &slv_trans, portMAX_DELAY);
+    esp_err_t ret = spi_slave_queue_trans(SPI3_HOST, &slv_trans, portMAX_DELAY);
     if (ret != ESP_OK)
         return -1;
 
     xSemaphoreTake(_ready_semaphore, portMAX_DELAY);
     gpio_set_level(GPIO_READY, 0);
 
-    ret = spi_slave_get_trans_result(VSPI_HOST, &slv_ret_trans, portMAX_DELAY);
+    ret = spi_slave_get_trans_result(SPI3_HOST, &slv_ret_trans, portMAX_DELAY);
     if (ret != ESP_OK)
         return -1;
 
@@ -903,7 +903,7 @@ static void spi_main_loop(void* arg) {
     gpio_set_pull_mode(GPIO_SCLK, GPIO_PULLDOWN_ONLY);
     gpio_set_pull_mode(GPIO_CS, GPIO_PULLUP_ONLY);
 
-    esp_err_t ret = spi_slave_initialize(VSPI_HOST, &buscfg, &slvcfg, DMA_CHANNEL);
+    esp_err_t ret = spi_slave_initialize(SPI3_HOST, &buscfg, &slvcfg, DMA_CHANNEL);
     assert(ret == ESP_OK);
 
     // Must be modulo 4 and word aligned.

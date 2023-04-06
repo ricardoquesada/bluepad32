@@ -19,6 +19,21 @@ limitations under the License.
 #ifndef UNI_CONFIG_H
 #define UNI_CONFIG_H
 
+#include "sdkconfig.h"
+
+#if defined(CONFIG_TARGET_LIBUSB)
+// Linux + libusb
+#define UNI_ENABLE_BREDR
+#define UNI_ENABLE_BLE
+#elif defined(CONFIG_IDF_TARGET_ESP32)
+// ESP32
+#define UNI_ENABLE_BREDR
+#define UNI_ENABLE_BLE
+#else
+// ESP32-S3
+#define UNI_ENABLE_BLE
+#endif
+
 // For more configurations, please look at the Kconfig file, or just do:
 // "idf.py menuconfig" -> "Component config" -> "Bluepad32"
 

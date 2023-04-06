@@ -756,6 +756,28 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
     hog_connect(addr, addr_type);
 }
 
+void uni_bt_le_list_bonded_keys(void) {
+    bd_addr_t entry_address;
+    int i;
+
+    if (!uni_bt_le_is_enabled())
+        return;
+
+    logi("Bluetooth LE keys:\n");
+
+    for (i = 0; i < le_device_db_max_count(); i++) {
+        int entry_address_type = (int)BD_ADDR_TYPE_UNKNOWN;
+        le_device_db_info(i, &entry_address_type, entry_address, NULL);
+
+        // skip unused entries
+        if (entry_address_type == (int)BD_ADDR_TYPE_UNKNOWN)
+            continue;
+
+        logi("%s - type %u\n", bd_addr_to_str(entry_address), (int)entry_address_type);
+    }
+    logi(".\n");
+}
+
 void uni_bt_le_delete_bonded_keys(void) {
     bd_addr_t entry_address;
     int i;

@@ -28,12 +28,14 @@ limitations under the License.
 #include "uni_bt_defines.h"
 #include "uni_bt_sdp.h"
 #include "uni_bt_setup.h"
+#include "uni_config.h"
 #include "uni_log.h"
 #include "uni_platform.h"
 
 static bool bt_bredr_enabled = true;
 
 void uni_bt_bredr_scan_start(void) {
+#ifdef UNI_ENABLE_BREDR
     uint8_t status;
 
     status =
@@ -41,18 +43,22 @@ void uni_bt_bredr_scan_start(void) {
                                    uni_bt_setup_get_gap_min_periodic_lenght());
     if (status)
         loge("Failed to start period inquiry, error=0x%02x\n", status);
+#endif  // UNI_ENABLE_BREDR
 }
 
 void uni_bt_bredr_scan_stop(void) {
+#ifdef UNI_ENABLE_BREDR
     uint8_t status;
 
     status = gap_inquiry_stop();
     if (status)
         loge("Error: cannot stop inquiry (0x%02x), please try again\n", status);
+#endif  // UNI_ENABLE_BREDR
 }
 
 // Called from uni_hid_device_disconnect()
 void uni_bt_bredr_disconnect(uni_bt_conn_t* conn) {
+#ifdef UNI_ENABLE_BREDR
     if (gap_get_connection_type(conn->handle) != GAP_CONNECTION_INVALID) {
         gap_disconnect(conn->handle);
         conn->handle = UNI_BT_CONN_HANDLE_INVALID;
@@ -70,9 +76,11 @@ void uni_bt_bredr_disconnect(uni_bt_conn_t* conn) {
             conn->interrupt_cid = 0;
         }
     }
+#endif  // UNI_ENABLE_BREDR
 }
 
 void uni_bt_bredr_delete_bonded_keys(void) {
+#ifdef UNI_ENABLE_BREDR
     bd_addr_t addr;
     link_key_t link_key;
     link_key_type_t type;
@@ -98,9 +106,33 @@ void uni_bt_bredr_delete_bonded_keys(void) {
 
     logi(".\n");
     gap_link_key_iterator_done(&it);
+#endif  // UNI_ENABLE_BREDR
+}
+
+void uni_bt_bredr_list_bonded_keys(void) {
+#ifdef UNI_ENABLE_BREDR
+    bd_addr_t addr;
+    link_key_t link_key;
+    link_key_type_t type;
+    btstack_link_key_iterator_t it;
+
+    int ok = gap_link_key_iterator_init(&it);
+    if (!ok) {
+        loge("Link key iterator not implemented\n");
+        return;
+    }
+
+    logi("Bluetooth BR/EDR keys:\n");
+    while (gap_link_key_iterator_get_next(&it, addr, link_key, &type)) {
+        logi("%s - type %u - key: ", bd_addr_to_str(addr), (int)type);
+        printf_hexdump(link_key, 16);
+    }
+    gap_link_key_iterator_done(&it);
+#endif  // UNI_ENABLE_BREDR
 }
 
 void uni_bt_bredr_setup(void) {
+#ifdef UNI_ENABLE_BREDR
     int security_level = uni_bt_setup_get_gap_security_level();
     gap_set_security_level(security_level);
 
@@ -127,6 +159,7 @@ void uni_bt_bredr_setup(void) {
 
     // btstack_stdin_setup(stdin_process);
     hci_set_master_slave_policy(HCI_ROLE_MASTER);
+#endif  // UNI_ENABLE_BREDR
 }
 
 void uni_bt_bredr_set_enabled(bool enabled) {
@@ -136,5 +169,9 @@ void uni_bt_bredr_set_enabled(bool enabled) {
 }
 
 bool uni_bt_bredr_is_enabled(void) {
+#ifdef UNI_ENABLE_BREDR
     return bt_bredr_enabled;
+#else
+    return false;
+#endif
 }

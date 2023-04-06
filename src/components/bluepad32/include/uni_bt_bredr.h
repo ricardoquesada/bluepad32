@@ -37,6 +37,7 @@ void uni_bt_bredr_scan_stop(void);
 // Called from uni_hid_device_disconnect()
 void uni_bt_bredr_disconnect(uni_bt_conn_t* conn);
 
+void uni_bt_bredr_list_bonded_keys(void);
 void uni_bt_bredr_delete_bonded_keys(void);
 void uni_bt_bredr_setup(void);
 
