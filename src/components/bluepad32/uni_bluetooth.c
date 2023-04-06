@@ -94,9 +94,11 @@ static void on_l2cap_data_packet(uint16_t channel, const uint8_t* packet, uint16
 static void on_gap_inquiry_result(uint16_t channel, const uint8_t* packet, uint16_t size);
 static void on_hci_connection_complete(uint16_t channel, const uint8_t* packet, uint16_t size);
 static void on_hci_connection_request(uint16_t channel, const uint8_t* packet, uint16_t size);
+#ifdef UNI_ENABLE_BREDR
 static void l2cap_create_control_connection(uni_hid_device_t* d);
 static void l2cap_create_interrupt_connection(uni_hid_device_t* d);
 static void inquiry_remote_name_timeout_callback(btstack_timer_source_t* ts);
+#endif  // UNI_ENABLE_BREDR
 static void start_scan(void);
 static void stop_scan(void);
 
@@ -333,6 +335,7 @@ static void on_l2cap_channel_closed(uint16_t channel, const uint8_t* packet, uin
 }
 
 static void on_l2cap_incoming_connection(uint16_t channel, const uint8_t* packet, uint16_t size) {
+#ifdef UNI_ENABLE_BREDR
     bd_addr_t event_addr;
     uni_hid_device_t* device;
     uint16_t local_cid, remote_cid;
@@ -397,6 +400,7 @@ static void on_l2cap_incoming_connection(uint16_t channel, const uint8_t* packet
         default:
             logi("Unknown PSM = 0x%02x\n", psm);
     }
+#endif  // UNI_ENABLE_BREDR
 }
 
 static void on_l2cap_data_packet(uint16_t channel, const uint8_t* packet, uint16_t size) {
@@ -441,6 +445,7 @@ static void on_l2cap_data_packet(uint16_t channel, const uint8_t* packet, uint16
     uni_hid_device_process_controller(d);
 }
 
+#ifdef UNI_ENABLE_BREDR
 static void l2cap_create_control_connection(uni_hid_device_t* d) {
     uint8_t status;
     status = l2cap_create_channel(uni_bluetooth_packet_handler, d->conn.btaddr, BLUETOOTH_PSM_HID_CONTROL,
@@ -471,6 +476,7 @@ static void inquiry_remote_name_timeout_callback(btstack_timer_source_t* ts) {
     uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED);
     uni_bluetooth_process_fsm(d);
 }
+#endif  // UNI_ENABLE_BREDR
 
 static void bluetooth_del_keys(void) {
     uni_bt_bredr_delete_bonded_keys();

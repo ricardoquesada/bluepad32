@@ -157,8 +157,16 @@ void uni_bt_bredr_setup(void) {
     // Allow sniff mode requests by HID device and support role switch
     gap_set_default_link_policy_settings(LM_LINK_POLICY_ENABLE_SNIFF_MODE | LM_LINK_POLICY_ENABLE_ROLE_SWITCH);
 
+    // Enable RSSI and EIR for gap_inquiry
+    // TODO: Do we need EIR, since the name will be requested if not provided?
+    hci_set_inquiry_mode(INQUIRY_MODE_RSSI_AND_EIR);
+
     // btstack_stdin_setup(stdin_process);
     hci_set_master_slave_policy(HCI_ROLE_MASTER);
+
+    logi("Gap security level: %d\n", security_level);
+    logi("Periodic Inquiry: max=%d, min=%d, len=%d\n", uni_bt_setup_get_gap_max_periodic_lenght(),
+         uni_bt_setup_get_gap_min_periodic_lenght(), uni_bt_setup_get_gap_inquiry_lenght());
 #endif  // UNI_ENABLE_BREDR
 }
 

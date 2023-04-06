@@ -221,10 +221,6 @@ int uni_bt_setup(void) {
     // Initialize L2CAP
     l2cap_init();
 
-    int security_level = gap_get_security_level();
-    logi("Gap security level: %d\n", security_level);
-    logi("Periodic Inquiry: max=%d, min=%d, len=%d\n", uni_bt_setup_get_gap_max_periodic_lenght(),
-         uni_bt_setup_get_gap_min_periodic_lenght(), uni_bt_setup_get_gap_inquiry_lenght());
     logi("Max connected gamepads: %d\n", CONFIG_BLUEPAD32_MAX_DEVICES);
 
     logi("BR/EDR support: %s\n", uni_bt_bredr_is_enabled() ? "enabled" : "disabled");
@@ -233,10 +229,6 @@ int uni_bt_setup(void) {
     // register for HCI events
     hci_event_callback_registration.callback = &uni_bluetooth_packet_handler;
     hci_add_event_handler(&hci_event_callback_registration);
-
-    // Enable RSSI and EIR for gap_inquiry
-    // TODO: Do we need EIR, since the name will be requested if not provided?
-    hci_set_inquiry_mode(INQUIRY_MODE_RSSI_AND_EIR);
 
     if (uni_bt_bredr_is_enabled())
         uni_bt_bredr_setup();
