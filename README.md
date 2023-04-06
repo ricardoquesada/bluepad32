@@ -4,7 +4,7 @@
 
 ![logo](https://lh3.googleusercontent.com/pw/ACtC-3dNNrE9YKWMQNBTVYl8gkX70jN2qLwSYMQFLR0IzzoRT9uTQ1a9n80O3tyNmF95MLxL9NPWlqm5ph7e9wTGZoHeQWPMsJWqs3qiHub1LcigLtlEX09V6f1DWwQlg52OkeumKDJTG_ext8EN_J6kn0kAqg=-no)
 
-A Bluetooth gamepad "host" for the ESP32.
+A Bluetooth gamepad "host" for the ESP32 / ESP32-S3 / ESP32-C3.
 
 Add Bluetooth gamepad support to your projects easily. Supported platforms:
 
@@ -25,9 +25,6 @@ Add Bluetooth gamepad support to your projects easily. Supported platforms:
   * [or on the Commodore Amiga][amiga]
   * [ULX3S][ulx3s], an FPGA console
 
-Note: Only the original **ESP32** and **ESP32-Pico** are supported, since they are the only ones
-in the ESP32 family to support Bluetooth BR/EDR.
-Newer models like ESP32-Sx, ESP32-Cx, ESP32-Hx are **NOT** supported since they don't support Bluetooth BR/EDR.
 
 [airlift_example]: https://gitlab.com/ricardoquesada/quico
 [airlift_video]: https://twitter.com/makermelissa/status/1482596378282913793
@@ -73,6 +70,8 @@ Newer models like ESP32-Sx, ESP32-Cx, ESP32-Hx are **NOT** supported since they 
 * iCade
 * Mouse
 * And more
+
+NOTE: Original **ESP32** supports all listed controllers. **ESP32-S3** and **ESP32-C3** support only a subset.
 
 See: [Supported gamepads][gamepads] and [supported mice][mice]
 

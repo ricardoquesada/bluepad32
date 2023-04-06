@@ -6,11 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ??
 ### New
-- Support ESP32-S3
-  Only BLE gamepads are supported, since BR/EDR is not supported on ESP32-S3.
-  The benefit of ESP32-S3 is that it has USB, so it is useful for projects that requires
-  only a limited support of gamepads and USB.
-  WIP
+- Support ESP32-S3 / ESP32-C3
+  Only BLE gamepads are supported, since BR/EDR is not supported on ESP32-S3 / ESP32-C3.
 
 ## [v3.6.2] - 2023-04-02
 ### New
