@@ -57,7 +57,6 @@ static setup_state_t setup_state = SETUP_STATE_BTSTACK_IN_PROGRESS;
 static btstack_packet_callback_registration_t hci_event_callback_registration;
 
 static void maybe_delete_or_list_link_keys(void) {
-
     uni_bt_bredr_delete_bonded_keys();
     uni_bt_le_delete_bonded_keys();
 }
@@ -219,7 +218,6 @@ int uni_bt_setup_get_gap_min_periodic_lenght(void) {
 }
 
 int uni_bt_setup(void) {
-
     // Initialize L2CAP
     l2cap_init();
 
