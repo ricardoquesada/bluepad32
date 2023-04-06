@@ -23,9 +23,10 @@ limitations under the License.
 #include <btstack.h>
 
 #include "sdkconfig.h"
-#include "uni_ble.h"
 #include "uni_bluetooth.h"
+#include "uni_bt_bredr.h"
 #include "uni_bt_defines.h"
+#include "uni_bt_le.h"
 #include "uni_bt_sdp.h"
 #include "uni_common.h"
 #include "uni_config.h"
@@ -56,33 +57,9 @@ static setup_state_t setup_state = SETUP_STATE_BTSTACK_IN_PROGRESS;
 static btstack_packet_callback_registration_t hci_event_callback_registration;
 
 static void maybe_delete_or_list_link_keys(void) {
-    bd_addr_t addr;
-    link_key_t link_key;
-    link_key_type_t type;
-    btstack_link_key_iterator_t it;
 
-    int32_t delete_keys = uni_get_platform()->get_property(UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS);
-    if (delete_keys != 1)
-        return;
-
-    // BR/EDR
-    int ok = gap_link_key_iterator_init(&it);
-    if (!ok) {
-        loge("Link key iterator not implemented\n");
-        return;
-    }
-
-    logi("Deleting stored BR/ERD link keys:\n");
-    while (gap_link_key_iterator_get_next(&it, addr, link_key, &type)) {
-        logi("%s - type %u, key: ", bd_addr_to_str(addr), (int)type);
-        printf_hexdump(link_key, 16);
-        gap_drop_link_key_for_bd_addr(addr);
-    }
-
-    logi(".\n");
-    gap_link_key_iterator_done(&it);
-
-    uni_ble_delete_bonded_keys();
+    uni_bt_bredr_delete_bonded_keys();
+    uni_bt_le_delete_bonded_keys();
 }
 
 static uint8_t setup_set_event_filter(void) {
@@ -124,12 +101,8 @@ static void setup_call_next_fn(void) {
         maybe_delete_or_list_link_keys();
 
         // Start inquiry now, once we know that HCI is running.
-        status =
-            gap_inquiry_periodic_start(UNI_BT_INQUIRY_LENGTH, UNI_BT_MAX_PERIODIC_LENGTH, UNI_BT_MIN_PERIODIC_LENGTH);
-        if (status)
-            loge("Failed to start period inquiry, error=0x%02x\n", status);
-
-        uni_ble_scan_start();
+        uni_bt_bredr_scan_start();
+        uni_bt_le_scan_start();
 
         uni_get_platform()->on_init_complete();
         uni_get_platform()->on_oob_event(UNI_PLATFORM_OOB_BLUETOOTH_ENABLED, (void*)true);
@@ -246,24 +219,9 @@ int uni_bt_setup_get_gap_min_periodic_lenght(void) {
 }
 
 int uni_bt_setup(void) {
-    int gap = uni_bt_setup_get_gap_security_level();
-    gap_set_security_level(gap);
-
-    gap_connectable_control(1);
-
-    // Enable once we add support for "BP32 BT Service"
-    gap_discoverable_control(0);
-
-    gap_set_page_scan_type(PAGE_SCAN_MODE_INTERLACED);
-    // gap_set_page_timeout(0x2000);
-    // gap_set_page_scan_activity(0x50, 0x12);
-    // gap_inquiry_set_scan_activity(0x50, 0x12);
 
     // Initialize L2CAP
     l2cap_init();
-
-    // Needed for some incoming connections
-    uni_bt_sdp_server_init();
 
     int security_level = gap_get_security_level();
     logi("Gap security level: %d\n", security_level);
@@ -271,13 +229,8 @@ int uni_bt_setup(void) {
          uni_bt_setup_get_gap_min_periodic_lenght(), uni_bt_setup_get_gap_inquiry_lenght());
     logi("Max connected gamepads: %d\n", CONFIG_BLUEPAD32_MAX_DEVICES);
 
-    logi("BR/EDR support: enabled\n");
-    logi("BLE support: %s\n", uni_ble_is_enabled() ? "enabled" : "disabled");
-
-    l2cap_register_service(uni_bluetooth_packet_handler, BLUETOOTH_PSM_HID_INTERRUPT, UNI_BT_L2CAP_CHANNEL_MTU,
-                           security_level);
-    l2cap_register_service(uni_bluetooth_packet_handler, BLUETOOTH_PSM_HID_CONTROL, UNI_BT_L2CAP_CHANNEL_MTU,
-                           security_level);
+    logi("BR/EDR support: %s\n", uni_bt_bredr_is_enabled() ? "enabled" : "disabled");
+    logi("BLE support: %s\n", uni_bt_le_is_enabled() ? "enabled" : "disabled");
 
     // register for HCI events
     hci_event_callback_registration.callback = &uni_bluetooth_packet_handler;
@@ -287,14 +240,11 @@ int uni_bt_setup(void) {
     // TODO: Do we need EIR, since the name will be requested if not provided?
     hci_set_inquiry_mode(INQUIRY_MODE_RSSI_AND_EIR);
 
-    // Allow sniff mode requests by HID device and support role switch
-    gap_set_default_link_policy_settings(LM_LINK_POLICY_ENABLE_SNIFF_MODE | LM_LINK_POLICY_ENABLE_ROLE_SWITCH);
+    if (uni_bt_bredr_is_enabled())
+        uni_bt_bredr_setup();
 
-    // btstack_stdin_setup(stdin_process);
-    hci_set_master_slave_policy(HCI_ROLE_MASTER);
-
-    if (uni_ble_is_enabled())
-        uni_ble_setup();
+    if (uni_bt_le_is_enabled())
+        uni_bt_le_setup();
 
     // Disable stdout buffering
     setbuf(stdout, NULL);

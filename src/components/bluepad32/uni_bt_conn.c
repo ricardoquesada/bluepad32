@@ -60,23 +60,5 @@ bool uni_bt_conn_is_connected(uni_bt_conn_t* conn) {
 }
 
 void uni_bt_conn_disconnect(uni_bt_conn_t* conn) {
-    if (gap_get_connection_type(conn->handle) != GAP_CONNECTION_INVALID) {
-        gap_disconnect(conn->handle);
-        conn->handle = UNI_BT_CONN_HANDLE_INVALID;
-    } else {
-        // After calling gap_disconnect() we should not call l2cap_disonnect(),
-        // since gap_disconnect() will take care of it.
-        // But if the handle is not present, then call it manually.
-        if (conn->control_cid) {
-            l2cap_disconnect(conn->control_cid);
-            conn->control_cid = 0;
-        }
-
-        if (conn->interrupt_cid) {
-            l2cap_disconnect(conn->interrupt_cid);
-            conn->interrupt_cid = 0;
-        }
-    }
-
     uni_bt_conn_set_connected(conn, false);
 }

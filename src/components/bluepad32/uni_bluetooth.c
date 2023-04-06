@@ -63,9 +63,10 @@
 #include <string.h>
 
 #include "sdkconfig.h"
-#include "uni_ble.h"
+#include "uni_bt_bredr.h"
 #include "uni_bt_conn.h"
 #include "uni_bt_defines.h"
+#include "uni_bt_le.h"
 #include "uni_bt_sdp.h"
 #include "uni_bt_setup.h"
 #include "uni_common.h"
@@ -96,8 +97,8 @@ static void on_hci_connection_request(uint16_t channel, const uint8_t* packet, u
 static void l2cap_create_control_connection(uni_hid_device_t* d);
 static void l2cap_create_interrupt_connection(uni_hid_device_t* d);
 static void inquiry_remote_name_timeout_callback(btstack_timer_source_t* ts);
-static uint8_t start_scan(void);
-static uint8_t stop_scan(void);
+static void start_scan(void);
+static void stop_scan(void);
 
 enum {
     CMD_BT_DEL_KEYS,
@@ -558,34 +559,18 @@ static void cmd_callback(void* context) {
     }
 }
 
-static uint8_t start_scan(void) {
-    uint8_t status;
+static void start_scan(void) {
     logd("--> Scanning for new gamepads...\n");
 
-    // BLE
-    uni_ble_scan_start();
-
-    // BR/EDR
-    status =
-        gap_inquiry_periodic_start(uni_bt_setup_get_gap_inquiry_lenght(), uni_bt_setup_get_gap_max_periodic_lenght(),
-                                   uni_bt_setup_get_gap_min_periodic_lenght());
-    if (status)
-        loge("Error: cannot start inquiry (0x%02x), please try again\n", status);
-    return status;
+    uni_bt_bredr_scan_start();
+    uni_bt_le_scan_start();
 }
 
-static uint8_t stop_scan(void) {
-    uint8_t status;
+static void stop_scan(void) {
     logi("--> Stop scanning for new gamepads\n");
 
-    // BLE
-    uni_ble_scan_stop();
-
-    // BR/EDR
-    status = gap_inquiry_stop();
-    if (status)
-        loge("Error: cannot stop inquiry (0x%02x), please try again\n", status);
-    return status;
+    uni_bt_bredr_scan_stop();
+    uni_bt_le_scan_stop();
 }
 
 //
@@ -641,10 +626,10 @@ void uni_bluetooth_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
             switch (event) {
                 // HCI EVENTS
                 case HCI_EVENT_LE_META:
-                    uni_ble_on_hci_event_le_meta(packet, size);
+                    uni_bt_le_on_hci_event_le_meta(packet, size);
                     break;
                 case HCI_EVENT_ENCRYPTION_CHANGE:
-                    uni_ble_on_hci_event_encryption_change(packet, size);
+                    uni_bt_le_on_hci_event_encryption_change(packet, size);
                     break;
                 case HCI_EVENT_COMMAND_COMPLETE: {
                     uint16_t opcode = hci_event_command_complete_get_command_opcode(packet);
@@ -817,7 +802,7 @@ void uni_bluetooth_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
                     // Just do nothing, don't call "start_scan" again.
                     break;
                 case GAP_EVENT_ADVERTISING_REPORT:
-                    uni_ble_on_gap_event_advertising_report(packet, size);
+                    uni_bt_le_on_gap_event_advertising_report(packet, size);
                     break;
                 // GATT EVENTS (BLE only)
                 case GATT_EVENT_LONG_CHARACTERISTIC_VALUE_QUERY_RESULT:

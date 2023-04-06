@@ -42,7 +42,7 @@
 
 /*
  * Execution order:
- *  uni_ble_on_gap_event_advertising_report()
+ *  uni_bt_le_on_gap_event_advertising_report()
  *      -> hog_connect()
  *  sm_packet_handler()
  *  device_information_packet_handler()
@@ -50,7 +50,7 @@
  *  uni_hid_device_set_ready()
  */
 
-#include "uni_ble.h"
+#include "uni_bt_le.h"
 
 #include <btstack.h>
 #include <btstack_config.h>
@@ -619,7 +619,7 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
     }
 }
 
-void uni_ble_on_hci_event_le_meta(const uint8_t* packet, uint16_t size) {
+void uni_bt_le_on_hci_event_le_meta(const uint8_t* packet, uint16_t size) {
     uni_hid_device_t* device;
     hci_con_handle_t con_handle;
     bd_addr_t event_addr;
@@ -634,7 +634,7 @@ void uni_ble_on_hci_event_le_meta(const uint8_t* packet, uint16_t size) {
             hci_subevent_le_connection_complete_get_peer_address(packet, event_addr);
             device = uni_hid_device_get_instance_for_address(event_addr);
             if (!device) {
-                loge("uni_ble_on_connection_complete: Device not found for addr: %s\n", bd_addr_to_str(event_addr));
+                loge("uni_bt_le_on_connection_complete: Device not found for addr: %s\n", bd_addr_to_str(event_addr));
                 break;
             }
             con_handle = hci_subevent_le_connection_complete_get_connection_handle(packet);
@@ -661,7 +661,7 @@ void uni_ble_on_hci_event_le_meta(const uint8_t* packet, uint16_t size) {
     }
 }
 
-void uni_ble_on_hci_event_encryption_change(const uint8_t* packet, uint16_t size) {
+void uni_bt_le_on_hci_event_encryption_change(const uint8_t* packet, uint16_t size) {
     uni_hid_device_t* device;
     hci_con_handle_t con_handle;
     uint8_t status;
@@ -676,7 +676,7 @@ void uni_ble_on_hci_event_encryption_change(const uint8_t* packet, uint16_t size
 
     device = uni_hid_device_get_instance_for_connection_handle(con_handle);
     if (!device) {
-        loge("uni_ble_on_encryption_change: Device not found for connection handle: 0x%04x\n", con_handle);
+        loge("uni_bt_le_on_encryption_change: Device not found for connection handle: 0x%04x\n", con_handle);
         return;
     }
     // This event is also triggered by Classic, and might crash the stack.
@@ -698,7 +698,7 @@ void uni_ble_on_hci_event_encryption_change(const uint8_t* packet, uint16_t size
     }
 }
 
-void uni_ble_on_gap_event_advertising_report(const uint8_t* packet, uint16_t size) {
+void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t size) {
     bd_addr_t addr;
     bd_addr_type_t addr_type;
     uint16_t appearance;
@@ -756,11 +756,11 @@ void uni_ble_on_gap_event_advertising_report(const uint8_t* packet, uint16_t siz
     hog_connect(addr, addr_type);
 }
 
-void uni_ble_delete_bonded_keys(void) {
+void uni_bt_le_delete_bonded_keys(void) {
     bd_addr_t entry_address;
     int i;
 
-    if (!uni_ble_is_enabled())
+    if (!uni_bt_le_is_enabled())
         return;
 
     logi("Deleting stored BLE link keys:\n");
@@ -779,7 +779,7 @@ void uni_ble_delete_bonded_keys(void) {
     logi(".\n");
 }
 
-void uni_ble_setup(void) {
+void uni_bt_le_setup(void) {
     // register for events from Security Manager
     sm_event_callback_registration.callback = &sm_packet_handler;
     sm_add_event_handler(&sm_event_callback_registration);
@@ -828,8 +828,8 @@ void uni_ble_setup(void) {
     gap_set_scan_parameters(0 /* type: passive */, 48 /* interval */, 48 /* window */);
 }
 
-void uni_ble_scan_start(void) {
-    if (!uni_ble_is_enabled())
+void uni_bt_le_scan_start(void) {
+    if (!uni_bt_le_is_enabled())
         return;
 
     gap_start_scan();
@@ -837,8 +837,8 @@ void uni_ble_scan_start(void) {
     is_scanning = true;
 }
 
-void uni_ble_scan_stop(void) {
-    if (!uni_ble_is_enabled())
+void uni_bt_le_scan_stop(void) {
+    if (!uni_bt_le_is_enabled())
         return;
 
     gap_stop_scan();
@@ -846,11 +846,13 @@ void uni_ble_scan_stop(void) {
     is_scanning = false;
 }
 
-void uni_ble_disconnect(hci_con_handle_t conn_handle) {
-    hog_disconnect(conn_handle);
+void uni_bt_le_disconnect(uni_bt_conn_t* conn) {
+    if (gap_get_connection_type(conn->handle) == GAP_CONNECTION_INVALID)
+        return;
+    hog_disconnect(conn->handle);
 }
 
-void uni_ble_set_enabled(bool enabled) {
+void uni_bt_le_set_enabled(bool enabled) {
     // Called from different Task. Don't call btstack functions.
     uni_property_value_t val;
 
@@ -859,7 +861,7 @@ void uni_ble_set_enabled(bool enabled) {
     uni_property_set(UNI_PROPERTY_KEY_BLE_ENABLED, UNI_PROPERTY_TYPE_U8, val);
 }
 
-bool uni_ble_is_enabled() {
+bool uni_bt_le_is_enabled() {
     uni_property_value_t val;
     uni_property_value_t def;
 

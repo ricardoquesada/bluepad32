@@ -29,8 +29,8 @@ limitations under the License.
 #include <nvs_flash.h>
 
 #include "sdkconfig.h"
-#include "uni_ble.h"
 #include "uni_bluetooth.h"
+#include "uni_bt_le.h"
 #include "uni_bt_setup.h"
 #include "uni_common.h"
 #include "uni_gpio.h"
@@ -193,7 +193,7 @@ static int set_ble_enabled(int argc, char** argv) {
     }
 
     enabled = set_ble_enabled_args.enabled->ival[0];
-    uni_ble_set_enabled(!!enabled);
+    uni_bt_le_set_enabled(!!enabled);
     logi("Done. Restart required. Type 'restart' + Enter\n");
     return 0;
 }

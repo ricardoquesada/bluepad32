@@ -16,8 +16,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
-#ifndef UNI_BLE_H
-#define UNI_BLE_H
+#ifndef UNI_BT_BREDR_H
+#define UNI_BT_BREDR_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -29,24 +29,22 @@ extern "C" {
 #include <btstack.h>
 #include <btstack_config.h>
 
-void uni_ble_on_hci_event_le_meta(const uint8_t* packet, uint16_t size);
-void uni_ble_on_hci_event_encryption_change(const uint8_t* packet, uint16_t size);
-void uni_ble_on_gap_event_advertising_report(const uint8_t* packet, uint16_t size);
+#include "uni_bt_conn.h"
 
-void uni_ble_scan_start(void);
-void uni_ble_scan_stop(void);
+void uni_bt_bredr_scan_start(void);
+void uni_bt_bredr_scan_stop(void);
 
 // Called from uni_hid_device_disconnect()
-void uni_ble_disconnect(hci_con_handle_t conn_handle);
+void uni_bt_bredr_disconnect(uni_bt_conn_t* conn);
 
-void uni_ble_delete_bonded_keys(void);
-void uni_ble_setup(void);
+void uni_bt_bredr_delete_bonded_keys(void);
+void uni_bt_bredr_setup(void);
 
-void uni_ble_set_enabled(bool enabled);
-bool uni_ble_is_enabled(void);
+void uni_bt_bredr_set_enabled(bool enabled);
+bool uni_bt_bredr_is_enabled(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // UNI_BLE_H
+#endif  // UNI_BT_BREDR_H

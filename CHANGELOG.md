@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - ??
+### New
+- Support ESP32-S3
+  Only BLE gamepads are supported, since BR/EDR is not supported on ESP32-S3.
+  The benefit of ESP32-S3 is that it has USB, so it is useful for projects that requires
+  only a limited support of gamepads and USB.
+  WIP
+
 ## [v3.6.2] - 2023-04-02
 ### New
 - Add support for Sony Motion Controller
