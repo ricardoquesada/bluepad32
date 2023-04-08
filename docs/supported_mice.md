@@ -2,10 +2,9 @@
 
 Remember:
 * Mouse support is a **BETA feature**. Expect bugs.
-* BLE Mouse support is **EXPERIMENTAL feature**. And is disabled by default.
 * Most importantly, [file a bug when you find a bug][file_bug].
 
-So far, this is the list of recommended mouse to try:
+The list of **tested** mice is this one:
 
 [file_bug]: https://gitlab.com/ricardoquesada/bluepad32/-/issues
 
@@ -166,22 +165,13 @@ Regarding non-BLE mice, some might work, some might not. See:
 
 Summary:
 
-|           | Should work                                                |
-| --------- | -------------------------------------------------------------- |
-| Bluetooth | BLE **only** (AKA "LE", "Low Energy",  "BT 5.0")               |
-| Search for | "BLE mouse"                                                   |
-|            | Bluetooth mice since late 2010's                              |
+| Protocol   | Status      | Description                                 | Search for  |  Date  |
+| ---------- | ------------|-------------------------------------------- | ----------- | ------ |
+| BLE        | Should work | BLE **only**, AKA "Low Energy",  "BT 5.0"   | "BLE mouse" | > 2010 |
+| BR/EDR     | Should work | BR/EDR **only**, AKA "Classic", "BT 3.0"    | "Mouse Bluetooth Windows XP" | < 2010 |
+| Dual Mode  | Might work[*]  | Supports both BLE and BR/EDR             | "Tri-Mode BT 3.0, BT 5.0, 2.4Gz"  | > 2010 |
 
-|            | Should work                                           |
-| ---------- | ----------------------------------------------------- |
-| Bluetooth  | BR/EDR (AKA "Classic", "BT 3.0", or "BT 2.0)          |
-| Search for | "Mouse Bluetooth 3.0" or "Mouse Bluetooth Windows XP" |
-|            | Bluetooth mice from early 2010's                      |
-
-|           | Might work                                                  |
-| --------- | ----------------------------------------------------------- |
-| Bluetooth | "Tri-Mode BT 3.0, BT 5.0, 2.4Gz"                            |
-| Bug       | See [Issue#18][gitlab_issue_18], [Issue BK3632][bk3632_bug] |
+*: See [Issue#18][gitlab_issue_18], [Issue BK3632][bk3632_bug]
 
 
 [bk3632_bug]: https://github.com/espressif/arduino-esp32/issues/6193
