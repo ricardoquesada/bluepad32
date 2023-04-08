@@ -37,7 +37,8 @@ WIP
                              │
               ┌──────────────▼──────────────┐
               │                             │
-              │    ESP32 Microcontroller    │                      Hardware
+              │ ESP32 / ESP32-S3 / ESP32-C3 |
+              |       Microcontroller       │                      Hardware
               │                             │
               └─────────────────────────────┘
 ```
