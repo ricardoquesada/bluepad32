@@ -4,9 +4,8 @@ Adding a new platform is easy:
 
 1. Create your `src/components/bluepad32/uni_platform_yourplatform.c` file
 2. Update `src/components/bluepad32/Kconfig` file
-3. Add your `src/configs/yourplatform-config.mk` makefile config file
-4. Update`src/components/bluepad32/uni_platform.c` file
-5. Add documentation in `docs/plat_yourplatform.md`
+3. Update`src/components/bluepad32/uni_platform.c` file
+4. Add documentation in `docs/plat_yourplatform.md`
 
 ## 1. Platform file
 
@@ -70,31 +69,12 @@ And then select `Component config` -> `Bluepad32` -> `Target platform`
 [kconfig_doc]: https://www.kernel.org/doc/html/latest/kbuild/kconfig-language.html
 
 
-## 3. Add a makefile config file
-
-NOTE: Makefile support is deprecated. It will be removed once Bluepad32 migrates to ESP-IDF 5.0.
-
-Again, use existing code as example:
-
-* [nina-config.mk]
-
-The most important thing here is to have a "define" for your platform. E.g:
-
-```
-CFLAGS += -DCONFIG_BLUEPAD32_PLATFORM_YOURPLATFORM
-```
-
-[nina-config.mk]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/src/configs/nina-config.mk
-
-## 4. Edit uni_platform.c
+## 3. Edit uni_platform.c
 
 Finally in [uni_platform.c] add support for your platform. E.g:
 
 ```c
 void uni_platform_init(int argc, const char** argv) {
-    // Each vendor must create its own. These CONFIG_BLUEPAD32_PLATFORM_ defines
-    // are defined in the Makefile and Kconfig files.
-
 #ifdef CONFIG_BLUEPAD32_PLATFORM_UNIJOYSTICLE
     _platform = uni_platform_unijoysticle_create();
 #elif defined(CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG)

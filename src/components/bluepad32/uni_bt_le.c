@@ -99,7 +99,6 @@ static void hog_disconnect(hci_con_handle_t con_handle) {
     // MUST not call uni_hid_device_disconnect(), called from it.
     uni_hid_device_t* device;
 
-    loge("**** hog_disconnect()\n");
     if (gap_get_connection_type(con_handle) != GAP_CONNECTION_INVALID)
         gap_disconnect(con_handle);
     device = uni_hid_device_get_instance_for_connection_handle(con_handle);

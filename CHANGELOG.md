@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `uni_bt_setup_get/set_properties` functions renamed to `uni_bt_get/set_properties`
 - Moved all the BR/EDR logic from `uni_bluetooth.c` to `uni_bt_bredr`
 - BR/EDR code is only compiled in ESP32, and not in ESP32-S3/C3 since it is not supported.
+- `Makefile` files removed. It has been deprecated for a while.
+  To compile Bluepad32 use `idf.py build` instead.
 
 ## [v3.6.2] - 2023-04-02
 ### New
