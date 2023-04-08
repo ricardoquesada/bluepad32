@@ -28,7 +28,7 @@ Non-comprehensive list of supported Bluetooth gamepads their protocols:
 | Nintendo Wii Remote     |    Y   |     |
 | Nintendo Balance Board  |    Y   |     |
 | Xbox Wireless           |    Y*  |  Y* |
-| Stadia                  |        |  Y  |
+| Stadia                  |        | Y** |
 | Android                 |    Y   |     |
 | 8BitDo                  |    Y   |     |
 | iCade                   |    Y   |     |
@@ -36,6 +36,8 @@ Non-comprehensive list of supported Bluetooth gamepads their protocols:
 | OUYA 1st gen            |    Y   |     |
 
 *: Xbox Controller Firmware v3.x and v4.x use BR/EDR. Firmware v5.x and later use BLE.
+
+**: Requires [Stadia Bluetooth firmware update][stadia_instructions]
 
 # Supported gamepads
 
