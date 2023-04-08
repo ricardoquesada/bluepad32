@@ -36,6 +36,10 @@ limitations under the License.
 #include "uni_joystick.h"
 #include "uni_log.h"
 
+#ifndef CONFIG_IDF_TARGET_ESP32
+#error "This file can only be compiled for ESP32"
+#endif  // CONFIG_IDF_TARGET_ESP32
+
 /** \def MMBOARD_REV_B
  *
  * Define this when targeting the Amiga Version of the Unijoysticle (Rev B),

@@ -55,6 +55,10 @@ limitations under the License.
 #include "uni_platform.h"
 #include "uni_version.h"
 
+#ifndef CONFIG_IDF_TARGET_ESP32
+#error "This file can only be compiled for ESP32"
+#endif  // CONFIG_IDF_TARGET_ESP32
+
 // SPI et al pins
 // NINA / AirLift don't use the pre-designated IO_MUX pins for VSPI.
 // Instead it uses the GPIO matrix, that might not be suitable for fast SPI

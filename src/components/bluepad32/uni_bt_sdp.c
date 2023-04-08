@@ -56,6 +56,11 @@
 #include "uni_config.h"
 #include "uni_log.h"
 
+// These are the only two supported platforms with BR/ERD support.
+#if !(defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_TARGET_LIBUSB))
+#error "This file can only be compiled for ESP32 or LibUSB"
+#endif
+
 #define MAX_ATTRIBUTE_VALUE_SIZE 512  // Apparently PS4 has a 470-bytes report
 
 // Some old devices like "ThinkGeek 8-bitty Game Controller" takes a lot of time to respond
@@ -68,8 +73,6 @@ static const unsigned int sdp_attribute_value_buffer_size = MAX_ATTRIBUTE_VALUE_
 static uni_hid_device_t* sdp_device = NULL;
 static btstack_timer_source_t sdp_query_timer;
 
-static void handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
-static void handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
 static void sdp_query_timeout(btstack_timer_source_t* ts);
 
 // SDP Server
@@ -77,7 +80,6 @@ static uint8_t device_id_sdp_service_buffer[100];
 
 // HID results: HID descriptor, PSM interrupt, PSM control, etc.
 static void handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
-#ifdef UNI_ENABLE_BREDR
     ARG_UNUSED(packet_type);
     ARG_UNUSED(channel);
     ARG_UNUSED(size);
@@ -134,12 +136,10 @@ static void handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel, u
         default:
             break;
     }
-#endif  // UNI_ENABLE_BREDR
 }
 
 // Device ID results: Vendor ID, Product ID, Version, etc...
 static void handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
-#ifdef UNI_ENABLE_BREDR
     ARG_UNUSED(packet_type);
     ARG_UNUSED(channel);
     ARG_UNUSED(size);
@@ -193,11 +193,9 @@ static void handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, u
             logd("TODO: handle_sdp_pid_query_result. switch->default triggered\n");
             break;
     }
-#endif  // UNI_ENABLE_BREDR
 }
 
 static void sdp_query_timeout(btstack_timer_source_t* ts) {
-#ifdef UNI_ENABLE_BREDR
     loge("<------- sdp_query_timeout()\n");
     uni_hid_device_t* d = btstack_run_loop_get_timer_context(ts);
     if (!sdp_device) {
@@ -212,13 +210,11 @@ static void sdp_query_timeout(btstack_timer_source_t* ts) {
 
     logi("Failed to query SDP for %s, timeout\n", bd_addr_to_str(d->conn.btaddr));
     sdp_device = NULL;
-#endif  // UNI_ENABLE_BREDR
 }
 
 // Public functions
 
 void uni_bt_sdp_query_start(uni_hid_device_t* d) {
-#ifdef UNI_ENABLE_BREDR
     loge("-----------> sdp_query_start()\n");
     // Needed for the SDP query since it only supports one SDP query at the time.
     if (sdp_device != NULL) {
@@ -236,21 +232,17 @@ void uni_bt_sdp_query_start(uni_hid_device_t* d) {
     btstack_run_loop_add_timer(&sdp_query_timer);
 
     uni_bt_sdp_query_start_vid_pid(d);
-#endif  // UNI_ENABLE_BREDR
 }
 
 void uni_bt_sdp_query_end(uni_hid_device_t* d) {
-#ifdef UNI_ENABLE_BREDR
     loge("<----------- sdp_query_end()\n");
     uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_FETCHED);
     sdp_device = NULL;
     btstack_run_loop_remove_timer(&sdp_query_timer);
     uni_bluetooth_process_fsm(d);
-#endif  // UNI_ENABLE_BREDR
 }
 
 void uni_bt_sdp_query_start_vid_pid(uni_hid_device_t* d) {
-#ifdef UNI_ENABLE_BREDR
     logi("Starting SDP VID/PID query for %s\n", bd_addr_to_str(d->conn.btaddr));
 
     uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_SDP_VENDOR_REQUESTED);
@@ -263,11 +255,9 @@ void uni_bt_sdp_query_start_vid_pid(uni_hid_device_t* d) {
         /* 'd' is destroyed after this call, don't use it */
         return;
     }
-#endif  // UNI_ENABLE_BREDR
 }
 
 void uni_bt_sdp_query_start_hid_descriptor(uni_hid_device_t* d) {
-#ifdef UNI_ENABLE_BREDR
     if (!uni_hid_device_does_require_hid_descriptor(d)) {
         logi("Device %s does not need a HID descriptor, skipping query.\n", bd_addr_to_str(d->conn.btaddr));
         uni_bt_sdp_query_end(d);
@@ -292,11 +282,9 @@ void uni_bt_sdp_query_start_hid_descriptor(uni_hid_device_t* d) {
         uni_hid_device_delete(d);
         /* 'd'' is destroyed after this call, don't use it */
     }
-#endif  // UNI_ENABLE_BREDR
 }
 
 void uni_bt_sdp_server_init() {
-#ifdef UNI_ENABLE_BREDR
     // Only initialize the SDP record. Just needed for DualShock/DualSense to have
     // a successful reconnect.
     sdp_init();
@@ -305,5 +293,4 @@ void uni_bt_sdp_server_init() {
                                 BLUETOOTH_COMPANY_ID_BLUEKITCHEN_GMBH, 1, 1);
     logi("Device ID SDP service record size: %u\n", de_get_len((uint8_t*)device_id_sdp_service_buffer));
     sdp_register_service(device_id_sdp_service_buffer);
-#endif  // UNI_ENABLE_BREDR
 }

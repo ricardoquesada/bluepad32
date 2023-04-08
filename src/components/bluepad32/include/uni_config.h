@@ -23,15 +23,15 @@ limitations under the License.
 
 #if defined(CONFIG_TARGET_LIBUSB)
 // Linux + libusb
-#define UNI_ENABLE_BREDR
-#define UNI_ENABLE_BLE
+#define UNI_ENABLE_BREDR 1
+#define UNI_ENABLE_BLE 1
 #elif defined(CONFIG_IDF_TARGET_ESP32)
 // ESP32
-#define UNI_ENABLE_BREDR
-#define UNI_ENABLE_BLE
+#define UNI_ENABLE_BREDR 1
+#define UNI_ENABLE_BLE 1
 #else
 // ESP32-S3
-#define UNI_ENABLE_BLE
+#define UNI_ENABLE_BLE 1
 #endif
 
 // For more configurations, please look at the Kconfig file, or just do:

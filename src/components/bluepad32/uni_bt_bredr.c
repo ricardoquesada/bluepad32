@@ -28,11 +28,12 @@ limitations under the License.
 #include "uni_bt_defines.h"
 #include "uni_bt_sdp.h"
 #include "uni_bt_setup.h"
+#include "uni_common.h"
 #include "uni_config.h"
 #include "uni_log.h"
 #include "uni_platform.h"
 
-static bool bt_bredr_enabled = true;
+IF_ENABLED(UNI_ENABLE_BREDR, (static bool bt_bredr_enabled = true;))
 
 void uni_bt_bredr_scan_start(void) {
 #ifdef UNI_ENABLE_BREDR
@@ -171,9 +172,9 @@ void uni_bt_bredr_setup(void) {
 }
 
 void uni_bt_bredr_set_enabled(bool enabled) {
-    if (enabled == bt_bredr_enabled)
-        return;
+#ifdef UNI_ENABLE_BREDR
     bt_bredr_enabled = enabled;
+#endif  // UNI_ENABLE_BREDR
 }
 
 bool uni_bt_bredr_is_enabled(void) {
@@ -181,5 +182,5 @@ bool uni_bt_bredr_is_enabled(void) {
     return bt_bredr_enabled;
 #else
     return false;
-#endif
+#endif  // UNI_ENABLE_BREDR
 }

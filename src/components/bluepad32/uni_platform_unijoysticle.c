@@ -55,6 +55,10 @@ limitations under the License.
 #include "uni_property.h"
 #include "uni_version.h"
 
+#ifndef CONFIG_IDF_TARGET_ESP32
+#error "This file can only be compiled for ESP32"
+#endif  // CONFIG_IDF_TARGET_ESP32
+
 // --- Defines / Enums
 
 // To be used with Unijoysticle devices that only connect to one port.

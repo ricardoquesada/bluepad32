@@ -230,10 +230,10 @@ int uni_bt_setup(void) {
     hci_event_callback_registration.callback = &uni_bluetooth_packet_handler;
     hci_add_event_handler(&hci_event_callback_registration);
 
-    if (uni_bt_bredr_is_enabled())
+    if (IS_ENABLED(UNI_ENABLE_BREDR) && uni_bt_bredr_is_enabled())
         uni_bt_bredr_setup();
 
-    if (uni_bt_le_is_enabled())
+    if (IS_ENABLED(UNI_ENABLE_BLE) && uni_bt_le_is_enabled())
         uni_bt_le_setup();
 
     // Disable stdout buffering
