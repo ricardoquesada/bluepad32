@@ -1,41 +1,41 @@
-# Supported controllers
+# Supported gamepads
 
 ![Supported gamepads][Supported gamepads]
 
 [Supported gamepads]:https://lh3.googleusercontent.com/pw/AMWts8BB7wT51jpn3HxWHuZLiEM2lX05gmTDsnldHszkXuYqxbowNvtxPtpbHh3CNjv1OBzeyadZjNLNBgE4w2tl2WmP8M9gGBCfWhzmZGQnHBlERSoy5W2dj6-EYmT84yteKTFjp4Jz2H3DgByFiKXaxfFC2g=-no
 
-## BLE vs BR/EDR
 
-Most controllers, as of 2023, use BR/EDR protocol. And BR/EDR is only supported on ESP32, and **NOT** in ESP32-S3 / ESP32-C3.
+## Bluetooth gamepads and their protocol
 
-| Chip     | BLE | BR/EDR |
-| -------- | --- | ------ |
-| ESP32    |  Y  |    Y   |
-| ESP32-S3 |  Y  |    N   |
-| ESP32-C3 |  Y  |    N   |
+Most gamepads, as of 2023, use BR/EDR (AKA Bluetooth Classic). Worth noting is that BR/EDR is only supported on ESP32, and **NOT** in ESP32-S3 / ESP32-C3.
 
-To see which protocol is used by which controller, see the list down below.
+| Chip     | BR/EDR | BLE |
+| -------- | ------ | --- |
+| ESP32    |    Y   |  Y  |
+| ESP32-S3 |        |  Y  |
+| ESP32-C3 |        |  Y  |
 
-## Bluetooth controllers
+Non-comprehensive list of supported Bluetooth gamepads their protocols:
 
-List of supported Bluetooth controllers
+| Gamepad                 | BR/EDR | BLE |
+| ----------------------- | ------ | --- |
+| DualSense (PS5)         |    Y   |     |
+| DUALSHOCK 4 (PS4)       |    Y   |     |
+| DUALSHOCK 3 (PS3)       |    Y   |     |
+| Nintendo Switch Pro     |    Y   |     |
+| Nintendo Switch JoyCons |    Y   |     |
+| Nintendo Wii U Pro      |    Y   |     |
+| Nintendo Wii Remote     |    Y   |     |
+| Nintendo Balance Board  |    Y   |     |
+| Xbox Wireless           |    Y*  |  Y* |
+| Stadia                  |        |  Y  |
+| Android                 |    Y   |     |
+| 8BitDo                  |    Y   |     |
+| iCade                   |    Y   |     |
+| Nimbus                  |    Y   |     |
+| OUYA 1st gen            |    Y   |     |
 
-- DualSense (PS5)
-- DUALSHOCK 4 (PS4) controller, both 2013 and 2016 editions
-- DUALSHOCK 3 (PS3) controller
-- Nintendo Switch Pro controller
-- Nintendo Switch JoyCons
-- Nintendo Wii U Pro controller
-- Nintendo Wii Remote and Remote Motion Plus, including Nunchuk and Classic Controller
-- Xbox Wireless controllers: model 1708 and 1914
-- 8BitDo controllers
-- Android controllers
-- iCade controllers
-- Nimbus SteelSeries
-- OUYA controllers
-- Some TV remote controls, like the Amazon Fire TV
-
-If you have a Bluetooth gamepad and is not on that list, please file a bug.
+*: Xbox Controller Firmware v3.x and v4.x use BR/EDR. Firmware v5.x and later use BLE.
 
 # Supported gamepads
 
