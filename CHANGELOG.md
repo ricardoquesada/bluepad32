@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support ESP32-S3 / ESP32-C3
   Only BLE gamepads are supported, since BR/EDR is not supported on ESP32-S3 / ESP32-C3.
 
+### Changed
+- `uni_bluetooth_` functions renamed to `uni_bt_`
+- `uni_bluetooth.[ch]` files renamed to `uni_bt.[ch]`
+- `uni_bt_setup_get/set_properties` functions renamed to `uni_bt_get/set_properties`
+- Moved all the BR/EDR logic from `uni_bluetooth.c` to `uni_bt_bredr`
+- BR/EDR code is only compiled in ESP32, and not in ESP32-S3/C3 since it is not supported.
+
 ## [v3.6.2] - 2023-04-02
 ### New
 - Add support for Sony Motion Controller

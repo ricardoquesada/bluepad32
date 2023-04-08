@@ -27,7 +27,7 @@ limitations under the License.
 #include <nvs_flash.h>
 
 #include "sdkconfig.h"
-#include "uni_bluetooth.h"
+#include "uni_bt.h"
 #include "uni_common.h"
 #include "uni_config.h"
 #include "uni_gamepad.h"
@@ -2135,7 +2135,7 @@ static void loopCore1(void* arg) {
                 gpio_set_level(PIN_LED_P1, 1);
                 clearConfigurations();
                 saveConfigurations();
-                uni_bluetooth_del_keys_safe();  // Also delete BT keys
+                uni_bt_del_keys_safe();  // Also delete BT keys
                 while (gpio_get_level(GPIO_PUSH_BUTTON) == 0) {
                     vTaskDelay(10);
                 }

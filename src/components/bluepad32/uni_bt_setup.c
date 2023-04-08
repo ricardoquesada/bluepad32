@@ -23,7 +23,7 @@ limitations under the License.
 #include <btstack.h>
 
 #include "sdkconfig.h"
-#include "uni_bluetooth.h"
+#include "uni_bt.h"
 #include "uni_bt_bredr.h"
 #include "uni_bt_defines.h"
 #include "uni_bt_le.h"
@@ -57,8 +57,10 @@ static setup_state_t setup_state = SETUP_STATE_BTSTACK_IN_PROGRESS;
 static btstack_packet_callback_registration_t hci_event_callback_registration;
 
 static void maybe_delete_or_list_link_keys(void) {
-    uni_bt_bredr_delete_bonded_keys();
-    uni_bt_le_delete_bonded_keys();
+    if (IS_ENABLED(UNI_ENABLE_BREDR))
+        uni_bt_bredr_delete_bonded_keys();
+    if (IS_ENABLED(UNI_ENABLE_BLE))
+        uni_bt_le_delete_bonded_keys();
 }
 
 static uint8_t setup_set_event_filter(void) {
@@ -100,8 +102,10 @@ static void setup_call_next_fn(void) {
         maybe_delete_or_list_link_keys();
 
         // Start inquiry now, once we know that HCI is running.
-        uni_bt_bredr_scan_start();
-        uni_bt_le_scan_start();
+        if (IS_ENABLED(UNI_ENABLE_BREDR))
+            uni_bt_bredr_scan_start();
+        if (IS_ENABLED(UNI_ENABLE_BLE))
+            uni_bt_le_scan_start();
 
         uni_get_platform()->on_init_complete();
         uni_get_platform()->on_oob_event(UNI_PLATFORM_OOB_BLUETOOTH_ENABLED, (void*)true);
@@ -146,94 +150,31 @@ bool uni_bt_setup_is_ready() {
     return setup_state == SETUP_STATE_READY;
 }
 
-// Properties
-void uni_bt_setup_set_gap_security_level(int gap) {
-    uni_property_value_t val;
-
-    val.u32 = gap;
-    uni_property_set(UNI_PROPERTY_KEY_GAP_LEVEL, UNI_PROPERTY_TYPE_U32, val);
-}
-
-int uni_bt_setup_get_gap_security_level() {
-    uni_property_value_t val;
-    uni_property_value_t def;
-
-    // It seems that with gap_security_level(0) all gamepads work except Nintendo Switch Pro controller.
-#if CONFIG_BLUEPAD32_GAP_SECURITY
-    def.u32 = 2;
-#else
-    def.u32 = 0;
-#endif  // CONFIG_BLUEPAD32_GAP_SECURITY
-
-    val = uni_property_get(UNI_PROPERTY_KEY_GAP_LEVEL, UNI_PROPERTY_TYPE_U32, def);
-    return val.u32;
-}
-
-void uni_bt_setup_set_gap_inquiry_length(int len) {
-    uni_property_value_t val;
-
-    val.u8 = len;
-    uni_property_set(UNI_PROPERTY_KEY_GAP_INQ_LEN, UNI_PROPERTY_TYPE_U8, val);
-}
-
-int uni_bt_setup_get_gap_inquiry_lenght(void) {
-    uni_property_value_t val;
-    uni_property_value_t def;
-
-    def.u8 = UNI_BT_INQUIRY_LENGTH;
-    val = uni_property_get(UNI_PROPERTY_KEY_GAP_INQ_LEN, UNI_PROPERTY_TYPE_U8, def);
-    return val.u8;
-}
-
-void uni_bt_setup_set_gap_max_peridic_length(int len) {
-    uni_property_value_t val;
-
-    val.u8 = len;
-    uni_property_set(UNI_PROPERTY_KEY_GAP_MAX_PERIODIC_LEN, UNI_PROPERTY_TYPE_U8, val);
-}
-
-int uni_bt_setup_get_gap_max_periodic_lenght(void) {
-    uni_property_value_t val;
-    uni_property_value_t def;
-
-    def.u8 = UNI_BT_MAX_PERIODIC_LENGTH;
-    val = uni_property_get(UNI_PROPERTY_KEY_GAP_MAX_PERIODIC_LEN, UNI_PROPERTY_TYPE_U8, def);
-    return val.u8;
-}
-
-void uni_bt_setup_set_gap_min_peridic_length(int len) {
-    uni_property_value_t val;
-
-    val.u8 = len;
-    uni_property_set(UNI_PROPERTY_KEY_GAP_MIN_PERIODIC_LEN, UNI_PROPERTY_TYPE_U8, val);
-}
-
-int uni_bt_setup_get_gap_min_periodic_lenght(void) {
-    uni_property_value_t val;
-    uni_property_value_t def;
-
-    def.u8 = UNI_BT_MIN_PERIODIC_LENGTH;
-    val = uni_property_get(UNI_PROPERTY_KEY_GAP_MIN_PERIODIC_LEN, UNI_PROPERTY_TYPE_U8, def);
-    return val.u8;
-}
-
 int uni_bt_setup(void) {
+    bool bredr_enabled = false;
+    bool ble_enabled = false;
+
     // Initialize L2CAP
     l2cap_init();
 
+    if (IS_ENABLED(UNI_ENABLE_BREDR))
+        bredr_enabled = uni_bt_bredr_is_enabled();
+    if (IS_ENABLED(UNI_ENABLE_BLE))
+        ble_enabled = uni_bt_le_is_enabled();
+
     logi("Max connected gamepads: %d\n", CONFIG_BLUEPAD32_MAX_DEVICES);
 
-    logi("BR/EDR support: %s\n", uni_bt_bredr_is_enabled() ? "enabled" : "disabled");
-    logi("BLE support: %s\n", uni_bt_le_is_enabled() ? "enabled" : "disabled");
+    logi("BR/EDR support: %s\n", bredr_enabled ? "enabled" : "disabled");
+    logi("BLE support: %s\n", ble_enabled ? "enabled" : "disabled");
 
     // register for HCI events
-    hci_event_callback_registration.callback = &uni_bluetooth_packet_handler;
+    hci_event_callback_registration.callback = &uni_bt_packet_handler;
     hci_add_event_handler(&hci_event_callback_registration);
 
-    if (IS_ENABLED(UNI_ENABLE_BREDR) && uni_bt_bredr_is_enabled())
+    if (IS_ENABLED(UNI_ENABLE_BREDR) && bredr_enabled)
         uni_bt_bredr_setup();
 
-    if (IS_ENABLED(UNI_ENABLE_BLE) && uni_bt_le_is_enabled())
+    if (IS_ENABLED(UNI_ENABLE_BLE) && ble_enabled)
         uni_bt_le_setup();
 
     // Disable stdout buffering

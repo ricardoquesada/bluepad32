@@ -29,9 +29,8 @@ limitations under the License.
 #include <nvs_flash.h>
 
 #include "sdkconfig.h"
-#include "uni_bluetooth.h"
+#include "uni_bt.h"
 #include "uni_bt_le.h"
-#include "uni_bt_setup.h"
 #include "uni_common.h"
 #include "uni_gpio.h"
 #include "uni_hid_device.h"
@@ -82,7 +81,7 @@ static struct {
 
 static int list_devices(int argc, char** argv) {
     // FIXME: Should not belong to "bluetooth"
-    uni_bluetooth_dump_devices_safe();
+    uni_bt_dump_devices_safe();
 
     // This function prints to console. print bp32> after a delay
     TickType_t ticks = pdMS_TO_TICKS(250);
@@ -125,7 +124,7 @@ static int set_gap_security_level(int argc, char** argv) {
     }
 
     gap = set_gap_security_level_args.value->ival[0];
-    uni_bt_setup_set_gap_security_level(gap);
+    uni_bt_set_gap_security_level(gap);
     logi("Done. Restart required. Type 'restart' + Enter\n");
     return 0;
 }
@@ -134,7 +133,7 @@ static int get_gap_security_level(int argc, char** argv) {
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
 
-    int gap = uni_bt_setup_get_gap_security_level();
+    int gap = uni_bt_get_gap_security_level();
     logi("%d\n", gap);
     return 0;
 }
@@ -151,9 +150,9 @@ static int set_gap_periodic_inquiry(int argc, char** argv) {
     max = set_gap_periodic_inquiry_args.max->ival[0];
     min = set_gap_periodic_inquiry_args.min->ival[0];
     len = set_gap_periodic_inquiry_args.len->ival[0];
-    uni_bt_setup_set_gap_max_peridic_length(max);
-    uni_bt_setup_set_gap_min_peridic_length(min);
-    uni_bt_setup_set_gap_inquiry_length(len);
+    uni_bt_set_gap_max_peridic_length(max);
+    uni_bt_set_gap_min_peridic_length(min);
+    uni_bt_set_gap_inquiry_length(len);
     logi("Done. Restart required. Type 'restart' + Enter\n");
     return 0;
 }
@@ -162,9 +161,9 @@ static int get_gap_periodic_inquiry(int argc, char** argv) {
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
 
-    int max = uni_bt_setup_get_gap_max_periodic_lenght();
-    int min = uni_bt_setup_get_gap_min_periodic_lenght();
-    int len = uni_bt_setup_get_gap_inquiry_lenght();
+    int max = uni_bt_get_gap_max_periodic_lenght();
+    int min = uni_bt_get_gap_min_periodic_lenght();
+    int len = uni_bt_get_gap_inquiry_lenght();
     logi("GAP max periodic len: %d, min periodic len: %d, inquiry len: %d\n", max, min, len);
     return 0;
 }
@@ -179,7 +178,7 @@ static int set_incoming_connections_enabled(int argc, char** argv) {
     }
 
     enabled = set_incoming_connections_enabled_args.enabled->ival[0];
-    uni_bluetooth_enable_new_connections_safe(!!enabled);
+    uni_bt_enable_new_connections_safe(!!enabled);
     return 0;
 }
 
@@ -202,7 +201,7 @@ static int list_bluetooth_keys(int argc, char** argv) {
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
 
-    uni_bluetooth_list_keys_safe();
+    uni_bt_list_keys_safe();
 
     // This function prints to console. print bp32> after a delay
     TickType_t ticks = pdMS_TO_TICKS(250);
@@ -214,7 +213,7 @@ static int del_bluetooth_keys(int argc, char** argv) {
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
 
-    uni_bluetooth_del_keys_safe();
+    uni_bt_del_keys_safe();
     // This function prints to console. print bp32> after a delay
     TickType_t ticks = pdMS_TO_TICKS(250);
     vTaskDelay(ticks);
@@ -233,7 +232,7 @@ static int disconnect_device(int argc, char** argv) {
     if (idx < 0 || idx >= CONFIG_BLUEPAD32_MAX_DEVICES)
         return 1;
 
-    uni_bluetooth_disconnect_device_safe(idx);
+    uni_bt_disconnect_device_safe(idx);
     return 0;
 }
 

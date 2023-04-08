@@ -32,7 +32,7 @@ limitations under the License.
 #include <freertos/semphr.h>
 
 #include "cmd_system.h"
-#include "uni_bluetooth.h"
+#include "uni_bt.h"
 #include "uni_common.h"
 #include "uni_config.h"
 #include "uni_esp32.h"
@@ -345,7 +345,7 @@ int arduino_set_rumble(int idx, uint8_t force, uint8_t duration) {
 }
 
 int arduino_forget_bluetooth_keys(void) {
-    uni_bluetooth_del_keys_safe();
+    uni_bt_del_keys_safe();
     return UNI_ARDUINO_OK;
 }
 

@@ -23,7 +23,7 @@ limitations under the License.
 #include <stdio.h>
 #include <string.h>
 
-#include "uni_bluetooth.h"
+#include "uni_bt.h"
 #include "uni_gamepad.h"
 #include "uni_hid_device.h"
 #include "uni_log.h"
@@ -136,12 +136,12 @@ static void pc_debug_on_controller_data(uni_hid_device_t* d, uni_controller_t* c
             // Toggle Bluetooth connections
             if ((gp->buttons & BUTTON_SHOULDER_L) && enabled) {
                 logi("*** Disabling Bluetooth connections\n");
-                uni_bluetooth_enable_new_connections_safe(false);
+                uni_bt_enable_new_connections_safe(false);
                 enabled = false;
             }
             if ((gp->buttons & BUTTON_SHOULDER_R) && !enabled) {
                 logi("*** Enabling Bluetooth connections\n");
-                uni_bluetooth_enable_new_connections_safe(true);
+                uni_bt_enable_new_connections_safe(true);
                 enabled = true;
             }
             break;
