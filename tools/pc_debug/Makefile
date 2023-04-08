@@ -71,7 +71,7 @@ clean:
 
 bluepad32: ${CORE_OBJ} ${COMMON_OBJ} ${CLASSIC_OBJ} ${SDP_CLIENT} btstack_ring_buffer.o btstack_hid_parser.o \
 	${BLUEPAD32_ROOT}/uni_balance_board.o \
-	${BLUEPAD32_ROOT}/uni_bluetooth.o \
+	${BLUEPAD32_ROOT}/uni_bt.o \
 	${BLUEPAD32_ROOT}/uni_bt_bredr.o \
 	${BLUEPAD32_ROOT}/uni_bt_conn.o \
 	${BLUEPAD32_ROOT}/uni_bt_le.o \
