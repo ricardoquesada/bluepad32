@@ -80,6 +80,7 @@ void uni_bt_bredr_scan_start(void) {
                                         uni_bt_get_gap_min_periodic_lenght());
     if (status)
         loge("Failed to start period inquiry, error=0x%02x\n", status);
+    logi("BR/EDR scan -> 1\n");
 }
 
 void uni_bt_bredr_scan_stop(void) {
@@ -88,6 +89,8 @@ void uni_bt_bredr_scan_stop(void) {
     status = gap_inquiry_stop();
     if (status)
         loge("Error: cannot stop inquiry (0x%02x), please try again\n", status);
+
+    logi("BR/EDR scan -> 0\n");
 }
 
 // Called from uni_hid_device_disconnect()
@@ -116,10 +119,6 @@ void uni_bt_bredr_delete_bonded_keys(void) {
     link_key_t link_key;
     link_key_type_t type;
     btstack_link_key_iterator_t it;
-
-    int32_t delete_keys = uni_get_platform()->get_property(UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS);
-    if (delete_keys != 1)
-        return;
 
     // BR/EDR
     int ok = gap_link_key_iterator_init(&it);

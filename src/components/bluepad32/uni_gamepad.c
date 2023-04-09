@@ -59,6 +59,7 @@ static struct {
     {CONTROLLER_TYPE_GenericController, "Generic"},
     {CONTROLLER_TYPE_NimbusController, "Nimbus"},
     {CONTROLLER_TYPE_OUYAController, "OUYA"},
+    {CONTROLLER_TYPE_PSMoveController, "PS Move"},
 
     {CONTROLLER_TYPE_GenericKeyboard, "Keyboard"},
     {CONTROLLER_TYPE_GenericMouse, "Mouse"},
