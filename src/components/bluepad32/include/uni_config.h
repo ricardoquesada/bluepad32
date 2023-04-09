@@ -29,9 +29,11 @@ limitations under the License.
 // ESP32
 #define UNI_ENABLE_BREDR 1
 #define UNI_ENABLE_BLE 1
-#else
-// ESP32-S3
+#elif defined(CONFIG_IDF_TARGET_ESP32S3) || defined(CONFIG_IDF_TARGET_ESP32C3)
+// ESP32-S3 / C3
 #define UNI_ENABLE_BLE 1
+#else
+#error "Unsupported target platform"
 #endif
 
 // For more configurations, please look at the Kconfig file, or just do:
