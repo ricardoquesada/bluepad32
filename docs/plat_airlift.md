@@ -11,6 +11,7 @@ AirLift modules are present in some [Adafruit][adafruit] boards, like in:
 * [PyPortal][pyportal]
 * [PyBadge][pybadge]
 * [Metro M4 Express AirLift][metro-m4-airlift]
+* [Metro M7 1011 with Airlift][metro-m7-airlift]
 
 Or it can be a standalone board:
 
@@ -45,6 +46,7 @@ Bluepad32 firmware is "compatible-enough" with the original firmware:
 [esp32]: https://www.espressif.com/en/products/socs/esp32
 [matrixportal-m4]: https://www.adafruit.com/product/4745
 [metro-m4-airlift]: https://www.adafruit.com/product/4000
+[metro-m7-airlift]: https://www.adafruit.com/product/4950
 [nina-fw]: https://github.com/adafruit/nina-fw
 [pybadge]: https://www.adafruit.com/product/4200
 [pyportal]: https://www.adafruit.com/product/4116

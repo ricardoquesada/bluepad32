@@ -4,10 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - ??
+## [v3.7.0-rc0] - 2023-04-12
 ### New
 - Support ESP32-S3 / ESP32-C3
   Only BLE gamepads are supported, since BR/EDR is not supported on ESP32-S3 / ESP32-C3.
+- Initial Support for Arduino IDE + ESP32
 
 ### Changed
 - `uni_bluetooth_` functions renamed to `uni_bt_`

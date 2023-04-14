@@ -85,7 +85,7 @@ The list of **tested** mice is this one:
 * Purchase link [Grooves.land][logilink_link]
 
 [logilink_link]: https://www.grooves.land/blogilink-accessories-optische-bluetooth-maus-1000-1600-dpi-pZZa1-2098391786.html
-[logilink_photo]: https://lh3.googleusercontent.com/pw/AM-JKLWiL-biLoRAn40D4_XOOJnwJdyYjk5-TgBIHVn7DWGGp-uY2KMspBD41Okz5T6Au9-QycuR6mmjWY0CoI45xLXA5eiSI4tvDOz_f9M8GlEMGXHiIvQWq0ioBE9Ouop8wIScLxwaY2nS7LN_sFuAEcTBrg=-no
+[logilink_photo]: https://lh3.googleusercontent.com/pw/AJFCJaW-sFOfTdNk6JyGPOR-fwydcrECGIZKywa_MrcoBhE5HAk_EdNi-ijvEWUIkITSpIykDcK1njcimrBZNaevBBeK4sApCZ9wx6MQuXHShS0BoHUV71mIiwm6aqC72V808LzLSeiZU22RqiJeAw5EIlmlGw=-no
 
 ## Bornd C170B
 

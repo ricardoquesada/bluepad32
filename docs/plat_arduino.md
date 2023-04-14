@@ -2,8 +2,8 @@
 
 ## Supported boards
 
-It works on **any ESP32 module** where the [Arduino Core for ESP32][arduino-core] runs.
-In other words, if you already have Arduino working on ESP32 module, you can have Bluepad32 running on it as well.
+It works on **any ESP32 / ESP32-S3 / ESP32-C3 module** where the [Arduino Core for ESP32][arduino-core] runs.
+In other words, if you already have Arduino working on a ESP32 / ESP32-S3 / ESP32-C3 module, you can have Bluepad32 running on it as well.
 
 But there is catch:
 
@@ -19,16 +19,39 @@ Are you still interested ? Good, then you must follow these instructions:
 
 There are three ways to setup a Bluepad32 Arduino project:
 
-* Option A: Clone the template repo
-  * Recommended!
-* Option B: Starting a project from scratch
-  * Useful to fine-tune your project
-* Option C: Create a "Arduino Core for ESP32 + Bluepad32" library
-  * Not ready... in fact, not even started. It will take time to have it ready.
+* Option A: Use Arduino IDE
+  * Recommended for Arduino IDE users.
+* Option B: Use ESP-IDF + template project
+  * Recommended advanced users.
+  * Fine-tune your project
+  * Includes advanced features
+* Option C: Starting a project from scratch
+  * Not recommended for users. Only if you want to create your own "template" project from scratch.
 
-## Option A: Clone the template project
+## Option A: Create an "Arduino Core for ESP32 + Bluepad32" library
 
-This is the **RECOMMENDED OPTION**.
+**RECOMMENDED OPTION for Arduino users**.
+
+Add official ESP32 package:
+```
+https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+```
+
+Add "Bluepad32 + ESP32" package:
+
+```
+https://gitlab.com/ricardoquesada/esp32-arduino-lib-builder/-/raw/master/bluepad32_files/package_esp32_bluepad32_index.json
+```
+
+This option should allow you to use Arduino IDE.
+
+In the meantime read: [ESP-IDF Library Builder][lib-builder]
+
+[lib-builder]: https://docs.espressif.com/projects/arduino-esp32/en/latest/lib_builder.html
+
+## Option B: Use ESP-IDF + template project
+
+**RECOMMENDED OPTION for Advanced users**.
 
 ```sh
 git clone --recursive https://gitlab.com/ricardoquesada/esp-idf-arduino-bluepad32-template.git my_project
@@ -46,7 +69,14 @@ idf.py build
 idf.py flash monitor
 ```
 
-## Option B: Create your a project from scratch
+To fine-tune it do:
+
+```sh
+# Add / edit / remove components with:
+idf.py menuconfig
+```
+
+## Option C: Create your a project from scratch
 
 Use this option if you want to understand how the "template" project (from Option A) was
 created.
@@ -158,13 +188,3 @@ Further reading:
 * [Arduino as a ESP-IDF component][esp-idf-component]
 
 [esp-idf-component]: https://docs.espressif.com/projects/arduino-esp32/en/latest/esp-idf_component.html
-
-## Option C: Create an "Arduino Core for ESP32 + Bluepad32" library
-
-TODO.
-
-This option should allow you to use Arduino IDE.
-
-In the meantime read: [ESP-IDF Library Builder][lib-builder]
-
-[lib-builder]: https://docs.espressif.com/projects/arduino-esp32/en/latest/lib_builder.html
