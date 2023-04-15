@@ -4,11 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v3.7.0-rc0] - 2023-04-12
+## [v3.7.0-rc.0] - 2023-04-15
 ### New
 - Support ESP32-S3 / ESP32-C3
   Only BLE gamepads are supported, since BR/EDR is not supported on ESP32-S3 / ESP32-C3.
-- Initial Support for Arduino IDE + ESP32
+  Notice that ESP32-S3 has two cores, like ESP32. Bluetooth stack runs on one core,
+  and Arduino Sketch runs on on the other core.
+  But ESP32-C3 only has one core. Meaning that both Bluetooth and Arduino Sketch share the same
+  core. It works perfectly well for basic applications. But ESP32 or ESP32-S3 is a better option
+  for advanced application.s
+- Initial Support for Arduino IDE + ESP32.
+  See [plat_arduino.md] for details.
+  This means that you can use ESP32 / ESP32-S3 / ESP32-C3 with Bluepad32 from  Arduino IDE.
+
+[plat_arduino.md]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/main/docs/plat_arduino.md
 
 ### Changed
 - `uni_bluetooth_` functions renamed to `uni_bt_`
