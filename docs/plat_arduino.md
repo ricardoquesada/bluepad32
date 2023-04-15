@@ -32,22 +32,58 @@ There are three ways to setup a Bluepad32 Arduino project:
 
 **RECOMMENDED OPTION for Arduino users**.
 
-Add official ESP32 package:
-```
-https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
-```
+These 4 steps are needed:
 
-Add "Bluepad32 + ESP32" package:
+1. Add ESP32 and Bluepad32 board packages to Board Manager
+2. Install ESP32 and Bluepad32 files
+3. Select a "ESP32 + Bluepad32" board
+4. Open the "Bluepad32" example
 
-```
-https://gitlab.com/ricardoquesada/esp32-arduino-lib-builder/-/raw/master/bluepad32_files/package_esp32_bluepad32_index.json
-```
+### 1. Add ESP32 and Bluepad32 board packages to Board Manager
 
-This option should allow you to use Arduino IDE.
+These two boards must be added to Arduino IDE.
 
-In the meantime read: [ESP-IDF Library Builder][lib-builder]
+![arduino-board-manager][arduino-board-manager]
 
-[lib-builder]: https://docs.espressif.com/projects/arduino-esp32/en/latest/lib_builder.html
+* Official ESP32 package: `https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json`
+* "Bluepad32 + ESP32" package: `https://raw.githubusercontent.com/ricardoquesada/esp32-arduino-lib-builder/master/bluepad32_files/package_esp32_bluepad32_index.json`
+
+
+If don't know how to add a board, then read [Add or Remove 3rd party boards in Board Manager][arduino_3rd_party_board]
+
+### 2. Install ESP32 and Bluepad32 files
+
+After adding both the ESP32 & Bluepad32 boards:
+* go to: `Tools` -> `Board` -> `Board Manager`
+* Install `ESP32` board package
+* And install the `ESP32 + Bluepad32` board package
+
+![arduino-bluepad32-install][arduino-bluepad32-install]
+
+### 3. Select a "ESP32 + Bluepad32" board
+
+Then choose any of the "ESP32 + Bluepad32" boards:
+
+* `Tools` -> `Board` -> `ESP32 + Bluepad32 Arduino` -> The board you are using
+
+![arduino-select-board][arduino-select-board]
+
+### 4. Open the "Bluepad32" example
+
+![arduino-bluepad32-example][arduino-bluepad32-example]
+
+Finally open the Bluepad32 example:
+
+* `File` -> `Examples` -> `Bluepad32` -> `Controller`
+
+And compile & flash!
+
+[arduino_3rd_party_board]: https://support.arduino.cc/hc/en-us/articles/360016466340-Add-or-remove-third-party-boards-in-Boards-Manager
+[arduino-board-manager]: https://lh3.googleusercontent.com/pw/AJFCJaVTKWM_lvVeTuaFcSk5Q6IfGZKFf6uKJnW7k_uOFVxC9SWAU5Ga_InmS8GgvKxQ5oh6w4jEz99lwPbyadId0pXBBw9RfBS9hmbTZ7kYVn_8Dmz3ybY6d-IvRbqeWsFkhB8oF8j0mo8OUOQTl54_zFY3Yw=-no
+[arduino-bluepad32-install]: https://lh3.googleusercontent.com/pw/AJFCJaU35fPG9uzppEqonktTXlxJDXgf_33aeNmV_6XnYARTAlhH6PojpEJnK-XuZ-tLJEggPZxblmSL8qtogD59AVNnuUZI5-1kRzuqqHKTUf43eWw_HKUWjf5MlqPfjC_6464hUdW5i-C9mfi1dUDQwRwrbA=-no
+[arduino-select-board]: https://lh3.googleusercontent.com/pw/AJFCJaVF6jr8D5R6ntl9TSX8nCoHJP96YHCfBpVhLtqBvYOunQietvKm8_tkAwNyF_gd32WoSvoK4gb0LMz3F__xl2JEwZUVksDq-RjI8fO4X4jwnc3O814Ztk0ZQ6di4sWVHnrFicOQBcJp1CaAydUImFZgvw=-no
+[arduino-bluepad32-example]: https://lh3.googleusercontent.com/pw/AJFCJaVsD3DDTUNMGQ-5CJPjNS69COPXEIfGU9wfp3NNSQELTbcOQo0Ezyv5OdTw8oMDrEvZc3pn6QwuArzwvVNUfSv_rNwijV02VUS6oVBnHn3vLhnOTIB65JTqv0t2dYcMupMmVRKsLmV39CcvI_WWoSTs6Q=-no
+
 
 ## Option B: Use ESP-IDF + template project
 
