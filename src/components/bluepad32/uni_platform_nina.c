@@ -543,6 +543,20 @@ static int request_get_conn_status(const uint8_t command[], uint8_t response[]) 
     return 5;
 }
 
+// Command 0x22
+static int request_get_mac_address(const uint8_t command[], uint8_t response[]) {
+    bd_addr_t bt_addr;
+
+    uni_bt_get_local_bd_addr_safe(bt_addr);
+
+    response[2] = 1;                // Number of parameters
+    response[3] = BD_ADDR_LEN;      // Parameter 1 length
+
+    memcpy(&response[4], bt_addr, BD_ADDR_LEN);
+
+    return 4 + BD_ADDR_LEN;
+}
+
 // Command 0x37
 static int request_get_fw_version(const uint8_t command[], uint8_t response[]) {
     response[2] = 1;                         // Number of parameters
@@ -717,7 +731,7 @@ const command_handler_t command_handlers[] = {
     // 0x20 -> 0x2f
     request_get_conn_status,  // getConnStatus (0x20)
     NULL,                     // getIPaddr,
-    NULL,                     // getMACaddr,
+    request_get_mac_address,  // getMACaddr,
     NULL,                     // getCurrSSID,
     NULL,                     // getCurrBSSID,
     NULL,                     // getCurrRSSI,

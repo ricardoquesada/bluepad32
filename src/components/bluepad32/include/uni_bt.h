@@ -25,7 +25,12 @@ extern "C" {
 
 #include <stdbool.h>
 
+#include <btstack.h>
+
 #include "uni_hid_device.h"
+
+// Private, don'tuse
+extern bd_addr_t uni_local_bd_addr;
 
 int uni_bt_init(void);
 
@@ -44,6 +49,9 @@ void uni_bt_dump_devices_safe(void);
 void uni_bt_enable_new_connections_safe(bool enabled);
 // Disconnects a device
 void uni_bt_disconnect_device_safe(int device_idx);
+
+// Get local BD address
+void uni_bt_get_local_bd_addr_safe(bd_addr_t addr);
 
 // Private functions.
 void uni_bt_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);

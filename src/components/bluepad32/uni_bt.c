@@ -81,6 +81,8 @@
 #include "uni_property.h"
 
 // globals
+bd_addr_t uni_local_bd_addr;
+
 // Used to implement connection timeout and reconnect timer
 static btstack_context_callback_registration_t cmd_callback_registration;
 
@@ -435,4 +437,8 @@ int uni_bt_get_gap_min_periodic_lenght(void) {
     def.u8 = UNI_BT_MIN_PERIODIC_LENGTH;
     val = uni_property_get(UNI_PROPERTY_KEY_GAP_MIN_PERIODIC_LEN, UNI_PROPERTY_TYPE_U8, def);
     return val.u8;
+}
+
+void uni_bt_get_local_bd_addr_safe(bd_addr_t addr) {
+    memcpy(addr, uni_local_bd_addr, BD_ADDR_LEN);
 }

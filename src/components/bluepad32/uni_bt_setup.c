@@ -78,7 +78,6 @@ static uint8_t setup_write_simple_pairing_mode(void) {
 }
 
 static void setup_call_next_fn(void) {
-    bd_addr_t event_addr;
     uint8_t status;
 
     if (!hci_can_send_command_packet_now()) {
@@ -101,8 +100,8 @@ static void setup_call_next_fn(void) {
         // If finished with the "setup" commands, just finish the setup
         // by printing some debug version.
 
-        gap_local_bd_addr(event_addr);
-        logi("BTstack up and running on %s.\n", bd_addr_to_str(event_addr));
+        gap_local_bd_addr(uni_local_bd_addr);
+        logi("BTstack up and running on %s.\n", bd_addr_to_str(uni_local_bd_addr));
         maybe_delete_or_list_link_keys();
 
         // Start inquiry now, once we know that HCI is running.
