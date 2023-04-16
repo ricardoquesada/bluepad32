@@ -549,8 +549,8 @@ static int request_get_mac_address(const uint8_t command[], uint8_t response[]) 
 
     uni_bt_get_local_bd_addr_safe(bt_addr);
 
-    response[2] = 1;                // Number of parameters
-    response[3] = BD_ADDR_LEN;      // Parameter 1 length
+    response[2] = 1;            // Number of parameters
+    response[3] = BD_ADDR_LEN;  // Parameter 1 length
 
     memcpy(&response[4], bt_addr, BD_ADDR_LEN);
 
