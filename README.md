@@ -9,8 +9,7 @@ A Bluetooth gamepad "host" for the ESP32 / ESP32-S3 / ESP32-C3.
 Add Bluetooth gamepad support to your projects easily. Supported platforms:
 
 * Arduino + ESP32 boards:
-  * [Documentation][plat_arduino]
-  * [Template project][esp-idf-bluepad32-arduino] (🠐 START HERE)
+  * [Documentation][plat_arduino] (🠐 START HERE, MUST READ)
   * From the community: [Lego Robot][esp32_example] ([video][esp32_video]), [gbaHD Shield][esp32_example2] (a GameBoy consolizer)
 * Arduino + boards with the NINA coprocessor:
   * [Documentation][plat_nina]
