@@ -74,4 +74,10 @@ void Bluepad32::setup(const GamepadCallback& onConnect, const GamepadCallback& o
     _onDisconnect = onDisconnect;
 }
 
+const uint8_t* Bluepad32::localBdAddress() {
+    static bd_addr_t addr;
+    uni_bt_get_local_bd_addr_safe(addr);
+    return addr;
+}
+
 Bluepad32 BP32;

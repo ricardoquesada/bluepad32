@@ -100,8 +100,11 @@ static void setup_call_next_fn(void) {
         // If finished with the "setup" commands, just finish the setup
         // by printing some debug version.
 
+        // Populate global variable here, and just once.
         gap_local_bd_addr(uni_local_bd_addr);
-        logi("BTstack up and running on %s.\n", bd_addr_to_str(uni_local_bd_addr));
+
+        // No need to print it: BTstack prints it for us
+        //logi("BTstack up and running on %s.\n", bd_addr_to_str(uni_local_bd_addr));
         maybe_delete_or_list_link_keys();
 
         // Start inquiry now, once we know that HCI is running.

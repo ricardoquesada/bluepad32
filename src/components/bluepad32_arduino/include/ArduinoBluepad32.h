@@ -59,6 +59,12 @@ class Bluepad32 {
 
     void setup(const ControllerCallback& onConnect, const ControllerCallback& onDisconnect);
 
+    //
+    // Get the local Bluetooth Address.
+    // return: pointer to uint8_t array with length 6.
+    //
+    const uint8_t* localBdAddress();
+
    private:
     void checkProtocol();
 };
