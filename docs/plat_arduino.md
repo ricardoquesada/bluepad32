@@ -64,7 +64,7 @@ Then choose any of the "ESP32 + Bluepad32" boards:
 
 Finally open the Bluepad32 example:
 
-* `File` -> `Examples` -> `Bluepad32` -> `Controller`
+* `File` -> `Examples` -> `Bluepad32_ESP32` -> `Controller`
 
 And compile & flash!
 
@@ -72,7 +72,7 @@ And compile & flash!
 [arduino-board-manager]: https://lh3.googleusercontent.com/pw/AJFCJaVTKWM_lvVeTuaFcSk5Q6IfGZKFf6uKJnW7k_uOFVxC9SWAU5Ga_InmS8GgvKxQ5oh6w4jEz99lwPbyadId0pXBBw9RfBS9hmbTZ7kYVn_8Dmz3ybY6d-IvRbqeWsFkhB8oF8j0mo8OUOQTl54_zFY3Yw=-no
 [arduino-bluepad32-install]: https://lh3.googleusercontent.com/pw/AJFCJaU35fPG9uzppEqonktTXlxJDXgf_33aeNmV_6XnYARTAlhH6PojpEJnK-XuZ-tLJEggPZxblmSL8qtogD59AVNnuUZI5-1kRzuqqHKTUf43eWw_HKUWjf5MlqPfjC_6464hUdW5i-C9mfi1dUDQwRwrbA=-no
 [arduino-select-board]: https://lh3.googleusercontent.com/pw/AJFCJaVF6jr8D5R6ntl9TSX8nCoHJP96YHCfBpVhLtqBvYOunQietvKm8_tkAwNyF_gd32WoSvoK4gb0LMz3F__xl2JEwZUVksDq-RjI8fO4X4jwnc3O814Ztk0ZQ6di4sWVHnrFicOQBcJp1CaAydUImFZgvw=-no
-[arduino-bluepad32-example]: https://lh3.googleusercontent.com/pw/AJFCJaVsD3DDTUNMGQ-5CJPjNS69COPXEIfGU9wfp3NNSQELTbcOQo0Ezyv5OdTw8oMDrEvZc3pn6QwuArzwvVNUfSv_rNwijV02VUS6oVBnHn3vLhnOTIB65JTqv0t2dYcMupMmVRKsLmV39CcvI_WWoSTs6Q=-no
+[arduino-bluepad32-example]: https://lh3.googleusercontent.com/pw/AJFCJaXPSlzTv7Ol0nx2WpqepXgpDXjxJC_Cfxl_muVb1YamL1tWZSW7vFfbAHV212Lwgibg7trrI28CY9FGPNFI3fbS8dyPpJHS5rPFcYjxJyiCmMEIgef7S7B6CE33QozCD03xP7v57MY9L_MBRN3jyYJ9uw=-no
 
 
 ## Option B: Use ESP-IDF + template project
