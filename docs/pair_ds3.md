@@ -62,7 +62,28 @@ On Gentoo Linux run:
 $ sudo emerge dev-libs/hidapi
 ```
 
-For MacOS, Windows: I don't know, you are in your own.
+On MacOS run:
+```
+$ brew install hidapi
+```
+
+on Mac you will also have to modify the Makefile to look like so
+```
+INCLUDES := -I/opt/homebrew/Cellar/hidapi/0.13.1/include
+LIBS := -L/opt/homebrew/Cellar/hidapi/0.13.1/lib -lhidapi
+
+sixaxispairer: sixaxispairer.o
+	${CC} $^ $(LIBS) -o $@
+
+sixaxispairer.o: sixaxispairer.c
+	${CC} -c $(INCLUDES) $< -o $@
+
+clean:
+	rm sixaxispairer sixaxispairer.o
+```
+I got the INCLUDES and LIBS paths using `pkg-config --cflags hidapi` and `pkg-config --libs hidapi` respectivly (note how I went up to the parent directory in the include)
+
+For  Windows: I don't know, you are in your own.
 
 * Compile the "sixaxis pairer":
 
