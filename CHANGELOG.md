@@ -4,11 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v3.7.0-rc.1] - ???
+## [v3.7.0] - 2023-04-17
 ### New
-- NINA/AirLift: implement "getMacAddr" function which returns the Bluetooth BD Addr [Bug][bluepad32_arduino_issue5]
+- Arduino/NINA/AirLift: Added BP32.localBdAddress() [Bug][bluepad32_arduino_issue5]
+  Returns the Local BD Address (AKA Mac Address).
+  Updated example that shows how to use it.
 
 [bluepad32_arduino_issue5]: https://gitlab.com/ricardoquesada/bluepad32-arduino/-/issues/5
+
+### Fixed
+- Arduino documentation: How to use Arduino IDE and other minor fixes
 
 ## [v3.7.0-rc.0] - 2023-04-15
 ### New
