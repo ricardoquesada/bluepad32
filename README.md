@@ -6,28 +6,25 @@
 
 A Bluetooth gamepad "host" for the ESP32 / ESP32-S3 / ESP32-C3.
 
-Add Bluetooth gamepad support to your projects easily. Supported platforms:
+Add Bluetooth gamepad support to your projects easily.
 
-* Arduino + ESP32 boards:
-  * [Documentation][plat_arduino] (🠐 START HERE, MUST READ)
-  * From the community: [Lego Robot][esp32_example] ([video][esp32_video]), [gbaHD Shield][esp32_example2] (a GameBoy consolizer)
-* Arduino + boards with the NINA coprocessor:
-  * [Documentation][plat_nina]
-  * [Library][bp32-arduino]
-  * From the community: [Philips CD-i meets Bluetooth][nina_example]
-* CircuitPython + boards with the AirLift coprocessor:
-  * [Documentation][plat_airlift]
-  * [Library][bp32-circuitpython]
-  * From the community: [Quico console][airlift_example], Controlling 4 servos ([video][airlift_video])
-* Or in custom boards like:
-  * [Unijoysticle v2, to play games on the Commodore 64][unijoysticle2]
-  * [or on the Commodore Amiga][amiga]
-  * [ULX3S][ulx3s], an FPGA console
+## Where to start
+
+Choose your target platform:
+
+| Platform          | Start here | Further info | Community projects |
+| ----------------- | ---------- | ------------ | ------------------ |
+| Arduino IDE       | [![Watch the video][youtube_image]](https://youtu.be/0jnY-XXiD8Q) | [Doc][plat_arduino] | |
+| Arduino using ESP-IDF toolchain | [Template project][esp-idf-bluepad32-arduino] | [Doc][plat_arduino] | [Lego Robot][esp32_example] ([video][esp32_video]), [gbaHD Shield][esp32_example2] (a GameBoy consolizer) |
+| Arduino + NINA coprocessor      | [Arduino Library][bp32-arduino] | [Doc][plat_nina] | [Philips CD-i meets Bluetooth][nina_example] |
+| CircuitPython + AirLift coprocessor | [CircuitPython Library][bp32-circuitpython] | [Doc][plat_airlift] | [Quico console][airlift_example], Controlling 4 servos ([video][airlift_video]) |
+| Unijoysticle      | [Unijoysticle2][unijoysticle2]| [Doc][plat_unijoysticle] | |
+| MightyMiggy       | [Unijoysticle for Amiga][unijoysticle_sukko] | [Doc][plat_mightymiggy] | |
+| Custom            | | [Doc][plat_custom] | |
 
 
 [airlift_example]: https://gitlab.com/ricardoquesada/quico
 [airlift_video]: https://twitter.com/makermelissa/status/1482596378282913793
-[amiga]: https://gitlab.com/SukkoPera/unijoysticle2
 [bp32-arduino]: https://gitlab.com/ricardoquesada/bluepad32-arduino
 [bp32-circuitpython]: https://gitlab.com/ricardoquesada/bluepad32-circuitpython
 [esp32_example]: https://github.com/antonvh/LMS-uart-esp/blob/main/Projects/BluePad32_idf/README.md
@@ -37,9 +34,13 @@ Add Bluetooth gamepad support to your projects easily. Supported platforms:
 [nina_example]: https://eyskens.me/cd-i-meets-bluetooth/
 [plat_airlift]: docs/plat_airlift.md
 [plat_arduino]: docs/plat_arduino.md
+[plat_custom]: docs/adding_new_platform.md
+[plat_mightymiggy]: docs/plat_mightymiggy.md
 [plat_nina]: docs/plat_nina.md
-[ulx3s]: https://www.crowdsupply.com/radiona/ulx3s
+[plat_unijoysticle]: docs/plat_unijoysticle.md
 [unijoysticle2]: https://retro.moe/unijoysticle2/
+[unijoysticle_sukko]: https://gitlab.com/SukkoPera/unijoysticle2
+[youtube_image]: https://lh3.googleusercontent.com/pw/AJFCJaXiDBy3NcQBBB-WFFVCsvYBs8szExsYQVwG5qqBTtKofjzZtJv_6GSL7_LfYRiypF1K0jjjgziXJuxAhoEawvzV84hlbmVTrGeXQYpVnpILZwWkbFi-ccX4lEzEbYXX-UbsEzpHLhO8qGVuwxOl7I_h1Q=-no?authuser=0
 
 ## Features
 
@@ -60,7 +61,7 @@ Add Bluetooth gamepad support to your projects easily. Supported platforms:
 * Nintendo Switch Pro controller
 * Nintendo Switch JoyCon
 * Nintendo Wii U controller
-* Nintendo Wii Remote + accesories
+* Nintendo Wii Remote + accessories
 * Xbox Wireless controller (models 1708 and 1914)
 * Android controllers
 * Stadia controller
@@ -133,17 +134,15 @@ See: [Supported gamepads][gamepads] and [supported mice][mice]
 
 * [Documentation][docs]
 * [Discord][discord]
-* [Google groups][forum]
 
 [docs]: https://gitlab.com/ricardoquesada/bluepad32/-/tree/master/docs
 [discord]: https://discord.gg/r5aMn6Cw5q
-[forum]: https://groups.google.com/forum/#!forum/unijoysticle
 
 ## License
 
 Bluepad32 is open source, [licensed under Apache 2][apache2].
 
-However Bluepad32 depends on the great [BTStack library][btstack-github]. Which is free to use for
+However, Bluepad32 depends on the great [BTStack library][btstack-github]. Which is free to use for
 open source projects. But commercial for closed-source projects.
 [Contact them for details][btstack-homepage]. They are very friendly + helpful
 (I’m not affiliated with them).
