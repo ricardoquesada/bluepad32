@@ -27,7 +27,7 @@ Choose your target platform:
 [airlift_video]: https://twitter.com/makermelissa/status/1482596378282913793
 [bp32-arduino]: https://gitlab.com/ricardoquesada/bluepad32-arduino
 [bp32-circuitpython]: https://gitlab.com/ricardoquesada/bluepad32-circuitpython
-[esp32_example]: https://github.com/antonvh/LMS-uart-esp/blob/main/Projects/BluePad32_idf/README.md
+[esp32_example]: https://github.com/antonvh/LMS-uart-esp/blob/main/Projects/LMS-ESP32/BluePad32_idf/README.md
 [esp32_example2]: https://github.com/ManCloud/GBAHD-Shield
 [esp32_video]: https://www.instagram.com/p/Ca7T6twKZ0B/
 [esp-idf-bluepad32-arduino]: https://gitlab.com/ricardoquesada/esp-idf-arduino-bluepad32-template
