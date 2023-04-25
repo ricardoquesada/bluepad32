@@ -361,7 +361,7 @@ void uni_hid_parser_ds4_parse_input_report(uni_hid_device_t* d, const uint8_t* r
     for (size_t i = 0; i < ARRAY_SIZE(r->gyro); i++) {
         int32_t raw_data = (int16_t)r->gyro[i];
         int32_t calib_data =
-            MULT_FRAC(ins->gyro_calib_data[i].sens_numer, raw_data, ins->gyro_calib_data[i].sens_denom);
+            mult_frac(ins->gyro_calib_data[i].sens_numer, raw_data, ins->gyro_calib_data[i].sens_denom);
         ctl->gamepad.gyro[i] = calib_data;
     }
 
@@ -369,7 +369,7 @@ void uni_hid_parser_ds4_parse_input_report(uni_hid_device_t* d, const uint8_t* r
     for (size_t i = 0; i < ARRAY_SIZE(r->accel); i++) {
         int32_t raw_data = (int16_t)r->accel[i];
         int32_t calib_data =
-            MULT_FRAC(ins->accel_calib_data[i].sens_numer, raw_data, ins->accel_calib_data[i].sens_denom);
+            mult_frac(ins->accel_calib_data[i].sens_numer, raw_data, ins->accel_calib_data[i].sens_denom);
         ctl->gamepad.accel[i] = calib_data;
     }
 
