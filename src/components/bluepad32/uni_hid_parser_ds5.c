@@ -214,6 +214,17 @@ void uni_hid_parser_ds5_setup(uni_hid_device_t* d) {
     ds5_instance_t* ins = get_ds5_instance(d);
     memset(ins, 0, sizeof(*ins));
 
+    // Default values for Accel / Gyro calibration data, until calibration is supported.
+    for (size_t i = 0; i < ARRAY_SIZE(ins->accel_calib_data); i++) {
+        ins->gyro_calib_data[i].bias = 0;
+        ins->gyro_calib_data[i].sens_numer = DS5_GYRO_RANGE;
+        ins->gyro_calib_data[i].sens_denom = INT16_MAX;
+
+        ins->accel_calib_data[i].bias = 0;
+        ins->accel_calib_data[i].sens_numer = DS5_ACC_RANGE;
+        ins->accel_calib_data[i].sens_denom = INT16_MAX;
+    }
+
     ds5_request_pairing_info_report(d);
 }
 
