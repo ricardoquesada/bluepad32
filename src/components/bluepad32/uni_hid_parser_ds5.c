@@ -69,8 +69,7 @@ typedef enum {
     DS5_STATE_READY,
 } ds5_state_t;
 
-// Calibration data for playstation motion sensors.
-// Taken from Linux kernel
+// Calibration data for motion sensors.
 struct ds5_calibration_data {
     int16_t bias;
     int32_t sens_numer;
@@ -85,8 +84,8 @@ typedef struct {
     uint32_t hw_version;
     uint32_t fw_version;
 
-    struct ds5_calibration_data accel_calib_data[3];
     struct ds5_calibration_data gyro_calib_data[3];
+    struct ds5_calibration_data accel_calib_data[3];
 
 } ds5_instance_t;
 _Static_assert(sizeof(ds5_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "DS5 intance too big");
@@ -423,7 +422,7 @@ void uni_hid_parser_ds5_parse_input_report(uni_hid_device_t* d, const uint8_t* r
     for (size_t i = 0; i < ARRAY_SIZE(r->gyro); i++) {
         int32_t raw_data = (int16_t)r->gyro[i];
         int32_t calib_data =
-            mult_frac(ins->gyro_calib_data[i].sens_numer, raw_data, ins->gyro_calib_data[i].sens_denom);
+            MULT_FRAC(ins->gyro_calib_data[i].sens_numer, raw_data, ins->gyro_calib_data[i].sens_denom);
         ctl->gamepad.gyro[i] = calib_data;
     }
 
@@ -431,7 +430,7 @@ void uni_hid_parser_ds5_parse_input_report(uni_hid_device_t* d, const uint8_t* r
     for (size_t i = 0; i < ARRAY_SIZE(r->accel); i++) {
         int32_t raw_data = (int16_t)r->accel[i];
         int32_t calib_data =
-            mult_frac(ins->accel_calib_data[i].sens_numer, raw_data, ins->accel_calib_data[i].sens_denom);
+            MULT_FRAC(ins->accel_calib_data[i].sens_numer, raw_data, ins->accel_calib_data[i].sens_denom);
         ctl->gamepad.accel[i] = calib_data;
     }
 
