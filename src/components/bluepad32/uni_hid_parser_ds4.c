@@ -40,11 +40,28 @@ limitations under the License.
 #define DS4_FEATURE_REPORT_CALIBRATION_SIZE 37
 #define DS4_STATUS_BATTERY_CAPACITY GENMASK(3, 0)
 
+// DualShock4 hardware limits
+#define DS4_ACC_RES_PER_G 8192
+#define DS4_ACC_RANGE (4 * DS4_ACC_RES_PER_G)
+#define DS4_GYRO_RES_PER_DEG_S 1024
+#define DS4_GYRO_RANGE (2048 * DS4_GYRO_RES_PER_DEG_S)
+
+// Calibration data for playstation motion sensors.
+// Taken from Linux kernel
+struct ds4_calibration_data {
+    int16_t bias;
+    int32_t sens_numer;
+    int32_t sens_denom;
+};
+
 typedef struct {
     btstack_timer_source_t rumble_timer;
     bool rumble_in_progress;
     uint16_t fw_version;
     uint16_t hw_version;
+
+    struct ds4_calibration_data accel_calib_data[3];
+    struct ds4_calibration_data gyro_calib_data[3];
 } ds4_instance_t;
 _Static_assert(sizeof(ds4_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "DS4 intance too big");
 
@@ -125,6 +142,17 @@ void uni_hid_parser_ds4_setup(struct uni_hid_device_s* d) {
     ds4_instance_t* ins = get_ds4_instance(d);
     memset(ins, 0, sizeof(*ins));
 
+    // Default values for Accel / Gyro calibration data, until calibration is supported.
+    for (size_t i = 0; i < ARRAY_SIZE(ins->accel_calib_data); i++) {
+        ins->gyro_calib_data[i].bias = 0;
+        ins->gyro_calib_data[i].sens_numer = DS4_GYRO_RANGE;
+        ins->gyro_calib_data[i].sens_denom = INT16_MAX;
+
+        ins->accel_calib_data[i].bias = 0;
+        ins->accel_calib_data[i].sens_numer = DS4_ACC_RANGE;
+        ins->accel_calib_data[i].sens_denom = INT16_MAX;
+    }
+
     // Send in order:
     // - enable lightbar: enables light and enables report 0x11 on most devices
     // - calibration report: enbles report 0x11 on other reports
@@ -175,6 +203,8 @@ void uni_hid_parser_ds4_parse_feature_report(uni_hid_device_t* d, const uint8_t*
 }
 
 void uni_hid_parser_ds4_parse_input_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
+    ds4_instance_t* ins = get_ds4_instance(d);
+
     if (report[0] != 0x11) {
         loge("DS4: Unexpected report type: got 0x%02x, want: 0x11\n", report[0]);
         // printf_hexdump(report, len);
@@ -232,6 +262,22 @@ void uni_hid_parser_ds4_parse_input_report(uni_hid_device_t* d, const uint8_t* r
     // Brake & throttle
     ctl->gamepad.brake = r->brake * 4;
     ctl->gamepad.throttle = r->throttle * 4;
+
+    // Gyro
+    for (size_t i = 0; i < ARRAY_SIZE(r->gyro); i++) {
+        int32_t raw_data = (int16_t)r->gyro[i];
+        int32_t calib_data =
+            mult_frac(ins->gyro_calib_data[i].sens_numer, raw_data, ins->gyro_calib_data[i].sens_denom);
+        ctl->gamepad.gyro[i] = calib_data;
+    }
+
+    // Accel
+    for (size_t i = 0; i < ARRAY_SIZE(r->accel); i++) {
+        int32_t raw_data = (int16_t)r->accel[i];
+        int32_t calib_data =
+            mult_frac(ins->accel_calib_data[i].sens_numer, raw_data, ins->accel_calib_data[i].sens_denom);
+        ctl->gamepad.accel[i] = calib_data;
+    }
 
     // Value goes from 0 to 10. Make it from 0 to 250.
     // The +1 is to avoid having a value of 0, which means "battery unavailable".

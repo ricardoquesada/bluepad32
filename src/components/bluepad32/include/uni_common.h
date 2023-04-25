@@ -220,6 +220,18 @@ extern "C" {
 /* Used to remove brackets from around a single argument. */
 #define __DEBRACKET(...) __VA_ARGS__
 
+/*
+ * Multiplies an integer by a fraction, while avoiding unnecessary
+ * overflow or loss of precision.
+ * Taken from Linux Kernel
+ */
+#define mult_frac(x, numer, denom)                      \
+    ({                                                  \
+        __typeof__(x) quot = (x) / (denom);             \
+        __typeof__(x) rem = (x) % (denom);              \
+        (quot * (numer)) + ((rem * (numer)) / (denom)); \
+    })
+
 #ifdef __cplusplus
 }
 #endif

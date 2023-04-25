@@ -189,8 +189,8 @@ typedef struct {
     // Misc buttons (from 0x0c (Consumer) and others)
     uint8_t misc_buttons;
 
-    int16_t gyro[3];
-    int16_t accel[3];
+    int32_t gyro[3];
+    int32_t accel[3];
 } uni_gamepad_t;
 
 // Represents the mapping. Each entry contains the new button to be used,

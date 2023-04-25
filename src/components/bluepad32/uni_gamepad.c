@@ -200,9 +200,15 @@ void uni_gamepad_set_mappings(const uni_gamepad_mappings_t* mappings) {
 
 void uni_gamepad_dump(const uni_gamepad_t* gp) {
     // Don't add "\n"
-    logi("dpad=0x%02x, x=%d, y=%d, rx=%d, ry=%d, brake=%d, accel=%d, buttons=0x%08x, misc=0x%02x", gp->dpad, gp->axis_x,
-         gp->axis_y, gp->axis_rx, gp->axis_ry,                   // axis
-         gp->brake, gp->throttle, gp->buttons, gp->misc_buttons  // misc
+    logi(
+        "dpad=0x%02x, x=%4d, y=%4d, rx=%4d, ry=%4d, brake=%4d, throttle=%4d, buttons=0x%04x, misc=0x%02x, "
+        "gyro=%7d,%7d,%7d accel=%7d,%7d,%7d",
+        gp->dpad,                                          // dpad
+        gp->axis_x, gp->axis_y, gp->axis_rx, gp->axis_ry,  // axis
+        gp->brake, gp->throttle,                           // brake/gas
+        gp->buttons, gp->misc_buttons,                     // buttons
+        gp->gyro[0], gp->gyro[1], gp->gyro[2],             // gyro
+        gp->accel[0], gp->accel[1], gp->accel[2]           // accel
     );
 }
 

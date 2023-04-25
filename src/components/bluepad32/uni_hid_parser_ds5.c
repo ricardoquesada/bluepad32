@@ -39,6 +39,12 @@ limitations under the License.
 #define DS5_FEATURE_REPORT_FIRMWARE_VERSION_SIZE 64
 #define DS5_STATUS_BATTERY_CAPACITY GENMASK(3, 0)
 
+// DualSense hardware limits.
+#define DS5_ACC_RES_PER_G 8192
+#define DS5_ACC_RANGE (4 * DS5_ACC_RES_PER_G)
+#define DS5_GYRO_RES_PER_DEG_S 1024
+#define DS5_GYRO_RANGE (2048 * DS5_GYRO_RES_PER_DEG_S)
+
 enum {
     // Values for flag 0
     DS5_FLAG0_COMPATIBLE_VIBRATION = BIT(0),
@@ -63,6 +69,14 @@ typedef enum {
     DS5_STATE_READY,
 } ds5_state_t;
 
+// Calibration data for playstation motion sensors.
+// Taken from Linux kernel
+struct ds5_calibration_data {
+    int16_t bias;
+    int32_t sens_numer;
+    int32_t sens_denom;
+};
+
 typedef struct {
     btstack_timer_source_t rumble_timer;
     bool rumble_in_progress;
@@ -70,6 +84,10 @@ typedef struct {
     ds5_state_t state;
     uint32_t hw_version;
     uint32_t fw_version;
+
+    struct ds5_calibration_data accel_calib_data[3];
+    struct ds5_calibration_data gyro_calib_data[3];
+
 } ds5_instance_t;
 _Static_assert(sizeof(ds5_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "DS5 intance too big");
 
@@ -172,6 +190,18 @@ void uni_hid_parser_ds5_init_report(uni_hid_device_t* d) {
 void uni_hid_parser_ds5_setup(uni_hid_device_t* d) {
     ds5_instance_t* ins = get_ds5_instance(d);
     memset(ins, 0, sizeof(*ins));
+
+    // Default values for Accel / Gyro calibration data, until calibration is supported.
+    for (size_t i = 0; i < ARRAY_SIZE(ins->accel_calib_data); i++) {
+        ins->gyro_calib_data[i].bias = 0;
+        ins->gyro_calib_data[i].sens_numer = DS5_GYRO_RANGE;
+        ins->gyro_calib_data[i].sens_denom = INT16_MAX;
+
+        ins->accel_calib_data[i].bias = 0;
+        ins->accel_calib_data[i].sens_numer = DS5_ACC_RANGE;
+        ins->accel_calib_data[i].sens_denom = INT16_MAX;
+    }
+
     ds5_request_pairing_info_report(d);
 }
 
@@ -235,6 +265,8 @@ void uni_hid_parser_ds5_parse_feature_report(uni_hid_device_t* d, const uint8_t*
 }
 
 void uni_hid_parser_ds5_parse_input_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
+    ds5_instance_t* ins = get_ds5_instance(d);
+
     if (report[0] != 0x31) {
         loge("DS5: Unexpected report type: got 0x%02x, want: 0x31\n", report[0]);
         return;
@@ -289,6 +321,22 @@ void uni_hid_parser_ds5_parse_input_report(uni_hid_device_t* d, const uint8_t* r
         ctl->gamepad.buttons |= BUTTON_THUMB_R;  // Thumb R
     if (r->buttons[2] & 0x01)
         ctl->gamepad.misc_buttons |= MISC_BUTTON_SYSTEM;  // PS
+
+    // Gyro
+    for (size_t i = 0; i < ARRAY_SIZE(r->gyro); i++) {
+        int32_t raw_data = (int16_t)r->gyro[i];
+        int32_t calib_data =
+            mult_frac(ins->gyro_calib_data[i].sens_numer, raw_data, ins->gyro_calib_data[i].sens_denom);
+        ctl->gamepad.gyro[i] = calib_data;
+    }
+
+    // Accel
+    for (size_t i = 0; i < ARRAY_SIZE(r->accel); i++) {
+        int32_t raw_data = (int16_t)r->accel[i];
+        int32_t calib_data =
+            mult_frac(ins->accel_calib_data[i].sens_numer, raw_data, ins->accel_calib_data[i].sens_denom);
+        ctl->gamepad.accel[i] = calib_data;
+    }
 
     // Value goes from 0 to 10. Make it from 0 to 250.
     // The +1 is to avoid having a value of 0, which means "battery unavailable".
