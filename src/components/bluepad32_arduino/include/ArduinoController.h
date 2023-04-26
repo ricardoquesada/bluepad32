@@ -84,6 +84,14 @@ class Controller {
     int32_t brake() const { return _data.gamepad.brake; }
     int32_t throttle() const { return _data.gamepad.throttle; }
 
+    // Gyro / Accel
+    int32_t gyroX() const { return _data.gamepad.gyro[0]; }
+    int32_t gyroY() const { return _data.gamepad.gyro[1]; }
+    int32_t gyroZ() const { return _data.gamepad.gyro[2]; }
+    int32_t accelX() const { return _data.gamepad.accel[0]; }
+    int32_t accelY() const { return _data.gamepad.accel[1]; }
+    int32_t accelZ() const { return _data.gamepad.accel[2]; }
+
     //
     // Shared between Mouse & Gamepad
     //
