@@ -36,7 +36,7 @@ enum xboxone_firmware {
     // The one that came pre-installed, or close to it.
     XBOXONE_FIRMWARE_V3_1,
     // The one released in 2019-10
-    XBOXONE_FIRMWARE_V4_8,
+    XBOXONE_FIRMWARE_V4_8,  // Valid for 5.15 as well
 };
 
 // xboxone_instance_t represents data used by the Wii driver instance.
@@ -62,7 +62,7 @@ void uni_hid_parser_xboxone_setup(uni_hid_device_t* d) {
     // FIXME: Parse HID descriptor and see if it supports 0xf buttons. Checking
     // for the len is a horrible hack.
     if (d->hid_descriptor_len > 330) {
-        logi("Xbox one: Assuming it is firmware 4.8\n");
+        logi("Xbox one: Assuming it is firmware 4.8 / 5.15\n");
         ins->version = XBOXONE_FIRMWARE_V4_8;
     } else {
         // It is really firmware 4.8, it will be set later
@@ -197,10 +197,10 @@ static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
                         ctl->gamepad.buttons |= BUTTON_THUMB_R;
                     break;
                 case 0x0f: {
-                    // Only available in firmware v4.8.
+                    // Only available in firmware v4.8 / 5.15
                     xboxone_instance_t* ins = get_xboxone_instance(d);
                     ins->version = XBOXONE_FIRMWARE_V4_8;
-                    logi("Xbox one: Firmware 4.8 detected\n");
+                    logi("Xbox one: Firmware 4.8 / 5.15 detected\n");
                     break;
                 }
                 default:
@@ -364,6 +364,12 @@ static void parse_usage_firmware_v4_8(uni_hid_device_t* d,
                 case HID_USAGE_AC_BACK:  // Back
                     if (value)
                         ctl->gamepad.misc_buttons |= MISC_BUTTON_BACK;
+                    break;
+                case HID_USAGE_ASSIGN_SELECTION:
+                case HID_USAGE_ORDER_MOVIE:
+                case HID_USAGE_MEDIA_SELECT_SECURITY:
+                    // Xbox Adaptive Controller
+                    // Don't know the purpose of these "usages".
                     break;
                 default:
                     logi("Xbox One: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);

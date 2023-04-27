@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### New
 - DualSense / DualShock 4: Report Acceleromenter and Gyro data
 
+### Fixed
+- Xbox Adaptive Controller: Works as expeted. Removed "unsupported usage" messages.
+
 ## [v3.7.0] - 2023-04-17
 ### New
 - Arduino/NINA/AirLift: Added BP32.localBdAddress() [Bug][bluepad32_arduino_issue5]

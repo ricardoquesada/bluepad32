@@ -256,6 +256,20 @@ Classic Controller can be used.
 [xbox_1914_ebay]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw=xbox+wireless+controller+1914&_sacat=0
 [xbox_1914]: https://lh3.googleusercontent.com/pw/AMWts8BjOU-jTHHhK6S7PFfyvRpBr8FlUhKdoebHK83tp536cRWaX2yfo1CiXnDyWe8RGg7CMtjc4DiU-Fji0Er-88Vtr7RXSGfF3xKoel6VRmogMwSWWdKbQswxzB3wULe06nOYRrVpcqJUkgeKF4hotwyxaw=-no?authuser=0
 
+## Xbox Adaptive Controller
+
+[![Xbox adaptive][xbox_adaptive_img]][xbox_adaptive_site]
+
+- Supports Xbox Controller firmware: v5.15
+- Pair instructions:
+  - Press "pair" button at the back of the controller.
+  - Wait until Xbox logo blinks
+  - Done. Bluepad32 will connect to it once it receives the "advertisement" broadcast message.
+- Protocol: BLE
+
+[xbox_adaptive_site]: https://www.xbox.com/en-US/accessories/controllers/xbox-adaptive-controller
+[xbox_adaptive_img]: https://lh3.googleusercontent.com/pw/AJFCJaVs47b7HLG5IR7uBp3Gyi9XOiSaSZgW2Ux1_qgdJpPayy5gHRt5sg0atyjayhOMFI9cobKHtrsEqHdunrCj6V3sxHuFvAZbLhVHgssRvqW0FFA3KMlV71zrRDNEueQv3-Jb7IpfFZJJKUmCtwCpOjEobg=-no?authuser=0
+
 ## Android
 
 ![Android][android_gamepad]
