@@ -95,6 +95,7 @@ bluepad32: ${CORE_OBJ} ${COMMON_OBJ} ${CLASSIC_OBJ} ${SDP_CLIENT} btstack_ring_b
 	${BLUEPAD32_ROOT}/uni_hid_parser_ouya.o \
 	${BLUEPAD32_ROOT}/uni_hid_parser_psmove.o \
 	${BLUEPAD32_ROOT}/uni_hid_parser_smarttvremote.o \
+	${BLUEPAD32_ROOT}/uni_hid_parser_steam.o \
 	${BLUEPAD32_ROOT}/uni_hid_parser_switch.o \
 	${BLUEPAD32_ROOT}/uni_hid_parser_wii.o \
 	${BLUEPAD32_ROOT}/uni_hid_parser_xboxone.o \

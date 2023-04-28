@@ -105,6 +105,10 @@ typedef struct __attribute__((packed)) {
 
     // Misc buttons (from 0x0c (Consumer) and others)
     uint8_t misc_buttons;
+
+    // Gyro / Accel
+    int32_t gyro[3];
+    int32_t accel[3];
 } nina_gamepad_t;
 
 typedef struct __attribute__((packed)) {
@@ -267,7 +271,7 @@ enum {
 // Command 0x00
 static int request_protocol_version(const uint8_t command[], uint8_t response[]) {
 #define PROTOCOL_VERSION_HI 0x01
-#define PROTOCOL_VERSION_LO 0x03
+#define PROTOCOL_VERSION_LO 0x04
 
     response[2] = 1;  // Number of parameters
     response[3] = 2;  // Param len
@@ -1152,6 +1156,8 @@ static void nina_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl) 
             _controllers[ins->controller_idx].gamepad.throttle = ctl->gamepad.throttle;
             _controllers[ins->controller_idx].gamepad.buttons = ctl->gamepad.buttons;
             _controllers[ins->controller_idx].gamepad.misc_buttons = ctl->gamepad.misc_buttons;
+            memcpy(_controllers[ins->controller_idx].gamepad.gyro, ctl->gamepad.gyro, sizeof(ctl->gamepad.gyro));
+            memcpy(_controllers[ins->controller_idx].gamepad.accel, ctl->gamepad.accel, sizeof(ctl->gamepad.accel));
             break;
         case UNI_CONTROLLER_CLASS_MOUSE:
             _controllers[ins->controller_idx].mouse.delta_x = ctl->mouse.delta_x;

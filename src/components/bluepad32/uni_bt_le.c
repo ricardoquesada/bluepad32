@@ -102,8 +102,8 @@ static void hog_disconnect(hci_con_handle_t con_handle) {
     if (gap_get_connection_type(con_handle) != GAP_CONNECTION_INVALID)
         gap_disconnect(con_handle);
     device = uni_hid_device_get_instance_for_connection_handle(con_handle);
-
-    hids_client_disconnect(device->hids_cid);
+    if (device)
+        hids_client_disconnect(device->hids_cid);
     resume_scanning_hint();
 }
 
@@ -712,8 +712,10 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
     adv_event_get_data(packet, &appearance, name);
 
     if (appearance != UNI_BT_HID_APPEARANCE_GAMEPAD && appearance != UNI_BT_HID_APPEARANCE_JOYSTICK &&
-        appearance != UNI_BT_HID_APPEARANCE_MOUSE)
+        appearance != UNI_BT_HID_APPEARANCE_MOUSE) {
+        // Don't log it. There too many devices advertising themselves.
         return;
+    }
 
     addr_type = gap_event_advertising_report_get_address_type(packet);
     if (uni_hid_device_get_instance_for_address(addr)) {
@@ -729,6 +731,10 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
         loge("Error: no more available device slots\n");
         return;
     }
+
+    // Steam Controller identifies itself as Mouse.
+    if (name && !strcmp(name, "SteamController"))
+        appearance = UNI_BT_HID_APPEARANCE_GAMEPAD;
 
     // FIXME: Using CODs to make it compatible with legacy BR/EDR code.
     switch (appearance) {
