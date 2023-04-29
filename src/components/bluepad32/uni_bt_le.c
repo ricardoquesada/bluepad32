@@ -732,10 +732,6 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
         return;
     }
 
-    // Steam Controller identifies itself as Mouse.
-    if (name && !strcmp(name, "SteamController"))
-        appearance = UNI_BT_HID_APPEARANCE_GAMEPAD;
-
     // FIXME: Using CODs to make it compatible with legacy BR/EDR code.
     switch (appearance) {
         case UNI_BT_HID_APPEARANCE_MOUSE:
