@@ -16,6 +16,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
+// Info from:
+// https://github.com/rodrigorc/steamctrl/blob/master/src/steamctrl.c
+// https://elixir.bootlin.com/linux/latest/source/drivers/hid/hid-steam.c
+// https://github.com/haxpor/sdl2-samples/blob/master/android-project/app/src/main/java/org/libsdl/app/HIDDeviceBLESteamController.java
+
 #include "uni_hid_parser_steam.h"
 
 #include "hid_usage.h"
@@ -28,18 +33,9 @@ limitations under the License.
 typedef enum {
     STATE_QUERY_SERVICE,
     STATE_QUERY_CHARACTERISTIC_REPORT,
-    STATE_QUERY_SET_VALVE_MODE1,
-    STATE_QUERY_SET_VALVE_MODE2,
-    STATE_QUERY_SET_VALVE_MODE3,
-    STATE_QUERY_SET_VALVE_MODE4,
-    STATE_QUERY_SET_VALVE_MODE5,
-    STATE_QUERY_SET_VALVE_MODE6,
-    STATE_QUERY_SET_VALVE_MODE7,
-    STATE_QUERY_SET_VALVE_MODE8,
-    STATE_QUERY_SET_VALVE_MODE9,
-    STATE_QUERY_SET_VALVE_MODE10,
-    STATE_QUERY_SET_VALVE_MODE11,
-    STATE_QUERY_SET_VALVE_MODE12,
+    STATE_QUERY_CLEAR_MAPPINGS,
+    STATE_QUERY_DISABLE_LIZARD,
+    STATE_QUERY_FORCEFEEDBACK,
     STATE_QUERY_END,
 } steam_query_state_t;
 
@@ -51,43 +47,52 @@ static uint8_t le_steam_service_uuid[16] = {0x10, 0x0f, 0x6c, 0x32, 0x17, 0x35, 
 static uint8_t le_steam_characteristic_report_uuid[16] = {0x10, 0x0f, 0x6c, 0x34, 0x17, 0x35, 0x43, 0x13,
                                                           0xb4, 0x02, 0x38, 0x56, 0x71, 0x31, 0xe5, 0xf3};
 
-// Steam mode
-static uint8_t enter_valve_mode1[] = {0xc0, 0x87, 0x03, 0x08, 0x07, 0x00, 0x00, 0x00,   // 0-7
-                                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,   // 8-15
-                                      0x00, 0x00, 0x00};                                // 16-18
-static uint8_t enter_valve_mode2[] = {0xc0, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,   // 0 -7
-                                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,   // 8-15
-                                      0x00, 0x00, 0x00};                                // 16-18
-static uint8_t enter_valve_mode3[] = {0xc0, 0x87, 0x03, 0x32, 0x84, 0x03, 0x00, 0x00,   // 0 -7
-                                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,   // 8-15
-                                      0x00, 0x00, 0x00};                                // 16-18
-static uint8_t enter_valve_mode4[] = {0xc0, 0x83, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,   // 0 -7
-                                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,   // 8-15
-                                      0x00, 0x00, 0x00};                                // 16-18
-static uint8_t enter_valve_mode5[] = {0x80, 0xae, 0x15, 0x01, 0x00, 0x00, 0x00, 0x00,   // 0 -7
-                                      0x01, 0x06, 0x11, 0x00, 0x00, 0x02, 0x03, 0x00,   // 8-15
-                                      0x00, 0x00, 0x0a};                                // 16-18
-static uint8_t enter_valve_mode6[] = {0xc1, 0x6d, 0x92, 0xd2, 0x55, 0x04, 0x00, 0x00,   // 0 -7
-                                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,   // 8-15
-                                      0x00, 0x00, 0x00};                                // 16-18
-static uint8_t enter_valve_mode7[] = {0xc0, 0xba, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,   // 0 -7
-                                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,   // 8-15
-                                      0x00, 0x00, 0x00};                                // 16-18
-static uint8_t enter_valve_mode8[] = {0xc0, 0x87, 0x03, 0x2d, 0x64, 0x00, 0x00, 0x00,   // 0 -7
-                                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,   // 8-15
-                                      0x00, 0x00, 0x00};                                // 16-18
-static uint8_t enter_valve_mode9[] = {0xc0, 0x8f, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00,   // 0 -7
-                                      0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00,   // 8-15
-                                      0x00, 0x00, 0x00};                                // 16-18
-static uint8_t enter_valve_mode10[] = {0xc0, 0x8f, 0x08, 0x01, 0x00, 0x00, 0x00, 0x00,  // 0 -7
-                                       0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00,  // 8-15
-                                       0x00, 0x00, 0x00};                               // 16-18
-// 1337
-static uint8_t enter_valve_mode11[] = {0xc0, 0x8f, 0x08, 0x01, 0x00, 0x00, 0x00, 0x00,  // 0 -7
-                                       0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00,  // 8-15
-                                       0x00, 0x00, 0x00};                               // 16-18
+// Commands that can be sent in a feature report.
+#define STEAM_CMD_SET_MAPPINGS 0x80
+#define STEAM_CMD_CLEAR_MAPPINGS 0x81
+#define STEAM_CMD_GET_MAPPINGS 0x82
+#define STEAM_CMD_GET_ATTRIB 0x83
+#define STEAM_CMD_GET_ATTRIB_LABEL 0x84
+#define STEAM_CMD_DEFAULT_MAPPINGS 0x85
+#define STEAM_CMD_FACTORY_RESET 0x86
+#define STEAM_CMD_WRITE_REGISTER 0x87
+#define STEAM_CMD_CLEAR_REGISTER 0x88
+#define STEAM_CMD_READ_REGISTER 0x89
+#define STEAM_CMD_GET_REGISTER_LABEL 0x8a
+#define STEAM_CMD_GET_REGISTER_MAX 0x8b
+#define STEAM_CMD_GET_REGISTER_DEFAULT 0x8c
+#define STEAM_CMD_SET_MODE 0x8d
+#define STEAM_CMD_DEFAULT_MOUSE 0x8e
+#define STEAM_CMD_FORCEFEEDBAK 0x8f
+#define STEAM_CMD_REQUEST_COMM_STATUS 0xb4
+#define STEAM_CMD_GET_SERIAL 0xae
+#define STEAM_CMD_HAPTIC_RUMBLE 0xeb
 
-// check 1560
+// Some useful register ids
+#define STEAM_REG_LPAD_MODE 0x07
+#define STEAM_REG_RPAD_MODE 0x08
+#define STEAM_REG_RPAD_MARGIN 0x18
+#define STEAM_REG_LED 0x2d
+#define STEAM_REG_GYRO_MODE 0x30
+#define STEAM_REG_LPAD_CLICK_PRESSURE 0x34
+#define STEAM_REG_RPAD_CLICK_PRESSURE 0x35
+
+static uint8_t cmd_clear_mappings[] = {
+    0xc0, STEAM_CMD_CLEAR_MAPPINGS,  // Command
+    0x01                             // Command Len
+};
+
+// clang-format off
+static uint8_t cmd_disable_lizard[] = {
+    0xc0, STEAM_CMD_WRITE_REGISTER,    // Command
+    0x0f,                              // Command Len
+    STEAM_REG_GYRO_MODE,   0x00, 0x00, // Disable gyro/accel
+    STEAM_REG_LPAD_MODE,   0x07, 0x00, // Disable cursor
+    STEAM_REG_RPAD_MODE,   0x07, 0x00, // Disable mouse
+    STEAM_REG_RPAD_MARGIN, 0x00, 0x00, // No margin
+    STEAM_REG_LED,         0x64, 0x00  // LED bright, max value
+};
+// clang-format on
 
 static gatt_client_service_t le_steam_service;
 static gatt_client_characteristic_t le_steam_characteristic_report;
@@ -95,15 +100,13 @@ static hci_con_handle_t connection_handle;
 static uni_hid_device_t* device;
 static steam_query_state_t query_state;
 
+// TODO: Make it easier for "parsers" to write/read/get notified from characteristics
 static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     uint8_t att_status;
 
     if (packet_type != HCI_EVENT_PACKET)
         return;
 
-    printf_hexdump(packet, size);
-
-    uint16_t conn_interval;
     uint8_t event = hci_event_packet_get_type(packet);
     switch (query_state) {
         case STATE_QUERY_SERVICE:
@@ -122,8 +125,8 @@ static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint
                         // gap_disconnect(connection_handle);
                         break;
                     }
-                    // service query complete, look for characteristic
-                    logi("Search for LE Steam characteristic.\n");
+                    // service query complete, look for characteristic report
+                    logi("Search for LE Steam characteristic report.\n");
                     query_state = STATE_QUERY_CHARACTERISTIC_REPORT;
                     gatt_client_discover_characteristics_for_service_by_uuid128(handle_gatt_client_event,
                                                                                 connection_handle, &le_steam_service,
@@ -145,9 +148,9 @@ static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint
                         break;
                     }
                     gatt_client_write_value_of_characteristic(handle_gatt_client_event, connection_handle,
-                                                              le_steam_characteristic_report.value_handle, 19,
-                                                              enter_valve_mode1);
-                    query_state = STATE_QUERY_SET_VALVE_MODE1;
+                                                              le_steam_characteristic_report.value_handle,
+                                                              sizeof(cmd_clear_mappings), cmd_clear_mappings);
+                    query_state = STATE_QUERY_CLEAR_MAPPINGS;
                     break;
                 case GATT_EVENT_CHARACTERISTIC_QUERY_RESULT:
                     logi("gatt_event_characteristic_query_result\n");
@@ -157,7 +160,7 @@ static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint
                     loge("Unknown event: %#x\n", event);
             }
             break;
-        case STATE_QUERY_SET_VALVE_MODE1:
+        case STATE_QUERY_CLEAR_MAPPINGS:
             switch (event) {
                 case GATT_EVENT_QUERY_COMPLETE:
                     logi("gatt_event_query_complete\n");
@@ -169,15 +172,15 @@ static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint
                         break;
                     }
                     gatt_client_write_value_of_characteristic(handle_gatt_client_event, connection_handle,
-                                                              le_steam_characteristic_report.value_handle, 19,
-                                                              enter_valve_mode2);
-                    query_state = STATE_QUERY_SET_VALVE_MODE2;
+                                                              le_steam_characteristic_report.value_handle,
+                                                              sizeof(cmd_disable_lizard), cmd_disable_lizard);
+                    query_state = STATE_QUERY_DISABLE_LIZARD;
                     break;
                 default:
                     loge("Unknown event: %#x\n", event);
             }
             break;
-        case STATE_QUERY_SET_VALVE_MODE2:
+        case STATE_QUERY_DISABLE_LIZARD:
             switch (event) {
                 case GATT_EVENT_QUERY_COMPLETE:
                     logi("gatt_event_query_complete\n");
@@ -188,179 +191,15 @@ static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint
                         // gap_disconnect(connection_handle);
                         break;
                     }
-                    gatt_client_write_value_of_characteristic(handle_gatt_client_event, connection_handle,
-                                                              le_steam_characteristic_report.value_handle, 19,
-                                                              enter_valve_mode3);
-                    query_state = STATE_QUERY_SET_VALVE_MODE3;
+                    uni_hid_device_set_ready_complete(device);
+                    query_state = STATE_QUERY_END;
                     break;
                 default:
                     loge("Unknown event: %#x\n", event);
             }
             break;
-        case STATE_QUERY_SET_VALVE_MODE3:
-            switch (event) {
-                case GATT_EVENT_QUERY_COMPLETE:
-                    logi("gatt_event_query_complete\n");
-                    att_status = gatt_event_query_complete_get_att_status(packet);
-                    if (att_status != ATT_ERROR_SUCCESS) {
-                        loge("SERVICE_QUERY_RESULT - Error status %x.\n", att_status);
-                        // Should disconnect (?)
-                        // gap_disconnect(connection_handle);
-                        break;
-                    }
-                    gatt_client_write_value_of_characteristic(handle_gatt_client_event, connection_handle,
-                                                              le_steam_characteristic_report.value_handle, 19,
-                                                              enter_valve_mode4);
-                    query_state = STATE_QUERY_SET_VALVE_MODE4;
-                    break;
-                default:
-                    loge("Unknown event: %#x\n", event);
-            }
-            break;
-        case STATE_QUERY_SET_VALVE_MODE4:
-            switch (event) {
-                case GATT_EVENT_QUERY_COMPLETE:
-                    logi("gatt_event_query_complete\n");
-                    att_status = gatt_event_query_complete_get_att_status(packet);
-                    if (att_status != ATT_ERROR_SUCCESS) {
-                        loge("SERVICE_QUERY_RESULT - Error status %x.\n", att_status);
-                        // Should disconnect (?)
-                        // gap_disconnect(connection_handle);
-                        break;
-                    }
-                    gatt_client_write_value_of_characteristic(handle_gatt_client_event, connection_handle,
-                                                              le_steam_characteristic_report.value_handle, 19,
-                                                              enter_valve_mode5);
-                    query_state = STATE_QUERY_SET_VALVE_MODE5;
-                    break;
-                default:
-                    loge("Unknown event: %#x\n", event);
-            }
-            break;
-        case STATE_QUERY_SET_VALVE_MODE5:
-            switch (event) {
-                case GATT_EVENT_QUERY_COMPLETE:
-                    logi("gatt_event_query_complete\n");
-                    att_status = gatt_event_query_complete_get_att_status(packet);
-                    if (att_status != ATT_ERROR_SUCCESS) {
-                        loge("SERVICE_QUERY_RESULT - Error status %x.\n", att_status);
-                        // Should disconnect (?)
-                        // gap_disconnect(connection_handle);
-                        break;
-                    }
-                    gatt_client_write_value_of_characteristic(handle_gatt_client_event, connection_handle,
-                                                              le_steam_characteristic_report.value_handle, 19,
-                                                              enter_valve_mode6);
-                    query_state = STATE_QUERY_SET_VALVE_MODE6;
-                    break;
-                default:
-                    loge("Unknown event: %#x\n", event);
-            }
-            break;
-        case STATE_QUERY_SET_VALVE_MODE6:
-            switch (event) {
-                case GATT_EVENT_QUERY_COMPLETE:
-                    logi("gatt_event_query_complete\n");
-                    att_status = gatt_event_query_complete_get_att_status(packet);
-                    if (att_status != ATT_ERROR_SUCCESS) {
-                        loge("SERVICE_QUERY_RESULT - Error status %x.\n", att_status);
-                        // Should disconnect (?)
-                        // gap_disconnect(connection_handle);
-                        break;
-                    }
-                    gatt_client_write_value_of_characteristic(handle_gatt_client_event, connection_handle,
-                                                              le_steam_characteristic_report.value_handle, 19,
-                                                              enter_valve_mode7);
-                    query_state = STATE_QUERY_SET_VALVE_MODE7;
-                    break;
-                default:
-                    loge("Unknown event: %#x\n", event);
-            }
-            break;
-        case STATE_QUERY_SET_VALVE_MODE7:
-            switch (event) {
-                case GATT_EVENT_QUERY_COMPLETE:
-                    logi("gatt_event_query_complete\n");
-                    att_status = gatt_event_query_complete_get_att_status(packet);
-                    if (att_status != ATT_ERROR_SUCCESS) {
-                        loge("SERVICE_QUERY_RESULT - Error status %x.\n", att_status);
-                        // Should disconnect (?)
-                        // gap_disconnect(connection_handle);
-                        break;
-                    }
-                    gatt_client_write_value_of_characteristic(handle_gatt_client_event, connection_handle,
-                                                              le_steam_characteristic_report.value_handle, 19,
-                                                              enter_valve_mode8);
-                    query_state = STATE_QUERY_SET_VALVE_MODE8;
-                    break;
-                default:
-                    loge("Unknown event: %#x\n", event);
-            }
-            break;
-        case STATE_QUERY_SET_VALVE_MODE8:
-            switch (event) {
-                case GATT_EVENT_QUERY_COMPLETE:
-                    logi("gatt_event_query_complete\n");
-                    att_status = gatt_event_query_complete_get_att_status(packet);
-                    if (att_status != ATT_ERROR_SUCCESS) {
-                        loge("SERVICE_QUERY_RESULT - Error status %x.\n", att_status);
-                        // Should disconnect (?)
-                        // gap_disconnect(connection_handle);
-                        break;
-                    }
-                    gatt_client_write_value_of_characteristic(handle_gatt_client_event, connection_handle,
-                                                              le_steam_characteristic_report.value_handle, 19,
-                                                              enter_valve_mode9);
-                    query_state = STATE_QUERY_SET_VALVE_MODE9;
-                    break;
-                default:
-                    loge("Unknown event: %#x\n", event);
-            }
-            break;
-        case STATE_QUERY_SET_VALVE_MODE9:
-            switch (event) {
-                case GATT_EVENT_QUERY_COMPLETE:
-                    logi("gatt_event_query_complete\n");
-                    att_status = gatt_event_query_complete_get_att_status(packet);
-                    if (att_status != ATT_ERROR_SUCCESS) {
-                        loge("SERVICE_QUERY_RESULT - Error status %x.\n", att_status);
-                        // Should disconnect (?)
-                        // gap_disconnect(connection_handle);
-                        break;
-                    }
-                    gatt_client_write_value_of_characteristic(handle_gatt_client_event, connection_handle,
-                                                              le_steam_characteristic_report.value_handle, 19,
-                                                              enter_valve_mode10);
-                    query_state = STATE_QUERY_SET_VALVE_MODE10;
-                    break;
-                default:
-                    loge("Unknown event: %#x\n", event);
-            }
-            break;
-        case STATE_QUERY_SET_VALVE_MODE10:
-            switch (event) {
-                case GATT_EVENT_QUERY_COMPLETE:
-                    logi("gatt_event_query_complete\n");
-                    att_status = gatt_event_query_complete_get_att_status(packet);
-                    if (att_status != ATT_ERROR_SUCCESS) {
-                        loge("SERVICE_QUERY_RESULT - Error status %x.\n", att_status);
-                        // Should disconnect (?)
-                        // gap_disconnect(connection_handle);
-                        break;
-                    }
-                    // Reuse "mode2"
-                    gatt_client_write_value_of_characteristic(handle_gatt_client_event, connection_handle,
-                                                              le_steam_characteristic_report.value_handle, 19,
-                                                              enter_valve_mode2);
-                    query_state = STATE_QUERY_SET_VALVE_MODE11;
-                    break;
-                default:
-                    loge("Unknown event: %#x\n", event);
-            }
-            break;
-        case STATE_QUERY_SET_VALVE_MODE11:
-            uni_hid_device_set_ready_complete(device);
-            break;
+        case STATE_QUERY_END:
+            // pass-through
         default:
             loge("Steam: Unknown query state: %#x\n", query_state);
             break;

@@ -368,6 +368,8 @@ static void device_information_packet_handler(uint8_t packet_type, uint16_t chan
                     }
                     logi("Using hids_cid=%d\n", hids_cid);
                     device->hids_cid = hids_cid;
+
+                    hids_client_enable_notifications(hids_cid);
                     break;
                 default:
                     logi("Device Information service client connection failed, err 0x%02x.\n", status);
