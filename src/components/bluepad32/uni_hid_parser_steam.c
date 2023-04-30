@@ -20,6 +20,7 @@ limitations under the License.
 // https://github.com/rodrigorc/steamctrl/blob/master/src/steamctrl.c
 // https://elixir.bootlin.com/linux/latest/source/drivers/hid/hid-steam.c
 // https://github.com/haxpor/sdl2-samples/blob/master/android-project/app/src/main/java/org/libsdl/app/HIDDeviceBLESteamController.java
+// https://github.com/g3gg0/LegoRemote
 
 #include "uni_hid_parser_steam.h"
 
@@ -29,6 +30,14 @@ limitations under the License.
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
 #include "uni_log.h"
+
+// clang-format off
+#define STEAM_CONTROLLER_FLAG_BUTTONS       0x0010
+#define STEAM_CONTROLLER_FLAG_TRIGGERS 		0x0020
+#define STEAM_CONTROLLER_FLAG_THUMBSTICK  	0x0080
+#define STEAM_CONTROLLER_FLAG_LEFT_PAD      0x0100
+#define STEAM_CONTROLLER_FLAG_RIGHT_PAD     0x0200
+// clang-format on
 
 typedef enum {
     STATE_QUERY_SERVICE,
@@ -84,13 +93,13 @@ static uint8_t cmd_clear_mappings[] = {
 
 // clang-format off
 static uint8_t cmd_disable_lizard[] = {
-    0xc0, STEAM_CMD_WRITE_REGISTER,    // Command
-    0x0f,                              // Command Len
-    STEAM_REG_GYRO_MODE,   0x00, 0x00, // Disable gyro/accel
-    STEAM_REG_LPAD_MODE,   0x07, 0x00, // Disable cursor
-    STEAM_REG_RPAD_MODE,   0x07, 0x00, // Disable mouse
-    STEAM_REG_RPAD_MARGIN, 0x00, 0x00, // No margin
-    STEAM_REG_LED,         0x64, 0x00  // LED bright, max value
+	0xc0, STEAM_CMD_WRITE_REGISTER,    // Command
+	0x0f,                              // Command Len
+	STEAM_REG_GYRO_MODE,   0x00, 0x00, // Disable gyro/accel
+	STEAM_REG_LPAD_MODE,   0x07, 0x00, // Disable cursor
+	STEAM_REG_RPAD_MODE,   0x07, 0x00, // Disable mouse
+	STEAM_REG_RPAD_MARGIN, 0x00, 0x00, // No margin
+	STEAM_REG_LED,         0x64, 0x00  // LED bright, max value
 };
 // clang-format on
 
@@ -99,6 +108,10 @@ static gatt_client_characteristic_t le_steam_characteristic_report;
 static hci_con_handle_t connection_handle;
 static uni_hid_device_t* device;
 static steam_query_state_t query_state;
+
+static void parse_buttons(struct uni_hid_device_s* d, const uint8_t* data);
+static void parse_triggers(struct uni_hid_device_s* d, const uint8_t* data);
+static void parse_thumbstick(struct uni_hid_device_s* d, const uint8_t* data);
 
 // TODO: Make it easier for "parsers" to write/read/get notified from characteristics
 static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
@@ -211,15 +224,118 @@ void uni_hid_parser_steam_setup(struct uni_hid_device_s* d) {
     connection_handle = d->conn.handle;
     query_state = STATE_QUERY_SERVICE;
     gatt_client_discover_primary_services_by_uuid128(handle_gatt_client_event, d->conn.handle, le_steam_service_uuid);
-}
 
-void uni_hid_parser_steam_init_report(uni_hid_device_t* d) {
-    // Reset old state. Each report contains a full-state.
+    // Set the type of controller class once.
     uni_controller_t* ctl = &d->controller;
-    memset(ctl, 0, sizeof(*ctl));
     ctl->klass = UNI_CONTROLLER_CLASS_GAMEPAD;
 }
 
+void uni_hid_parser_steam_init_report(uni_hid_device_t* d) {
+    // Don't reset old state. Each report contains a full-state.
+    // memset(ctl, 0, sizeof(*ctl));
+}
+
 void uni_hid_parser_steam_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len) {
-    printf_hexdump(report, len);
+    int idx;
+
+    // Report Id
+    if (report[0] != 0x03)
+        // Unsupported Report Id.
+        return;
+
+    if (report[1] != 0xc0)
+        // Not sure what 0xc0 is
+        return;
+
+    // Only care about input reports.
+    // Misc info comes in 0x05
+    if ((report[2] & 0x0f) != 0x04) {
+        // TODO: parse misc info
+        return;
+    }
+
+    // printf_hexdump(report, len);
+
+    uint16_t report_flags = (report[2] & 0xf0) + (report[3] << 8);
+
+    idx = 4;
+    if (report_flags & STEAM_CONTROLLER_FLAG_BUTTONS) {
+        parse_buttons(d, &report[idx]);
+    }
+
+	if (report_flags & STEAM_CONTROLLER_FLAG_TRIGGERS) {
+        parse_triggers(d, &report[idx]);
+	}
+
+    if (report_flags & STEAM_CONTROLLER_FLAG_THUMBSTICK) {
+        parse_thumbstick(d, &report[idx]);
+    }
+
+    if (report_flags & STEAM_CONTROLLER_FLAG_LEFT_PAD) {
+		// TODO: Increment index so that RIGHT_PAD parses it correctly
+    }
+
+    if (report_flags & STEAM_CONTROLLER_FLAG_RIGHT_PAD) {
+		// TODO: Implement me
+    }
+}
+
+static void parse_buttons(struct uni_hid_device_s* d, const uint8_t* data) {
+    uni_controller_t* ctl = &d->controller;
+
+    // Not all reports have the "buttons" section, but when they do, all buttons are present.
+    // Clear them now.
+    ctl->gamepad.dpad = 0;
+    ctl->gamepad.buttons = 0;
+    ctl->gamepad.misc_buttons = 0;
+
+    uint32_t buttons = data[0] | (data[1] << 8) | (data[2] << 16);
+
+    ctl->gamepad.buttons |= (buttons & 0x01) ? BUTTON_TRIGGER_R : 0;
+    ctl->gamepad.buttons |= (buttons & 0x02) ? BUTTON_TRIGGER_L : 0;
+    ctl->gamepad.buttons |= (buttons & 0x04) ? BUTTON_SHOULDER_R : 0;
+    ctl->gamepad.buttons |= (buttons & 0x08) ? BUTTON_SHOULDER_L : 0;
+
+    ctl->gamepad.buttons |= (buttons & 0x10) ? BUTTON_Y : 0;
+    ctl->gamepad.buttons |= (buttons & 0x20) ? BUTTON_B : 0;
+    ctl->gamepad.buttons |= (buttons & 0x40) ? BUTTON_X : 0;
+    ctl->gamepad.buttons |= (buttons & 0x80) ? BUTTON_A : 0;
+
+    ctl->gamepad.dpad |= (buttons & 0x0100) ? DPAD_UP : 0;
+    ctl->gamepad.dpad |= (buttons & 0x0200) ? DPAD_RIGHT : 0;
+    ctl->gamepad.dpad |= (buttons & 0x0400) ? DPAD_LEFT : 0;
+    ctl->gamepad.dpad |= (buttons & 0x0800) ? DPAD_DOWN : 0;
+
+    ctl->gamepad.misc_buttons |= (buttons & 0x1000) ? MISC_BUTTON_BACK : 0;
+    ctl->gamepad.misc_buttons |= (buttons & 0x2000) ? MISC_BUTTON_SYSTEM : 0;
+    ctl->gamepad.misc_buttons |= (buttons & 0x4000) ? MISC_BUTTON_HOME : 0;
+
+	// Emulates the behavior of Steam Controller under Steam games.
+    ctl->gamepad.buttons |= (buttons & 0x008000) ? BUTTON_A : 0;  // Left-inner button.
+    ctl->gamepad.buttons |= (buttons & 0x010000) ? BUTTON_X : 0;  // right-inner button.
+
+#if 0
+	// Do nothing.
+    ctl->gamepad.buttons |= (buttons & 0x080000) ? BUTTON_X : 0;  // Touch left pad
+    ctl->gamepad.buttons |= (buttons & 0x100000) ? BUTTON_Y : 0;  // Touch right pad
+#endif
+
+    ctl->gamepad.buttons |= (buttons & 0x400000) ? BUTTON_THUMB_L : 0;
+}
+
+static void parse_thumbstick(struct uni_hid_device_s* d, const uint8_t* data) {
+    uni_controller_t* ctl = &d->controller;
+
+	int16_t x = (data[0] | data[1] << 8);
+	int16_t y = (data[2] | data[3] << 8);
+
+	ctl->gamepad.axis_x = (x >> 6);
+	ctl->gamepad.axis_y = (y >> 6);
+}
+
+static void parse_triggers(struct uni_hid_device_s* d, const uint8_t* data) {
+    uni_controller_t* ctl = &d->controller;
+
+	ctl->gamepad.brake = data[0] << 2;
+	ctl->gamepad.throttle = data[1] << 2;
 }

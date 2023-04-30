@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] - ???
 ### New
 - DualSense / DualShock 4: Report Acceleromenter and Gyro data
+- Steam Controller: Add support for Steam Controller.
+  - Disables "lizard" mode
+  - Dpad, buttons, triggers, thumbstick supported.
+  - Gyro/Accel/Right pad: not supported ATM
 
 ### Fixed
 - Xbox Adaptive Controller: Works as expeted. Removed "unsupported usage" messages.
