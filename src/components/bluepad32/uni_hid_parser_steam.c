@@ -263,20 +263,20 @@ void uni_hid_parser_steam_parse_input_report(struct uni_hid_device_s* d, const u
         parse_buttons(d, &report[idx]);
     }
 
-	if (report_flags & STEAM_CONTROLLER_FLAG_TRIGGERS) {
+    if (report_flags & STEAM_CONTROLLER_FLAG_TRIGGERS) {
         parse_triggers(d, &report[idx]);
-	}
+    }
 
     if (report_flags & STEAM_CONTROLLER_FLAG_THUMBSTICK) {
         parse_thumbstick(d, &report[idx]);
     }
 
     if (report_flags & STEAM_CONTROLLER_FLAG_LEFT_PAD) {
-		// TODO: Increment index so that RIGHT_PAD parses it correctly
+        // TODO: Increment index so that RIGHT_PAD parses it correctly
     }
 
     if (report_flags & STEAM_CONTROLLER_FLAG_RIGHT_PAD) {
-		// TODO: Implement me
+        // TODO: Implement me
     }
 }
 
@@ -310,7 +310,7 @@ static void parse_buttons(struct uni_hid_device_s* d, const uint8_t* data) {
     ctl->gamepad.misc_buttons |= (buttons & 0x2000) ? MISC_BUTTON_SYSTEM : 0;
     ctl->gamepad.misc_buttons |= (buttons & 0x4000) ? MISC_BUTTON_HOME : 0;
 
-	// Emulates the behavior of Steam Controller under Steam games.
+    // Emulates the behavior of Steam Controller under Steam games.
     ctl->gamepad.buttons |= (buttons & 0x008000) ? BUTTON_A : 0;  // Left-inner button.
     ctl->gamepad.buttons |= (buttons & 0x010000) ? BUTTON_X : 0;  // right-inner button.
 
@@ -326,16 +326,16 @@ static void parse_buttons(struct uni_hid_device_s* d, const uint8_t* data) {
 static void parse_thumbstick(struct uni_hid_device_s* d, const uint8_t* data) {
     uni_controller_t* ctl = &d->controller;
 
-	int16_t x = (data[0] | data[1] << 8);
-	int16_t y = (data[2] | data[3] << 8);
+    int16_t x = (data[0] | data[1] << 8);
+    int16_t y = (data[2] | data[3] << 8);
 
-	ctl->gamepad.axis_x = (x >> 6);
-	ctl->gamepad.axis_y = (y >> 6);
+    ctl->gamepad.axis_x = (x >> 6);
+    ctl->gamepad.axis_y = (y >> 6);
 }
 
 static void parse_triggers(struct uni_hid_device_s* d, const uint8_t* data) {
     uni_controller_t* ctl = &d->controller;
 
-	ctl->gamepad.brake = data[0] << 2;
-	ctl->gamepad.throttle = data[1] << 2;
+    ctl->gamepad.brake = data[0] << 2;
+    ctl->gamepad.throttle = data[1] << 2;
 }
