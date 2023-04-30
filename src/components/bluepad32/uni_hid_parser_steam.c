@@ -112,6 +112,7 @@ static steam_query_state_t query_state;
 static void parse_buttons(struct uni_hid_device_s* d, const uint8_t* data);
 static void parse_triggers(struct uni_hid_device_s* d, const uint8_t* data);
 static void parse_thumbstick(struct uni_hid_device_s* d, const uint8_t* data);
+static void parse_right_pad(struct uni_hid_device_s* d, const uint8_t* data);
 
 // TODO: Make it easier for "parsers" to write/read/get notified from characteristics
 static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
@@ -272,11 +273,11 @@ void uni_hid_parser_steam_parse_input_report(struct uni_hid_device_s* d, const u
     }
 
     if (report_flags & STEAM_CONTROLLER_FLAG_LEFT_PAD) {
-        // TODO: Increment index so that RIGHT_PAD parses it correctly
+        idx += 4;
     }
 
     if (report_flags & STEAM_CONTROLLER_FLAG_RIGHT_PAD) {
-        // TODO: Implement me
+        parse_right_pad(d, &report[idx]);
     }
 }
 
@@ -338,4 +339,14 @@ static void parse_triggers(struct uni_hid_device_s* d, const uint8_t* data) {
 
     ctl->gamepad.brake = data[0] << 2;
     ctl->gamepad.throttle = data[1] << 2;
+}
+
+static void parse_right_pad(struct uni_hid_device_s* d, const uint8_t* data) {
+    uni_controller_t* ctl = &d->controller;
+
+    int16_t x = (data[0] | data[1] << 8);
+    int16_t y = (data[2] | data[3] << 8);
+
+    ctl->gamepad.axis_rx = (x >> 6);
+    ctl->gamepad.axis_ry = (y >> 6);
 }
