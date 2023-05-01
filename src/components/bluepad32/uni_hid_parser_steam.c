@@ -332,6 +332,7 @@ static void parse_thumbstick(struct uni_hid_device_s* d, const uint8_t* data) {
 
     int16_t x = (data[0] | data[1] << 8);
     int16_t y = (data[2] | data[3] << 8);
+    y = -y;
 
     ctl->gamepad.axis_x = (x >> 6);
     ctl->gamepad.axis_y = (y >> 6);
@@ -349,6 +350,7 @@ static void parse_right_pad(struct uni_hid_device_s* d, const uint8_t* data) {
 
     int16_t x = (data[0] | data[1] << 8);
     int16_t y = (data[2] | data[3] << 8);
+    y = -y;
 
     ctl->gamepad.axis_rx = (x >> 6);
     ctl->gamepad.axis_ry = (y >> 6);
