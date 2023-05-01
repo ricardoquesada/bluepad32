@@ -28,7 +28,8 @@ Non-comprehensive list of supported Bluetooth gamepads their protocols:
 | Nintendo Wii Remote     |    Y   |     |
 | Nintendo Balance Board  |    Y   |     |
 | Xbox Wireless           |    Y*  |  Y* |
-| Stadia                  |        | Y** |
+| Steam                   |        | Y** |
+| Stadia                  |        | Y***|
 | Android                 |    Y   |     |
 | 8BitDo                  |    Y   |     |
 | iCade                   |    Y   |     |
@@ -37,7 +38,10 @@ Non-comprehensive list of supported Bluetooth gamepads their protocols:
 
 *: Xbox Controller Firmware v3.x and v4.x use BR/EDR. Firmware v5.x and later use BLE.
 
-**: Requires [Stadia Bluetooth firmware update][stadia_instructions]
+**: Requires [Steam Controller Bluetooth firmware update][steam_instructions]
+
+***: Requires [Stadia Bluetooth firmware update][stadia_instructions]
+
 
 # Supported gamepads
 
@@ -279,6 +283,22 @@ Classic Controller can be used.
 
 [android_gamepad]: https://lh3.googleusercontent.com/S3H1pEGYGT5aVTwF3ySWHF7vqbonDYR0UxOLJBxFe5At6Q4AP_4TQUCaNOiEXD22U4H3C0lVP1E3m26H3QM4rIbgp1wysbQoSt1NpD61snlWES5N5zGUgx20c2sfFCKZL4w_Gl66Y1s=-no
 [stratus_duo]: https://steelseries.com/gaming-controllers/stratus-duo
+
+## Steam Controller
+
+[![Steam Controller][steam_controller_img]][steam_ebay]
+
+- Controller must be [flashed with Bluetooth firmware][steam_instructions]
+- Supported features:
+  - Disables "lizard mode" (keyboard / mouse mouse)
+  - Supports Dpad, triggers, buttons, thumbstick, right pad
+- Pair instructions:
+  - Press "Y" + "Steam" button
+- Protocol: BLE
+
+[steam_ebay]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw=steam+controller+1001&_sacat=0
+[steam_instructions]: https://help.steampowered.com/en/faqs/view/1796-5FC3-88B3-C85F
+[steam_controller_img]:  https://lh3.googleusercontent.com/pw/AJFCJaX2KZ4NOFbcc0QuI-qgHReYsfsogpRIL1--86cZsMzrVmpDKuFPNHyGKeFXaCiQLtdCSey0SaH9fcj-OG7zDLUGZuZQ1B6wbLQ-pQrD883iMdH6g7fT7oQ-HfVkQXQGH-ZQRTD-LGITxIdI3Gx6VvdD-A=-no
 
 ## Stadia Controller
 

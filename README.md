@@ -62,8 +62,9 @@ Choose your target platform:
 * Nintendo Switch JoyCon
 * Nintendo Wii U controller
 * Nintendo Wii Remote + accessories
-* Xbox Wireless controller (models 1708 and 1914)
+* Xbox Wireless controller (models 1708, 1914, adaptive)
 * Android controllers
+* Steam controller
 * Stadia controller
 * PC/Window controller
 * 8BitDo controllers

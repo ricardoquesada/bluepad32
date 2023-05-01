@@ -118,6 +118,9 @@ static void parse_right_pad(struct uni_hid_device_s* d, const uint8_t* data);
 static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     uint8_t att_status;
 
+    ARG_UNUSED(channel);
+    ARG_UNUSED(size);
+
     if (packet_type != HCI_EVENT_PACKET)
         return;
 
@@ -126,21 +129,18 @@ static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint
         case STATE_QUERY_SERVICE:
             switch (event) {
                 case GATT_EVENT_SERVICE_QUERY_RESULT:
-                    logi("gatt_event_service_query_result\n");
                     // store service (we expect only one)
                     gatt_event_service_query_result_get_service(packet, &le_steam_service);
                     break;
                 case GATT_EVENT_QUERY_COMPLETE:
-                    logi("gatt_event_query_complete\n");
                     att_status = gatt_event_query_complete_get_att_status(packet);
                     if (att_status != ATT_ERROR_SUCCESS) {
-                        loge("SERVICE_QUERY_RESULT - Error status %x.\n", att_status);
+                        loge("Steam: SERVICE_QUERY_RESULT - Error status %x.\n", att_status);
                         // Should disconnect (?)
                         // gap_disconnect(connection_handle);
                         break;
                     }
                     // service query complete, look for characteristic report
-                    logi("Search for LE Steam characteristic report.\n");
                     query_state = STATE_QUERY_CHARACTERISTIC_REPORT;
                     gatt_client_discover_characteristics_for_service_by_uuid128(handle_gatt_client_event,
                                                                                 connection_handle, &le_steam_service,
@@ -153,10 +153,9 @@ static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint
         case STATE_QUERY_CHARACTERISTIC_REPORT:
             switch (event) {
                 case GATT_EVENT_QUERY_COMPLETE:
-                    logi("gatt_event_query_complete\n");
                     att_status = gatt_event_query_complete_get_att_status(packet);
                     if (att_status != ATT_ERROR_SUCCESS) {
-                        loge("SERVICE_QUERY_RESULT - Error status %x.\n", att_status);
+                        loge("Steam: SERVICE_QUERY_RESULT - Error status %x.\n", att_status);
                         // Should disconnect (?)
                         // gap_disconnect(connection_handle);
                         break;
@@ -167,20 +166,18 @@ static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint
                     query_state = STATE_QUERY_CLEAR_MAPPINGS;
                     break;
                 case GATT_EVENT_CHARACTERISTIC_QUERY_RESULT:
-                    logi("gatt_event_characteristic_query_result\n");
                     gatt_event_characteristic_query_result_get_characteristic(packet, &le_steam_characteristic_report);
                     break;
                 default:
-                    loge("Unknown event: %#x\n", event);
+                    loge("Steam: Unknown event: %#x\n", event);
             }
             break;
         case STATE_QUERY_CLEAR_MAPPINGS:
             switch (event) {
                 case GATT_EVENT_QUERY_COMPLETE:
-                    logi("gatt_event_query_complete\n");
                     att_status = gatt_event_query_complete_get_att_status(packet);
                     if (att_status != ATT_ERROR_SUCCESS) {
-                        loge("SERVICE_QUERY_RESULT - Error status %x.\n", att_status);
+                        loge("Steam: SERVICE_QUERY_RESULT - Error status %x.\n", att_status);
                         // Should disconnect (?)
                         // gap_disconnect(connection_handle);
                         break;
@@ -191,16 +188,15 @@ static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint
                     query_state = STATE_QUERY_DISABLE_LIZARD;
                     break;
                 default:
-                    loge("Unknown event: %#x\n", event);
+                    loge("Steam: Unknown event: %#x\n", event);
             }
             break;
         case STATE_QUERY_DISABLE_LIZARD:
             switch (event) {
                 case GATT_EVENT_QUERY_COMPLETE:
-                    logi("gatt_event_query_complete\n");
                     att_status = gatt_event_query_complete_get_att_status(packet);
                     if (att_status != ATT_ERROR_SUCCESS) {
-                        loge("SERVICE_QUERY_RESULT - Error status %x.\n", att_status);
+                        loge("Steam: SERVICE_QUERY_RESULT - Error status %x.\n", att_status);
                         // Should disconnect (?)
                         // gap_disconnect(connection_handle);
                         break;
@@ -209,7 +205,7 @@ static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint
                     query_state = STATE_QUERY_END;
                     break;
                 default:
-                    loge("Unknown event: %#x\n", event);
+                    loge("Steam: Unknown event: %#x\n", event);
             }
             break;
         case STATE_QUERY_END:
@@ -232,12 +228,19 @@ void uni_hid_parser_steam_setup(struct uni_hid_device_s* d) {
 }
 
 void uni_hid_parser_steam_init_report(uni_hid_device_t* d) {
+    ARG_UNUSED(d);
     // Don't reset old state. Each report contains a full-state.
     // memset(ctl, 0, sizeof(*ctl));
 }
 
 void uni_hid_parser_steam_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len) {
     int idx;
+
+    // Sanity checks
+    if (len != 20) {
+        logi("Steam: Inport report with unsupported length: %d\n", len);
+        return;
+    }
 
     // Report Id
     if (report[0] != 0x03)
