@@ -77,7 +77,7 @@ Download latest pre-compiled version from here:
 
 Unzip it, and follow the instructions described in the `README.md` file.
 
-### 3. Or compile it yourself and flash it
+### 3. Or compile it yourself
 
 Install the requirements described here: [README.md][readme].
 
@@ -94,6 +94,7 @@ idf.py menuconfig
 idf.py build
 ```
 
+### 4. Flash it using esptool
 To flash it, you have to use the `--before no_reset` option:
 
 ```sh
@@ -103,6 +104,53 @@ To flash it, you have to use the `--before no_reset` option:
 export ESPPORT=/dev/ttyACM0
 
 esptool.py --port ${ESPPORT} --baud 115200 --before no_reset write_flash 0x1000 ./build/bootloader/bootloader.bin 0x10000 ./build/bluepad32-airlift.bin 0x8000 ./build/partitions_singleapp.bin
+```
+
+### 5. (OPTIONAL) Flash it using CircuitPython code
+
+If step 4a) failed you can try by using this CircuitPython code.
+
+Just copy & paste this file in your `CIRCUITPYTHON` folder with the name `code.py`.
+And also copy the `bluepad32-airlift-full-xxx.bin` to the `CIRCUITPYTHON` folder.
+
+```python
+import time
+import board
+import busio
+from digitalio import DigitalInOut, Direction
+import adafruit_miniesptool
+
+print("ESP32 Bluepad32-FW")
+
+# Override these if you are manually wiring. Otherwise, this will use ESP pins from board.
+tx = getattr(board, "ESP_TX", board.TX)
+rx = getattr(board, "ESP_RX", board.RX)
+resetpin = getattr(board, "ESP_RESET", board.D12)
+gpio0pin = getattr(board, "ESP_GPIO0", board.D10)
+
+uart = busio.UART(rx, tx, baudrate=115200, timeout=1)
+
+esptool = adafruit_miniesptool.miniesptool(
+    uart, DigitalInOut(gpio0pin), DigitalInOut(resetpin), flashsize=4 * 1024 * 1024
+)
+esptool.sync()
+
+print("Synced")
+print("Found:", esptool.chip_name)
+if esptool.chip_name != "ESP32":
+    raise RuntimeError("This example is for ESP32 only")
+
+esptool.baudrate = 115200 * 4 # speed up so we can wrap it in under 2 minutes
+
+# Test connection again by asking for the MAC address
+print("MAC ADDR: ", [hex(i) for i in esptool.mac_addr])
+
+# Note: Make sure to use the LATEST nina-fw binary release! update the md5sum as well
+#esptool.flash_file("NINA_W102-1.7.4.bin", 0x0, "80c2dfd8ad2e97b2c32899382860acb1")
+esptool.flash_file("bluepad32-airlift-full-v3.7.1.bin", 0x0, "a8ae34c6d7cc7f08e0cafc468e66e0af")
+
+esptool.reset()
+time.sleep(0.5)
 ```
 
 [readme]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/README.md
