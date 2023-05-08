@@ -159,6 +159,13 @@ static IRAM_ATTR void gpio_isr_handler_sync(void* arg) {
         portYIELD_FROM_ISR();
 }
 
+inline void delay_us(uint32_t delay) {
+#if ESP_IDF_VERSION_MAJOR == 4
+    ets_delay_us(delay);
+#else
+    ets_rom_delay_us(delay);
+#endif
+}
 static IRAM_ATTR void gpio_isr_handler_paddle(void* arg) {
     // From:
     // https://github.com/LeifBloomquist/JoystickEmulator/blob/master/Arduino/PaddleEmulator/PaddleEmulator.ino
@@ -168,18 +175,18 @@ static IRAM_ATTR void gpio_isr_handler_paddle(void* arg) {
     // Wait while the SID discharges the capacitor.
     // According to the spec, this should be 320 microseconds.
     // With function overhead and so on, this seems about right.
-    ets_delay_us(220);
+    delay_us(220);
 
     // Now, delay the amount required to represent the desired values.
     if (pot_x_leads) {
-        ets_delay_us(pot_x_delay_us);
+        delay_us(pot_x_delay_us);
         gpio_set_level(GPIO_NUM_16, 0);
-        ets_delay_us(pot_y_delay_us);  // This is a delta!
+        delay_us(pot_y_delay_us);  // This is a delta!
         gpio_set_level(GPIO_NUM_33, 0);
     } else {
-        ets_delay_us(pot_y_delay_us);
+        delay_us(pot_y_delay_us);
         gpio_set_level(GPIO_NUM_33, 0);
-        ets_delay_us(pot_x_delay_us);  // This is a delta!
+        delay_us(pot_x_delay_us);  // This is a delta!
         gpio_set_level(GPIO_NUM_16, 0);
     }
 }
