@@ -163,7 +163,7 @@ inline void delay_us(uint32_t delay) {
 #if ESP_IDF_VERSION_MAJOR == 4
     ets_delay_us(delay);
 #else
-    ets_rom_delay_us(delay);
+    esp_rom_delay_us(delay);
 #endif
 }
 static IRAM_ATTR void gpio_isr_handler_paddle(void* arg) {
