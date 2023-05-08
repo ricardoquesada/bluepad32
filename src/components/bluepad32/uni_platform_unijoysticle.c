@@ -1133,6 +1133,9 @@ static void cmd_callback(void* context) {
         case UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_C64_POT_MODE_RUMBLE:
             uni_platform_unijoysticle_c64_set_pot_mode(UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_RUMBLE);
             break;
+        case UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_C64_POT_MODE_PADDLE:
+            uni_platform_unijoysticle_c64_set_pot_mode(UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_PADDLE);
+            break;
         default:
             loge("Unijoysticle: invalid command: %d\n", cmd);
             break;
