@@ -19,11 +19,13 @@ limitations under the License.
 #ifndef UNI_HID_PARSER_XBOXONE_H
 #define UNI_HID_PARSER_XBOXONE_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "uni_hid_parser.h"
 
-// For Xbox One S gamepads
+// For Xbox Wireless Controllers
+bool uni_hid_parser_xboxone_does_name_match(struct uni_hid_device_s* d, const char* name);
 void uni_hid_parser_xboxone_setup(struct uni_hid_device_s* d);
 void uni_hid_parser_xboxone_init_report(struct uni_hid_device_s* d);
 void uni_hid_parser_xboxone_parse_usage(struct uni_hid_device_s* d,

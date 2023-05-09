@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - ???
+### New
+- Unijoysticle: very experimental paddle support
+  Only for developers. Not ready for public.
+
+### Fixed
+- GameSir T3s gamepad, when in iOS mode works.
+  GameSir iOS mode is basically impersonating an Xbox Wireless with FW 4.8.
+  Althought the recommened for GameSir T3s, is to use it in Switch mode.
+
 ## [v3.7.1] - 2023-04-30
 ### New
 - DualSense / DualShock 4: Report Acceleromenter and Gyro data

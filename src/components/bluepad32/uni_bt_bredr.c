@@ -704,7 +704,7 @@ void uni_bt_bredr_on_hci_pin_code_request(uint16_t channel, const uint8_t* packe
     }
 
     if (is_mouse) {
-        // For mice, use "0000" as pins, which seems to be the exected one.
+        // For mice, use "0000" as pins, which seems to be the expected one.
         logi("Using PIN code: '0000'\n");
         gap_pin_code_response_binary(event_addr, (uint8_t*)"0000", 4);
     } else {

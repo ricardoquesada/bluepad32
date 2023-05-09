@@ -474,8 +474,11 @@ bool uni_hid_device_guess_controller_type_from_name(uni_hid_device_t* d, const c
         return false;
 
     // Try with the different matchers.
+    // But don't include Xbox here yet, since we should try to get the HID descriptor first.
+    // This is because there Xbox Wireless has 3 different types of HID descriptors.
     bool ret = uni_hid_parser_ds3_does_name_match(d, name);
     ret = ret || uni_hid_parser_switch_does_name_match(d, name);
+
     if (ret) {
         uni_hid_device_guess_controller_type_from_pid_vid(d);
     }
@@ -497,8 +500,11 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             type = CONTROLLER_TYPE_GenericMouse;
         } else if (uni_hid_device_is_keyboard(d)) {
             type = CONTROLLER_TYPE_GenericKeyboard;
+        } else if (uni_hid_parser_xboxone_does_name_match(d, d->name)) {
+            // Needed for some Xbox Controllers clones, like the GameSir T3s, that returns empty
+            // answers for SDP queries.
+            type = CONTROLLER_TYPE_XBoxOneController;
         } else {
-            // FIXME: Default should be the most popular gamepad device.
             loge("Failed to find gamepad profile for device. Fallback: using Android profile.\n");
             type = CONTROLLER_TYPE_AndroidController;
         }
