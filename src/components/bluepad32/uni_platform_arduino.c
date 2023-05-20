@@ -344,6 +344,21 @@ int arduino_set_rumble(int idx, uint8_t force, uint8_t duration) {
     return UNI_ARDUINO_OK;
 }
 
+int arduino_disconnect_controller(int idx) {
+    if (idx < 0 || idx >= CONFIG_BLUEPAD32_MAX_DEVICES)
+        return UNI_ARDUINO_ERROR;
+    if (_controllers[idx].idx == UNI_ARDUINO_GAMEPAD_INVALID)
+        return UNI_ARDUINO_ERROR;
+
+    pending_request_t request = (pending_request_t){
+        .controller_idx = idx,
+        .cmd = PENDING_REQUEST_CMD_DISCONNECT = 4,
+    };
+    xQueueSendToBack(_pending_queue, &request, (TickType_t)0);
+
+    return UNI_ARDUINO_OK;
+}
+
 int arduino_forget_bluetooth_keys(void) {
     uni_bt_del_keys_safe();
     return UNI_ARDUINO_OK;

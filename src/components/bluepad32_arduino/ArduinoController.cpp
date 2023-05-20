@@ -8,6 +8,7 @@
 #include <uni_log.h>
 #include <uni_platform_arduino.h>
 
+#include "include/ArduinoController.h"
 #include "sdkconfig.h"
 #ifndef CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 #error "Must only be compiled when using Bluepad32 Arduino platform"
@@ -49,6 +50,15 @@ Controller::Controller() : _connected(false), _idx(-1), _data(), _properties() {
 
 bool Controller::isConnected() const {
     return _connected;
+}
+
+void Controller::disconnect() {
+    if (!isConnected()) {
+        loge("controller not connected");
+        return;
+    }
+
+    arduino_disconnect_controller(_idx);
 }
 
 void Controller::setPlayerLEDs(uint8_t led) const {

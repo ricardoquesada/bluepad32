@@ -164,6 +164,8 @@ class Controller {
     int8_t index() const { return _idx; }
 
     bool isConnected() const;
+    void disconnect();
+
 
     uni_controller_class_t getClass() const { return _data.klass; }
     // Returns the controller model.
