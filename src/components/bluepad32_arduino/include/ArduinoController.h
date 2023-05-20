@@ -166,7 +166,6 @@ class Controller {
     bool isConnected() const;
     void disconnect();
 
-
     uni_controller_class_t getClass() const { return _data.klass; }
     // Returns the controller model.
     int getModel() const { return _properties.type; }

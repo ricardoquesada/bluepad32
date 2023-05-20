@@ -77,6 +77,7 @@ typedef enum {
     PENDING_REQUEST_CMD_LIGHTBAR_COLOR = 1,
     PENDING_REQUEST_CMD_PLAYER_LEDS = 2,
     PENDING_REQUEST_CMD_RUMBLE = 3,
+    PENDING_REQUEST_CMD_DISCONNECT = 4,
 } pending_request_cmd_t;
 
 typedef struct {
@@ -132,6 +133,15 @@ static void process_pending_requests(void) {
             case PENDING_REQUEST_CMD_RUMBLE:
                 if (d->report_parser.set_rumble != NULL)
                     d->report_parser.set_rumble(d, request.args[0], request.args[1]);
+                break;
+
+            case PENDING_REQUEST_CMD_DISCONNECT:
+                // Don't call "uni_hid_device_disconnect" since it will
+                // disconnec the "d" immediately and functions in the
+                // stack trace might depend on it. Instead call it from
+                // a callback.
+                idx = uni_hid_device_get_idx_for_instance(d);
+                uni_bt_disconnect_device_safe(idx);
                 break;
 
             default:
@@ -352,7 +362,7 @@ int arduino_disconnect_controller(int idx) {
 
     pending_request_t request = (pending_request_t){
         .controller_idx = idx,
-        .cmd = PENDING_REQUEST_CMD_DISCONNECT = 4,
+        .cmd = PENDING_REQUEST_CMD_DISCONNECT,
     };
     xQueueSendToBack(_pending_queue, &request, (TickType_t)0);
 
