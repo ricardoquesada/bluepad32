@@ -8,11 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### New
 - Unijoysticle: very experimental paddle support
   Only for developers. Not ready for public.
+- Arduino: Add "disconnect" API.
+  This API was already present on the NINA platform, but not in Arduino.
+  They are in sync now ([Bug GH36][github_issue_36])
 
 ### Fixed
 - GameSir T3s gamepad, when in iOS mode works.
   GameSir iOS mode is basically impersonating an Xbox Wireless with FW 4.8.
   Althought the recommened for GameSir T3s, is to use it in Switch mode.
+
+[github_issue_36]: https://github.com/ricardoquesada/bluepad32/issues/36
 
 ## [v3.7.1] - 2023-04-30
 ### New
