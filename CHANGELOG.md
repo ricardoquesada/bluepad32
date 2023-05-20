@@ -4,16 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - ???
+## [v3.7.2] - 2023-05-20
 ### New
-- Unijoysticle: very experimental paddle support
+- Unijoysticle: very experimental paddle support.
   Only for developers. Not ready for public.
 - Arduino: Add "disconnect" API.
   This API was already present on the NINA platform, but not in Arduino.
   They are in sync now ([Bug GH36][github_issue_36])
 
 ### Changed
-- Wii Mote accelerometer exposed to Arduino/Nina/AirLift ([Bug GL28][gitlab_issue_28])
+- Wii Mote accelerometer exposed to Arduino/Nina/AirLift ([Bug GL28][gitlab_issue_28]).
   Before it was converted inside the Wii parser, preventing platforms to use the accelerometer
   data as they wish.
   Now the accelerometer data is exposed, and platform can do what they pleased.
@@ -42,7 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v3.7.0] - 2023-04-17
 ### New
-- Arduino/NINA/AirLift: Added BP32.localBdAddress() [Bug][bluepad32_arduino_issue5]
+- Arduino/NINA/AirLift: Added BP32.localBdAddress()([Bug GL5][bluepad32_arduino_issue5]).
   Returns the Local BD Address (AKA Mac Address).
   Updated example that shows how to use it.
 
