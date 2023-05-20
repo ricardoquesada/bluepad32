@@ -39,5 +39,7 @@ typedef struct {
 
 void uni_joy_to_single_joy_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t* out_joy);
 void uni_joy_to_combo_joy_joy_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t* out_joy1, uni_joystick_t* out_joy2);
+// Helper  function that converts accelerotmer data from Wii, into joystick inputs
+void uni_joy_to_single_from_wii_accel(const uni_gamepad_t* gp, uni_joystick_t* out_joy);
 
 #endif  // UNI_JOYSTICK_H

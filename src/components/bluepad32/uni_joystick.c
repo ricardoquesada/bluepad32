@@ -19,7 +19,13 @@ limitations under the License.
 
 #include "uni_joystick.h"
 
+#include <string.h>
+
 #include "uni_gamepad.h"
+
+// When accelerometer mode is enabled, it will use it as if it were
+// in the Nintendo Wii Wheel.
+#define ENABLE_ACCEL_WHEEL_MODE 1
 
 static void to_single_joy(const uni_gamepad_t* gp, uni_joystick_t* out_joy) {
     // Button A is "fire"
@@ -86,4 +92,58 @@ void uni_joy_to_combo_joy_joy_from_gamepad(const uni_gamepad_t* gp,
     out_joy1->right |= (gp->axis_rx > AXIS_THRESHOLD);
     out_joy1->up |= (gp->axis_ry < -AXIS_THRESHOLD);
     out_joy1->down |= (gp->axis_ry > AXIS_THRESHOLD);
+}
+
+void uni_joy_to_single_from_wii_accel(const uni_gamepad_t* gp, uni_joystick_t* out_joy) {
+    // Button "1" is Brake (down), and button "2" is Throttle (up)
+    // Buttons "1" and "2" can override values from Dpad.
+
+    const int16_t accel_threshold = 26;
+
+    int sx = gp->accel[0];
+    int sy = gp->accel[1];
+
+    memset(out_joy, 0, sizeof(*out_joy));
+
+#ifdef ENABLE_ACCEL_WHEEL_MODE
+    // Is the wheel in resting position, don't read accelerometer
+    if (sx > -accel_threshold && sx < accel_threshold) {
+        // Accelerometer reading disabled.
+        // logd("Wii: Wheel in resting position, do nothing");
+    } else {
+        // Preserve Dpad values... they are used to navigate menus.
+        out_joy->up |= (gp->dpad & DPAD_UP) ? 1 : 0;
+        out_joy->down |= (gp->dpad & DPAD_DOWN) ? 1 : 0;
+        out_joy->left |= (gp->dpad & DPAD_LEFT) ? 1 : 0;
+        out_joy->right |= (gp->dpad & DPAD_RIGHT) ? 1 : 0;
+
+        // Button "1" is Brake (down), and button "2" is Throttle (up)
+        // Buttons "1" and "2" can override values from Dpad.
+        out_joy->down |= (gp->buttons & BUTTON_A) ? DPAD_DOWN : 0;
+        out_joy->up |= (gp->buttons & BUTTON_B) ? DPAD_UP : 0;
+
+        // Accelerometer overrides Dpad values.
+        if (sy > accel_threshold) {
+            out_joy->left = 1;
+            out_joy->right = 0;
+        } else if (sy < -accel_threshold) {
+            out_joy->right = 1;
+            out_joy->left = 0;
+        }
+    }
+
+#else   // !ENABLE_ACCEL_WHEEL_MODE
+    if (sx < -accel_threshold) {
+        out_joy->left = 1;
+    } else if (sx > accel_threshold) {
+        out_joy->right = 1;
+    }
+    if (sy < -accel_threshold) {
+        out_joy->up = 1;
+    } else if (sy > (accel_threshold / 2)) {
+        // Threshold for down is 50% because it is not as easy to tilt the
+        // device down as it is it to tilt it up.
+        out_joy->down = 1;
+    }
+#endif  // ! ENABLE_ACCEL_WHEEL_MODE
 }

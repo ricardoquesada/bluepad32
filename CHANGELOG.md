@@ -12,11 +12,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   This API was already present on the NINA platform, but not in Arduino.
   They are in sync now ([Bug GH36][github_issue_36])
 
+### Changed
+- Wii Mote accelerometer exposed to Arduino/Nina/AirLift ([Bug GL28][gitlab_issue_28])
+  Before it was converted inside the Wii parser, preventing platforms to use the accelerometer
+  data as they wish.
+  Now the accelerometer data is exposed, and platform can do what they pleased.
+  Unijoysticle platform parses it a converts it to joystick (previous behavior).
+
+
 ### Fixed
 - GameSir T3s gamepad, when in iOS mode works.
   GameSir iOS mode is basically impersonating an Xbox Wireless with FW 4.8.
   Althought the recommened for GameSir T3s, is to use it in Switch mode.
 
+[gitlab_issue_28]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/28
 [github_issue_36]: https://github.com/ricardoquesada/bluepad32/issues/36
 
 ## [v3.7.1] - 2023-04-30

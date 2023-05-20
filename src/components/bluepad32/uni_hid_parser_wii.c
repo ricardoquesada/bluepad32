@@ -20,10 +20,6 @@ limitations under the License.
 // http://wiibrew.org/wiki/Wiimote
 // https://github.com/dvdhrm/xwiimote/blob/master/doc/PROTOCOL
 
-// When accelerometer mode is enabled, it will use it as if it were
-// in the Nintendo Wii Wheel.
-#define ENABLE_ACCEL_WHEEL_MODE 1
-
 #include <assert.h>
 
 #define ENABLE_EEPROM_DUMP 0
@@ -556,7 +552,6 @@ static void process_drm_k_vertical(uni_controller_t* ctl, const uint8_t* data) {
 // http://wiibrew.org/wiki/Wiimote#0x31:_Core_Buttons_and_Accelerometer
 static void process_drm_ka(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
     // Process Wiimote in "accelerator mode".
-    const int16_t accel_threshold = 26;
     /* DRM_KA: BB*2 AA*3*/
     // Expecting something like:
     // 31 20 60 82 7F 99
@@ -567,61 +562,31 @@ static void process_drm_ka(uni_hid_device_t* d, const uint8_t* report, uint16_t 
 
     uint16_t x = (report[3] << 2) | ((report[1] >> 5) & 0x3);
     uint16_t y = (report[4] << 2) | ((report[2] >> 4) & 0x2);
-    // uint16_t z = (report[5] << 2) | ((report[2] >> 5) & 0x2);
+    uint16_t z = (report[5] << 2) | ((report[2] >> 5) & 0x2);
 
     int16_t sx = x - 0x200;
     int16_t sy = y - 0x200;
-    // int16_t sz = z - 0x200;
+    int16_t sz = z - 0x200;
 
     // printf_hexdump(report, len);
     // logi("Wii: x=%d, y=%d, z=%d\n", sx, sy, sz);
 
     uni_controller_t* ctl = &d->controller;
-#ifdef ENABLE_ACCEL_WHEEL_MODE
 
-    // Is the wheel in resting position, don't read accelerometer
-    if (sx > -accel_threshold && sx < accel_threshold) {
-        // Accelerometer reading disabled.
-        // logd("Wii: Wheel in resting position, do nothing");
-    } else {
-        // Dpad works as dpad, useful to navigate menus.
-        ctl->gamepad.dpad |= (report[1] & 0x01) ? DPAD_DOWN : 0;
-        ctl->gamepad.dpad |= (report[1] & 0x02) ? DPAD_UP : 0;
-        ctl->gamepad.dpad |= (report[1] & 0x04) ? DPAD_RIGHT : 0;
-        ctl->gamepad.dpad |= (report[1] & 0x08) ? DPAD_LEFT : 0;
+    ctl->gamepad.accel[0] = sx;
+    ctl->gamepad.accel[1] = sy;
+    ctl->gamepad.accel[2] = sz;
 
-        // Button "1" is Brake (down), and button "2" is Throttle (up)
-        // Buttons "1" and "2" can override values from Dpad.
-        ctl->gamepad.dpad |= (report[2] & 0x02) ? DPAD_DOWN : 0;  // Button "1"
-        ctl->gamepad.dpad |= (report[2] & 0x01) ? DPAD_UP : 0;    // Button "2"
+    // Dpad works as dpad, useful to navigate menus.
+    ctl->gamepad.dpad |= (report[1] & 0x01) ? DPAD_DOWN : 0;
+    ctl->gamepad.dpad |= (report[1] & 0x02) ? DPAD_UP : 0;
+    ctl->gamepad.dpad |= (report[1] & 0x04) ? DPAD_RIGHT : 0;
+    ctl->gamepad.dpad |= (report[1] & 0x08) ? DPAD_LEFT : 0;
 
-        // Accelerometer overrides Dpad values.
-        if (sy > accel_threshold) {
-            ctl->gamepad.dpad |= DPAD_LEFT;
-            ctl->gamepad.dpad &= ~DPAD_RIGHT;
-        } else if (sy < -accel_threshold) {
-            ctl->gamepad.dpad |= DPAD_RIGHT;
-            ctl->gamepad.dpad &= ~DPAD_LEFT;
-        }
-    }
-
-#else   // !ENABLE_ACCEL_WHEEL_MODE
-    if (sx < -accel_threshold) {
-        ctl->gamepad.dpad |= DPAD_LEFT;
-    } else if (sx > accel_threshold) {
-        ctl->gamepad.dpad |= DPAD_RIGHT;
-    }
-    if (sy < -accel_threshold) {
-        ctl->gamepad.dpad |= DPAD_UP;
-    } else if (sy > (accel_threshold / 2)) {
-        // Threshold for down is 50% because it is not as easy to tilt the
-        // device down as it is it to tilt it up.
-        ctl->gamepad.dpad |= DPAD_DOWN;
-    }
-#endif  // ! ENABLE_ACCEL_WHEEL_MODE
-
-    ctl->gamepad.buttons |= (report[2] & 0x08) ? BUTTON_A : 0;  // Big button "A"
-    ctl->gamepad.buttons |= (report[2] & 0x04) ? BUTTON_B : 0;  // Button Shoulder
+    ctl->gamepad.buttons |= (report[2] & 0x02) ? BUTTON_A : 0;  // Button "1"
+    ctl->gamepad.buttons |= (report[2] & 0x01) ? BUTTON_B : 0;  // Button "2"
+    ctl->gamepad.buttons |= (report[2] & 0x08) ? BUTTON_X : 0;  // Big button "A"
+    ctl->gamepad.buttons |= (report[2] & 0x04) ? BUTTON_Y : 0;  // Button Shoulder
 
     ctl->gamepad.misc_buttons |= (report[2] & 0x80) ? MISC_BUTTON_SYSTEM : 0;  // Button "home"
     ctl->gamepad.misc_buttons |= (report[2] & 0x10) ? MISC_BUTTON_BACK : 0;    // Button "-"
