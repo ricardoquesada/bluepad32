@@ -368,17 +368,22 @@ void uni_platform_unijoysticle_c64_set_pot_level(gpio_num_t gpio_num, uint8_t le
         uni_gpio_set_level(gpio_num, !level);
     } else if (_pot_mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_RUMBLE) {
         // Leave it disabled to allow the SYNC to reach ESP32 without interference
-        uni_gpio_set_level(gpio_num, !!level);
+        uni_gpio_set_level(gpio_num, level);
     } else if (_pot_mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_PADDLE) {
         // do nothing
     } else {
-        loge("unijoysticle: unsupported gamepad mode: %d\n", _pot_mode);
+        loge("unijoysticle: unsupported pot_level mode: %d\n", _pot_mode);
     }
 }
 
 void uni_platform_unijoysticle_c64_on_init_complete(const gpio_num_t* port_a, const gpio_num_t* port_b) {
     int mode = get_c64_pot_mode_from_nvs();
     uni_platform_unijoysticle_c64_set_pot_mode(mode);
+
+    // set_pot_mode runs from a different Core, so, wait until _pot_mode is defined
+    // before calling set_pot_level, which requires in pot_mod
+    while (_pot_mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_INVALID)
+        vTaskDelay(pdMS_TO_TICKS(50));
 
     uni_platform_unijoysticle_c64_set_pot_level(port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2], 0);
     uni_platform_unijoysticle_c64_set_pot_level(port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3], 0);

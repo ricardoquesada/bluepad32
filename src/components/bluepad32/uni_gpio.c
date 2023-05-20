@@ -137,5 +137,5 @@ void uni_gpio_register_cmds(void) {
 esp_err_t uni_gpio_set_level(gpio_num_t gpio, int value) {
     if (gpio == -1)
         return ESP_OK;
-    return gpio_set_level(gpio, value);
+    return gpio_set_level(gpio, !!value);
 }

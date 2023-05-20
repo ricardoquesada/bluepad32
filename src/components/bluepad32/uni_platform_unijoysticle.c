@@ -984,14 +984,14 @@ static void joy_update_port(const uni_joystick_t* joy, const gpio_num_t* gpios) 
     logd("up=%d, down=%d, left=%d, right=%d, fire=%d, bt2=%d, bt3=%d\n", joy->up, joy->down, joy->left, joy->right,
          joy->fire, joy->button2, joy->button3);
 
-    uni_gpio_set_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_UP], !!joy->up);
-    uni_gpio_set_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_DOWN], !!joy->down);
-    uni_gpio_set_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_LEFT], !!joy->left);
-    uni_gpio_set_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_RIGHT], !!joy->right);
+    uni_gpio_set_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_UP], joy->up);
+    uni_gpio_set_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_DOWN], joy->down);
+    uni_gpio_set_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_LEFT], joy->left);
+    uni_gpio_set_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_RIGHT], joy->right);
 
     // Only update fire if auto-fire is off. Otherwise it will conflict.
     if (!joy->auto_fire) {
-        uni_gpio_set_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_FIRE], !!joy->fire);
+        uni_gpio_set_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_FIRE], joy->fire);
     }
 
     if (get_uni_model_from_pins() == BOARD_MODEL_UNIJOYSTICLE2_C64) {
@@ -999,8 +999,8 @@ static void joy_update_port(const uni_joystick_t* joy, const gpio_num_t* gpios) 
         uni_platform_unijoysticle_c64_set_pot_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2], joy->button2);
         uni_platform_unijoysticle_c64_set_pot_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3], joy->button3);
     } else {
-        uni_gpio_set_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2], !!joy->button2);
-        uni_gpio_set_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3], !!joy->button3);
+        uni_gpio_set_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2], joy->button2);
+        uni_gpio_set_level(gpios[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3], joy->button3);
     }
 }
 
