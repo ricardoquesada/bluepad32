@@ -32,11 +32,18 @@ body:
       label: Bluepad32 Version
       description: What version of our software are you running?
       options:
-        - 3.7.2 (Default)
+        - 3.7.2 (latest stable)
         - 3.7.1
         - 3.7.0
+        - Other
     validations:
       required: true
+  - type: textarea
+    id: version-custom
+    attributes:
+      label: Bluepad32 version custom
+      description: Bluepad32 version custom
+      value: "Example: Using Git develop branch commit hash #xxxxxxx"
   - type: dropdown
     id: platforms
     attributes:
@@ -49,12 +56,13 @@ body:
         - CircuitPython + AirLift
         - Unijoysticle
         - MightyMiggy
-        - Custom
+        - Other
   - type: textarea
     id: platforms-custom
     attributes:
       label: Platform version
-      description: Which Platform version? For example, which Arduino IDE version, or ESP-IDF version or CircuitPython version, etc.
+      description: Which Platform version?
+      value: "E.g: Arduino IDE 2.1.0, or ESP-IDF v4.4.4, or CircuitPython 8.0.0, etc."
   - type: dropdown
     id: os
     attributes:
@@ -69,4 +77,10 @@ body:
     attributes:
       label: Relevant log output
       description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
+      render: shell
+  - type: textarea
+    id: sketch
+    attributes:
+      label: Relevant sketch
+      description: Please copy and paste the sketch that reproduces the bug. This will be automatically formatted into code, so no need for backticks.
       render: shell
