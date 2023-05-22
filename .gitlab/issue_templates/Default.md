@@ -10,24 +10,24 @@ What version of our software are you running?
 
 E.g: v3.7.2
 
-## Bluepad32 Platform
+## Bluepad32 Platform and its version
 
-What Bluepad32 platform are you using?
+What Bluepad32 platform are you using? and which version ?
 
-Possible options:
-    - Arduino IDE
-    - Arduino ESP-IDF
+E.g:
+    - Arduino IDE v2.1.0
+    - Arduino ESP-IDF with ESP-IDF v4.4.4
     - Arduino + NINA
-    - CircuitPython + AirLift
+    - CircuitPython 8.0.0 + AirLift
     - Unijoysticle
     - MightyMiggy
     - Other (explain)
 
-## Platform version
+## Which controller
 
-Which Platform version?
+Which controller and its firmware version. E.g:
 
-E.g: Arduino IDE 2.1.0, or ESP-IDF v4.4.4, or CircuitPython 8.0.0, etc.
+Xbox Wireless model 1708 with Xbox firmware 5.15.1923
 
 ## OS
 
