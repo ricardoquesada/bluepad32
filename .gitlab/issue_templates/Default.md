@@ -29,6 +29,12 @@ Which controller and its firmware version. E.g:
 
 Xbox Wireless model 1708 with Xbox firmware 5.15.1923
 
+## Which ESP32
+
+E.g: ESP32, ESP32-S3, or ESP32-C3
+
+Specify the board model as well
+
 ## OS
 
 Valid for Arduino platforms: What operating system are you using?
