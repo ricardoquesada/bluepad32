@@ -619,7 +619,6 @@ static void parse_report_30(struct uni_hid_device_s* d, const uint8_t* report, i
 
     const struct switch_report_30_s* r = (const struct switch_report_30_s*)&report[3];
 
-
     switch (ins->controller_type) {
         case SWITCH_CONTROLLER_TYPE_JCL:
             parse_report_30_joycon_left(d, r);
