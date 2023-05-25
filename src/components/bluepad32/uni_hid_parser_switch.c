@@ -320,13 +320,16 @@ void uni_hid_parser_switch_setup(struct uni_hid_device_s* d) {
     }
 #endif  // ENABLE_SPI_FLASH_DUMP
 
+    uni_controller_t* ctl = &d->controller;
+    memset(ctl, 0, sizeof(*ctl));
+    ctl->klass = UNI_CONTROLLER_CLASS_GAMEPAD;
+
     process_fsm(d);
 }
 
 void uni_hid_parser_switch_init_report(uni_hid_device_t* d) {
-    uni_controller_t* ctl = &d->controller;
-    memset(ctl, 0, sizeof(*ctl));
-    ctl->klass = UNI_CONTROLLER_CLASS_GAMEPAD;
+    ARG_UNUSED(d);
+    // Nothing
 }
 
 void uni_hid_parser_switch_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len) {
@@ -336,6 +339,7 @@ void uni_hid_parser_switch_parse_input_report(struct uni_hid_device_s* d, const 
     }
     switch (report[0]) {
         case SWITCH_INPUT_SUBCMD_REPLY:
+            // Don't memset gamepad report
             process_input_subcmd_reply(d, report, len);
             break;
         case SWITCH_INPUT_IMU_DATA:
@@ -608,9 +612,14 @@ static void parse_report_30(struct uni_hid_device_s* d, const uint8_t* report, i
     // 9A FF
 
     ARG_UNUSED(len);
-    const struct switch_report_30_s* r = (const struct switch_report_30_s*)&report[3];
 
     switch_instance_t* ins = get_switch_instance(d);
+    uni_controller_t* ctl = &d->controller;
+    memset(&ctl->gamepad, 0, sizeof(ctl->gamepad));
+
+    const struct switch_report_30_s* r = (const struct switch_report_30_s*)&report[3];
+
+
     switch (ins->controller_type) {
         case SWITCH_CONTROLLER_TYPE_JCL:
             parse_report_30_joycon_left(d, r);
@@ -741,6 +750,8 @@ static void parse_report_3f(struct uni_hid_device_s* d, const uint8_t* report, i
     // (a1) 3F 00 00 08 D0 81 0F 88 F0 81 6F 8E
     ARG_UNUSED(len);
     uni_controller_t* ctl = &d->controller;
+    memset(&ctl->gamepad, 0, sizeof(ctl->gamepad));
+
     const struct switch_report_3f_s* r = (const struct switch_report_3f_s*)&report[1];
 
     // Button main
