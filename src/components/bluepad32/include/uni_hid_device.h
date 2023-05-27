@@ -31,7 +31,7 @@ limitations under the License.
 
 #define HID_MAX_NAME_LEN 240
 #define HID_MAX_DESCRIPTOR_LEN 512
-#define HID_DEVICE_MAX_PARSER_DATA 128
+#define HID_DEVICE_MAX_PARSER_DATA 192
 #define HID_DEVICE_MAX_PLATFORM_DATA 128
 // HID_DEVICE_CONNECTION_TIMEOUT_MS includes the time from when the device is created until it is ready.
 #define HID_DEVICE_CONNECTION_TIMEOUT_MS 20000
