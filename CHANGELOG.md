@@ -8,9 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### New
 - Nintendo Switch: Gyro/Accel is parsed
 - Unijoysticle: Support Nintendo Balance Board.
-  Left,Right,Up,Down: just "press" in the right place in the Balance Board
+  Left,Right,Up,Down: just "press" in the right place in the Balance Board.
   Fire: Both Left and Right must be "pressed".
-  Threshold (weight) is configurable via the console.
+  Threshold (weight) is configurable via the console using:
+    - `set_bb_move_threshold`
+    - `get_bb_move_threshold`
+    - `set_bb_fire_threshold`
+    - `get_bb_fire_threshold`
 
 ### Fixed
 - Nintendo Switch: reports battery correctly.
