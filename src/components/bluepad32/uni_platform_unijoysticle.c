@@ -88,8 +88,10 @@ limitations under the License.
 #define AUTOFIRE_CPS_DEFAULT AUTOFIRE_CPS_QUICKGUN
 
 // Balance Board defaults
-#define BB_MOVE_THRESHOLD_DEFAULT 5000
-#define BB_FIRE_THRESHOLD_DEFAULT 50000
+#define BB_FIRE_MAX_FRAMES 25             // Max frames that fire can be kept pressed
+#define BB_IDLE_THRESHOLD 2000            // Below this value, it is considered that noone is on top of the BB
+#define BB_MOVE_THRESHOLD_DEFAULT 5000    // Diff in weight to consider a Move movemtn
+#define BB_FIRE_THRESHOLD_DEFAULT 100000  // Max weight before staring the "de-accel" to trigger fire.
 
 #define TASK_AUTOFIRE_PRIO (9)
 #define TASK_PUSH_BUTTON_PRIO (8)
@@ -211,6 +213,8 @@ static int cmd_get_bb_move_threshold(int argc, char** argv);
 static int cmd_set_bb_fire_threshold(int argc, char** argv);
 static int cmd_get_bb_fire_threshold(int argc, char** argv);
 static int cmd_version(int argc, char** argv);
+static int get_bb_move_threshold_from_nvs(void);
+static int get_bb_fire_threshold_from_nvs(void);
 static void swap_ports(void);
 static void try_swap_ports(uni_hid_device_t* d);
 static void set_next_gamepad_mode(uni_hid_device_t* d);
@@ -467,6 +471,10 @@ static void unijoysticle_on_init_complete(void) {
     // Turn off LEDs
     uni_gpio_set_level(g_gpio_config->leds[LED_J1], 0);
     uni_gpio_set_level(g_gpio_config->leds[LED_J2], 0);
+
+    // Update Balance Board threshold
+    balanceboard_move_threshold = get_bb_move_threshold_from_nvs();
+    balanceboard_fire_threshold = get_bb_fire_threshold_from_nvs();
 
     board_model_t model = get_uni_model_from_pins();
 
@@ -848,7 +856,7 @@ static void set_autofire_cps_to_nvs(int cps) {
     logi("Done\n");
 }
 
-static int get_autofire_cps_from_nvs() {
+static int get_autofire_cps_from_nvs(void) {
     uni_property_value_t value;
     uni_property_value_t def;
 
@@ -866,7 +874,7 @@ static void set_bb_move_threshold_to_nvs(int threshold) {
     logi("Done\n");
 }
 
-static int get_bb_move_threshold_from_nvs() {
+static int get_bb_move_threshold_from_nvs(void) {
     uni_property_value_t value;
     uni_property_value_t def;
 
@@ -884,7 +892,7 @@ static void set_bb_fire_threshold_to_nvs(int threshold) {
     logi("Done\n");
 }
 
-static int get_bb_fire_threshold_from_nvs() {
+static int get_bb_fire_threshold_from_nvs(void) {
     uni_property_value_t value;
     uni_property_value_t def;
 
@@ -894,7 +902,7 @@ static int get_bb_fire_threshold_from_nvs() {
     return value.u32;
 }
 
-static board_model_t get_uni_model_from_pins() {
+static board_model_t get_uni_model_from_pins(void) {
 #if PLAT_UNIJOYSTICLE_SINGLE_PORT
     // Legacy: Only needed for Arananet's Unijoy2Amiga.
     // Single-port boards should ground GPIO 5. It will be detected in runtime.
@@ -1036,7 +1044,6 @@ static void process_gamepad(uni_hid_device_t* d, uni_gamepad_t* gp) {
 }
 
 static void process_balance_board(uni_hid_device_t* d, uni_balance_board_t* bb) {
-    // TODO: Implement me
     logd("bb tl=%d, tr=%d, bl=%d, br=%d, temperature=%d\n", bb->tl, bb->tr, bb->bl, bb->br, bb->temperature);
 
     uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
@@ -1053,10 +1060,51 @@ static void process_balance_board(uni_hid_device_t* d, uni_balance_board_t* bb) 
     else if (((bb->tr + bb->br) - (bb->tl + bb->bl)) > balanceboard_move_threshold)
         joy.right = true;
 
-    // If both left and right > threshold, then button pressed
-    if (((bb->tl + bb->bl) > balanceboard_move_threshold) && ((bb->tr + bb->br) > balanceboard_fire_threshold))
+    int prev = ins->bb_values[ins->bb_index];
+    int sum = bb->tl + bb->tr + bb->bl + bb->br;
+
+    // The algorithm to determine whether a button is pressed is:
+    // 4 consecutives values should be one less than the previous one with the following restrictions:
+    // 1st value should be bigger than Balance Board Fire Threshold
+    // 2nd value should be less than Balance Board Fire Threshold
+    // 3rd value less than 2nd
+    // 4th value less than Balance Board Idle Threshold
+    if (sum >= prev || sum >= balanceboard_fire_threshold ||
+        ins->bb_index >= UNI_PLATFORM_UNIJOYSTICLE_BB_VALUES_ARRAY_COUNT) {
+        // cancel possible Jump
+        ins->bb_index = 0;
+        ins->bb_values[0] = sum;
+        ins->bb_fire_pressed_frames = 0;
+        joy.fire = false;
+
+        goto process_and_exit;
+    }
+
+    if (sum > BB_IDLE_THRESHOLD) {
+        ins->bb_index++;
+        ins->bb_values[ins->bb_index] = sum;
+        joy.fire = false;
+
+        goto process_and_exit;
+    }
+
+    // Possible jump in progress
+    if (ins->bb_index > 1 && sum < BB_IDLE_THRESHOLD) {
+        // Fire
         joy.fire = true;
 
+        // Fire is "pressed" for a few frames at most
+        ins->bb_fire_pressed_frames++;
+        if (ins->bb_fire_pressed_frames > BB_FIRE_MAX_FRAMES) {
+            // Cancel fire
+            ins->bb_fire_pressed_frames = 0;
+            ins->bb_index = 0;
+            ins->bb_values[0] = sum;
+            joy.fire = false;
+        }
+    }
+
+process_and_exit:
     process_joystick(d, ins->seat, &joy);
 }
 

@@ -25,6 +25,9 @@ limitations under the License.
 #include "uni_hid_device.h"
 #include "uni_platform.h"
 
+// How many Balance Board entries to store
+#define UNI_PLATFORM_UNIJOYSTICLE_BB_VALUES_ARRAY_COUNT 8
+
 // Console commands
 typedef enum {
     UNI_PLATFORM_UNIJOYSTICLE_CMD_SWAP_PORTS,
@@ -69,8 +72,13 @@ enum {
 typedef struct uni_platform_unijoysticle_instance_s {
     uni_platform_unijoysticle_gamepad_mode_t gamepad_mode;  // type of emulation mode
     uni_gamepad_seat_t seat;                                // which "seat" (port) is being used
-    uni_gamepad_seat_t prev_seat;                           // which "seat" (port) was used before
-                                                            // switching emu mode
+    uni_gamepad_seat_t prev_seat;                           // which "seat" (port) was used before switching emu mode
+
+    // Used by Balance Board to determine when to press button.
+    // Uses de-acceleration.
+    uint32_t bb_values[UNI_PLATFORM_UNIJOYSTICLE_BB_VALUES_ARRAY_COUNT];
+    int8_t bb_index;
+    int8_t bb_fire_pressed_frames;
 } uni_platform_unijoysticle_instance_t;
 _Static_assert(sizeof(uni_platform_unijoysticle_instance_t) < HID_DEVICE_MAX_PLATFORM_DATA,
                "Unijoysticle intance too big");
