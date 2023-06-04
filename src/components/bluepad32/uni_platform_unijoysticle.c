@@ -1069,8 +1069,24 @@ static void process_balance_board(uni_hid_device_t* d, uni_balance_board_t* bb) 
     // 2nd value should be less than Balance Board Fire Threshold
     // 3rd value less than 2nd
     // 4th value less than Balance Board Idle Threshold
-    if (sum >= prev || sum >= balanceboard_fire_threshold ||
-        ins->bb_index >= UNI_PLATFORM_UNIJOYSTICLE_BB_VALUES_ARRAY_COUNT) {
+
+    if (sum >= prev || ins->bb_index >= UNI_PLATFORM_UNIJOYSTICLE_BB_VALUES_ARRAY_COUNT) {
+        // cancel possible Jump
+        ins->bb_fire_pressed_frames = 0;
+        ins->bb_index = 0;
+        joy.fire = false;
+
+        // Valid as first entry ?
+        if (sum >= balanceboard_fire_threshold)
+            ins->bb_values[0] = sum;
+        else
+            // Use minimum value so comparison will fail
+            ins->bb_values[0] = 0;
+
+        goto process_and_exit;
+    }
+
+    if (sum >= balanceboard_fire_threshold) {
         // cancel possible Jump
         ins->bb_index = 0;
         ins->bb_values[0] = sum;
@@ -1080,7 +1096,8 @@ static void process_balance_board(uni_hid_device_t* d, uni_balance_board_t* bb) 
         goto process_and_exit;
     }
 
-    if (sum > BB_IDLE_THRESHOLD) {
+    if (bb->tl > BB_IDLE_THRESHOLD || bb->tr > BB_IDLE_THRESHOLD || bb->bl > BB_IDLE_THRESHOLD ||
+        bb->br > BB_IDLE_THRESHOLD) {
         ins->bb_index++;
         ins->bb_values[ins->bb_index] = sum;
         joy.fire = false;
@@ -1089,7 +1106,8 @@ static void process_balance_board(uni_hid_device_t* d, uni_balance_board_t* bb) 
     }
 
     // Possible jump in progress
-    if (ins->bb_index > 1 && sum < BB_IDLE_THRESHOLD) {
+    if (ins->bb_index > 0 && (bb->tl < BB_IDLE_THRESHOLD && bb->tr < BB_IDLE_THRESHOLD && bb->bl < BB_IDLE_THRESHOLD &&
+                              bb->br < BB_IDLE_THRESHOLD)) {
         // Fire
         joy.fire = true;
 

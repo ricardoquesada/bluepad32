@@ -452,6 +452,12 @@ void uni_hid_device_dump_device(uni_hid_device_t* d) {
          d->conn.handle, conn_type, d->conn.control_cid, d->conn.interrupt_cid, d->cod, d->flags, d->conn.incoming);
     logi("\tmodel: vid=0x%04x, pid=0x%04x, model='%s', name='%s'\n", d->vendor_id, d->product_id,
          uni_gamepad_get_model_name(d->controller_type), d->name);
+    logi("\tbattery: %d / 255, type=%s\n", d->controller.battery,
+         (d->controller.klass == UNI_CONTROLLER_CLASS_GAMEPAD)         ? "gamepad"
+         : (d->controller.klass == UNI_CONTROLLER_CLASS_MOUSE)         ? "mouse"
+         : (d->controller.klass == UNI_CONTROLLER_CLASS_BALANCE_BOARD) ? "balance board"
+         : (d->controller.klass == UNI_CONTROLLER_CLASS_KEYBOARD)      ? "keyboard"
+                                                                       : "unknown");
     if (uni_get_platform()->device_dump)
         uni_get_platform()->device_dump(d);
     if (d->report_parser.device_dump)
