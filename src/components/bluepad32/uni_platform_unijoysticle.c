@@ -88,10 +88,10 @@ limitations under the License.
 #define AUTOFIRE_CPS_DEFAULT AUTOFIRE_CPS_QUICKGUN
 
 // Balance Board defaults
-#define BB_FIRE_MAX_FRAMES 25             // Max frames that fire can be kept pressed
-#define BB_IDLE_THRESHOLD 2000            // Below this value, it is considered that noone is on top of the BB
-#define BB_MOVE_THRESHOLD_DEFAULT 5000    // Diff in weight to consider a Move movemtn
-#define BB_FIRE_THRESHOLD_DEFAULT 100000  // Max weight before staring the "de-accel" to trigger fire.
+#define BB_FIRE_MAX_FRAMES 25            // Max frames that fire can be kept pressed
+#define BB_IDLE_THRESHOLD 1300           // Below this value, it is considered that noone is on top of the BB
+#define BB_MOVE_THRESHOLD_DEFAULT 4000   // Diff in weight to consider a Move movemtn
+#define BB_FIRE_THRESHOLD_DEFAULT 50000  // Max weight before staring the "de-accel" to trigger fire.
 
 #define TASK_AUTOFIRE_PRIO (9)
 #define TASK_PUSH_BUTTON_PRIO (8)
@@ -1096,8 +1096,8 @@ static void process_balance_board(uni_hid_device_t* d, uni_balance_board_t* bb) 
         goto process_and_exit;
     }
 
-    if (bb->tl > BB_IDLE_THRESHOLD || bb->tr > BB_IDLE_THRESHOLD || bb->bl > BB_IDLE_THRESHOLD ||
-        bb->br > BB_IDLE_THRESHOLD) {
+    if (sum < prev && (bb->tl > BB_IDLE_THRESHOLD || bb->tr > BB_IDLE_THRESHOLD || bb->bl > BB_IDLE_THRESHOLD ||
+                       bb->br > BB_IDLE_THRESHOLD)) {
         ins->bb_index++;
         ins->bb_values[ins->bb_index] = sum;
         joy.fire = false;
@@ -1117,7 +1117,7 @@ static void process_balance_board(uni_hid_device_t* d, uni_balance_board_t* bb) 
             // Cancel fire
             ins->bb_fire_pressed_frames = 0;
             ins->bb_index = 0;
-            ins->bb_values[0] = sum;
+            ins->bb_values[0] = 0;
             joy.fire = false;
         }
     }

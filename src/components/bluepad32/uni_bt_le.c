@@ -168,9 +168,11 @@ static void get_advertisement_data(const uint8_t* adv_data, uint8_t adv_size, ui
             case BLUETOOTH_DATA_TYPE_DEVICE_ID:
                 logi("device id: %#x\n", little_endian_read_16(data, 0));
                 break;
+            case BLUETOOTH_DATA_TYPE_LE_BLUETOOTH_DEVICE_ADDRESS:
+                break;
             case BLUETOOTH_DATA_TYPE_SECURITY_MANAGER_OUT_OF_BAND_FLAGS:
             default:
-                printf("Advertising Data Type 0x%2x not handled yet", data_type);
+                printf("Advertising Data Type 0x%2x not handled yet\n", data_type);
                 break;
         }
     }
