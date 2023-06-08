@@ -90,7 +90,7 @@ limitations under the License.
 // Balance Board defaults
 #define BB_FIRE_MAX_FRAMES 25            // Max frames that fire can be kept pressed
 #define BB_IDLE_THRESHOLD 1300           // Below this value, it is considered that noone is on top of the BB
-#define BB_MOVE_THRESHOLD_DEFAULT 4000   // Diff in weight to consider a Move movemtn
+#define BB_MOVE_THRESHOLD_DEFAULT 150    // Diff in weight to consider a Movement
 #define BB_FIRE_THRESHOLD_DEFAULT 50000  // Max weight before staring the "de-accel" to trigger fire.
 
 #define TASK_AUTOFIRE_PRIO (9)
@@ -1044,21 +1044,26 @@ static void process_gamepad(uni_hid_device_t* d, uni_gamepad_t* gp) {
 }
 
 static void process_balance_board(uni_hid_device_t* d, uni_balance_board_t* bb) {
-    logd("bb tl=%d, tr=%d, bl=%d, br=%d, temperature=%d\n", bb->tl, bb->tr, bb->bl, bb->br, bb->temperature);
-
     uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
     uni_joystick_t joy;
     memset(&joy, 0, sizeof(joy));
 
-    if (((bb->tl + bb->tr) - (bb->bl + bb->br)) > balanceboard_move_threshold)
+    ins->smooth_down = mult_frac((bb->bl + bb->br) - ins->smooth_down, 6, 1000);
+    ins->smooth_top = mult_frac((bb->tl + bb->tr) - ins->smooth_top, 6, 1000);
+    ins->smooth_left = mult_frac((bb->tl + bb->bl) - ins->smooth_left, 6, 1000);
+    ins->smooth_right = mult_frac((bb->tr + bb->br) - ins->smooth_right, 6, 1000);
+
+    logd("l=%d, r=%d, t=%d, d=%d\n", ins->smooth_left, ins->smooth_right, ins->smooth_top, ins->smooth_down);
+
+    if ((ins->smooth_top - ins->smooth_down) > balanceboard_move_threshold)
         joy.up = true;
-    else if (((bb->bl + bb->br) - (bb->tl + bb->tr)) > balanceboard_move_threshold)
+    else if ((ins->smooth_down - ins->smooth_top) > balanceboard_move_threshold)
         joy.down = true;
 
-    if (((bb->tl + bb->bl) - (bb->tr + bb->br)) > balanceboard_move_threshold)
-        joy.left = true;
-    else if (((bb->tr + bb->br) - (bb->tl + bb->bl)) > balanceboard_move_threshold)
+    if ((ins->smooth_right - ins->smooth_left) > balanceboard_move_threshold)
         joy.right = true;
+    else if ((ins->smooth_left - ins->smooth_right) > balanceboard_move_threshold)
+        joy.left = true;
 
     int prev = ins->bb_values[ins->bb_index];
     int sum = bb->tl + bb->tr + bb->bl + bb->br;

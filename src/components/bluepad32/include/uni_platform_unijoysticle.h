@@ -79,6 +79,10 @@ typedef struct uni_platform_unijoysticle_instance_s {
     uint32_t bb_values[UNI_PLATFORM_UNIJOYSTICLE_BB_VALUES_ARRAY_COUNT];
     int8_t bb_index;
     int8_t bb_fire_pressed_frames;
+    int16_t smooth_left;
+    int16_t smooth_right;
+    int16_t smooth_top;
+    int16_t smooth_down;
 } uni_platform_unijoysticle_instance_t;
 _Static_assert(sizeof(uni_platform_unijoysticle_instance_t) < HID_DEVICE_MAX_PLATFORM_DATA,
                "Unijoysticle intance too big");
