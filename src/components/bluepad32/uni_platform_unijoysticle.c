@@ -88,10 +88,10 @@ limitations under the License.
 #define AUTOFIRE_CPS_DEFAULT AUTOFIRE_CPS_QUICKGUN
 
 // Balance Board defaults
-#define BB_FIRE_MAX_FRAMES 25            // Max frames that fire can be kept pressed
-#define BB_IDLE_THRESHOLD 1300           // Below this value, it is considered that noone is on top of the BB
-#define BB_MOVE_THRESHOLD_DEFAULT 150    // Diff in weight to consider a Movement
-#define BB_FIRE_THRESHOLD_DEFAULT 50000  // Max weight before staring the "de-accel" to trigger fire.
+#define BB_FIRE_MAX_FRAMES 25              // Max frames that fire can be kept pressed
+#define BB_IDLE_THRESHOLD 1600             // Below this value, it is considered that noone is on top of the BB
+#define BB_MOVE_THRESHOLD_DEFAULT 1500     // Diff in weight to consider a Movement
+#define BB_FIRE_THRESHOLD_DEFAULT 1000000  // Max weight before staring the "de-accel" to trigger fire.
 
 #define TASK_AUTOFIRE_PRIO (9)
 #define TASK_PUSH_BUTTON_PRIO (8)
@@ -145,6 +145,13 @@ typedef enum {
 
     BOARD_MODEL_COUNT,
 } board_model_t;
+
+enum {
+    BB_STATE_RESET,      // After fire
+    BB_STATE_THRESHOLD,  // "fire threshold" detected
+    BB_STATE_IN_AIR,     // in the air
+    BB_STATE_FIRE,       // "fire pressed"
+};
 
 // --- Structs / Typedefs
 typedef void (*button_cb_t)(int button_idx);
@@ -1048,86 +1055,79 @@ static void process_balance_board(uni_hid_device_t* d, uni_balance_board_t* bb) 
     uni_joystick_t joy;
     memset(&joy, 0, sizeof(joy));
 
-    ins->smooth_down = mult_frac((bb->bl + bb->br) - ins->smooth_down, 6, 1000);
-    ins->smooth_top = mult_frac((bb->tl + bb->tr) - ins->smooth_top, 6, 1000);
-    ins->smooth_left = mult_frac((bb->tl + bb->bl) - ins->smooth_left, 6, 1000);
-    ins->smooth_right = mult_frac((bb->tr + bb->br) - ins->smooth_right, 6, 1000);
+    // Low pass filter, assuming values arrive at the same framespeed
+    ins->bb_smooth_down = mult_frac((bb->bl + bb->br) - ins->bb_smooth_down, 6, 100);
+    ins->bb_smooth_top = mult_frac((bb->tl + bb->tr) - ins->bb_smooth_top, 6, 100);
+    ins->bb_smooth_left = mult_frac((bb->tl + bb->bl) - ins->bb_smooth_left, 6, 100);
+    ins->bb_smooth_right = mult_frac((bb->tr + bb->br) - ins->bb_smooth_right, 6, 100);
 
-    logd("l=%d, r=%d, t=%d, d=%d\n", ins->smooth_left, ins->smooth_right, ins->smooth_top, ins->smooth_down);
+    logd("l=%d, r=%d, t=%d, d=%d\n", ins->bb_smooth_left, ins->bb_smooth_right, ins->bb_smooth_top,
+         ins->bb_smooth_down);
 
-    if ((ins->smooth_top - ins->smooth_down) > balanceboard_move_threshold)
+    if ((ins->bb_smooth_top - ins->bb_smooth_down) > balanceboard_move_threshold)
         joy.up = true;
-    else if ((ins->smooth_down - ins->smooth_top) > balanceboard_move_threshold)
+    else if ((ins->bb_smooth_down - ins->bb_smooth_top) > balanceboard_move_threshold)
         joy.down = true;
 
-    if ((ins->smooth_right - ins->smooth_left) > balanceboard_move_threshold)
+    if ((ins->bb_smooth_right - ins->bb_smooth_left) > balanceboard_move_threshold)
         joy.right = true;
-    else if ((ins->smooth_left - ins->smooth_right) > balanceboard_move_threshold)
+    else if ((ins->bb_smooth_left - ins->bb_smooth_right) > balanceboard_move_threshold)
         joy.left = true;
 
-    int prev = ins->bb_values[ins->bb_index];
+    // State machine to detect whether we can trigger fire
     int sum = bb->tl + bb->tr + bb->bl + bb->br;
-
-    // The algorithm to determine whether a button is pressed is:
-    // 4 consecutives values should be one less than the previous one with the following restrictions:
-    // 1st value should be bigger than Balance Board Fire Threshold
-    // 2nd value should be less than Balance Board Fire Threshold
-    // 3rd value less than 2nd
-    // 4th value less than Balance Board Idle Threshold
-
-    if (sum >= prev || ins->bb_index >= UNI_PLATFORM_UNIJOYSTICLE_BB_VALUES_ARRAY_COUNT) {
-        // cancel possible Jump
-        ins->bb_fire_pressed_frames = 0;
-        ins->bb_index = 0;
-        joy.fire = false;
-
-        // Valid as first entry ?
-        if (sum >= balanceboard_fire_threshold)
-            ins->bb_values[0] = sum;
-        else
-            // Use minimum value so comparison will fail
-            ins->bb_values[0] = 0;
-
-        goto process_and_exit;
+    ins->bb_fire_counter++;
+    logd("SUM=%d, counter=%d, state=%d (%d,%d,%d,%d)\n", sum, ins->bb_fire_counter, ins->bb_fire_state, bb->tl, bb->tr,
+         bb->bl, bb->br);
+    switch (ins->bb_fire_state) {
+        case BB_STATE_RESET:
+            if (sum >= balanceboard_fire_threshold) {
+                ins->bb_fire_state = BB_STATE_THRESHOLD;
+                ins->bb_fire_counter = 0;
+            }
+            break;
+        case BB_STATE_THRESHOLD:
+            if (bb->tl < BB_IDLE_THRESHOLD && bb->tr < BB_IDLE_THRESHOLD && bb->bl < BB_IDLE_THRESHOLD &&
+                bb->br < BB_IDLE_THRESHOLD) {
+                ins->bb_fire_state = BB_STATE_IN_AIR;
+                ins->bb_fire_counter = 0;
+                break;
+            }
+            // Since threshold was triggered, it has 10 frames to get to "in_air", otherwise we reset the state.
+            if (ins->bb_fire_counter > 10) {
+                ins->bb_fire_state = BB_STATE_RESET;
+                ins->bb_fire_counter = 0;
+                break;
+            }
+            // Reset counter in case we are still above threshold
+            if (sum >= balanceboard_fire_threshold) {
+                ins->bb_fire_counter = 0;
+                break;
+            }
+            break;
+        case BB_STATE_IN_AIR:
+            // Once in Air, it must be at least 3 frames in the air
+            if (ins->bb_fire_counter > 3) {
+                ins->bb_fire_state = BB_STATE_FIRE;
+                ins->bb_fire_counter = 0;
+                break;
+            }
+            if (bb->tl >= BB_IDLE_THRESHOLD || bb->tr >= BB_IDLE_THRESHOLD || bb->bl > BB_IDLE_THRESHOLD ||
+                bb->br >= BB_IDLE_THRESHOLD) {
+                ins->bb_fire_state = BB_STATE_RESET;
+                ins->bb_fire_counter = 0;
+            }
+            break;
+        case BB_STATE_FIRE:
+            joy.fire = true;
+            // Maintain "fire" pressed for 10 frames
+            if (ins->bb_fire_counter > 10) {
+                ins->bb_fire_state = BB_STATE_RESET;
+                ins->bb_fire_counter = 0;
+            }
+            break;
     }
 
-    if (sum >= balanceboard_fire_threshold) {
-        // cancel possible Jump
-        ins->bb_index = 0;
-        ins->bb_values[0] = sum;
-        ins->bb_fire_pressed_frames = 0;
-        joy.fire = false;
-
-        goto process_and_exit;
-    }
-
-    if (sum < prev && (bb->tl > BB_IDLE_THRESHOLD || bb->tr > BB_IDLE_THRESHOLD || bb->bl > BB_IDLE_THRESHOLD ||
-                       bb->br > BB_IDLE_THRESHOLD)) {
-        ins->bb_index++;
-        ins->bb_values[ins->bb_index] = sum;
-        joy.fire = false;
-
-        goto process_and_exit;
-    }
-
-    // Possible jump in progress
-    if (ins->bb_index > 0 && (bb->tl < BB_IDLE_THRESHOLD && bb->tr < BB_IDLE_THRESHOLD && bb->bl < BB_IDLE_THRESHOLD &&
-                              bb->br < BB_IDLE_THRESHOLD)) {
-        // Fire
-        joy.fire = true;
-
-        // Fire is "pressed" for a few frames at most
-        ins->bb_fire_pressed_frames++;
-        if (ins->bb_fire_pressed_frames > BB_FIRE_MAX_FRAMES) {
-            // Cancel fire
-            ins->bb_fire_pressed_frames = 0;
-            ins->bb_index = 0;
-            ins->bb_values[0] = 0;
-            joy.fire = false;
-        }
-    }
-
-process_and_exit:
     process_joystick(d, ins->seat, &joy);
 }
 
