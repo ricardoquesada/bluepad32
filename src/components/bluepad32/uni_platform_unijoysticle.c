@@ -1106,8 +1106,9 @@ static void process_balance_board(uni_hid_device_t* d, uni_balance_board_t* bb) 
             }
             break;
         case BB_STATE_IN_AIR:
-            // Once in Air, it must be at least 3 frames in the air
-            if (ins->bb_fire_counter > 3) {
+            // Once in Air, it must be at least 2 frames in the air
+            if (ins->bb_fire_counter > 2) {
+                joy.fire = true;
                 ins->bb_fire_state = BB_STATE_FIRE;
                 ins->bb_fire_counter = 0;
                 break;
