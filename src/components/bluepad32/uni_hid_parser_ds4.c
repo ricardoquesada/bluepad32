@@ -105,7 +105,7 @@ typedef struct __attribute((packed)) {
     uint8_t status[2];
 
     // Add missing data
-} ds4_input_report_t;
+} ds4_input_report_11_t;
 
 typedef struct __attribute((packed)) {
     uint8_t report_id;  // Must be DS4_FEATURE_REPORT_FIRMWARE_VERSION
@@ -296,21 +296,9 @@ void uni_hid_parser_ds4_parse_feature_report(uni_hid_device_t* d, const uint8_t*
     }
 }
 
-void uni_hid_parser_ds4_parse_input_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
+static void ds4_parse_input_report_11(uni_hid_device_t* d, const ds4_input_report_11_t* r) {
     ds4_instance_t* ins = get_ds4_instance(d);
-
-    if (report[0] != 0x11) {
-        loge("DS4: Unexpected report type: got 0x%02x, want: 0x11\n", report[0]);
-        // printf_hexdump(report, len);
-        return;
-    }
-    if (len != 78) {
-        loge("DS4: Unexpected report len: got %d, want: 78\n", len);
-        return;
-    }
-
     uni_controller_t* ctl = &d->controller;
-    const ds4_input_report_t* r = (ds4_input_report_t*)&report[3];
 
     // Axis
     ctl->gamepad.axis_x = (r->x - 127) * 4;
@@ -376,6 +364,18 @@ void uni_hid_parser_ds4_parse_input_report(uni_hid_device_t* d, const uint8_t* r
     // Value goes from 0 to 10. Make it from 0 to 250.
     // The +1 is to avoid having a value of 0, which means "battery unavailable".
     ctl->battery = (r->status[0] & DS4_STATUS_BATTERY_CAPACITY) * 25 + 1;
+}
+
+void uni_hid_parser_ds4_parse_input_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
+    if (report[0] == 0x11 && len == 78) {
+        const ds4_input_report_11_t* r = (ds4_input_report_11_t*)&report[3];
+        ds4_parse_input_report_11(d, r);
+    } else if (report[0] == 0x01) {
+        printf_hexdump(report, len);
+    } else {
+        loge("DS4: Unexpected report type and len: report id=0x%02x, len=%d\n", report[0], len);
+    }
+    return;
 }
 
 // uni_hid_parser_ds4_parse_usage() was removed since "stream" mode is the only

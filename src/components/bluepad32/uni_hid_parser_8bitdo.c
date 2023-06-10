@@ -24,7 +24,7 @@ limitations under the License.
 #include "uni_hid_parser.h"
 #include "uni_log.h"
 
-// 8Bitdo controllers support different "modes":
+// 8BitDo controllers support different "modes":
 // - Nintendo Switch: it impersonates the Nintendo Switch controller
 // - Windows: it impersonates the Xbox One S controller
 // - macOS: it impersonates the PS4 DualShock 4 controller
@@ -76,7 +76,7 @@ void uni_hid_parser_8bitdo_parse_usage(uni_hid_device_t* d,
                     uni_hid_parser_process_dpad(usage, value, &ctl->gamepad.dpad);
                     break;
                 default:
-                    logi("8Bitdo: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
+                    logi("8BitDo: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
                     break;
             }
             break;
@@ -89,7 +89,7 @@ void uni_hid_parser_8bitdo_parse_usage(uni_hid_device_t* d,
                     ctl->gamepad.brake = uni_hid_parser_process_pedal(globals, value);
                     break;
                 default:
-                    logi("8Bitdo: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
+                    logi("8BitDo: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
                     break;
             };
             break;
@@ -120,7 +120,7 @@ void uni_hid_parser_8bitdo_parse_usage(uni_hid_device_t* d,
                     break;
                 case 0x06:  // No used
                     if (value)
-                        logi("8Bitdo: Unexpected PAGE_BUTTON usage=0x06\n");
+                        logi("8BitDo: Unexpected PAGE_BUTTON usage=0x06\n");
                     break;
                 case 0x07:
                     if (value)
@@ -165,10 +165,10 @@ void uni_hid_parser_8bitdo_parse_usage(uni_hid_device_t* d,
                     break;
                 case 0x10:  // Not mapped
                     if (value)
-                        logi("8Bitdo: Unexpected PAGE_BUTTON usage=0x10\n");
+                        logi("8BitDo: Unexpected PAGE_BUTTON usage=0x10\n");
                     break;
                 default:
-                    logi("8Bitdo: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
+                    logi("8BitDo: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
                     break;
             }
             break;
@@ -180,14 +180,71 @@ void uni_hid_parser_8bitdo_parse_usage(uni_hid_device_t* d,
                     break;
                 default:
                     if (value)
-                        logi("Android: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage,
-                             value);
+                        logi("8BitDo: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
                     break;
+            }
+            break;
+
+        case HID_USAGE_PAGE_KEYBOARD_KEYPAD:
+            // Used by 8BitDo Zero 2 in Keyboard mode
+            switch (usage) {
+                case 0x00:
+                    // Unknown, but it is reported in each report
+                    break;
+                case 0x06:
+                    ctl->gamepad.dpad |= value ? DPAD_UP : 0;
+                    break;
+                case 0x07:
+                    ctl->gamepad.dpad |= value ? DPAD_DOWN : 0;
+                    break;
+                case 0x08:
+                    ctl->gamepad.dpad |= value ? DPAD_LEFT : 0;
+                    break;
+                case 0x09:
+                    ctl->gamepad.dpad |= value ? DPAD_RIGHT : 0;
+                    break;
+                case 0x0a:
+                    ctl->gamepad.buttons |= value ? BUTTON_B : 0;
+                    break;
+                case 0x0b:
+                    ctl->gamepad.buttons |= value ? BUTTON_Y : 0;
+                    break;
+                case 0x0c:
+                    ctl->gamepad.buttons |= value ? BUTTON_X : 0;
+                    break;
+                case 0x0d:
+                    ctl->gamepad.buttons |= value ? BUTTON_A : 0;
+                    break;
+                case 0x0e:
+                    ctl->gamepad.buttons |= value ? BUTTON_SHOULDER_L: 0;
+                    break;
+                case 0x10:
+                    ctl->gamepad.buttons |= value ? BUTTON_SHOULDER_R: 0;
+                    break;
+                case 0x11:
+                    ctl->gamepad.misc_buttons |= value ? MISC_BUTTON_BACK : 0;
+                    break;
+                case 0x12:
+                    ctl->gamepad.misc_buttons |= value ? MISC_BUTTON_HOME : 0;
+                    break;
+                case 0xe0:
+                case 0xe1:
+                case 0xe2:
+                case 0xe3:
+                case 0xe4:
+                case 0xe5:
+                case 0xe6:
+                case 0xe7:
+                    // Shift / Control / Alt keys. Ignore
+                    break;
+                default:
+                    if (value)
+                        logi("8BitDo: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
             }
             break;
         // unknown usage page
         default:
-            logi("8Bitdo: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
+            logi("8BitDo: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
             break;
     }
 }
