@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Nintendo Switch: reports battery correctly.
+- 8BitDo Zero 2:
+  - "macOS" mode works. It identifies itself as a DualShock4, but it doesn't support
+    report id 0x11, just report 0x01. Added parser for report id 0x01 is DS4 logic.
+  - "keyboard" mode works. This is the only 8BitDo Zero 2 that reports "dpad" as "dpad".
+    The rest of modes report the dpad as axis x & y.
 
 ## [v3.7.2] - 2023-05-20
 ### New
