@@ -216,10 +216,10 @@ void uni_hid_parser_8bitdo_parse_usage(uni_hid_device_t* d,
                     ctl->gamepad.buttons |= value ? BUTTON_A : 0;
                     break;
                 case 0x0e:
-                    ctl->gamepad.buttons |= value ? BUTTON_SHOULDER_L: 0;
+                    ctl->gamepad.buttons |= value ? BUTTON_SHOULDER_L : 0;
                     break;
                 case 0x10:
-                    ctl->gamepad.buttons |= value ? BUTTON_SHOULDER_R: 0;
+                    ctl->gamepad.buttons |= value ? BUTTON_SHOULDER_R : 0;
                     break;
                 case 0x11:
                     ctl->gamepad.misc_buttons |= value ? MISC_BUTTON_BACK : 0;
