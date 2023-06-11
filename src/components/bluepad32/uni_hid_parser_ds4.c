@@ -312,7 +312,6 @@ void uni_hid_parser_ds4_parse_feature_report(uni_hid_device_t* d, const uint8_t*
 }
 
 static void ds4_parse_input_report_01(uni_hid_device_t* d, const ds4_input_report_01_t* r) {
-    ds4_instance_t* ins = get_ds4_instance(d);
     uni_controller_t* ctl = &d->controller;
 
     // Axis

@@ -147,9 +147,9 @@ static void enable_new_connections(bool enabled) {
 
 static void cmd_callback(void* context) {
     uni_hid_device_t* d;
-    uint32_t ctx = (uint32_t)context;
+    unsigned long ctx = (unsigned long)context;
     uint16_t cmd = ctx & 0xffff;
-    uint16_t args = ctx >> 16;
+    uint16_t args = (ctx >> 16) & 0xffff;
 
     switch (cmd) {
         case CMD_BT_DEL_KEYS:
@@ -211,7 +211,7 @@ void uni_bt_dump_devices_safe(void) {
 }
 
 void uni_bt_disconnect_device_safe(int device_idx) {
-    uint8_t idx = (uint8_t)device_idx;
+    unsigned long idx = (unsigned long)device_idx;
     cmd_callback_registration.callback = &cmd_callback;
     cmd_callback_registration.context = (void*)(CMD_DISCONNECT_DEVICE | (idx << 16));
     btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);

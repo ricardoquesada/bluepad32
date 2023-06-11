@@ -665,6 +665,9 @@ void uni_bt_bredr_on_hci_diconnection_complete(uint16_t channel, const uint8_t* 
     uint16_t handle;
     uni_hid_device_t* d;
 
+    ARG_UNUSED(channel);
+    ARG_UNUSED(size);
+
     logi("--> HCI_EVENT_DISCONNECTION_COMPLETE\n");
     handle = hci_event_disconnection_complete_get_connection_handle(packet);
     // Xbox Wireless Controller starts an incoming connection when told to
@@ -689,6 +692,9 @@ void uni_bt_bredr_on_hci_pin_code_request(uint16_t channel, const uint8_t* packe
     bd_addr_t local_addr;
     uni_hid_device_t* d;
     bd_addr_t event_addr;
+
+    ARG_UNUSED(channel);
+    ARG_UNUSED(size);
 
     // TODO: Move to uni_bt_bredr.c
     bool is_mouse = false;
@@ -727,6 +733,9 @@ void uni_bt_bredr_on_hci_remote_name_request_complete(uint16_t channel, const ui
     uni_hid_device_t* d;
     uint8_t status;
     bd_addr_t event_addr;
+
+    ARG_UNUSED(channel);
+    ARG_UNUSED(size);
 
     logi("--> HCI_EVENT_REMOTE_NAME_REQUEST_COMPLETE\n");
     hci_event_remote_name_request_complete_get_bd_addr(packet, event_addr);
