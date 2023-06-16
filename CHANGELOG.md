@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Nintendo Switch: reports battery correctly.
+- Nintendo Wii Balance Board: reports battery correctly.
 - 8BitDo Zero 2:
   - "macOS" mode works. It identifies itself as a DualShock4, but it doesn't support
     report id 0x11, just report 0x01. Added parser for report id 0x01 is DS4 logic.

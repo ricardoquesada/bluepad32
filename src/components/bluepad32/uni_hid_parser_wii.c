@@ -389,18 +389,29 @@ static void process_req_data_read_calibration_data2(uni_hid_device_t* d, const u
         ins->balance_board_calibration.kg34.bl = (cal[6] << 8) + cal[7];  // Bottom Left 34kg
     }
 
+    logi("Wii: Balance Board calibration: kg0=%d,%d,%d,%d kg17=%d,%d,%d,%d kg35=%d,%d,%d,%d\n",
+         ins->balance_board_calibration.kg0.tr, ins->balance_board_calibration.kg0.br,
+         ins->balance_board_calibration.kg0.tl, ins->balance_board_calibration.kg0.bl,
+         ins->balance_board_calibration.kg17.tr, ins->balance_board_calibration.kg17.br,
+         ins->balance_board_calibration.kg17.tl, ins->balance_board_calibration.kg17.bl,
+         ins->balance_board_calibration.kg34.tr, ins->balance_board_calibration.kg34.br,
+         ins->balance_board_calibration.kg34.tl, ins->balance_board_calibration.kg34.bl);
+
     ins->state = WII_FSM_DEV_GUESSED;
     wii_process_fsm(d);
 }
 
+// Returns the calibrated weight in grams.
 static int32_t balance_interpolate(uint16_t val, uint16_t kg0, uint16_t kg17, uint16_t kg34) {
     float weight = 0;
 
-    if (val < kg0) {  // 0kg
+    // Each sensor can read up to 34kg, at least in theory.
+    // It seems that it supports a bit more that's why we don't cap it to 34.
+    if (val < kg0) {
         weight = 0;
-    } else if (val < kg17) {  // 17kg
+    } else if (val < kg17) {
         weight = 17 * (float)(val - kg0) / (float)(kg17 - kg0);
-    } else /* if (values[pos] > cal[pos+5])*/ {  // 34kg
+    } else /* if (val < kg34) */ {
         weight = 17 + 17 * (float)(val - kg17) / (float)(kg34 - kg17);
     }
 
@@ -710,7 +721,19 @@ static balance_board_t process_balance_board(uni_hid_device_t* d, const uint8_t*
     b.tl = (e[4] << 8) + e[5];
     b.bl = (e[6] << 8) + e[7];
     b.temperature = e[8];
-    b.battery = e[10];
+    // Values go from 0x69 (empty) to 0x82 (full)
+    uint8_t batt = e[10];
+    if (batt >= 0x82)
+        batt = 255;
+    else if (batt >= 0x7d)
+        batt = 192;
+    else if (batt >= 0x78)
+        batt = 128;
+    else if (batt >= 0x6a)
+        batt = 64;
+    else
+        batt = 0;
+    b.battery = batt;
 
     // Interpolate:
     b2 = b;
