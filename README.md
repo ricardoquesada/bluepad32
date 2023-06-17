@@ -14,7 +14,7 @@ Choose your target platform:
 
 | Platform          | Start here | Further info | Community projects |
 | ----------------- | ---------- | ------------ | ------------------ |
-| Arduino IDE       | [![Watch the video][youtube_image]](https://youtu.be/0jnY-XXiD8Q) | [Doc][plat_arduino] | |
+| Arduino IDE       | [![Watch the video][youtube_image]](https://youtu.be/0jnY-XXiD8Q) | [Doc][plat_arduino] | [Controller for Tello drone][tello] |
 | Arduino using ESP-IDF toolchain | [Template project][esp-idf-bluepad32-arduino] | [Doc][plat_arduino] | [Lego Robot][esp32_example] ([video][esp32_video]), [gbaHD Shield][esp32_example2] (a GameBoy consolizer) |
 | Arduino + NINA coprocessor      | [Arduino Library][bp32-arduino] | [Doc][plat_nina] | [Philips CD-i meets Bluetooth][nina_example] |
 | CircuitPython + AirLift coprocessor | [CircuitPython Library][bp32-circuitpython] | [Doc][plat_airlift] | [Quico console][airlift_example], Controlling 4 servos ([video][airlift_video]) |
@@ -38,6 +38,7 @@ Choose your target platform:
 [plat_mightymiggy]: docs/plat_mightymiggy.md
 [plat_nina]: docs/plat_nina.md
 [plat_unijoysticle]: docs/plat_unijoysticle.md
+[tello]: https://github.com/jsolderitsch/ESP32Controller
 [unijoysticle2]: https://retro.moe/unijoysticle2/
 [unijoysticle_sukko]: https://gitlab.com/SukkoPera/unijoysticle2
 [youtube_image]: https://lh3.googleusercontent.com/pw/AJFCJaXiDBy3NcQBBB-WFFVCsvYBs8szExsYQVwG5qqBTtKofjzZtJv_6GSL7_LfYRiypF1K0jjjgziXJuxAhoEawvzV84hlbmVTrGeXQYpVnpILZwWkbFi-ccX4lEzEbYXX-UbsEzpHLhO8qGVuwxOl7I_h1Q=-no?authuser=0
