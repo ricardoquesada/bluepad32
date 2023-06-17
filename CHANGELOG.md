@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `get_bb_move_threshold`
     - `set_bb_fire_threshold`
     - `get_bb_fire_threshold`
+- [![Video for reference](https://img.youtube.com/vi/Nj5fZlt_834/0.jpg)](https://www.youtube.com/watch?v=Nj5fZlt_834)
 - Unijoysticle: Possible to swap ports in enhanced mode.
   Either press the gamepad or board "swap" button.
   The blue LED will blink once after the swap.
