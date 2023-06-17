@@ -74,6 +74,8 @@ typedef struct uni_platform_unijoysticle_instance_s {
     uni_gamepad_seat_t seat;                                // which "seat" (port) is being used
     uni_gamepad_seat_t prev_seat;                           // which "seat" (port) was used before switching emu mode
 
+    bool swap_ports_in_enhanced;  // whether the ports in Enhanced mode are swapped.
+
     // Used by Balance Board to determine joystick movements/fire
     uint8_t bb_fire_state;
     uint8_t bb_fire_counter;

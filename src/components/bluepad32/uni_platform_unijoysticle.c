@@ -693,14 +693,18 @@ static void unijoysticle_device_dump(uni_hid_device_t* d) {
         logi("type=mouse, ");
     } else {
         logi("type=gamepad, mode=");
-        if (ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_ENHANCED)
-            logi("enhanced, ");
-        else if (ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_MOUSE)
+        if (ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_ENHANCED) {
+            if (ins->swap_ports_in_enhanced)
+                logi("enhanced swapped, ");
+            else
+                logi("enhanced, ");
+        } else if (ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_MOUSE) {
             logi("mouse, ");
-        else if (ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL)
+        } else if (ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL) {
             logi("normal, ");
-        else
+        } else {
             logi("unk, ");
+        }
     }
     logi("seat=0x%02x\n", ins->seat);
 }
@@ -1014,8 +1018,13 @@ static void process_gamepad(uni_hid_device_t* d, uni_gamepad_t* gp) {
             break;
         case UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_ENHANCED:
             uni_joy_to_combo_joy_joy_from_gamepad(gp, &joy, &joy_ext);
-            process_joystick(d, GAMEPAD_SEAT_A, &joy);
-            process_joystick(d, GAMEPAD_SEAT_B, &joy_ext);
+            if (ins->swap_ports_in_enhanced) {
+                process_joystick(d, GAMEPAD_SEAT_B, &joy);
+                process_joystick(d, GAMEPAD_SEAT_A, &joy_ext);
+            } else {
+                process_joystick(d, GAMEPAD_SEAT_A, &joy);
+                process_joystick(d, GAMEPAD_SEAT_B, &joy_ext);
+            }
             break;
         case UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_MOUSE:
             // Allow to control the mouse with both axis. Use case:
@@ -1606,9 +1615,10 @@ static void swap_ports(void) {
         if (uni_bt_conn_is_connected(&d->conn)) {
             ins = uni_platform_unijoysticle_get_instance(d);
 
-            // Don't swap if gamepad is in Enahnced mode
             if (ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_ENHANCED) {
-                // Should it blink oncea on error?
+                // Swap is done in the "Enhanced" mode driver.
+                ins->swap_ports_in_enhanced = !ins->swap_ports_in_enhanced;
+                blink_bt_led(1);
                 return;
             }
 
@@ -1647,10 +1657,7 @@ static void try_swap_ports(uni_hid_device_t* d) {
 
     // This could happen if device is any Combo emu mode.
     if (ins->seat == (GAMEPAD_SEAT_A | GAMEPAD_SEAT_B)) {
-        logi(
-            "unijoysticle: cannot swap port since has more than one port associated with. Leave emu mode and try "
-            "again.\n");
-        return;
+        goto ok;
     }
 
     // Swap joystick ports except if there is a connected gamepad that doesn't have the "System" or "Select" button
@@ -1669,6 +1676,7 @@ static void try_swap_ports(uni_hid_device_t* d) {
         }
     }
 
+ok:
     swap_ports();
 }
 

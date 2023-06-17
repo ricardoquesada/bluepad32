@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v?] - 2023-??-??
+## [v3.7.3] - 2023-06-17
 ### New
 - Nintendo Switch: Gyro/Accel is parsed
 - Unijoysticle: Support Nintendo Balance Board.
@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `get_bb_move_threshold`
     - `set_bb_fire_threshold`
     - `get_bb_fire_threshold`
+- Unijoysticle: Possible to swap ports in enhanced mode.
+  Either press the gamepad or board "swap" button.
+  The blue LED will blink once after the swap.
+  The console command `list_devices` will display `mode=enhanced swapped` when it is swapped.
+  Otherwise it just shows `mode=enhanced`.
 
 ### Fixed
 - Nintendo Switch: reports battery correctly.
