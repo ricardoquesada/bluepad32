@@ -122,6 +122,10 @@ void uni_joy_to_single_from_wii_accel(const uni_gamepad_t* gp, uni_joystick_t* o
         out_joy->down |= (gp->buttons & BUTTON_A) ? DPAD_DOWN : 0;
         out_joy->up |= (gp->buttons & BUTTON_B) ? DPAD_UP : 0;
 
+        // Either "A" or "trigger" is used as fire
+        out_joy->fire = (gp->buttons & BUTTON_X) ? 1 : 0;
+        out_joy->fire |= (gp->buttons & BUTTON_Y) ? 1 : 0;
+
         // Accelerometer overrides Dpad values.
         if (sy > accel_threshold) {
             out_joy->left = 1;
