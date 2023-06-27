@@ -329,12 +329,12 @@ static const bd_addr_t zero_addr = {0, 0, 0, 0, 0, 0};
 
 // Keep them in the order of the defines
 static const char* uni_models[] = {
-    "Unknown",        // BOARD_MODEL_UNK
-    "2",              // BOARD_MODEL_UNIJOYSTICLE2,
-    "2+",             // BOARD_MODEL_UNIJOYSTICLE2_PLUS,
-    "2 A500 / 800XL", // BOARD_MODEL_UNIJOYSTICLE2_A500,
-    "2 C64",          // BOARD_MODEL_UNIJOYSTICLE2_C64,
-    "2 Single port",  // BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT,
+    "Unknown",         // BOARD_MODEL_UNK
+    "2",               // BOARD_MODEL_UNIJOYSTICLE2,
+    "2+",              // BOARD_MODEL_UNIJOYSTICLE2_PLUS,
+    "2 A500 / 800XL",  // BOARD_MODEL_UNIJOYSTICLE2_A500,
+    "2 C64",           // BOARD_MODEL_UNIJOYSTICLE2_C64,
+    "2 Single port",   // BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT,
 };
 
 // --- Globals (RAM)
