@@ -134,7 +134,7 @@ typedef enum {
     // Unijoysticle 2 plus: SMT version
     BOARD_MODEL_UNIJOYSTICLE2_PLUS,
 
-    // Unijoysticle 2 A500 version
+    // Unijoysticle 2 A500 / 800XL version
     BOARD_MODEL_UNIJOYSTICLE2_A500,
 
     // Unijosyticle 2 C64 version
@@ -266,7 +266,7 @@ const struct gpio_config gpio_config_univ2plus = {
     .sync_irq = {-1, -1},
 };
 
-// Unijoysticle v2 A500
+// Unijoysticle v2 A500 / 800XL
 const struct gpio_config gpio_config_univ2a500 = {
     .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, GPIO_NUM_33, GPIO_NUM_16},
     .port_b = {GPIO_NUM_27, GPIO_NUM_25, GPIO_NUM_32, GPIO_NUM_17, GPIO_NUM_13, GPIO_NUM_21, GPIO_NUM_22},
@@ -332,7 +332,7 @@ static const char* uni_models[] = {
     "Unknown",        // BOARD_MODEL_UNK
     "2",              // BOARD_MODEL_UNIJOYSTICLE2,
     "2+",             // BOARD_MODEL_UNIJOYSTICLE2_PLUS,
-    "2 A500",         // BOARD_MODEL_UNIJOYSTICLE2_A500,
+    "2 A500 / 800XL", // BOARD_MODEL_UNIJOYSTICLE2_A500,
     "2 C64",          // BOARD_MODEL_UNIJOYSTICLE2_C64,
     "2 Single port",  // BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT,
 };
