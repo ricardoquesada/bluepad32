@@ -25,9 +25,6 @@ limitations under the License.
 #include "uni_gamepad.h"
 #include "uni_hid_device.h"
 
-// Number of SYNC IRQs. One for each port
-#define UNI_PLATFORM_UNIJOYSTICLE_C64_SYNC_IRQ_MAX 2
-
 typedef enum {
     UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_INVALID,   // Invalid
     UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_3BUTTONS,  // Pots are used for extra buttons

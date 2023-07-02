@@ -37,6 +37,9 @@ limitations under the License.
 #include "uni_platform_unijoysticle.h"
 #include "uni_property.h"
 
+// Number of SYNC IRQs. One for each port
+#define SYNC_IRQ_MAX 2
+
 #define TASK_SYNC_IRQ_PRIO (9)
 #define uS_MIN 3
 #define uS_MAX 243  // Larger values cause the interrupt to take too long
@@ -283,7 +286,7 @@ static void set_pot_mode_from_cpu(void* m) {
             goto exit;
             return;
         }
-        for (int i = 0; i < UNI_PLATFORM_UNIJOYSTICLE_C64_SYNC_IRQ_MAX; i++) {
+        for (int i = 0; i < SYNC_IRQ_MAX; i++) {
             int sync_irq = uni_platform_unijoysticle_get_gpio_sync_irq(i);
             if (sync_irq == -1)
                 continue;
@@ -313,7 +316,7 @@ static void set_pot_mode_from_cpu(void* m) {
                                 POT_TASK_CPU);
 
         // Sync IRQs
-        for (int i = 0; i < UNI_PLATFORM_UNIJOYSTICLE_C64_SYNC_IRQ_MAX; i++) {
+        for (int i = 0; i < SYNC_IRQ_MAX; i++) {
             gpio_num_t gpio = uni_platform_unijoysticle_get_gpio_sync_irq(i);
             if (gpio == -1)
                 continue;
@@ -365,7 +368,7 @@ void uni_platform_unijoysticle_c64_set_pot_level(gpio_num_t gpio_num, uint8_t le
     if (_pot_mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_3BUTTONS ||
         _pot_mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_5BUTTONS) {
         // C64 uses pull-ups for Pot-x, Pot-y, so the value needs to be "inversed" in order to be off.
-        uni_gpio_set_level(gpio_num, !level);
+        uni_gpio_set_level(gpio_num, level);
     } else if (_pot_mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_RUMBLE) {
         // Leave it disabled to allow the SYNC to reach ESP32 without interference
         uni_gpio_set_level(gpio_num, level);

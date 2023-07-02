@@ -73,6 +73,20 @@ static const char* mouse_modes[] = {
     "atarist",  // MOUSE_EMULATION_ATARIST
 };
 
+// Unijoysticle v2 A500
+static const struct uni_platform_unijoysticle_gpio_config gpio_config_univ2a500 = {
+    .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, GPIO_NUM_33, GPIO_NUM_16},
+    .port_b = {GPIO_NUM_27, GPIO_NUM_25, GPIO_NUM_32, GPIO_NUM_17, GPIO_NUM_13, GPIO_NUM_21, GPIO_NUM_22},
+    .leds = {GPIO_NUM_5, GPIO_NUM_12, GPIO_NUM_15},
+    .push_buttons = {{
+                         .gpio = GPIO_NUM_34,
+                     },
+                     {
+                         .gpio = GPIO_NUM_35,
+                     }},
+    .sync_irq = {-1, -1},
+};
+
 // --- Globals (RAM)
 
 static struct {
@@ -307,4 +321,51 @@ void uni_platform_unijoysticle_amiga_process_mouse(uni_hid_device_t* d,
 
 void uni_platform_unijoysticle_amiga_version(void) {
     logi("\tMouse Emulation: %s\n", mouse_modes[get_mouse_emulation_from_nvs()]);
+}
+
+static void register_console_cmds_a500(void) {
+    uni_platform_unijoysticle_amiga_register_cmds();
+}
+
+static bool process_gamepad_a500(uni_hid_device_t* d,
+                                 uni_gamepad_t* gp,
+                                 uni_gamepad_seat_t seat,
+                                 const gpio_num_t* port_a,
+                                 const gpio_num_t* port_b) {
+    // IMPLEMENT me
+    return true;
+}
+
+void process_mouse_a500(uni_hid_device_t* d, uni_gamepad_seat_t seat, int32_t dx, int32_t dy, uint16_t buttons) {
+    uni_platform_unijoysticle_amiga_process_mouse(d, seat, dx, dy, buttons);
+}
+
+static void set_gpio_level_a500(gpio_num_t num, bool value) {
+    gpio_set_level(num, value);
+}
+
+static void on_push_button_mode_pressed_a500(int button_idx) {
+    ARG_UNUSED(button_idx);
+    uni_platform_unijoysticle_run_cmd(UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NEXT);
+}
+
+static void on_push_button_swap_pressed_a500(int button_idx) {
+    ARG_UNUSED(button_idx);
+    uni_platform_unijoysticle_run_cmd(UNI_PLATFORM_UNIJOYSTICLE_CMD_SWAP_PORTS);
+}
+
+//
+const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_variant_a500_create(void) {
+    const static struct uni_platform_unijoysticle_variant variant = {
+        .name = "A500",
+        .gpio_config = &gpio_config_univ2a500,
+        .on_push_button_mode_pressed = on_push_button_mode_pressed_a500,
+        .on_push_button_swap_pressed = on_push_button_swap_pressed_a500,
+        .register_console_cmds = register_console_cmds_a500,
+        .process_gamepad = process_gamepad_a500,
+        .process_mouse = process_mouse_a500,
+        .set_gpio_level = set_gpio_level_a500,
+    };
+
+    return &variant;
 }

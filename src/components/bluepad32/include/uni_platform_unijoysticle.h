@@ -19,6 +19,8 @@ limitations under the License.
 #ifndef UNI_PLATFORM_UNIJOYSTICLE_H
 #define UNI_PLATFORM_UNIJOYSTICLE_H
 
+#include <stdbool.h>
+
 #include <driver/gpio.h>
 
 #include "uni_gamepad.h"
@@ -68,6 +70,19 @@ enum {
     UNI_PLATFORM_UNIJOYSTICLE_JOY_MAX,
 };
 
+enum {
+    UNI_PLATFORM_UNIJOYSTICLE_PUSH_BUTTON_0,  // Changes mode:
+    UNI_PLATFORM_UNIJOYSTICLE_PUSH_BUTTON_1,  // Swap ports
+    UNI_PLATFORM_UNIJOYSTICLE_PUSH_BUTTON_MAX,
+};
+
+enum {
+    UNI_PLATFORM_UNIJOYSTICLE_LED_J1,  // Player #1 connected, Green
+    UNI_PLATFORM_UNIJOYSTICLE_LED_J2,  // Player #2 connected, Red
+    UNI_PLATFORM_UNIJOYSTICLE_LED_BT,  // Bluetooth enabled, Blue
+    UNI_PLATFORM_UNIJOYSTICLE_LED_MAX,
+};
+
 // The platform "instance"
 typedef struct uni_platform_unijoysticle_instance_s {
     uni_platform_unijoysticle_gamepad_mode_t gamepad_mode;  // type of emulation mode
@@ -86,6 +101,56 @@ typedef struct uni_platform_unijoysticle_instance_s {
 } uni_platform_unijoysticle_instance_t;
 _Static_assert(sizeof(uni_platform_unijoysticle_instance_t) < HID_DEVICE_MAX_PLATFORM_DATA,
                "Unijoysticle intance too big");
+
+typedef void (*uni_platform_unijoysticle_button_cb_t)(int button_idx);
+
+// These are const values. Cannot be modified in runtime.
+struct uni_platform_unijoysticle_push_button {
+    gpio_num_t gpio;
+    uni_platform_unijoysticle_button_cb_t callback;
+};
+
+struct uni_platform_unijoysticle_gpio_config {
+    gpio_num_t port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_MAX];
+    gpio_num_t port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_MAX];
+    gpio_num_t leds[UNI_PLATFORM_UNIJOYSTICLE_LED_MAX];
+    struct uni_platform_unijoysticle_push_button push_buttons[UNI_PLATFORM_UNIJOYSTICLE_PUSH_BUTTON_MAX];
+    gpio_num_t sync_irq[2];
+};
+
+struct uni_platform_unijoysticle_variant {
+    // The name of the variant: A500, C64, 800XL, etc.
+    const char* name;
+    const struct uni_platform_unijoysticle_gpio_config* gpio_config;
+
+    // Variant "callbacks".
+
+    // on_init_complete is called when initialization finishes
+    void (*on_init_complete)(void);
+
+    uni_platform_unijoysticle_button_cb_t on_push_button_mode_pressed;
+    uni_platform_unijoysticle_button_cb_t on_push_button_swap_pressed;
+
+    // Register console commands. Optional
+    void (*register_console_cmds)(void);
+
+    // Set the pot values
+    void (*set_gpio_level)(gpio_num_t gpio, bool value);
+
+    // Process gamepad data
+    bool (*process_gamepad)(uni_hid_device_t* d,
+                            uni_gamepad_t* gp,
+                            uni_gamepad_seat_t seat,
+                            const gpio_num_t* port_a,
+                            const gpio_num_t* port_b);
+
+    // Process mosue data
+    void (*process_mouse)(uni_hid_device_t* d,
+                          uni_gamepad_seat_t seat,
+                          int32_t delta_x,
+                          int32_t delta_y,
+                          uint16_t buttons);
+};
 
 struct uni_platform* uni_platform_unijoysticle_create(void);
 // Can be called from any thread. The command will get executed in the btthread.

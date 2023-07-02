@@ -102,22 +102,9 @@ limitations under the License.
 #define GAMEPAD_AXIS_TO_MOUSE_DELTA_RATIO (50)
 
 enum {
-    PUSH_BUTTON_0,  // Toggle enhanced/mouse mode
-    PUSH_BUTTON_1,  // Swap ports
-    PUSH_BUTTON_MAX,
-};
-
-enum {
-    LED_J1,  // Player #1 connected, Green
-    LED_J2,  // Player #2 connected, Red
-    LED_BT,  // Bluetooth enabled, Blue
-    LED_MAX,
-};
-
-enum {
     // Push buttons
-    EVENT_BUTTON_0 = PUSH_BUTTON_0,
-    EVENT_BUTTON_1 = PUSH_BUTTON_1,
+    EVENT_BUTTON_0 = UNI_PLATFORM_UNIJOYSTICLE_PUSH_BUTTON_0,
+    EVENT_BUTTON_1 = UNI_PLATFORM_UNIJOYSTICLE_PUSH_BUTTON_1,
 
     // Autofire group
     EVENT_AUTOFIRE_TRIGGER = 0,
@@ -134,11 +121,14 @@ typedef enum {
     // Unijoysticle 2 plus: SMT version
     BOARD_MODEL_UNIJOYSTICLE2_PLUS,
 
-    // Unijoysticle 2 A500 / 800XL version
+    // Unijoysticle 2 A500 version
     BOARD_MODEL_UNIJOYSTICLE2_A500,
 
     // Unijosyticle 2 C64 version
     BOARD_MODEL_UNIJOYSTICLE2_C64,
+
+    // Unijosyticle 2 800XL version
+    BOARD_MODEL_UNIJOYSTICLE2_800XL,
 
     // Unijosyticle Single port, like Arananet's Unijoy2Amiga
     BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT,
@@ -154,7 +144,6 @@ enum {
 };
 
 // --- Structs / Typedefs
-typedef void (*button_cb_t)(int button_idx);
 
 // This is the "state" of the push button, and changes in runtime.
 // This is the "mutable" part of the button that is stored in RAM.
@@ -162,20 +151,6 @@ typedef void (*button_cb_t)(int button_idx);
 struct push_button_state {
     bool enabled;
     int64_t last_time_pressed_us;  // in microseconds
-};
-
-// These are const values. Cannot be modified in runtime.
-struct push_button {
-    gpio_num_t gpio;
-    button_cb_t callback;
-};
-
-struct gpio_config {
-    gpio_num_t port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_MAX];
-    gpio_num_t port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_MAX];
-    gpio_num_t leds[LED_MAX];
-    struct push_button push_buttons[PUSH_BUTTON_MAX];
-    gpio_num_t sync_irq[UNI_PLATFORM_UNIJOYSTICLE_C64_SYNC_IRQ_MAX];
 };
 
 // --- Function declaration
@@ -235,7 +210,7 @@ static void maybe_enable_bluetooth(bool enabled);
 // --- Consts (ROM)
 
 // Unijoysticle v2: Through-hole version
-const struct gpio_config gpio_config_univ2 = {
+static const struct uni_platform_unijoysticle_gpio_config gpio_config_univ2 = {
     .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, GPIO_NUM_33, GPIO_NUM_16},
     .port_b = {GPIO_NUM_27, GPIO_NUM_25, GPIO_NUM_32, GPIO_NUM_17, GPIO_NUM_12, -1, -1},
     .leds = {GPIO_NUM_5, GPIO_NUM_13, -1},
@@ -251,7 +226,7 @@ const struct gpio_config gpio_config_univ2 = {
 };
 
 // Unijoysticle v2+: SMD version
-const struct gpio_config gpio_config_univ2plus = {
+static const struct uni_platform_unijoysticle_gpio_config gpio_config_univ2plus = {
     .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, GPIO_NUM_33, GPIO_NUM_16},
     .port_b = {GPIO_NUM_27, GPIO_NUM_25, GPIO_NUM_32, GPIO_NUM_17, GPIO_NUM_13, GPIO_NUM_21, GPIO_NUM_22},
     .leds = {GPIO_NUM_5, GPIO_NUM_12, -1},
@@ -266,8 +241,8 @@ const struct gpio_config gpio_config_univ2plus = {
     .sync_irq = {-1, -1},
 };
 
-// Unijoysticle v2 A500 / 800XL
-const struct gpio_config gpio_config_univ2a500 = {
+// Unijoysticle v2 A500
+static const struct uni_platform_unijoysticle_gpio_config gpio_config_univ2a500 = {
     .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, GPIO_NUM_33, GPIO_NUM_16},
     .port_b = {GPIO_NUM_27, GPIO_NUM_25, GPIO_NUM_32, GPIO_NUM_17, GPIO_NUM_13, GPIO_NUM_21, GPIO_NUM_22},
     .leds = {GPIO_NUM_5, GPIO_NUM_12, GPIO_NUM_15},
@@ -283,7 +258,7 @@ const struct gpio_config gpio_config_univ2a500 = {
 };
 
 // Unijoysticle v2 C64 / Flash Party edition
-const struct gpio_config gpio_config_univ2c64 = {
+static const struct uni_platform_unijoysticle_gpio_config gpio_config_univ2c64 = {
     .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, GPIO_NUM_33, GPIO_NUM_16},
     .port_b = {GPIO_NUM_27, GPIO_NUM_25, GPIO_NUM_32, GPIO_NUM_17, GPIO_NUM_13, GPIO_NUM_21, GPIO_NUM_22},
     .leds = {GPIO_NUM_5, GPIO_NUM_12, GPIO_NUM_15},
@@ -307,7 +282,7 @@ const struct gpio_config gpio_config_univ2c64 = {
 };
 
 // Arananet's Unijoy2Amiga
-const struct gpio_config gpio_config_univ2singleport = {
+const struct uni_platform_unijoysticle_gpio_config gpio_config_univ2singleport = {
     // Only has one port. Just mirror Port A with Port B.
     .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, GPIO_NUM_33, GPIO_NUM_16},
     .port_b = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, GPIO_NUM_33, GPIO_NUM_16},
@@ -329,21 +304,22 @@ static const bd_addr_t zero_addr = {0, 0, 0, 0, 0, 0};
 
 // Keep them in the order of the defines
 static const char* uni_models[] = {
-    "Unknown",         // BOARD_MODEL_UNK
-    "2",               // BOARD_MODEL_UNIJOYSTICLE2,
-    "2+",              // BOARD_MODEL_UNIJOYSTICLE2_PLUS,
-    "2 A500 / 800XL",  // BOARD_MODEL_UNIJOYSTICLE2_A500,
-    "2 C64",           // BOARD_MODEL_UNIJOYSTICLE2_C64,
-    "2 Single port",   // BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT,
+    "Unknown",        // BOARD_MODEL_UNK
+    "2",              // BOARD_MODEL_UNIJOYSTICLE2,
+    "2+",             // BOARD_MODEL_UNIJOYSTICLE2_PLUS,
+    "2 A500",         // BOARD_MODEL_UNIJOYSTICLE2_A500,
+    "2 C64",          // BOARD_MODEL_UNIJOYSTICLE2_C64,
+    "2 800XL",        // BOARD_MODEL_UNIJOYSTICLE2_800XL,
+    "2 Single port",  // BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT,
 };
 
 // --- Globals (RAM)
-static const struct gpio_config* g_gpio_config = NULL;
+static const struct uni_platform_unijoysticle_gpio_config* g_gpio_config = NULL;
 
 static EventGroupHandle_t g_pushbutton_group;
 static EventGroupHandle_t g_autofire_group;
 
-struct push_button_state g_push_buttons_state[PUSH_BUTTON_MAX] = {0};
+struct push_button_state g_push_buttons_state[UNI_PLATFORM_UNIJOYSTICLE_PUSH_BUTTON_MAX] = {0};
 
 // Autofire
 static bool g_autofire_a_enabled;
@@ -359,6 +335,8 @@ static bool s_skip_next_enable_bluetooth_event = false;
 // Gets initialized at platform_init time.
 static int balanceboard_move_threshold;
 static int balanceboard_fire_threshold;
+
+static const struct uni_platform_unijoysticle_variant* g_variant;
 
 // For the console
 static struct {
@@ -400,6 +378,7 @@ static void unijoysticle_init(int argc, const char** argv) {
             g_gpio_config = &gpio_config_univ2plus;
             break;
         case BOARD_MODEL_UNIJOYSTICLE2_A500:
+            g_variant = uni_platform_unijoysticle_variant_a500_create();
             g_gpio_config = &gpio_config_univ2a500;
             break;
         case BOARD_MODEL_UNIJOYSTICLE2_C64:
@@ -428,7 +407,7 @@ static void unijoysticle_init(int argc, const char** argv) {
     }
 
     // Setup pins for LEDs
-    for (int i = 0; i < LED_MAX; i++)
+    for (int i = 0; i < UNI_PLATFORM_UNIJOYSTICLE_LED_MAX; i++)
         io_conf.pin_bit_mask |= SAFE_SET_BIT64(g_gpio_config->leds[i]);
 
     ESP_ERROR_CHECK(gpio_config(&io_conf));
@@ -440,10 +419,10 @@ static void unijoysticle_init(int argc, const char** argv) {
     }
 
     // Turn On Player LEDs
-    uni_gpio_set_level(g_gpio_config->leds[LED_J1], 1);
-    uni_gpio_set_level(g_gpio_config->leds[LED_J2], 1);
+    uni_gpio_set_level(g_gpio_config->leds[UNI_PLATFORM_UNIJOYSTICLE_LED_J1], 1);
+    uni_gpio_set_level(g_gpio_config->leds[UNI_PLATFORM_UNIJOYSTICLE_LED_J2], 1);
     // Turn off Bluetooth LED
-    uni_gpio_set_level(g_gpio_config->leds[LED_BT], 0);
+    uni_gpio_set_level(g_gpio_config->leds[UNI_PLATFORM_UNIJOYSTICLE_LED_BT], 0);
 
     // Tasks should be created before the ISR, just in case an interrupt
     // gets called before the Task-that-handles-the-ISR gets triggered.
@@ -457,7 +436,7 @@ static void unijoysticle_init(int argc, const char** argv) {
 
     // Push Buttons
     ESP_ERROR_CHECK(gpio_install_isr_service(0));
-    for (int i = 0; i < PUSH_BUTTON_MAX; i++) {
+    for (int i = 0; i < UNI_PLATFORM_UNIJOYSTICLE_PUSH_BUTTON_MAX; i++) {
         if (g_gpio_config->push_buttons[i].gpio == -1 || g_gpio_config->push_buttons[i].callback == NULL)
             continue;
 
@@ -476,8 +455,8 @@ static void unijoysticle_init(int argc, const char** argv) {
 
 static void unijoysticle_on_init_complete(void) {
     // Turn off LEDs
-    uni_gpio_set_level(g_gpio_config->leds[LED_J1], 0);
-    uni_gpio_set_level(g_gpio_config->leds[LED_J2], 0);
+    uni_gpio_set_level(g_gpio_config->leds[UNI_PLATFORM_UNIJOYSTICLE_LED_J1], 0);
+    uni_gpio_set_level(g_gpio_config->leds[UNI_PLATFORM_UNIJOYSTICLE_LED_J2], 0);
 
     // Update Balance Board threshold
     balanceboard_move_threshold = get_bb_move_threshold_from_nvs();
@@ -522,9 +501,9 @@ static void unijoysticle_on_device_disconnected(uni_hid_device_t* d) {
     if (ins->seat != GAMEPAD_SEAT_NONE) {
         // Turn off the LEDs
         if (ins->seat == GAMEPAD_SEAT_A || ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_ENHANCED)
-            uni_gpio_set_level(g_gpio_config->leds[LED_J1], 0);
+            uni_gpio_set_level(g_gpio_config->leds[UNI_PLATFORM_UNIJOYSTICLE_LED_J1], 0);
         if (ins->seat == GAMEPAD_SEAT_B || ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_ENHANCED)
-            uni_gpio_set_level(g_gpio_config->leds[LED_J2], 0);
+            uni_gpio_set_level(g_gpio_config->leds[UNI_PLATFORM_UNIJOYSTICLE_LED_J2], 0);
 
         ins->seat = GAMEPAD_SEAT_NONE;
         ins->gamepad_mode = UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL;
@@ -645,18 +624,18 @@ static int32_t unijoysticle_get_property(uni_platform_property_t key) {
     if (key != UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS)
         return -1;
 
-    if (g_gpio_config->push_buttons[PUSH_BUTTON_0].gpio == -1)
+    if (g_gpio_config->push_buttons[UNI_PLATFORM_UNIJOYSTICLE_PUSH_BUTTON_0].gpio == -1)
         return -1;
 
     // Hi-released, Low-pressed
-    return !gpio_get_level(g_gpio_config->push_buttons[PUSH_BUTTON_0].gpio);
+    return !gpio_get_level(g_gpio_config->push_buttons[UNI_PLATFORM_UNIJOYSTICLE_PUSH_BUTTON_0].gpio);
 }
 
 static void unijoysticle_on_oob_event(uni_platform_oob_event_t event, void* data) {
     if (event == UNI_PLATFORM_OOB_BLUETOOTH_ENABLED) {
         // Turn on/off the BT led
         bool enabled = (bool)data;
-        uni_gpio_set_level(g_gpio_config->leds[LED_BT], enabled);
+        uni_gpio_set_level(g_gpio_config->leds[UNI_PLATFORM_UNIJOYSTICLE_LED_BT], enabled);
         s_bluetooth_led_on = enabled;
 
         logi("unijoysticle: Bluetooth discovery mode is %s\n", enabled ? "enabled" : "disabled");
@@ -925,10 +904,11 @@ static board_model_t get_uni_model_from_pins(void) {
         return model;
 
     // Detect hardware version based on GPIOs 4, 5, 15
-    //              GPIO 4   GPIO 5    GPIO 15
+    //              GPIO 4   GPIO 5    GPIO 15  GPIO 36   GPIO 39
     // Uni 2:       Hi       Hi        Hi
     // Uni 2+:      Low      Hi        Hi
-    // Uni 2 A500:  Hi       Hi        Lo
+    // Uni 2 A500:  Hi       Hi        Lo       Lo        Lo
+    // Uni 2 800XL: Hi       Hi        Lo       Hi        Lo
     // Uni 2 C64:   Low      Hi        Lo
     // Single port: Hi       Low       Hi
 
@@ -941,9 +921,13 @@ static board_model_t get_uni_model_from_pins(void) {
     gpio_set_direction(GPIO_NUM_15, GPIO_MODE_INPUT);
     gpio_set_pull_mode(GPIO_NUM_15, GPIO_PULLUP_ONLY);
 
+    // GPIO 36/39 are input only and doin't have internal Pull ups/downs.
+    gpio_set_direction(GPIO_NUM_36, GPIO_MODE_INPUT);
+
     int gpio_4 = gpio_get_level(GPIO_NUM_4);
     int gpio_5 = gpio_get_level(GPIO_NUM_5);
     int gpio_15 = gpio_get_level(GPIO_NUM_15);
+    int gpio_36 = gpio_get_level(GPIO_NUM_36);
 
     logi("Unijoysticle: Board ID values: %d,%d,%d\n", gpio_4, gpio_5, gpio_15);
     if (gpio_5 == 0)
@@ -952,8 +936,10 @@ static board_model_t get_uni_model_from_pins(void) {
         model = BOARD_MODEL_UNIJOYSTICLE2;
     else if (gpio_4 == 0 && gpio_15 == 1)
         model = BOARD_MODEL_UNIJOYSTICLE2_PLUS;
-    else if (gpio_4 == 1 && gpio_15 == 0)
+    else if (gpio_4 == 1 && gpio_15 == 0 && gpio_36 == 0)
         model = BOARD_MODEL_UNIJOYSTICLE2_A500;
+    else if (gpio_4 == 1 && gpio_15 == 0 && gpio_36 == 1)
+        model = BOARD_MODEL_UNIJOYSTICLE2_800XL;
     else if (gpio_4 == 0 && gpio_15 == 0)
         model = BOARD_MODEL_UNIJOYSTICLE2_C64;
     else {
@@ -965,6 +951,7 @@ static board_model_t get_uni_model_from_pins(void) {
     gpio_set_pull_mode(GPIO_NUM_4, GPIO_FLOATING);
     gpio_set_pull_mode(GPIO_NUM_5, GPIO_FLOATING);
     gpio_set_pull_mode(GPIO_NUM_15, GPIO_FLOATING);
+    gpio_set_pull_mode(GPIO_NUM_36, GPIO_FLOATING);
     return model;
 #endif  // !PLAT_UNIJOYSTICLE_SINGLE_PORT
 }
@@ -1160,8 +1147,8 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
 
     bool status_a = ((all_seats & GAMEPAD_SEAT_A) != 0);
     bool status_b = ((all_seats & GAMEPAD_SEAT_B) != 0);
-    uni_gpio_set_level(g_gpio_config->leds[LED_J1], status_a);
-    uni_gpio_set_level(g_gpio_config->leds[LED_J2], status_b);
+    uni_gpio_set_level(g_gpio_config->leds[UNI_PLATFORM_UNIJOYSTICLE_LED_J1], status_a);
+    uni_gpio_set_level(g_gpio_config->leds[UNI_PLATFORM_UNIJOYSTICLE_LED_J2], status_b);
 
     bool lightbar_or_led_set = false;
     if (d->report_parser.set_lightbar_color != NULL) {
@@ -1269,7 +1256,7 @@ static void gpio_isr_handler_button(void* arg) {
     int button_idx = (int)arg;
 
     // Stored din ROM
-    const struct push_button* pb = &g_gpio_config->push_buttons[button_idx];
+    const struct uni_platform_unijoysticle_push_button* pb = &g_gpio_config->push_buttons[button_idx];
     // Stored in RAM
     struct push_button_state* st = &g_push_buttons_state[button_idx];
 
@@ -1292,7 +1279,7 @@ static void handle_event_button(int button_idx) {
     const int64_t button_threshold_time_us = 300 * 1000;  // 300ms
 
     // Stored in ROM
-    const struct push_button* pb = &g_gpio_config->push_buttons[button_idx];
+    const struct uni_platform_unijoysticle_push_button* pb = &g_gpio_config->push_buttons[button_idx];
     // Stored in RAM
     struct push_button_state* st = &g_push_buttons_state[button_idx];
 
@@ -1776,12 +1763,12 @@ static void task_blink_bt_led(void* arg) {
     int times = (int)arg;
 
     while (times--) {
-        uni_gpio_set_level(g_gpio_config->leds[LED_BT], 0);
+        uni_gpio_set_level(g_gpio_config->leds[UNI_PLATFORM_UNIJOYSTICLE_LED_BT], 0);
         vTaskDelay(pdMS_TO_TICKS(100));
-        uni_gpio_set_level(g_gpio_config->leds[LED_BT], 1);
+        uni_gpio_set_level(g_gpio_config->leds[UNI_PLATFORM_UNIJOYSTICLE_LED_BT], 1);
         vTaskDelay(pdMS_TO_TICKS(100));
     }
-    uni_gpio_set_level(g_gpio_config->leds[LED_BT], s_bluetooth_led_on);
+    uni_gpio_set_level(g_gpio_config->leds[UNI_PLATFORM_UNIJOYSTICLE_LED_BT], s_bluetooth_led_on);
 
     // Kill itself
     vTaskDelete(NULL);

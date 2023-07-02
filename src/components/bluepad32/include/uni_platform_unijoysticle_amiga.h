@@ -22,6 +22,7 @@ limitations under the License.
 #include <stdint.h>
 
 #include "uni_hid_device.h"
+#include "uni_platform_unijoysticle.h"
 
 void uni_platform_unijoysticle_amiga_register_cmds(void);
 void uni_platform_unijoysticle_amiga_on_init_complete(void);
@@ -32,4 +33,6 @@ void uni_platform_unijoysticle_amiga_process_mouse(uni_hid_device_t* d,
                                                    int32_t delta_y,
                                                    uint16_t buttons);
 void uni_platform_unijoysticle_amiga_version(void);
+
+const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_variant_a500_create(void);
 #endif  // UNI_PLATFORM_UNIJOYSTICLE_AMIGA_H

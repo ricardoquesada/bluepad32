@@ -162,14 +162,14 @@ typedef enum {
 //
 //  Left             Center            Right
 //
-//  brake: 0-1023    Menu button       accelerator: 0-1023
+//  brake: 0-1023    Menu button       throttle: 0-1023
 //  L-shoulder button                  R-shoulder button
 //  L-trigger button                   R-trigger button
 //  d-pad                              buttons: A,B,X,Y,
-//  l-joypad (axis: -512, 511)         r-joypad (axis: -512, 511)
-//  axis-l button                      axis-r button
-//
-//  trigger's buttons & accelerator are shared physically.
+//  L-joypad (axis: -512, 511)         R-joypad (axis: -512, 511)
+//  axis-L button                      axis-R button
+//  Gyro: is measured in degress/second
+//  Accelerometer: is measured in "G"s
 
 typedef struct {
     // Usage Page: 0x01 (Generic Desktop Controls)
