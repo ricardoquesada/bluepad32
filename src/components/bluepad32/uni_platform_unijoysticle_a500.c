@@ -59,6 +59,8 @@ enum {
 // --- Function declaration
 
 static int get_mouse_emulation_from_nvs(void);
+static void on_push_button_mode_pressed_a500(int button_idx);
+static void on_push_button_swap_pressed_a500(int button_idx);
 
 // Commands or Event related
 static int cmd_set_mouse_emulation(int argc, char** argv);
@@ -80,9 +82,11 @@ static const struct uni_platform_unijoysticle_gpio_config gpio_config_univ2a500 
     .leds = {GPIO_NUM_5, GPIO_NUM_12, GPIO_NUM_15},
     .push_buttons = {{
                          .gpio = GPIO_NUM_34,
+                         .callback = on_push_button_mode_pressed_a500,
                      },
                      {
                          .gpio = GPIO_NUM_35,
+                         .callback = on_push_button_swap_pressed_a500,
                      }},
     .sync_irq = {-1, -1},
 };
@@ -156,35 +160,21 @@ static int cmd_get_mouse_emulation(int argc, char** argv) {
     return 0;
 }
 
-//
-// Public
-//
-void uni_platform_unijoysticle_a500_register_cmds(void) {
-    set_mouse_emulation_args.value = arg_str1(NULL, NULL, "<emulation>", "valid options: 'amiga' or 'atarist'");
-    set_mouse_emulation_args.end = arg_end(2);
-
-    const esp_console_cmd_t set_mouse_emulation = {
-        .command = "set_mouse_emulation",
-        .help =
-            "Sets mouse emulation mode.\n"
-            "  Default: amiga",
-        .hint = NULL,
-        .func = &cmd_set_mouse_emulation,
-        .argtable = &set_mouse_emulation_args,
-    };
-
-    const esp_console_cmd_t get_mouse_emulation = {
-        .command = "get_mouse_emulation",
-        .help = "Returns mouse emulation mode",
-        .hint = NULL,
-        .func = &cmd_get_mouse_emulation,
-    };
-
-    ESP_ERROR_CHECK(esp_console_cmd_register(&set_mouse_emulation));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&get_mouse_emulation));
+static void on_push_button_mode_pressed_a500(int button_idx) {
+    ARG_UNUSED(button_idx);
+    uni_platform_unijoysticle_run_cmd(UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NEXT);
 }
 
-void uni_platform_unijoysticle_a500_on_init_complete(void) {
+static void on_push_button_swap_pressed_a500(int button_idx) {
+    ARG_UNUSED(button_idx);
+    uni_platform_unijoysticle_run_cmd(UNI_PLATFORM_UNIJOYSTICLE_CMD_SWAP_PORTS);
+}
+
+//
+// Variant overrides
+//
+
+static void on_init_complete_a500(void) {
     // Values taken from:
     // * http://wiki.icomp.de/wiki/DE-9_Mouse
     // * https://www.waitingforfriday.com/?p=827#Commodore_Amiga
@@ -212,24 +202,24 @@ void uni_platform_unijoysticle_a500_on_init_complete(void) {
 
     // FIXME: These values are hardcoded for Amiga
     struct uni_mouse_quadrature_encoder_gpios port_a_x = {
-        .a = uni_platform_unijoysticle_get_gpio_port_a(x1),  // H-pulse (up)
-        .b = uni_platform_unijoysticle_get_gpio_port_a(x2),  // HQ-pulse (left)
+        .a = gpio_config_univ2a500.port_a[x1],  // H-pulse (up)
+        .b = gpio_config_univ2a500.port_a[x2],  // HQ-pulse (left)
     };
 
     struct uni_mouse_quadrature_encoder_gpios port_a_y = {
-        .a = uni_platform_unijoysticle_get_gpio_port_a(y1),  // V-pulse (down)
-        .b = uni_platform_unijoysticle_get_gpio_port_a(y2),  // VQ-pulse (right)
+        .a = gpio_config_univ2a500.port_a[y1],  // V-pulse (down)
+        .b = gpio_config_univ2a500.port_a[y2],  // VQ-pulse (right)
     };
 
     // Mouse AtariST is known to only work only one port A, but for the sake
     // of completness, both ports are configured on AtariST. Overkill ?
     struct uni_mouse_quadrature_encoder_gpios port_b_x = {
-        .a = uni_platform_unijoysticle_get_gpio_port_b(x1),  // H-pulse (up)
-        .b = uni_platform_unijoysticle_get_gpio_port_b(x2),  // HQ-pulse (left)
+        .a = gpio_config_univ2a500.port_b[x1],  // H-pulse (up)
+        .b = gpio_config_univ2a500.port_b[x2],  // HQ-pulse (left)
     };
     struct uni_mouse_quadrature_encoder_gpios port_b_y = {
-        .a = uni_platform_unijoysticle_get_gpio_port_b(y1),  // V-pulse (down)
-        .b = uni_platform_unijoysticle_get_gpio_port_b(y2),  // VQ-pulse (right)
+        .a = gpio_config_univ2a500.port_b[y1],  // V-pulse (down)
+        .b = gpio_config_univ2a500.port_b[y2],  // VQ-pulse (right)
     };
 
     uni_mouse_quadrature_init(QUADRATURE_MOUSE_TASK_CPU);
@@ -237,46 +227,40 @@ void uni_platform_unijoysticle_a500_on_init_complete(void) {
     uni_mouse_quadrature_setup_port(UNI_MOUSE_QUADRATURE_PORT_1, port_b_x, port_b_y);
 }
 
-void uni_platform_unijoysticle_a500_maybe_enable_mouse_timers(void) {
-    // Mouse support requires that the mouse timers are enabled.
-    // Only enable them when needed
-    bool enable_timer_0 = false;
-    bool enable_timer_1 = false;
-
-    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
-        uni_hid_device_t* d = uni_hid_device_get_instance_for_idx(i);
-        if (uni_bt_conn_is_connected(&d->conn)) {
-            uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
-
-            // COMBO_JOY_MOUSE counts as real mouse.
-            if ((uni_hid_device_is_gamepad(d) && ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_MOUSE) ||
-                uni_hid_device_is_mouse(d)) {
-                if (ins->seat == GAMEPAD_SEAT_A)
-                    enable_timer_0 = true;
-                else if (ins->seat == GAMEPAD_SEAT_B)
-                    enable_timer_1 = true;
-            }
-        }
-    }
-
-    logi("mice timers enabled/disabled: port A=%d, port B=%d\n", enable_timer_0, enable_timer_1);
-
-    if (enable_timer_0)
-        uni_mouse_quadrature_start(UNI_MOUSE_QUADRATURE_PORT_0);
-    else
-        uni_mouse_quadrature_pause(UNI_MOUSE_QUADRATURE_PORT_0);
-
-    if (enable_timer_1)
-        uni_mouse_quadrature_start(UNI_MOUSE_QUADRATURE_PORT_1);
-    else
-        uni_mouse_quadrature_pause(UNI_MOUSE_QUADRATURE_PORT_1);
+static void print_version_a500(void) {
+    logi("\tMouse Emulation: %s\n", mouse_modes[get_mouse_emulation_from_nvs()]);
 }
 
-void uni_platform_unijoysticle_a500_process_mouse(uni_hid_device_t* d,
-                                                   uni_gamepad_seat_t seat,
-                                                   int32_t delta_x,
-                                                   int32_t delta_y,
-                                                   uint16_t buttons) {
+static void register_console_cmds_a500(void) {
+    set_mouse_emulation_args.value = arg_str1(NULL, NULL, "<emulation>", "valid options: 'amiga' or 'atarist'");
+    set_mouse_emulation_args.end = arg_end(2);
+
+    const esp_console_cmd_t set_mouse_emulation = {
+        .command = "set_mouse_emulation",
+        .help =
+            "Sets mouse emulation mode.\n"
+            "  Default: amiga",
+        .hint = NULL,
+        .func = &cmd_set_mouse_emulation,
+        .argtable = &set_mouse_emulation_args,
+    };
+
+    const esp_console_cmd_t get_mouse_emulation = {
+        .command = "get_mouse_emulation",
+        .help = "Returns mouse emulation mode",
+        .hint = NULL,
+        .func = &cmd_get_mouse_emulation,
+    };
+
+    ESP_ERROR_CHECK(esp_console_cmd_register(&set_mouse_emulation));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&get_mouse_emulation));
+}
+
+void process_mouse_a500(uni_hid_device_t* d,
+                        uni_gamepad_seat_t seat,
+                        int32_t delta_x,
+                        int32_t delta_y,
+                        uint16_t buttons) {
     ARG_UNUSED(d);
     static uint16_t prev_buttons = 0;
 
@@ -302,13 +286,13 @@ void uni_platform_unijoysticle_a500_process_mouse(uni_hid_device_t* d,
         prev_buttons = buttons;
         int fire, button2, button3;
         if (seat == GAMEPAD_SEAT_A) {
-            fire = uni_platform_unijoysticle_get_gpio_port_a(UNI_PLATFORM_UNIJOYSTICLE_JOY_FIRE);
-            button2 = uni_platform_unijoysticle_get_gpio_port_a(UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2);
-            button3 = uni_platform_unijoysticle_get_gpio_port_a(UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3);
+            fire = gpio_config_univ2a500.port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_FIRE];
+            button2 = gpio_config_univ2a500.port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2];
+            button3 = gpio_config_univ2a500.port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3];
         } else {
-            fire = uni_platform_unijoysticle_get_gpio_port_b(UNI_PLATFORM_UNIJOYSTICLE_JOY_FIRE);
-            button2 = uni_platform_unijoysticle_get_gpio_port_b(UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2);
-            button3 = uni_platform_unijoysticle_get_gpio_port_b(UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3);
+            fire = gpio_config_univ2a500.port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_FIRE];
+            button2 = gpio_config_univ2a500.port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2];
+            button3 = gpio_config_univ2a500.port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3];
         }
         if (fire != -1)
             gpio_set_level(fire, !!(buttons & BUTTON_A));
@@ -319,52 +303,16 @@ void uni_platform_unijoysticle_a500_process_mouse(uni_hid_device_t* d,
     }
 }
 
-void uni_platform_unijoysticle_a500_version(void) {
-    logi("\tMouse Emulation: %s\n", mouse_modes[get_mouse_emulation_from_nvs()]);
-}
-
-static void register_console_cmds_a500(void) {
-    uni_platform_unijoysticle_a500_register_cmds();
-}
-
-static bool process_gamepad_a500(uni_hid_device_t* d,
-                                 uni_gamepad_t* gp,
-                                 uni_gamepad_seat_t seat,
-                                 const gpio_num_t* port_a,
-                                 const gpio_num_t* port_b) {
-    // IMPLEMENT me
-    return true;
-}
-
-void process_mouse_a500(uni_hid_device_t* d, uni_gamepad_seat_t seat, int32_t dx, int32_t dy, uint16_t buttons) {
-    uni_platform_unijoysticle_a500_process_mouse(d, seat, dx, dy, buttons);
-}
-
-static void set_gpio_level_a500(gpio_num_t num, bool value) {
-    gpio_set_level(num, value);
-}
-
-static void on_push_button_mode_pressed_a500(int button_idx) {
-    ARG_UNUSED(button_idx);
-    uni_platform_unijoysticle_run_cmd(UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NEXT);
-}
-
-static void on_push_button_swap_pressed_a500(int button_idx) {
-    ARG_UNUSED(button_idx);
-    uni_platform_unijoysticle_run_cmd(UNI_PLATFORM_UNIJOYSTICLE_CMD_SWAP_PORTS);
-}
-
 //
 const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_a500_create_variant(void) {
     const static struct uni_platform_unijoysticle_variant variant = {
         .name = "A500",
         .gpio_config = &gpio_config_univ2a500,
-        .on_push_button_mode_pressed = on_push_button_mode_pressed_a500,
-        .on_push_button_swap_pressed = on_push_button_swap_pressed_a500,
+        .flags = UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRANT_MOUSE,
+        .on_init_complete = on_init_complete_a500,
+        .print_version = print_version_a500,
         .register_console_cmds = register_console_cmds_a500,
-        .process_gamepad = process_gamepad_a500,
         .process_mouse = process_mouse_a500,
-        .set_gpio_level = set_gpio_level_a500,
     };
 
     return &variant;

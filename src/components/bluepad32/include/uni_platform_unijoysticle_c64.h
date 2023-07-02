@@ -24,6 +24,7 @@ limitations under the License.
 
 #include "uni_gamepad.h"
 #include "uni_hid_device.h"
+#include "uni_platform_unijoysticle.h"
 
 typedef enum {
     UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_INVALID,   // Invalid
@@ -35,15 +36,8 @@ typedef enum {
     UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_COUNT,
 } uni_platform_unijoysticle_c64_pot_mode_t;
 
-void uni_platform_unijoysticle_c64_register_cmds(void);
-void uni_platform_unijoysticle_c64_on_init_complete(const gpio_num_t* port_a, const gpio_num_t* port_b);
 void uni_platform_unijoysticle_c64_set_pot_mode(uni_platform_unijoysticle_c64_pot_mode_t mode);
-void uni_platform_unijoysticle_c64_version(void);
 void uni_platform_unijoysticle_c64_set_pot_level(gpio_num_t gpio_num, uint8_t level);
-bool uni_platform_unijoysticle_c64_process_gamepad(uni_hid_device_t* d,
-                                                   uni_gamepad_t* gp,
-                                                   uni_gamepad_seat_t seat,
-                                                   const gpio_num_t* port_a,
-                                                   const gpio_num_t* port_b);
 
+const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_c64_create_variant(void);
 #endif  // UNI_PLATFORM_UNIJOYSTICLE_C64_H

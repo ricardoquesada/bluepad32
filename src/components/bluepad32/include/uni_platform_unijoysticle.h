@@ -59,6 +59,10 @@ typedef enum {
 } uni_platform_unijoysticle_gamepad_mode_t;
 
 enum {
+    UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRANT_MOUSE = BIT(0),
+};
+
+enum {
     UNI_PLATFORM_UNIJOYSTICLE_JOY_UP,       // Pin 1
     UNI_PLATFORM_UNIJOYSTICLE_JOY_DOWN,     // Pin 2
     UNI_PLATFORM_UNIJOYSTICLE_JOY_LEFT,     // Pin 3
@@ -121,28 +125,30 @@ struct uni_platform_unijoysticle_gpio_config {
 struct uni_platform_unijoysticle_variant {
     // The name of the variant: A500, C64, 800XL, etc.
     const char* name;
+
+    // GPIO configuration
     const struct uni_platform_unijoysticle_gpio_config* gpio_config;
+
+    // Which features are supported
+    uint32_t flags;
 
     // Variant "callbacks".
 
+    // Print additional info about the version
+    void (*print_version)(void);
+
     // on_init_complete is called when initialization finishes
     void (*on_init_complete)(void);
-
-    uni_platform_unijoysticle_button_cb_t on_push_button_mode_pressed;
-    uni_platform_unijoysticle_button_cb_t on_push_button_swap_pressed;
 
     // Register console commands. Optional
     void (*register_console_cmds)(void);
 
     // Set the pot values
-    void (*set_gpio_level)(gpio_num_t gpio, bool value);
+    void (*set_gpio_level_for_pot)(gpio_num_t gpio, bool value);
 
-    // Process gamepad data
-    bool (*process_gamepad)(uni_hid_device_t* d,
-                            uni_gamepad_t* gp,
-                            uni_gamepad_seat_t seat,
-                            const gpio_num_t* port_a,
-                            const gpio_num_t* port_b);
+    // Process gamepad misc buttons
+    // Returns "True" if the Misc buttons where processed. Otherwise "False"
+    bool (*process_gamepad_misc_buttons)(uni_hid_device_t* d, uni_gamepad_seat_t seat, uint8_t misc_buttons);
 
     // Process mosue data
     void (*process_mouse)(uni_hid_device_t* d,
@@ -155,9 +161,6 @@ struct uni_platform_unijoysticle_variant {
 struct uni_platform* uni_platform_unijoysticle_create(void);
 // Can be called from any thread. The command will get executed in the btthread.
 void uni_platform_unijoysticle_run_cmd(uni_platform_unijoysticle_cmd_t cmd);
-gpio_num_t uni_platform_unijoysticle_get_gpio_sync_irq(int idx);
-gpio_num_t uni_platform_unijoysticle_get_gpio_port_a(int idx);
-gpio_num_t uni_platform_unijoysticle_get_gpio_port_b(int idx);
 uni_platform_unijoysticle_instance_t* uni_platform_unijoysticle_get_instance(const uni_hid_device_t* d);
 
 #endif  // UNI_PLATFORM_UNIJOYSTICLE_H

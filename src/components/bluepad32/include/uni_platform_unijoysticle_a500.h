@@ -24,16 +24,6 @@ limitations under the License.
 #include "uni_hid_device.h"
 #include "uni_platform_unijoysticle.h"
 
-void uni_platform_unijoysticle_a500_register_cmds(void);
-void uni_platform_unijoysticle_a500_on_init_complete(void);
-void uni_platform_unijoysticle_a500_maybe_enable_mouse_timers(void);
-void uni_platform_unijoysticle_a500_process_mouse(uni_hid_device_t* d,
-                                                   uni_gamepad_seat_t seat,
-                                                   int32_t delta_x,
-                                                   int32_t delta_y,
-                                                   uint16_t buttons);
-void uni_platform_unijoysticle_a500_version(void);
-
 const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_a500_create_variant(void);
 
 #endif  // UNI_PLATFORM_UNIJOYSTICLE_A500_H

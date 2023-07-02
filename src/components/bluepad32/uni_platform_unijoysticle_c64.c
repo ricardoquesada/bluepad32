@@ -54,6 +54,8 @@ enum {
 
 // --- Function declaration
 static int get_c64_pot_mode_from_nvs(void);
+static void on_push_button_mode_pressed_c64(int button_idx);
+static void on_push_button_swap_pressed_c64(int button_idx);
 
 // GPIO Interrupt handlers
 static void sync_irq_event_task(void* arg);
@@ -63,6 +65,30 @@ static volatile uint16_t pot_x_delay_us = uS_MAX;
 static volatile uint16_t pot_y_delay_us = uS_MAX;
 
 // --- Consts (ROM)
+
+// Unijoysticle v2 C64 / Flash Party edition
+static const struct uni_platform_unijoysticle_gpio_config gpio_config_univ2c64 = {
+    .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, GPIO_NUM_33, GPIO_NUM_16},
+    .port_b = {GPIO_NUM_27, GPIO_NUM_25, GPIO_NUM_32, GPIO_NUM_17, GPIO_NUM_13, GPIO_NUM_21, GPIO_NUM_22},
+    .leds = {GPIO_NUM_5, GPIO_NUM_12, GPIO_NUM_15},
+    .push_buttons = {{
+                         .gpio = GPIO_NUM_34,
+                         .callback = on_push_button_mode_pressed_c64,
+                     },
+#ifdef CONFIG_BLUEPAD32_UNIJOYSTICLE_ENABLE_SWAP_FOR_C64
+                     // Flash Party edition should have this disabled
+                     {
+                         .gpio = GPIO_NUM_35,
+                         .callback = on_push_button_swap_pressed_c64,
+                     }},
+#else
+                     {
+                         .gpio = -1,
+                         .callback = NULL,
+                     }},
+#endif
+    .sync_irq = {GPIO_NUM_36, GPIO_NUM_39},
+};
 
 // Keep them in the order of the defines
 static const char* c64_pot_modes[] = {
@@ -236,32 +262,6 @@ static int cmd_get_c64_pot_mode(int argc, char** argv) {
 //
 // Public
 //
-void uni_platform_unijoysticle_c64_register_cmds(void) {
-    set_c64_pot_mode_args.value =
-        arg_str1(NULL, NULL, "<mode>", "valid options: '3buttons', '5buttons', 'rumble' or 'paddle'");
-    set_c64_pot_mode_args.end = arg_end(2);
-
-    const esp_console_cmd_t set_c64_pot_mode = {
-        .command = "set_c64_pot_mode",
-        .help =
-            "Sets C64 Pot mode.\n"
-            "  Default: 3buttons",
-        .hint = NULL,
-        .func = &cmd_set_c64_pot_mode,
-        .argtable = &set_c64_pot_mode_args,
-    };
-
-    const esp_console_cmd_t get_c64_pot_mode = {
-        .command = "get_c64_pot_mode",
-        .help = "Returns the C64 Pot mode",
-        .hint = NULL,
-        .func = &cmd_get_c64_pot_mode,
-    };
-
-    ESP_ERROR_CHECK(esp_console_cmd_register(&set_c64_pot_mode));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&get_c64_pot_mode));
-}
-
 static void set_pot_mode_from_cpu(void* m) {
     // From ESP-IDF documentation:
     // "Register Timer interrupt handler, the handler is an ISR.
@@ -287,7 +287,7 @@ static void set_pot_mode_from_cpu(void* m) {
             return;
         }
         for (int i = 0; i < SYNC_IRQ_MAX; i++) {
-            int sync_irq = uni_platform_unijoysticle_get_gpio_sync_irq(i);
+            int sync_irq = gpio_config_univ2c64.sync_irq[i];
             if (sync_irq == -1)
                 continue;
             io_conf.intr_type = GPIO_INTR_DISABLE;
@@ -317,7 +317,7 @@ static void set_pot_mode_from_cpu(void* m) {
 
         // Sync IRQs
         for (int i = 0; i < SYNC_IRQ_MAX; i++) {
-            gpio_num_t gpio = uni_platform_unijoysticle_get_gpio_sync_irq(i);
+            gpio_num_t gpio = gpio_config_univ2c64.sync_irq[i];
             if (gpio == -1)
                 continue;
 
@@ -335,7 +335,7 @@ static void set_pot_mode_from_cpu(void* m) {
     } else if (mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_PADDLE) {
         // Sync IRQs
         for (int i = 0; i < 1; i++) {
-            gpio_num_t gpio = uni_platform_unijoysticle_get_gpio_sync_irq(i);
+            gpio_num_t gpio = gpio_config_univ2c64.sync_irq[i];
             if (gpio == -1)
                 continue;
 
@@ -364,77 +364,41 @@ void uni_platform_unijoysticle_c64_set_pot_mode(uni_platform_unijoysticle_c64_po
                             POT_TASK_CPU);
 }
 
-void uni_platform_unijoysticle_c64_set_pot_level(gpio_num_t gpio_num, uint8_t level) {
-    if (_pot_mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_3BUTTONS ||
-        _pot_mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_5BUTTONS) {
-        // C64 uses pull-ups for Pot-x, Pot-y, so the value needs to be "inversed" in order to be off.
-        uni_gpio_set_level(gpio_num, level);
-    } else if (_pot_mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_RUMBLE) {
-        // Leave it disabled to allow the SYNC to reach ESP32 without interference
-        uni_gpio_set_level(gpio_num, level);
-    } else if (_pot_mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_PADDLE) {
-        // do nothing
-    } else {
-        loge("unijoysticle: unsupported pot_level mode: %d\n", _pot_mode);
-    }
-}
-
-void uni_platform_unijoysticle_c64_on_init_complete(const gpio_num_t* port_a, const gpio_num_t* port_b) {
-    int mode = get_c64_pot_mode_from_nvs();
-    uni_platform_unijoysticle_c64_set_pot_mode(mode);
-
-    // set_pot_mode runs from a different Core, so, wait until _pot_mode is defined
-    // before calling set_pot_level, which requires in pot_mod
-    while (_pot_mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_INVALID)
-        vTaskDelay(pdMS_TO_TICKS(50));
-
-    uni_platform_unijoysticle_c64_set_pot_level(port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2], 0);
-    uni_platform_unijoysticle_c64_set_pot_level(port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3], 0);
-
-    uni_platform_unijoysticle_c64_set_pot_level(port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2], 0);
-    uni_platform_unijoysticle_c64_set_pot_level(port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3], 0);
-}
-
 void uni_platform_unijoysticle_c64_version(void) {
     logi("\tPot mode: %s\n", c64_pot_modes[get_c64_pot_mode_from_nvs()]);
 }
 
-static void process_5button(uni_hid_device_t* d,
-                            uni_gamepad_t* gp,
-                            uni_gamepad_seat_t seat,
-                            const gpio_num_t* port_a,
-                            const gpio_num_t* port_b)
+static void process_5button(uni_hid_device_t* d, uni_gamepad_seat_t seat, uint8_t misc_buttons)
 
 {
-    if (gp->misc_buttons & MISC_BUTTON_BACK) {
+    if (misc_buttons & MISC_BUTTON_BACK) {
         if (seat & GAMEPAD_SEAT_A) {
-            uni_gpio_set_level(port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_UP], 1);
-            uni_gpio_set_level(port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_DOWN], 1);
+            uni_gpio_set_level(gpio_config_univ2c64.port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_UP], 1);
+            uni_gpio_set_level(gpio_config_univ2c64.port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_DOWN], 1);
         }
         if (seat & GAMEPAD_SEAT_B) {
-            uni_gpio_set_level(port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_UP], 1);
-            uni_gpio_set_level(port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_DOWN], 1);
+            uni_gpio_set_level(gpio_config_univ2c64.port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_UP], 1);
+            uni_gpio_set_level(gpio_config_univ2c64.port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_DOWN], 1);
         }
     }
 
     // "Start" buttons
-    if (gp->misc_buttons & MISC_BUTTON_HOME) {
+    if (misc_buttons & MISC_BUTTON_HOME) {
         if (seat & GAMEPAD_SEAT_A) {
-            uni_gpio_set_level(port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_LEFT], 1);
-            uni_gpio_set_level(port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_RIGHT], 1);
+            uni_gpio_set_level(gpio_config_univ2c64.port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_LEFT], 1);
+            uni_gpio_set_level(gpio_config_univ2c64.port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_RIGHT], 1);
         }
         if (seat & GAMEPAD_SEAT_B) {
-            uni_gpio_set_level(port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_LEFT], 1);
-            uni_gpio_set_level(port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_RIGHT], 1);
+            uni_gpio_set_level(gpio_config_univ2c64.port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_LEFT], 1);
+            uni_gpio_set_level(gpio_config_univ2c64.port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_RIGHT], 1);
         }
     }
 }
 
-static void process_paddle(uni_hid_device_t* d,
-                           uni_gamepad_t* gp,
-                           uni_gamepad_seat_t seat,
-                           const gpio_num_t* port_a,
-                           const gpio_num_t* port_b) {
+static void process_paddle(uni_hid_device_t* d, uni_gamepad_seat_t seat, uint8_t misc_buttons) {
+#if 0
+    // Disabled
+
     // A 1:1 mapping actually works pretty well.  If tweaking/scaling is required, do it here.
     int delay_x = (1024 - gp->brake) / 4;
     int delay_y = (1024 - gp->throttle) / 4;
@@ -460,24 +424,112 @@ static void process_paddle(uni_hid_device_t* d,
 
     pot_x_delay_us = delay_x;
     pot_y_delay_us = delay_y;
+#endif
 }
 
-bool uni_platform_unijoysticle_c64_process_gamepad(uni_hid_device_t* d,
-                                                   uni_gamepad_t* gp,
-                                                   uni_gamepad_seat_t seat,
-                                                   const gpio_num_t* port_a,
-                                                   const gpio_num_t* port_b) {
+static void on_push_button_mode_pressed_c64(int button_idx) {
+    ARG_UNUSED(button_idx);
+    static bool enabled = false;
+
+    enabled = !enabled;
+
+    uni_platform_unijoysticle_run_cmd(enabled ? UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_ENHANCED
+                                              : UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NORMAL);
+}
+
+static void on_push_button_swap_pressed_c64(int button_idx) {
+    ARG_UNUSED(button_idx);
+    uni_platform_unijoysticle_run_cmd(UNI_PLATFORM_UNIJOYSTICLE_CMD_SWAP_PORTS);
+}
+
+//
+// Variant overrides
+//
+
+static void set_gpio_level_for_pot_c64(gpio_num_t gpio_num, bool level) {
+    if (_pot_mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_3BUTTONS ||
+        _pot_mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_5BUTTONS) {
+        // C64 uses pull-ups for Pot-x, Pot-y, so the value needs to be "inversed" in order to be off.
+        uni_gpio_set_level(gpio_num, level);
+    } else if (_pot_mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_RUMBLE) {
+        // Leave it disabled to allow the SYNC to reach ESP32 without interference
+        uni_gpio_set_level(gpio_num, level);
+    } else if (_pot_mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_PADDLE) {
+        // do nothing
+    } else {
+        loge("unijoysticle: unsupported pot_level mode: %d\n", _pot_mode);
+    }
+}
+
+static void on_init_complete_c64(void) {
+    int mode = get_c64_pot_mode_from_nvs();
+    uni_platform_unijoysticle_c64_set_pot_mode(mode);
+
+    // set_pot_mode runs from a different Core, so, wait until _pot_mode is defined
+    // before calling set_pot_level, which requires in pot_mod
+    while (_pot_mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_INVALID)
+        vTaskDelay(pdMS_TO_TICKS(50));
+
+    set_gpio_level_for_pot_c64(gpio_config_univ2c64.port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2], 0);
+    set_gpio_level_for_pot_c64(gpio_config_univ2c64.port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3], 0);
+
+    set_gpio_level_for_pot_c64(gpio_config_univ2c64.port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2], 0);
+    set_gpio_level_for_pot_c64(gpio_config_univ2c64.port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3], 0);
+}
+
+void register_console_cmds_c64(void) {
+    set_c64_pot_mode_args.value =
+        arg_str1(NULL, NULL, "<mode>", "valid options: '3buttons', '5buttons', 'rumble' or 'paddle'");
+    set_c64_pot_mode_args.end = arg_end(2);
+
+    const esp_console_cmd_t set_c64_pot_mode = {
+        .command = "set_c64_pot_mode",
+        .help =
+            "Sets C64 Pot mode.\n"
+            "  Default: 3buttons",
+        .hint = NULL,
+        .func = &cmd_set_c64_pot_mode,
+        .argtable = &set_c64_pot_mode_args,
+    };
+
+    const esp_console_cmd_t get_c64_pot_mode = {
+        .command = "get_c64_pot_mode",
+        .help = "Returns the C64 Pot mode",
+        .hint = NULL,
+        .func = &cmd_get_c64_pot_mode,
+    };
+
+    ESP_ERROR_CHECK(esp_console_cmd_register(&set_c64_pot_mode));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&get_c64_pot_mode));
+}
+
+static bool process_gamepad_misc_buttons_c64(uni_hid_device_t* d, uni_gamepad_seat_t seat, uint8_t misc_buttons) {
     int mode = get_c64_pot_mode_from_nvs();
 
     // Return true only if "select" and/or "start" where processed.
     if (mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_5BUTTONS) {
-        process_5button(d, gp, seat, port_a, port_b);
+        process_5button(d, seat, misc_buttons);
         return true;
     }
 
     if (mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_PADDLE) {
-        process_paddle(d, gp, seat, port_a, port_b);
+        process_paddle(d, seat, misc_buttons);
     }
 
     return false;
+}
+
+const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_c64_create_variant(void) {
+    const static struct uni_platform_unijoysticle_variant variant = {
+        .name = "C64",
+        .gpio_config = &gpio_config_univ2c64,
+        .flags = 0, /* Quadrant mouse not supported*/
+
+        .on_init_complete = on_init_complete_c64,
+        .register_console_cmds = register_console_cmds_c64,
+        .process_gamepad_misc_buttons = process_gamepad_misc_buttons_c64,
+        .set_gpio_level_for_pot = set_gpio_level_for_pot_c64,
+    };
+
+    return &variant;
 }
