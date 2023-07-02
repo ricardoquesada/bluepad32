@@ -51,7 +51,7 @@ if(CONFIG_IDF_TARGET_ESP32)
          "uni_platform_mightymiggy.c"
          "uni_platform_nina.c"
          "uni_platform_unijoysticle.c"
-         "uni_platform_unijoysticle_amiga.c"
+         "uni_platform_unijoysticle_a500.c"
          "uni_platform_unijoysticle_c64.c")
 endif()
 

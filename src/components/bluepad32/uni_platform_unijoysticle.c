@@ -51,7 +51,7 @@ limitations under the License.
 #include "uni_joystick.h"
 #include "uni_log.h"
 #include "uni_platform.h"
-#include "uni_platform_unijoysticle_amiga.h"
+#include "uni_platform_unijoysticle_a500.h"
 #include "uni_platform_unijoysticle_c64.h"
 #include "uni_property.h"
 #include "uni_version.h"
@@ -378,7 +378,7 @@ static void unijoysticle_init(int argc, const char** argv) {
             g_gpio_config = &gpio_config_univ2plus;
             break;
         case BOARD_MODEL_UNIJOYSTICLE2_A500:
-            g_variant = uni_platform_unijoysticle_variant_a500_create();
+            g_variant = uni_platform_unijoysticle_a500_create_variant();
             g_gpio_config = &gpio_config_univ2a500;
             break;
         case BOARD_MODEL_UNIJOYSTICLE2_C64:
@@ -470,7 +470,7 @@ static void unijoysticle_on_init_complete(void) {
         uni_platform_unijoysticle_c64_on_init_complete(g_gpio_config->port_a, g_gpio_config->port_b);
     } else {
         // The rest of the boards use the Amiga configuration
-        uni_platform_unijoysticle_amiga_on_init_complete();
+        uni_platform_unijoysticle_a500_on_init_complete();
     }
 }
 
@@ -797,7 +797,7 @@ static void unijoysticle_register_cmds(void) {
         uni_platform_unijoysticle_c64_register_cmds();
     else
         // Mouse emulation does not work in C64 Model
-        uni_platform_unijoysticle_amiga_register_cmds();
+        uni_platform_unijoysticle_a500_register_cmds();
 
     ESP_ERROR_CHECK(esp_console_cmd_register(&version));
 
@@ -965,7 +965,7 @@ static void process_mouse(uni_hid_device_t* d,
         return;
     }
 
-    uni_platform_unijoysticle_amiga_process_mouse(d, seat, delta_x, delta_y, buttons);
+    uni_platform_unijoysticle_a500_process_mouse(d, seat, delta_x, delta_y, buttons);
 }
 
 static void process_joystick(uni_hid_device_t* d, uni_gamepad_seat_t seat, const uni_joystick_t* joy) {
@@ -1360,7 +1360,7 @@ static void version(void) {
     if (get_uni_model_from_pins() == BOARD_MODEL_UNIJOYSTICLE2_C64)
         uni_platform_unijoysticle_c64_version();
     else
-        uni_platform_unijoysticle_amiga_version();
+        uni_platform_unijoysticle_a500_version();
 
     if (esp_flash_get_size(NULL, &flash_size) != ESP_OK) {
         loge("Flash size failed\n");
@@ -1756,7 +1756,7 @@ static void maybe_enable_mouse_timers(void) {
         return;
     }
 
-    uni_platform_unijoysticle_amiga_maybe_enable_mouse_timers();
+    uni_platform_unijoysticle_a500_maybe_enable_mouse_timers();
 }
 
 static void task_blink_bt_led(void* arg) {

@@ -18,7 +18,7 @@ limitations under the License.
 
 // Unijoysticle platform
 
-#include "uni_platform_unijoysticle_amiga.h"
+#include "uni_platform_unijoysticle_a500.h"
 
 #include <stdbool.h>
 
@@ -159,7 +159,7 @@ static int cmd_get_mouse_emulation(int argc, char** argv) {
 //
 // Public
 //
-void uni_platform_unijoysticle_amiga_register_cmds(void) {
+void uni_platform_unijoysticle_a500_register_cmds(void) {
     set_mouse_emulation_args.value = arg_str1(NULL, NULL, "<emulation>", "valid options: 'amiga' or 'atarist'");
     set_mouse_emulation_args.end = arg_end(2);
 
@@ -184,7 +184,7 @@ void uni_platform_unijoysticle_amiga_register_cmds(void) {
     ESP_ERROR_CHECK(esp_console_cmd_register(&get_mouse_emulation));
 }
 
-void uni_platform_unijoysticle_amiga_on_init_complete(void) {
+void uni_platform_unijoysticle_a500_on_init_complete(void) {
     // Values taken from:
     // * http://wiki.icomp.de/wiki/DE-9_Mouse
     // * https://www.waitingforfriday.com/?p=827#Commodore_Amiga
@@ -237,7 +237,7 @@ void uni_platform_unijoysticle_amiga_on_init_complete(void) {
     uni_mouse_quadrature_setup_port(UNI_MOUSE_QUADRATURE_PORT_1, port_b_x, port_b_y);
 }
 
-void uni_platform_unijoysticle_amiga_maybe_enable_mouse_timers(void) {
+void uni_platform_unijoysticle_a500_maybe_enable_mouse_timers(void) {
     // Mouse support requires that the mouse timers are enabled.
     // Only enable them when needed
     bool enable_timer_0 = false;
@@ -272,7 +272,7 @@ void uni_platform_unijoysticle_amiga_maybe_enable_mouse_timers(void) {
         uni_mouse_quadrature_pause(UNI_MOUSE_QUADRATURE_PORT_1);
 }
 
-void uni_platform_unijoysticle_amiga_process_mouse(uni_hid_device_t* d,
+void uni_platform_unijoysticle_a500_process_mouse(uni_hid_device_t* d,
                                                    uni_gamepad_seat_t seat,
                                                    int32_t delta_x,
                                                    int32_t delta_y,
@@ -319,12 +319,12 @@ void uni_platform_unijoysticle_amiga_process_mouse(uni_hid_device_t* d,
     }
 }
 
-void uni_platform_unijoysticle_amiga_version(void) {
+void uni_platform_unijoysticle_a500_version(void) {
     logi("\tMouse Emulation: %s\n", mouse_modes[get_mouse_emulation_from_nvs()]);
 }
 
 static void register_console_cmds_a500(void) {
-    uni_platform_unijoysticle_amiga_register_cmds();
+    uni_platform_unijoysticle_a500_register_cmds();
 }
 
 static bool process_gamepad_a500(uni_hid_device_t* d,
@@ -337,7 +337,7 @@ static bool process_gamepad_a500(uni_hid_device_t* d,
 }
 
 void process_mouse_a500(uni_hid_device_t* d, uni_gamepad_seat_t seat, int32_t dx, int32_t dy, uint16_t buttons) {
-    uni_platform_unijoysticle_amiga_process_mouse(d, seat, dx, dy, buttons);
+    uni_platform_unijoysticle_a500_process_mouse(d, seat, dx, dy, buttons);
 }
 
 static void set_gpio_level_a500(gpio_num_t num, bool value) {
@@ -355,7 +355,7 @@ static void on_push_button_swap_pressed_a500(int button_idx) {
 }
 
 //
-const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_variant_a500_create(void) {
+const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_a500_create_variant(void) {
     const static struct uni_platform_unijoysticle_variant variant = {
         .name = "A500",
         .gpio_config = &gpio_config_univ2a500,
