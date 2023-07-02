@@ -41,7 +41,6 @@ static const struct uni_platform_unijoysticle_gpio_config gpio_config_plus = {
     .sync_irq = {-1, -1},
 };
 
-
 static void on_push_button_mode_pressed_plus(int button_idx) {
     ARG_UNUSED(button_idx);
     static bool enabled = false;
@@ -51,7 +50,6 @@ static void on_push_button_mode_pressed_plus(int button_idx) {
     uni_platform_unijoysticle_run_cmd(enabled ? UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_ENHANCED
                                               : UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NORMAL);
 }
-
 
 //
 // Variant overrides
