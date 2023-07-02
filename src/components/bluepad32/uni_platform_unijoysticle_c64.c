@@ -521,7 +521,7 @@ static bool process_gamepad_misc_buttons_c64(uni_hid_device_t* d, uni_gamepad_se
 
 const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_c64_create_variant(void) {
     const static struct uni_platform_unijoysticle_variant variant = {
-        .name = "C64",
+        .name = "2 C64",
         .gpio_config = &gpio_config_univ2c64,
         .flags = 0, /* Quadrant mouse not supported*/
 

@@ -18,51 +18,39 @@ limitations under the License.
 
 // Unijoysticle platform
 
-#include "uni_platform_unijoysticle_a500.h"
-
-#include <stdbool.h>
-
-#include <argtable3/argtable3.h>
-#include <esp_console.h>
-#include <freertos/FreeRTOS.h>
+#include "uni_platform_unijoysticle_800xl.h"
 
 #include "sdkconfig.h"
 #include "uni_common.h"
 #include "uni_config.h"
-#include "uni_gamepad.h"
-#include "uni_hid_device.h"
 #include "uni_log.h"
-#include "uni_mouse_quadrature.h"
-#include "uni_platform_unijoysticle.h"
-#include "uni_property.h"
 
-// --- Function declaration
+// Unijoysticle v2 800XL
 
-static void on_push_button_mode_pressed_a500(int button_idx);
-static void on_push_button_swap_pressed_a500(int button_idx);
+static void on_push_button_swap_pressed_800xl(int button_idx);
+static void on_push_button_mode_pressed_800xl(int button_idx);
 
-// Unijoysticle v2 A500
-static const struct uni_platform_unijoysticle_gpio_config gpio_config_univ2a500 = {
+static const struct uni_platform_unijoysticle_gpio_config gpio_config_800xl = {
     .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, GPIO_NUM_33, GPIO_NUM_16},
     .port_b = {GPIO_NUM_27, GPIO_NUM_25, GPIO_NUM_32, GPIO_NUM_17, GPIO_NUM_13, GPIO_NUM_21, GPIO_NUM_22},
     .leds = {GPIO_NUM_5, GPIO_NUM_12, GPIO_NUM_15},
     .push_buttons = {{
                          .gpio = GPIO_NUM_34,
-                         .callback = on_push_button_mode_pressed_a500,
+                         .callback = on_push_button_mode_pressed_800xl,
                      },
                      {
                          .gpio = GPIO_NUM_35,
-                         .callback = on_push_button_swap_pressed_a500,
+                         .callback = on_push_button_swap_pressed_800xl,
                      }},
     .sync_irq = {-1, -1},
 };
 
-static void on_push_button_mode_pressed_a500(int button_idx) {
+static void on_push_button_mode_pressed_800xl(int button_idx) {
     ARG_UNUSED(button_idx);
     uni_platform_unijoysticle_run_cmd(UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NEXT);
 }
 
-static void on_push_button_swap_pressed_a500(int button_idx) {
+static void on_push_button_swap_pressed_800xl(int button_idx) {
     ARG_UNUSED(button_idx);
     uni_platform_unijoysticle_run_cmd(UNI_PLATFORM_UNIJOYSTICLE_CMD_SWAP_PORTS);
 }
@@ -72,10 +60,10 @@ static void on_push_button_swap_pressed_a500(int button_idx) {
 //
 
 //
-const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_a500_create_variant(void) {
+const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_800xl_create_variant(void) {
     const static struct uni_platform_unijoysticle_variant variant = {
-        .name = "2 A500",
-        .gpio_config = &gpio_config_univ2a500,
+        .name = "800XL",
+        .gpio_config = &gpio_config_800xl,
         .flags = UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRANT_MOUSE,
     };
 

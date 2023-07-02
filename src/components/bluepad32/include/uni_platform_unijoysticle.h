@@ -149,13 +149,6 @@ struct uni_platform_unijoysticle_variant {
     // Process gamepad misc buttons
     // Returns "True" if the Misc buttons where processed. Otherwise "False"
     bool (*process_gamepad_misc_buttons)(uni_hid_device_t* d, uni_gamepad_seat_t seat, uint8_t misc_buttons);
-
-    // Process mosue data
-    void (*process_mouse)(uni_hid_device_t* d,
-                          uni_gamepad_seat_t seat,
-                          int32_t delta_x,
-                          int32_t delta_y,
-                          uint16_t buttons);
 };
 
 struct uni_platform* uni_platform_unijoysticle_create(void);
