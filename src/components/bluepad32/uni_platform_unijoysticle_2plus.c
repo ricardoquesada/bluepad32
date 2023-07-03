@@ -16,14 +16,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
-#include "uni_platform_unijoysticle_plus.h"
+#include "uni_platform_unijoysticle_2plus.h"
 
 #include "sdkconfig.h"
 #include "uni_common.h"
 #include "uni_config.h"
 #include "uni_log.h"
 
-static void on_push_button_mode_pressed_plus(int button_idx);
+static void on_push_button_mode_pressed_2plus(int button_idx);
 
 // Unijoysticle v2+: SMD version
 static const struct uni_platform_unijoysticle_gpio_config gpio_config_plus = {
@@ -32,7 +32,7 @@ static const struct uni_platform_unijoysticle_gpio_config gpio_config_plus = {
     .leds = {GPIO_NUM_5, GPIO_NUM_12, -1},
     .push_buttons = {{
                          .gpio = GPIO_NUM_15,
-                         .callback = on_push_button_mode_pressed_plus,
+                         .callback = on_push_button_mode_pressed_2plus,
                      },
                      {
                          .gpio = -1,
@@ -41,13 +41,13 @@ static const struct uni_platform_unijoysticle_gpio_config gpio_config_plus = {
     .sync_irq = {-1, -1},
 };
 
-static void on_push_button_mode_pressed_plus(int button_idx) {
+static void on_push_button_mode_pressed_2plus(int button_idx) {
     ARG_UNUSED(button_idx);
     static bool enabled = false;
 
     enabled = !enabled;
 
-    uni_platform_unijoysticle_run_cmd(enabled ? UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_ENHANCED
+    uni_platform_unijoysticle_run_cmd(enabled ? UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_TWINSTICK
                                               : UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NORMAL);
 }
 
@@ -55,9 +55,9 @@ static void on_push_button_mode_pressed_plus(int button_idx) {
 // Variant overrides
 //
 
-const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_plus_create_variant(void) {
+const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_2plus_create_variant(void) {
     const static struct uni_platform_unijoysticle_variant variant = {
-        .name = "+",
+        .name = "2+",
         .gpio_config = &gpio_config_plus,
         .flags = UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRANT_MOUSE,
     };

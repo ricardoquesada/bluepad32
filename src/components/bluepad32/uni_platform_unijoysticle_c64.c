@@ -142,7 +142,7 @@ static void enable_rumble_callback(void* context) {
             continue;
         uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
         // Use mask instead of == since Rumble should be active when
-        // gamepad is in Enhanced Mode.
+        // gamepad is in Twin Stick Mode.
         if ((ins->seat & seat) == 0)
             continue;
         if (d->report_parser.set_rumble != NULL)
@@ -433,7 +433,7 @@ static void on_push_button_mode_pressed_c64(int button_idx) {
 
     enabled = !enabled;
 
-    uni_platform_unijoysticle_run_cmd(enabled ? UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_ENHANCED
+    uni_platform_unijoysticle_run_cmd(enabled ? UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_TWINSTICK
                                               : UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NORMAL);
 }
 

@@ -43,18 +43,20 @@ set(srcs "uni_balance_board.c"
 
 if(CONFIG_IDF_TARGET_ESP32)
     list(APPEND srcs
-         # BR/EDR only code only gets compiled on ESP32
+         # BR/EDR code only gets compiled on ESP32
          "uni_bt_bredr.c"
          "uni_bt_sdp.c"
 
-        # Place here that are ESP32-only
+        # Place here files that are ESP32-only
          "uni_platform_mightymiggy.c"
          "uni_platform_nina.c"
          "uni_platform_unijoysticle.c"
+         "uni_platform_unijoysticle_2.c"
+         "uni_platform_unijoysticle_2plus.c"
          "uni_platform_unijoysticle_800xl.c"
          "uni_platform_unijoysticle_a500.c"
          "uni_platform_unijoysticle_c64.c"
-         "uni_platform_unijoysticle_plus.c")
+         "uni_platform_unijoysticle_singleport.c")
 endif()
 
 set(requires "nvs_flash" "btstack" "app_update" "esp_timer")

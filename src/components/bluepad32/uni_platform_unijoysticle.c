@@ -52,10 +52,12 @@ limitations under the License.
 #include "uni_log.h"
 #include "uni_mouse_quadrature.h"
 #include "uni_platform.h"
+#include "uni_platform_unijoysticle_2.h"
+#include "uni_platform_unijoysticle_2plus.h"
 #include "uni_platform_unijoysticle_800xl.h"
 #include "uni_platform_unijoysticle_a500.h"
 #include "uni_platform_unijoysticle_c64.h"
-#include "uni_platform_unijoysticle_plus.h"
+#include "uni_platform_unijoysticle_singleport.h"
 #include "uni_property.h"
 #include "uni_version.h"
 
@@ -203,7 +205,7 @@ static void auto_fire_task(void* arg);
 static void maybe_enable_mouse_timers(void);
 
 // Button callbacks, called from a task that is not BT main thread
-static void toggle_combo_enhanced_gamepad_cb(int button_idx);
+static void toggle_combo_twinstick_gamepad_cb(int button_idx);
 
 // Commands or Event related
 static int cmd_swap_ports(int argc, char** argv);
@@ -232,53 +234,7 @@ static void maybe_enable_bluetooth(bool enabled);
 
 // --- Consts (ROM)
 
-// Unijoysticle v2: Through-hole version
-static const struct uni_platform_unijoysticle_gpio_config gpio_config_univ2 = {
-    .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, GPIO_NUM_33, GPIO_NUM_16},
-    .port_b = {GPIO_NUM_27, GPIO_NUM_25, GPIO_NUM_32, GPIO_NUM_17, GPIO_NUM_12, -1, -1},
-    .leds = {GPIO_NUM_5, GPIO_NUM_13, -1},
-    .push_buttons = {{
-                         .gpio = GPIO_NUM_10,
-                         .callback = toggle_combo_enhanced_gamepad_cb,
-                     },
-                     {
-                         .gpio = -1,
-                         .callback = NULL,
-                     }},
-    .sync_irq = {-1, -1},
-};
-
-// Arananet's Unijoy2Amiga
-const struct uni_platform_unijoysticle_gpio_config gpio_config_univ2singleport = {
-    // Only has one port. Just mirror Port A with Port B.
-    .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, GPIO_NUM_33, GPIO_NUM_16},
-    .port_b = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, GPIO_NUM_33, GPIO_NUM_16},
-
-    // Not sure whether the LEDs and Push button are correct.
-    .leds = {GPIO_NUM_12, -1, -1},
-    .push_buttons = {{
-                         .gpio = GPIO_NUM_15,
-                         .callback = toggle_combo_enhanced_gamepad_cb,
-                     },
-                     {
-                         .gpio = -1,
-                         .callback = NULL,
-                     }},
-    .sync_irq = {-1, -1},
-};
-
 static const bd_addr_t zero_addr = {0, 0, 0, 0, 0, 0};
-
-// Keep them in the order of the defines
-static const char* uni_models[] = {
-    "Unknown",        // BOARD_MODEL_UNK
-    "2",              // BOARD_MODEL_UNIJOYSTICLE2,
-    "2+",             // BOARD_MODEL_UNIJOYSTICLE2_PLUS,
-    "2 A500",         // BOARD_MODEL_UNIJOYSTICLE2_A500,
-    "2 C64",          // BOARD_MODEL_UNIJOYSTICLE2_C64,
-    "2 800XL",        // BOARD_MODEL_UNIJOYSTICLE2_800XL,
-    "2 Single port",  // BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT,
-};
 
 // Keep them in the order of the defines
 static const char* mouse_modes[] = {
@@ -288,7 +244,9 @@ static const char* mouse_modes[] = {
 };
 
 // --- Globals (RAM)
-static const struct uni_platform_unijoysticle_gpio_config* g_gpio_config = NULL;
+static const struct uni_platform_unijoysticle_variant* g_variant;
+// Used as cache of g_variant->gpio_config
+static const struct uni_platform_unijoysticle_gpio_config* g_gpio_config;
 
 static EventGroupHandle_t g_pushbutton_group;
 static EventGroupHandle_t g_autofire_group;
@@ -309,8 +267,6 @@ static bool s_skip_next_enable_bluetooth_event = false;
 // Gets initialized at platform_init time.
 static int balanceboard_move_threshold;
 static int balanceboard_fire_threshold;
-
-static const struct uni_platform_unijoysticle_variant* g_variant;
 
 // For the console
 static struct {
@@ -350,33 +306,29 @@ static void unijoysticle_init(int argc, const char** argv) {
     board_model_t model = get_uni_model_from_pins();
 
     switch (model) {
-        case BOARD_MODEL_UNIJOYSTICLE2:
-            g_gpio_config = &gpio_config_univ2;
-            break;
         case BOARD_MODEL_UNIJOYSTICLE2_PLUS:
-            g_variant = uni_platform_unijoysticle_plus_create_variant();
-            g_gpio_config = g_variant->gpio_config;
+            g_variant = uni_platform_unijoysticle_2plus_create_variant();
             break;
         case BOARD_MODEL_UNIJOYSTICLE2_A500:
             g_variant = uni_platform_unijoysticle_a500_create_variant();
-            g_gpio_config = g_variant->gpio_config;
             break;
         case BOARD_MODEL_UNIJOYSTICLE2_C64:
             g_variant = uni_platform_unijoysticle_c64_create_variant();
-            g_gpio_config = g_variant->gpio_config;
             break;
         case BOARD_MODEL_UNIJOYSTICLE2_800XL:
             g_variant = uni_platform_unijoysticle_800xl_create_variant();
-            g_gpio_config = g_variant->gpio_config;
             break;
         case BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT:
-            g_gpio_config = &gpio_config_univ2singleport;
+            g_variant = uni_platform_unijoysticle_singleport_create_variant();
             break;
+        case BOARD_MODEL_UNIJOYSTICLE2:
         default:
-            g_gpio_config = &gpio_config_univ2;
+            g_variant = uni_platform_unijoysticle_2_create_variant();
             break;
     }
-    logi("Hardware detected: Unijoysticle%s\n", uni_models[model]);
+    // Cache gpio_config. One less reference
+    g_gpio_config = g_variant->gpio_config;
+    logi("Hardware detected: Unijoysticle%s\n", g_variant->name);
 
     gpio_config_t io_conf = {0};
 
@@ -480,9 +432,9 @@ static void unijoysticle_on_device_disconnected(uni_hid_device_t* d) {
 
     if (ins->seat != GAMEPAD_SEAT_NONE) {
         // Turn off the LEDs
-        if (ins->seat == GAMEPAD_SEAT_A || ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_ENHANCED)
+        if (ins->seat == GAMEPAD_SEAT_A || ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK)
             uni_gpio_set_level(g_gpio_config->leds[UNI_PLATFORM_UNIJOYSTICLE_LED_J1], 0);
-        if (ins->seat == GAMEPAD_SEAT_B || ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_ENHANCED)
+        if (ins->seat == GAMEPAD_SEAT_B || ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK)
             uni_gpio_set_level(g_gpio_config->leds[UNI_PLATFORM_UNIJOYSTICLE_LED_J2], 0);
 
         ins->seat = GAMEPAD_SEAT_NONE;
@@ -514,7 +466,7 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
         used_joystick_ports |= uni_platform_unijoysticle_get_instance(tmp_d)->seat;
     }
 
-    // Either two gamepads are connected, or one is in Enhanced mode.
+    // Either two gamepads are connected, or one is in Twin Stick mode.
     // Don't allow new connections.
     if (used_joystick_ports == (GAMEPAD_SEAT_A | GAMEPAD_SEAT_B))
         return -1;
@@ -652,11 +604,11 @@ static void unijoysticle_device_dump(uni_hid_device_t* d) {
         logi("type=mouse, ");
     } else {
         logi("type=gamepad, mode=");
-        if (ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_ENHANCED) {
-            if (ins->swap_ports_in_enhanced)
-                logi("enhanced swapped, ");
+        if (ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK) {
+            if (ins->swap_ports_in_twinstick)
+                logi("twin stick swapped, ");
             else
-                logi("enhanced, ");
+                logi("twin stick, ");
         } else if (ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_MOUSE) {
             logi("mouse, ");
         } else if (ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL) {
@@ -696,24 +648,24 @@ static void init_quadrature_mouse(void) {
 
     // FIXME: These values are hardcoded for Amiga
     struct uni_mouse_quadrature_encoder_gpios port_a_x = {
-        .a = g_variant->gpio_config->port_a[x1],  // H-pulse (up)
-        .b = g_variant->gpio_config->port_a[x2],  // HQ-pulse (left)
+        .a = g_gpio_config->port_a[x1],  // H-pulse (up)
+        .b = g_gpio_config->port_a[x2],  // HQ-pulse (left)
     };
 
     struct uni_mouse_quadrature_encoder_gpios port_a_y = {
-        .a = g_variant->gpio_config->port_a[y1],  // V-pulse (down)
-        .b = g_variant->gpio_config->port_a[y2],  // VQ-pulse (right)
+        .a = g_gpio_config->port_a[y1],  // V-pulse (down)
+        .b = g_gpio_config->port_a[y2],  // VQ-pulse (right)
     };
 
     // Mouse AtariST is known to only work only one port A, but for the sake
     // of completness, both ports are configured on AtariST. Overkill ?
     struct uni_mouse_quadrature_encoder_gpios port_b_x = {
-        .a = g_variant->gpio_config->port_b[x1],  // H-pulse (up)
-        .b = g_variant->gpio_config->port_b[x2],  // HQ-pulse (left)
+        .a = g_gpio_config->port_b[x1],  // H-pulse (up)
+        .b = g_gpio_config->port_b[x2],  // HQ-pulse (left)
     };
     struct uni_mouse_quadrature_encoder_gpios port_b_y = {
-        .a = g_variant->gpio_config->port_b[y1],  // V-pulse (down)
-        .b = g_variant->gpio_config->port_b[y2],  // VQ-pulse (right)
+        .a = g_gpio_config->port_b[y1],  // V-pulse (down)
+        .b = g_gpio_config->port_b[y2],  // VQ-pulse (right)
     };
 
     uni_mouse_quadrature_init(QUADRATURE_MOUSE_TASK_CPU);
@@ -801,7 +753,7 @@ static void register_console_cmds_quadrature_mouse(void) {
 }
 
 static void unijoysticle_register_cmds(void) {
-    set_gamepad_mode_args.value = arg_str1(NULL, NULL, "<mode>", "valid options: 'normal', 'enhanced' or 'mouse'");
+    set_gamepad_mode_args.value = arg_str1(NULL, NULL, "<mode>", "valid options: 'normal', 'twinstick' or 'mouse'");
     set_gamepad_mode_args.end = arg_end(2);
 
     set_autofire_cps_args.value = arg_int1(NULL, NULL, "<cps>", "clicks per second (cps)");
@@ -1102,13 +1054,13 @@ static void process_mouse(uni_hid_device_t* d,
         prev_buttons = buttons;
         int fire, button2, button3;
         if (seat == GAMEPAD_SEAT_A) {
-            fire = g_variant->gpio_config->port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_FIRE];
-            button2 = g_variant->gpio_config->port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2];
-            button3 = g_variant->gpio_config->port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3];
+            fire = g_gpio_config->port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_FIRE];
+            button2 = g_gpio_config->port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2];
+            button3 = g_gpio_config->port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3];
         } else {
-            fire = g_variant->gpio_config->port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_FIRE];
-            button2 = g_variant->gpio_config->port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2];
-            button3 = g_variant->gpio_config->port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3];
+            fire = g_gpio_config->port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_FIRE];
+            button2 = g_gpio_config->port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2];
+            button3 = g_gpio_config->port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3];
         }
         if (fire != -1)
             gpio_set_level(fire, !!(buttons & BUTTON_A));
@@ -1154,9 +1106,9 @@ static void process_gamepad(uni_hid_device_t* d, uni_gamepad_t* gp) {
                 uni_joy_to_single_joy_from_gamepad(gp, &joy);
             process_joystick(d, ins->seat, &joy);
             break;
-        case UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_ENHANCED:
+        case UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK:
             uni_joy_to_combo_joy_joy_from_gamepad(gp, &joy, &joy_ext);
-            if (ins->swap_ports_in_enhanced) {
+            if (ins->swap_ports_in_twinstick) {
                 process_joystick(d, GAMEPAD_SEAT_B, &joy);
                 process_joystick(d, GAMEPAD_SEAT_A, &joy_ext);
             } else {
@@ -1455,8 +1407,8 @@ static void cmd_callback(void* context) {
         case UNI_PLATFORM_UNIJOYSTICLE_CMD_SWAP_PORTS:
             swap_ports();
             break;
-        case UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_ENHANCED:
-            set_gamepad_mode(NULL, UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_ENHANCED);
+        case UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_TWINSTICK:
+            set_gamepad_mode(NULL, UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK);
             break;
         case UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_MOUSE:
             set_gamepad_mode(NULL, UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_MOUSE);
@@ -1503,10 +1455,7 @@ static void version(void) {
     logi("\tModel: %s\n", get_uni_model_from_nvs());
     logi("\tVendor: %s\n", get_uni_vendor_from_nvs());
     logi("\tSerial Number: %04d\n", get_uni_serial_number_from_nvs());
-    if (g_variant->name)
-        logi("\tDetected Model: Unijoysticle %s\n", g_variant->name);
-    else
-        logi("\tDetected Model: Unijoysticle %s\n", uni_models[get_uni_model_from_pins()]);
+    logi("\tDetected Model: Unijoysticle %s\n", g_variant->name);
 
     if (g_variant->flags & UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRANT_MOUSE)
         logi("\tMouse Emulation: %s\n", mouse_modes[get_mouse_emulation_from_nvs()]);
@@ -1552,8 +1501,8 @@ static void get_gamepad_mode(uni_hid_device_t* d) {
     uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
 
     switch (ins->gamepad_mode) {
-        case UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_ENHANCED:
-            logi("enhanced\n");
+        case UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK:
+            logi("twinstick\n");
             break;
 
         case UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_MOUSE:
@@ -1596,12 +1545,12 @@ static void set_next_gamepad_mode(uni_hid_device_t* d) {
             if (get_uni_model_from_pins() == BOARD_MODEL_UNIJOYSTICLE2_A500)
                 set_gamepad_mode(d, UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_MOUSE);
             else
-                set_gamepad_mode(d, UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_ENHANCED);
+                set_gamepad_mode(d, UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK);
             break;
         case UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_MOUSE:
-            set_gamepad_mode(d, UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_ENHANCED);
+            set_gamepad_mode(d, UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK);
             break;
-        case UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_ENHANCED:
+        case UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK:
             set_gamepad_mode(d, UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL);
             break;
         default:
@@ -1641,7 +1590,7 @@ static void set_gamepad_mode(uni_hid_device_t* d, uni_platform_unijoysticle_game
     }
 
     switch (mode) {
-        case UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_ENHANCED:
+        case UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK:
             if (num_devices != 1) {
                 loge("unijoysticle: cannot change mode. Expected num_devices=1, actual=%d\n", num_devices);
 
@@ -1651,18 +1600,18 @@ static void set_gamepad_mode(uni_hid_device_t* d, uni_platform_unijoysticle_game
                 return;
             }
 
-            ins->gamepad_mode = UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_ENHANCED;
+            ins->gamepad_mode = UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK;
             blink_bt_led(3);
 
             ins->prev_seat = ins->seat;
             set_gamepad_seat(d, GAMEPAD_SEAT_A | GAMEPAD_SEAT_B);
-            logi("unijoysticle: Gamepad mode = enhanced\n");
+            logi("unijoysticle: Gamepad mode = twinstick\n");
 
             maybe_enable_bluetooth(false);
             break;
 
         case UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_MOUSE:
-            if (ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_ENHANCED) {
+            if (ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK) {
                 set_gamepad_seat(d, ins->prev_seat);
                 maybe_enable_bluetooth(num_devices < 2);
             }
@@ -1672,7 +1621,7 @@ static void set_gamepad_mode(uni_hid_device_t* d, uni_platform_unijoysticle_game
             break;
 
         case UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL:
-            if (ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_ENHANCED) {
+            if (ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK) {
                 set_gamepad_seat(d, ins->prev_seat);
                 maybe_enable_bluetooth(num_devices < 2);
             }
@@ -1688,13 +1637,13 @@ static void set_gamepad_mode(uni_hid_device_t* d, uni_platform_unijoysticle_game
     maybe_enable_mouse_timers();
 }
 
-static void toggle_combo_enhanced_gamepad_cb(int button_idx) {
+static void toggle_combo_twinstick_gamepad_cb(int button_idx) {
     ARG_UNUSED(button_idx);
     static bool enabled = false;
 
     enabled = !enabled;
 
-    uni_platform_unijoysticle_run_cmd(enabled ? UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_ENHANCED
+    uni_platform_unijoysticle_run_cmd(enabled ? UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_TWINSTICK
                                               : UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NORMAL);
 }
 
@@ -1709,13 +1658,13 @@ static int cmd_set_gamepad_mode(int argc, char** argv) {
 
     if (strcmp(set_gamepad_mode_args.value->sval[0], "normal") == 0) {
         mode = UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NORMAL;
-    } else if (strcmp(set_gamepad_mode_args.value->sval[0], "enhanced") == 0) {
-        mode = UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_ENHANCED;
+    } else if (strcmp(set_gamepad_mode_args.value->sval[0], "twinstick") == 0) {
+        mode = UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_TWINSTICK;
     } else if (strcmp(set_gamepad_mode_args.value->sval[0], "mouse") == 0) {
         mode = UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_MOUSE;
     } else {
         loge("Invalid mouse emulation: %s\n", set_gamepad_mode_args.value->sval[0]);
-        loge("Valid values: 'normal', 'enhanced', or 'mouse'\n");
+        loge("Valid values: 'normal', 'twinstick', or 'mouse'\n");
         return 1;
     }
 
@@ -1749,9 +1698,9 @@ static void swap_ports(void) {
         if (uni_bt_conn_is_connected(&d->conn)) {
             ins = uni_platform_unijoysticle_get_instance(d);
 
-            if (ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_ENHANCED) {
-                // Swap is done in the "Enhanced" mode driver.
-                ins->swap_ports_in_enhanced = !ins->swap_ports_in_enhanced;
+            if (ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK) {
+                // Swap is done in the "Twin Stick" mode driver.
+                ins->swap_ports_in_twinstick = !ins->swap_ports_in_twinstick;
                 blink_bt_led(1);
                 return;
             }

@@ -16,14 +16,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
-#ifndef UNI_PLATFORM_UNIJOYSTICLE_800XL_H
-#define UNI_PLATFORM_UNIJOYSTICLE_800XL_H
+#ifndef UNI_PLATFORM_UNIJOYSTICLE_2PLUS_H
+#define UNI_PLATFORM_UNIJOYSTICLE_2PLUS_H
 
 #include <stdint.h>
 
 #include "uni_hid_device.h"
 #include "uni_platform_unijoysticle.h"
 
-const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_800xl_create_variant(void);
+const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_2plus_create_variant(void);
 
-#endif  // UNI_PLATFORM_UNIJOYSTICLE_800XL_H
+#endif  // UNI_PLATFORM_UNIJOYSTICLE_2PLUS_H

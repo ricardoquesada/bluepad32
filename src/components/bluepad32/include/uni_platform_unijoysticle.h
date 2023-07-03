@@ -34,10 +34,10 @@ limitations under the License.
 typedef enum {
     UNI_PLATFORM_UNIJOYSTICLE_CMD_SWAP_PORTS,
 
-    UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NORMAL,    // Basic mode
-    UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_ENHANCED,  // Enhanced mode
-    UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_MOUSE,     // Mouse mode
-    UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NEXT,      // Set the "next" gamepad mode in the list
+    UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NORMAL,     // Basic mode
+    UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_TWINSTICK,  // Twin Stick mode (AKA Enhanced)
+    UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_MOUSE,      // Mouse mode
+    UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NEXT,       // Set the "next" gamepad mode in the list
     UNI_PLATFORM_UNIJOYSTICLE_CMD_GET_GAMEPAD_MODE,
 
     UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_C64_POT_MODE_3BUTTONS,  // Used for 3 buttons
@@ -50,10 +50,10 @@ typedef enum {
 
 // Different emulation modes
 typedef enum {
-    UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NONE,      // None. Should not happen
-    UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL,    // Regular mode, controls one joystick
-    UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_ENHANCED,  // Enhanced mode: Dual stick mode, controls two joysticks
-    UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_MOUSE,     // Gamepad behaves like mouse
+    UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NONE,       // None. Should not happen
+    UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL,     // Regular mode, controls one joystick
+    UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK,  // Twin Stick mode (AKA Enhanced)
+    UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_MOUSE,      // Gamepad behaves like mouse
 
     UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_COUNT,
 } uni_platform_unijoysticle_gamepad_mode_t;
@@ -93,7 +93,7 @@ typedef struct uni_platform_unijoysticle_instance_s {
     uni_gamepad_seat_t seat;                                // which "seat" (port) is being used
     uni_gamepad_seat_t prev_seat;                           // which "seat" (port) was used before switching emu mode
 
-    bool swap_ports_in_enhanced;  // whether the ports in Enhanced mode are swapped.
+    bool swap_ports_in_twinstick;  // whether the ports in Twin Stick mode are swapped.
 
     // Used by Balance Board to determine joystick movements/fire
     uint8_t bb_fire_state;
