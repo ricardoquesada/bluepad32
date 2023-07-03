@@ -363,10 +363,10 @@ static void unijoysticle_init(int argc, const char** argv) {
 
     // Split "events" from "auto_fire", since auto-fire is an on-going event.
     g_pushbutton_group = xEventGroupCreate();
-    xTaskCreate(pushbutton_event_task, "bp.uni.button", 2048, NULL, TASK_PUSH_BUTTON_PRIO, NULL);
+    xTaskCreate(pushbutton_event_task, "bp.uni.button", 4096, NULL, TASK_PUSH_BUTTON_PRIO, NULL);
 
     g_autofire_group = xEventGroupCreate();
-    xTaskCreate(auto_fire_task, "bp.uni.autofire", 2048, NULL, TASK_AUTOFIRE_PRIO, NULL);
+    xTaskCreate(auto_fire_task, "bp.uni.autofire", 4096, NULL, TASK_AUTOFIRE_PRIO, NULL);
 
     // Push Buttons
     ESP_ERROR_CHECK(gpio_install_isr_service(0));
@@ -1880,7 +1880,7 @@ static void task_blink_bt_led(void* arg) {
 }
 
 static void blink_bt_led(int times) {
-    xTaskCreate(task_blink_bt_led, "bp.uni.blink", 512, (void*)times, TASK_BLINK_LED_PRIO, NULL);
+    xTaskCreate(task_blink_bt_led, "bp.uni.blink", 2048, (void*)times, TASK_BLINK_LED_PRIO, NULL);
 }
 
 static void maybe_enable_bluetooth(bool enabled) {
