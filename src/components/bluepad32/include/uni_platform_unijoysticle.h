@@ -87,6 +87,9 @@ enum {
     UNI_PLATFORM_UNIJOYSTICLE_LED_MAX,
 };
 
+// Number of SYNC IRQs. One for each port. Only valid for C64.
+#define UNI_PLATFORM_UNIJOYSTICLE_SYNC_IRQ_MAX 2
+
 // The platform "instance"
 typedef struct uni_platform_unijoysticle_instance_s {
     uni_platform_unijoysticle_gamepad_mode_t gamepad_mode;  // type of emulation mode
@@ -119,7 +122,7 @@ struct uni_platform_unijoysticle_gpio_config {
     gpio_num_t port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_MAX];
     gpio_num_t leds[UNI_PLATFORM_UNIJOYSTICLE_LED_MAX];
     struct uni_platform_unijoysticle_push_button push_buttons[UNI_PLATFORM_UNIJOYSTICLE_PUSH_BUTTON_MAX];
-    gpio_num_t sync_irq[2];
+    gpio_num_t sync_irq[UNI_PLATFORM_UNIJOYSTICLE_SYNC_IRQ_MAX];
 };
 
 struct uni_platform_unijoysticle_variant {

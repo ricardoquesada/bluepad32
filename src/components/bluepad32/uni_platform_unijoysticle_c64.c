@@ -37,9 +37,6 @@ limitations under the License.
 #include "uni_platform_unijoysticle.h"
 #include "uni_property.h"
 
-// Number of SYNC IRQs. One for each port
-#define SYNC_IRQ_MAX 2
-
 #define TASK_SYNC_IRQ_PRIO (9)
 #define uS_MIN 3
 #define uS_MAX 243  // Larger values cause the interrupt to take too long
@@ -286,7 +283,7 @@ static void set_pot_mode_from_cpu(void* m) {
             goto exit;
             return;
         }
-        for (int i = 0; i < SYNC_IRQ_MAX; i++) {
+        for (int i = 0; i < UNI_PLATFORM_UNIJOYSTICLE_SYNC_IRQ_MAX; i++) {
             int sync_irq = gpio_config_univ2c64.sync_irq[i];
             if (sync_irq == -1)
                 continue;
@@ -316,7 +313,7 @@ static void set_pot_mode_from_cpu(void* m) {
                                 POT_TASK_CPU);
 
         // Sync IRQs
-        for (int i = 0; i < SYNC_IRQ_MAX; i++) {
+        for (int i = 0; i < UNI_PLATFORM_UNIJOYSTICLE_SYNC_IRQ_MAX; i++) {
             gpio_num_t gpio = gpio_config_univ2c64.sync_irq[i];
             if (gpio == -1)
                 continue;

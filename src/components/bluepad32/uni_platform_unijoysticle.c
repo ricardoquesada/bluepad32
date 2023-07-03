@@ -204,9 +204,6 @@ static void auto_fire_task(void* arg);
 
 static void maybe_enable_mouse_timers(void);
 
-// Button callbacks, called from a task that is not BT main thread
-static void toggle_combo_twinstick_gamepad_cb(int button_idx);
-
 // Commands or Event related
 static int cmd_swap_ports(int argc, char** argv);
 static int cmd_set_gamepad_mode(int argc, char** argv);
@@ -257,7 +254,7 @@ struct push_button_state g_push_buttons_state[UNI_PLATFORM_UNIJOYSTICLE_PUSH_BUT
 static bool g_autofire_a_enabled;
 static bool g_autofire_b_enabled;
 
-// Button "mode". Used in Uni2 A500
+// Button "mode". Used in A500/C64/800XL
 static int s_bluetooth_led_on;  // Used as a cache
 static bool s_auto_enable_bluetooth = true;
 // TODO: The Bluetooth Event should have an originator, instead of using this hack.
@@ -1635,16 +1632,6 @@ static void set_gamepad_mode(uni_hid_device_t* d, uni_platform_unijoysticle_game
             break;
     }
     maybe_enable_mouse_timers();
-}
-
-static void toggle_combo_twinstick_gamepad_cb(int button_idx) {
-    ARG_UNUSED(button_idx);
-    static bool enabled = false;
-
-    enabled = !enabled;
-
-    uni_platform_unijoysticle_run_cmd(enabled ? UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_TWINSTICK
-                                              : UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NORMAL);
 }
 
 static int cmd_set_gamepad_mode(int argc, char** argv) {
