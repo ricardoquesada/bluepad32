@@ -357,7 +357,7 @@ exit:
 }
 
 void uni_platform_unijoysticle_c64_set_pot_mode(uni_platform_unijoysticle_c64_pot_mode_t mode) {
-    xTaskCreatePinnedToCore(set_pot_mode_from_cpu, "bp.uni.init_pot", 2048, (void*)mode, TASK_SYNC_IRQ_PRIO, NULL,
+    xTaskCreatePinnedToCore(set_pot_mode_from_cpu, "bp.uni.init_pot", 4096, (void*)mode, TASK_SYNC_IRQ_PRIO, NULL,
                             POT_TASK_CPU);
 }
 
@@ -447,7 +447,7 @@ static void set_gpio_level_for_pot_c64(gpio_num_t gpio_num, bool level) {
     if (_pot_mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_3BUTTONS ||
         _pot_mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_5BUTTONS) {
         // C64 uses pull-ups for Pot-x, Pot-y, so the value needs to be "inversed" in order to be off.
-        uni_gpio_set_level(gpio_num, level);
+        uni_gpio_set_level(gpio_num, !level);
     } else if (_pot_mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_RUMBLE) {
         // Leave it disabled to allow the SYNC to reach ESP32 without interference
         uni_gpio_set_level(gpio_num, level);
