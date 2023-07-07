@@ -52,7 +52,7 @@ static void to_single_joy(const uni_gamepad_t* gp, uni_joystick_t* out_joy) {
     out_joy->up |= (gp->axis_y < -AXIS_THRESHOLD);
     out_joy->down |= (gp->axis_y > AXIS_THRESHOLD);
 
-    // Pots
+    // 2nd & 3rd buttons
     out_joy->button2 = (gp->brake >> 2);     // convert from 1024 to 256
     out_joy->button3 = (gp->throttle >> 2);  // convert from 1024 to 256
 }
@@ -64,25 +64,28 @@ void uni_joy_to_single_joy_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t*
     // Buttom B is "jump". Good for C64 games
     out_joy->up |= ((gp->buttons & BUTTON_B) != 0);
 
-    // 2nd Button for Atari ST / Amiga
+    // 2nd & 3rd buttons
     out_joy->button2 |= ((gp->buttons & BUTTON_X) != 0);
-
-    // 3rd Button for Amiga
     out_joy->button3 |= ((gp->buttons & BUTTON_Y) != 0);
 }
 
 // Enhanced mode: One gamepad controls two joysticks
-void uni_joy_to_combo_joy_joy_from_gamepad(const uni_gamepad_t* gp,
+void uni_joy_to_twinstick_from_gamepad(const uni_gamepad_t* gp,
                                            uni_joystick_t* out_joy1,
                                            uni_joystick_t* out_joy2) {
     to_single_joy(gp, out_joy2);
+
+    out_joy2->button2 |= ((gp->buttons & BUTTON_X) != 0);
 
     // Buttom B is "fire"
     out_joy1->fire |= ((gp->buttons & BUTTON_B) != 0);
     // Thumb right is "fire"
     out_joy1->fire |= ((gp->buttons & BUTTON_THUMB_R) != 0);
 
-    // Swap "auto fire" in Combo Joy Joy.
+    out_joy1->button2 |= ((gp->buttons & BUTTON_Y) != 0);
+
+
+    // Swap "auto fire" in Twin Stick
     // "left" belongs to joy1 while "right" to joy2.
     out_joy2->auto_fire = ((gp->buttons & BUTTON_SHOULDER_L) != 0);
     out_joy1->auto_fire = ((gp->buttons & BUTTON_SHOULDER_R) != 0);

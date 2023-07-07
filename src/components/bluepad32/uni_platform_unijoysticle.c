@@ -1100,7 +1100,7 @@ static void process_gamepad(uni_hid_device_t* d, uni_gamepad_t* gp) {
             process_joystick(d, ins->seat, &joy);
             break;
         case UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK:
-            uni_joy_to_combo_joy_joy_from_gamepad(gp, &joy, &joy_ext);
+            uni_joy_to_twinstick_from_gamepad(gp, &joy, &joy_ext);
             if (ins->swap_ports_in_twinstick) {
                 process_joystick(d, GAMEPAD_SEAT_B, &joy);
                 process_joystick(d, GAMEPAD_SEAT_A, &joy_ext);
@@ -1721,7 +1721,7 @@ static void try_swap_ports(uni_hid_device_t* d) {
         return;
     }
 
-    // This could happen if device is any Combo emu mode.
+    // This could happen if device is TwinStick mode
     if (ins->seat == (GAMEPAD_SEAT_A | GAMEPAD_SEAT_B)) {
         goto ok;
     }
