@@ -50,7 +50,7 @@ limitations under the License.
 #define TICKS_PER_80US (1)  // How many ticks are in 80us
 #define ONE_SECOND (12500)
 
-#define TASK_TIMER_STACK_SIZE (1536)
+#define TASK_TIMER_STACK_SIZE (2048)
 #define TASK_TIMER_PRIO (10)
 
 // Default scale factor for the mouse movement

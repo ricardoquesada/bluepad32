@@ -679,7 +679,8 @@ static int get_mouse_emulation_from_nvs(void) {
     value = uni_property_get(UNI_PROPERTY_KEY_UNI_MOUSE_EMULATION, UNI_PROPERTY_TYPE_U32, def);
 
     // Validate return value.
-    if (value.u8 >= UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_COUNT || value.u8 == UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_FROM_BOARD_MODEL)
+    if (value.u8 >= UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_COUNT ||
+        value.u8 == UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_FROM_BOARD_MODEL)
         return UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_AMIGA;
     return value.u8;
 }
