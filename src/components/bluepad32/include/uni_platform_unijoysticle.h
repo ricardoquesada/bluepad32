@@ -59,7 +59,15 @@ typedef enum {
 } uni_platform_unijoysticle_gamepad_mode_t;
 
 enum {
-    UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRANT_MOUSE = BIT(0),
+    UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRATURE_MOUSE = BIT(0),
+};
+
+enum {
+    UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_FROM_BOARD_MODEL,  // Used internally for NVS (Deprecated)
+    UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_AMIGA,
+    UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_ATARIST,
+
+    UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_COUNT,
 };
 
 enum {
@@ -134,6 +142,9 @@ struct uni_platform_unijoysticle_variant {
 
     // Which features are supported
     uint32_t flags;
+
+    // If any, which mouse emulation should be used by default
+    int default_mouse_emulation;
 
     // Variant "callbacks".
 

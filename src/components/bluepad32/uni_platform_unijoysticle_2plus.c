@@ -59,7 +59,8 @@ const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_2plus_
     const static struct uni_platform_unijoysticle_variant variant = {
         .name = "2+",
         .gpio_config = &gpio_config_plus,
-        .flags = UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRANT_MOUSE,
+        .flags = UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRATURE_MOUSE,
+        .default_mouse_emulation = UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_AMIGA,
     };
 
     return &variant;

@@ -158,14 +158,6 @@ enum {
 // Might not be true for newer models, like the Falcon.
 #define ATARIST_MOUSE_DELTA_MAX (28)
 
-enum {
-    MOUSE_EMULATION_FROM_BOARD_MODEL,  // Used internally for NVS (Deprecated)
-    MOUSE_EMULATION_AMIGA,
-    MOUSE_EMULATION_ATARIST,
-
-    MOUSE_EMULATION_COUNT,
-};
-
 // --- Structs / Typedefs
 
 // This is the "state" of the push button, and changes in runtime.
@@ -235,9 +227,9 @@ static const bd_addr_t zero_addr = {0, 0, 0, 0, 0, 0};
 
 // Keep them in the order of the defines
 static const char* mouse_modes[] = {
-    "unknown",  // MOUSE_EMULATION_FROM_BOARD_MODEL
-    "amiga",    // MOUSE_EMULATION_AMIGA
-    "atarist",  // MOUSE_EMULATION_ATARIST
+    "unknown",  // UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_FROM_BOARD_MODEL
+    "amiga",    // UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_AMIGA
+    "atarist",  // UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_ATARIST
 };
 
 // --- Globals (RAM)
@@ -396,7 +388,7 @@ static void unijoysticle_on_init_complete(void) {
     balanceboard_move_threshold = get_bb_move_threshold_from_nvs();
     balanceboard_fire_threshold = get_bb_fire_threshold_from_nvs();
 
-    if (g_variant->flags & UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRANT_MOUSE)
+    if (g_variant->flags & UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRATURE_MOUSE)
         init_quadrature_mouse();
 
     if (g_variant->on_init_complete)
@@ -624,14 +616,14 @@ static void init_quadrature_mouse(void) {
     // But they contradict on the Amiga pinout. Using "waitingforfriday" pinout.
     int x1, x2, y1, y2;
     switch (get_mouse_emulation_from_nvs()) {
-        case MOUSE_EMULATION_AMIGA:
+        case UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_AMIGA:
             x1 = 1;
             x2 = 3;
             y1 = 2;
             y2 = 0;
             logi("Unijoysticle: Using Amiga mouse emulation\n");
             break;
-        case MOUSE_EMULATION_ATARIST:
+        case UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_ATARIST:
             x1 = 1;
             x2 = 0;
             y1 = 2;
@@ -682,13 +674,13 @@ static int get_mouse_emulation_from_nvs(void) {
     uni_property_value_t value;
     uni_property_value_t def;
 
-    def.u32 = MOUSE_EMULATION_AMIGA;
+    def.u32 = g_variant->default_mouse_emulation;
 
     value = uni_property_get(UNI_PROPERTY_KEY_UNI_MOUSE_EMULATION, UNI_PROPERTY_TYPE_U32, def);
 
     // Validate return value.
-    if (value.u8 >= MOUSE_EMULATION_COUNT || value.u8 == MOUSE_EMULATION_FROM_BOARD_MODEL)
-        return MOUSE_EMULATION_AMIGA;
+    if (value.u8 >= UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_COUNT || value.u8 == UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_FROM_BOARD_MODEL)
+        return UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_AMIGA;
     return value.u8;
 }
 
@@ -700,9 +692,9 @@ static int cmd_set_mouse_emulation(int argc, char** argv) {
     }
 
     if (strcmp(set_mouse_emulation_args.value->sval[0], "amiga") == 0) {
-        set_mouse_emulation_to_nvs(MOUSE_EMULATION_AMIGA);
+        set_mouse_emulation_to_nvs(UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_AMIGA);
     } else if (strcmp(set_mouse_emulation_args.value->sval[0], "atarist") == 0) {
-        set_mouse_emulation_to_nvs(MOUSE_EMULATION_ATARIST);
+        set_mouse_emulation_to_nvs(UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_ATARIST);
     } else {
         loge("Invalid mouse emulation: %s\n", set_mouse_emulation_args.value->sval[0]);
         loge("Valid values: 'amiga' or 'atarist'\n");
@@ -715,7 +707,7 @@ static int cmd_set_mouse_emulation(int argc, char** argv) {
 static int cmd_get_mouse_emulation(int argc, char** argv) {
     int mode = get_mouse_emulation_from_nvs();
 
-    if (mode >= MOUSE_EMULATION_COUNT) {
+    if (mode >= UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_COUNT) {
         logi("Invalid mouse emulation: %d\n", mode);
         return 1;
     }
@@ -854,7 +846,7 @@ static void unijoysticle_register_cmds(void) {
     ESP_ERROR_CHECK(esp_console_cmd_register(&set_autofire_cps));
     ESP_ERROR_CHECK(esp_console_cmd_register(&get_autofire_cps));
 
-    if (g_variant->flags & UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRANT_MOUSE)
+    if (g_variant->flags & UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRATURE_MOUSE)
         register_console_cmds_quadrature_mouse();
 
     if (g_variant->register_console_cmds)
@@ -982,13 +974,13 @@ static board_model_t get_uni_model_from_pins(void) {
     gpio_set_direction(GPIO_NUM_15, GPIO_MODE_INPUT);
     gpio_set_pull_mode(GPIO_NUM_15, GPIO_PULLUP_ONLY);
 
-    // GPIO 36/39 are input only and doin't have internal Pull ups/downs.
-    gpio_set_direction(GPIO_NUM_36, GPIO_MODE_INPUT);
+    // GPIO 36-39 are input only and don't have internal Pull ups/downs.
+    gpio_set_direction(GPIO_NUM_39, GPIO_MODE_INPUT);
 
     int gpio_4 = gpio_get_level(GPIO_NUM_4);
     int gpio_5 = gpio_get_level(GPIO_NUM_5);
     int gpio_15 = gpio_get_level(GPIO_NUM_15);
-    int gpio_36 = gpio_get_level(GPIO_NUM_36);
+    int gpio_39 = gpio_get_level(GPIO_NUM_39);
 
     logi("Unijoysticle: Board ID values: %d,%d,%d\n", gpio_4, gpio_5, gpio_15);
     if (gpio_5 == 0)
@@ -997,9 +989,9 @@ static board_model_t get_uni_model_from_pins(void) {
         model = BOARD_MODEL_UNIJOYSTICLE2;
     else if (gpio_4 == 0 && gpio_15 == 1)
         model = BOARD_MODEL_UNIJOYSTICLE2_PLUS;
-    else if (gpio_4 == 1 && gpio_15 == 0 && gpio_36 == 0)
+    else if (gpio_4 == 1 && gpio_15 == 0 && gpio_39 == 0)
         model = BOARD_MODEL_UNIJOYSTICLE2_A500;
-    else if (gpio_4 == 1 && gpio_15 == 0 && gpio_36 == 1)
+    else if (gpio_4 == 1 && gpio_15 == 0 && gpio_39 == 1)
         model = BOARD_MODEL_UNIJOYSTICLE2_800XL;
     else if (gpio_4 == 0 && gpio_15 == 0)
         model = BOARD_MODEL_UNIJOYSTICLE2_C64;
@@ -1024,13 +1016,13 @@ static void process_mouse(uni_hid_device_t* d,
                           uint16_t buttons) {
     ARG_UNUSED(d);
 
-    if (!(g_variant->flags & UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRANT_MOUSE))
+    if (!(g_variant->flags & UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRATURE_MOUSE))
         return;
 
     static uint16_t prev_buttons = 0;
 
     /* TODO: Cache this value. Might delay processing the mouse events */
-    if (get_mouse_emulation_from_nvs() == MOUSE_EMULATION_ATARIST) {
+    if (get_mouse_emulation_from_nvs() == UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_ATARIST) {
         if (delta_x < -ATARIST_MOUSE_DELTA_MAX)
             delta_x = -ATARIST_MOUSE_DELTA_MAX;
         if (delta_x > ATARIST_MOUSE_DELTA_MAX)
@@ -1454,7 +1446,7 @@ static void version(void) {
     logi("\tSerial Number: %04d\n", get_uni_serial_number_from_nvs());
     logi("\tDetected Model: Unijoysticle %s\n", g_variant->name);
 
-    if (g_variant->flags & UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRANT_MOUSE)
+    if (g_variant->flags & UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRATURE_MOUSE)
         logi("\tMouse Emulation: %s\n", mouse_modes[get_mouse_emulation_from_nvs()]);
 
     if (g_variant->print_version)
@@ -1539,7 +1531,7 @@ static void set_next_gamepad_mode(uni_hid_device_t* d) {
     ins = uni_platform_unijoysticle_get_instance(d);
     switch (ins->gamepad_mode) {
         case UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL:
-            if (get_uni_model_from_pins() == BOARD_MODEL_UNIJOYSTICLE2_A500)
+            if (g_variant->flags & UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRATURE_MOUSE)
                 set_gamepad_mode(d, UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_MOUSE);
             else
                 set_gamepad_mode(d, UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK);
@@ -1827,7 +1819,7 @@ static int cmd_get_bb_fire_threshold(int argc, char** argv) {
 }
 
 static void maybe_enable_mouse_timers(void) {
-    if (!(g_variant->flags & UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRANT_MOUSE))
+    if (!(g_variant->flags & UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRATURE_MOUSE))
         return;
 
     // Mouse support requires that the mouse timers are enabled.
