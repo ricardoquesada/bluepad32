@@ -4,10 +4,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [???] - 2023-????
+## [v3.8.0] - 2023-07-??
+### New
+- Unijoysticle: Add support for Unijoysticle 2 800XL board.
+  Features:
+   - Mouse: default AtariST.
+   - 2nd and 3rd buttons work. Using "Joy 2B+" protocol.
+   - Twin Stick
+   - and the rest of the Unijoysticle features.
+
+### Changed
+- Unijoysticle: "Enhanced mode" renamed to "Twin Stick" mode.
+  Seems to be the name that has been used for games like Robotron 2084.
+- Unijoysticle: Refactor. Each boards has its own file, and its own "class".
+  Easier to extend / mantain.
+
 ### Fixed
 - Wii + Accel mode: Buttons "A" and "Trigger" act as fire.
   Before "fire" was not mapped and it was not possible to play games like Lemans.
+- Unijoysticle: Twin Stick works with 2nd buttons
 
 ## [v3.7.3] - 2023-06-17
 ### New
