@@ -70,9 +70,7 @@ void uni_joy_to_single_joy_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t*
 }
 
 // Enhanced mode: One gamepad controls two joysticks
-void uni_joy_to_twinstick_from_gamepad(const uni_gamepad_t* gp,
-                                           uni_joystick_t* out_joy1,
-                                           uni_joystick_t* out_joy2) {
+void uni_joy_to_twinstick_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t* out_joy1, uni_joystick_t* out_joy2) {
     to_single_joy(gp, out_joy2);
 
     out_joy2->button2 |= ((gp->buttons & BUTTON_X) != 0);
@@ -83,7 +81,6 @@ void uni_joy_to_twinstick_from_gamepad(const uni_gamepad_t* gp,
     out_joy1->fire |= ((gp->buttons & BUTTON_THUMB_R) != 0);
 
     out_joy1->button2 |= ((gp->buttons & BUTTON_Y) != 0);
-
 
     // Swap "auto fire" in Twin Stick
     // "left" belongs to joy1 while "right" to joy2.
