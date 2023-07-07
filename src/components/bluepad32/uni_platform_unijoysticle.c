@@ -257,6 +257,9 @@ static bool s_skip_next_enable_bluetooth_event = false;
 static int balanceboard_move_threshold;
 static int balanceboard_fire_threshold;
 
+// Cache of mouse emulation type
+static int mouse_emulation_cached;
+
 // For the console
 static struct {
     struct arg_str* value;
@@ -615,7 +618,8 @@ static void init_quadrature_mouse(void) {
     // * https://www.waitingforfriday.com/?p=827#Commodore_Amiga
     // But they contradict on the Amiga pinout. Using "waitingforfriday" pinout.
     int x1, x2, y1, y2;
-    switch (get_mouse_emulation_from_nvs()) {
+    mouse_emulation_cached = get_mouse_emulation_from_nvs();
+    switch (mouse_emulation_cached) {
         case UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_AMIGA:
             x1 = 1;
             x2 = 3;
@@ -1022,8 +1026,7 @@ static void process_mouse(uni_hid_device_t* d,
 
     static uint16_t prev_buttons = 0;
 
-    /* TODO: Cache this value. Might delay processing the mouse events */
-    if (get_mouse_emulation_from_nvs() == UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_ATARIST) {
+    if (mouse_emulation_cached == UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_ATARIST) {
         if (delta_x < -ATARIST_MOUSE_DELTA_MAX)
             delta_x = -ATARIST_MOUSE_DELTA_MAX;
         if (delta_x > ATARIST_MOUSE_DELTA_MAX)
