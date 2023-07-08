@@ -65,6 +65,9 @@ const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_800xl_
         .name = "2 800XL",
         .gpio_config = &gpio_config_800xl,
         .flags = UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRATURE_MOUSE,
+        .supported_modes = UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL |
+                           UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK |
+                           UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_MOUSE,
         .default_mouse_emulation = UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_ATARIST,
     };
 

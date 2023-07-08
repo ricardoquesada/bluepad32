@@ -43,12 +43,7 @@ static const struct uni_platform_unijoysticle_gpio_config gpio_config_2 = {
 
 static void on_push_button_mode_pressed_2(int button_idx) {
     ARG_UNUSED(button_idx);
-    static bool enabled = false;
-
-    enabled = !enabled;
-
-    uni_platform_unijoysticle_run_cmd(enabled ? UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_TWINSTICK
-                                              : UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NORMAL);
+    uni_platform_unijoysticle_run_cmd(UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NEXT);
 }
 
 //
@@ -60,6 +55,8 @@ const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_2_crea
         .name = "2",
         .gpio_config = &gpio_config_2,
         .flags = UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRATURE_MOUSE,
+        .supported_modes =
+            UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL | UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK,
         .default_mouse_emulation = UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_AMIGA,
     };
 

@@ -495,7 +495,7 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
     return 0;
 }
 
-static void test_select_button(uni_hid_device_t* d, uni_gamepad_t* gp) {
+static void test_gamepad_select_button(uni_hid_device_t* d, uni_gamepad_t* gp) {
     static bool already_pressed = false;
 
     if (gp->misc_buttons & MISC_BUTTON_BACK) {
@@ -509,7 +509,7 @@ static void test_select_button(uni_hid_device_t* d, uni_gamepad_t* gp) {
     }
 }
 
-static void test_start_button(uni_hid_device_t* d, uni_gamepad_t* gp) {
+static void test_gamepad_start_button(uni_hid_device_t* d, uni_gamepad_t* gp) {
     static bool already_pressed = false;
 
     if (gp->misc_buttons & MISC_BUTTON_HOME) {
@@ -1134,8 +1134,8 @@ static void process_gamepad(uni_hid_device_t* d, uni_gamepad_t* gp) {
         event_processed = g_variant->process_gamepad_misc_buttons(d, ins->seat, gp->misc_buttons);
 
     if (!event_processed) {
-        test_select_button(d, gp);
-        test_start_button(d, gp);
+        test_gamepad_select_button(d, gp);
+        test_gamepad_start_button(d, gp);
     }
 }
 
@@ -1522,6 +1522,7 @@ static void set_next_gamepad_mode(uni_hid_device_t* d) {
                 if (uni_hid_device_is_gamepad(tmp_d)) {
                     // Get the first valid gamepad device
                     d = tmp_d;
+                    break;
                 }
             }
         }
@@ -1533,15 +1534,22 @@ static void set_next_gamepad_mode(uni_hid_device_t* d) {
     }
 
     ins = uni_platform_unijoysticle_get_instance(d);
+
+    // Order is:
+    // Normal -> Mouse -> Twin Stick -> Normal...
     switch (ins->gamepad_mode) {
         case UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL:
-            if (g_variant->flags & UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRATURE_MOUSE)
+            if (g_variant->supported_modes & UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_MOUSE)
                 set_gamepad_mode(d, UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_MOUSE);
-            else
+            else if (g_variant->supported_modes & UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK)
                 set_gamepad_mode(d, UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK);
+            // else: Nothing
             break;
         case UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_MOUSE:
-            set_gamepad_mode(d, UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK);
+            if (g_variant->supported_modes & UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK)
+                set_gamepad_mode(d, UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK);
+            else
+                set_gamepad_mode(d, UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NORMAL);
             break;
         case UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK:
             set_gamepad_mode(d, UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL);
@@ -1576,8 +1584,7 @@ static void set_gamepad_mode(uni_hid_device_t* d, uni_platform_unijoysticle_game
         return;
     }
 
-    if (ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NONE ||
-        ins->gamepad_mode >= UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_COUNT) {
+    if (ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NONE) {
         logi("unijoysticle: Unexpected gamepad mode: %d\n", ins->gamepad_mode);
         return;
     }
@@ -1721,8 +1728,7 @@ static void try_swap_ports(uni_hid_device_t* d) {
         return;
     }
 
-    // This could happen if device is TwinStick mode
-    if (ins->seat == (GAMEPAD_SEAT_A | GAMEPAD_SEAT_B)) {
+    if (ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK) {
         goto ok;
     }
 

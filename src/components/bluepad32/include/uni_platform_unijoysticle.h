@@ -49,13 +49,12 @@ typedef enum {
 } uni_platform_unijoysticle_cmd_t;
 
 // Different emulation modes
+// It is a bitmap since variants declare which modes are supported.
 typedef enum {
-    UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NONE,       // None. Should not happen
-    UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL,     // Regular mode, controls one joystick
-    UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK,  // Twin Stick mode (AKA Enhanced)
-    UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_MOUSE,      // Gamepad behaves like mouse
-
-    UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_COUNT,
+    UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NONE,                // None. Should not happen
+    UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL = BIT(0),     // Regular mode, controls one joystick
+    UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK = BIT(1),  // Twin Stick mode (AKA Enhanced)
+    UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_MOUSE = BIT(2),      // Gamepad behaves like mouse
 } uni_platform_unijoysticle_gamepad_mode_t;
 
 enum {
@@ -140,8 +139,13 @@ struct uni_platform_unijoysticle_variant {
     // GPIO configuration
     const struct uni_platform_unijoysticle_gpio_config* gpio_config;
 
-    // Which features are supported
+    // Which features are supported.
+    // E.g: Quadrature Mouse
     uint32_t flags;
+
+    // Which "modes" are supported.
+    // E.g: Twin stick, normal, mouse.
+    uint32_t supported_modes;
 
     // If any, which mouse emulation should be used by default
     int default_mouse_emulation;

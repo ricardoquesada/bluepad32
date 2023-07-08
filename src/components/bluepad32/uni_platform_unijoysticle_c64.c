@@ -426,12 +426,7 @@ static void process_paddle(uni_hid_device_t* d, uni_gamepad_seat_t seat, uint8_t
 
 static void on_push_button_mode_pressed_c64(int button_idx) {
     ARG_UNUSED(button_idx);
-    static bool enabled = false;
-
-    enabled = !enabled;
-
-    uni_platform_unijoysticle_run_cmd(enabled ? UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_TWINSTICK
-                                              : UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NORMAL);
+    uni_platform_unijoysticle_run_cmd(UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NEXT);
 }
 
 static void on_push_button_swap_pressed_c64(int button_idx) {
@@ -521,7 +516,8 @@ const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_c64_cr
         .name = "2 C64",
         .gpio_config = &gpio_config_univ2c64,
         .flags = 0, /* Quadrant mouse not supported*/
-
+        .supported_modes =
+            UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL | UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK,
         .on_init_complete = on_init_complete_c64,
         .register_console_cmds = register_console_cmds_c64,
         .process_gamepad_misc_buttons = process_gamepad_misc_buttons_c64,
