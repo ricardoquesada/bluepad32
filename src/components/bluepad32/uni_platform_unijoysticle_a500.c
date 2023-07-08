@@ -38,9 +38,6 @@ limitations under the License.
 
 // --- Function declaration
 
-static void on_push_button_mode_pressed_a500(int button_idx);
-static void on_push_button_swap_pressed_a500(int button_idx);
-
 // Unijoysticle v2 A500
 static const struct uni_platform_unijoysticle_gpio_config gpio_config_univ2a500 = {
     .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, GPIO_NUM_33, GPIO_NUM_16},
@@ -48,24 +45,14 @@ static const struct uni_platform_unijoysticle_gpio_config gpio_config_univ2a500 
     .leds = {GPIO_NUM_5, GPIO_NUM_12, GPIO_NUM_15},
     .push_buttons = {{
                          .gpio = GPIO_NUM_34,
-                         .callback = on_push_button_mode_pressed_a500,
+                         .callback = uni_platform_unijoysticle_on_push_button_mode_pressed,
                      },
                      {
                          .gpio = GPIO_NUM_35,
-                         .callback = on_push_button_swap_pressed_a500,
+                         .callback = uni_platform_unijoysticle_on_push_button_swap_pressed,
                      }},
     .sync_irq = {-1, -1},
 };
-
-static void on_push_button_mode_pressed_a500(int button_idx) {
-    ARG_UNUSED(button_idx);
-    uni_platform_unijoysticle_run_cmd(UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NEXT);
-}
-
-static void on_push_button_swap_pressed_a500(int button_idx) {
-    ARG_UNUSED(button_idx);
-    uni_platform_unijoysticle_run_cmd(UNI_PLATFORM_UNIJOYSTICLE_CMD_SWAP_PORTS);
-}
 
 //
 // Variant overrides

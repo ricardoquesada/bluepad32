@@ -23,8 +23,6 @@ limitations under the License.
 #include "uni_config.h"
 #include "uni_log.h"
 
-static void on_push_button_mode_pressed_singleport(int button_idx);
-
 // Arananet's Unijoy2Amiga
 static const struct uni_platform_unijoysticle_gpio_config gpio_config_singleport = {
     // Only has one port. Just mirror Port A with Port B.
@@ -35,7 +33,7 @@ static const struct uni_platform_unijoysticle_gpio_config gpio_config_singleport
     .leds = {GPIO_NUM_12, -1, -1},
     .push_buttons = {{
                          .gpio = GPIO_NUM_15,
-                         .callback = on_push_button_mode_pressed_singleport,
+                         .callback = uni_platform_unijoysticle_on_push_button_mode_pressed,
                      },
                      {
                          .gpio = -1,
@@ -43,11 +41,6 @@ static const struct uni_platform_unijoysticle_gpio_config gpio_config_singleport
                      }},
     .sync_irq = {-1, -1},
 };
-
-static void on_push_button_mode_pressed_singleport(int button_idx) {
-    ARG_UNUSED(button_idx);
-    uni_platform_unijoysticle_run_cmd(UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NEXT);
-}
 
 //
 // Variant overrides

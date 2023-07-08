@@ -1895,6 +1895,25 @@ static void maybe_enable_bluetooth(bool enabled) {
 }
 
 //
+// "Protected": Called from variants
+//
+void uni_platform_unijoysticle_run_cmd(uni_platform_unijoysticle_cmd_t cmd) {
+    cmd_callback_registration.callback = &cmd_callback;
+    cmd_callback_registration.context = (void*)cmd;
+    btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
+}
+
+void uni_platform_unijoysticle_on_push_button_mode_pressed(int button_idx) {
+    ARG_UNUSED(button_idx);
+    uni_platform_unijoysticle_run_cmd(UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NEXT);
+}
+
+void uni_platform_unijoysticle_on_push_button_swap_pressed(int button_idx) {
+    ARG_UNUSED(button_idx);
+    uni_platform_unijoysticle_run_cmd(UNI_PLATFORM_UNIJOYSTICLE_CMD_SWAP_PORTS);
+}
+
+//
 // Public
 //
 
@@ -1914,12 +1933,6 @@ struct uni_platform* uni_platform_unijoysticle_create(void) {
     };
 
     return &plat;
-}
-
-void uni_platform_unijoysticle_run_cmd(uni_platform_unijoysticle_cmd_t cmd) {
-    cmd_callback_registration.callback = &cmd_callback;
-    cmd_callback_registration.context = (void*)cmd;
-    btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
 }
 
 uni_platform_unijoysticle_instance_t* uni_platform_unijoysticle_get_instance(const uni_hid_device_t* d) {

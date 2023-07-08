@@ -51,8 +51,6 @@ enum {
 
 // --- Function declaration
 static int get_c64_pot_mode_from_nvs(void);
-static void on_push_button_mode_pressed_c64(int button_idx);
-static void on_push_button_swap_pressed_c64(int button_idx);
 
 // GPIO Interrupt handlers
 static void sync_irq_event_task(void* arg);
@@ -70,13 +68,13 @@ static const struct uni_platform_unijoysticle_gpio_config gpio_config_univ2c64 =
     .leds = {GPIO_NUM_5, GPIO_NUM_12, GPIO_NUM_15},
     .push_buttons = {{
                          .gpio = GPIO_NUM_34,
-                         .callback = on_push_button_mode_pressed_c64,
+                         .callback = uni_platform_unijoysticle_on_push_button_mode_pressed,
                      },
 #ifdef CONFIG_BLUEPAD32_UNIJOYSTICLE_ENABLE_SWAP_FOR_C64
                      // Flash Party edition should have this disabled
                      {
                          .gpio = GPIO_NUM_35,
-                         .callback = on_push_button_swap_pressed_c64,
+                         .callback = uni_platform_unijoysticle_on_push_button_swap_pressed,
                      }},
 #else
                      {
@@ -422,16 +420,6 @@ static void process_paddle(uni_hid_device_t* d, uni_gamepad_seat_t seat, uint8_t
     pot_x_delay_us = delay_x;
     pot_y_delay_us = delay_y;
 #endif
-}
-
-static void on_push_button_mode_pressed_c64(int button_idx) {
-    ARG_UNUSED(button_idx);
-    uni_platform_unijoysticle_run_cmd(UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NEXT);
-}
-
-static void on_push_button_swap_pressed_c64(int button_idx) {
-    ARG_UNUSED(button_idx);
-    uni_platform_unijoysticle_run_cmd(UNI_PLATFORM_UNIJOYSTICLE_CMD_SWAP_PORTS);
 }
 
 //
