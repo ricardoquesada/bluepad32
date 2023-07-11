@@ -38,7 +38,7 @@ E.g: I'm using Sparkfun Thing Plus - ESP32 WROOM: https://www.sparkfun.com/produ
 
 ## Controllers
 
-Not all controllers behave the same way... some or reliable... some not.
+Not all controllers behave the same way... some are reliable... some not.
 
 The officially supported controllers are enumerated here:
 
@@ -84,7 +84,7 @@ E.g.: I'm using macOS 12.6.7
 
 Copy & paste the output from the serial console, and share it with us.
 
-Uses services like: http://gist.github.com
+Use services like: http://gist.github.com
 
 Attaching an screenshot might be useful, but the screenshot is not a replacement of the Debug Log.
 
