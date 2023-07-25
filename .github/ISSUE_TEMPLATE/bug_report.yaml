@@ -24,7 +24,8 @@ body:
       label: Bluepad32 Version
       description: What version of our software are you running?
       options:
-        - 3.7.2 (latest stable)
+        - 3.7.3 (latest stable)
+        - 3.7.2
         - 3.7.1
         - 3.7.0
         - Other
@@ -55,6 +56,12 @@ body:
       label: Platform version
       description: Which Platform version?
       value: "E.g: Arduino IDE 2.1.0, or ESP-IDF v4.4.4, or CircuitPython 8.0.0, etc."
+  - type: textarea
+    id: controller
+    attributes:
+      label: Controller
+      description: Which controller are you using ?
+      value: "Xbox Wireless 1708 using firmware 5.15.1923. Link to controller: https://example.com"  
   - type: dropdown
     id: esp32
     attributes:

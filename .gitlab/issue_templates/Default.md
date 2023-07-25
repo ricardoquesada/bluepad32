@@ -25,9 +25,9 @@ E.g:
 
 ## Which controller
 
-Which controller and its firmware version. E.g:
+Which controller and its firmware version. Add link to the controller when you are using clones, or not mainstream controllers.
 
-Xbox Wireless model 1708 with Xbox firmware 5.15.1923
+E.g: Xbox Wireless model 1708 with Xbox firmware 5.15.1923
 
 ## Which ESP32
 
