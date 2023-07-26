@@ -4,14 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v3.8.0] - 2023-07-??
+## [v3.8.0] - 2023-07-25
 ### New
 - Unijoysticle: Add support for Unijoysticle 2 800XL board.
   Features:
    - Mouse: default AtariST.
-   - 2nd and 3rd buttons work. Using "Joy 2B+" protocol.
+   - 2nd and 3rd buttons work. Using [Joy 2B+ protocol][joy2bplus]
    - Twin Stick
    - and the rest of the Unijoysticle features.
+
+[joy2bplus]: https://github.com/ascrnet/Joy2Bplus
 
 ### Changed
 - Unijoysticle: "Enhanced mode" renamed to "Twin Stick" mode.
