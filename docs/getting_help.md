@@ -84,7 +84,11 @@ E.g.: I'm using macOS 12.6.7
 
 Copy & paste the output from the serial console, and share it with us.
 
+<<<<<<< HEAD
 Use services like: http://gist.github.com
+=======
+Uses services like: http://gist.github.com
+>>>>>>> main
 
 Attaching an screenshot might be useful, but the screenshot is not a replacement of the Debug Log.
 
