@@ -30,6 +30,7 @@ limitations under the License.
 
 #include "sdkconfig.h"
 #include "uni_bt.h"
+#include "uni_bt_allowlist.h"
 #include "uni_bt_le.h"
 #include "uni_common.h"
 #include "uni_gpio.h"
@@ -78,6 +79,16 @@ static struct {
     struct arg_int* idx;
     struct arg_end* end;
 } disconnect_device_args;
+
+static struct {
+    struct arg_str* addr;
+    struct arg_end* end;
+} allowlist_addr_args;
+
+static struct {
+    struct arg_int* enabled;
+    struct arg_end* end;
+} allowlist_enabled_args;
 
 static int list_devices(int argc, char** argv) {
     // FIXME: Should not belong to "bluetooth"
@@ -236,6 +247,58 @@ static int disconnect_device(int argc, char** argv) {
     return 0;
 }
 
+static int allowlist_list(int argc, char** argv) {
+    uni_bt_allowlist_list();
+    return 0;
+}
+
+static int allowlist_add_addr(int argc, char** argv) {
+    bd_addr_t addr;
+
+    int nerrors = arg_parse(argc, argv, (void**)&allowlist_addr_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, allowlist_addr_args.end, argv[0]);
+        return 1;
+    }
+
+    sscanf_bd_addr(allowlist_addr_args.addr->sval[0], addr);
+    uni_bt_allowlist_add_addr(addr);
+    return 0;
+}
+
+static int allowlist_remove_addr(int argc, char** argv) {
+    bd_addr_t addr;
+
+    int nerrors = arg_parse(argc, argv, (void**)&allowlist_addr_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, allowlist_addr_args.end, argv[0]);
+        return 1;
+    }
+
+    sscanf_bd_addr(allowlist_addr_args.addr->sval[0], addr);
+    uni_bt_allowlist_remove_addr(addr);
+    return 0;
+}
+
+static int allowlist_enable(int argc, char** argv) {
+    int enabled;
+
+    int nerrors = arg_parse(argc, argv, (void**)&allowlist_enabled_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, allowlist_enabled_args.end, argv[0]);
+
+        // Don't treat it as error, just report the current value
+        logi("Bluetooth Allowlist: %s\n", uni_bt_allowlist_is_enabled() ? "Enabled" : "Disabled");
+        return 0;
+    }
+
+    enabled = allowlist_enabled_args.enabled->ival[0];
+
+    uni_bt_allowlist_set_enabled(enabled);
+    return 0;
+}
+
+
 static void register_bluepad32() {
     mouse_set_args.value = arg_dbl1(NULL, NULL, "<value>", "Global mouse scale factor. Higher means faster");
     mouse_set_args.end = arg_end(2);
@@ -258,6 +321,11 @@ static void register_bluepad32() {
     snprintf(buf_disconnect, sizeof(buf_disconnect) - 1, "<0 - %d>", CONFIG_BLUEPAD32_MAX_DEVICES - 1);
     disconnect_device_args.idx = arg_int1(NULL, NULL, buf_disconnect, "Device index to disconnect");
     disconnect_device_args.end = arg_end(2);
+
+    allowlist_addr_args.addr = arg_str1(NULL, NULL, "<address>", "format: 01:23:45:67:89:ab");
+    allowlist_addr_args.end = arg_end(2);
+    allowlist_enabled_args.enabled = arg_int1(NULL, NULL, "<0 | 1>", "Whether allowlist should be enforced");
+    allowlist_enabled_args.end = arg_end(2);
 
     const esp_console_cmd_t cmd_list_devices = {
         .command = "list_devices",
@@ -357,6 +425,37 @@ static void register_bluepad32() {
         .argtable = &disconnect_device_args,
     };
 
+    const esp_console_cmd_t cmd_allowlist_list = {
+        .command = "allowlist_list",
+        .help = "List allowlist addresses",
+        .hint = NULL,
+        .func = &allowlist_list,
+    };
+
+    const esp_console_cmd_t cmd_allowlist_add = {
+        .command = "allowlist_add",
+        .help = "Add address to allowlist list",
+        .hint = NULL,
+        .func = &allowlist_add_addr,
+        .argtable = &allowlist_addr_args,
+    };
+
+    const esp_console_cmd_t cmd_allowlist_remove = {
+        .command = "allowlist_remove",
+        .help = "Remove address from allowlist list",
+        .hint = NULL,
+        .func = &allowlist_remove_addr,
+        .argtable = &allowlist_addr_args,
+    };
+
+    const esp_console_cmd_t cmd_allowlist_enable = {
+        .command = "allowlist_enable",
+        .help = "Enables/Disables allowlist addresses",
+        .hint = NULL,
+        .func = &allowlist_enable,
+        .argtable = &allowlist_enabled_args,
+    };
+
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_set_gap_security_level));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_get_gap_security_level));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_set_gap_periodic_inquiry));
@@ -369,6 +468,10 @@ static void register_bluepad32() {
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_set_incoming_connections_enabled));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_set_ble_enabled));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_disconnect_device));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_allowlist_list));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_allowlist_add));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_allowlist_remove));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_allowlist_enable));
 }
 
 void uni_console_init(void) {

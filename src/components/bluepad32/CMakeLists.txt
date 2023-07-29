@@ -1,5 +1,6 @@
 set(srcs "uni_balance_board.c"
          "uni_bt.c"
+         "uni_bt_allowlist.c"
          "uni_bt_conn.c"
          "uni_bt_le.c"
          "uni_bt_setup.c"

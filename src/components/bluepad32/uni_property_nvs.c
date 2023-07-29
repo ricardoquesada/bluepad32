@@ -74,7 +74,7 @@ uni_property_value_t uni_property_nvs_get(const char* key, uni_property_type_t t
     esp_err_t err;
     uni_property_value_t ret;
     size_t str_len;
-    static char str_ret[64];
+    static char str_ret[128];
 
     err = nvs_open(STORAGE_NAMESPACE, NVS_READONLY, &nvs_handle);
     if (err != ESP_OK) {

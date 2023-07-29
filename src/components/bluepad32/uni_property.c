@@ -25,6 +25,8 @@ limitations under the License.
 // Globals
 // Keep them sorted
 // Keys name should not be longer than NVS_KEY_NAME_MAX_SIZE (16 chars).
+const char* UNI_PROPERTY_KEY_ALLOWLIST_ENABLED = "bp.bt.allow_en";
+const char* UNI_PROPERTY_KEY_ALLOWLIST_LIST = "bp.bt.allowlist";
 const char* UNI_PROPERTY_KEY_BLE_ENABLED = "bp.ble.enabled";
 const char* UNI_PROPERTY_KEY_GAP_INQ_LEN = "bp.gap.inq_len";
 const char* UNI_PROPERTY_KEY_GAP_LEVEL = "bp.gap.level";

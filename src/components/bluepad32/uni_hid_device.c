@@ -81,7 +81,7 @@ uni_hid_device_t* uni_hid_device_create(bd_addr_t address) {
             logi("Creating device: %s (idx=%d)\n", bd_addr_to_str(address), i);
 
             memset(&g_devices[i], 0, sizeof(g_devices[i]));
-            memcpy(g_devices[i].conn.btaddr, address, 6);
+            bd_addr_copy(g_devices[i].conn.btaddr, address);
 
             // Delete device if it doesn't have a connection
             start_connection_timeout(&g_devices[i]);

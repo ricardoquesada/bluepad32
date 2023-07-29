@@ -25,6 +25,7 @@ limitations under the License.
 
 #include "sdkconfig.h"
 #include "uni_bt.h"
+#include "uni_bt_allowlist.h"
 #include "uni_bt_defines.h"
 #include "uni_bt_sdp.h"
 #include "uni_common.h"
@@ -355,7 +356,12 @@ void uni_bt_bredr_on_l2cap_incoming_connection(uint16_t channel, const uint8_t* 
         "channel=0x%04x, addr=%s\n",
         psm, local_cid, remote_cid, handle, channel, bd_addr_to_str(event_addr));
 
-    l2cap_event_incoming_connection_get_address(packet, event_addr);
+    if (!uni_bt_allowlist_allow_addr(event_addr)) {
+        loge("Declining incoming connection: Device not in allow-list: %s\n", bd_addr_to_str(event_addr));
+        l2cap_decline_connection(channel);
+        return;
+    }
+
     device = uni_hid_device_get_instance_for_address(event_addr);
 
     if (device && device->conn.state == UNI_BT_CONN_STATE_DEVICE_READY) {
@@ -560,6 +566,12 @@ void uni_bt_bredr_on_gap_inquiry_result(uint16_t channel, const uint8_t* packet,
         logi(", name '%s'", name_buffer);
     }
     logi("\n");
+
+    if (!uni_bt_allowlist_allow_addr(addr)) {
+        loge("Ignoring device, not in allow-list: %s\n", bd_addr_to_str(addr));
+        return;
+    }
+
     // As returned by BTStack, the bigger the RSSI number, the better, being 255 the closest possible (?).
     if (rssi < (255 - 100))
         logi("Device %s too far away, try moving it closer to Bluepad32 device\n", bd_addr_to_str(addr));
