@@ -110,4 +110,13 @@ menu "Bluepad32"
             then the Swap button might trigger unexpectedly.
             So, unless you are using FlashParty Edition, leave this feature enabled.
 
+    config BLUEPAD32_MAX_ALLOWLIST
+        int  "Maximum size of the Bluetooth allowlist"
+        default 4
+        help
+        The maximum of addresses that can be inserted in the Bluetooth allowlist.
+
+        This limit is defined at compile-time because Bluepad32 tries not to use malloc.
+        The higher the number, the more RAM it will take.
+
 endmenu

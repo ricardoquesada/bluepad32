@@ -23,9 +23,7 @@ limitations under the License.
 #include "uni_log.h"
 #include "uni_property.h"
 
-#define ALLOWLIST_MAX_ENTRIES CONFIG_BLUEPAD32_MAX_DEVICES
-
-static bd_addr_t addr_allow_list[ALLOWLIST_MAX_ENTRIES];
+static bd_addr_t addr_allow_list[CONFIG_BLUEPAD32_MAX_ALLOWLIST];
 static bool enforced = false;
 static const bd_addr_t zero_addr = {0, 0, 0, 0, 0, 0};
 
