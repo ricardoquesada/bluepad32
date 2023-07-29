@@ -68,7 +68,6 @@ int uni_bt_get_gap_min_periodic_lenght(void);
 //
 void uni_bt_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
 
-
 #ifdef __cplusplus
 }
 #endif

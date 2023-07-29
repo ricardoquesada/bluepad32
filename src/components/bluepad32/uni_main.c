@@ -34,7 +34,7 @@ int uni_main(int argc, const char** argv) {
     logi("Bluepad32 (C) 2016-2023 Ricardo Quesada and contributors.\n");
     logi("Version: v" UNI_VERSION "\n");
 
-    // Honoring BTStack license 
+    // Honoring BTStack license
     logi("BTStack: Copyright (C) 2017 BlueKitchen GmbH.\n");
 
     uni_property_init();

@@ -298,7 +298,6 @@ static int allowlist_enable(int argc, char** argv) {
     return 0;
 }
 
-
 static void register_bluepad32() {
     mouse_set_args.value = arg_dbl1(NULL, NULL, "<value>", "Global mouse scale factor. Higher means faster");
     mouse_set_args.end = arg_end(2);
