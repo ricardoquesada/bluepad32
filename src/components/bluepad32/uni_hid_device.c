@@ -801,7 +801,7 @@ static void misc_button_enable_callback(btstack_timer_source_t* ts) {
     d->misc_button_wait_delay &= ~MISC_BUTTON_SYSTEM;
 }
 
-// process_mic_button_system swaps joystick port A and B only if there is one device attached.
+// process_mic_button_system
 static void process_misc_button_system(uni_hid_device_t* d) {
     if ((d->controller.gamepad.misc_buttons & MISC_BUTTON_SYSTEM) == 0) {
         // System button released ?

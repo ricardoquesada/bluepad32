@@ -24,6 +24,7 @@ body:
       label: Bluepad32 Version
       description: What version of our software are you running?
       options:
+        - 3.8.1
         - 3.8.0
         - 3.7.3
         - 3.7.2

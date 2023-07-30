@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v3.8.1] - 2023-07-30
+### New
+- Bluetooth Allowlist addresses:
+  This feature, when enabled, will allow or decline controller connections based on their address.
+  This is useful when using multiple devices running Bluepad32, and you want that certain controller
+  connects to only a particular device.
+  Useful for "parties", or at teaching classes.
+  The following console commands were added to control the allowlist:
+  - `allowlist_list`: List addresses in the allow list.
+  - `allowlist_add <address>`: Add address to allow list.
+  - `allowlist_remove <address>`: Remove address from allow list.
+  - `allowlist_enable <0 | 1>`: Enable / Disable the allow list feature
+
+### Changed
+- BTstack: Upgraded to 1.5.6.3 (master branch as of July 29)
+
 ## [v3.8.0] - 2023-07-25
 ### New
 - Unijoysticle: Add support for Unijoysticle 2 800XL board.

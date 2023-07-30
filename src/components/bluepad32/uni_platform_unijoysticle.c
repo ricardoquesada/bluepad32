@@ -1592,12 +1592,14 @@ static void set_gamepad_mode(uni_hid_device_t* d, uni_platform_unijoysticle_game
     switch (mode) {
         case UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK:
             if (num_devices != 1) {
-                loge("unijoysticle: cannot change mode. Expected num_devices=1, actual=%d\n", num_devices);
+                logi("unijoysticle: cannot change to Twin stick mode. Expected num_devices=1, actual=%d\n",
+                     num_devices);
 
                 // Reset to "normal" mode
                 ins->gamepad_mode = UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL;
                 blink_bt_led(1);
-                return;
+                logi("unijoysticle: Gamepad mode = normal\n");
+                break;
             }
 
             ins->gamepad_mode = UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK;
@@ -1739,9 +1741,12 @@ static void try_swap_ports(uni_hid_device_t* d) {
     for (int j = 0; j < CONFIG_BLUEPAD32_MAX_DEVICES; j++) {
         uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
         uni_platform_unijoysticle_instance_t* tmp_ins = uni_platform_unijoysticle_get_instance(tmp_d);
-        if (uni_bt_conn_is_connected(&tmp_d->conn) && tmp_ins->seat != GAMEPAD_SEAT_NONE &&
-            tmp_ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL &&
-            ((tmp_d->controller.gamepad.misc_buttons & (MISC_BUTTON_SYSTEM | MISC_BUTTON_BACK)) == 0)) {
+        if (uni_bt_conn_is_connected(&tmp_d->conn) &&                                  // Is it connected ?
+            tmp_ins->seat != GAMEPAD_SEAT_NONE &&                                      // Does it have a seat ?
+            tmp_ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL &&  // Is it in "Normal" mode ?
+            ((tmp_d->controller.gamepad.misc_buttons & (MISC_BUTTON_SYSTEM | MISC_BUTTON_BACK)) == 0)  // misc pressed?
+        ) {
+            // If so, don't allow swap.
             logi("unijoysticle: to swap ports press 'system' button on both gamepads at the same time\n");
             uni_hid_device_dump_all();
             return;
