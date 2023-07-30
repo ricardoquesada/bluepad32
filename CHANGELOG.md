@@ -20,6 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - BTstack: Upgraded to 1.5.6.3 (master branch as of July 29)
 
+### Fix
+- Unijoysticle: Misc and back buttons have debouncer per device.
+  When multiple controllers are connected, debounce works as expected.
+  Before, a `static` variable was used, and was reused by all connected
+  controllers.
+- Unijoysticle: Improved debug messages when trying to swap ports.
+
 ## [v3.8.0] - 2023-07-25
 ### New
 - Unijoysticle: Add support for Unijoysticle 2 800XL board.

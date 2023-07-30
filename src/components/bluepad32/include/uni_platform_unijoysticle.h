@@ -112,6 +112,9 @@ typedef struct uni_platform_unijoysticle_instance_s {
     int16_t bb_smooth_right;
     int16_t bb_smooth_top;
     int16_t bb_smooth_down;
+
+    // Debouncer for buttons
+    uint32_t buttons_debouncer;
 } uni_platform_unijoysticle_instance_t;
 _Static_assert(sizeof(uni_platform_unijoysticle_instance_t) < HID_DEVICE_MAX_PLATFORM_DATA,
                "Unijoysticle intance too big");

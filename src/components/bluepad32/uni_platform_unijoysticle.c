@@ -496,30 +496,32 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
 }
 
 static void test_gamepad_select_button(uni_hid_device_t* d, uni_gamepad_t* gp) {
-    static bool already_pressed = false;
+    uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
+    bool already_pressed = ins->buttons_debouncer & MISC_BUTTON_BACK;
 
     if (gp->misc_buttons & MISC_BUTTON_BACK) {
         // 'Select' pressed
         if (already_pressed)
             return;
-        already_pressed = true;
+        ins->buttons_debouncer |= MISC_BUTTON_BACK;
         try_swap_ports(d);
     } else {
-        already_pressed = false;
+        ins->buttons_debouncer &= ~MISC_BUTTON_BACK;
     }
 }
 
 static void test_gamepad_start_button(uni_hid_device_t* d, uni_gamepad_t* gp) {
-    static bool already_pressed = false;
+    uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
+    bool already_pressed = ins->buttons_debouncer & MISC_BUTTON_HOME;
 
     if (gp->misc_buttons & MISC_BUTTON_HOME) {
         // 'Start' pressed
         if (already_pressed)
             return;
-        already_pressed = true;
+        ins->buttons_debouncer |= MISC_BUTTON_HOME;
         set_next_gamepad_mode(d);
     } else {
-        already_pressed = false;
+        ins->buttons_debouncer &= ~MISC_BUTTON_HOME;
     }
 }
 
