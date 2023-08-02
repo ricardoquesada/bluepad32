@@ -56,6 +56,8 @@ const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_800xl_
                            UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK |
                            UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_MOUSE,
         .default_mouse_emulation = UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_ATARIST,
+        .preferred_seat_for_mouse = GAMEPAD_SEAT_B,
+        .preferred_seat_for_joystick = GAMEPAD_SEAT_A,
     };
 
     return &variant;

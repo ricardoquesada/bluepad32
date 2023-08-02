@@ -53,6 +53,8 @@ const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_single
         .flags = UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRATURE_MOUSE,
         .supported_modes = UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL,
         .default_mouse_emulation = UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_AMIGA,
+        .preferred_seat_for_mouse = GAMEPAD_SEAT_A,
+        .preferred_seat_for_joystick = GAMEPAD_SEAT_A,
     };
 
     return &variant;

@@ -510,6 +510,8 @@ const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_c64_cr
         .register_console_cmds = register_console_cmds_c64,
         .process_gamepad_misc_buttons = process_gamepad_misc_buttons_c64,
         .set_gpio_level_for_pot = set_gpio_level_for_pot_c64,
+        .preferred_seat_for_mouse = GAMEPAD_SEAT_A,
+        .preferred_seat_for_joystick = GAMEPAD_SEAT_B,
     };
 
     return &variant;

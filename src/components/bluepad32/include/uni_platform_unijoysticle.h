@@ -153,6 +153,12 @@ struct uni_platform_unijoysticle_variant {
     // If any, which mouse emulation should be used by default
     int default_mouse_emulation;
 
+    // Each platforms defines the preferred seat (AKA port)
+    // for the device type. If the seat is already used, it will use
+    // the available one.
+    uni_gamepad_seat_t preferred_seat_for_joystick;
+    uni_gamepad_seat_t preferred_seat_for_mouse;
+
     // Variant "callbacks".
 
     // Print additional info about the version

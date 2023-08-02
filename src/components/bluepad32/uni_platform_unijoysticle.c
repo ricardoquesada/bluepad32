@@ -440,6 +440,8 @@ static void unijoysticle_on_device_disconnected(uni_hid_device_t* d) {
 }
 
 static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
+    int wanted_seat;
+
     if (d == NULL) {
         loge("ERROR: unijoysticle_on_device_ready: Invalid NULL device\n");
         return -1;
@@ -463,29 +465,17 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
     if (used_joystick_ports == (GAMEPAD_SEAT_A | GAMEPAD_SEAT_B))
         return -1;
 
-    int wanted_seat = GAMEPAD_SEAT_A;
-    if (get_uni_model_from_pins() == BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT) {
-        // Single port boards only supports one port, so keep using SEAT A
-        wanted_seat = GAMEPAD_SEAT_A;
-        ins->gamepad_mode = UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL;
+    if (uni_hid_device_is_mouse(d))
+        wanted_seat = g_variant->preferred_seat_for_mouse;
+    else
+        wanted_seat = g_variant->preferred_seat_for_joystick;
 
-    } else {
-        // Try with Port B, assume it is a joystick
-        wanted_seat = GAMEPAD_SEAT_B;
-        ins->gamepad_mode = UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL;
+    ins->gamepad_mode = UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL;
 
-        // ... unless it is a mouse which should try with PORT A.
-        // Amiga/Atari ST use mice in PORT A. Undefined on the C64, but
-        // most apps use it in PORT A as well.
-        if (uni_hid_device_is_mouse(d)) {
-            wanted_seat = GAMEPAD_SEAT_A;
-        }
-
-        // If wanted port is already assigned, try with the next one.
-        if (used_joystick_ports & wanted_seat) {
-            logi("unijoysticle: Port %d already assigned, trying another one\n", wanted_seat);
-            wanted_seat = (~wanted_seat) & GAMEPAD_SEAT_AB_MASK;
-        }
+    // If wanted port is already assigned, try with the next one.
+    if (used_joystick_ports & wanted_seat) {
+        logi("unijoysticle: Port %d already assigned, trying another one\n", wanted_seat);
+        wanted_seat = (~wanted_seat) & GAMEPAD_SEAT_AB_MASK;
     }
 
     set_gamepad_seat(d, wanted_seat);
