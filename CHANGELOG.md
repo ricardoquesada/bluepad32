@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v3.8.2] - 2023-08-02
+### Changed
+- Unijoysticle: 800XL uses port one as default for joystick and port 2 as default for mouse.
+  Each "variant" can specify easily the default ports.
+
+### Fixed
+- Allowlist: Can be called from C++ (Arduino).
+
 ## [v3.8.1] - 2023-07-30
 ### New
 - Bluetooth Allowlist addresses:
