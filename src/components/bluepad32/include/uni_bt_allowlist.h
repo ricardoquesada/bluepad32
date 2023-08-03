@@ -19,6 +19,10 @@ limitations under the License.
 #ifndef UNI_BT_ALLOWLIST_H
 #define UNI_BT_ALLOWLIST_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 
 #include <btstack.h>
@@ -41,5 +45,9 @@ bool uni_bt_allowlist_is_enabled(void);
 void uni_bt_allowlist_set_enabled(bool enabled);
 
 void uni_bt_allowlist_init(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // UNI_BT_ALLOWLIST_H
