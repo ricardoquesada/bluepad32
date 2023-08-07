@@ -59,6 +59,7 @@ static void update_allowlist_from_property(void) {
     uni_property_value_t val;
     bd_addr_t addr;
     int offset;
+    int len;
 
     // Whether or not it is enabled.
     def.str = NULL;
@@ -68,9 +69,11 @@ static void update_allowlist_from_property(void) {
         return;
 
     offset = 0;
-    for (size_t i = 0; i < strlen(val.str); i++) {
-        if (!sscanf_bd_addr(&val.str[0] + offset, addr)) {
-            loge("Failed to parse allowlist: %s\n", val.str);
+    len = strlen(val.str);
+
+    while(offset < len) {
+        if (!sscanf_bd_addr(&val.str[offset], addr)) {
+            loge("Failed to parse allowlist: '%s' ('%s')\n", &val.str[offset], val.str);
             return;
         }
         uni_bt_allowlist_add_addr(addr);
