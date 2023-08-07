@@ -71,7 +71,7 @@ static void update_allowlist_from_property(void) {
     offset = 0;
     len = strlen(val.str);
 
-    while(offset < len) {
+    while (offset < len) {
         if (!sscanf_bd_addr(&val.str[offset], addr)) {
             loge("Failed to parse allowlist: '%s' ('%s')\n", &val.str[offset], val.str);
             return;
