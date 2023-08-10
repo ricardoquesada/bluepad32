@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v3.8.3] - 2023-08-09
+### Fixed
+- Allowlist: Don't show "error" message when there is no error.
+
 ## [v3.8.2] - 2023-08-02
 ### Changed
 - Unijoysticle: 800XL uses port one as default for joystick and port 2 as default for mouse.

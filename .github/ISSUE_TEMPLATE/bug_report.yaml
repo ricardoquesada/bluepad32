@@ -24,6 +24,8 @@ body:
       label: Bluepad32 Version
       description: What version of our software are you running?
       options:
+        - 3.8.3
+        - 3.8.2
         - 3.8.1
         - 3.8.0
         - 3.7.3
@@ -63,7 +65,7 @@ body:
     attributes:
       label: Controller
       description: Which controller are you using ?
-      value: "Xbox Wireless 1708 using firmware 5.15.1923. Link to controller: https://example.com"  
+      value: "Xbox Wireless 1708 using firmware 5.15.1923. Link to controller: https://example.com"
   - type: dropdown
     id: esp32
     attributes:

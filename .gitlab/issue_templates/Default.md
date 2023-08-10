@@ -8,7 +8,7 @@ Also tell us, what did you expect to happen?
 
 What version of our software are you running?
 
-E.g: v3.7.2
+E.g: v3.8.3
 
 ## Bluepad32 Platform and its version
 
