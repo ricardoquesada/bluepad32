@@ -731,7 +731,8 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
     logi("Found, connect to device with %s address %s ...\n", addr_type == 0 ? "public" : "random",
          bd_addr_to_str(addr));
 
-    if (!uni_bt_allowlist_allow_addr(addr)) {
+    // Allowlist is only valid for "public" addresses. Doesn't make sense with random ones.
+    if (addr_type == 0 && !uni_bt_allowlist_allow_addr(addr)) {
         logi("Ignoring device, not in allow-list: %s\n", bd_addr_to_str(addr));
         return;
     }
