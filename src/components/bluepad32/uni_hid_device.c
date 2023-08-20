@@ -91,6 +91,35 @@ uni_hid_device_t* uni_hid_device_create(bd_addr_t address) {
     return NULL;
 }
 
+uni_hid_device_t* uni_hid_device_create_virtual(uni_hid_device_t* parent) {
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
+        if (bd_addr_cmp(g_devices[i].conn.btaddr, zero_addr) == 0) {
+            logi("Creating virtual device (idx=%d)\n", i);
+
+            memset(&g_devices[i], 0, sizeof(g_devices[i]));
+
+            // Both parent and child share the same address.
+            // Seems safe to copy the address. "get_instance_by_address" skips
+            // virtual devices.
+            bd_addr_copy(g_devices[i].conn.btaddr, parent->conn.btaddr);
+
+            g_devices[i].virtual = true;
+            parent->virtual_child = &g_devices[i];
+
+            g_devices[i].product_id = parent->product_id;
+            g_devices[i].vendor_id = parent->vendor_id;
+            g_devices[i].cod = parent->cod;
+            g_devices[i].controller_type = parent->controller_type;
+            g_devices[i].controller_subtype = parent->controller_subtype;
+
+            snprintf(g_devices[i].name, sizeof(g_devices[i].name), "virtual-%d", i);
+
+            return &g_devices[i];
+        }
+    }
+    return NULL;
+}
+
 void uni_hid_device_init(uni_hid_device_t* d) {
     if (d == NULL) {
         loge("Invalid device\n");
@@ -104,7 +133,8 @@ void uni_hid_device_init(uni_hid_device_t* d) {
 
 uni_hid_device_t* uni_hid_device_get_instance_for_address(bd_addr_t addr) {
     for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
-        if (bd_addr_cmp(addr, g_devices[i].conn.btaddr) == 0) {
+        // Ignore virtual devices since they share the same address with their parents
+        if (!g_devices[i].virtual && bd_addr_cmp(addr, g_devices[i].conn.btaddr) == 0) {
             return &g_devices[i];
         }
     }
@@ -199,16 +229,16 @@ void uni_hid_device_set_ready(uni_hid_device_t* d) {
     }
 }
 
-void uni_hid_device_set_ready_complete(uni_hid_device_t* d) {
+bool uni_hid_device_set_ready_complete(uni_hid_device_t* d) {
     // Called once the "parser" is ready.
     if (d == NULL) {
         loge("ERROR: Invalid NULL device\n");
-        return;
+        return false;
     }
 
     if (uni_bt_conn_get_state(&d->conn) == UNI_BT_CONN_STATE_DEVICE_READY) {
         loge("uni_hid_device_set_ready_complete(): Error, device already in 'ready-complete' state, skipping\n");
-        return;
+        return false;
     }
 
     logi("Device setup (%s) is complete\n", bd_addr_to_str(d->conn.btaddr));
@@ -216,15 +246,17 @@ void uni_hid_device_set_ready_complete(uni_hid_device_t* d) {
     // Remove the timer once the connection was established.
     btstack_run_loop_remove_timer(&d->connection_timer);
 
-    // Platform is able to decline a gamepad, should it needs it.
-    if (uni_get_platform()->on_device_ready(d) == 0) {
-        uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_READY);
-    } else {
-        loge("Platform declined the gamepad, deleting it");
+    // Platform can reject the connection.
+    if (uni_get_platform()->on_device_ready(d) != UNI_ERROR_SUCCESS) {
+        loge("Platform declined controller, deleting it");
         uni_hid_device_disconnect(d);
         uni_hid_device_delete(d);
         /* 'd' is destroyed after this call, don't use it */
+        return false;
     }
+
+    uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_READY);
+    return true;
 }
 
 void uni_hid_device_request_inquire(void) {
@@ -383,6 +415,10 @@ void uni_hid_device_connect(uni_hid_device_t* d) {
 }
 
 void uni_hid_device_disconnect(uni_hid_device_t* d) {
+    // Disconnect child first
+    if (d->virtual_child)
+        uni_hid_device_disconnect(d->virtual_child);
+
     // Might be called from different states... perhaps the device was already connected.
     // Or perhaps it got disconnected in the middle of a connection.
     bool connected = false;
@@ -392,7 +428,10 @@ void uni_hid_device_disconnect(uni_hid_device_t* d) {
         return;
     }
 
-    logi("Disconnecting device: %s\n", bd_addr_to_str(d->conn.btaddr));
+    if (d->virtual)
+        logi("Disconnecting virtual device: %s\n", bd_addr_to_str(d->conn.btaddr));
+    else
+        logi("Disconnecting device: %s\n", bd_addr_to_str(d->conn.btaddr));
 
     connected = d->conn.connected;
 
@@ -419,7 +458,15 @@ void uni_hid_device_delete(uni_hid_device_t* d) {
         loge("uni_hid_device_delete: invalid hid device: NULL\n");
         return;
     }
-    logi("Deleting device: %s\n", bd_addr_to_str(d->conn.btaddr));
+
+    // Delete child first
+    if (d->virtual_child)
+        uni_hid_device_delete(d->virtual_child);
+
+    if (d->virtual)
+        logi("Deleting virtual device: %s\n", bd_addr_to_str(d->conn.btaddr));
+    else
+        logi("Deleting device: %s\n", bd_addr_to_str(d->conn.btaddr));
 
     // Remove the timer. If it was still running, it will crash if the handler gets called.
     btstack_run_loop_remove_timer(&d->connection_timer);
@@ -431,20 +478,24 @@ void uni_hid_device_dump_device(uni_hid_device_t* d) {
     char* conn_type;
     gap_connection_type_t type;
 
-    type = gap_get_connection_type(d->conn.handle);
-    switch (type) {
-        case GAP_CONNECTION_ACL:
-            conn_type = "ACL";
-            break;
-        case GAP_CONNECTION_SCO:
-            conn_type = "SCO";
-            break;
-        case GAP_CONNECTION_LE:
-            conn_type = "BLE";
-            break;
-        default:
-            conn_type = "Invalid";
-            break;
+    if (d->virtual) {
+        conn_type = "virtual";
+    } else {
+        type = gap_get_connection_type(d->conn.handle);
+        switch (type) {
+            case GAP_CONNECTION_ACL:
+                conn_type = "ACL";
+                break;
+            case GAP_CONNECTION_SCO:
+                conn_type = "SCO";
+                break;
+            case GAP_CONNECTION_LE:
+                conn_type = "BLE";
+                break;
+            default:
+                conn_type = "Invalid";
+                break;
+        }
     }
 
     logi("\tbtaddr: %s\n", bd_addr_to_str(d->conn.btaddr));

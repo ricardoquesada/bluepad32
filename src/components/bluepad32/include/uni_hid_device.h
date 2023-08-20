@@ -116,6 +116,14 @@ struct uni_hid_device_s {
 
     // Bluetooth connection info.
     uni_bt_conn_t conn;
+
+    // Whether or not the device is "virtual".
+    // For example, the "mouse" in the DualShock4 is a "virtual" device, while the gamepad is the
+    // non-virtual one.
+    bool virtual;
+    // When a physical controller has a virtual child. For example, DualShock4 has the "mouse" as
+    // a child.
+    struct uni_hid_device_s* virtual_child;
 };
 typedef struct uni_hid_device_s uni_hid_device_t;
 
@@ -125,6 +133,10 @@ typedef uint8_t (*uni_hid_device_predicate_t)(uni_hid_device_t* d, void* data);
 void uni_hid_device_setup(void);
 
 uni_hid_device_t* uni_hid_device_create(bd_addr_t address);
+
+// Used for controllers that implement two input devices like DualShock4 which is a gamepad and a mouse
+// at the same time. The mouse will be the "vritual" device in this case.
+uni_hid_device_t* uni_hid_device_create_virtual(uni_hid_device_t* parent);
 
 // Don't add any other get_instance_for_XXX function.
 // Insteaad use: get_instance_with_predicate()
@@ -141,7 +153,8 @@ int uni_hid_device_get_idx_for_instance(uni_hid_device_t* d);
 void uni_hid_device_init(uni_hid_device_t* d);
 
 void uni_hid_device_set_ready(uni_hid_device_t* d);
-void uni_hid_device_set_ready_complete(uni_hid_device_t* d);
+// Returns whether the platform accepted the connection
+bool uni_hid_device_set_ready_complete(uni_hid_device_t* d);
 
 void uni_hid_device_request_inquire(void);
 

@@ -89,13 +89,13 @@ static void pc_debug_on_device_disconnected(uni_hid_device_t* d) {
     logi("pc_debug: device disconnected: %p\n", d);
 }
 
-static int pc_debug_on_device_ready(uni_hid_device_t* d) {
+static uni_error_t pc_debug_on_device_ready(uni_hid_device_t* d) {
     logi("pc_debug: device ready: %p\n", d);
     pc_debug_instance_t* ins = get_pc_debug_instance(d);
     ins->gamepad_seat = GAMEPAD_SEAT_A;
 
     trigger_event_on_gamepad(d);
-    return 0;
+    return UNI_ERROR_SUCCESS;
 }
 
 static void pc_debug_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl) {
@@ -109,8 +109,10 @@ static void pc_debug_on_controller_data(uni_hid_device_t* d, uni_controller_t* c
     }
     prev = *ctl;
     // Print device Id before dumping gamepad.
-    logi("(%p) ", d);
-    uni_controller_dump(ctl);
+    if (ctl->klass == UNI_CONTROLLER_CLASS_MOUSE) {
+        logi("(%p) ", d);
+        uni_controller_dump(ctl);
+    }
 
     switch (ctl->klass) {
         case UNI_CONTROLLER_CLASS_GAMEPAD:

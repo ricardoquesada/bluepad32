@@ -2385,12 +2385,12 @@ static bool seatInUse(uni_gamepad_seat_t seat) {
     return inUse;
 }
 
-static int mightymiggy_on_device_ready(uni_hid_device_t* d) {
-    int ret = 0;
+static uni_error_t mightymiggy_on_device_ready(uni_hid_device_t* d) {
+    uni_error_t ret = UNI_ERROR_SUCCESS;
 
     if (d == NULL) {
         mmloge("ERROR: mightymiggy_on_device_ready: Invalid NULL device\n");
-        return -1;
+        return UNI_ERROR_INVALID_DEVICE;
     }
 
     RuntimeControllerInfo* cinfo = getControllerInstance(d);
@@ -2398,7 +2398,7 @@ static int mightymiggy_on_device_ready(uni_hid_device_t* d) {
     // Some safety checks. These conditions should not happen
     if ((cinfo->seat != GAMEPAD_SEAT_NONE) || (!uni_hid_device_has_controller_type(d))) {
         mmloge("ERROR: mightymiggy_on_device_ready: pre-condition not met\n");
-        return -1;
+        return UNI_ERROR_INVALID_DEVICE;
     }
 
     mmlogi("Controller of type %u connected!\n", (unsigned int)d->controller_type);
@@ -2410,7 +2410,7 @@ static int mightymiggy_on_device_ready(uni_hid_device_t* d) {
             mmlogi("Assigning to port B\n");
             if (seatInUse(GAMEPAD_SEAT_B)) {
                 mmloge("Seat already in use, refusing (!?)\n");
-                ret = -1;
+                ret = UNI_ERROR_NO_SLOTS;
             } else {
                 setSeat(d, GAMEPAD_SEAT_B);
                 cinfo->ledPin = PIN_LED_P2;
@@ -2424,7 +2424,7 @@ static int mightymiggy_on_device_ready(uni_hid_device_t* d) {
             mmlogi("Assigning to port A\n");
             if (seatInUse(GAMEPAD_SEAT_A)) {
                 mmloge("Seat already in use, refusing (!?)\n");
-                ret = -1;
+                ret = UNI_ERROR_NO_SLOTS;
             } else {
                 setSeat(d, GAMEPAD_SEAT_A);
                 cinfo->ledPin = PIN_LED_P1;
@@ -2446,7 +2446,7 @@ static int mightymiggy_on_device_ready(uni_hid_device_t* d) {
             mmlogi("Assigning to port B\n");
             if (seatInUse(GAMEPAD_SEAT_B)) {
                 mmloge("Seat already in use, refusing (!?)\n");
-                ret = -1;
+                ret = UNI_ERROR_NO_SLOTS;
             } else {
                 setSeat(d, GAMEPAD_SEAT_B);
                 cinfo->ledPin = PIN_LED_P2;
@@ -2459,10 +2459,10 @@ static int mightymiggy_on_device_ready(uni_hid_device_t* d) {
         default:
             // Two controllers already connected, cannot accept a new one
             mmloge("Refusing\n");
-            ret = -1;
+            ret = UNI_ERROR_NO_SLOTS;
     }
 
-    if (ret == 0) {
+    if (ret == UNI_ERROR_SUCCESS) {
         // Init controller runtime data structure
         cinfo->state = ST_FIRST_READ;
         cinfo->stateEnteredTime = 0;

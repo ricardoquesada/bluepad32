@@ -187,17 +187,17 @@ static void arduino_on_device_disconnected(uni_hid_device_t* d) {
     }
 }
 
-static int arduino_on_device_ready(uni_hid_device_t* d) {
+static uni_error_t arduino_on_device_ready(uni_hid_device_t* d) {
     if (_used_controllers == CONFIG_BLUEPAD32_MAX_DEVICES) {
         // No more available seats, reject connection
         logi("Arduino: More available seats\n");
-        return -1;
+        return UNI_ERROR_NO_SLOTS;
     }
 
     arduino_instance_t* ins = get_arduino_instance(d);
     if (ins->controller_idx != UNI_ARDUINO_GAMEPAD_INVALID) {
         loge("Arduino: unexpected value for on_device_ready; got: %d, want: -1\n", ins->controller_idx);
-        return -1;
+        return UNI_ERROR_INVALID_CONTROLLER;
     }
 
     // Find first available gamepad
@@ -227,7 +227,7 @@ static int arduino_on_device_ready(uni_hid_device_t* d) {
         arduino_instance_t* ins = get_arduino_instance(d);
         d->report_parser.set_player_leds(d, BIT(ins->controller_idx));
     }
-    return 0;
+    return UNI_ERROR_SUCCESS;
 }
 
 static void arduino_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl) {

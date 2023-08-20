@@ -25,6 +25,7 @@ extern "C" {
 
 #include <stdint.h>
 
+#include "uni_error.h"
 #include "uni_hid_device.h"
 #include "uni_joystick.h"
 
@@ -56,14 +57,14 @@ struct uni_platform {
     // on_init_complete is called when initialization finishes
     void (*on_init_complete)(void);
 
-    // When a device (gamepad) connects. But probably it is not ready to use.
+    // When a device (controller) connects. But probably it is not ready to use.
     // HID and/or other things might not have been parsed/init yet.
     void (*on_device_connected)(uni_hid_device_t* d);
-    // When a device (gamepad) disconnects.
+    // When a device (controller) disconnects.
     void (*on_device_disconnected)(uni_hid_device_t* d);
-    // When a device (gamepad) is ready to be used. Each platform can override
-    // whether the device should be ready by returning a non-zero value.
-    int (*on_device_ready)(uni_hid_device_t* d);
+    // When a device (controller) is ready to be used.
+    // Platform can reject the connection by return false.
+    uni_error_t (*on_device_ready)(uni_hid_device_t* d);
 
     // Indicates that a gamepad button and/or stick was pressed and/or released.
     // Deprecated. Use on_controller_data instead

@@ -1056,17 +1056,17 @@ static void nina_on_device_disconnected(uni_hid_device_t* d) {
     }
 }
 
-static int nina_on_device_ready(uni_hid_device_t* d) {
+static uni_error_t nina_on_device_ready(uni_hid_device_t* d) {
     if (_gamepad_seats == (GAMEPAD_SEAT_A | GAMEPAD_SEAT_B | GAMEPAD_SEAT_C | GAMEPAD_SEAT_D)) {
         // No more available seats, reject connection
         logi("NINA: More available seats\n");
-        return -1;
+        return UNI_ERROR_NO_SLOTS;
     }
 
     nina_instance_t* ins = get_nina_instance(d);
     if (ins->controller_idx != NINA_CONTROLLER_INVALID) {
         loge("NINA: unexpected value for on_device_ready; got: %d, want: -1\n", ins->controller_idx);
-        return -1;
+        return UNI_ERROR_INVALID_CONTROLLER;
     }
 
     // Find first available gamepad
@@ -1080,7 +1080,7 @@ static int nina_on_device_ready(uni_hid_device_t* d) {
 
     if (ins->controller_idx == NINA_CONTROLLER_INVALID) {
         loge("NINA: could not found valid seat for gamepad\n");
-        return -1;
+        return UNI_ERROR_NO_SLOTS;
     }
 
     // This is how "client" knows which gamepad emitted the events.
@@ -1116,7 +1116,7 @@ static int nina_on_device_ready(uni_hid_device_t* d) {
     if (d->report_parser.set_player_leds != NULL) {
         d->report_parser.set_player_leds(d, BIT(idx));
     }
-    return 0;
+    return UNI_ERROR_SUCCESS;
 }
 
 static uint8_t predicate_nina_index(uni_hid_device_t* d, void* data) {

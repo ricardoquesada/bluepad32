@@ -439,19 +439,19 @@ static void unijoysticle_on_device_disconnected(uni_hid_device_t* d) {
     maybe_enable_mouse_timers();
 }
 
-static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
+static uni_error_t unijoysticle_on_device_ready(uni_hid_device_t* d) {
     int wanted_seat;
 
     if (d == NULL) {
         loge("ERROR: unijoysticle_on_device_ready: Invalid NULL device\n");
-        return -1;
+        return UNI_ERROR_INVALID_DEVICE;
     }
     uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
 
     // Some safety checks. These conditions should not happen
     if ((ins->seat != GAMEPAD_SEAT_NONE) || (!uni_hid_device_has_controller_type(d))) {
         loge("ERROR: unijoysticle_on_device_ready: pre-condition not met\n");
-        return -1;
+        return UNI_ERROR_INVALID_DEVICE;
     }
 
     uint32_t used_joystick_ports = 0;
@@ -463,7 +463,7 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
     // Either two gamepads are connected, or one is in Twin Stick mode.
     // Don't allow new connections.
     if (used_joystick_ports == (GAMEPAD_SEAT_A | GAMEPAD_SEAT_B))
-        return -1;
+        return UNI_ERROR_NO_SLOTS;
 
     if (uni_hid_device_is_mouse(d))
         wanted_seat = g_variant->preferred_seat_for_mouse;
@@ -482,7 +482,7 @@ static int unijoysticle_on_device_ready(uni_hid_device_t* d) {
 
     maybe_enable_mouse_timers();
 
-    return 0;
+    return UNI_ERROR_SUCCESS;
 }
 
 static void test_gamepad_select_button(uni_hid_device_t* d, uni_gamepad_t* gp) {

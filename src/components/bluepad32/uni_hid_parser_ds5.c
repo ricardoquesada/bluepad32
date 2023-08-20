@@ -24,6 +24,7 @@ limitations under the License.
 #include <assert.h>
 
 #include "hid_usage.h"
+#include "uni_bt_defines.h"
 #include "uni_common.h"
 #include "uni_config.h"
 #include "uni_hid_device.h"
@@ -86,6 +87,11 @@ typedef struct {
 
     struct ds5_calibration_data gyro_calib_data[3];
     struct ds5_calibration_data accel_calib_data[3];
+
+    // Prev Touchpad values, to convert them from absolute
+    // coordinates into relative ones.
+    int x_prev;
+    int y_prev;
 
 } ds5_instance_t;
 _Static_assert(sizeof(ds5_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "DS5 intance too big");
@@ -201,12 +207,21 @@ static void ds5_request_pairing_info_report(uni_hid_device_t* d);
 static void ds5_request_firmware_version_report(uni_hid_device_t* d);
 static void ds5_request_calibration_report(uni_hid_device_t* d);
 static void ds5_set_rumble_off(btstack_timer_source_t* ts);
+static void ds5_parse_mouse(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
 
 void uni_hid_parser_ds5_init_report(uni_hid_device_t* d) {
     uni_controller_t* ctl = &d->controller;
     memset(ctl, 0, sizeof(*ctl));
 
     ctl->klass = UNI_CONTROLLER_CLASS_GAMEPAD;
+
+    // If we have a virtual child, set it up as mouse
+    if (d->virtual_child) {
+        uni_controller_t* virtual_ctl = &d->virtual_child->controller;
+        memset(virtual_ctl, 0, sizeof(*virtual_ctl));
+
+        virtual_ctl->klass = UNI_CONTROLLER_CLASS_MOUSE;
+    }
 }
 
 void uni_hid_parser_ds5_setup(uni_hid_device_t* d) {
@@ -437,6 +452,10 @@ void uni_hid_parser_ds5_parse_input_report(uni_hid_device_t* d, const uint8_t* r
     // Value goes from 0 to 10. Make it from 0 to 250.
     // The +1 is to avoid having a value of 0, which means "battery unavailable".
     ctl->battery = (r->status & DS5_STATUS_BATTERY_CAPACITY) * 25 + 1;
+
+    if (d->virtual_child) {
+        ds5_parse_mouse(d->virtual_child, report, len);
+    }
 }
 
 // uni_hid_parser_ds5_parse_usage() was removed since "stream" mode is the only one supported.
@@ -498,6 +517,11 @@ void uni_hid_parser_ds5_set_rumble(struct uni_hid_device_s* d, uint8_t value, ui
     int ms = duration * 4;  // duration: 256 ~= 1 second
     btstack_run_loop_set_timer(&ins->rumble_timer, ms);
     btstack_run_loop_add_timer(&ins->rumble_timer);
+}
+
+void uni_hid_parser_ds5_device_dump(uni_hid_device_t* d) {
+    ds5_instance_t* ins = get_ds5_instance(d);
+    logi("\tDS5: FW version %#x, HW version %#x\n", ins->fw_version, ins->hw_version);
 }
 
 //
@@ -587,12 +611,52 @@ static void ds5_send_enable_lightbar_report(uni_hid_device_t* d) {
     };
     ds5_send_output_report(d, &out);
 
+    // Set as ready
     ds5_instance_t* ins = get_ds5_instance(d);
     ins->state = DS5_STATE_READY;
-    uni_hid_device_set_ready_complete(d);
+    if (!uni_hid_device_set_ready_complete(d)) {
+        return;
+    }
+
+    // Only after the connection was accepted we should create the virtual device.
+    uni_hid_device_t* child = uni_hid_device_create_virtual(d);
+    if (!child) {
+        loge("DS5: Failed to create virtual device\n");
+        return;
+    }
+
+    // You are a mouse
+    uni_hid_device_set_cod(child, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE);
+
+    // And set it as connected + ready.
+    uni_hid_device_connect(child);
+    if(!uni_hid_device_set_ready_complete(child)) {
+        // Could happen that the platform rejects the virtual device.
+        // E.g: Mouse not supported. If that's the case, break the link
+        d->virtual_child = NULL;
+    }
 }
 
-void uni_hid_parser_ds5_device_dump(uni_hid_device_t* d) {
+static void ds5_parse_mouse(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
+    ARG_UNUSED(len);
+
     ds5_instance_t* ins = get_ds5_instance(d);
-    logi("\tDS5: FW version %#x, HW version %#x\n", ins->fw_version, ins->hw_version);
+
+    // We can safely assume that device is connected and report is valid, otherwise
+    // this function should have not been called.
+
+    uni_controller_t* ctl = &d->controller;
+    const ds5_input_report_t* r = (ds5_input_report_t*)&report[2];
+
+    int x = (r->points[0].x_hi << 8) + r->points[0].x_lo;
+    int y = (r->points[0].y_hi << 4) + r->points[0].y_lo;
+
+    ctl->mouse.delta_x = x - ins->x_prev;
+    ctl->mouse.delta_y = y - ins->y_prev;
+    ctl->mouse.buttons = (r->points[0].contact & BIT(7)) ? BUTTON_A : 0;
+
+    ins->x_prev = x;
+    ins->y_prev = y;
+
+    uni_hid_device_process_controller(d);
 }
