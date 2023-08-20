@@ -59,6 +59,8 @@ typedef enum {
 
 enum {
     UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRATURE_MOUSE = BIT(0),
+    // DualShock4 / DualSense mouse
+    UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_VIRTUAL_MOUSE = BIT(1),
 };
 
 enum {

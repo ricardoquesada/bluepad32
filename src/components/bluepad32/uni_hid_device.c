@@ -112,6 +112,9 @@ uni_hid_device_t* uni_hid_device_create_virtual(uni_hid_device_t* parent) {
             g_devices[i].controller_type = parent->controller_type;
             g_devices[i].controller_subtype = parent->controller_subtype;
 
+            // All virtual devices has a "controller type", which is known by the parent.
+            g_devices[i].flags |= FLAGS_HAS_CONTROLLER_TYPE;
+
             snprintf(g_devices[i].name, sizeof(g_devices[i].name), "virtual-%d", i);
 
             return &g_devices[i];
@@ -248,7 +251,7 @@ bool uni_hid_device_set_ready_complete(uni_hid_device_t* d) {
 
     // Platform can reject the connection.
     if (uni_get_platform()->on_device_ready(d) != UNI_ERROR_SUCCESS) {
-        loge("Platform declined controller, deleting it");
+        loge("Platform declined controller, deleting it\n");
         uni_hid_device_disconnect(d);
         uni_hid_device_delete(d);
         /* 'd' is destroyed after this call, don't use it */

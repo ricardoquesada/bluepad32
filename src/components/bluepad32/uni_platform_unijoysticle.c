@@ -454,6 +454,11 @@ static uni_error_t unijoysticle_on_device_ready(uni_hid_device_t* d) {
         return UNI_ERROR_INVALID_DEVICE;
     }
 
+    if (d->virtual && !(g_variant->flags & UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_VIRTUAL_MOUSE)) {
+        // Virtual Controller not supported
+        return UNI_ERROR_INVALID_CONTROLLER;
+    }
+
     uint32_t used_joystick_ports = 0;
     for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(i);
@@ -1729,12 +1734,14 @@ static void try_swap_ports(uni_hid_device_t* d) {
     // Swap joystick ports except if there is a connected gamepad that doesn't have the "System" or "Select" button
     // pressed. Basically allow:
     //  - swapping mouse+gamepad
+    //  - swapping between physical+virtual
     //  - two gamepads while both are pressing the "system" or "select" button at the same time.
     for (int j = 0; j < CONFIG_BLUEPAD32_MAX_DEVICES; j++) {
         uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
         uni_platform_unijoysticle_instance_t* tmp_ins = uni_platform_unijoysticle_get_instance(tmp_d);
         if (uni_bt_conn_is_connected(&tmp_d->conn) &&                                  // Is it connected ?
             tmp_ins->seat != GAMEPAD_SEAT_NONE &&                                      // Does it have a seat ?
+            !tmp_d->virtual &&                                                         // Is it vritual ?
             tmp_ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL &&  // Is it in "Normal" mode ?
             ((tmp_d->controller.gamepad.misc_buttons & (MISC_BUTTON_SYSTEM | MISC_BUTTON_BACK)) == 0)  // misc pressed?
         ) {

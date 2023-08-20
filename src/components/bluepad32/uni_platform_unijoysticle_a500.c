@@ -63,7 +63,8 @@ const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_a500_c
     const static struct uni_platform_unijoysticle_variant variant = {
         .name = "2 A500",
         .gpio_config = &gpio_config_univ2a500,
-        .flags = UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRATURE_MOUSE,
+        .flags = UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRATURE_MOUSE |
+                 UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_VIRTUAL_MOUSE,
         .supported_modes = UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL |
                            UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK |
                            UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_MOUSE,
