@@ -386,6 +386,7 @@ void uni_hid_parser_ds5_parse_input_report(uni_hid_device_t* d, const uint8_t* r
         loge("DS5: Unexpected report len: got %d, want: 78\n", len);
         return;
     }
+
     uni_controller_t* ctl = &d->controller;
     const ds5_input_report_t* r = (ds5_input_report_t*)&report[2];
 
@@ -653,10 +654,20 @@ static void ds5_parse_mouse(uni_hid_device_t* d, const uint8_t* report, uint16_t
 
     ctl->mouse.delta_x = x - ins->x_prev;
     ctl->mouse.delta_y = y - ins->y_prev;
-    ctl->mouse.buttons = (r->points[0].contact & BIT(7)) ? BUTTON_A : 0;
+    // "Click" on Touchpad
+    ctl->mouse.buttons = (r->buttons[2] & 0x02) ? MOUSE_BUTTON_LEFT : 0;
+    // "Click" on "bar" button that is below the PS button
+    ctl->mouse.buttons |= (r->buttons[2] & 0x04) ? MOUSE_BUTTON_RIGHT : 0;
+    // TODO: Support middle button.
 
-    ins->x_prev = x;
-    ins->y_prev = y;
+    // Previous delta only if we are touching the touchpad.
+    if (r->points[0].contact & ~BIT(7)) {
+        ins->x_prev = x;
+        ins->y_prev = y;
+    } else {
+        ins->x_prev = 0;
+        ins->y_prev = 0;
+    }
 
     uni_hid_device_process_controller(d);
 }
