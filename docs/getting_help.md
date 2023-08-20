@@ -2,6 +2,7 @@
 
 http://tinyurl.com/bluepad32-help
 
+
 TL;DR:
 
 Help us help you by providing:
@@ -12,6 +13,9 @@ Help us help you by providing:
 * Which sketch you are using. 
 * Which Operating System you are using
 * Debug log
+* Post question on our [Discord server][discord_server]
+
+[discord_server]: https://discord.gg/r5aMn6Cw5q
 
 ## Platforms
 
@@ -84,11 +88,7 @@ E.g.: I'm using macOS 12.6.7
 
 Copy & paste the output from the serial console, and share it with us.
 
-<<<<<<< HEAD
 Use services like: http://gist.github.com
-=======
-Uses services like: http://gist.github.com
->>>>>>> main
 
 Attaching an screenshot might be useful, but the screenshot is not a replacement of the Debug Log.
 
