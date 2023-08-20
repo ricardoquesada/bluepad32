@@ -92,6 +92,7 @@ typedef struct {
     // coordinates into relative ones.
     int x_prev;
     int y_prev;
+    bool prev_touch_active;
 
 } ds5_instance_t;
 _Static_assert(sizeof(ds5_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "DS5 intance too big");
@@ -652,8 +653,14 @@ static void ds5_parse_mouse(uni_hid_device_t* d, const uint8_t* report, uint16_t
     int x = (r->points[0].x_hi << 8) + r->points[0].x_lo;
     int y = (r->points[0].y_hi << 4) + r->points[0].y_lo;
 
-    ctl->mouse.delta_x = x - ins->x_prev;
-    ctl->mouse.delta_y = y - ins->y_prev;
+    if (ins->prev_touch_active) {
+        ctl->mouse.delta_x = x - ins->x_prev;
+        ctl->mouse.delta_y = y - ins->y_prev;
+    } else {
+        ctl->mouse.delta_x = 0;
+        ctl->mouse.delta_y = 0;
+    }
+
     // "Click" on Touchpad
     ctl->mouse.buttons = (r->buttons[2] & 0x02) ? MOUSE_BUTTON_LEFT : 0;
     // "Click" on "bar" button that is below the PS button
@@ -661,13 +668,11 @@ static void ds5_parse_mouse(uni_hid_device_t* d, const uint8_t* report, uint16_t
     // TODO: Support middle button.
 
     // Previous delta only if we are touching the touchpad.
-    if (r->points[0].contact & ~BIT(7)) {
-        ins->x_prev = x;
-        ins->y_prev = y;
-    } else {
-        ins->x_prev = 0;
-        ins->y_prev = 0;
-    }
+    ins->prev_touch_active = !(r->points[0].contact & BIT(7));
+
+    // Update prev regarless of whether it is valid.
+    ins->x_prev = x;
+    ins->y_prev = y;
 
     uni_hid_device_process_controller(d);
 }

@@ -100,6 +100,18 @@ typedef struct __attribute((packed)) {
 } ds4_input_report_01_t;
 
 typedef struct __attribute((packed)) {
+    uint8_t contact;
+    uint8_t x_lo;
+    uint8_t x_hi : 4, y_lo : 4;
+    uint8_t y_hi;
+} ds4_touch_point_t;
+
+typedef struct __attribute((packed)) {
+    uint8_t timestamp;
+    ds4_touch_point_t points[2];
+} ds4_touch_report_t;
+
+typedef struct __attribute((packed)) {
     // Axis
     uint8_t x, y;
     uint8_t rx, ry;
@@ -118,8 +130,13 @@ typedef struct __attribute((packed)) {
     uint16_t accel[3];  // x, y, z
     uint8_t reserved[5];
     uint8_t status[2];
+    uint8_t reserved2;
 
-    // Add missing data
+    uint8_t num_touch_reports;
+    ds4_touch_report_t touches[4];
+
+    uint8_t reserved3[2];
+    uint32_t crc32;
 } ds4_input_report_11_t;
 
 typedef struct __attribute((packed)) {
