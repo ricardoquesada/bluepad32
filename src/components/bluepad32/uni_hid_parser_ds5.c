@@ -630,7 +630,7 @@ static void ds5_send_enable_lightbar_report(uni_hid_device_t* d) {
 
     // And set it as connected + ready.
     uni_hid_device_connect(child);
-    if(!uni_hid_device_set_ready_complete(child)) {
+    if (!uni_hid_device_set_ready_complete(child)) {
         // Could happen that the platform rejects the virtual device.
         // E.g: Mouse not supported. If that's the case, break the link
         d->virtual_child = NULL;
