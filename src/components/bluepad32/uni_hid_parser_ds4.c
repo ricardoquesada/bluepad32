@@ -28,6 +28,7 @@ limitations under the License.
 #include <assert.h>
 
 #include "hid_usage.h"
+#include "uni_bt_defines.h"
 #include "uni_config.h"
 #include "uni_hid_device.h"
 #include "uni_hid_parser.h"
@@ -61,6 +62,12 @@ typedef struct {
 
     struct ds4_calibration_data gyro_calib_data[3];
     struct ds4_calibration_data accel_calib_data[3];
+
+    // Prev Touchpad values, to convert them from absolute
+    // coordinates into relative ones.
+    int x_prev;
+    int y_prev;
+    bool prev_touch_active;
 } ds4_instance_t;
 _Static_assert(sizeof(ds4_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "DS4 intance too big");
 
@@ -195,6 +202,7 @@ static void ds4_request_calibration_report(uni_hid_device_t* d);
 static void ds4_request_firmware_version_report(uni_hid_device_t* d);
 static void ds4_send_enable_lightbar_report(uni_hid_device_t* d);
 static void ds4_set_rumble_off(btstack_timer_source_t* ts);
+static void ds4_parse_mouse(uni_hid_device_t* d, const ds4_input_report_11_t* r);
 
 void uni_hid_parser_ds4_setup(struct uni_hid_device_s* d) {
     ds4_instance_t* ins = get_ds4_instance(d);
@@ -216,10 +224,29 @@ void uni_hid_parser_ds4_setup(struct uni_hid_device_s* d) {
     // - calibration report: enables report 0x11 on other reports
     ds4_send_enable_lightbar_report(d);
     ds4_request_calibration_report(d);
-    uni_hid_device_set_ready_complete(d);
+    if (!uni_hid_device_set_ready_complete(d))
+        return;
 
     // Don't add any timer. If Calibration report is not supported,
     // it is safe to asume that the fw_request won't be supported as well.
+
+    // Only after the connection was accepted we should create the virtual device.
+    uni_hid_device_t* child = uni_hid_device_create_virtual(d);
+    if (!child) {
+        loge("DS4: Failed to create virtual device\n");
+        return;
+    }
+
+    // You are a mouse
+    uni_hid_device_set_cod(child, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE);
+
+    // And set it as connected + ready.
+    uni_hid_device_connect(child);
+    if (!uni_hid_device_set_ready_complete(child)) {
+        // Could happen that the platform rejects the virtual device.
+        // E.g: Mouse not supported. If that's the case, break the link
+        d->virtual_child = NULL;
+    }
 }
 
 void uni_hid_parser_ds4_init_report(uni_hid_device_t* d) {
@@ -227,6 +254,14 @@ void uni_hid_parser_ds4_init_report(uni_hid_device_t* d) {
     memset(ctl, 0, sizeof(*ctl));
 
     ctl->klass = UNI_CONTROLLER_CLASS_GAMEPAD;
+
+    // If we have a virtual child, set it up as mouse
+    if (d->virtual_child) {
+        uni_controller_t* virtual_ctl = &d->virtual_child->controller;
+        memset(virtual_ctl, 0, sizeof(*virtual_ctl));
+
+        virtual_ctl->klass = UNI_CONTROLLER_CLASS_MOUSE;
+    }
 }
 
 void uni_hid_parser_ds4_parse_feature_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
@@ -445,6 +480,10 @@ static void ds4_parse_input_report_11(uni_hid_device_t* d, const ds4_input_repor
     // Value goes from 0 to 10. Make it from 0 to 250.
     // The +1 is to avoid having a value of 0, which means "battery unavailable".
     ctl->battery = (r->status[0] & DS4_STATUS_BATTERY_CAPACITY) * 25 + 1;
+
+    if (d->virtual_child) {
+        ds4_parse_mouse(d->virtual_child, r);
+    }
 }
 
 void uni_hid_parser_ds4_parse_input_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
@@ -495,6 +534,11 @@ void uni_hid_parser_ds4_set_rumble(uni_hid_device_t* d, uint8_t value, uint8_t d
     int ms = duration * 4;  // duration: 256 ~= 1 second
     btstack_run_loop_set_timer(&ins->rumble_timer, ms);
     btstack_run_loop_add_timer(&ins->rumble_timer);
+}
+
+void uni_hid_parser_ds4_device_dump(uni_hid_device_t* d) {
+    ds4_instance_t* ins = get_ds4_instance(d);
+    logi("\tDS4: FW version %#x, HW version %#x\n", ins->fw_version, ins->hw_version);
 }
 
 //
@@ -566,7 +610,48 @@ static void ds4_send_enable_lightbar_report(uni_hid_device_t* d) {
     ds4_send_output_report(d, &out);
 }
 
-void uni_hid_parser_ds4_device_dump(uni_hid_device_t* d) {
+static void ds4_parse_mouse(uni_hid_device_t* d, const ds4_input_report_11_t* r) {
     ds4_instance_t* ins = get_ds4_instance(d);
-    logi("\tDS4: FW version %#x, HW version %#x\n", ins->fw_version, ins->hw_version);
+
+    // We can safely assume that device is connected and report is valid, otherwise
+    // this function should have not been called.
+
+    if (r->num_touch_reports < 1) {
+        ins->prev_touch_active = false;
+        return;
+    }
+
+    uni_controller_t* ctl = &d->controller;
+    const ds4_touch_point_t* point = &r->touches[0].points[0];
+
+    int x = (point->x_hi << 8) + point->x_lo;
+    int y = (point->y_hi << 4) + point->y_lo;
+
+    if (ins->prev_touch_active) {
+        ctl->mouse.delta_x = x - ins->x_prev;
+        ctl->mouse.delta_y = y - ins->y_prev;
+    } else {
+        ctl->mouse.delta_x = 0;
+        ctl->mouse.delta_y = 0;
+    }
+
+    // "Click" on Touchpad
+    if (r->buttons[2] & 0x02) {
+        // Touchpad is divided in 0.75 (left) + 0.25 (right)
+        // Touchpad range: ~ 1920 x 1084
+        if (x < 1440)
+            ctl->mouse.buttons |= MOUSE_BUTTON_LEFT;
+        else
+            ctl->mouse.buttons |= MOUSE_BUTTON_RIGHT;
+        // TODO: Support middle button.
+    }
+
+    // Previous delta only if we are touching the touchpad.
+    ins->prev_touch_active = !(point->contact & BIT(7));
+
+    // Update prev regarless of whether it is valid.
+    ins->x_prev = x;
+    ins->y_prev = y;
+
+    uni_hid_device_process_controller(d);
 }

@@ -109,10 +109,8 @@ static void pc_debug_on_controller_data(uni_hid_device_t* d, uni_controller_t* c
     }
     prev = *ctl;
     // Print device Id before dumping gamepad.
-    if (ctl->klass == UNI_CONTROLLER_CLASS_MOUSE) {
-        logi("(%p) ", d);
-        uni_controller_dump(ctl);
-    }
+    logi("(%p) ", d);
+    uni_controller_dump(ctl);
 
     switch (ctl->klass) {
         case UNI_CONTROLLER_CLASS_GAMEPAD:

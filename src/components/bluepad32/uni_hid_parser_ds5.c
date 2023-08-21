@@ -662,10 +662,15 @@ static void ds5_parse_mouse(uni_hid_device_t* d, const uint8_t* report, uint16_t
     }
 
     // "Click" on Touchpad
-    ctl->mouse.buttons = (r->buttons[2] & 0x02) ? MOUSE_BUTTON_LEFT : 0;
-    // "Click" on "bar" button that is below the PS button
-    ctl->mouse.buttons |= (r->buttons[2] & 0x04) ? MOUSE_BUTTON_RIGHT : 0;
-    // TODO: Support middle button.
+    if (r->buttons[2] & 0x02) {
+        // Touchpad is divided in 0.75 (left) + 0.25 (right)
+        // Touchpad range: ~ 1920 x 1084
+        if (x < 1440)
+            ctl->mouse.buttons |= MOUSE_BUTTON_LEFT;
+        else
+            ctl->mouse.buttons |= MOUSE_BUTTON_RIGHT;
+        // TODO: Support middle button.
+    }
 
     // Previous delta only if we are touching the touchpad.
     ins->prev_touch_active = !(r->points[0].contact & BIT(7));
