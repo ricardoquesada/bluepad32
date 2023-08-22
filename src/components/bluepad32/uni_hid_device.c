@@ -137,8 +137,7 @@ void uni_hid_device_init(uni_hid_device_t* d) {
 uni_hid_device_t* uni_hid_device_get_instance_for_address(bd_addr_t addr) {
     for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         // Ignore virtual devices since they share the same address with their parents
-        if (!uni_hid_device_is_virtual_device(&g_devices[i]) &&
-            bd_addr_cmp(addr, g_devices[i].conn.btaddr) == 0) {
+        if (!uni_hid_device_is_virtual_device(&g_devices[i]) && bd_addr_cmp(addr, g_devices[i].conn.btaddr) == 0) {
             return &g_devices[i];
         }
     }
