@@ -217,8 +217,8 @@ void uni_hid_parser_ds5_init_report(uni_hid_device_t* d) {
     ctl->klass = UNI_CONTROLLER_CLASS_GAMEPAD;
 
     // If we have a virtual child, set it up as mouse
-    if (d->virtual_child) {
-        uni_controller_t* virtual_ctl = &d->virtual_child->controller;
+    if (d->child) {
+        uni_controller_t* virtual_ctl = &d->child->controller;
         memset(virtual_ctl, 0, sizeof(*virtual_ctl));
 
         virtual_ctl->klass = UNI_CONTROLLER_CLASS_MOUSE;
@@ -455,8 +455,8 @@ void uni_hid_parser_ds5_parse_input_report(uni_hid_device_t* d, const uint8_t* r
     // The +1 is to avoid having a value of 0, which means "battery unavailable".
     ctl->battery = (r->status & DS5_STATUS_BATTERY_CAPACITY) * 25 + 1;
 
-    if (d->virtual_child) {
-        ds5_parse_mouse(d->virtual_child, report, len);
+    if (d->child) {
+        ds5_parse_mouse(d->child, report, len);
     }
 }
 
@@ -635,7 +635,7 @@ static void ds5_send_enable_lightbar_report(uni_hid_device_t* d) {
     if (!uni_hid_device_set_ready_complete(child)) {
         // Could happen that the platform rejects the virtual device.
         // E.g: Mouse not supported. If that's the case, break the link
-        d->virtual_child = NULL;
+        d->child = NULL;
     }
 }
 
@@ -664,7 +664,7 @@ static void ds5_parse_mouse(uni_hid_device_t* d, const uint8_t* report, uint16_t
     // "Click" on Touchpad
     if (r->buttons[2] & 0x02) {
         // Touchpad is divided in 0.75 (left) + 0.25 (right)
-        // Touchpad range: ~ 1920 x 1084
+        // Touchpad range: 1920 x 1080
         if (x < 1440)
             ctl->mouse.buttons |= MOUSE_BUTTON_LEFT;
         else

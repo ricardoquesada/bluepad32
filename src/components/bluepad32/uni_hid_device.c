@@ -103,8 +103,8 @@ uni_hid_device_t* uni_hid_device_create_virtual(uni_hid_device_t* parent) {
             // virtual devices.
             bd_addr_copy(g_devices[i].conn.btaddr, parent->conn.btaddr);
 
-            g_devices[i].virtual = true;
-            parent->virtual_child = &g_devices[i];
+            g_devices[i].parent = parent;
+            parent->child = &g_devices[i];
 
             g_devices[i].product_id = parent->product_id;
             g_devices[i].vendor_id = parent->vendor_id;
@@ -137,7 +137,8 @@ void uni_hid_device_init(uni_hid_device_t* d) {
 uni_hid_device_t* uni_hid_device_get_instance_for_address(bd_addr_t addr) {
     for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         // Ignore virtual devices since they share the same address with their parents
-        if (!g_devices[i].virtual && bd_addr_cmp(addr, g_devices[i].conn.btaddr) == 0) {
+        if (!uni_hid_device_is_virtual_device(&g_devices[i]) &&
+            bd_addr_cmp(addr, g_devices[i].conn.btaddr) == 0) {
             return &g_devices[i];
         }
     }
@@ -419,8 +420,8 @@ void uni_hid_device_connect(uni_hid_device_t* d) {
 
 void uni_hid_device_disconnect(uni_hid_device_t* d) {
     // Disconnect child first
-    if (d->virtual_child)
-        uni_hid_device_disconnect(d->virtual_child);
+    if (d->child)
+        uni_hid_device_disconnect(d->child);
 
     // Might be called from different states... perhaps the device was already connected.
     // Or perhaps it got disconnected in the middle of a connection.
@@ -431,7 +432,7 @@ void uni_hid_device_disconnect(uni_hid_device_t* d) {
         return;
     }
 
-    if (d->virtual)
+    if (uni_hid_device_is_virtual_device(d))
         logi("Disconnecting virtual device: %s\n", bd_addr_to_str(d->conn.btaddr));
     else
         logi("Disconnecting device: %s\n", bd_addr_to_str(d->conn.btaddr));
@@ -463,10 +464,10 @@ void uni_hid_device_delete(uni_hid_device_t* d) {
     }
 
     // Delete child first
-    if (d->virtual_child)
-        uni_hid_device_delete(d->virtual_child);
+    if (d->child)
+        uni_hid_device_delete(d->child);
 
-    if (d->virtual)
+    if (uni_hid_device_is_virtual_device(d))
         logi("Deleting virtual device: %s\n", bd_addr_to_str(d->conn.btaddr));
     else
         logi("Deleting device: %s\n", bd_addr_to_str(d->conn.btaddr));
@@ -481,7 +482,7 @@ void uni_hid_device_dump_device(uni_hid_device_t* d) {
     char* conn_type;
     gap_connection_type_t type;
 
-    if (d->virtual) {
+    if (uni_hid_device_is_virtual_device(d)) {
         conn_type = "virtual";
     } else {
         type = gap_get_connection_type(d->conn.handle);
@@ -846,6 +847,11 @@ bool uni_hid_device_is_gamepad(uni_hid_device_t* d) {
     // If it a gamepad or a joystick, then we treat it as a gamepad
     uint32_t gamepad_cod = UNI_BT_COD_MINOR_GAMEPAD | UNI_BT_COD_MINOR_JOYSTICK;
     return (d->cod & UNI_BT_COD_MAJOR_PERIPHERAL) && (d->cod & gamepad_cod);
+}
+
+bool uni_hid_device_is_virtual_device(uni_hid_device_t* d) {
+    // Safe to assume that when parent is not NULL, it means it is a virtual device.
+    return d->parent != NULL;
 }
 
 // Helpers

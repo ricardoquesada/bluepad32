@@ -117,13 +117,13 @@ struct uni_hid_device_s {
     // Bluetooth connection info.
     uni_bt_conn_t conn;
 
-    // Whether or not the device is "virtual".
-    // For example, the "mouse" in the DualShock4 is a "virtual" device, while the gamepad is the
-    // non-virtual one.
-    bool virtual;
-    // When a physical controller has a virtual child. For example, DualShock4 has the "mouse" as
-    // a child.
-    struct uni_hid_device_s* virtual_child;
+    // Link to parent device. Used only when the device is a "virtual child".
+    // Safe to assume that when parent != NULL, then it is a "virtual" device.
+    // For example, the mouse implemented by DualShock4 has the "gamepad" as parent.
+    struct uni_hid_device_s* parent;
+    // When a physical controller has a child, like a "virtual device"
+    // For example, DualShock4 has the "mouse" as a child.
+    struct uni_hid_device_s* child;
 };
 typedef struct uni_hid_device_s uni_hid_device_t;
 
@@ -202,5 +202,7 @@ bool uni_hid_device_does_require_hid_descriptor(uni_hid_device_t* d);
 bool uni_hid_device_is_gamepad(uni_hid_device_t* d);
 bool uni_hid_device_is_mouse(uni_hid_device_t* d);
 bool uni_hid_device_is_keyboard(uni_hid_device_t* d);
+
+bool uni_hid_device_is_virtual_device(uni_hid_device_t* d);
 
 #endif  // UNI_HID_DEVICE_H

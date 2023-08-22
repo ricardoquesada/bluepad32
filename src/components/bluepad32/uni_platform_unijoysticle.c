@@ -454,7 +454,8 @@ static uni_error_t unijoysticle_on_device_ready(uni_hid_device_t* d) {
         return UNI_ERROR_INVALID_DEVICE;
     }
 
-    if (d->virtual && !(g_variant->flags & UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_VIRTUAL_MOUSE)) {
+    if (uni_hid_device_is_virtual_device(d) &&
+        !(g_variant->flags & UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_VIRTUAL_MOUSE)) {
         // Virtual Controller not supported
         return UNI_ERROR_INVALID_CONTROLLER;
     }
@@ -1739,9 +1740,9 @@ static void try_swap_ports(uni_hid_device_t* d) {
     for (int j = 0; j < CONFIG_BLUEPAD32_MAX_DEVICES; j++) {
         uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
         uni_platform_unijoysticle_instance_t* tmp_ins = uni_platform_unijoysticle_get_instance(tmp_d);
-        if (uni_bt_conn_is_connected(&tmp_d->conn) &&                                  // Is it connected ?
-            tmp_ins->seat != GAMEPAD_SEAT_NONE &&                                      // Does it have a seat ?
-            !tmp_d->virtual &&                                                         // Is it vritual ?
+        if (uni_bt_conn_is_connected(&tmp_d->conn) &&  // Is it connected ?
+            tmp_ins->seat != GAMEPAD_SEAT_NONE &&      // Does it have a seat ?
+            !uni_hid_device_is_virtual_device(tmp_d) &&
             tmp_ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL &&  // Is it in "Normal" mode ?
             ((tmp_d->controller.gamepad.misc_buttons & (MISC_BUTTON_SYSTEM | MISC_BUTTON_BACK)) == 0)  // misc pressed?
         ) {
