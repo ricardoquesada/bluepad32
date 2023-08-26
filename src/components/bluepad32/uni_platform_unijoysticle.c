@@ -223,8 +223,6 @@ static void maybe_enable_bluetooth(bool enabled);
 
 // --- Consts (ROM)
 
-static const bd_addr_t zero_addr = {0, 0, 0, 0, 0, 0};
-
 // Keep them in the order of the defines
 static const char* mouse_modes[] = {
     "unknown",  // UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_FROM_BOARD_MODEL
@@ -399,23 +397,18 @@ static void unijoysticle_on_init_complete(void) {
 }
 
 static void unijoysticle_on_device_connected(uni_hid_device_t* d) {
-    int connected = 0;
     if (d == NULL) {
         loge("ERROR: unijoysticle_on_device_connected: Invalid NULL device\n");
     }
 
-    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
-        uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(i);
-        if (uni_bt_conn_is_connected(&tmp_d->conn))
-            connected++;
-    }
-
-    if (connected == 2) {
-        maybe_enable_bluetooth(false);
-    }
+    // Just blink when a connection is started
+    blink_bt_led(1);
 }
 
 static void unijoysticle_on_device_disconnected(uni_hid_device_t* d) {
+    int connected;
+    uni_hid_device_t* tmp_d;
+
     if (d == NULL) {
         loge("ERROR: unijoysticle_on_device_disconnected: Invalid NULL device\n");
         return;
@@ -433,14 +426,25 @@ static void unijoysticle_on_device_disconnected(uni_hid_device_t* d) {
         ins->gamepad_mode = UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL;
     }
 
-    // Regarless of how many connections are active, enable Bluetooth connections.
-    maybe_enable_bluetooth(true);
+    // Only count "physical" devices
+    connected = 0;
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
+        tmp_d = uni_hid_device_get_instance_for_idx(i);
+        if (uni_bt_conn_is_connected(&tmp_d->conn) && !uni_hid_device_is_virtual_device(tmp_d))
+            connected++;
+    }
+
+    if (connected < 2)
+        maybe_enable_bluetooth(true);
 
     maybe_enable_mouse_timers();
 }
 
 static uni_error_t unijoysticle_on_device_ready(uni_hid_device_t* d) {
     int wanted_seat;
+    int connected;
+    uni_hid_device_t* tmp_d;
+    uni_hid_device_t* virtual_d = NULL;
 
     if (d == NULL) {
         loge("ERROR: unijoysticle_on_device_ready: Invalid NULL device\n");
@@ -460,16 +464,36 @@ static uni_error_t unijoysticle_on_device_ready(uni_hid_device_t* d) {
         return UNI_ERROR_INVALID_CONTROLLER;
     }
 
+    // Allow new connections when a physical + virtual is present.
+    // The virtual one will get disconnected.
     uint32_t used_joystick_ports = 0;
     for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
-        uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(i);
+        tmp_d = uni_hid_device_get_instance_for_idx(i);
+        if (tmp_d != d && uni_hid_device_is_virtual_device(tmp_d)) {
+            // Only one virtual device can be present, so it won't be overriden.
+            virtual_d = tmp_d;
+            continue;
+        }
         used_joystick_ports |= uni_platform_unijoysticle_get_instance(tmp_d)->seat;
     }
 
-    // Either two gamepads are connected, or one is in Twin Stick mode.
+    // Either two physical gamepads are connected, or one is in Twin Stick mode.
     // Don't allow new connections.
     if (used_joystick_ports == (GAMEPAD_SEAT_A | GAMEPAD_SEAT_B))
         return UNI_ERROR_NO_SLOTS;
+
+    // If virtual device is not NULL it means that there was at least two connections:
+    // - parent
+    // - virtual
+    // So, disconnect the virtual to allow the new connection.
+    if (virtual_d) {
+        if (virtual_d->parent)
+            virtual_d->parent->child = NULL;
+        uni_hid_device_disconnect(virtual_d);
+        uni_hid_device_delete(virtual_d);
+        /* virtual_d is invalid now */
+        virtual_d = NULL;
+    }
 
     if (uni_hid_device_is_mouse(d))
         wanted_seat = g_variant->preferred_seat_for_mouse;
@@ -485,6 +509,17 @@ static uni_error_t unijoysticle_on_device_ready(uni_hid_device_t* d) {
     }
 
     set_gamepad_seat(d, wanted_seat);
+
+    connected = 0;
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
+        uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(i);
+        if (uni_bt_conn_is_connected(&tmp_d->conn) && !uni_hid_device_is_virtual_device(tmp_d))
+            connected++;
+    }
+
+    if (connected == 2) {
+        maybe_enable_bluetooth(false);
+    }
 
     maybe_enable_mouse_timers();
 
@@ -1231,9 +1266,8 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
         uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(i);
         if (tmp_d == NULL)
             continue;
-        if (bd_addr_cmp(tmp_d->conn.btaddr, zero_addr) != 0) {
+        if (uni_bt_conn_is_connected(&tmp_d->conn))
             all_seats |= uni_platform_unijoysticle_get_instance(tmp_d)->seat;
-        }
     }
 
     bool status_a = ((all_seats & GAMEPAD_SEAT_A) != 0);
