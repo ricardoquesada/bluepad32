@@ -30,6 +30,11 @@ limitations under the License.
 #include "uni_hid_parser.h"
 #include "uni_log.h"
 
+// Xbox doesn't report trigger buttons. Instead it reports throttle/brake.
+// This threshold represents the minimum value of throttle/brake to "report"
+// the trigger buttons.
+#define TRIGGER_BUTTON_THRESHOLD 32
+
 static const uint16_t XBOX_WIRELESS_VID = 0x045e;  // Microsoft
 static const uint16_t XBOX_WIRELESS_PID = 0x02e0;  // Xbox One (Bluetooth)
 
@@ -60,7 +65,7 @@ enum xboxone_firmware {
     // The one that came pre-installed, or close to it.
     XBOXONE_FIRMWARE_V3_1,
     // The one released in 2019-10
-    XBOXONE_FIRMWARE_V4_8,  // Valid for 5.15 as well
+    XBOXONE_FIRMWARE_V4_8,  // Valid for fw 5.x as well
 };
 
 // xboxone_instance_t represents data used by the Wii driver instance.
@@ -103,10 +108,10 @@ void uni_hid_parser_xboxone_setup(uni_hid_device_t* d) {
     // FIXME: Parse HID descriptor and see if it supports 0xf buttons. Checking
     // for the len is a horrible hack.
     if (d->hid_descriptor_len > 330) {
-        logi("Xbox one: Assuming it is firmware 4.8 / 5.15\n");
+        logi("Xbox one: Assuming it is firmware v4.8 / v5.x\n");
         ins->version = XBOXONE_FIRMWARE_V4_8;
     } else {
-        // It is really firmware 4.8, it will be set later
+        // If it is really firmware 4.8, it will be set later.
         logi("Xbox one: Assuming it is firmware 3.1\n");
         ins->version = XBOXONE_FIRMWARE_V3_1;
     }
@@ -238,10 +243,10 @@ static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
                         ctl->gamepad.buttons |= BUTTON_THUMB_R;
                     break;
                 case 0x0f: {
-                    // Only available in firmware v4.8 / 5.15
+                    // Only available in firmware v4.8 / 5.x
                     xboxone_instance_t* ins = get_xboxone_instance(d);
                     ins->version = XBOXONE_FIRMWARE_V4_8;
-                    logi("Xbox one: Firmware 4.8 / 5.15 detected\n");
+                    logi("Xbox one: Firmware 4.8 / 5.x detected\n");
                     break;
                 }
                 default:
@@ -319,9 +324,13 @@ static void parse_usage_firmware_v4_8(uni_hid_device_t* d,
             switch (usage) {
                 case 0xc4:  // Accelerator
                     ctl->gamepad.throttle = uni_hid_parser_process_pedal(globals, value);
+                    if (ctl->gamepad.throttle >= TRIGGER_BUTTON_THRESHOLD)
+                        ctl->gamepad.buttons |= BUTTON_TRIGGER_R;
                     break;
                 case 0xc5:  // Brake
                     ctl->gamepad.brake = uni_hid_parser_process_pedal(globals, value);
+                    if (ctl->gamepad.brake >= TRIGGER_BUTTON_THRESHOLD)
+                        ctl->gamepad.buttons |= BUTTON_TRIGGER_L;
                     break;
                 default:
                     logi("Xbox One: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
