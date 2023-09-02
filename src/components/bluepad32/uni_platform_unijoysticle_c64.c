@@ -101,7 +101,7 @@ uni_platform_unijoysticle_c64_pot_mode_t _pot_mode = UNI_PLATFORM_UNIJOYSTICLE_C
 static struct {
     struct arg_str* value;
     struct arg_end* end;
-} set_c64_pot_mode_args;
+} c64_pot_mode_args;
 
 static btstack_context_callback_registration_t syncirq_callback_registration;
 
@@ -215,42 +215,44 @@ static IRAM_ATTR void gpio_isr_handler_paddle(void* arg) {
     }
 }
 
-static int cmd_set_c64_pot_mode(int argc, char** argv) {
-    int nerrors = arg_parse(argc, argv, (void**)&set_c64_pot_mode_args);
+static void print_c64_pot_mode(void) {
+    int mode = get_c64_pot_mode_from_nvs();
+
+    if (mode >= UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_COUNT) {
+        logi("Invalid C64 Pot mode: %d\n", mode);
+        return;
+    }
+
+    logi("%s\n", c64_pot_modes[mode]);
+}
+
+static int cmd_c64_pot_mode(int argc, char** argv) {
+    int nerrors = arg_parse(argc, argv, (void**)&c64_pot_mode_args);
     if (nerrors != 0) {
-        arg_print_errors(stderr, set_c64_pot_mode_args.end, argv[0]);
-        return 1;
+        arg_print_errors(stderr, c64_pot_mode_args.end, argv[0]);
+
+        // Don't treat as error, just print current value.
+        print_c64_pot_mode();
+        return 0;
     }
 
     int mode = 0;
 
-    if (strcmp(set_c64_pot_mode_args.value->sval[0], "3buttons") == 0) {
+    if (strcmp(c64_pot_mode_args.value->sval[0], "3buttons") == 0) {
         mode = UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_C64_POT_MODE_3BUTTONS;
-    } else if (strcmp(set_c64_pot_mode_args.value->sval[0], "5buttons") == 0) {
+    } else if (strcmp(c64_pot_mode_args.value->sval[0], "5buttons") == 0) {
         mode = UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_C64_POT_MODE_5BUTTONS;
-    } else if (strcmp(set_c64_pot_mode_args.value->sval[0], "rumble") == 0) {
+    } else if (strcmp(c64_pot_mode_args.value->sval[0], "rumble") == 0) {
         mode = UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_C64_POT_MODE_RUMBLE;
-    } else if (strcmp(set_c64_pot_mode_args.value->sval[0], "paddle") == 0) {
+    } else if (strcmp(c64_pot_mode_args.value->sval[0], "paddle") == 0) {
         mode = UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_C64_POT_MODE_PADDLE;
     } else {
-        loge("Invalid C64 Pot mode: : %s\n", set_c64_pot_mode_args.value->sval[0]);
+        loge("Invalid C64 Pot mode: : %s\n", c64_pot_mode_args.value->sval[0]);
         loge("Valid values: '3buttons', '5buttons', 'rumble' or 'paddle'\n");
         return 1;
     }
 
     uni_platform_unijoysticle_run_cmd(mode);
-    return 0;
-}
-
-static int cmd_get_c64_pot_mode(int argc, char** argv) {
-    int mode = get_c64_pot_mode_from_nvs();
-
-    if (mode >= UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_COUNT) {
-        logi("Invalid C64 Pot mode: %d\n", mode);
-        return 1;
-    }
-
-    logi("%s\n", c64_pot_modes[mode]);
     return 0;
 }
 
@@ -458,29 +460,21 @@ static void on_init_complete_c64(void) {
 }
 
 void register_console_cmds_c64(void) {
-    set_c64_pot_mode_args.value =
+    c64_pot_mode_args.value =
         arg_str1(NULL, NULL, "<mode>", "valid options: '3buttons', '5buttons', 'rumble' or 'paddle'");
-    set_c64_pot_mode_args.end = arg_end(2);
+    c64_pot_mode_args.end = arg_end(2);
 
-    const esp_console_cmd_t set_c64_pot_mode = {
-        .command = "set_c64_pot_mode",
+    const esp_console_cmd_t c64_pot_mode = {
+        .command = "c64_pot_mode",
         .help =
-            "Sets C64 Pot mode.\n"
+            "Get/Set C64 Pot mode.\n"
             "  Default: 3buttons",
         .hint = NULL,
-        .func = &cmd_set_c64_pot_mode,
-        .argtable = &set_c64_pot_mode_args,
+        .func = &cmd_c64_pot_mode,
+        .argtable = &c64_pot_mode_args,
     };
 
-    const esp_console_cmd_t get_c64_pot_mode = {
-        .command = "get_c64_pot_mode",
-        .help = "Returns the C64 Pot mode",
-        .hint = NULL,
-        .func = &cmd_get_c64_pot_mode,
-    };
-
-    ESP_ERROR_CHECK(esp_console_cmd_register(&set_c64_pot_mode));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&get_c64_pot_mode));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&c64_pot_mode));
 }
 
 static bool process_gamepad_misc_buttons_c64(uni_hid_device_t* d, uni_gamepad_seat_t seat, uint8_t misc_buttons) {

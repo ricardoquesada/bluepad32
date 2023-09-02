@@ -93,10 +93,10 @@ limitations under the License.
 #define AUTOFIRE_CPS_DEFAULT AUTOFIRE_CPS_QUICKGUN
 
 // Balance Board defaults
-#define BB_FIRE_MAX_FRAMES 25              // Max frames that fire can be kept pressed
-#define BB_IDLE_THRESHOLD 1600             // Below this value, it is considered that noone is on top of the BB
-#define BB_MOVE_THRESHOLD_DEFAULT 1500     // Diff in weight to consider a Movement
-#define BB_FIRE_THRESHOLD_DEFAULT 1000000  // Max weight before staring the "de-accel" to trigger fire.
+#define BB_FIRE_MAX_FRAMES 25           // Max frames that fire can be kept pressed
+#define BB_IDLE_THRESHOLD 1600          // Below this value, it is considered that noone is on top of the BB
+#define BB_MOVE_THRESHOLD_DEFAULT 1500  // Diff in weight to consider a Movement
+#define BB_FIRE_THRESHOLD_DEFAULT 5000  // Max weight before staring the "de-accel" to trigger fire.
 
 #define TASK_AUTOFIRE_PRIO (9)
 #define TASK_PUSH_BUTTON_PRIO (8)
@@ -198,16 +198,11 @@ static void maybe_enable_mouse_timers(void);
 
 // Commands or Event related
 static int cmd_swap_ports(int argc, char** argv);
-static int cmd_set_gamepad_mode(int argc, char** argv);
-static int cmd_get_gamepad_mode(int argc, char** argv);
-static int cmd_set_autofire_cps(int argc, char** argv);
-static int cmd_get_autofire_cps(int argc, char** argv);
-static int cmd_set_bb_move_threshold(int argc, char** argv);
-static int cmd_get_bb_move_threshold(int argc, char** argv);
-static int cmd_set_bb_fire_threshold(int argc, char** argv);
-static int cmd_get_bb_fire_threshold(int argc, char** argv);
-static int cmd_set_mouse_emulation(int argc, char** argv);
-static int cmd_get_mouse_emulation(int argc, char** argv);
+static int cmd_gamepad_mode(int argc, char** argv);
+static int cmd_autofire_cps(int argc, char** argv);
+static int cmd_bb_move_threshold(int argc, char** argv);
+static int cmd_bb_fire_threshold(int argc, char** argv);
+static int cmd_mouse_emulation(int argc, char** argv);
 static int cmd_version(int argc, char** argv);
 static int get_bb_move_threshold_from_nvs(void);
 static int get_bb_fire_threshold_from_nvs(void);
@@ -262,27 +257,27 @@ static int mouse_emulation_cached;
 static struct {
     struct arg_str* value;
     struct arg_end* end;
-} set_gamepad_mode_args;
+} gamepad_mode_args;
 
 static struct {
     struct arg_int* value;
     struct arg_end* end;
-} set_autofire_cps_args;
+} autofire_cps_args;
 
 static struct {
     struct arg_int* value;
     struct arg_end* end;
-} set_bb_move_threshold_args;
+} bb_move_threshold_args;
 
 static struct {
     struct arg_int* value;
     struct arg_end* end;
-} set_bb_fire_threshold_args;
+} bb_fire_threshold_args;
 
 static struct {
     struct arg_str* value;
     struct arg_end* end;
-} set_mouse_emulation_args;
+} mouse_emulation_args;
 
 static btstack_context_callback_registration_t cmd_callback_registration;
 
@@ -722,19 +717,33 @@ static int get_mouse_emulation_from_nvs(void) {
     return value.u8;
 }
 
-static int cmd_set_mouse_emulation(int argc, char** argv) {
-    int nerrors = arg_parse(argc, argv, (void**)&set_mouse_emulation_args);
-    if (nerrors != 0) {
-        arg_print_errors(stderr, set_mouse_emulation_args.end, argv[0]);
-        return 1;
+static void print_mouse_emulation(void) {
+    int mode = get_mouse_emulation_from_nvs();
+
+    if (mode >= UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_COUNT) {
+        logi("Invalid mouse emulation: %d\n", mode);
+        return;
     }
 
-    if (strcmp(set_mouse_emulation_args.value->sval[0], "amiga") == 0) {
+    logi("%s\n", mouse_modes[mode]);
+}
+
+static int cmd_mouse_emulation(int argc, char** argv) {
+    int nerrors = arg_parse(argc, argv, (void**)&mouse_emulation_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, mouse_emulation_args.end, argv[0]);
+
+        // Don't treat as error, just print current value.
+        print_mouse_emulation();
+        return 0;
+    }
+
+    if (strcmp(mouse_emulation_args.value->sval[0], "amiga") == 0) {
         set_mouse_emulation_to_nvs(UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_AMIGA);
-    } else if (strcmp(set_mouse_emulation_args.value->sval[0], "atarist") == 0) {
+    } else if (strcmp(mouse_emulation_args.value->sval[0], "atarist") == 0) {
         set_mouse_emulation_to_nvs(UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_ATARIST);
     } else {
-        loge("Invalid mouse emulation: %s\n", set_mouse_emulation_args.value->sval[0]);
+        loge("Invalid mouse emulation: %s\n", mouse_emulation_args.value->sval[0]);
         loge("Valid values: 'amiga' or 'atarist'\n");
         return 1;
     }
@@ -742,55 +751,35 @@ static int cmd_set_mouse_emulation(int argc, char** argv) {
     return 0;
 }
 
-static int cmd_get_mouse_emulation(int argc, char** argv) {
-    int mode = get_mouse_emulation_from_nvs();
-
-    if (mode >= UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_COUNT) {
-        logi("Invalid mouse emulation: %d\n", mode);
-        return 1;
-    }
-
-    logi("%s\n", mouse_modes[mode]);
-    return 0;
-}
-
 static void register_console_cmds_quadrature_mouse(void) {
-    set_mouse_emulation_args.value = arg_str1(NULL, NULL, "<emulation>", "valid options: 'amiga' or 'atarist'");
-    set_mouse_emulation_args.end = arg_end(2);
+    mouse_emulation_args.value = arg_str1(NULL, NULL, "<emulation>", "valid options: 'amiga' or 'atarist'");
+    mouse_emulation_args.end = arg_end(2);
 
-    const esp_console_cmd_t set_mouse_emulation = {
-        .command = "set_mouse_emulation",
+    const esp_console_cmd_t mouse_emulation = {
+        .command = "mouse_emulation",
         .help =
             "Sets mouse emulation mode.\n"
             "  Default: amiga",
         .hint = NULL,
-        .func = &cmd_set_mouse_emulation,
-        .argtable = &set_mouse_emulation_args,
+        .func = &cmd_mouse_emulation,
+        .argtable = &mouse_emulation_args,
     };
 
-    const esp_console_cmd_t get_mouse_emulation = {
-        .command = "get_mouse_emulation",
-        .help = "Returns mouse emulation mode",
-        .hint = NULL,
-        .func = &cmd_get_mouse_emulation,
-    };
-
-    ESP_ERROR_CHECK(esp_console_cmd_register(&set_mouse_emulation));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&get_mouse_emulation));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&mouse_emulation));
 }
 
 static void unijoysticle_register_cmds(void) {
-    set_gamepad_mode_args.value = arg_str1(NULL, NULL, "<mode>", "valid options: 'normal', 'twinstick' or 'mouse'");
-    set_gamepad_mode_args.end = arg_end(2);
+    gamepad_mode_args.value = arg_str1(NULL, NULL, "<mode>", "valid options: 'normal', 'twinstick' or 'mouse'");
+    gamepad_mode_args.end = arg_end(2);
 
-    set_autofire_cps_args.value = arg_int1(NULL, NULL, "<cps>", "clicks per second (cps)");
-    set_autofire_cps_args.end = arg_end(2);
+    autofire_cps_args.value = arg_int1(NULL, NULL, "<cps>", "clicks per second (cps)");
+    autofire_cps_args.end = arg_end(2);
 
-    set_bb_move_threshold_args.value = arg_int1(NULL, NULL, "<threshold>", "balance board 'move weight' threshold");
-    set_bb_move_threshold_args.end = arg_end(2);
+    bb_move_threshold_args.value = arg_int1(NULL, NULL, "<threshold>", "balance board 'move weight' threshold");
+    bb_move_threshold_args.end = arg_end(2);
 
-    set_bb_fire_threshold_args.value = arg_int1(NULL, NULL, "<threshold>", "balance board 'fire weight' threshold");
-    set_bb_fire_threshold_args.end = arg_end(2);
+    bb_fire_threshold_args.value = arg_int1(NULL, NULL, "<threshold>", "balance board 'fire weight' threshold");
+    bb_fire_threshold_args.end = arg_end(2);
 
     const esp_console_cmd_t swap_ports = {
         .command = "swap_ports",
@@ -799,41 +788,25 @@ static void unijoysticle_register_cmds(void) {
         .func = &cmd_swap_ports,
     };
 
-    const esp_console_cmd_t set_gamepad_mode = {
-        .command = "set_gamepad_mode",
+    const esp_console_cmd_t gamepad_mode = {
+        .command = "gamepad_mode",
         .help =
-            "Sets the gamepad mode.\n"
+            "Get/Set the gamepad mode.\n"
             "  At least one gamepad must be connected.\n"
             "  Default: normal",
         .hint = NULL,
-        .func = &cmd_set_gamepad_mode,
-        .argtable = &set_gamepad_mode_args,
+        .func = &cmd_gamepad_mode,
+        .argtable = &gamepad_mode_args,
     };
 
-    const esp_console_cmd_t get_gamepad_mode = {
-        .command = "get_gamepad_mode",
+    const esp_console_cmd_t autofire_cps = {
+        .command = "autofire_cps",
         .help =
-            "Returns the gamepad mode.\n"
-            "  At least one gamepad must be connected",
-        .hint = NULL,
-        .func = &cmd_get_gamepad_mode,
-    };
-
-    const esp_console_cmd_t set_autofire_cps = {
-        .command = "set_autofire_cps",
-        .help =
-            "Sets the autofire 'clicks per second' (cps)\n"
+            "Get/Set the autofire 'clicks per second' (cps)\n"
             "Default: 7",
         .hint = NULL,
-        .func = &cmd_set_autofire_cps,
-        .argtable = &set_autofire_cps_args,
-    };
-
-    const esp_console_cmd_t get_autofire_cps = {
-        .command = "get_autofire_cps",
-        .help = "Returns the autofire 'clicks per second' (cps)",
-        .hint = NULL,
-        .func = &cmd_get_autofire_cps,
+        .func = &cmd_autofire_cps,
+        .argtable = &autofire_cps_args,
     };
 
     const esp_console_cmd_t version = {
@@ -843,46 +816,33 @@ static void unijoysticle_register_cmds(void) {
         .func = &cmd_version,
     };
 
-    const esp_console_cmd_t set_bb_move_threshold = {
-        .command = "set_bb_move_threshold",
+    const esp_console_cmd_t bb_move_threshold = {
+        .command = "bb_move_threshold",
         .help =
-            "Sets the Balance Board 'Move Weight' threshold\n"
-            "Default: 5000",  // BB_MOVE_THRESHOLD_DEFAULT
+            "Get/Set the Balance Board 'Move Weight' threshold\n"
+            "Default: 1500",  // BB_MOVE_THRESHOLD_DEFAULT
         .hint = NULL,
-        .func = &cmd_set_bb_move_threshold,
-        .argtable = &set_bb_move_threshold_args,
+        .func = &cmd_bb_move_threshold,
+        .argtable = &bb_move_threshold_args,
     };
 
-    const esp_console_cmd_t get_bb_move_threshold = {
-        .command = "get_bb_move_threshold",
-        .help = "Returns the Balance Board Move threshold (weight)",
-        .hint = NULL,
-        .func = &cmd_get_bb_move_threshold,
-    };
-
-    const esp_console_cmd_t set_bb_fire_threshold = {
-        .command = "set_bb_fire_threshold",
+    const esp_console_cmd_t bb_fire_threshold = {
+        .command = "bb_fire_threshold",
         .help =
-            "Sets the Balance Board 'Fire Weight' threshold\n"
-            "Default: 50000",  // BB_FIRE_THRESHOLD_DEFAULT
+            "Get/Set the Balance Board 'Fire Weight' threshold\n"
+            "Default: 5000",  // BB_FIRE_THRESHOLD_DEFAULT
         .hint = NULL,
-        .func = &cmd_set_bb_fire_threshold,
-        .argtable = &set_bb_fire_threshold_args,
-    };
-
-    const esp_console_cmd_t get_bb_fire_threshold = {
-        .command = "get_bb_fire_threshold",
-        .help = "Returns the Balance Board Fire threshold (weight)",
-        .hint = NULL,
-        .func = &cmd_get_bb_fire_threshold,
+        .func = &cmd_bb_fire_threshold,
+        .argtable = &bb_fire_threshold_args,
     };
 
     ESP_ERROR_CHECK(esp_console_cmd_register(&swap_ports));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&set_gamepad_mode));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&get_gamepad_mode));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&gamepad_mode));
 
-    ESP_ERROR_CHECK(esp_console_cmd_register(&set_autofire_cps));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&get_autofire_cps));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&autofire_cps));
+
+    ESP_ERROR_CHECK(esp_console_cmd_register(&bb_move_threshold));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&bb_fire_threshold));
 
     if (g_variant->flags & UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRATURE_MOUSE)
         register_console_cmds_quadrature_mouse();
@@ -890,12 +850,8 @@ static void unijoysticle_register_cmds(void) {
     if (g_variant->register_console_cmds)
         g_variant->register_console_cmds();
 
+    // Last one should be version.
     ESP_ERROR_CHECK(esp_console_cmd_register(&version));
-
-    ESP_ERROR_CHECK(esp_console_cmd_register(&set_bb_move_threshold));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&get_bb_move_threshold));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&set_bb_fire_threshold));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&get_bb_fire_threshold));
 }
 
 //
@@ -1671,36 +1627,31 @@ static void set_gamepad_mode(uni_hid_device_t* d, uni_platform_unijoysticle_game
     maybe_enable_mouse_timers();
 }
 
-static int cmd_set_gamepad_mode(int argc, char** argv) {
-    int nerrors = arg_parse(argc, argv, (void**)&set_gamepad_mode_args);
+static int cmd_gamepad_mode(int argc, char** argv) {
+    int nerrors = arg_parse(argc, argv, (void**)&gamepad_mode_args);
     if (nerrors != 0) {
-        arg_print_errors(stderr, set_gamepad_mode_args.end, argv[0]);
-        return 1;
+        arg_print_errors(stderr, gamepad_mode_args.end, argv[0]);
+
+        // Don't treat as error, just print current value.
+        uni_platform_unijoysticle_run_cmd(UNI_PLATFORM_UNIJOYSTICLE_CMD_GET_GAMEPAD_MODE);
+        return 0;
     }
 
     uni_platform_unijoysticle_cmd_t mode;
 
-    if (strcmp(set_gamepad_mode_args.value->sval[0], "normal") == 0) {
+    if (strcmp(gamepad_mode_args.value->sval[0], "normal") == 0) {
         mode = UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NORMAL;
-    } else if (strcmp(set_gamepad_mode_args.value->sval[0], "twinstick") == 0) {
+    } else if (strcmp(gamepad_mode_args.value->sval[0], "twinstick") == 0) {
         mode = UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_TWINSTICK;
-    } else if (strcmp(set_gamepad_mode_args.value->sval[0], "mouse") == 0) {
+    } else if (strcmp(gamepad_mode_args.value->sval[0], "mouse") == 0) {
         mode = UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_MOUSE;
     } else {
-        loge("Invalid mouse emulation: %s\n", set_gamepad_mode_args.value->sval[0]);
+        loge("Invalid mouse emulation: %s\n", gamepad_mode_args.value->sval[0]);
         loge("Valid values: 'normal', 'twinstick', or 'mouse'\n");
         return 1;
     }
 
     uni_platform_unijoysticle_run_cmd(mode);
-    return 0;
-}
-
-static int cmd_get_gamepad_mode(int argc, char** argv) {
-    ARG_UNUSED(argc);
-    ARG_UNUSED(argv);
-
-    uni_platform_unijoysticle_run_cmd(UNI_PLATFORM_UNIJOYSTICLE_CMD_GET_GAMEPAD_MODE);
     return 0;
 }
 
@@ -1799,13 +1750,19 @@ static int cmd_swap_ports(int argc, char** argv) {
     return 0;
 }
 
-static int cmd_set_autofire_cps(int argc, char** argv) {
-    int nerrors = arg_parse(argc, argv, (void**)&set_autofire_cps_args);
+static int cmd_autofire_cps(int argc, char** argv) {
+    int cps;
+
+    int nerrors = arg_parse(argc, argv, (void**)&autofire_cps_args);
     if (nerrors != 0) {
-        arg_print_errors(stderr, set_autofire_cps_args.end, argv[0]);
-        return 1;
+        arg_print_errors(stderr, autofire_cps_args.end, argv[0]);
+
+        // Don't treat as error, just print current value.
+        cps = get_autofire_cps_from_nvs();
+        logi("%d\n", cps);
+        return 0;
     }
-    int cps = set_autofire_cps_args.value->ival[0];
+    cps = autofire_cps_args.value->ival[0];
     set_autofire_cps_to_nvs(cps);
 
     logi("New autofire cps: %d\n", cps);
@@ -1814,20 +1771,17 @@ static int cmd_set_autofire_cps(int argc, char** argv) {
     return 0;
 }
 
-static int cmd_get_autofire_cps(int argc, char** argv) {
-    int cps = get_autofire_cps_from_nvs();
-
-    logi("%d\n", cps);
-    return 0;
-}
-
-static int cmd_set_bb_move_threshold(int argc, char** argv) {
-    int nerrors = arg_parse(argc, argv, (void**)&set_bb_move_threshold_args);
+static int cmd_bb_move_threshold(int argc, char** argv) {
+    int nerrors = arg_parse(argc, argv, (void**)&bb_move_threshold_args);
     if (nerrors != 0) {
-        arg_print_errors(stderr, set_bb_move_threshold_args.end, argv[0]);
-        return 1;
+        arg_print_errors(stderr, bb_move_threshold_args.end, argv[0]);
+
+        // Don't treat as error, just print current value.
+        int threshold = get_bb_move_threshold_from_nvs();
+        logi("%d\n", threshold);
+        return 0;
     }
-    int threshold = set_bb_move_threshold_args.value->ival[0];
+    int threshold = bb_move_threshold_args.value->ival[0];
     set_bb_move_threshold_to_nvs(threshold);
 
     // Update static value
@@ -1837,33 +1791,23 @@ static int cmd_set_bb_move_threshold(int argc, char** argv) {
     return 0;
 }
 
-static int cmd_get_bb_move_threshold(int argc, char** argv) {
-    int threshold = get_bb_move_threshold_from_nvs();
-
-    logi("%d\n", threshold);
-    return 0;
-}
-
-static int cmd_set_bb_fire_threshold(int argc, char** argv) {
-    int nerrors = arg_parse(argc, argv, (void**)&set_bb_fire_threshold_args);
+static int cmd_bb_fire_threshold(int argc, char** argv) {
+    int nerrors = arg_parse(argc, argv, (void**)&bb_fire_threshold_args);
     if (nerrors != 0) {
-        arg_print_errors(stderr, set_bb_fire_threshold_args.end, argv[0]);
-        return 1;
+        arg_print_errors(stderr, bb_fire_threshold_args.end, argv[0]);
+
+        // Don't treat as error, just print current value.
+        int threshold = get_bb_fire_threshold_from_nvs();
+        logi("%d\n", threshold);
+        return 0;
     }
-    int threshold = set_bb_fire_threshold_args.value->ival[0];
+    int threshold = bb_fire_threshold_args.value->ival[0];
     set_bb_fire_threshold_to_nvs(threshold);
 
     // Update static value
     balanceboard_fire_threshold = threshold;
 
     logi("New Balance Board Fire threshold: %d\n", threshold);
-    return 0;
-}
-
-static int cmd_get_bb_fire_threshold(int argc, char** argv) {
-    int threshold = get_bb_fire_threshold_from_nvs();
-
-    logi("%d\n", threshold);
     return 0;
 }
 

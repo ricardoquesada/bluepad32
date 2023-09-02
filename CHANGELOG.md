@@ -4,6 +4,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v3.9.0] - 2023-????
+### New
+- Add touchpad support for DualSense and DualShock4 controllers.
+  When one of these devices connect, it creates a mouse virtual device that is controlled
+  by the "gamepad" controller. So, two connections will appear.
+  - Fixes issue: [Gitlab Issue #33][gitlab_issue_33]
+- Unijoysticle A500: Virtual Device support to control Amiga mouse from DualSense and DualShock4.
+  It is possible to "swap" the mouse and joystick port, and a connection from a new controller disconnects
+  the virtual device (the mouse).
+  - Fixes issues: [Gitlab Issue #22][gitlab_issue_22]
+
+
+### Changed
+- Merge set/get console commands into one, making it a less polluted console.
+  If no arguments are passed, it behaves like a getter.
+  - `set_autofire_cps` / `get_autofire_cps` -> `autofire_cps`
+  - `set_gamepad_mode` / `get_gamepad_mode` -> `gamepad_mode`
+  - `set_bb_move_threshold` / `get_bb_move_threshold` -> `bb_move_threshold`
+  - `set_bb_fire_threshold` / `get_bb_fire_threshold` -> `bb_fire_threshold`
+  - `set_c64_pot_mode` / `get_c64_pot_mode` -> `c64_pot_mode`
+  - `set_mouse_scale` / `get_mouse_scale` -> `mouse_scale`
+  - `set_gap_security_level` / `get_gap_security_level` -> `gap_security_level`
+  - `set_gap_periodic_inquiry` / `get_gap_peridic_inquiry` -> `gap_periodic_inquiry`
+  - `set_ble_enabled` / `get_ble_enabled` -> `ble_enable`
+  - `set_incoming_connections_enabled` / `incoming_connections_enable`
+
+### Fixed
+- Xbox: Maps R1/R2 to Brake/Gas ([Bug GL34][gitlab_issue_34])
+
+[gitlab_issue_22]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/22
+[gitlab_issue_33]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/33
+[gitlab_issue_34]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/34
+
 ## [v3.8.3] - 2023-08-09
 ### Fixed
 - Allowlist: Don't show "error" message when there is no error.

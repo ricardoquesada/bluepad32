@@ -51,29 +51,29 @@ static char buf_disconnect[16];
 static struct {
     struct arg_dbl* value;
     struct arg_end* end;
-} mouse_set_args;
+} mouse_scale_args;
 
 static struct {
     struct arg_int* value;
     struct arg_end* end;
-} set_gap_security_level_args;
+} gap_security_level_args;
 
 static struct {
     struct arg_int* max;
     struct arg_int* min;
     struct arg_int* len;
     struct arg_end* end;
-} set_gap_periodic_inquiry_args;
+} gap_periodic_inquiry_args;
 
 static struct {
     struct arg_int* enabled;
     struct arg_end* end;
-} set_incoming_connections_enabled_args;
+} incoming_connections_enable_args;
 
 static struct {
     struct arg_int* enabled;
     struct arg_end* end;
-} set_ble_enabled_args;
+} ble_enable_args;
 
 static struct {
     struct arg_int* idx;
@@ -88,7 +88,7 @@ static struct {
 static struct {
     struct arg_int* enabled;
     struct arg_end* end;
-} allowlist_enabled_args;
+} allowlist_enable_args;
 
 static int list_devices(int argc, char** argv) {
     // FIXME: Should not belong to "bluetooth"
@@ -100,26 +100,28 @@ static int list_devices(int argc, char** argv) {
     return 0;
 }
 
-static int mouse_get(int argc, char** argv) {
+static void print_mouse_scale(void) {
     char buf[32];
     float scale = uni_mouse_quadrature_get_scale_factor();
 
     // ets_printf() doesn't support "%f"
     sprintf(buf, "%f\n", scale);
     logi(buf);
-    return 0;
 }
 
-static int mouse_set(int argc, char** argv) {
+static int mouse_scale(int argc, char** argv) {
     float scale;
 
-    int nerrors = arg_parse(argc, argv, (void**)&mouse_set_args);
+    int nerrors = arg_parse(argc, argv, (void**)&mouse_scale_args);
     if (nerrors != 0) {
-        arg_print_errors(stderr, mouse_set_args.end, argv[0]);
-        return 1;
+        arg_print_errors(stderr, mouse_scale_args.end, argv[0]);
+
+        // Don't treat as error, just print current value.
+        print_mouse_scale();
+        return 0;
     }
 
-    scale = mouse_set_args.value->dval[0];
+    scale = mouse_scale_args.value->dval[0];
     uni_mouse_quadrature_set_scale_factor(scale);
     logi("Done\n");
     return 0;
@@ -128,39 +130,44 @@ static int mouse_set(int argc, char** argv) {
 static int set_gap_security_level(int argc, char** argv) {
     int gap;
 
-    int nerrors = arg_parse(argc, argv, (void**)&set_gap_security_level_args);
+    int nerrors = arg_parse(argc, argv, (void**)&gap_security_level_args);
     if (nerrors != 0) {
-        arg_print_errors(stderr, set_gap_security_level_args.end, argv[0]);
-        return 1;
+        arg_print_errors(stderr, gap_security_level_args.end, argv[0]);
+
+        // Don't treat as error, just print current value.
+        int gap = uni_bt_get_gap_security_level();
+        logi("%d\n", gap);
+        return 0;
     }
 
-    gap = set_gap_security_level_args.value->ival[0];
+    gap = gap_security_level_args.value->ival[0];
     uni_bt_set_gap_security_level(gap);
     logi("Done. Restart required. Type 'restart' + Enter\n");
     return 0;
 }
 
-static int get_gap_security_level(int argc, char** argv) {
-    ARG_UNUSED(argc);
-    ARG_UNUSED(argv);
-
-    int gap = uni_bt_get_gap_security_level();
-    logi("%d\n", gap);
-    return 0;
+static void print_gap_periodic_inquiry(void) {
+    int max = uni_bt_get_gap_max_periodic_lenght();
+    int min = uni_bt_get_gap_min_periodic_lenght();
+    int len = uni_bt_get_gap_inquiry_lenght();
+    logi("GAP max periodic len: %d, min periodic len: %d, inquiry len: %d\n", max, min, len);
 }
 
-static int set_gap_periodic_inquiry(int argc, char** argv) {
+static int gap_periodic_inquiry(int argc, char** argv) {
     int min, max, len;
 
-    int nerrors = arg_parse(argc, argv, (void**)&set_gap_periodic_inquiry_args);
+    int nerrors = arg_parse(argc, argv, (void**)&gap_periodic_inquiry_args);
     if (nerrors != 0) {
-        arg_print_errors(stderr, set_gap_periodic_inquiry_args.end, argv[0]);
-        return 1;
+        arg_print_errors(stderr, gap_periodic_inquiry_args.end, argv[0]);
+
+        // Don't treat as error, just print current value.
+        print_gap_periodic_inquiry();
+        return 0;
     }
 
-    max = set_gap_periodic_inquiry_args.max->ival[0];
-    min = set_gap_periodic_inquiry_args.min->ival[0];
-    len = set_gap_periodic_inquiry_args.len->ival[0];
+    max = gap_periodic_inquiry_args.max->ival[0];
+    min = gap_periodic_inquiry_args.min->ival[0];
+    len = gap_periodic_inquiry_args.len->ival[0];
     uni_bt_set_gap_max_peridic_length(max);
     uni_bt_set_gap_min_peridic_length(min);
     uni_bt_set_gap_inquiry_length(len);
@@ -168,41 +175,33 @@ static int set_gap_periodic_inquiry(int argc, char** argv) {
     return 0;
 }
 
-static int get_gap_periodic_inquiry(int argc, char** argv) {
-    ARG_UNUSED(argc);
-    ARG_UNUSED(argv);
-
-    int max = uni_bt_get_gap_max_periodic_lenght();
-    int min = uni_bt_get_gap_min_periodic_lenght();
-    int len = uni_bt_get_gap_inquiry_lenght();
-    logi("GAP max periodic len: %d, min periodic len: %d, inquiry len: %d\n", max, min, len);
-    return 0;
-}
-
-static int set_incoming_connections_enabled(int argc, char** argv) {
+static int incoming_connections_enable(int argc, char** argv) {
     int enabled;
 
-    int nerrors = arg_parse(argc, argv, (void**)&set_incoming_connections_enabled_args);
+    int nerrors = arg_parse(argc, argv, (void**)&incoming_connections_enable_args);
     if (nerrors != 0) {
-        arg_print_errors(stderr, set_incoming_connections_enabled_args.end, argv[0]);
-        return 1;
+        arg_print_errors(stderr, incoming_connections_enable_args.end, argv[0]);
+        return 0;
     }
 
-    enabled = set_incoming_connections_enabled_args.enabled->ival[0];
+    enabled = incoming_connections_enable_args.enabled->ival[0];
     uni_bt_enable_new_connections_safe(!!enabled);
     return 0;
 }
 
-static int set_ble_enabled(int argc, char** argv) {
+static int ble_enable(int argc, char** argv) {
     int enabled;
 
-    int nerrors = arg_parse(argc, argv, (void**)&set_ble_enabled_args);
+    int nerrors = arg_parse(argc, argv, (void**)&ble_enable_args);
     if (nerrors != 0) {
-        arg_print_errors(stderr, set_ble_enabled_args.end, argv[0]);
-        return 1;
+        arg_print_errors(stderr, ble_enable_args.end, argv[0]);
+
+        // Don't treat as error, just print current value.
+        logi("BLE: %s\n", uni_bt_le_is_enabled() ? "Enabled" : "Disabled");
+        return 0;
     }
 
-    enabled = set_ble_enabled_args.enabled->ival[0];
+    enabled = ble_enable_args.enabled->ival[0];
     uni_bt_le_set_enabled(!!enabled);
     logi("Done. Restart required. Type 'restart' + Enter\n");
     return 0;
@@ -283,39 +282,39 @@ static int allowlist_remove_addr(int argc, char** argv) {
 static int allowlist_enable(int argc, char** argv) {
     int enabled;
 
-    int nerrors = arg_parse(argc, argv, (void**)&allowlist_enabled_args);
+    int nerrors = arg_parse(argc, argv, (void**)&allowlist_enable_args);
     if (nerrors != 0) {
-        arg_print_errors(stderr, allowlist_enabled_args.end, argv[0]);
+        arg_print_errors(stderr, allowlist_enable_args.end, argv[0]);
 
         // Don't treat it as error, just report the current value
         logi("Bluetooth Allowlist: %s\n", uni_bt_allowlist_is_enabled() ? "Enabled" : "Disabled");
         return 0;
     }
 
-    enabled = allowlist_enabled_args.enabled->ival[0];
+    enabled = allowlist_enable_args.enabled->ival[0];
 
     uni_bt_allowlist_set_enabled(enabled);
     return 0;
 }
 
 static void register_bluepad32() {
-    mouse_set_args.value = arg_dbl1(NULL, NULL, "<value>", "Global mouse scale factor. Higher means faster");
-    mouse_set_args.end = arg_end(2);
+    mouse_scale_args.value = arg_dbl1(NULL, NULL, "<value>", "Global mouse scale factor. Higher means faster");
+    mouse_scale_args.end = arg_end(2);
 
-    set_gap_security_level_args.value = arg_int1(NULL, NULL, "<value>", "GAP security level");
-    set_gap_security_level_args.end = arg_end(2);
+    gap_security_level_args.value = arg_int1(NULL, NULL, "<value>", "GAP security level");
+    gap_security_level_args.end = arg_end(2);
 
-    set_gap_periodic_inquiry_args.max = arg_int1(NULL, NULL, "<max>", "Max periodic length. Must be bigger than <min>");
-    set_gap_periodic_inquiry_args.min = arg_int1(NULL, NULL, "<min>", "Min periodic length. Must be less than <max>");
-    set_gap_periodic_inquiry_args.len = arg_int1(NULL, NULL, "<len>", "Inquiry length. Must be less than <min>");
-    set_gap_periodic_inquiry_args.end = arg_end(4);
+    gap_periodic_inquiry_args.max = arg_int1(NULL, NULL, "<max>", "Max periodic length. Must be bigger than <min>");
+    gap_periodic_inquiry_args.min = arg_int1(NULL, NULL, "<min>", "Min periodic length. Must be less than <max>");
+    gap_periodic_inquiry_args.len = arg_int1(NULL, NULL, "<len>", "Inquiry length. Must be less than <min>");
+    gap_periodic_inquiry_args.end = arg_end(4);
 
-    set_incoming_connections_enabled_args.enabled =
+    incoming_connections_enable_args.enabled =
         arg_int1(NULL, NULL, "<0 | 1>", "Whether to allow Bluetooth incoming connections");
-    set_incoming_connections_enabled_args.end = arg_end(2);
+    incoming_connections_enable_args.end = arg_end(2);
 
-    set_ble_enabled_args.enabled = arg_int1(NULL, NULL, "<0 | 1>", "Whether to enable Bluetooth Low Energy (BLE)");
-    set_ble_enabled_args.end = arg_end(2);
+    ble_enable_args.enabled = arg_int1(NULL, NULL, "<0 | 1>", "Whether to enable Bluetooth Low Energy (BLE)");
+    ble_enable_args.end = arg_end(2);
 
     snprintf(buf_disconnect, sizeof(buf_disconnect) - 1, "<0 - %d>", CONFIG_BLUEPAD32_MAX_DEVICES - 1);
     disconnect_device_args.idx = arg_int1(NULL, NULL, buf_disconnect, "Device index to disconnect");
@@ -323,8 +322,8 @@ static void register_bluepad32() {
 
     allowlist_addr_args.addr = arg_str1(NULL, NULL, "<address>", "format: 01:23:45:67:89:ab");
     allowlist_addr_args.end = arg_end(2);
-    allowlist_enabled_args.enabled = arg_int1(NULL, NULL, "<0 | 1>", "Whether allowlist should be enforced");
-    allowlist_enabled_args.end = arg_end(2);
+    allowlist_enable_args.enabled = arg_int1(NULL, NULL, "<0 | 1>", "Whether allowlist should be enforced");
+    allowlist_enable_args.end = arg_end(2);
 
     const esp_console_cmd_t cmd_list_devices = {
         .command = "list_devices",
@@ -333,73 +332,52 @@ static void register_bluepad32() {
         .func = &list_devices,
     };
 
-    const esp_console_cmd_t cmd_get_mouse = {
-        .command = "get_mouse_scale",
-        .help = "Get global mouse scale factor",
+    const esp_console_cmd_t cmd_mouse_scale = {
+        .command = "mouse_scale",
+        .help =
+            "Get/Set global mouse scale factor. Default: 1.0\n"
+            "  Example: mouse_scale 0.5",
         .hint = NULL,
-        .func = &mouse_get,
+        .func = &mouse_scale,
+        .argtable = &mouse_scale_args,
     };
 
-    const esp_console_cmd_t cmd_set_mouse = {
-        .command = "set_mouse_scale",
+    const esp_console_cmd_t cmd_gap_security_level = {
+        .command = "gap_security_level",
         .help =
-            "Set global mouse scale factor. Default: 1.0\n"
-            "  Example: set_mouse_scale 0.5",
-        .hint = NULL,
-        .func = &mouse_set,
-        .argtable = &mouse_set_args,
-    };
-
-    const esp_console_cmd_t cmd_set_gap_security_level = {
-        .command = "set_gap_security_level",
-        .help =
-            "Set GAP security level. Default: 2\n"
+            "Get/Set GAP security level. Default: 2\n"
             "  Recommended values: 0, 1 or 2",
         .hint = NULL,
         .func = &set_gap_security_level,
-        .argtable = &set_gap_security_level_args,
+        .argtable = &gap_security_level_args,
     };
 
-    const esp_console_cmd_t cmd_get_gap_security_level = {
-        .command = "get_gap_security_level",
-        .help = "Get GAP security level",
-        .hint = NULL,
-        .func = &get_gap_security_level,
-    };
-
-    const esp_console_cmd_t cmd_set_gap_periodic_inquiry = {
-        .command = "set_gap_periodic_inquiry",
+    const esp_console_cmd_t cmd_gap_periodic_inquiry = {
+        .command = "gap_periodic_inquiry",
         .help =
-            "Set GAP periodic inquiry mode. Default: 5 4 3.\n"
+            "Get/Set GAP periodic inquiry mode. Default: 5 4 3.\n"
             "  Used for new connections / reconnections.\n"
             "  1 unit == 1.28 seconds\n"
             "  See Section 7.1.3 'Periodic Inquiry Mode Command' from Bluetooth spec",
         .hint = NULL,
-        .func = &set_gap_periodic_inquiry,
-        .argtable = &set_gap_periodic_inquiry_args,
+        .func = &gap_periodic_inquiry,
+        .argtable = &gap_periodic_inquiry_args,
     };
 
-    const esp_console_cmd_t cmd_get_gap_periodic_inquiry = {
-        .command = "get_gap_periodic_inquiry",
-        .help = "Get GAP periodic inquiry parameters",
+    const esp_console_cmd_t cmd_incoming_connections_enable = {
+        .command = "incoming_connections_enable",
+        .help = "Get/Set whether Bluetooth incoming connections are enabled",
         .hint = NULL,
-        .func = &get_gap_periodic_inquiry,
+        .func = &incoming_connections_enable,
+        .argtable = &incoming_connections_enable_args,
     };
 
-    const esp_console_cmd_t cmd_set_incoming_connections_enabled = {
-        .command = "set_incoming_connections_enabled",
-        .help = "Set Bluetooth incoming connections enabled",
+    const esp_console_cmd_t cmd_ble_enable = {
+        .command = "ble_enable",
+        .help = "Get/Set whether Bluetooth Low Energy (BLE) is enabled",
         .hint = NULL,
-        .func = &set_incoming_connections_enabled,
-        .argtable = &set_incoming_connections_enabled_args,
-    };
-
-    const esp_console_cmd_t cmd_set_ble_enabled = {
-        .command = "set_ble_enabled",
-        .help = "Set Bluetooth Low Energy (BLE) enabled",
-        .hint = NULL,
-        .func = &set_ble_enabled,
-        .argtable = &set_ble_enabled_args,
+        .func = &ble_enable,
+        .argtable = &ble_enable_args,
     };
 
     const esp_console_cmd_t cmd_list_bluetooth_keys = {
@@ -452,25 +430,22 @@ static void register_bluepad32() {
         .help = "Enables/Disables allowlist addresses",
         .hint = NULL,
         .func = &allowlist_enable,
-        .argtable = &allowlist_enabled_args,
+        .argtable = &allowlist_enable_args,
     };
 
-    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_set_gap_security_level));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_get_gap_security_level));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_set_gap_periodic_inquiry));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_get_gap_periodic_inquiry));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_get_mouse));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_set_mouse));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_list_devices));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_disconnect_device));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_gap_security_level));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_gap_periodic_inquiry));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_list_bluetooth_keys));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_del_bluetooth_keys));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_set_incoming_connections_enabled));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_set_ble_enabled));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_disconnect_device));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_incoming_connections_enable));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_ble_enable));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_allowlist_list));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_allowlist_add));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_allowlist_remove));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_allowlist_enable));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_mouse_scale));
 }
 
 void uni_console_init(void) {
