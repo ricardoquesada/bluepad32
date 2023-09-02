@@ -2,7 +2,6 @@ To apply the patches, do:
 
 ```
 cd ${BLUEPAD32_SRC}/external/btstack
-git apply < ../patches/0001-hci-allow-bonding-when-client-doesn-t-request-it.patch
 git apply < ../patches/0002-l2cap-allow-incoming-connection-with-not-enough.patch
 ```
 
