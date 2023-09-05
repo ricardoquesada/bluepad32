@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unijoysticle A500: Virtual Device support to control Amiga mouse from DualSense and DualShock4.
   It is possible to "swap" the mouse and joystick port, and a connection from a new controller disconnects
   the virtual device (the mouse).
-  - Fixes issues: [Gitlab Issue #22][gitlab_issue_22]
+  - Fixes issue: [Gitlab Issue #22][gitlab_issue_22]
 
 
 ### Changed
@@ -32,10 +32,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Xbox: Maps R1/R2 to Brake/Gas ([Bug GL34][gitlab_issue_34])
+- Xbox / Stadia / Steam (other BLE devices): Connection is reliable again
+  - Fixes issue: [Gitlab Issue #35][gitlab_issue_35]
 
 [gitlab_issue_22]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/22
 [gitlab_issue_33]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/33
 [gitlab_issue_34]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/34
+[gitlab_issue_35]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/35
 
 ## [v3.8.3] - 2023-08-09
 ### Fixed
