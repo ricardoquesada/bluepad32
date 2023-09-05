@@ -96,7 +96,6 @@ void uni_bt_bredr_scan_stop(void) {
 
 // Called from uni_hid_device_disconnect()
 void uni_bt_bredr_disconnect(uni_hid_device_t* d) {
-    loge("****uni_bt_bredr_disconnect\n");
     if (gap_get_connection_type(d->conn.handle) != GAP_CONNECTION_INVALID) {
         gap_disconnect(d->conn.handle);
         d->conn.handle = UNI_BT_CONN_HANDLE_INVALID;
