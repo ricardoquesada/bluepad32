@@ -418,6 +418,8 @@ void uni_hid_device_connect(uni_hid_device_t* d) {
 }
 
 void uni_hid_device_disconnect(uni_hid_device_t* d) {
+    gap_connection_type_t type;
+
     // Disconnect child first
     if (d->child)
         uni_hid_device_disconnect(d->child);
@@ -439,10 +441,15 @@ void uni_hid_device_disconnect(uni_hid_device_t* d) {
     connected = d->conn.connected;
 
     // Cleanup
-    if (IS_ENABLED(UNI_ENABLE_BREDR))
-        uni_bt_bredr_disconnect(&d->conn);
-    if (IS_ENABLED(UNI_ENABLE_BLE))
-        uni_bt_le_disconnect(&d->conn);
+    if (!uni_hid_device_is_virtual_device(d)) {
+        type = gap_get_connection_type(d->conn.handle);
+        if (IS_ENABLED(UNI_ENABLE_BLE) && type == GAP_CONNECTION_LE)
+            uni_bt_le_disconnect(d);
+        else if (IS_ENABLED(UNI_ENABLE_BREDR) && type == GAP_CONNECTION_ACL)
+            uni_bt_bredr_disconnect(d);
+        else
+            loge("uni_hid_device_disconnect: Unknown GAP connection type: %d\n", type);
+    }
 
     // Close possible open connections
     uni_bt_conn_disconnect(&d->conn);

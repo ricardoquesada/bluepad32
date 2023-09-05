@@ -373,6 +373,8 @@ static void device_information_packet_handler(uint8_t packet_type, uint16_t chan
                     status = hids_client_connect(con_handle, hids_client_packet_handler, HID_PROTOCOL_MODE_REPORT,
                                                  &hids_cid);
                     if (status == ERROR_CODE_COMMAND_DISALLOWED) {
+                        // Means that a HIDS client connection is already present.
+                        // We forgot to delete it.
                         // hids_client_disconnect(con_handle);
                     }
                     if (status != ERROR_CODE_SUCCESS) {
@@ -907,10 +909,10 @@ void uni_bt_le_scan_stop(void) {
     is_scanning = false;
 }
 
-void uni_bt_le_disconnect(uni_bt_conn_t* conn) {
+void uni_bt_le_disconnect(uni_hid_device_t* d) {
     // if (gap_get_connection_type(conn->handle) == GAP_CONNECTION_INVALID)
     //     return;
-    hog_disconnect(conn->handle);
+    hog_disconnect(d->conn.handle);
 }
 
 void uni_bt_le_set_enabled(bool enabled) {

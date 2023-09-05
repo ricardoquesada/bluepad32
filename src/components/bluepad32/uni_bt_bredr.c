@@ -95,22 +95,23 @@ void uni_bt_bredr_scan_stop(void) {
 }
 
 // Called from uni_hid_device_disconnect()
-void uni_bt_bredr_disconnect(uni_bt_conn_t* conn) {
-    if (gap_get_connection_type(conn->handle) != GAP_CONNECTION_INVALID) {
-        gap_disconnect(conn->handle);
-        conn->handle = UNI_BT_CONN_HANDLE_INVALID;
+void uni_bt_bredr_disconnect(uni_hid_device_t* d) {
+    loge("****uni_bt_bredr_disconnect\n");
+    if (gap_get_connection_type(d->conn.handle) != GAP_CONNECTION_INVALID) {
+        gap_disconnect(d->conn.handle);
+        d->conn.handle = UNI_BT_CONN_HANDLE_INVALID;
     } else {
         // After calling gap_disconnect() we should not call l2cap_disonnect(),
         // since gap_disconnect() will take care of it.
         // But if the handle is not present, then call it manually.
-        if (conn->control_cid) {
-            l2cap_disconnect(conn->control_cid);
-            conn->control_cid = 0;
+        if (d->conn.control_cid) {
+            l2cap_disconnect(d->conn.control_cid);
+            d->conn.control_cid = 0;
         }
 
-        if (conn->interrupt_cid) {
-            l2cap_disconnect(conn->interrupt_cid);
-            conn->interrupt_cid = 0;
+        if (d->conn.interrupt_cid) {
+            l2cap_disconnect(d->conn.interrupt_cid);
+            d->conn.interrupt_cid = 0;
         }
     }
 }

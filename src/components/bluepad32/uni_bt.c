@@ -145,7 +145,7 @@ static void enable_new_connections(bool enabled) {
     uni_get_platform()->on_oob_event(UNI_PLATFORM_OOB_BLUETOOTH_ENABLED, (void*)enabled);
 }
 
-static void on_hci_diconnection_complete(uint16_t channel, const uint8_t* packet, uint16_t size) {
+static void on_hci_disconnection_complete(uint16_t channel, const uint8_t* packet, uint16_t size) {
     uint16_t handle;
     uni_hid_device_t* d;
     gap_connection_type_t type;
@@ -170,13 +170,12 @@ static void on_hci_diconnection_complete(uint16_t channel, const uint8_t* packet
         // Device cannot be used after delete.
         d = NULL;
 
-        if (type == GAP_CONNECTION_LE) {
-            if (IS_ENABLED(UNI_ENABLE_BLE))
-                uni_bt_le_on_hci_diconnection_complete(channel, packet, size);
-        } else {
-            if (IS_ENABLED(UNI_ENABLE_BREDR))
-                uni_bt_bredr_on_hci_diconnection_complete(channel, packet, size);
-        }
+        if (IS_ENABLED(UNI_ENABLE_BLE) && type == GAP_CONNECTION_LE)
+            uni_bt_le_on_hci_diconnection_complete(channel, packet, size);
+        else if (IS_ENABLED(UNI_ENABLE_BREDR) && type == GAP_CONNECTION_ACL)
+            uni_bt_bredr_on_hci_diconnection_complete(channel, packet, size);
+        else
+            loge("on_hci_disconnection_complete: Unknown GAP connection type: %d\n", type);
     }
 }
 
@@ -324,7 +323,7 @@ void uni_bt_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
                     break;
                 case HCI_EVENT_DISCONNECTION_COMPLETE:
                     logi("--> HCI_EVENT_DISCONNECTION_COMPLETE\n");
-                    on_hci_diconnection_complete(channel, packet, size);
+                    on_hci_disconnection_complete(channel, packet, size);
                     break;
                 case HCI_EVENT_LINK_KEY_REQUEST:
                     logi("--> HCI_EVENT_LINK_KEY_REQUEST:\n");
