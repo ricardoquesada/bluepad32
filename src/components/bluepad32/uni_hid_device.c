@@ -741,16 +741,16 @@ void uni_hid_device_process_controller(uni_hid_device_t* d) {
 // event loop.
 void uni_hid_device_send_report(uni_hid_device_t* d, uint16_t cid, const uint8_t* report, uint16_t len) {
     if (d == NULL) {
-        loge("Invalid device\n");
+        loge("Send report: Invalid device\n");
         return;
     }
     if (cid <= 0) {
-        loge("Invalid cid: %d\n", cid);
+        loge("Send report: Invalid cid: %d\n", cid);
         return;
     }
 
     if (!report || len <= 0) {
-        loge("Invalid report\n");
+        loge("Send report: Invalid report\n");
         return;
     }
 

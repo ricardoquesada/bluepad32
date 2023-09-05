@@ -1,0 +1,26 @@
+From 643e2eeac8cb4d843d82a342146bb6bf94fb85c1 Mon Sep 17 00:00:00 2001
+From: Ricardo Quesada <ricardoquesada@gmail.com>
+Date: Mon, 4 Sep 2023 14:57:18 -0700
+Subject: [PATCH] Revert "gatt_client: don't emit event on error from api
+ function gatt_client_discover_characteristic_descriptors"
+
+This reverts commit 7045d3c0508e74262a4882ca3c46d45a91a9ca79.
+---
+ src/ble/gatt_client.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/ble/gatt_client.c b/src/ble/gatt_client.c
+index 6e9a823ac..9471b12a7 100644
+--- a/src/ble/gatt_client.c
++++ b/src/ble/gatt_client.c
+@@ -2385,6 +2385,7 @@ uint8_t gatt_client_discover_characteristic_descriptors(btstack_packet_handler_t
+     }
+ 
+     if (characteristic->value_handle == characteristic->end_handle){
++        emit_gatt_complete_event(gatt_client, ATT_ERROR_SUCCESS);
+         return ERROR_CODE_SUCCESS;
+     }
+     gatt_client->callback = callback;
+-- 
+2.42.0
+

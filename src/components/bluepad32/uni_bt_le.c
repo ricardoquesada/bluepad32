@@ -98,13 +98,21 @@ static void resume_scanning_hint(void) {
 
 static void hog_disconnect(hci_con_handle_t con_handle) {
     // MUST not call uni_hid_device_disconnect(), called from it.
+    uint8_t status;
     uni_hid_device_t* device;
+
+    device = uni_hid_device_get_instance_for_connection_handle(con_handle);
+    if (device) {
+        status = hids_client_disconnect(device->hids_cid);
+        if (status != ERROR_CODE_SUCCESS) {
+            loge("Failed to disconnect HIDS client for hids_cid=%d\n", device->hids_cid);
+        }
+        // gap_delete_bonding(0, device->conn.btaddr);
+    }
 
     if (gap_get_connection_type(con_handle) != GAP_CONNECTION_INVALID)
         gap_disconnect(con_handle);
-    device = uni_hid_device_get_instance_for_connection_handle(con_handle);
-    if (device)
-        hids_client_disconnect(device->hids_cid);
+
     resume_scanning_hint();
 }
 
@@ -364,6 +372,9 @@ static void device_information_packet_handler(uint8_t packet_type, uint16_t chan
                     logi("Search for HID service.\n");
                     status = hids_client_connect(con_handle, hids_client_packet_handler, HID_PROTOCOL_MODE_REPORT,
                                                  &hids_cid);
+                    if (status == ERROR_CODE_COMMAND_DISALLOWED) {
+                        // hids_client_disconnect(con_handle);
+                    }
                     if (status != ERROR_CODE_SUCCESS) {
                         logi("HID client connection failed, status 0x%02x\n", status);
                         hog_disconnect(con_handle);
@@ -372,7 +383,9 @@ static void device_information_packet_handler(uint8_t packet_type, uint16_t chan
                     logi("Using hids_cid=%d\n", hids_cid);
                     device->hids_cid = hids_cid;
 
-                    hids_client_enable_notifications(hids_cid);
+                    status = hids_client_enable_notifications(hids_cid);
+                    if (status != ERROR_CODE_SUCCESS)
+                        loge("Failed to enable client notifications for hics_cid=%d\n", hids_cid);
                     break;
                 default:
                     logi("Device Information service client connection failed, err 0x%02x.\n", status);
@@ -509,6 +522,7 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
     uni_hid_device_t* device;
     uint8_t status;
     uint8_t type;
+    hci_con_handle_t con_handle;
 
     ARG_UNUSED(channel);
     ARG_UNUSED(size);
@@ -558,15 +572,18 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
                  sm_event_reencryption_started_get_addr_type(packet), bd_addr_to_str(addr));
             break;
         case SM_EVENT_REENCRYPTION_COMPLETE:
+            con_handle = sm_event_reencryption_complete_get_handle(packet);
             switch (sm_event_reencryption_complete_get_status(packet)) {
                 case ERROR_CODE_SUCCESS:
                     logi("Re-encryption complete, success\n");
                     break;
                 case ERROR_CODE_CONNECTION_TIMEOUT:
                     logi("Re-encryption failed, timeout\n");
+                    hog_disconnect(con_handle);
                     break;
                 case ERROR_CODE_REMOTE_USER_TERMINATED_CONNECTION:
                     logi("Re-encryption failed, disconnected\n");
+                    hog_disconnect(con_handle);
                     break;
                 case ERROR_CODE_PIN_OR_KEY_MISSING:
                     logi("Re-encryption failed, bonding information missing\n\n");
@@ -585,7 +602,9 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
             sm_event_pairing_complete_get_address(packet, addr);
             device = uni_hid_device_get_instance_for_address(addr);
             if (!device) {
-                loge("SM_EVENT_PAIRING_COMPLETE: Invalid device\n");
+                con_handle = sm_event_pairing_complete_get_handle(packet);
+                loge("SM_EVENT_PAIRING_COMPLETE: Invalid device for addr %s\n", bd_addr_to_str(addr));
+                hog_disconnect(con_handle);
                 break;
             }
 
@@ -768,6 +787,14 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
     hog_connect(addr, addr_type);
 }
 
+void uni_bt_le_on_hci_diconnection_complete(uint16_t channel, const uint8_t* packet, uint16_t size) {
+    ARG_UNUSED(channel);
+    ARG_UNUSED(packet);
+    ARG_UNUSED(size);
+
+    resume_scanning_hint();
+}
+
 void uni_bt_le_list_bonded_keys(void) {
     bd_addr_t entry_address;
     int i;
@@ -881,8 +908,8 @@ void uni_bt_le_scan_stop(void) {
 }
 
 void uni_bt_le_disconnect(uni_bt_conn_t* conn) {
-    if (gap_get_connection_type(conn->handle) == GAP_CONNECTION_INVALID)
-        return;
+    // if (gap_get_connection_type(conn->handle) == GAP_CONNECTION_INVALID)
+    //     return;
     hog_disconnect(conn->handle);
 }
 

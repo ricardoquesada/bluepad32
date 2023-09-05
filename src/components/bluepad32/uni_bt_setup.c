@@ -58,8 +58,13 @@ static btstack_packet_callback_registration_t hci_event_callback_registration;
 
 static void maybe_delete_or_list_link_keys(void) {
     int32_t delete_keys = uni_get_platform()->get_property(UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS);
-    if (delete_keys != 1)
+    if (delete_keys != 1) {
+        if (IS_ENABLED(UNI_ENABLE_BREDR))
+            uni_bt_bredr_list_bonded_keys();
+        if (IS_ENABLED(UNI_ENABLE_BLE))
+            uni_bt_le_list_bonded_keys();
         return;
+    }
 
     if (IS_ENABLED(UNI_ENABLE_BREDR))
         uni_bt_bredr_delete_bonded_keys();

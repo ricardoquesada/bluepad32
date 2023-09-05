@@ -145,6 +145,41 @@ static void enable_new_connections(bool enabled) {
     uni_get_platform()->on_oob_event(UNI_PLATFORM_OOB_BLUETOOTH_ENABLED, (void*)enabled);
 }
 
+static void on_hci_diconnection_complete(uint16_t channel, const uint8_t* packet, uint16_t size) {
+    uint16_t handle;
+    uni_hid_device_t* d;
+    gap_connection_type_t type;
+
+    ARG_UNUSED(channel);
+    ARG_UNUSED(size);
+
+    handle = hci_event_disconnection_complete_get_connection_handle(packet);
+    // Xbox Wireless Controller starts an incoming connection when told to
+    // enter in "discovery mode". If the connection fails (HCI_EVENT_DISCONNECTION_COMPLETE
+    // is generated) then it starts the discovery.
+    // So, just delete the possible-previous created entry. This highly increase
+    // the reliability with Xbox Wireless controllers.
+    d = uni_hid_device_get_instance_for_connection_handle(handle);
+    if (d) {
+        // Get type before it gets destroyed.
+        type = gap_get_connection_type(d->conn.handle);
+
+        logi("Device %s disconnected, deleting it\n", bd_addr_to_str(d->conn.btaddr));
+        uni_hid_device_disconnect(d);
+        uni_hid_device_delete(d);
+        // Device cannot be used after delete.
+        d = NULL;
+
+        if (type == GAP_CONNECTION_LE) {
+            if (IS_ENABLED(UNI_ENABLE_BLE))
+                uni_bt_le_on_hci_diconnection_complete(channel, packet, size);
+        } else {
+            if (IS_ENABLED(UNI_ENABLE_BREDR))
+                uni_bt_bredr_on_hci_diconnection_complete(channel, packet, size);
+        }
+    }
+}
+
 static void cmd_callback(void* context) {
     uni_hid_device_t* d;
     unsigned long ctx = (unsigned long)context;
@@ -288,8 +323,8 @@ void uni_bt_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
                         uni_bt_bredr_on_hci_connection_complete(channel, packet, size);
                     break;
                 case HCI_EVENT_DISCONNECTION_COMPLETE:
-                    if (IS_ENABLED(UNI_ENABLE_BREDR))
-                        uni_bt_bredr_on_hci_diconnection_complete(channel, packet, size);
+                    logi("--> HCI_EVENT_DISCONNECTION_COMPLETE\n");
+                    on_hci_diconnection_complete(channel, packet, size);
                     break;
                 case HCI_EVENT_LINK_KEY_REQUEST:
                     logi("--> HCI_EVENT_LINK_KEY_REQUEST:\n");

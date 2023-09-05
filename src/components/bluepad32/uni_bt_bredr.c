@@ -674,27 +674,11 @@ void uni_bt_bredr_on_hci_connection_complete(uint16_t channel, const uint8_t* pa
 }
 
 void uni_bt_bredr_on_hci_diconnection_complete(uint16_t channel, const uint8_t* packet, uint16_t size) {
-    uint16_t handle;
-    uni_hid_device_t* d;
-
     ARG_UNUSED(channel);
+    ARG_UNUSED(packet);
     ARG_UNUSED(size);
 
-    logi("--> HCI_EVENT_DISCONNECTION_COMPLETE\n");
-    handle = hci_event_disconnection_complete_get_connection_handle(packet);
-    // Xbox Wireless Controller starts an incoming connection when told to
-    // enter in "discovery mode". If the connection fails (HCI_EVENT_DISCONNECTION_COMPLETE
-    // is generated) then it starts the discovery.
-    // So, just delete the possible-previous created entry. This highly increase
-    // the reliability with Xbox Wireless controllers.
-    d = uni_hid_device_get_instance_for_connection_handle(handle);
-    if (d) {
-        logi("Device %s disconnected, deleting it\n", bd_addr_to_str(d->conn.btaddr));
-        uni_hid_device_disconnect(d);
-        uni_hid_device_delete(d);
-        // device cannot be used after delete
-        d = NULL;
-    }
+    // Do something ???
 }
 
 void uni_bt_bredr_on_hci_pin_code_request(uint16_t channel, const uint8_t* packet, uint16_t size) {

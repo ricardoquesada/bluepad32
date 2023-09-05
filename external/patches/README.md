@@ -2,6 +2,7 @@ To apply the patches, do:
 
 ```
 cd ${BLUEPAD32_SRC}/external/btstack
+git apply < ../patches/0001-Revert-gatt_client-don-t-emit-event-on-error-from-ap.patch
 git apply < ../patches/0002-l2cap-allow-incoming-connection-with-not-enough.patch
 ```
 
