@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `set_incoming_connections_enabled` / `incoming_connections_enable`
 
 ### Fixed
-- Switch: Fix crash while parsing IMU data.
+- Switch: Fix crash while parsing IMU data ([Bug GH44][github_issue_44])
 - Xbox: Maps R1/R2 to Brake/Gas ([Bug GL34][gitlab_issue_34])
 - Xbox / Stadia / Steam (other BLE devices): Connection is reliable again
   - Fixes issue: [Gitlab Issue #35][gitlab_issue_35]
@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [gitlab_issue_33]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/33
 [gitlab_issue_34]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/34
 [gitlab_issue_35]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/35
+[github_issue_44]: https://github.com/ricardoquesada/bluepad32/issues/44
 
 ## [v3.8.3] - 2023-08-09
 ### Fixed
