@@ -712,7 +712,10 @@ static void parse_imu(uni_hid_device_t* d, const struct switch_imu_data_s* r) {
     int gyro[3];
 
     for (int i = 0; i < 3; i++) {
-        accel[i] = (r->accel[i] * ins->cal_accel.scale[i]) / ins->imu_cal_accel_divisor[i];
+        if (ins->imu_cal_accel_divisor[i] == 0)
+            accel[i] = r->accel[i];
+        else
+            accel[i] = (r->accel[i] * ins->cal_accel.scale[i]) / ins->imu_cal_accel_divisor[i];
         gyro[i] = mult_frac((SWITCH_IMU_PREC_RANGE_SCALE * (r->gyro[i] - ins->cal_gyro.offset[i])),
                             ins->cal_gyro.scale[i], ins->imu_cal_gyro_divisor[i]);
     }
