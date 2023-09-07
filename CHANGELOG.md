@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `set_incoming_connections_enabled` / `incoming_connections_enable`
 
 ### Fixed
+- Switch: Fix crash while parsing IMU data.
 - Xbox: Maps R1/R2 to Brake/Gas ([Bug GL34][gitlab_issue_34])
 - Xbox / Stadia / Steam (other BLE devices): Connection is reliable again
   - Fixes issue: [Gitlab Issue #35][gitlab_issue_35]
