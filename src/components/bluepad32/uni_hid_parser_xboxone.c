@@ -111,7 +111,7 @@ void uni_hid_parser_xboxone_setup(uni_hid_device_t* d) {
         ins->version = XBOXONE_FIRMWARE_V4_8;
     } else {
         // If it is really firmware 4.8, it will be set later.
-        logi("Xbox one: Assuming it is firmware 3.1\n");
+        logi("Xbox one: Assuming it is firmware v3.1\n");
         ins->version = XBOXONE_FIRMWARE_V3_1;
     }
 
@@ -415,11 +415,11 @@ static void parse_usage_firmware_v4_v5(uni_hid_device_t* d,
             switch (usage) {
                 case HID_USAGE_RECORD:
                     // Model 1914: Share button
-                    // Model 1807: reports it but always 0
+                    // Model 1708: reports it but always 0
                     // FW 5.15.5
                     if (ins->version != XBOXONE_FIRMWARE_V5) {
                         ins->version = XBOXONE_FIRMWARE_V5;
-                        logi("Xbox One: Assuming Xbox FW version 5.x\n");
+                        logi("Xbox One: Assuming it is firmware v5.x\n");
                     }
                     break;
                 case HID_USAGE_AC_BACK:  // Back in v4.8 (not v5.x)

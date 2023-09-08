@@ -233,11 +233,11 @@ Classic Controller can be used.
 
 - This is the "2 button" model
 - Must be the *model 1708* (released in 2016) and not earlier. *Model 1797* should work.
-- Supports Xbox Controller firmware: v3.1 (BR/ERD), v4.8 (BR/ERD), v5.15 (BLE)
-- Supported features: rumble
+- Supports Xbox Controller firmware: v3.1 (BR/EDR), v4.8 (BR/EDR), v5.15 or newer (BLE)
+- Supported features: rumble (when using BR/EDR)
 - Pair instructions: Same as model "1914", see below.
 - Protocol:
-  - BLE: Since firmware 5
+  - BLE: Since firmware v5
   - BR/EDR: Before firmware v5
 
 [xbox_1708_ebay]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw=xbox+wireless+controller+1708&_sacat=0
@@ -249,7 +249,7 @@ Classic Controller can be used.
 
 - This is the "3 button" model
 - Should be *model 1914*. Other "3 button" models should work as well.
-- Supports Xbox Controller firmware: v5.15
+- Supports Xbox Controller firmware: v5.15 or newer
 - Supported features: N/A
 - Pair instructions:
   - Turn on your controller by pressing the Xbox button.
@@ -264,7 +264,7 @@ Classic Controller can be used.
 
 [![Xbox adaptive][xbox_adaptive_img]][xbox_adaptive_site]
 
-- Supports Xbox Controller firmware: v5.15
+- Supports Xbox Controller firmware: v5.15 or newer
 - Pair instructions:
   - Press "pair" button at the back of the controller.
   - Wait until Xbox logo blinks
