@@ -62,10 +62,9 @@ static const uint8_t xbox_hid_descriptor_4_8_fw[] = {
 // Supported Xbox One firmware revisions.
 // Probably there are more revisions, but I only found two in the "wild".
 enum xboxone_firmware {
-    // The one that came pre-installed, or close to it.
-    XBOXONE_FIRMWARE_V3_1,
-    // The one released in 2019-10
-    XBOXONE_FIRMWARE_V4_8,  // Valid for fw 5.x as well
+    XBOXONE_FIRMWARE_V3_1,  // The one that came pre-installed, or close to it.
+    XBOXONE_FIRMWARE_V4_8,  // The one released in 2019-10
+    XBOXONE_FIRMWARE_V5,    // BLE version
 };
 
 // xboxone_instance_t represents data used by the Wii driver instance.
@@ -80,11 +79,11 @@ static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
                                       uint16_t usage_page,
                                       uint16_t usage,
                                       int32_t value);
-static void parse_usage_firmware_v4_8(uni_hid_device_t* d,
-                                      hid_globals_t* globals,
-                                      uint16_t usage_page,
-                                      uint16_t usage,
-                                      int32_t value);
+static void parse_usage_firmware_v4_v5(uni_hid_device_t* d,
+                                       hid_globals_t* globals,
+                                       uint16_t usage_page,
+                                       uint16_t usage,
+                                       int32_t value);
 
 // Needed for the GameSir T3s controller when put in iOS mode, which is basically impersonates a
 // Xbox Wireless controller with FW 4.8.
@@ -108,7 +107,7 @@ void uni_hid_parser_xboxone_setup(uni_hid_device_t* d) {
     // FIXME: Parse HID descriptor and see if it supports 0xf buttons. Checking
     // for the len is a horrible hack.
     if (d->hid_descriptor_len > 330) {
-        logi("Xbox one: Assuming it is firmware v4.8 / v5.x\n");
+        logi("Xbox one: Assuming it is firmware v4.8 or v5.x\n");
         ins->version = XBOXONE_FIRMWARE_V4_8;
     } else {
         // If it is really firmware 4.8, it will be set later.
@@ -136,7 +135,8 @@ void uni_hid_parser_xboxone_parse_usage(uni_hid_device_t* d,
     if (ins->version == XBOXONE_FIRMWARE_V3_1) {
         parse_usage_firmware_v3_1(d, globals, usage_page, usage, value);
     } else {
-        parse_usage_firmware_v4_8(d, globals, usage_page, usage, value);
+        // Valid for v4 and v5
+        parse_usage_firmware_v4_v5(d, globals, usage_page, usage, value);
     }
 }
 
@@ -276,14 +276,16 @@ static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
     }
 }
 
-// v4.8 is almost identical to the Android mappings.
-static void parse_usage_firmware_v4_8(uni_hid_device_t* d,
-                                      hid_globals_t* globals,
-                                      uint16_t usage_page,
-                                      uint16_t usage,
-                                      int32_t value) {
+// v4.8 / 5.x are almost identical to the Android mappings.
+static void parse_usage_firmware_v4_v5(uni_hid_device_t* d,
+                                       hid_globals_t* globals,
+                                       uint16_t usage_page,
+                                       uint16_t usage,
+                                       int32_t value) {
     uint8_t hat;
     uni_controller_t* ctl = &d->controller;
+
+    xboxone_instance_t* ins = get_xboxone_instance(d);
 
     switch (usage_page) {
         case HID_USAGE_PAGE_GENERIC_DESKTOP:
@@ -381,7 +383,10 @@ static void parse_usage_firmware_v4_8(uni_hid_device_t* d,
                     break;
                 case 0x09:  // Unused
                 case 0x0a:  // Unused
-                case 0x0b:  // Unused
+                    break;
+                case 0x0b:  // Unused in v4.8, used in v5.x
+                    if (value)
+                        ctl->gamepad.misc_buttons |= MISC_BUTTON_BACK;
                     break;
                 case 0x0c:  // Burger button
                     if (value)
@@ -409,9 +414,15 @@ static void parse_usage_firmware_v4_8(uni_hid_device_t* d,
         case HID_USAGE_PAGE_CONSUMER:
             switch (usage) {
                 case HID_USAGE_RECORD:
+                    // Model 1914: Share button
+                    // Model 1807: reports it but always 0
                     // FW 5.15.5
+                    if (ins->version != XBOXONE_FIRMWARE_V5) {
+                        ins->version = XBOXONE_FIRMWARE_V5;
+                        logi("Xbox One: Assuming Xbox FW version 5.x\n");
+                    }
                     break;
-                case HID_USAGE_AC_BACK:  // Back
+                case HID_USAGE_AC_BACK:  // Back in v4.8 (not v5.x)
                     if (value)
                         ctl->gamepad.misc_buttons |= MISC_BUTTON_BACK;
                     break;
