@@ -105,7 +105,7 @@ static void hog_disconnect(hci_con_handle_t con_handle) {
     if (device) {
         status = hids_client_disconnect(device->hids_cid);
         if (status != ERROR_CODE_SUCCESS) {
-            loge("Failed to disconnect HIDS client for hids_cid=%d\n", device->hids_cid);
+            loge("Failed to disconnect HIDS client for hids_cid=%d, status=%d\n", device->hids_cid, status);
         }
         // gap_delete_bonding(0, device->conn.btaddr);
     }
@@ -368,7 +368,7 @@ static void device_information_packet_handler(uint8_t packet_type, uint16_t chan
                         break;
                     }
 
-                    // continue - query primary services
+                    // Continue - query primary services.
                     logi("Search for HID service.\n");
                     status = hids_client_connect(con_handle, hids_client_packet_handler, HID_PROTOCOL_MODE_REPORT,
                                                  &hids_cid);

@@ -149,11 +149,15 @@ static void on_hci_disconnection_complete(uint16_t channel, const uint8_t* packe
     uint16_t handle;
     uni_hid_device_t* d;
     gap_connection_type_t type;
+    uint8_t status, reason;
 
     ARG_UNUSED(channel);
     ARG_UNUSED(size);
 
     handle = hci_event_disconnection_complete_get_connection_handle(packet);
+    reason = hci_event_disconnection_complete_get_reason(packet);
+    status = hci_event_disconnection_complete_get_status(packet);
+
     // Xbox Wireless Controller starts an incoming connection when told to
     // enter in "discovery mode". If the connection fails (HCI_EVENT_DISCONNECTION_COMPLETE
     // is generated) then it starts the discovery.
@@ -164,7 +168,8 @@ static void on_hci_disconnection_complete(uint16_t channel, const uint8_t* packe
         // Get type before it gets destroyed.
         type = gap_get_connection_type(d->conn.handle);
 
-        logi("Device %s disconnected, deleting it\n", bd_addr_to_str(d->conn.btaddr));
+        logi("Device %s disconnected, deleting it. Reason=%#x, status=%d\n", bd_addr_to_str(d->conn.btaddr), reason,
+             status);
         uni_hid_device_disconnect(d);
         uni_hid_device_delete(d);
         // Device cannot be used after delete.
