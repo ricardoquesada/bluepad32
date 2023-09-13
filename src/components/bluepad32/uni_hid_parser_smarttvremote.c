@@ -83,7 +83,7 @@ void uni_hid_parser_smarttvremote_parse_usage(uni_hid_device_t* d,
                     break;                      // unmapped apparently
                 case HID_USAGE_KB_RESERVED_F1:  // Back button (reserved)
                     if (value)
-                        ctl->gamepad.misc_buttons |= MISC_BUTTON_BACK;
+                        ctl->gamepad.misc_buttons |= MISC_BUTTON_SELECT;
                     break;
                 default:
                     logi("SmartTVRemote: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage,
@@ -108,7 +108,7 @@ void uni_hid_parser_smarttvremote_parse_usage(uni_hid_device_t* d,
                     break;
                 case HID_USAGE_AC_HOME:
                     if (value)
-                        ctl->gamepad.misc_buttons |= MISC_BUTTON_HOME;
+                        ctl->gamepad.misc_buttons |= MISC_BUTTON_START;
                     break;
                 default:
                     logi("SmartTVRemote: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage,

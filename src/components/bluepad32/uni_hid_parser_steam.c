@@ -310,9 +310,9 @@ static void parse_buttons(struct uni_hid_device_s* d, const uint8_t* data) {
     ctl->gamepad.dpad |= (buttons & 0x0400) ? DPAD_LEFT : 0;
     ctl->gamepad.dpad |= (buttons & 0x0800) ? DPAD_DOWN : 0;
 
-    ctl->gamepad.misc_buttons |= (buttons & 0x1000) ? MISC_BUTTON_BACK : 0;
+    ctl->gamepad.misc_buttons |= (buttons & 0x1000) ? MISC_BUTTON_SELECT : 0;
     ctl->gamepad.misc_buttons |= (buttons & 0x2000) ? MISC_BUTTON_SYSTEM : 0;
-    ctl->gamepad.misc_buttons |= (buttons & 0x4000) ? MISC_BUTTON_HOME : 0;
+    ctl->gamepad.misc_buttons |= (buttons & 0x4000) ? MISC_BUTTON_START : 0;
 
     // Emulates the behavior of Steam Controller under Steam games.
     ctl->gamepad.buttons |= (buttons & 0x008000) ? BUTTON_A : 0;  // Left-inner button.

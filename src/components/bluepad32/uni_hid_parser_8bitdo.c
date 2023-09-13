@@ -142,11 +142,11 @@ void uni_hid_parser_8bitdo_parse_usage(uni_hid_device_t* d,
                     break;
                 case 0x0b:  // "Select" button
                     if (value)
-                        ctl->gamepad.misc_buttons |= MISC_BUTTON_BACK;
+                        ctl->gamepad.misc_buttons |= MISC_BUTTON_SELECT;
                     break;
                 case 0x0c:  // "Start" button
                     if (value)
-                        ctl->gamepad.misc_buttons |= MISC_BUTTON_HOME;
+                        ctl->gamepad.misc_buttons |= MISC_BUTTON_START;
                     break;
                 case 0x0d:
                     // Home Button for SN30 Pro FW v2+
@@ -222,10 +222,10 @@ void uni_hid_parser_8bitdo_parse_usage(uni_hid_device_t* d,
                     ctl->gamepad.buttons |= value ? BUTTON_SHOULDER_R : 0;
                     break;
                 case 0x11:
-                    ctl->gamepad.misc_buttons |= value ? MISC_BUTTON_BACK : 0;
+                    ctl->gamepad.misc_buttons |= value ? MISC_BUTTON_SELECT : 0;
                     break;
                 case 0x12:
-                    ctl->gamepad.misc_buttons |= value ? MISC_BUTTON_HOME : 0;
+                    ctl->gamepad.misc_buttons |= value ? MISC_BUTTON_START : 0;
                     break;
                 case 0xe0:
                 case 0xe1:

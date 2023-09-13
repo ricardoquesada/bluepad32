@@ -148,12 +148,12 @@ void uni_hid_parser_android_parse_usage(uni_hid_device_t* d,
                 case 0x0b:
                     // Available on some Android gamepads like SteelSeries Stratus Duo.
                     if (value)
-                        ctl->gamepad.misc_buttons |= MISC_BUTTON_BACK;
+                        ctl->gamepad.misc_buttons |= MISC_BUTTON_SELECT;
                     break;
                 case 0x0c:
                     // Available on some Android gamepads like SteelSeries Stratus Duo.
                     if (value)
-                        ctl->gamepad.misc_buttons |= MISC_BUTTON_HOME;
+                        ctl->gamepad.misc_buttons |= MISC_BUTTON_START;
                     break;
                 case 0x0d:
                     if (value)
@@ -199,15 +199,15 @@ void uni_hid_parser_android_parse_usage(uni_hid_device_t* d,
                 case HID_USAGE_AC_HOME:
                     // FIXME: Some devices, like SteelSeries Status Duo, use this value as
                     // BUTTON_SYSTEM. But others like Asus, use this one to report
-                    // BUTTON_HOME. Instead of having a parser for Android / OUYA /
+                    // BUTTON_START. Instead of having a parser for Android / OUYA /
                     // 8Bitdo, we should have a HID parser and then mapping files for each
                     // VID / PID (similar to Android .kl files).
                     if (value)
-                        ctl->gamepad.misc_buttons |= MISC_BUTTON_HOME;
+                        ctl->gamepad.misc_buttons |= MISC_BUTTON_START;
                     break;
                 case HID_USAGE_AC_BACK:
                     if (value)
-                        ctl->gamepad.misc_buttons |= MISC_BUTTON_BACK;
+                        ctl->gamepad.misc_buttons |= MISC_BUTTON_SELECT;
                     break;
                 default:
                     // Only report unsupported values if they are 1.

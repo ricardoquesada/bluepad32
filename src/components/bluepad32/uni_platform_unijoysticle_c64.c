@@ -368,7 +368,7 @@ void uni_platform_unijoysticle_c64_version(void) {
 static void process_5button(uni_hid_device_t* d, uni_gamepad_seat_t seat, uint8_t misc_buttons)
 
 {
-    if (misc_buttons & MISC_BUTTON_BACK) {
+    if (misc_buttons & MISC_BUTTON_SELECT) {
         if (seat & GAMEPAD_SEAT_A) {
             uni_gpio_set_level(gpio_config_univ2c64.port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_UP], 1);
             uni_gpio_set_level(gpio_config_univ2c64.port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_DOWN], 1);
@@ -380,7 +380,7 @@ static void process_5button(uni_hid_device_t* d, uni_gamepad_seat_t seat, uint8_
     }
 
     // "Start" buttons
-    if (misc_buttons & MISC_BUTTON_HOME) {
+    if (misc_buttons & MISC_BUTTON_START) {
         if (seat & GAMEPAD_SEAT_A) {
             uni_gpio_set_level(gpio_config_univ2c64.port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_LEFT], 1);
             uni_gpio_set_level(gpio_config_univ2c64.port_a[UNI_PLATFORM_UNIJOYSTICLE_JOY_RIGHT], 1);

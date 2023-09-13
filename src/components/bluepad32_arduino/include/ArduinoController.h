@@ -130,8 +130,13 @@ class Controller {
 
     // Misc buttons
     bool miscSystem() const { return miscButtons() & MISC_BUTTON_SYSTEM; }
-    bool miscBack() const { return miscButtons() & MISC_BUTTON_BACK; }
-    bool miscHome() const { return miscButtons() & MISC_BUTTON_HOME; }
+    bool miscSelect() const { return miscButtons() & MISC_BUTTON_SELECT; }
+    bool miscStart() const { return miscButtons() & MISC_BUTTON_START; }
+    bool miscCapture() const { return miscButtons() & MISC_BUTTON_CAPTURE; }
+
+    // Deprecated
+    bool miscBack() const { return miscSelect(); }
+    bool miscHome() const { return miscStart(); }
 
     //
     // Mouse related

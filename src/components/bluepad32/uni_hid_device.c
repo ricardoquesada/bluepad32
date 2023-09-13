@@ -904,18 +904,18 @@ static void process_misc_button_system(uni_hid_device_t* d) {
 
 // process_misc_button_home dumps uni_hid_device debug info in the console.
 static void process_misc_button_home(uni_hid_device_t* d) {
-    if ((d->controller.gamepad.misc_buttons & MISC_BUTTON_HOME) == 0) {
+    if ((d->controller.gamepad.misc_buttons & MISC_BUTTON_START) == 0) {
         // Home button released ? Clear "wait" flag.
-        d->misc_button_wait_release &= ~MISC_BUTTON_HOME;
+        d->misc_button_wait_release &= ~MISC_BUTTON_START;
         return;
     }
 
     // "Wait" flag present? Return.
-    if (d->misc_button_wait_release & MISC_BUTTON_HOME)
+    if (d->misc_button_wait_release & MISC_BUTTON_START)
         return;
 
     // Update "wait" flag.
-    d->misc_button_wait_release |= MISC_BUTTON_HOME;
+    d->misc_button_wait_release |= MISC_BUTTON_START;
 
     uni_hid_device_dump_all();
 }

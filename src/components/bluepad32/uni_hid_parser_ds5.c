@@ -425,15 +425,17 @@ void uni_hid_parser_ds5_parse_input_report(uni_hid_device_t* d, const uint8_t* r
     if (r->buttons[1] & 0x08)
         ctl->gamepad.buttons |= BUTTON_TRIGGER_R;  // R2
     if (r->buttons[1] & 0x10)
-        ctl->gamepad.misc_buttons |= MISC_BUTTON_BACK;  // Share
+        ctl->gamepad.misc_buttons |= MISC_BUTTON_SELECT;  // Share
     if (r->buttons[1] & 0x20)
-        ctl->gamepad.misc_buttons |= MISC_BUTTON_HOME;  // Options
+        ctl->gamepad.misc_buttons |= MISC_BUTTON_START;  // Options
     if (r->buttons[1] & 0x40)
         ctl->gamepad.buttons |= BUTTON_THUMB_L;  // Thumb L
     if (r->buttons[1] & 0x80)
         ctl->gamepad.buttons |= BUTTON_THUMB_R;  // Thumb R
     if (r->buttons[2] & 0x01)
         ctl->gamepad.misc_buttons |= MISC_BUTTON_SYSTEM;  // PS
+    if (r->buttons[2] & 0x04)
+        ctl->gamepad.misc_buttons |= MISC_BUTTON_CAPTURE;  // "mute" button
 
     // Gyro
     for (size_t i = 0; i < ARRAY_SIZE(r->gyro); i++) {

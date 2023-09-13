@@ -795,10 +795,10 @@ static void parse_report_30_pro_controller(uni_hid_device_t* d, const struct swi
     ctl->gamepad.buttons |= (r->buttons.buttons_left & 0b10000000) ? BUTTON_TRIGGER_L : 0;   // ZL
 
     // Misc
-    ctl->gamepad.misc_buttons |= (r->buttons.buttons_misc & 0b00000001) ? MISC_BUTTON_BACK : 0;    // -
-    ctl->gamepad.misc_buttons |= (r->buttons.buttons_misc & 0b00000010) ? MISC_BUTTON_HOME : 0;    // +
-    ctl->gamepad.misc_buttons |= (r->buttons.buttons_misc & 0b00010000) ? MISC_BUTTON_SYSTEM : 0;  // Home
-    ctl->gamepad.misc_buttons |= (r->buttons.buttons_misc & 0b00100000) ? 0 : 0;                   // Capture (unused)
+    ctl->gamepad.misc_buttons |= (r->buttons.buttons_misc & 0b00000001) ? MISC_BUTTON_SELECT : 0;   // -
+    ctl->gamepad.misc_buttons |= (r->buttons.buttons_misc & 0b00000010) ? MISC_BUTTON_START : 0;    // +
+    ctl->gamepad.misc_buttons |= (r->buttons.buttons_misc & 0b00010000) ? MISC_BUTTON_SYSTEM : 0;   // Home
+    ctl->gamepad.misc_buttons |= (r->buttons.buttons_misc & 0b00100000) ? MISC_BUTTON_CAPTURE : 0;  // Capture
 
     // Sticks, not present on SNES model.
     if (ins->controller_type == SWITCH_CONTROLLER_TYPE_PRO) {
@@ -846,8 +846,8 @@ static void parse_report_30_joycon_left(uni_hid_device_t* d, const struct switch
 
     // Misc buttons
     // Since the JoyCon is in horizontal mode, map "-" / "Capture" as if they where "-" and "+"
-    ctl->gamepad.misc_buttons |= (r->buttons.buttons_misc & 0b00000001) ? MISC_BUTTON_BACK : 0;  // -
-    ctl->gamepad.misc_buttons |= (r->buttons.buttons_misc & 0b00100000) ? MISC_BUTTON_HOME : 0;  // Capture
+    ctl->gamepad.misc_buttons |= (r->buttons.buttons_misc & 0b00000001) ? MISC_BUTTON_SELECT : 0;  // -
+    ctl->gamepad.misc_buttons |= (r->buttons.buttons_misc & 0b00100000) ? MISC_BUTTON_START : 0;   // Capture
 }
 
 static void parse_report_30_joycon_right(uni_hid_device_t* d, const struct switch_report_30_s* r) {
@@ -875,8 +875,8 @@ static void parse_report_30_joycon_right(uni_hid_device_t* d, const struct switc
 
     // Misc buttons
     // Since the JoyCon is in horizontal mode, map "Home" / "+" as if they where "-" and "+"
-    ctl->gamepad.misc_buttons |= (r->buttons.buttons_misc & 0b00010000) ? MISC_BUTTON_BACK : 0;  // Home
-    ctl->gamepad.misc_buttons |= (r->buttons.buttons_misc & 0b00000010) ? MISC_BUTTON_HOME : 0;  // +
+    ctl->gamepad.misc_buttons |= (r->buttons.buttons_misc & 0b00010000) ? MISC_BUTTON_SELECT : 0;  // Home
+    ctl->gamepad.misc_buttons |= (r->buttons.buttons_misc & 0b00000010) ? MISC_BUTTON_START : 0;   // +
 }
 
 // Process 0x3f input report: SWITCH_INPUT_BUTTON_EVENT
@@ -902,12 +902,12 @@ static void parse_report_3f(struct uni_hid_device_s* d, const uint8_t* report, i
     ctl->gamepad.buttons |= (r->buttons_main & 0b10000000) ? BUTTON_TRIGGER_R : 0;   // ZR
 
     // Button aux
-    ctl->gamepad.misc_buttons |= (r->buttons_aux & 0b00000001) ? MISC_BUTTON_BACK : 0;    // -
-    ctl->gamepad.misc_buttons |= (r->buttons_aux & 0b00000010) ? MISC_BUTTON_HOME : 0;    // +
-    ctl->gamepad.buttons |= (r->buttons_aux & 0b00000100) ? BUTTON_THUMB_L : 0;           // Thumb L
-    ctl->gamepad.buttons |= (r->buttons_aux & 0b00001000) ? BUTTON_THUMB_R : 0;           // Thumb R
-    ctl->gamepad.misc_buttons |= (r->buttons_aux & 0b00010000) ? MISC_BUTTON_SYSTEM : 0;  // Home
-    ctl->gamepad.misc_buttons |= (r->buttons_aux & 0b00100000) ? 0 : 0;                   // Capture (unused)
+    ctl->gamepad.misc_buttons |= (r->buttons_aux & 0b00000001) ? MISC_BUTTON_SELECT : 0;   // -
+    ctl->gamepad.misc_buttons |= (r->buttons_aux & 0b00000010) ? MISC_BUTTON_START : 0;    // +
+    ctl->gamepad.buttons |= (r->buttons_aux & 0b00000100) ? BUTTON_THUMB_L : 0;            // Thumb L
+    ctl->gamepad.buttons |= (r->buttons_aux & 0b00001000) ? BUTTON_THUMB_R : 0;            // Thumb R
+    ctl->gamepad.misc_buttons |= (r->buttons_aux & 0b00010000) ? MISC_BUTTON_SYSTEM : 0;   // Home
+    ctl->gamepad.misc_buttons |= (r->buttons_aux & 0b00100000) ? MISC_BUTTON_CAPTURE : 0;  // Capture
 
     // Dpad
     ctl->gamepad.dpad = uni_hid_parser_hat_to_dpad(r->hat);

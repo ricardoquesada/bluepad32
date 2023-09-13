@@ -2691,12 +2691,12 @@ static void mightymiggy_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) 
      * controller decoding functions, they have to manually patched. We'll
      * need to ask the author why!
      */
-    if ((gp->misc_buttons & MISC_BUTTON_BACK) != 0) {
+    if ((gp->misc_buttons & MISC_BUTTON_SELECT) != 0) {
         cinfo->buttonWord |= BTN_BACK;
     } else {
         cinfo->buttonWord &= ~BTN_BACK;
     }
-    if ((gp->misc_buttons & MISC_BUTTON_HOME) != 0) {
+    if ((gp->misc_buttons & MISC_BUTTON_START) != 0) {
         cinfo->buttonWord |= BTN_HOME;
     } else {
         cinfo->buttonWord &= ~BTN_HOME;

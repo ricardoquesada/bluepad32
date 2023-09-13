@@ -92,9 +92,10 @@ const uni_gamepad_mappings_t GAMEPAD_DEFAULT_MAPPINGS = {
     .axis_rx = UNI_GAMEPAD_MAPPINGS_AXIS_RX,
     .axis_ry = UNI_GAMEPAD_MAPPINGS_AXIS_RY,
 
-    .misc_button_back = UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_BACK,
-    .misc_button_home = UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_HOME,
+    .misc_button_select = UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_SELECT,
+    .misc_button_start = UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_START,
     .misc_button_system = UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_SYSTEM,
+    .misc_button_capture = UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_CAPTURE,
 };
 
 const int AXIS_NORMALIZE_RANGE = 1024;  // 10-bit resolution (1024)
@@ -167,12 +168,14 @@ uni_gamepad_t uni_gamepad_remap(const uni_gamepad_t* gp) {
     if (gp->dpad & DPAD_RIGHT)
         new_gp.dpad |= BIT(map.dpad_right);
 
-    if (gp->misc_buttons & MISC_BUTTON_BACK)
-        new_gp.misc_buttons |= BIT(map.misc_button_back);
-    if (gp->misc_buttons & MISC_BUTTON_HOME)
-        new_gp.misc_buttons |= BIT(map.misc_button_home);
     if (gp->misc_buttons & MISC_BUTTON_SYSTEM)
         new_gp.misc_buttons |= BIT(map.misc_button_system);
+    if (gp->misc_buttons & MISC_BUTTON_SELECT)
+        new_gp.misc_buttons |= BIT(map.misc_button_select);
+    if (gp->misc_buttons & MISC_BUTTON_START)
+        new_gp.misc_buttons |= BIT(map.misc_button_start);
+    if (gp->misc_buttons & MISC_BUTTON_CAPTURE)
+        new_gp.misc_buttons |= BIT(map.misc_button_capture);
 
     new_gp.axis_x = get_mappings_value_for_axis(map.axis_x, gp);
     if (map.axis_x_inverted)

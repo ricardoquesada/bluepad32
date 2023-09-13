@@ -160,11 +160,11 @@ void uni_hid_parser_generic_parse_usage(uni_hid_device_t* d,
                     break;
                 case 0x0b:  // select button ?
                     if (value)
-                        ctl->gamepad.misc_buttons |= MISC_BUTTON_BACK;
+                        ctl->gamepad.misc_buttons |= MISC_BUTTON_SELECT;
                     break;
                 case 0x0c:  // start button ?
                     if (value)
-                        ctl->gamepad.misc_buttons |= MISC_BUTTON_HOME;
+                        ctl->gamepad.misc_buttons |= MISC_BUTTON_START;
                     break;
                 case 0x0d:
                     if (value)
@@ -198,11 +198,11 @@ void uni_hid_parser_generic_parse_usage(uni_hid_device_t* d,
                     break;
                 case HID_USAGE_AC_HOME:
                     if (value)
-                        ctl->gamepad.misc_buttons |= MISC_BUTTON_HOME;
+                        ctl->gamepad.misc_buttons |= MISC_BUTTON_START;
                     break;
                 case HID_USAGE_AC_BACK:
                     if (value)
-                        ctl->gamepad.misc_buttons |= MISC_BUTTON_BACK;
+                        ctl->gamepad.misc_buttons |= MISC_BUTTON_SELECT;
                     break;
                 default:
                     logi("Generic: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);

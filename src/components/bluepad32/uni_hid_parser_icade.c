@@ -192,7 +192,7 @@ void uni_hid_parser_icade_parse_usage(uni_hid_device_t* d,
                 ctl->gamepad.buttons |= BUTTON_X;
             } else {
                 // 8-bitty.
-                ctl->gamepad.misc_buttons |= MISC_BUTTON_HOME;
+                ctl->gamepad.misc_buttons |= MISC_BUTTON_START;
             }
             break;
         case 0x09:  // f (button C / "start": off)
@@ -201,7 +201,7 @@ void uni_hid_parser_icade_parse_usage(uni_hid_device_t* d,
                 ctl->gamepad.buttons &= ~BUTTON_X;
             } else {
                 // 8-bitty.
-                ctl->gamepad.misc_buttons &= ~MISC_BUTTON_HOME;
+                ctl->gamepad.misc_buttons &= ~MISC_BUTTON_START;
             }
             break;
 
@@ -246,7 +246,7 @@ void uni_hid_parser_icade_parse_usage(uni_hid_device_t* d,
         case 0x0c:  // i (button Y / X: on)
             if (ins->model == ICADE_CABINET) {
                 // Cabinet.
-                ctl->gamepad.misc_buttons |= MISC_BUTTON_HOME;
+                ctl->gamepad.misc_buttons |= MISC_BUTTON_START;
             } else {
                 // 8-bitty.
                 ctl->gamepad.buttons |= BUTTON_X;
@@ -255,7 +255,7 @@ void uni_hid_parser_icade_parse_usage(uni_hid_device_t* d,
         case 0x10:  // m (button Y / X: off)
             if (ins->model == ICADE_CABINET) {
                 // Cabinet.
-                ctl->gamepad.misc_buttons &= ~MISC_BUTTON_HOME;
+                ctl->gamepad.misc_buttons &= ~MISC_BUTTON_START;
             } else {
                 // 8-bitty.
                 ctl->gamepad.buttons &= ~BUTTON_X;

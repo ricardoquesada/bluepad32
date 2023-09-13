@@ -525,8 +525,8 @@ static void process_drm_k(uni_hid_device_t* d, const uint8_t* report, uint16_t l
     }
     // Process misc buttons
     ctl->gamepad.misc_buttons |= (data[1] & 0x80) ? MISC_BUTTON_SYSTEM : 0;  // Button "home"
-    ctl->gamepad.misc_buttons |= (data[0] & 0x10) ? MISC_BUTTON_HOME : 0;    // Button "+"
-    ctl->gamepad.misc_buttons |= (data[1] & 0x10) ? MISC_BUTTON_BACK : 0;    // Button "-"
+    ctl->gamepad.misc_buttons |= (data[0] & 0x10) ? MISC_BUTTON_START : 0;   // Button "+"
+    ctl->gamepad.misc_buttons |= (data[1] & 0x10) ? MISC_BUTTON_SELECT : 0;  // Button "-"
 }
 
 // Used for WiiMote in Sideways Mode (Directions and A/B/X/Y Buttons only).
@@ -600,8 +600,8 @@ static void process_drm_ka(uni_hid_device_t* d, const uint8_t* report, uint16_t 
     ctl->gamepad.buttons |= (report[2] & 0x04) ? BUTTON_Y : 0;  // Button Shoulder
 
     ctl->gamepad.misc_buttons |= (report[2] & 0x80) ? MISC_BUTTON_SYSTEM : 0;  // Button "home"
-    ctl->gamepad.misc_buttons |= (report[2] & 0x10) ? MISC_BUTTON_BACK : 0;    // Button "-"
-    ctl->gamepad.misc_buttons |= (report[1] & 0x10) ? MISC_BUTTON_HOME : 0;    // Button "+"
+    ctl->gamepad.misc_buttons |= (report[2] & 0x10) ? MISC_BUTTON_SELECT : 0;  // Button "-"
+    ctl->gamepad.misc_buttons |= (report[1] & 0x10) ? MISC_BUTTON_START : 0;   // Button "+"
 }
 
 // Used in WiiMote + Nunchuk Mode
@@ -664,8 +664,8 @@ static void process_drm_ke(uni_hid_device_t* d, const uint8_t* report, uint16_t 
     ctl->gamepad.buttons |= (report[2] & 0x01) ? BUTTON_Y : 0;  // Button "2"
 
     ctl->gamepad.misc_buttons |= (report[2] & 0x80) ? MISC_BUTTON_SYSTEM : 0;  // Button "home"
-    ctl->gamepad.misc_buttons |= (report[2] & 0x10) ? MISC_BUTTON_BACK : 0;    // Button "-"
-    ctl->gamepad.misc_buttons |= (report[1] & 0x10) ? MISC_BUTTON_HOME : 0;    // Button "+"
+    ctl->gamepad.misc_buttons |= (report[2] & 0x10) ? MISC_BUTTON_SELECT : 0;  // Button "-"
+    ctl->gamepad.misc_buttons |= (report[1] & 0x10) ? MISC_BUTTON_START : 0;   // Button "+"
 }
 
 // Defined here:
@@ -874,8 +874,8 @@ static void process_drm_kee(uni_hid_device_t* d, const uint8_t* report, uint16_t
 
     // Process misc buttons
     ctl->gamepad.misc_buttons |= !(data[8] & 0x08) ? MISC_BUTTON_SYSTEM : 0;  // BH
-    ctl->gamepad.misc_buttons |= !(data[8] & 0x04) ? MISC_BUTTON_HOME : 0;    // B+
-    ctl->gamepad.misc_buttons |= !(data[8] & 0x10) ? MISC_BUTTON_BACK : 0;    // B-
+    ctl->gamepad.misc_buttons |= !(data[8] & 0x04) ? MISC_BUTTON_START : 0;   // B+
+    ctl->gamepad.misc_buttons |= !(data[8] & 0x10) ? MISC_BUTTON_SELECT : 0;  // B-
 
     // Value is in -1,255 range. Should be normalized.
     int bat = (data[10] & DRM_KEE_BATTERY_MASK) * 4 - 1;
@@ -950,8 +950,8 @@ static void process_drm_e(uni_hid_device_t* d, const uint8_t* report, uint16_t l
 
     // Buttons Misc
     ctl->gamepad.misc_buttons |= (data[4] & 0b00001000) ? 0 : MISC_BUTTON_SYSTEM;  // Home
-    ctl->gamepad.misc_buttons |= (data[4] & 0b00000100) ? 0 : MISC_BUTTON_HOME;    // +
-    ctl->gamepad.misc_buttons |= (data[4] & 0b00010000) ? 0 : MISC_BUTTON_BACK;    // -
+    ctl->gamepad.misc_buttons |= (data[4] & 0b00000100) ? 0 : MISC_BUTTON_START;   // +
+    ctl->gamepad.misc_buttons |= (data[4] & 0b00010000) ? 0 : MISC_BUTTON_SELECT;  // -
 
     // printf("lx=%d, ly=%d, rx=%d, ry=%d, lt=%d, rt=%d\n", lx, ly, rx, ry, lt, rt);
     // printf_hexdump(report, len);

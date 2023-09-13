@@ -523,31 +523,31 @@ static uni_error_t unijoysticle_on_device_ready(uni_hid_device_t* d) {
 
 static void test_gamepad_select_button(uni_hid_device_t* d, uni_gamepad_t* gp) {
     uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
-    bool already_pressed = ins->buttons_debouncer & MISC_BUTTON_BACK;
+    bool already_pressed = ins->buttons_debouncer & MISC_BUTTON_SELECT;
 
-    if (gp->misc_buttons & MISC_BUTTON_BACK) {
+    if (gp->misc_buttons & MISC_BUTTON_SELECT) {
         // 'Select' pressed
         if (already_pressed)
             return;
-        ins->buttons_debouncer |= MISC_BUTTON_BACK;
+        ins->buttons_debouncer |= MISC_BUTTON_SELECT;
         try_swap_ports(d);
     } else {
-        ins->buttons_debouncer &= ~MISC_BUTTON_BACK;
+        ins->buttons_debouncer &= ~MISC_BUTTON_SELECT;
     }
 }
 
 static void test_gamepad_start_button(uni_hid_device_t* d, uni_gamepad_t* gp) {
     uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
-    bool already_pressed = ins->buttons_debouncer & MISC_BUTTON_HOME;
+    bool already_pressed = ins->buttons_debouncer & MISC_BUTTON_START;
 
-    if (gp->misc_buttons & MISC_BUTTON_HOME) {
+    if (gp->misc_buttons & MISC_BUTTON_START) {
         // 'Start' pressed
         if (already_pressed)
             return;
-        ins->buttons_debouncer |= MISC_BUTTON_HOME;
+        ins->buttons_debouncer |= MISC_BUTTON_START;
         set_next_gamepad_mode(d);
     } else {
-        ins->buttons_debouncer &= ~MISC_BUTTON_HOME;
+        ins->buttons_debouncer &= ~MISC_BUTTON_START;
     }
 }
 
@@ -1728,8 +1728,9 @@ static void try_swap_ports(uni_hid_device_t* d) {
         if (uni_bt_conn_is_connected(&tmp_d->conn) &&  // Is it connected ?
             tmp_ins->seat != GAMEPAD_SEAT_NONE &&      // Does it have a seat ?
             !uni_hid_device_is_virtual_device(tmp_d) &&
-            tmp_ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL &&  // Is it in "Normal" mode ?
-            ((tmp_d->controller.gamepad.misc_buttons & (MISC_BUTTON_SYSTEM | MISC_BUTTON_BACK)) == 0)  // misc pressed?
+            tmp_ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL &&
+            ((tmp_d->controller.gamepad.misc_buttons & (MISC_BUTTON_SYSTEM | MISC_BUTTON_SELECT)) ==
+             0)  // "swap" pressed?
         ) {
             // If so, don't allow swap.
             logi("unijoysticle: to swap ports press 'system' button on both gamepads at the same time\n");

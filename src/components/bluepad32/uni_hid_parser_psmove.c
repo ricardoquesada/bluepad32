@@ -132,9 +132,9 @@ void uni_hid_parser_psmove_parse_input_report(uni_hid_device_t* d, const uint8_t
 
     // Buttons
     if (r->buttons[0] & 0x01)
-        ctl->gamepad.misc_buttons |= MISC_BUTTON_BACK;  // Select
+        ctl->gamepad.misc_buttons |= MISC_BUTTON_SELECT;  // Select
     if (r->buttons[0] & 0x08)
-        ctl->gamepad.misc_buttons |= MISC_BUTTON_HOME;  // Start
+        ctl->gamepad.misc_buttons |= MISC_BUTTON_START;  // Start
 
     if (r->buttons[1] & 0x01)
         ctl->gamepad.buttons |= BUTTON_TRIGGER_L;  // L2

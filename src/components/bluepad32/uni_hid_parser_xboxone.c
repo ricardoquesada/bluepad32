@@ -228,11 +228,11 @@ static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
                     break;
                 case 0x07:  // View button
                     if (value)
-                        ctl->gamepad.misc_buttons |= MISC_BUTTON_BACK;
+                        ctl->gamepad.misc_buttons |= MISC_BUTTON_SELECT;
                     break;
                 case 0x08:  // Menu button
                     if (value)
-                        ctl->gamepad.misc_buttons |= MISC_BUTTON_HOME;
+                        ctl->gamepad.misc_buttons |= MISC_BUTTON_START;
                     break;
                 case 0x09:  // Thumb left
                     if (value)
@@ -386,11 +386,11 @@ static void parse_usage_firmware_v4_v5(uni_hid_device_t* d,
                     break;
                 case 0x0b:  // Unused in v4.8, used in v5.x
                     if (value)
-                        ctl->gamepad.misc_buttons |= MISC_BUTTON_BACK;
+                        ctl->gamepad.misc_buttons |= MISC_BUTTON_SELECT;
                     break;
                 case 0x0c:  // Burger button
                     if (value)
-                        ctl->gamepad.misc_buttons |= MISC_BUTTON_HOME;
+                        ctl->gamepad.misc_buttons |= MISC_BUTTON_START;
                     break;
                 case 0x0d:  // Xbox button
                     if (value)
@@ -416,15 +416,17 @@ static void parse_usage_firmware_v4_v5(uni_hid_device_t* d,
                 case HID_USAGE_RECORD:
                     // Model 1914: Share button
                     // Model 1708: reports it but always 0
-                    // FW 5.15.5
+                    // FW 5.x
                     if (ins->version != XBOXONE_FIRMWARE_V5) {
                         ins->version = XBOXONE_FIRMWARE_V5;
                         logi("Xbox: Assuming it is firmware v5.x\n");
                     }
+                    if (value)
+                        ctl->gamepad.misc_buttons |= MISC_BUTTON_CAPTURE;
                     break;
                 case HID_USAGE_AC_BACK:  // Back in v4.8 (not v5.x)
                     if (value)
-                        ctl->gamepad.misc_buttons |= MISC_BUTTON_BACK;
+                        ctl->gamepad.misc_buttons |= MISC_BUTTON_SELECT;
                     break;
                 case HID_USAGE_ASSIGN_SELECTION:
                 case HID_USAGE_ORDER_MOVIE:

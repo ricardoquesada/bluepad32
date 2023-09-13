@@ -52,8 +52,9 @@ typedef enum {
 
 typedef enum {
     UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_SYSTEM,
-    UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_BACK,
-    UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_HOME,
+    UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_SELECT,
+    UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_START,
+    UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_CAPTURE,
 } uni_gamepad_mappings_misc_button_t;
 
 typedef enum {
@@ -91,43 +92,16 @@ enum {
 };
 
 // MISC_BUTTONS_ are buttons that are usually not used in the game, but are
-// helpers like "back", "home", etc.
+// helpers like "select", "start", "system", "mute", etc.
 enum {
-    MISC_BUTTON_SYSTEM = BIT(UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_SYSTEM),  // AKA: PS, Xbox, etc.
-    MISC_BUTTON_BACK = BIT(UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_BACK),      // AKA: Select, Share, -
-    MISC_BUTTON_HOME = BIT(UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_HOME),      // AKA: Start, Options, +
-};
+    MISC_BUTTON_SYSTEM = BIT(UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_SYSTEM),    // AKA: PS, Xbox, etc.
+    MISC_BUTTON_SELECT = BIT(UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_SELECT),    // AKA: Select, Share, Create, -
+    MISC_BUTTON_START = BIT(UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_START),      // AKA: Start, Options, +
+    MISC_BUTTON_CAPTURE = BIT(UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_CAPTURE),  // AKA: Mute, Capture, Share
 
-// GAMEPAD_STATE_ are used internally to determine which button event
-// were registered in the last HID report.
-// Most gamepad (if not all) report all their buttons in just one report.
-// TODO: Investigate if this is legacy code, or it is actually needed for iCade.
-enum {
-    GAMEPAD_STATE_DPAD = BIT(0),
-
-    GAMEPAD_STATE_AXIS_X = BIT(1),
-    GAMEPAD_STATE_AXIS_Y = BIT(2),
-    GAMEPAD_STATE_AXIS_RX = BIT(3),
-    GAMEPAD_STATE_AXIS_RY = BIT(4),
-
-    GAMEPAD_STATE_BRAKE = BIT(5),     // AKA L2
-    GAMEPAD_STATE_THROTTLE = BIT(6),  // AKA R2
-
-    GAMEPAD_STATE_BUTTON_A = BIT(10),
-    GAMEPAD_STATE_BUTTON_B = BIT(11),
-    GAMEPAD_STATE_BUTTON_X = BIT(12),
-    GAMEPAD_STATE_BUTTON_Y = BIT(13),
-    GAMEPAD_STATE_BUTTON_SHOULDER_L = BIT(14),  // AKA L1
-    GAMEPAD_STATE_BUTTON_SHOULDER_R = BIT(15),  // AKA R1
-    GAMEPAD_STATE_BUTTON_TRIGGER_L = BIT(16),
-    GAMEPAD_STATE_BUTTON_TRIGGER_R = BIT(17),
-    GAMEPAD_STATE_BUTTON_THUMB_L = BIT(18),
-    GAMEPAD_STATE_BUTTON_THUMB_R = BIT(19),
-
-    GAMEPAD_STATE_MISC_BUTTON_BACK = BIT(24),
-    GAMEPAD_STATE_MISC_BUTTON_HOME = BIT(25),
-    GAMEPAD_STATE_MISC_BUTTON_MENU = BIT(26),
-    GAMEPAD_STATE_MISC_BUTTON_SYSTEM = BIT(27),
+    // Deprecated
+    MISC_BUTTON_BACK = MISC_BUTTON_SELECT,
+    MISC_BUTTON_HOME = MISC_BUTTON_START,
 };
 
 // Represents which "seat" the gamepad is using. Multiple gamepads can be
@@ -216,9 +190,10 @@ typedef struct {
     uint8_t button_thumb_l;
     uint8_t button_thumb_r;
 
-    uint8_t misc_button_back;
-    uint8_t misc_button_home;
+    uint8_t misc_button_select;
+    uint8_t misc_button_start;
     uint8_t misc_button_system;
+    uint8_t misc_button_capture;
 
     // Remaps for axis
     uint8_t axis_x;

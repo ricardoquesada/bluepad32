@@ -164,13 +164,13 @@ void uni_hid_parser_ds3_parse_input_report(uni_hid_device_t* d, const uint8_t* r
 
     // Buttons
     if (r->buttons[0] & 0x01)
-        ctl->gamepad.misc_buttons |= MISC_BUTTON_BACK;  // Select
+        ctl->gamepad.misc_buttons |= MISC_BUTTON_SELECT;  // Select
     if (r->buttons[0] & 0x02)
         ctl->gamepad.buttons |= BUTTON_THUMB_L;  // Thumb L
     if (r->buttons[0] & 0x04)
         ctl->gamepad.buttons |= BUTTON_THUMB_R;  // Thumb R
     if (r->buttons[0] & 0x08)
-        ctl->gamepad.misc_buttons |= MISC_BUTTON_HOME;  // Start
+        ctl->gamepad.misc_buttons |= MISC_BUTTON_START;  // Start
     if (r->buttons[0] & 0x10)
         ctl->gamepad.dpad |= DPAD_UP;  // Dpad up
     if (r->buttons[0] & 0x20)

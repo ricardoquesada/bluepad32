@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   It is possible to "swap" the mouse and joystick port, and a connection from a new controller disconnects
   the virtual device (the mouse).
   - Fixes issue: [Gitlab Issue #22][gitlab_issue_22]
+- New controller button supported:
+  - `MISC_BUTTONS_CAPTURE`. From Arduino call `ctl->miscCapture()`
+  - This is the "share" button in the Xbox 1914 model (the "3rd" button).
+  - This is the "mute" button in the DualSense controller.
+  - This is the "capture" button on Switch Pro controller.
+  - Fixes issue: [Gitlab Issue #37][gitlab_issue_37]
 
 
 ### Changed
@@ -29,6 +35,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `set_gap_periodic_inquiry` / `get_gap_peridic_inquiry` -> `gap_periodic_inquiry`
   - `set_ble_enabled` / `get_ble_enabled` -> `ble_enable`
   - `set_incoming_connections_enabled` / `incoming_connections_enable`
+- Constants in uni_gamepad.h:
+  - `MISC_BUTTONS_BACK` -> `MISC_BUTTONS_SELECT` (`ctl->miscSelect()`)
+  - `MISC_BUTTONS_HOME` -> `MISC_BUTTONS_START` (`ctl->miscStart()`)
+  - The old constants / functions are still present, but are deprecated.
+  - The rationale is that these names should be easier to remember.
 
 ### Fixed
 - Switch: Fix crash while parsing IMU data ([Bug GH44][github_issue_44])
@@ -41,6 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [gitlab_issue_33]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/33
 [gitlab_issue_34]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/34
 [gitlab_issue_35]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/35
+[gitlab_issue_37]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/37
 [github_issue_44]: https://github.com/ricardoquesada/bluepad32/issues/44
 [github_ba_issue_7]: https://github.com/ricardoquesada/bluepad32-arduino/issues/7
 
