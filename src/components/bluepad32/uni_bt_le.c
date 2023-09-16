@@ -71,6 +71,7 @@
 #include "uni_property.h"
 
 static bool is_scanning;
+static bool ble_enabled;
 
 // Temporal space for SDP in BLE
 static uint8_t hid_descriptor_storage[500];
@@ -801,7 +802,7 @@ void uni_bt_le_list_bonded_keys(void) {
     bd_addr_t entry_address;
     int i;
 
-    if (!uni_bt_le_is_enabled())
+    if (!ble_enabled)
         return;
 
     logi("Bluetooth LE keys:\n");
@@ -823,7 +824,7 @@ void uni_bt_le_delete_bonded_keys(void) {
     bd_addr_t entry_address;
     int i;
 
-    if (!uni_bt_le_is_enabled())
+    if (!ble_enabled)
         return;
 
     logi("Deleting stored BLE link keys:\n");
@@ -892,7 +893,7 @@ void uni_bt_le_setup(void) {
 }
 
 void uni_bt_le_scan_start(void) {
-    if (!uni_bt_le_is_enabled())
+    if (!ble_enabled)
         return;
 
     gap_start_scan();
@@ -901,7 +902,7 @@ void uni_bt_le_scan_start(void) {
 }
 
 void uni_bt_le_scan_stop(void) {
-    if (!uni_bt_le_is_enabled())
+    if (!ble_enabled)
         return;
 
     gap_stop_scan();
@@ -920,11 +921,14 @@ void uni_bt_le_set_enabled(bool enabled) {
     uni_property_value_t val;
 
     val.u8 = enabled;
-
     uni_property_set(UNI_PROPERTY_KEY_BLE_ENABLED, UNI_PROPERTY_TYPE_U8, val);
+
+    ble_enabled = enabled;
 }
 
 bool uni_bt_le_is_enabled() {
+    // Expensive call. Avoid calling it from this same file.
+    // Called from "uni_bt_setup"
     uni_property_value_t val;
     uni_property_value_t def;
 
@@ -934,5 +938,8 @@ bool uni_bt_le_is_enabled() {
     def.u8 = 0;
 #endif  // CONFIG_BLUEPAD32_ENABLE_BLE_BY_DEFAULT
     val = uni_property_get(UNI_PROPERTY_KEY_BLE_ENABLED, UNI_PROPERTY_TYPE_U8, def);
-    return val.u8;
+
+    ble_enabled = val.u8;
+
+    return ble_enabled;
 }
