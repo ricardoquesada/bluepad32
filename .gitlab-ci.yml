@@ -28,8 +28,8 @@ build-ubuntu-pc-debug-clang:
   script:
     - cd tools/pc_debug && CC=clang make
 
-build-esp-idf-5.0:
-  image: espressif/idf:release-v5.0
+build-esp-idf-5.1:
+  image: espressif/idf:release-v5.1
   variables:
     GIT_SUBMODULE_STRATEGY: normal
   stage: build
