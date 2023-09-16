@@ -21,7 +21,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This is the "capture" button on Switch Pro controller.
   - Fixes issue: [Gitlab Issue #37][gitlab_issue_37]
 
-
 ### Changed
 - Merge set/get console commands into one, making it a less polluted console.
   If no arguments are passed, it behaves like a getter.

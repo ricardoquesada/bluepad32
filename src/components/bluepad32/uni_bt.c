@@ -115,7 +115,7 @@ static void bluetooth_list_keys(void) {
 }
 
 static void start_scan(void) {
-    logd("--> Scanning for new gamepads...\n");
+    logd("--> Scanning for new controllers\n");
 
     if (IS_ENABLED(UNI_ENABLE_BREDR))
         uni_bt_bredr_scan_start();
@@ -124,7 +124,7 @@ static void start_scan(void) {
 }
 
 static void stop_scan(void) {
-    logi("--> Stop scanning for new gamepads\n");
+    logi("--> Stop scanning for new controllers\n");
 
     if (IS_ENABLED(UNI_ENABLE_BREDR))
         uni_bt_bredr_scan_stop();
@@ -419,7 +419,7 @@ int uni_bt_get_gap_security_level() {
     uni_property_value_t val;
     uni_property_value_t def;
 
-    // It seems that with gap_security_level(0) all gamepads work except Nintendo Switch Pro controller.
+    // It seems that with gap_security_level(0) all controllers work except Nintendo Switch Pro controller.
 #if CONFIG_BLUEPAD32_GAP_SECURITY
     def.u32 = 2;
 #else

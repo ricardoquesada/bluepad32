@@ -38,6 +38,7 @@ limitations under the License.
 #include "uni_log.h"
 #include "uni_mouse_quadrature.h"
 #include "uni_platform.h"
+#include "uni_virtual_device.h"
 
 #ifdef CONFIG_ESP_CONSOLE_USB_CDC
 #error This example is incompatible with USB CDC console. Please try "console_usb" example instead.
@@ -89,6 +90,11 @@ static struct {
     struct arg_int* enabled;
     struct arg_end* end;
 } allowlist_enable_args;
+
+static struct {
+    struct arg_int* enabled;
+    struct arg_end* end;
+} virtual_device_enable_args;
 
 static int list_devices(int argc, char** argv) {
     // FIXME: Should not belong to "bluetooth"
@@ -297,6 +303,24 @@ static int allowlist_enable(int argc, char** argv) {
     return 0;
 }
 
+static int virtual_device_enable(int argc, char** argv) {
+    int enabled;
+
+    int nerrors = arg_parse(argc, argv, (void**)&virtual_device_enable_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, virtual_device_enable_args.end, argv[0]);
+
+        // Don't treat it as error, just report the current value
+        logi("Virtual Device: %s\n", uni_virtual_device_is_enabled() ? "Enabled" : "Disabled");
+        return 0;
+    }
+
+    enabled = virtual_device_enable_args.enabled->ival[0];
+
+    uni_virtual_device_set_enabled(enabled);
+    return 0;
+}
+
 static void register_bluepad32() {
     mouse_scale_args.value = arg_dbl1(NULL, NULL, "<value>", "Global mouse scale factor. Higher means faster");
     mouse_scale_args.end = arg_end(2);
@@ -324,6 +348,9 @@ static void register_bluepad32() {
     allowlist_addr_args.end = arg_end(2);
     allowlist_enable_args.enabled = arg_int1(NULL, NULL, "<0 | 1>", "Whether allowlist should be enforced");
     allowlist_enable_args.end = arg_end(2);
+
+    virtual_device_enable_args.enabled = arg_int1(NULL, NULL, "<0 | 1>", "Whether virtual devices are allowed");
+    virtual_device_enable_args.end = arg_end(2);
 
     const esp_console_cmd_t cmd_list_devices = {
         .command = "list_devices",
@@ -433,6 +460,14 @@ static void register_bluepad32() {
         .argtable = &allowlist_enable_args,
     };
 
+    const esp_console_cmd_t cmd_virtual_device_enable = {
+        .command = "virtual_device_enable",
+        .help = "Enables/Disables virtual devices",
+        .hint = NULL,
+        .func = &virtual_device_enable,
+        .argtable = &virtual_device_enable_args,
+    };
+
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_list_devices));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_disconnect_device));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_gap_security_level));
@@ -446,6 +481,7 @@ static void register_bluepad32() {
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_allowlist_remove));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_allowlist_enable));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_mouse_scale));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_virtual_device_enable));
 }
 
 void uni_console_init(void) {

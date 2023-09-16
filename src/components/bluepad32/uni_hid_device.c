@@ -49,6 +49,7 @@ limitations under the License.
 #include "uni_hid_parser_xboxone.h"
 #include "uni_log.h"
 #include "uni_platform.h"
+#include "uni_virtual_device.h"
 
 enum {
     FLAGS_HAS_COD = (1 << 8),
@@ -92,6 +93,9 @@ uni_hid_device_t* uni_hid_device_create(bd_addr_t address) {
 }
 
 uni_hid_device_t* uni_hid_device_create_virtual(uni_hid_device_t* parent) {
+    if (!uni_virtual_device_is_enabled())
+        return NULL;
+
     for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         if (bd_addr_cmp(g_devices[i].conn.btaddr, zero_addr) == 0) {
             logi("Creating virtual device (idx=%d)\n", i);

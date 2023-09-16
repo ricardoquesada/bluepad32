@@ -28,6 +28,7 @@ limitations under the License.
 #include "uni_platform.h"
 #include "uni_property.h"
 #include "uni_version.h"
+#include "uni_virtual_device.h"
 
 // Main entry point, runs forever
 int uni_main(int argc, const char** argv) {
@@ -44,6 +45,7 @@ int uni_main(int argc, const char** argv) {
     // Continue with bluetooth setup.
     uni_bt_setup();
     uni_bt_allowlist_init();
+    uni_virtual_device_init();
 
 #if CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
     uni_console_init();

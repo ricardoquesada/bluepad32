@@ -38,6 +38,7 @@ extern const char* UNI_PROPERTY_KEY_GAP_LEVEL;
 extern const char* UNI_PROPERTY_KEY_GAP_MAX_PERIODIC_LEN;
 extern const char* UNI_PROPERTY_KEY_GAP_MIN_PERIODIC_LEN;
 extern const char* UNI_PROPERTY_KEY_MOUSE_SCALE;
+extern const char* UNI_PROPERTY_KEY_VIRTUAL_DEVICE_ENABLED;
 
 // Specific to Unijoysticle
 // TODO: Move them to unijoysticle file

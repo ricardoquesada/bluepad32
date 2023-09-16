@@ -98,7 +98,7 @@ menu "Bluepad32"
         help
             Enables Bluetooth Low Energy by default.
             Needed for some mice and gamepads that only work with BLE.
-            Can be overriden from the console by using the command "set_ble_enabled"
+            Can be overriden from the console by using the command "ble_enabled"
 
     config BLUEPAD32_UNIJOYSTICLE_ENABLE_SWAP_FOR_C64
         bool "Enable Swap Button on Unijoysticle2 C64"
@@ -118,5 +118,19 @@ menu "Bluepad32"
 
         This limit is defined at compile-time because Bluepad32 tries not to use malloc.
         The higher the number, the more RAM it will take.
+
+    config BLUEPAD32_ENABLE_VIRTUAL_DEVICE_BY_DEFAULT
+        bool "Enable Virtual Devices by default"
+        default y
+        help
+            A Virtual Device is when a controller like DualSense or DualShock4
+            supports also mouse (it is a touchpad, but converted to mouse).
+            In this case the "mouse" will represent a virtual device.
+            When this happends, Bluepad32 reports that two devices are connected:
+            a gamepad and a mouse.
+            The "gamepad device" has the "mouse virtual device" as child device.
+            When the controller disconnects, or when the "gamepad device"
+            is forced to disconnect then both devices will be disconnected.
+            Can be overriden from the console by using the command "virtual_device_enabled"
 
 endmenu

@@ -40,7 +40,8 @@ set(srcs "uni_balance_board.c"
          "uni_platform_pc_debug.c"
          "uni_property.c"
          "uni_property_nvs.c"
-         "uni_utils.c")
+         "uni_utils.c"
+         "uni_virtual_device.c")
 
 if(CONFIG_IDF_TARGET_ESP32)
     list(APPEND srcs

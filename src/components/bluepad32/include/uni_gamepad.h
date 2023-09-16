@@ -130,7 +130,7 @@ typedef enum {
 // Example: a TV remote control should populate the left D-pad and the left
 // joypad.
 //
-// The virtual gamepad will then be processed by the dfferent "platforms".
+// The virtual gamepad will then be processed by the different "platforms".
 //
 // Virtual Gamepad layout:
 //
