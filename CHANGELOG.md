@@ -4,11 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v3.9.0] - 2023-????
+## [v3.9.0] - 2023-09-16
 ### New
 - Add touchpad support for DualSense and DualShock4 controllers.
   When one of these devices connect, it creates a mouse virtual device that is controlled
   by the "gamepad" controller. So, two connections will appear.
+  - Can be enabled/disable from console using `virtual_device_enable`
+  - Default value is enabled. Can be modified from `idf.py menuconfig`
   - Fixes issue: [Gitlab Issue #33][gitlab_issue_33]
 - Unijoysticle A500: Virtual Device support to control Amiga mouse from DualSense and DualShock4.
   It is possible to "swap" the mouse and joystick port, and a connection from a new controller disconnects
@@ -44,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Switch: Fix crash while parsing IMU data ([Bug GH44][github_issue_44])
 - Xbox: Maps R1/R2 to Brake/Gas ([Bug GL34][gitlab_issue_34])
 - Xbox: on FW 5.x, "select" button is mapped ([Bug GHBA07][github_ba_issue_7])
-- Xbox / Stadia / Steam (other BLE devices): Connection is reliable again
+- Xbox / Stadia / Steam (other BLE devices): Connection is more reliable.
   - Fixes issue: [Gitlab Issue #35][gitlab_issue_35]
 
 [gitlab_issue_22]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/22
