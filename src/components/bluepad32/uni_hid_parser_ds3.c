@@ -36,7 +36,7 @@ limitations under the License.
 
 static const uint16_t DUALSHOCK3_VID = 0x054c;  // Sony
 static const uint16_t DUALSHOCK3_PID = 0x0268;  // DualShock 3
-//static const uint16_t PS3NAV_PID = 0x042f;      // PS3 Navigation Controller
+// static const uint16_t PS3NAV_PID = 0x042f;      // PS3 Navigation Controller
 
 // Required steps to determine what kind of extensions are supported.
 typedef enum ds3_fsm {
@@ -171,8 +171,7 @@ void uni_hid_parser_ds3_parse_input_report(uni_hid_device_t* d, const uint8_t* r
     //   0x04 : High
     //   0x05 : Full
     //   0xEE : Charging
-    switch (r->battery_status)
-    {
+    switch (r->battery_status) {
         case 1:
             ctl->battery = 0;
             break;
@@ -284,7 +283,7 @@ bool uni_hid_parser_ds3_does_name_match(struct uni_hid_device_s* d, const char* 
     // - "PLAYSTATION(R)3 Controller"
     // - "PLAYSTATION(R)3Conteroller-PANHAI"
     // - "PLAYSTATION(R)3Controller-ghic"
-    // - "Navigation Controller" 
+    // - "Navigation Controller"
     uint16_t product_id = DUALSHOCK3_PID;
     if (strcmp("Navigation Controller", name) == 0) {
         // Should report this product id but need to update uni_hid_device_vendors.h
