@@ -36,6 +36,7 @@ limitations under the License.
 
 static const uint16_t DUALSHOCK3_VID = 0x054c;  // Sony
 static const uint16_t DUALSHOCK3_PID = 0x0268;  // DualShock 3
+//static const uint16_t PS3NAV_PID = 0x042f;      // PS3 Navigation Controller
 
 // Required steps to determine what kind of extensions are supported.
 typedef enum ds3_fsm {
@@ -48,6 +49,7 @@ typedef enum ds3_fsm {
 typedef struct ds3_instance_s {
     ds3_fsm_t state;
     uint8_t player_leds;  // bitmap of LEDs
+    bool clone_controller;
 } ds3_instance_t;
 _Static_assert(sizeof(ds3_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "DS3 intance too big");
 
@@ -139,7 +141,7 @@ void uni_hid_parser_ds3_parse_input_report(uni_hid_device_t* d, const uint8_t* r
     // sixaxis version report th same lenght. To be safe, only query about the
     // data that is going to be used.
     if (len < 30) {
-        loge("ds3: Invalid report lenght, got: %d\n want: >= 29", len);
+        loge("ds3: Invalid report length, got: %d\n want: >= 29", len);
         return;
     }
 
@@ -161,6 +163,34 @@ void uni_hid_parser_ds3_parse_input_report(uni_hid_device_t* d, const uint8_t* r
     // Brake & throttle
     ctl->gamepad.brake = r->brake * 4;
     ctl->gamepad.throttle = r->throttle * 4;
+
+    // Battery values:
+    //   0x01 : Shutdown
+    //   0x02 : Dying
+    //   0x03 : Low
+    //   0x04 : High
+    //   0x05 : Full
+    //   0xEE : Charging
+    switch (r->battery_status)
+    {
+        case 1:
+            ctl->battery = 0;
+            break;
+        case 2:
+            ctl->battery = 64;
+            break;
+        case 3:
+            ctl->battery = 128;
+            break;
+        case 4:
+            ctl->battery = 192;
+            break;
+        case 5:
+        case 0xEE:
+            // Report charging same as full
+            ctl->battery = 255;
+            break;
+    }
 
     // Buttons
     if (r->buttons[0] & 0x01)
@@ -253,12 +283,23 @@ bool uni_hid_parser_ds3_does_name_match(struct uni_hid_device_s* d, const char* 
     // Matching names like:
     // - "PLAYSTATION(R)3 Controller"
     // - "PLAYSTATION(R)3Conteroller-PANHAI"
-    if (strncmp("PLAYSTATION(R)3", name, 15) != 0)
+    // - "PLAYSTATION(R)3Controller-ghic"
+    // - "Navigation Controller" 
+    uint16_t product_id = DUALSHOCK3_PID;
+    if (strcmp("Navigation Controller", name) == 0) {
+        // Should report this product id but need to update uni_hid_device_vendors.h
+        // product_id = PS3NAV_PID;
+    } else if (strncmp("PLAYSTATION(R)3", name, 15) == 0) {
+        if (strcmp("PLAYSTATION(R)3 Controller", name) != 0) {
+            ds3_instance_t* ins = get_ds3_instance(d);
+            ins->clone_controller = true;
+        }
+    } else {
         return false;
-
+    }
     // Fake PID/VID
     uni_hid_device_set_vendor_id(d, DUALSHOCK3_VID);
-    uni_hid_device_set_product_id(d, DUALSHOCK3_PID);
+    uni_hid_device_set_product_id(d, product_id);
     return true;
 }
 
@@ -294,5 +335,11 @@ static void ds3_send_output_report(uni_hid_device_t* d, ds3_output_report_t* out
     };
     memcpy(&out->led4, leds, sizeof(leds));
 
+    ds3_instance_t* ins = get_ds3_instance(d);
+    // Sony PS3 controllers expect the report on the control channel
     uni_hid_device_send_ctrl_report(d, (uint8_t*)out, sizeof(*out));
+    if (ins->clone_controller) {
+        // Clone controllers expect the report on the interrupt channel
+        uni_hid_device_send_intr_report(d, (uint8_t*)out, sizeof(*out));
+    }
 }
