@@ -68,6 +68,12 @@ typedef struct {
     int x_prev;
     int y_prev;
     bool prev_touch_active;
+
+    // Prev LED color  and rumble values
+    uint8_t prev_color_red;
+    uint8_t prev_color_green;
+    uint8_t prev_color_blue;
+    uint8_t prev_rumble;
 } ds4_instance_t;
 _Static_assert(sizeof(ds4_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "DS4 intance too big");
 
@@ -194,6 +200,7 @@ enum {
     DS4_FF_FLAG_RUMBLE = 1 << 0,
     DS4_FF_FLAG_LED_COLOR = 1 << 1,
     DS4_FF_FLAG_LED_BLINK = 1 << 2,
+    DS4_FF_FLAG_BLINK_COLOR_RUMBLE = DS4_FF_FLAG_RUMBLE | DS4_FF_FLAG_LED_COLOR | DS4_FF_FLAG_LED_BLINK,
 };
 
 static ds4_instance_t* get_ds4_instance(uni_hid_device_t* d);
@@ -504,11 +511,21 @@ void uni_hid_parser_ds4_parse_input_report(uni_hid_device_t* d, const uint8_t* r
 // https://gitlab.com/ricardoquesada/bluepad32/-/blob/c32598f39831fd8c2fa2f73ff3c1883049caafc2/src/main/uni_hid_parser_ds4.c#L185
 
 void uni_hid_parser_ds4_set_lightbar_color(uni_hid_device_t* d, uint8_t r, uint8_t g, uint8_t b) {
+    ds4_instance_t* ins = get_ds4_instance(d);
+
+    // Сache the previous LED color values
+    ins->prev_color_red = r;
+    ins->prev_color_green = g;
+    ins->prev_color_blue = b;
+
     ds4_output_report_t out = {
-        .flags = DS4_FF_FLAG_LED_COLOR,  // blink + LED + motor
+        .flags = DS4_FF_FLAG_BLINK_COLOR_RUMBLE,  // blink + LED + motor
         .led_red = r,
         .led_green = g,
         .led_blue = b,
+        // Prev rumble value to keep the rumble from turning off
+        .motor_right = ins->prev_rumble,
+        .motor_left = ins->prev_rumble,
     };
 
     ds4_send_output_report(d, &out);
@@ -519,11 +536,18 @@ void uni_hid_parser_ds4_set_rumble(uni_hid_device_t* d, uint8_t value, uint8_t d
     if (ins->rumble_in_progress)
         return;
 
+    // Сache the previous rumble value
+    ins->prev_rumble = value;
+
     ds4_output_report_t out = {
-        .flags = DS4_FF_FLAG_RUMBLE,
+        .flags = DS4_FF_FLAG_BLINK_COLOR_RUMBLE,  // blink + LED + motor
         // Right motor: small force; left motor: big force
         .motor_right = value,
         .motor_left = value,
+        // Prev LED color values to keep the LED color from turning off
+        .led_red = ins->prev_color_red,
+        .led_green = ins->prev_color_green,
+        .led_blue = ins->prev_color_blue,
     };
     ds4_send_output_report(d, &out);
 
@@ -564,8 +588,15 @@ static void ds4_set_rumble_off(btstack_timer_source_t* ts) {
     assert(ins->rumble_in_progress);
     ins->rumble_in_progress = 0;
 
+    // Сache the previous rumble value
+    ins->prev_rumble = 0x00;
+
     ds4_output_report_t out = {
-        .flags = DS4_FF_FLAG_RUMBLE,
+        .flags = DS4_FF_FLAG_BLINK_COLOR_RUMBLE,  // blink + LED + motor
+        // Prev LED color values to keep the LED color from turning off
+        .led_red = ins->prev_color_red,
+        .led_green = ins->prev_color_green,
+        .led_blue = ins->prev_color_blue,
     };
     ds4_send_output_report(d, &out);
 }
@@ -597,11 +628,19 @@ static void ds4_request_firmware_version_report(uni_hid_device_t* d) {
 
 static void ds4_send_enable_lightbar_report(uni_hid_device_t* d) {
     logi("DS4: ds4_send_enable_lightbar_report()\n");
+
+    ds4_instance_t* ins = get_ds4_instance(d);
+
+    // Cache the previous LED color and rumble values
+    ins->prev_color_red = 0x00;
+    ins->prev_color_green = 0x00;
+    ins->prev_color_blue = 0x40;
+    ins->prev_rumble = 0x00;
+
     // Also turns off blinking, LED and rumble.
     ds4_output_report_t out = {
         // blink + LED + motor
-        .flags = DS4_FF_FLAG_RUMBLE | DS4_FF_FLAG_LED_COLOR | DS4_FF_FLAG_LED_BLINK,
-
+        .flags = DS4_FF_FLAG_BLINK_COLOR_RUMBLE,
         // Default LED color: Blue
         .led_red = 0x00,
         .led_green = 0x00,
