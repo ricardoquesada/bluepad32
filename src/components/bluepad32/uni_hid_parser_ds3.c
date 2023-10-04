@@ -189,6 +189,8 @@ void uni_hid_parser_ds3_parse_input_report(uni_hid_device_t* d, const uint8_t* r
             // Report charging same as full
             ctl->battery = 255;
             break;
+        default:
+            logi("DS3: Battery status not supproted: %d\n", r->battery_status);
     }
 
     // Buttons

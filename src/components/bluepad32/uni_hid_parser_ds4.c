@@ -69,7 +69,7 @@ typedef struct {
     int y_prev;
     bool prev_touch_active;
 
-    // Prev LED color  and rumble values
+    // Prev LED color and rumble values.
     uint8_t prev_color_red;
     uint8_t prev_color_green;
     uint8_t prev_color_blue;
@@ -642,9 +642,9 @@ static void ds4_send_enable_lightbar_report(uni_hid_device_t* d) {
         // blink + LED + motor
         .flags = DS4_FF_FLAG_BLINK_COLOR_RUMBLE,
         // Default LED color: Blue
-        .led_red = 0x00,
-        .led_green = 0x00,
-        .led_blue = 0x40,
+        .led_red = ins->prev_color_red,
+        .led_green = ins->prev_color_green,
+        .led_blue = ins->prev_color_blue,
     };
     ds4_send_output_report(d, &out);
 }
