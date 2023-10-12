@@ -1,4 +1,4 @@
-set(srcs "main.c")
+set(srcs "uni_platform_custom.c" "main.c")
 
 set(requires "bluepad32")
 
