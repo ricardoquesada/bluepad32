@@ -38,6 +38,11 @@ menu "Bluepad32"
             help
                 Targets Unijoysticle 2 / Unijoysticle 2+ devices.
 
+        config BLUEPAD32_PLATFORM_CUSTOM
+            bool "Custom"
+            help
+                Custom platform, provided by the user/vendor
+
         config BLUEPAD32_PLATFORM_MAKEFILE
             bool "Decided by Makefile"
             help
@@ -75,6 +80,20 @@ menu "Bluepad32"
             Enables UART output (console output).
             Highly recommended for debugging purposes.
             But must be disabled on AirLift / NINA platforms.
+
+	config UNI_LOG_ERROR
+		int "Enable error-level logging"
+		default 1
+
+	config UNI_LOG_INFO
+		int "Enable info-level logging"
+		default 1
+		
+	config UNI_LOG_DEBUG
+		int "Enable debug-level logging"
+		default 0
+		help
+			It is safe to leave UNI_LOG_DEBUG disabled (unless you are a developer).
 
     config BLUEPAD32_USB_CONSOLE_ENABLE
         bool "Enable USB Console"
