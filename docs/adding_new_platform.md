@@ -1,33 +1,36 @@
-# Adding a new custom platform
+# Adding a new platform
 
-Adding a new custom platform is easy:
+Adding a new platform is easy:
 
-1. Ensure that the file `uni_platform_custom.c` is compiled and linked with your project, an example implementation can be found under `rsc/main`
-1. Create a new platform file such as `src/main/uni_platform_custom_2.c` file
-2. Update `src/main/Kconfig` file
-3. Update`src/main/uni_platform_custom.c` file so that the newly created platform can be selected in the function uni_platform_custom_create()
+1. Create your `src/components/bluepad32/uni_platform_yourplatform.c` file
+2. Update `src/components/bluepad32/Kconfig` file
+3. Update`src/components/bluepad32/uni_platform.c` file
+4. Add documentation in `docs/plat_yourplatform.md`
 
 ## 1. Platform file
 
 Use the existing platform as an exmaple:
 
-* [src/main/uni_platform_custom_1.c]
+* [uni_platform_nina.c]
 
 What you need to do is to implement the callbacks:
 
 ```c
-struct uni_platform* uni_platform_custom_2_create(void) {
+//
+// NINA platform entry point
+//
+struct uni_platform* uni_platform_nina_create(void) {
     static struct uni_platform plat;
 
-    plat.name = "Custom-2";
-    plat.init = custom_2_init;
-    plat.on_init_complete = custom_2_on_init_complete;
-    plat.on_device_connected = custom_2_on_device_connected;
-    plat.on_device_disconnected = custom_2_on_device_disconnected;
-    plat.on_device_ready = custom_2_on_device_ready;
-    plat.on_device_oob_event = custom_2_on_device_oob_event;
-    plat.on_gamepad_data = custom_2_on_gamepad_data;
-    plat.get_property = custom_2_get_property;
+    plat.name = "Arduino NINA";
+    plat.init = nina_init;
+    plat.on_init_complete = nina_on_init_complete;
+    plat.on_device_connected = nina_on_device_connected;
+    plat.on_device_disconnected = nina_on_device_disconnected;
+    plat.on_device_ready = nina_on_device_ready;
+    plat.on_device_oob_event = nina_on_device_oob_event;
+    plat.on_gamepad_data = nina_on_gamepad_data;
+    plat.get_property = nina_get_property;
 
     return &plat;
 }
