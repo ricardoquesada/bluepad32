@@ -43,7 +43,6 @@ static custom_1_instance_t* get_custom_1_instance(uni_hid_device_t* d);
 // Platform Overrides
 //
 static void custom_1_init(int argc, const char** argv) {
-
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
 
