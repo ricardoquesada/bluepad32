@@ -19,19 +19,19 @@ void uni_logv(const char* fmt, va_list args);
 
 #define loge(fmt, ...)                   \
     do {                                 \
-        if (UNI_LOG_ERROR)               \
+        if (CONFIG_UNI_LOG_ERROR)        \
             uni_log(fmt, ##__VA_ARGS__); \
     } while (0)
 
 #define logi(fmt, ...)                   \
     do {                                 \
-        if (UNI_LOG_INFO)                \
+        if (CONFIG_UNI_LOG_INFO)         \
             uni_log(fmt, ##__VA_ARGS__); \
     } while (0)
 
 #define logd(fmt, ...)                   \
     do {                                 \
-        if (UNI_LOG_DEBUG)               \
+        if (CONFIG_UNI_LOG_DEBUG)        \
             uni_log(fmt, ##__VA_ARGS__); \
     } while (0)
 

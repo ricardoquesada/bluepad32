@@ -21,6 +21,7 @@ limitations under the License.
 #include "sdkconfig.h"
 #include "uni_log.h"
 #include "uni_platform_arduino.h"
+#include "uni_platform_custom.h"
 #include "uni_platform_mightymiggy.h"
 #include "uni_platform_nina.h"
 #include "uni_platform_pc_debug.h"
@@ -33,8 +34,13 @@ limitations under the License.
 static struct uni_platform* _platform;
 
 void uni_platform_init(int argc, const char** argv) {
-    // Each vendor must create its own. These CONFIG_BLUEPAD32_PLATFORM_ defines
-    // are defined in the Makefile and Kconfig files.
+    // These CONFIG_BLUEPAD32_PLATFORM_ defines are defined in the Makefile
+    // and Kconfig files.
+    // Premade platforms are available as part of this library. Vendors/users
+    // may create a "custom" platform by providing an implementation of
+    // uni_platform_custom_create() within a project file (for instance
+    // uni_platform_custom.c) and select the CONFIG_BLUEPAD32_PLATFORM_CUSTOM
+    // from the Makefile or the Kconfig file
 
 #ifdef CONFIG_BLUEPAD32_PLATFORM_UNIJOYSTICLE
     _platform = uni_platform_unijoysticle_create();
@@ -48,6 +54,8 @@ void uni_platform_init(int argc, const char** argv) {
     _platform = uni_platform_nina_create();
 #elif defined(CONFIG_BLUEPAD32_PLATFORM_ARDUINO)
     _platform = uni_platform_arduino_create();
+#elif defined(CONFIG_BLUEPAD32_PLATFORM_CUSTOM)
+    _platform = uni_platform_custom_create();
 #else
 #error "Platform not defined. Set PLATFORM environment variable"
 #endif

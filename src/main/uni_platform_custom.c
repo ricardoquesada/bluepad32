@@ -1,7 +1,7 @@
 /****************************************************************************
 http://retro.moe/unijoysticle2
 
-Copyright 2019 Ricardo Quesada
+Copyright 2020 Ricardo Quesada
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,27 +16,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
-#ifndef UNI_CONFIG_H
-#define UNI_CONFIG_H
-
 #include "sdkconfig.h"
+#include "uni_log.h"
+#include "uni_platform.h"
 
-#if defined(CONFIG_TARGET_LIBUSB)
-// Linux + libusb
-#define UNI_ENABLE_BREDR 1
-#define UNI_ENABLE_BLE 1
-#elif defined(CONFIG_IDF_TARGET_ESP32)
-// ESP32
-#define UNI_ENABLE_BREDR 1
-#define UNI_ENABLE_BLE 1
-#elif defined(CONFIG_IDF_TARGET_ESP32S3) || defined(CONFIG_IDF_TARGET_ESP32C3)
-// ESP32-S3 / C3
-#define UNI_ENABLE_BLE 1
+extern struct uni_platform* uni_platform_custom_1_create(void);
+
+void uni_platform_custom_create() {
+    // These CONFIG_BLUEPAD32_PLATFORM_ defines are defined in the Makefile
+    // and Kconfig files.
+
+#ifdef CONFIG_BLUEPAD32_PLATFORM_CUSTOM_1
+    uni_platform_custom_1_create();
 #else
-#error "Unsupported target platform"
+#error "Custom Platform not defined."
 #endif
-
-// For more configurations, please look at the Kconfig file, or just do:
-// "idf.py menuconfig" -> "Component config" -> "Bluepad32"
-
-#endif  // UNI_CONFIG_H
+}
