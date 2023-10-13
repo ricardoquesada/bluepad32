@@ -1,0 +1,16 @@
+menu "Bluepad32 Custom Platform"
+
+    choice BLUEPAD32_CUSTOM_PLATFORM
+        bool "Target platform"
+        default BLUEPAD32_PLATFORM_CUSTOM_1
+        help
+            Select the Bluepad32 target custom platform.
+
+
+        config BLUEPAD32_PLATFORM_CUSTOM_1
+            bool "Custom-1"
+            help
+                Targets "custom-1" example device.
+
+    endchoice
+endmenu

@@ -93,7 +93,7 @@ if(DEFINED ENV{BLUEPAD32_ARDUINO})
     # linker will always include them.
     #
     # (As they are C++ symbol, we need to add the C++ mangled names.)
-	list(APPEND ext_symbols "-u _Z6setupv -u _Z4loopv")
+    list(APPEND ext_symbols "-u _Z6setupv -u _Z4loopv")
 endif()
 
 string(REPLACE ";" " " ext_symbols "${ext_symbols}")

@@ -36,7 +36,6 @@ static struct uni_platform* _platform;
 void uni_platform_init(int argc, const char** argv) {
     // These CONFIG_BLUEPAD32_PLATFORM_ defines are defined in the Makefile
     // and Kconfig files.
-
     // Premade platforms are available as part of this library. Vendors/users
     // may create a "custom" platform by providing an implementation of
     // uni_platform_custom_create() within a project file (for instance
