@@ -1551,7 +1551,7 @@ static void set_gamepad_mode(uni_hid_device_t* d, uni_platform_unijoysticle_game
     int num_devices = 0;
     for (int j = 0; j < CONFIG_BLUEPAD32_MAX_DEVICES; j++) {
         uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
-        if (uni_bt_conn_is_connected(&tmp_d->conn)) {
+        if (uni_bt_conn_is_connected(&tmp_d->conn) && !uni_hid_device_is_virtual_device(tmp_d)) {
             num_devices++;
             if (uni_hid_device_is_gamepad(tmp_d) && d == NULL) {
                 // Get the first valid gamepad device

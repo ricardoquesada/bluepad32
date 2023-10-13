@@ -23,6 +23,13 @@ Code contributors:
     - Improved documentation
   - rimim:
     - Add support for PS3 Nav controllers in tools/sixaxispairer
+    - Improved DS3 support
+  - Side Projects Lab:
+    - Author of "custom" platform
+  - Vasily Gromak
+    - Improved DS4 clone support
+  - Scoop:
+    - Author of BluepadBLEService for Arduino
 
 
 People who contributed with ideas and/or testing:
