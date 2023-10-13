@@ -1,17 +1,17 @@
-# Adding a new platform
+# Adding a new custom platform
 
-Adding a new platform is easy:
+Adding a new custom platform is easy:
 
-1. Create your `src/components/bluepad32/uni_platform_yourplatform.c` file
-2. Update `src/components/bluepad32/Kconfig` file
-3. Update`src/components/bluepad32/uni_platform.c` file
-4. Add documentation in `docs/plat_yourplatform.md`
+1. Ensure that the file `uni_platform_custom.c` is compiled and linked with your project, an example implementation can be found under `rsc/main`
+1. Create a new platform file such as `src/main/uni_platform_custom_2.c` file
+2. Update `src/main/Kconfig` file
+3. Update`src/main/uni_platform_custom.c` file so that the newly created platform can be selected in the function uni_platform_custom_create()
 
 ## 1. Platform file
 
 Use the existing platform as an exmaple:
 
-* [uni_platform_nina.c]
+* [src/main/uni_platform_custom.c]
 
 What you need to do is to implement the callbacks:
 
