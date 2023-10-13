@@ -1,4 +1,6 @@
-set(srcs "uni_platform_custom.c" "main.c")
+set(srcs "main.c"
+         "uni_platform_custom.c"
+         "uni_platform_custom_1.c")
 
 set(requires "bluepad32")
 
