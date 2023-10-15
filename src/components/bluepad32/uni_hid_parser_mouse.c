@@ -32,6 +32,17 @@ limitations under the License.
 #include "uni_hid_parser.h"
 #include "uni_log.h"
 
+#define TANK_MOUSE_VID 0x248a
+#define TANK_MOUSE_PID 0x8266
+
+typedef struct __attribute((packed)) tank_mouse_input_report {
+    uint8_t report_id;  // Should be 0x03
+    uint8_t buttons;
+    int16_t delta_x;
+    int16_t delta_y;
+    uint8_t scroll_wheel;
+} tank_mouse_input_report_t;
+
 typedef struct {
     float scale;
 } mouse_instance_t;
@@ -87,6 +98,8 @@ static const struct mouse_resolution resolutions[] = {
     {0x03f0, 0x084c, "HP Bluetooth Mouse Z5000", 0.5},
     // LogiLink ID0078A
     {0x046d, 0xb016, "ID0078A", 0.3334},
+    // Tank mouse
+    {TANK_MOUSE_VID, TANK_MOUSE_PID, NULL, 0.75},
 
     // No need to add entries where scale is 1
 };
@@ -138,17 +151,19 @@ void uni_hid_parser_mouse_setup(uni_hid_device_t* d) {
 }
 
 void uni_hid_parser_mouse_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len) {
-    ARG_UNUSED(d);
-#if 1
-    ARG_UNUSED(report);
-    ARG_UNUSED(len);
-#else
-    time_t t = time(0);
-    char buffer[32] = {0};
-    strftime(buffer, 9, "%H:%M:%S", localtime(&t));
-    printf("%s - ", buffer);
-    printf_hexdump(report, len);
-#endif
+    // Quick hack to support Bluetooth Tank Mouse, which for some reason
+    // it is not parsing the delta X/Y correctly.
+    if (d->vendor_id != TANK_MOUSE_VID || d->product_id != TANK_MOUSE_PID)
+        return;
+
+    uni_controller_t* ctl = &d->controller;
+    const tank_mouse_input_report_t* i = (tank_mouse_input_report_t*)report;
+
+    ctl->mouse.delta_x = process_mouse_delta(d, i->delta_x);
+    ctl->mouse.delta_y = process_mouse_delta(d, i->delta_y);
+    ctl->mouse.scroll_wheel = i->scroll_wheel;
+    ctl->mouse.buttons |= (i->buttons & 0x01) ? MOUSE_BUTTON_LEFT : 0;
+    ctl->mouse.buttons |= (i->buttons & 0x02) ? MOUSE_BUTTON_RIGHT : 0;
 }
 
 void uni_hid_parser_mouse_init_report(uni_hid_device_t* d) {
@@ -164,6 +179,9 @@ void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
                                       uint16_t usage,
                                       int32_t value) {
     ARG_UNUSED(globals);
+    if (d->vendor_id == TANK_MOUSE_VID && d->product_id == TANK_MOUSE_PID)
+        return;
+
     // TODO: should be a union of gamepad/mouse/keyboard
     uni_controller_t* ctl = &d->controller;
     switch (usage_page) {
@@ -174,12 +192,13 @@ void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
                     // Negative: left, positive: right.
                     ctl->mouse.delta_x = process_mouse_delta(d, value);
                     // printf("min: %d, max: %d\n", globals->logical_minimum, globals->logical_maximum);
-                    // printf("delta x old value: %d -> new value: %d\n", value, gp->axis_x);
+                    // printf("delta x old value: %d -> new value: %d\n", value, ctl->mouse.delta_x);
                     break;
                 case HID_USAGE_AXIS_Y:
                     // Mouse delta Y
                     // Negative: up, positive: down.
                     ctl->mouse.delta_y = process_mouse_delta(d, value);
+                    // printf("delta y old value: %d -> new value: %d\n", value, ctl->mouse.delta_y);
                     break;
                 case HID_USAGE_WHEEL:
                     ctl->mouse.scroll_wheel = value;
