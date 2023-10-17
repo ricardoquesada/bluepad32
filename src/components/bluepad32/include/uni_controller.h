@@ -28,6 +28,7 @@ extern "C" {
 #include "uni_balance_board.h"
 #include "uni_common.h"
 #include "uni_gamepad.h"
+#include "uni_keyboard.h"
 #include "uni_mouse.h"
 
 typedef enum {
@@ -56,6 +57,7 @@ typedef struct {
         uni_gamepad_t gamepad;
         uni_mouse_t mouse;
         uni_balance_board_t balance_board;
+        uni_keyboard_t keyboard;
     };
     uint8_t battery;  // 0=emtpy, 254=full, 255=battery report not available
 } uni_controller_t;

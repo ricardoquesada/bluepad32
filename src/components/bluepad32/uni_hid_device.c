@@ -38,6 +38,7 @@ limitations under the License.
 #include "uni_hid_parser_ds5.h"
 #include "uni_hid_parser_generic.h"
 #include "uni_hid_parser_icade.h"
+#include "uni_hid_parser_keyboard.h"
 #include "uni_hid_parser_mouse.h"
 #include "uni_hid_parser_nimbus.h"
 #include "uni_hid_parser_ouya.h"
@@ -703,6 +704,14 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             d->report_parser.parse_usage = uni_hid_parser_mouse_parse_usage;
             d->report_parser.device_dump = uni_hid_parser_mouse_device_dump;
             logi("Device detected as Mouse: 0x%02x\n", type);
+            break;
+        case CONTROLLER_TYPE_GenericKeyboard:
+            d->report_parser.setup = uni_hid_parser_keyboard_setup;
+            d->report_parser.parse_input_report = uni_hid_parser_keyboard_parse_input_report;
+            d->report_parser.init_report = uni_hid_parser_keyboard_init_report;
+            d->report_parser.parse_usage = uni_hid_parser_keyboard_parse_usage;
+            d->report_parser.device_dump = uni_hid_parser_keyboard_device_dump;
+            logi("Device detected as Keyboard: 0x%02x\n", type);
             break;
         default:
             d->report_parser.init_report = uni_hid_parser_generic_init_report;

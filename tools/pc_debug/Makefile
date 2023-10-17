@@ -91,6 +91,7 @@ bluepad32: ${CORE_OBJ} ${COMMON_OBJ} ${CLASSIC_OBJ} ${SDP_CLIENT} btstack_ring_b
 	${BLUEPAD32_ROOT}/uni_hid_parser_ds5.o \
 	${BLUEPAD32_ROOT}/uni_hid_parser_generic.o \
 	${BLUEPAD32_ROOT}/uni_hid_parser_icade.o \
+	${BLUEPAD32_ROOT}/uni_hid_parser_keyboard.o \
 	${BLUEPAD32_ROOT}/uni_hid_parser_mouse.o \
 	${BLUEPAD32_ROOT}/uni_hid_parser_nimbus.o \
 	${BLUEPAD32_ROOT}/uni_hid_parser_ouya.o \
@@ -101,6 +102,7 @@ bluepad32: ${CORE_OBJ} ${COMMON_OBJ} ${CLASSIC_OBJ} ${SDP_CLIENT} btstack_ring_b
 	${BLUEPAD32_ROOT}/uni_hid_parser_wii.o \
 	${BLUEPAD32_ROOT}/uni_hid_parser_xboxone.o \
 	${BLUEPAD32_ROOT}/uni_joystick.o \
+	${BLUEPAD32_ROOT}/uni_keyboard.o \
 	${BLUEPAD32_ROOT}/uni_log.o \
 	${BLUEPAD32_ROOT}/uni_main.o \
 	${BLUEPAD32_ROOT}/uni_mouse.o \

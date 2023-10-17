@@ -226,8 +226,7 @@ static void parse_report(uint8_t* packet, uint16_t size) {
         descriptor_data = hids_client_descriptor_storage_get_descriptor_data(hids_cid, service_index);
         descriptor_len = hids_client_descriptor_storage_get_descriptor_len(hids_cid, service_index);
 
-        device->hid_descriptor_len = descriptor_len;
-        memcpy(device->hid_descriptor, descriptor_data, sizeof(device->hid_descriptor));
+        uni_hid_device_set_hid_descriptor(device, descriptor_data, descriptor_len);
     }
     report_data = gattservice_subevent_hid_report_get_report(packet);
     report_len = gattservice_subevent_hid_report_get_report_len(packet);
@@ -278,7 +277,6 @@ static void hids_client_packet_handler(uint8_t packet_type, uint16_t channel, ui
                         loge("Hids Cid: Could not find valid device for hids_cid=%d\n", hids_cid);
                         break;
                     }
-                    uni_hid_device_set_hid_descriptor(device, hid_descriptor_storage, sizeof(hid_descriptor_storage));
                     uni_hid_device_guess_controller_type_from_pid_vid(device);
                     uni_hid_device_connect(device);
                     uni_hid_device_set_ready(device);
@@ -740,7 +738,7 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
     adv_event_get_data(packet, &appearance, name);
 
     if (appearance != UNI_BT_HID_APPEARANCE_GAMEPAD && appearance != UNI_BT_HID_APPEARANCE_JOYSTICK &&
-        appearance != UNI_BT_HID_APPEARANCE_MOUSE) {
+        appearance != UNI_BT_HID_APPEARANCE_MOUSE && appearance != UNI_BT_HID_APPEARANCE_KEYBOARD) {
         // Don't log it. There too many devices advertising themselves.
         return;
     }
@@ -779,6 +777,10 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
         case UNI_BT_HID_APPEARANCE_GAMEPAD:
             uni_hid_device_set_cod(d, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_GAMEPAD);
             logi("Device '%s' identified as Gamepad\n", name);
+            break;
+        case UNI_BT_HID_APPEARANCE_KEYBOARD:
+            uni_hid_device_set_cod(d, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_KEYBOARD);
+            logi("Device '%s' identified as Keyboard\n", name);
             break;
         default:
             loge("Unsupported appearance: %#x\n", appearance);

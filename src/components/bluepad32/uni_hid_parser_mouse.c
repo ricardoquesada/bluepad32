@@ -151,6 +151,7 @@ void uni_hid_parser_mouse_setup(uni_hid_device_t* d) {
 }
 
 void uni_hid_parser_mouse_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len) {
+    ARG_UNUSED(len);
     // Quick hack to support Bluetooth Tank Mouse, which for some reason
     // it is not parsing the delta X/Y correctly.
     if (d->vendor_id != TANK_MOUSE_VID || d->product_id != TANK_MOUSE_PID)

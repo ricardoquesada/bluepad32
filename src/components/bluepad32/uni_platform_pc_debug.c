@@ -26,6 +26,7 @@ limitations under the License.
 #include "uni_bt.h"
 #include "uni_gamepad.h"
 #include "uni_hid_device.h"
+#include "uni_hid_parser_mouse.h"
 #include "uni_log.h"
 
 //
@@ -144,6 +145,9 @@ static void pc_debug_on_controller_data(uni_hid_device_t* d, uni_controller_t* c
                 uni_bt_enable_new_connections_safe(true);
                 enabled = true;
             }
+            break;
+        case UNI_CONTROLLER_CLASS_MOUSE:
+            uni_hid_parser_mouse_device_dump(d);
             break;
         default:
             break;
