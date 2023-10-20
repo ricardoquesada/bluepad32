@@ -19,6 +19,6 @@ limitations under the License.
 
 #include "uni_platform.h"
 
-extern struct uni_platform* uni_platform_custom_create(void);
+struct uni_platform* uni_platform_custom_create(void);
 
 #endif  // UNI_PLATFORM_CUSTOM_H
