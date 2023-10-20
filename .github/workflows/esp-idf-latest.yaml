@@ -53,3 +53,11 @@ jobs:
         path: 'src'
         command: 'idf.py -B build_plat_mightymiggy -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.plat_mightymiggy" build'
 
+    - name: Custom build
+      uses: espressif/esp-idf-ci-action@main
+      with:
+        esp_idf_version: release-v5.1
+        target: esp32
+        path: 'src'
+        command: 'idf.py -B build_plat_custom -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.plat_custom" build'
+
