@@ -123,32 +123,32 @@ void uni_hid_parser_icade_parse_usage(uni_hid_device_t* d,
         case 0xe6:
         case 0xe7:
             break;
-        case 0x1a:  // w (up on)
+        case HID_USAGE_KB_W:  // w (up on)
             ctl->gamepad.dpad |= DPAD_UP;
             break;
-        case 0x08:  // e (up off)
+        case HID_USAGE_KB_E:  // e (up off)
             ctl->gamepad.dpad &= ~DPAD_UP;
             break;
-        case 0x07:  // d (right on)
+        case HID_USAGE_KB_D:  // d (right on)
             ctl->gamepad.dpad |= DPAD_RIGHT;
             break;
-        case 0x06:  // c (right off)
+        case HID_USAGE_KB_C:  // c (right off)
             ctl->gamepad.dpad &= ~DPAD_RIGHT;
             break;
-        case 0x1b:  // x (down on)
+        case HID_USAGE_KB_X:  // x (down on)
             ctl->gamepad.dpad |= DPAD_DOWN;
             break;
-        case 0x1d:  // z (down off)
+        case HID_USAGE_KB_Z:  // z (down off)
             ctl->gamepad.dpad &= ~DPAD_DOWN;
             break;
-        case 0x04:  // a (left on)
+        case HID_USAGE_KB_A:  // a (left on)
             ctl->gamepad.dpad |= DPAD_LEFT;
             break;
-        case 0x14:  // q (left off)
+        case HID_USAGE_KB_Q:  // q (left off)
             ctl->gamepad.dpad &= ~DPAD_LEFT;
             break;
 
-        case 0x1c:  // y (button A / "select": on)
+        case HID_USAGE_KB_Y:  // y (button A / "select": on)
             if (ins->model == ICADE_CABINET) {
                 // Cabinet.
                 ctl->gamepad.buttons |= BUTTON_A;
@@ -157,7 +157,7 @@ void uni_hid_parser_icade_parse_usage(uni_hid_device_t* d,
                 ctl->gamepad.misc_buttons |= MISC_BUTTON_SYSTEM;
             }
             break;
-        case 0x17:  // t (button A / "select": off)
+        case HID_USAGE_KB_T:  // t (button A / "select": off)
             if (ins->model == ICADE_CABINET) {
                 // Cabinet.
                 ctl->gamepad.buttons &= ~BUTTON_A;
@@ -167,7 +167,7 @@ void uni_hid_parser_icade_parse_usage(uni_hid_device_t* d,
             }
             break;
 
-        case 0x0b:  // h (button B / shoulder-left: on)
+        case HID_USAGE_KB_H:  // h (button B / shoulder-left: on)
             if (ins->model == ICADE_CABINET) {
                 // Cabinet.
                 ctl->gamepad.buttons |= BUTTON_B;
@@ -176,7 +176,7 @@ void uni_hid_parser_icade_parse_usage(uni_hid_device_t* d,
                 ctl->gamepad.buttons |= BUTTON_SHOULDER_L;
             }
             break;
-        case 0x15:  // r (button B, shoulder-left: off)
+        case HID_USAGE_KB_R:  // r (button B, shoulder-left: off)
             if (ins->model == ICADE_CABINET) {
                 // Cabinet.
                 ctl->gamepad.buttons &= ~BUTTON_B;
@@ -186,7 +186,7 @@ void uni_hid_parser_icade_parse_usage(uni_hid_device_t* d,
             }
             break;
 
-        case 0x18:  // u (button C / "start": on)
+        case HID_USAGE_KB_U:  // u (button C / "start": on)
             if (ins->model == ICADE_CABINET) {
                 // Cabinet.
                 ctl->gamepad.buttons |= BUTTON_X;
@@ -195,7 +195,7 @@ void uni_hid_parser_icade_parse_usage(uni_hid_device_t* d,
                 ctl->gamepad.misc_buttons |= MISC_BUTTON_START;
             }
             break;
-        case 0x09:  // f (button C / "start": off)
+        case HID_USAGE_KB_F:  // f (button C / "start": off)
             if (ins->model == ICADE_CABINET) {
                 // Cabinet.
                 ctl->gamepad.buttons &= ~BUTTON_X;
@@ -205,7 +205,7 @@ void uni_hid_parser_icade_parse_usage(uni_hid_device_t* d,
             }
             break;
 
-        case 0x0d:  // j (button X / shoulder right: on)
+        case HID_USAGE_KB_J:  // j (button X / shoulder right: on)
             if (ins->model == ICADE_CABINET) {
                 // Cabinet.
                 ctl->gamepad.buttons |= BUTTON_Y;
@@ -214,7 +214,7 @@ void uni_hid_parser_icade_parse_usage(uni_hid_device_t* d,
                 ctl->gamepad.buttons |= BUTTON_SHOULDER_R;
             }
             break;
-        case 0x11:  // n (button X / shoulder right: off)
+        case HID_USAGE_KB_N:  // n (button X / shoulder right: off)
             if (ins->model == ICADE_CABINET) {
                 // Cabinet.
                 ctl->gamepad.buttons &= ~BUTTON_Y;
@@ -224,7 +224,7 @@ void uni_hid_parser_icade_parse_usage(uni_hid_device_t* d,
             }
             break;
 
-        case 0x12:  // o (button L / Y on)
+        case HID_USAGE_KB_O:  // o (button L / Y on)
             if (ins->model == ICADE_CABINET) {
                 // Cabinet.
                 ctl->gamepad.misc_buttons |= MISC_BUTTON_SYSTEM;
@@ -233,7 +233,7 @@ void uni_hid_parser_icade_parse_usage(uni_hid_device_t* d,
                 ctl->gamepad.buttons |= BUTTON_Y;
             }
             break;
-        case 0x0a:  // g (button L / Y: off)
+        case HID_USAGE_KB_G:  // g (button L / Y: off)
             if (ins->model == ICADE_CABINET) {
                 // Cabinet.
                 ctl->gamepad.misc_buttons &= ~MISC_BUTTON_SYSTEM;
@@ -243,7 +243,7 @@ void uni_hid_parser_icade_parse_usage(uni_hid_device_t* d,
             }
             break;
 
-        case 0x0c:  // i (button Y / X: on)
+        case HID_USAGE_KB_I:  // i (button Y / X: on)
             if (ins->model == ICADE_CABINET) {
                 // Cabinet.
                 ctl->gamepad.misc_buttons |= MISC_BUTTON_START;
@@ -252,7 +252,7 @@ void uni_hid_parser_icade_parse_usage(uni_hid_device_t* d,
                 ctl->gamepad.buttons |= BUTTON_X;
             }
             break;
-        case 0x10:  // m (button Y / X: off)
+        case HID_USAGE_KB_M:  // m (button Y / X: off)
             if (ins->model == ICADE_CABINET) {
                 // Cabinet.
                 ctl->gamepad.misc_buttons &= ~MISC_BUTTON_START;
@@ -262,7 +262,7 @@ void uni_hid_parser_icade_parse_usage(uni_hid_device_t* d,
             }
             break;
 
-        case 0x0e:  // k (button  Z / A: on)
+        case HID_USAGE_KB_K:  // k (button  Z / A: on)
             if (ins->model == ICADE_CABINET) {
                 // Cabinet.
                 ctl->gamepad.buttons |= BUTTON_SHOULDER_L;
@@ -271,7 +271,7 @@ void uni_hid_parser_icade_parse_usage(uni_hid_device_t* d,
                 ctl->gamepad.buttons |= BUTTON_A;
             }
             break;
-        case 0x13:  // p (button Z / A: off)
+        case HID_USAGE_KB_P:  // p (button Z / A: off)
             if (ins->model == ICADE_CABINET) {
                 // Cabinet.
                 ctl->gamepad.buttons &= ~BUTTON_SHOULDER_L;
@@ -281,7 +281,7 @@ void uni_hid_parser_icade_parse_usage(uni_hid_device_t* d,
             }
             break;
 
-        case 0x0f:  // l (button R / B: on)
+        case HID_USAGE_KB_L:  // l (button R / B: on)
             if (ins->model == ICADE_CABINET) {
                 // Cabinet.
                 ctl->gamepad.buttons |= BUTTON_SHOULDER_R;
@@ -290,7 +290,7 @@ void uni_hid_parser_icade_parse_usage(uni_hid_device_t* d,
                 ctl->gamepad.buttons |= BUTTON_B;
             }
             break;
-        case 0x19:  // v (button R / B: off)
+        case HID_USAGE_KB_V:  // v (button R / B: off)
             if (ins->model == ICADE_CABINET) {
                 // Cabinet.
                 ctl->gamepad.buttons &= ~BUTTON_SHOULDER_R;

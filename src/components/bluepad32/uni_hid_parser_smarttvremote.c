@@ -80,8 +80,8 @@ void uni_hid_parser_smarttvremote_parse_usage(uni_hid_device_t* d,
                         ctl->gamepad.buttons |= BUTTON_A;
                     break;
                 case HID_USAGE_KB_POWER:
-                    break;                      // unmapped apparently
-                case HID_USAGE_KB_RESERVED_F1:  // Back button (reserved)
+                    break;  // unmapped apparently
+                case 0xf1:  // Back button (reserved)
                     if (value)
                         ctl->gamepad.misc_buttons |= MISC_BUTTON_SELECT;
                     break;
