@@ -93,20 +93,21 @@ void uni_hid_parser_generic_parse_usage(uni_hid_device_t* d,
             break;
         case HID_USAGE_PAGE_KEYBOARD_KEYPAD:
             switch (usage) {
-                case 0:
+                case HID_USAGE_KB_NONE:
                     break;
-                case 0x28:  // keyboard return
+                case HID_USAGE_KB_ENTER:
                     if (value)
                         ctl->gamepad.misc_buttons |= MISC_BUTTON_SYSTEM;
                     break;
-                case 0xe0:  // keyboard left control
-                case 0xe1:  // keyboard left shift
-                case 0xe2:  // keyboard left alt
-                case 0xe3:  // keyboard left GUI
-                case 0xe4:  // keyboard right control
-                case 0xe5:  // keyboard right shift
-                case 0xe6:  // keyboard right alt
-                case 0xe7:  // keyboard right GUI
+                case HID_USAGE_KB_LEFT_CONTROL:
+                case HID_USAGE_KB_LEFT_SHIFT:
+                case HID_USAGE_KB_LEFT_ALT:
+                case HID_USAGE_KB_LEFT_GUI:
+                case HID_USAGE_KB_RIGHT_CONTROL:
+                case HID_USAGE_KB_RIGHT_SHIFT:
+                case HID_USAGE_KB_RIGHT_ALT:
+                case HID_USAGE_KB_RIGHT_GUI:
+                    // Shift / Control / Alt keys. Ignore
                     break;
                 default:
                     logi("Generic: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);

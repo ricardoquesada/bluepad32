@@ -271,13 +271,13 @@ extern "C" {
 #define HID_USAGE_KP_OCTAL                      0xDB
 #define HID_USAGE_KP_DECIMAL                    0xDC
 #define HID_USAGE_KP_HEXADECIMAL                0xDD
-#define HID_USAGE_KB_LEFTCONTROL                0xE0
-#define HID_USAGE_KB_LEFTSHIFT                  0xE1
-#define HID_USAGE_KB_LEFTALT                    0xE2
+#define HID_USAGE_KB_LEFT_CONTROL               0xE0
+#define HID_USAGE_KB_LEFT_SHIFT                 0xE1
+#define HID_USAGE_KB_LEFT_ALT                   0xE2
 #define HID_USAGE_KB_LEFT_GUI                   0xE3
-#define HID_USAGE_KB_RIGHTCONTROL               0xE4
-#define HID_USAGE_KB_RIGHTSHIFT                 0xE5
-#define HID_USAGE_KB_RIGHTALT                   0xE6
+#define HID_USAGE_KB_RIGHT_CONTROL              0xE4
+#define HID_USAGE_KB_RIGHT_SHIFT                0xE5
+#define HID_USAGE_KB_RIGHT_ALT                  0xE6
 #define HID_USAGE_KB_RIGHT_GUI                  0xE7
 /* E8 - FFFF: reserved */
 
