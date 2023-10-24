@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased] - ???
+### New
+- Keyboard support:
+  - Bluetooth keyboard are supported: Up to 10 keys pressed at the same time + modifiers
+  - Unijoysticle: Keyboard behaves like a joystick using arrow keys or ASDW
+
 ### Changed
 - Custom platform:
   - "uni_platform_custom_1" renamed to "my_platform"
