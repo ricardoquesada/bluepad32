@@ -38,6 +38,7 @@ limitations under the License.
 #include <hal/gpio_types.h>
 
 #include "cmd_system.h"
+#include "hid_usage.h"
 #include "sdkconfig.h"
 #include "uni_balance_board.h"
 #include "uni_bt.h"
@@ -49,6 +50,7 @@ limitations under the License.
 #include "uni_hid_device.h"
 #include "uni_hid_device_vendors.h"
 #include "uni_joystick.h"
+#include "uni_keyboard.h"
 #include "uni_log.h"
 #include "uni_mouse_quadrature.h"
 #include "uni_platform.h"
@@ -181,6 +183,7 @@ static void process_mouse(uni_hid_device_t* d,
                           uint16_t buttons);
 static void process_gamepad(uni_hid_device_t* d, uni_gamepad_t* gp);
 static void process_balance_board(uni_hid_device_t* d, uni_balance_board_t* bb);
+static void process_keyboard(uni_hid_device_t* d, uni_keyboard_t* kb);
 static void joy_update_port(const uni_joystick_t* joy, const gpio_num_t* gpios);
 static void init_quadrature_mouse(void);
 static int get_mouse_emulation_from_nvs(void);
@@ -567,6 +570,10 @@ static void unijoysticle_on_controller_data(uni_hid_device_t* d, uni_controller_
             break;
         case UNI_CONTROLLER_CLASS_BALANCE_BOARD:
             process_balance_board(d, &ctl->balance_board);
+            break;
+        case UNI_CONTROLLER_CLASS_KEYBOARD:
+            process_keyboard(d, &ctl->keyboard);
+            break;
         default:
             break;
     }
@@ -1206,6 +1213,60 @@ static void process_balance_board(uni_hid_device_t* d, uni_balance_board_t* bb) 
             }
             break;
     }
+
+    process_joystick(d, ins->seat, &joy);
+}
+
+static void process_keyboard(uni_hid_device_t* d, uni_keyboard_t* kb) {
+    uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
+    uni_joystick_t joy;
+    memset(&joy, 0, sizeof(joy));
+
+    // Movement: arrows and ASDW.
+    // Fire: Space, Z, X, C and modifiers.
+
+    // Keys
+    for (int i = 0; i < UNI_KEYBOARD_PRESSED_KEYS_MAX; i++) {
+        // Stop on values from 0-3, they invalid codes.
+        const uint8_t key = kb->pressed_keys[i];
+        if (key <= HID_USAGE_KB_ERROR_UNDEFINED)
+            break;
+        switch (key) {
+            case HID_USAGE_KB_LEFT_ARROW:
+            case HID_USAGE_KB_A:
+                joy.left = 1;
+                break;
+            case HID_USAGE_KB_RIGHT_ARROW:
+            case HID_USAGE_KB_D:
+                joy.right = 1;
+                break;
+            case HID_USAGE_KB_UP_ARROW:
+            case HID_USAGE_KB_W:
+                joy.up = 1;
+                break;
+            case HID_USAGE_KB_DOWN_ARROW:
+            case HID_USAGE_KB_S:
+                joy.down = 1;
+                break;
+            case HID_USAGE_KB_SPACEBAR:
+            case HID_USAGE_KB_Z:
+                joy.fire = 1;
+                break;
+            case HID_USAGE_KB_X:
+                joy.button2 = 1;
+                break;
+            case HID_USAGE_KB_C:
+                joy.button2 = 1;
+                break;
+            default:
+                break;
+        }
+    }
+
+    // Modifiers
+    joy.fire |= (kb->modifiers & UNI_KEYBOARD_MODIFIER_LEFT_CONTROL) ? 1 : 0;
+    joy.button2 |= (kb->modifiers & UNI_KEYBOARD_MODIFIER_LEFT_ALT) ? 1 : 0;
+    joy.button3 |= (kb->modifiers & UNI_KEYBOARD_MODIFIER_LEFT_SHIFT) ? 1 : 0;
 
     process_joystick(d, ins->seat, &joy);
 }

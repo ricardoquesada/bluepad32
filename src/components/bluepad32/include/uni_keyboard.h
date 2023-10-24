@@ -27,9 +27,29 @@ extern "C" {
 
 #include "uni_common.h"
 
+// Array of pressed keys. No more than 10 can occur, since
+// only 10 fingers are supported.
+#define UNI_KEYBOARD_PRESSED_KEYS_MAX 10
+
+// Instead of using the HID_USAGE values, we use a special field for them.
+// Easier to parse.
+enum {
+    UNI_KEYBOARD_MODIFIER_LEFT_CONTROL = BIT(0),
+    UNI_KEYBOARD_MODIFIER_LEFT_SHIFT = BIT(1),
+    UNI_KEYBOARD_MODIFIER_LEFT_ALT = BIT(2),
+    UNI_KEYBOARD_MODIFIER_LEFT_GUI = BIT(3),
+    UNI_KEYBOARD_MODIFIER_RIGHT_CONTROL = BIT(4),
+    UNI_KEYBOARD_MODIFIER_RIGHT_SHIFT = BIT(5),
+    UNI_KEYBOARD_MODIFIER_RIGHT_ALT = BIT(6),
+    UNI_KEYBOARD_MODIFIER_RIGHT_GUI = BIT(8),
+};
+
 typedef struct {
+    // Bitmap of the modifiers.
     uint8_t modifiers;
-    uint8_t pressed_keys[16];
+    uint8_t pressed_keys[UNI_KEYBOARD_PRESSED_KEYS_MAX];
+    // Reserved for future use, like "Consumer page": eject, play, pause keyboard buttons.
+    uint8_t reserved[16];
 } uni_keyboard_t;
 
 void uni_keyboard_dump(const uni_keyboard_t* kb);

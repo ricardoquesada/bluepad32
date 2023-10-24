@@ -28,16 +28,26 @@ limitations under the License.
 #include "uni_hid_parser.h"
 #include "uni_log.h"
 
+typedef struct {
+    int pressed_key_index;
+} keyboard_instance_t;
+
+static keyboard_instance_t* get_keyboard_instance(uni_hid_device_t* d);
+
 void uni_hid_parser_keyboard_setup(uni_hid_device_t* d) {
     uni_hid_device_set_ready_complete(d);
 }
 
 void uni_hid_parser_keyboard_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len) {
     ARG_UNUSED(d);
-    printf_hexdump(report, len);
+    // printf_hexdump(report, len);
 }
 
 void uni_hid_parser_keyboard_init_report(uni_hid_device_t* d) {
+    // Reset pressed key index
+    keyboard_instance_t* ins = get_keyboard_instance(d);
+    ins->pressed_key_index = 0;
+
     // Reset old state. Each report contains a full-state.
     uni_controller_t* ctl = &d->controller;
     memset(ctl, 0, sizeof(*ctl));
@@ -50,15 +60,37 @@ void uni_hid_parser_keyboard_parse_usage(uni_hid_device_t* d,
                                          uint16_t usage,
                                          int32_t value) {
     ARG_UNUSED(globals);
-    ARG_UNUSED(d);
+
+    keyboard_instance_t* ins = get_keyboard_instance(d);
 
     switch (usage_page) {
         case HID_USAGE_PAGE_KEYBOARD_KEYPAD:
-            logi("page:%d, usage:%d, value:%d\n", usage_page, usage, value);
+            if (value) {
+                int idx = ins->pressed_key_index;
+                if (usage < HID_USAGE_KB_LEFT_CONTROL) {
+                    if (idx >= UNI_KEYBOARD_PRESSED_KEYS_MAX) {
+                        loge("Keyboard: Reached max keyboard keys, skipping page: %d, usage: %d, value: %d\n",
+                             usage_page, usage, value);
+                        return;
+                    }
+                    // "usage" represents the pressed key.
+                    // See: USB HID Usage Tables, Section 10 (page 53).
+                    d->controller.keyboard.pressed_keys[idx++] = usage;
+                    ins->pressed_key_index = idx;
+                } else if (usage <= HID_USAGE_KB_RIGHT_GUI) {
+                    // Value is between 0xe0 and 0xe7: the modifiers
+                    // Modifier is between 0 - 7
+                    uint8_t modifier = usage - HID_USAGE_KB_LEFT_CONTROL;
+                    d->controller.keyboard.modifiers |= BIT(modifier);
+                } else {
+                    // Usage >= 0xe8, unsupported value.
+                    logi("Keyboard: unsupported page:%d, usage:%d, value:%d\n", usage_page, usage, value);
+                }
+            }
             break;
 
         case HID_USAGE_PAGE_CONSUMER:
-            logi("page:%d, usage:%d, value:%d\n", usage_page, usage, value);
+            logi("Keyboard: page:%d, usage:%d, value:%d\n", usage_page, usage, value);
             break;
 
         // unknown usage page
@@ -72,4 +104,9 @@ void uni_hid_parser_keyboard_device_dump(struct uni_hid_device_s* d) {
     ARG_UNUSED(d);
 
     logi("\tuni_hid_parser_keyboard_device_dump: implement me: \n");
+}
+
+// Helpers
+static keyboard_instance_t* get_keyboard_instance(uni_hid_device_t* d) {
+    return (keyboard_instance_t*)&d->parser_data[0];
 }
