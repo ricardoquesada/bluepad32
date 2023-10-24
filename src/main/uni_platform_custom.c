@@ -22,12 +22,12 @@ limitations under the License.
 
 extern struct uni_platform* uni_platform_custom_1_create(void);
 
-void uni_platform_custom_create() {
+struct uni_platform*  uni_platform_custom_create() {
     // These CONFIG_BLUEPAD32_PLATFORM_ defines are defined in the Makefile
     // and Kconfig files.
 
 #ifdef CONFIG_BLUEPAD32_PLATFORM_CUSTOM_1
-    uni_platform_custom_1_create();
+    return uni_platform_custom_1_create();
 #else
 #error "Custom Platform not defined."
 #endif
