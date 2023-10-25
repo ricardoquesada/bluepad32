@@ -40,6 +40,8 @@ void uni_hid_parser_keyboard_setup(uni_hid_device_t* d) {
 
 void uni_hid_parser_keyboard_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len) {
     ARG_UNUSED(d);
+    ARG_UNUSED(report);
+    ARG_UNUSED(len);
     // printf_hexdump(report, len);
 }
 

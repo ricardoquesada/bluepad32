@@ -18,8 +18,13 @@ limitations under the License.
 
 #include "uni_balance_board.h"
 
+#include "sdkconfig.h"
+
+// Don't compile it on PC Debug since the console is not present
+#ifndef CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG
 #include <argtable3/argtable3.h>
 #include <esp_console.h>
+#endif // !CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG
 
 #include "uni_log.h"
 #include "uni_property.h"
@@ -31,6 +36,7 @@ limitations under the License.
 // Gets initialized at platform_init time.
 static uni_balance_board_threshold_t bb_threshold;
 
+#ifndef CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG
 static struct {
     struct arg_int* value;
     struct arg_end* end;
@@ -40,11 +46,6 @@ static struct {
     struct arg_int* value;
     struct arg_end* end;
 } bb_fire_threshold_args;
-
-void uni_balance_board_dump(const uni_balance_board_t* bb) {
-    // Don't add "\n"
-    logi("tl=%d, tr=%d, bl=%d, br=%d, temperature=%d", bb->tl, bb->tr, bb->bl, bb->br, bb->temperature);
-}
 
 static void set_bb_move_threshold_to_nvs(int threshold) {
     uni_property_value_t value;
@@ -157,6 +158,12 @@ void uni_balance_board_on_init_complete(void) {
     // Update Balance Board threshold
     bb_threshold.move = get_bb_move_threshold_from_nvs();
     bb_threshold.fire = get_bb_fire_threshold_from_nvs();
+}
+#endif // !CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG
+
+void uni_balance_board_dump(const uni_balance_board_t* bb) {
+    // Don't add "\n"
+    logi("tl=%d, tr=%d, bl=%d, br=%d, temperature=%d", bb->tl, bb->tr, bb->bl, bb->br, bb->temperature);
 }
 
 uni_balance_board_threshold_t uni_balance_board_get_threshold(void) {
