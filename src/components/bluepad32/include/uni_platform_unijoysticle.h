@@ -108,12 +108,7 @@ typedef struct uni_platform_unijoysticle_instance_s {
     bool swap_ports_in_twinstick;  // whether the ports in Twin Stick mode are swapped.
 
     // Used by Balance Board to determine joystick movements/fire
-    uint8_t bb_fire_state;
-    uint8_t bb_fire_counter;
-    int16_t bb_smooth_left;
-    int16_t bb_smooth_right;
-    int16_t bb_smooth_top;
-    int16_t bb_smooth_down;
+    uni_balance_board_state_t bb_state;
 
     // Debouncer for buttons and keys
     uint32_t debouncer;

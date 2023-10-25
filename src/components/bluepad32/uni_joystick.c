@@ -22,8 +22,6 @@ limitations under the License.
 #include <string.h>
 
 #include "hid_usage.h"
-#include "uni_gamepad.h"
-#include "uni_keyboard.h"
 #include "uni_log.h"
 
 // When accelerometer mode is enabled, it will use it as if it were
@@ -262,4 +260,84 @@ void uni_joy_to_single_joy_from_keyboard(const uni_keyboard_t* kb, uni_joystick_
 // Twin Stick: One keyboard controls two joysticks
 void uni_joy_to_twinstick_from_keyboard(const uni_keyboard_t* kb, uni_joystick_t* out_joy1, uni_joystick_t* out_joy2) {
     to_joy_from_keyboard(kb, out_joy2, out_joy1);
+}
+
+void uni_joy_to_single_joy_from_balance_board(const uni_balance_board_t* bb,
+                                              uni_balance_board_state_t* bb_state,
+                                              uni_joystick_t* out_joy) {
+    uni_balance_board_threshold_t bb_threshold = uni_balance_board_get_threshold();
+
+    // Low pass filter, assuming values arrive at the same framespeed
+    bb_state->smooth_down = mult_frac((bb->bl + bb->br) - bb_state->smooth_down, 6, 100);
+    bb_state->smooth_top = mult_frac((bb->tl + bb->tr) - bb_state->smooth_top, 6, 100);
+    bb_state->smooth_left = mult_frac((bb->tl + bb->bl) - bb_state->smooth_left, 6, 100);
+    bb_state->smooth_right = mult_frac((bb->tr + bb->br) - bb_state->smooth_right, 6, 100);
+
+    logd("l=%d, r=%d, t=%d, d=%d\n", bb_state->smooth_left, bb_state->smooth_right, bb_state->smooth_top,
+         bb_state->smooth_down);
+
+    if ((bb_state->smooth_top - bb_state->smooth_down) > bb_threshold.move)
+        out_joy->up = 1;
+    else if ((bb_state->smooth_down - bb_state->smooth_top) > bb_threshold.move)
+        out_joy->down = 1;
+
+    if ((bb_state->smooth_right - bb_state->smooth_left) > bb_threshold.move)
+        out_joy->right = 1;
+    else if ((bb_state->smooth_left - bb_state->smooth_right) > bb_threshold.move)
+        out_joy->left = 1;
+
+    // State machine to detect whether we can trigger fire
+    int sum = bb->tl + bb->tr + bb->bl + bb->br;
+    bb_state->fire_counter++;
+    logd("SUM=%d, counter=%d, state=%d (%d,%d,%d,%d)\n", sum, bb_state->fire_counter, bb_state->fire_state, bb->tl,
+         bb->tr, bb->bl, bb->br);
+    switch (bb_state->fire_state) {
+        case UNI_BALANCE_BOARD_STATE_RESET:
+            if (sum >= bb_threshold.fire) {
+                bb_state->fire_state = UNI_BALANCE_BOARD_STATE_THRESHOLD;
+                bb_state->fire_counter = 0;
+            }
+            break;
+        case UNI_BALANCE_BOARD_STATE_THRESHOLD:
+            if (bb->tl < UNI_BALANCE_BOARD_IDLE_THRESHOLD && bb->tr < UNI_BALANCE_BOARD_IDLE_THRESHOLD &&
+                bb->bl < UNI_BALANCE_BOARD_IDLE_THRESHOLD && bb->br < UNI_BALANCE_BOARD_IDLE_THRESHOLD) {
+                bb_state->fire_state = UNI_BALANCE_BOARD_STATE_IN_AIR;
+                bb_state->fire_counter = 0;
+                break;
+            }
+            // Since threshold was triggered, it has 10 frames to get to "in_air", otherwise we reset the state.
+            if (bb_state->fire_counter > 10) {
+                bb_state->fire_state = UNI_BALANCE_BOARD_STATE_RESET;
+                bb_state->fire_counter = 0;
+                break;
+            }
+            // Reset counter in case we are still above threshold
+            if (sum >= bb_threshold.fire) {
+                bb_state->fire_counter = 0;
+                break;
+            }
+            break;
+        case UNI_BALANCE_BOARD_STATE_IN_AIR:
+            // Once in Air, it must be at least 2 frames in the air
+            if (bb_state->fire_counter > 2) {
+                out_joy->fire = 1;
+                bb_state->fire_state = UNI_BALANCE_BOARD_STATE_FIRE;
+                bb_state->fire_counter = 0;
+                break;
+            }
+            if (bb->tl >= UNI_BALANCE_BOARD_IDLE_THRESHOLD || bb->tr >= UNI_BALANCE_BOARD_IDLE_THRESHOLD ||
+                bb->bl > UNI_BALANCE_BOARD_IDLE_THRESHOLD || bb->br >= UNI_BALANCE_BOARD_IDLE_THRESHOLD) {
+                bb_state->fire_state = UNI_BALANCE_BOARD_STATE_RESET;
+                bb_state->fire_counter = 0;
+            }
+            break;
+        case UNI_BALANCE_BOARD_STATE_FIRE:
+            out_joy->fire = 1;
+            // Maintain "fire" pressed for 10 frames
+            if (bb_state->fire_counter > 10) {
+                bb_state->fire_state = UNI_BALANCE_BOARD_STATE_RESET;
+                bb_state->fire_counter = 0;
+            }
+            break;
+    }
 }

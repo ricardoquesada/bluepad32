@@ -21,6 +21,7 @@ limitations under the License.
 
 #include <stdint.h>
 
+#include "uni_balance_board.h"
 #include "uni_gamepad.h"
 #include "uni_keyboard.h"
 
@@ -48,5 +49,10 @@ void uni_joy_to_single_from_wii_accel(const uni_gamepad_t* gp, uni_joystick_t* o
 // Keyboard related
 void uni_joy_to_single_joy_from_keyboard(const uni_keyboard_t* kb, uni_joystick_t* out_joy);
 void uni_joy_to_twinstick_from_keyboard(const uni_keyboard_t* kb, uni_joystick_t* out_joy1, uni_joystick_t* out_joy2);
+
+// Balance Board
+void uni_joy_to_single_joy_from_balance_board(const uni_balance_board_t* bb,
+                                              uni_balance_board_state_t* bb_state,
+                                              uni_joystick_t* out_joy);
 
 #endif  // UNI_JOYSTICK_H
