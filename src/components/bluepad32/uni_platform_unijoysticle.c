@@ -1278,7 +1278,6 @@ static void process_keyboard(uni_hid_device_t* d, uni_keyboard_t* kb) {
             break;
         default:
             loge("Unijoysticle: Mode %d not supported with keyboard\n", ins->gamepad_mode);
-        
     }
 
     // Swap ?

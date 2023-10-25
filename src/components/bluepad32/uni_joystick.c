@@ -250,8 +250,9 @@ static void to_joy_from_keyboard(const uni_keyboard_t* kb, uni_joystick_t* out_j
         out_joy1->button3 |= (kb->modifiers & UNI_KEYBOARD_MODIFIER_LEFT_SHIFT) ? 1 : 0;
     } else {
         // Right modifiers only valid when in "twin stick" mode
-        out_joy1->fire |= (kb->modifiers & UNI_KEYBOARD_MODIFIER_RIGHT_CONTROL) ? 1 : 0;
-        out_joy1->button2 |= (kb->modifiers & UNI_KEYBOARD_MODIFIER_RIGHT_SHIFT) ? 1 : 0;
+        out_joy1->fire |= (kb->modifiers & UNI_KEYBOARD_MODIFIER_RIGHT_ALT) ? 1 : 0;
+        out_joy1->button2 |= (kb->modifiers & UNI_KEYBOARD_MODIFIER_RIGHT_CONTROL) ? 1 : 0;
+        out_joy1->button3 |= (kb->modifiers & UNI_KEYBOARD_MODIFIER_RIGHT_SHIFT) ? 1 : 0;
     }
 }
 void uni_joy_to_single_joy_from_keyboard(const uni_keyboard_t* kb, uni_joystick_t* out_joy) {
