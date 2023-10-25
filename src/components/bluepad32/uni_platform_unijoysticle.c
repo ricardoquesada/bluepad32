@@ -524,34 +524,72 @@ static uni_error_t unijoysticle_on_device_ready(uni_hid_device_t* d) {
     return UNI_ERROR_SUCCESS;
 }
 
-static void test_gamepad_select_button(uni_hid_device_t* d, uni_gamepad_t* gp) {
+static bool test_gamepad_misc_button_pressed(uni_hid_device_t* d, uni_gamepad_t* gp, uint32_t button_mask) {
     uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
-    bool already_pressed = ins->buttons_debouncer & MISC_BUTTON_SELECT;
+    bool already_pressed = ins->debouncer & button_mask;
 
-    if (gp->misc_buttons & MISC_BUTTON_SELECT) {
-        // 'Select' pressed
+    // Only return true the first time it is pressed.
+    // Next time will occur when the button is released and pressed again.
+    if (gp->misc_buttons & button_mask) {
         if (already_pressed)
-            return;
-        ins->buttons_debouncer |= MISC_BUTTON_SELECT;
-        try_swap_ports(d);
+            return false;
+        ins->debouncer |= button_mask;
+        return true;
     } else {
-        ins->buttons_debouncer &= ~MISC_BUTTON_SELECT;
+        ins->debouncer &= ~button_mask;
     }
+    return false;
+}
+
+static bool test_keyboard_key_pressed(uni_hid_device_t* d, uni_keyboard_t* kb, uint8_t usage_key, uint32_t key_mask) {
+    uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
+    bool already_pressed = ins->debouncer & key_mask;
+    bool found = false;
+
+    // Only return true the first time it is pressed.
+    // Next time will occur when the button is released and pressed again.
+    for (int i = 0; i < UNI_KEYBOARD_PRESSED_KEYS_MAX; i++) {
+        // Assume not found is value is between 0 and 3, which are all errors.
+        if (kb->pressed_keys[i] < HID_USAGE_KB_ERROR_UNDEFINED)
+            break;
+        if (kb->pressed_keys[i] == usage_key) {
+            found = true;
+            break;
+        }
+    }
+    if (found) {
+        if (already_pressed)
+            return false;
+        ins->debouncer |= key_mask;
+        return true;
+    } else {
+        ins->debouncer &= ~key_mask;
+    }
+    return false;
+}
+
+static void test_gamepad_select_button(uni_hid_device_t* d, uni_gamepad_t* gp) {
+    if (test_gamepad_misc_button_pressed(d, gp, MISC_BUTTON_SELECT))
+        try_swap_ports(d);
 }
 
 static void test_gamepad_start_button(uni_hid_device_t* d, uni_gamepad_t* gp) {
-    uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
-    bool already_pressed = ins->buttons_debouncer & MISC_BUTTON_START;
-
-    if (gp->misc_buttons & MISC_BUTTON_START) {
-        // 'Start' pressed
-        if (already_pressed)
-            return;
-        ins->buttons_debouncer |= MISC_BUTTON_START;
+    if (test_gamepad_misc_button_pressed(d, gp, MISC_BUTTON_START))
         set_next_gamepad_mode(d);
-    } else {
-        ins->buttons_debouncer &= ~MISC_BUTTON_START;
-    }
+}
+
+static void test_keyboard_esc_key(uni_hid_device_t* d, uni_keyboard_t* kb) {
+    // FIXME: BUTTON_A should not be mapped to ESC.
+    // Define BIT constants for 32 keys (size of the bitmask)
+    if (test_keyboard_key_pressed(d, kb, HID_USAGE_KB_ESCAPE, BUTTON_A))
+        try_swap_ports(d);
+}
+
+static void test_keyboard_tab_key(uni_hid_device_t* d, uni_keyboard_t* kb) {
+    // FIXME: BUTTON_B should not be mapped to Tab.
+    // Define BIT constants for 32 keys (size of the bitmask)
+    if (test_keyboard_key_pressed(d, kb, HID_USAGE_KB_TAB, BUTTON_B))
+        set_next_gamepad_mode(d);
 }
 
 static void unijoysticle_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl) {
@@ -1219,56 +1257,34 @@ static void process_balance_board(uni_hid_device_t* d, uni_balance_board_t* bb) 
 
 static void process_keyboard(uni_hid_device_t* d, uni_keyboard_t* kb) {
     uni_platform_unijoysticle_instance_t* ins = uni_platform_unijoysticle_get_instance(d);
-    uni_joystick_t joy;
+    uni_joystick_t joy, joy_ext;
     memset(&joy, 0, sizeof(joy));
+    memset(&joy_ext, 0, sizeof(joy_ext));
 
-    // Movement: arrows and ASDW.
-    // Fire: Space, Z, X, C and modifiers.
-
-    // Keys
-    for (int i = 0; i < UNI_KEYBOARD_PRESSED_KEYS_MAX; i++) {
-        // Stop on values from 0-3, they invalid codes.
-        const uint8_t key = kb->pressed_keys[i];
-        if (key <= HID_USAGE_KB_ERROR_UNDEFINED)
+    switch (ins->gamepad_mode) {
+        case UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL:
+            uni_joy_to_single_joy_from_keyboard(kb, &joy);
+            process_joystick(d, ins->seat, &joy);
             break;
-        switch (key) {
-            case HID_USAGE_KB_LEFT_ARROW:
-            case HID_USAGE_KB_A:
-                joy.left = 1;
-                break;
-            case HID_USAGE_KB_RIGHT_ARROW:
-            case HID_USAGE_KB_D:
-                joy.right = 1;
-                break;
-            case HID_USAGE_KB_UP_ARROW:
-            case HID_USAGE_KB_W:
-                joy.up = 1;
-                break;
-            case HID_USAGE_KB_DOWN_ARROW:
-            case HID_USAGE_KB_S:
-                joy.down = 1;
-                break;
-            case HID_USAGE_KB_SPACEBAR:
-            case HID_USAGE_KB_Z:
-                joy.fire = 1;
-                break;
-            case HID_USAGE_KB_X:
-                joy.button2 = 1;
-                break;
-            case HID_USAGE_KB_C:
-                joy.button2 = 1;
-                break;
-            default:
-                break;
-        }
+        case UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK:
+            uni_joy_to_twinstick_from_keyboard(kb, &joy, &joy_ext);
+            if (ins->swap_ports_in_twinstick) {
+                process_joystick(d, GAMEPAD_SEAT_B, &joy);
+                process_joystick(d, GAMEPAD_SEAT_A, &joy_ext);
+            } else {
+                process_joystick(d, GAMEPAD_SEAT_A, &joy);
+                process_joystick(d, GAMEPAD_SEAT_B, &joy_ext);
+            }
+            break;
+        default:
+            loge("Unijoysticle: Mode %d not supported with keyboard\n", ins->gamepad_mode);
+        
     }
 
-    // Modifiers
-    joy.fire |= (kb->modifiers & UNI_KEYBOARD_MODIFIER_LEFT_CONTROL) ? 1 : 0;
-    joy.button2 |= (kb->modifiers & UNI_KEYBOARD_MODIFIER_LEFT_ALT) ? 1 : 0;
-    joy.button3 |= (kb->modifiers & UNI_KEYBOARD_MODIFIER_LEFT_SHIFT) ? 1 : 0;
-
-    process_joystick(d, ins->seat, &joy);
+    // Swap ?
+    test_keyboard_esc_key(d, kb);
+    // Change mode ?
+    test_keyboard_tab_key(d, kb);
 }
 
 static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
@@ -1762,6 +1778,9 @@ static void swap_ports(void) {
 // Call this function, instead of "swap_ports" when the user requested
 // a swap port from a button press.
 static void try_swap_ports(uni_hid_device_t* d) {
+    // We assume that "d" is already connected.
+    uni_hid_device_t* d2 = NULL;
+
     if (get_uni_model_from_pins() == BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT) {
         logi("INFO: unijoysticle_on_device_oob_event: No effect in single port boards\n");
         return;
@@ -1778,26 +1797,38 @@ static void try_swap_ports(uni_hid_device_t* d) {
         goto ok;
     }
 
+    // Find the possible 2nd connected device
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
+        uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(i);
+        if (tmp_d != d &&                              // Not current device
+            uni_bt_conn_is_connected(&tmp_d->conn) &&  // Is it connected ?
+            !uni_hid_device_is_virtual_device(tmp_d)   // It isn't virtual
+        ) {
+            // d2 represents the other connected device
+            d2 = tmp_d;
+            break;
+        }
+    }
+
+    // Swap if there are no other connected devices
+    if (d2 == NULL)
+        goto ok;
+
     // Swap joystick ports except if there is a connected gamepad that doesn't have the "System" or "Select" button
     // pressed. Basically allow:
     //  - swapping mouse+gamepad
     //  - swapping between physical+virtual
     //  - two gamepads while both are pressing the "system" or "select" button at the same time.
-    for (int j = 0; j < CONFIG_BLUEPAD32_MAX_DEVICES; j++) {
-        uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(j);
-        uni_platform_unijoysticle_instance_t* tmp_ins = uni_platform_unijoysticle_get_instance(tmp_d);
-        if (uni_bt_conn_is_connected(&tmp_d->conn) &&  // Is it connected ?
-            tmp_ins->seat != GAMEPAD_SEAT_NONE &&      // Does it have a seat ?
-            !uni_hid_device_is_virtual_device(tmp_d) &&
-            tmp_ins->gamepad_mode == UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL &&
-            ((tmp_d->controller.gamepad.misc_buttons & (MISC_BUTTON_SYSTEM | MISC_BUTTON_SELECT)) ==
-             0)  // "swap" pressed?
-        ) {
-            // If so, don't allow swap.
-            logi("unijoysticle: to swap ports press 'system' button on both gamepads at the same time\n");
-            uni_hid_device_dump_all();
-            return;
-        }
+    uni_platform_unijoysticle_instance_t* d2_ins = uni_platform_unijoysticle_get_instance(d2);
+    if (d2->controller_type == UNI_CONTROLLER_CLASS_GAMEPAD &&  // Is it a gamepad ?
+        d2_ins->seat != GAMEPAD_SEAT_NONE &&                    // ... and does it have a seat ?
+        ((d2->controller.gamepad.misc_buttons & (MISC_BUTTON_SYSTEM | MISC_BUTTON_SELECT)) ==
+         0)  // ...without pressing "swap" ?
+    ) {
+        // If so, don't allow swap.
+        logi("unijoysticle: to swap ports press 'system' button on both gamepads at the same time\n");
+        uni_hid_device_dump_all();
+        return;
     }
 
 ok:

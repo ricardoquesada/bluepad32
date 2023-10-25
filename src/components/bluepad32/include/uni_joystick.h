@@ -22,6 +22,7 @@ limitations under the License.
 #include <stdint.h>
 
 #include "uni_gamepad.h"
+#include "uni_keyboard.h"
 
 // Valid for Amiga, Atari 8-bit, Atari St, C64 and others...
 typedef struct {
@@ -37,9 +38,15 @@ typedef struct {
     uint8_t auto_fire;  // virtual button
 } uni_joystick_t;
 
+// Gamepad related
 void uni_joy_to_single_joy_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t* out_joy);
 void uni_joy_to_twinstick_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t* out_joy1, uni_joystick_t* out_joy2);
-// Helper  function that converts accelerotmer data from Wii, into joystick inputs
+
+// Wii related
 void uni_joy_to_single_from_wii_accel(const uni_gamepad_t* gp, uni_joystick_t* out_joy);
+
+// Keyboard related
+void uni_joy_to_single_joy_from_keyboard(const uni_keyboard_t* kb, uni_joystick_t* out_joy);
+void uni_joy_to_twinstick_from_keyboard(const uni_keyboard_t* kb, uni_joystick_t* out_joy1, uni_joystick_t* out_joy2);
 
 #endif  // UNI_JOYSTICK_H

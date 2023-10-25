@@ -37,19 +37,6 @@ limitations under the License.
 #define HID_DEVICE_CONNECTION_TIMEOUT_MS 20000
 
 typedef enum {
-    CONTROLLER_SUBTYPE_NONE = 0,
-    CONTROLLER_SUBTYPE_WIIMOTE_HORIZ,
-    CONTROLLER_SUBTYPE_WIIMOTE_VERT,
-    CONTROLLER_SUBTYPE_WIIMOTE_ACCEL,
-    CONTROLLER_SUBTYPE_WIIMOTE_NCHK,
-    CONTROLLER_SUBTYPE_WIIMOTE_NCHK2JOYS,
-    CONTROLLER_SUBTYPE_WIIMOTE_NCHKACCEL,
-    CONTROLLER_SUBTYPE_WII_CLASSIC,
-    CONTROLLER_SUBTYPE_WIIUPRO,
-    CONTROLLER_SUBTYPE_WII_BALANCE_BOARD
-} uni_controller_subtype_t;
-
-typedef enum {
     SDP_QUERY_AFTER_CONNECT,   // If not set, this is the default one.
     SDP_QUERY_BEFORE_CONNECT,  // Special case for DualShock4 1st generation.
     SDP_QUERY_NOT_NEEDED,      // Because the Controller type was inferred by other means.

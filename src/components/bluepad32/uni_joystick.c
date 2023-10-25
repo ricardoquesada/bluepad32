@@ -21,7 +21,10 @@ limitations under the License.
 
 #include <string.h>
 
+#include "hid_usage.h"
 #include "uni_gamepad.h"
+#include "uni_keyboard.h"
+#include "uni_log.h"
 
 // When accelerometer mode is enabled, it will use it as if it were
 // in the Nintendo Wii Wheel.
@@ -69,7 +72,7 @@ void uni_joy_to_single_joy_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t*
     out_joy->button3 |= ((gp->buttons & BUTTON_Y) != 0);
 }
 
-// Enhanced mode: One gamepad controls two joysticks
+// Twin Stick mode: One gamepad controls two joysticks
 void uni_joy_to_twinstick_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t* out_joy1, uni_joystick_t* out_joy2) {
     to_single_joy(gp, out_joy2);
 
@@ -150,4 +153,112 @@ void uni_joy_to_single_from_wii_accel(const uni_gamepad_t* gp, uni_joystick_t* o
         out_joy->down = 1;
     }
 #endif  // ! ENABLE_ACCEL_WHEEL_MODE
+}
+
+static void to_joy_from_keyboard(const uni_keyboard_t* kb, uni_joystick_t* out_joy1, uni_joystick_t* out_joy2) {
+    // Sanity check. Joy1 must be valid, joy2 can be null
+    if (!out_joy1) {
+        loge("Joystick: Invalid joy1 for keyboard\n");
+        return;
+    }
+
+    // Keys
+    for (int i = 0; i < UNI_KEYBOARD_PRESSED_KEYS_MAX; i++) {
+        // Stop on values from 0-3, they invalid codes.
+        const uint8_t key = kb->pressed_keys[i];
+        if (key <= HID_USAGE_KB_ERROR_UNDEFINED)
+            break;
+        switch (key) {
+            // Valid for both "single" and "twin stick" modes
+            // 1st joystick: Arrow keys
+            case HID_USAGE_KB_LEFT_ARROW:
+                out_joy1->left = 1;
+                break;
+            case HID_USAGE_KB_RIGHT_ARROW:
+                out_joy1->right = 1;
+                break;
+            case HID_USAGE_KB_UP_ARROW:
+                out_joy1->up = 1;
+                break;
+            case HID_USAGE_KB_DOWN_ARROW:
+                out_joy1->down = 1;
+                break;
+
+            // Only valid in "single" mode
+            // 1st joystick: Buttons
+            case HID_USAGE_KB_SPACEBAR:
+            case HID_USAGE_KB_Z:
+                if (out_joy2 == NULL)
+                    out_joy1->fire = 1;
+                break;
+            case HID_USAGE_KB_X:
+                if (out_joy2 == NULL)
+                    out_joy1->button2 = 1;
+                break;
+            case HID_USAGE_KB_C:
+                if (out_joy2 == NULL)
+                    out_joy1->button3 = 1;
+                break;
+
+            // Only valid in "twin stick" mode
+            // 2nd joystick: WASD and buttons (Q, E, R)
+            case HID_USAGE_KB_W:
+                if (out_joy2)
+                    out_joy2->up = 1;
+                break;
+
+            case HID_USAGE_KB_A:
+                if (out_joy2)
+                    out_joy2->left = 1;
+                break;
+
+            case HID_USAGE_KB_S:
+                if (out_joy2)
+                    out_joy2->down = 1;
+                break;
+
+            case HID_USAGE_KB_D:
+                if (out_joy2)
+                    out_joy2->right = 1;
+                break;
+
+            case HID_USAGE_KB_Q:
+                if (out_joy2)
+                    out_joy2->button2 = 1;
+                break;
+
+            case HID_USAGE_KB_E:
+                if (out_joy2)
+                    out_joy2->fire = 1;
+                break;
+
+            case HID_USAGE_KB_R:
+                if (out_joy2)
+                    out_joy2->button3 = 1;
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    // Joystick 1 buttons from Modifiers
+    if (out_joy2 == NULL) {
+        // Left modifiers only valid when in "single" mode
+        out_joy1->fire |= (kb->modifiers & UNI_KEYBOARD_MODIFIER_LEFT_CONTROL) ? 1 : 0;
+        out_joy1->button2 |= (kb->modifiers & UNI_KEYBOARD_MODIFIER_LEFT_ALT) ? 1 : 0;
+        out_joy1->button3 |= (kb->modifiers & UNI_KEYBOARD_MODIFIER_LEFT_SHIFT) ? 1 : 0;
+    } else {
+        // Right modifiers only valid when in "twin stick" mode
+        out_joy1->fire |= (kb->modifiers & UNI_KEYBOARD_MODIFIER_RIGHT_CONTROL) ? 1 : 0;
+        out_joy1->button2 |= (kb->modifiers & UNI_KEYBOARD_MODIFIER_RIGHT_SHIFT) ? 1 : 0;
+    }
+}
+void uni_joy_to_single_joy_from_keyboard(const uni_keyboard_t* kb, uni_joystick_t* out_joy) {
+    to_joy_from_keyboard(kb, out_joy, NULL);
+}
+
+// Twin Stick: One keyboard controls two joysticks
+void uni_joy_to_twinstick_from_keyboard(const uni_keyboard_t* kb, uni_joystick_t* out_joy1, uni_joystick_t* out_joy2) {
+    to_joy_from_keyboard(kb, out_joy2, out_joy1);
 }
