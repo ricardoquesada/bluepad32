@@ -339,8 +339,8 @@ void uni_joy_to_single_joy_from_balance_board(const uni_balance_board_t* bb,
                 bb_state->fire_counter = 0;
             }
             break;
-	default:
-	    loge("Joystick: Unexpected balance board state: %d\n", bb_state->fire_state);
-	    break;
+        default:
+            loge("Joystick: Unexpected balance board state: %d\n", bb_state->fire_state);
+            break;
     }
 }

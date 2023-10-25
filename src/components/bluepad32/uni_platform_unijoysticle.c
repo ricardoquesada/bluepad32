@@ -352,8 +352,6 @@ static void unijoysticle_on_init_complete(void) {
     uni_gpio_set_level(g_gpio_config->leds[UNI_PLATFORM_UNIJOYSTICLE_LED_J1], 0);
     uni_gpio_set_level(g_gpio_config->leds[UNI_PLATFORM_UNIJOYSTICLE_LED_J2], 0);
 
-    uni_balance_board_on_init_complete();
-
     if (g_variant->flags & UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRATURE_MOUSE)
         init_quadrature_mouse();
 

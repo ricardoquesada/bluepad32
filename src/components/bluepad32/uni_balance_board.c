@@ -24,7 +24,7 @@ limitations under the License.
 #ifndef CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG
 #include <argtable3/argtable3.h>
 #include <esp_console.h>
-#endif // !CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG
+#endif  // !CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG
 
 #include "uni_log.h"
 #include "uni_property.h"
@@ -34,7 +34,10 @@ limitations under the License.
 #define BB_FIRE_THRESHOLD_DEFAULT 5000  // Max weight before staring the "de-accel" to trigger fire.
 
 // Gets initialized at platform_init time.
-static uni_balance_board_threshold_t bb_threshold;
+static uni_balance_board_threshold_t bb_threshold = {
+    .move = BB_MOVE_THRESHOLD_DEFAULT,
+    .fire = BB_FIRE_THRESHOLD_DEFAULT,
+};
 
 #ifndef CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG
 static struct {
@@ -153,13 +156,15 @@ void uni_balance_board_register_cmds(void) {
     ESP_ERROR_CHECK(esp_console_cmd_register(&bb_move_threshold));
     ESP_ERROR_CHECK(esp_console_cmd_register(&bb_fire_threshold));
 }
+#endif  // !CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG
 
 void uni_balance_board_on_init_complete(void) {
+#ifndef CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG
     // Update Balance Board threshold
     bb_threshold.move = get_bb_move_threshold_from_nvs();
     bb_threshold.fire = get_bb_fire_threshold_from_nvs();
+#endif  // !CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG
 }
-#endif // !CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG
 
 void uni_balance_board_dump(const uni_balance_board_t* bb) {
     // Don't add "\n"

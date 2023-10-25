@@ -23,6 +23,7 @@ limitations under the License.
 #include <btstack.h>
 
 #include "sdkconfig.h"
+#include "uni_balance_board.h"
 #include "uni_bt.h"
 #include "uni_bt_bredr.h"
 #include "uni_bt_defines.h"
@@ -118,6 +119,11 @@ static void setup_call_next_fn(void) {
         if (IS_ENABLED(UNI_ENABLE_BLE))
             uni_bt_le_scan_start();
 
+        // Bluepad32 services that needs to be initialized once
+        // the rest of the system is ready.
+        uni_balance_board_on_init_complete();
+
+        // Finaly initialize the "platform"
         uni_get_platform()->on_init_complete();
         uni_get_platform()->on_oob_event(UNI_PLATFORM_OOB_BLUETOOTH_ENABLED, (void*)true);
     }
