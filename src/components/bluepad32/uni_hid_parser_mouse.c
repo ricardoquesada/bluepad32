@@ -298,8 +298,8 @@ void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
             break;
 
         case 0xff01:  // Tank Mouse
-            // User defined
-            // fall-through
+                      // User defined
+                      // fall-through
 
         // unknown usage page
         default:
