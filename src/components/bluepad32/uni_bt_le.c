@@ -180,12 +180,12 @@ static void get_advertisement_data(const uint8_t* adv_data, uint8_t adv_size, ui
                 logi("device id: %#x\n", little_endian_read_16(data, 0));
                 break;
             case BLUETOOTH_DATA_TYPE_LE_BLUETOOTH_DEVICE_ADDRESS:
-	    case BLUETOOTH_DATA_TYPE_MESH_BEACON:
-	    case BLUETOOTH_DATA_TYPE_MESH_MESSAGE:
-		// Safely ignore these messages
-		break;
+            case BLUETOOTH_DATA_TYPE_MESH_BEACON:
+            case BLUETOOTH_DATA_TYPE_MESH_MESSAGE:
+                // Safely ignore these messages
+                break;
             case BLUETOOTH_DATA_TYPE_SECURITY_MANAGER_OUT_OF_BAND_FLAGS:
-		// fall-through
+                // fall-through
             default:
                 logi("Advertising Data Type 0x%2x not handled yet\n", data_type);
                 break;
