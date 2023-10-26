@@ -294,7 +294,12 @@ void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
         }
 
         case 0xff00:  // Logitech M-RCL124
+            // User defined
             break;
+
+        case 0xff01:  // Tank Mouse
+            // User defined
+            // fall-through
 
         // unknown usage page
         default:

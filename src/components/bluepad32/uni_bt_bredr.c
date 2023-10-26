@@ -693,7 +693,7 @@ void uni_bt_bredr_on_hci_pin_code_request(uint16_t channel, const uint8_t* packe
     ARG_UNUSED(size);
 
     // TODO: Move to uni_bt_bredr.c
-    bool is_mouse = false;
+    bool is_mouse_or_keyboard = false;
 
     logi("--> HCI_EVENT_PIN_CODE_REQUEST\n");
     hci_event_pin_code_request_get_bd_addr(packet, event_addr);
@@ -701,16 +701,19 @@ void uni_bt_bredr_on_hci_pin_code_request(uint16_t channel, const uint8_t* packe
     if (!d) {
         loge("Failed to get device for: %s, assuming it is not a mouse\n", bd_addr_to_str(event_addr));
     } else {
-        uint32_t mouse_cod = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE;
-        is_mouse = (d->cod & mouse_cod) == mouse_cod;
+        is_mouse_or_keyboard =
+            ((d->cod & UNI_BT_COD_MAJOR_MASK) == UNI_BT_COD_MAJOR_PERIPHERAL) &&  // Is it a peripheral ?
+            (d->cod & UNI_BT_COD_MINOR_KEYBOARD_AND_MICE);                        // and is it a mouse or keyboard ?
     }
 
-    if (is_mouse) {
-        // For mice, use "0000" as pins, which seems to be the expected one.
+    if (is_mouse_or_keyboard) {
+        // For mouse/keyboard, use "0000" as pins, which seems to be the expected one.
+        // "1234" could also be a valid pin.
         logi("Using PIN code: '0000'\n");
         gap_pin_code_response_binary(event_addr, (uint8_t*)"0000", 4);
     } else {
         // FIXME: Assumes incoming connection from Nintendo Wii using Sync.
+        // Move as a plugin to Wii code.
         //
         // From: https://wiibrew.org/wiki/Wiimote#Bluetooth_Pairing:
         //  If connecting by holding down the 1+2 buttons, the PIN is the
