@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Custom platform:
   - "uni_platform_custom_1" renamed to "my_platform"
   - Removed main/Kconfig. Keeping the configuration simpler.
+- Arduino:
+  - Virtual Devices disabled by default
+  - Added `BP32.enableVirtualDevice(bool)` API in BP32 namespace
+  - Sketch shows how to use it
 
 ## [v3.9.1] - 2023-10-13
 ### New
