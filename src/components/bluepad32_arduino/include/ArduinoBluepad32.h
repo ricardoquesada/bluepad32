@@ -51,11 +51,18 @@ class Bluepad32 {
     // function.
     void forgetBluetoothKeys();
 
-    // Enable / Disable new Bluetooth connections.
+    // Enable new Bluetooth connections.
     // When enabled, the device is put in Discovery mode, and new pairs are accepted.
     // When disabled, only devices that have paired before can connect.
     // Established connections are not affected.
     void enableNewBluetoothConnections(bool enabled);
+
+    // Enables mouse / touchpad support for gamepads that support them.
+    // When enabled controllers like DualSense and DualShock4 generate two connected devices:
+    // - First one: the gamepad
+    // - Second one, which is a "vritual device", is a mouse
+    // By default it is disabled.
+    void enableVirtualDevice(bool enabled);
 
     void setup(const ControllerCallback& onConnect, const ControllerCallback& onDisconnect);
 

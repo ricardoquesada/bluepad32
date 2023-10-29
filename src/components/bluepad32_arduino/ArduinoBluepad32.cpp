@@ -14,6 +14,7 @@
 #include <uni_log.h>
 #include <uni_platform_arduino.h>
 #include <uni_version.h>
+#include <uni_virtual_device.h>
 
 Bluepad32::Bluepad32() : _prevConnectedControllers(0), _controllers(), _onConnect(), _onDisconnect() {}
 
@@ -78,6 +79,10 @@ const uint8_t* Bluepad32::localBdAddress() {
     static bd_addr_t addr;
     uni_bt_get_local_bd_addr_safe(addr);
     return addr;
+}
+
+void Bluepad32::enableVirtualDevice(bool enabled) {
+    uni_virtual_device_set_enabled(enabled);
 }
 
 Bluepad32 BP32;
