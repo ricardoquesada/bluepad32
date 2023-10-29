@@ -86,13 +86,12 @@ $ arduino-fwuploader firmware list
 
 You have to know:
 
-- COM port: If you don't know which one it is, open Arduino IDE, and go to `Tools` -> `Port`: It should be something like `COM3` or similar.
-  - **VERY IMPORTANT**: Close Arduino IDE after that. The COM port must be "free". Nobody should be using to flash the firmware.
+- COM port: If you don't know which one it is, open Arduino IDE, and go to `Tools` -> `Port`: It should be something like `COM3`.
+  - **VERY IMPORTANT**: Close Arduino IDE after that. The COM port must be "free". Nobody should be using it to flash the firmware.
 - The board name: Choose the correct one from the list above
 
-```
-# Replace with correct board names and COM.
-$ arduino-fwuploader firmware flash -b arduino:mbed_nano:nanorp2040connect -a COM3 -i PATH\TO\bluepad32-nina-full.bin
+```shell
+c:> arduino-fwuploader firmware flash -b arduino:mbed_nano:nanorp2040connect -a COM3 -i PATH\TO\bluepad32-nina-full.bin
 ```
 
 ![screenshot_flashing][screenshot_flashing]
