@@ -43,6 +43,26 @@ Bluepad32 firmware is "compatible-enough" with the original firmware:
 
 To flash Bluepad32 firmware, you have to:
 
+### Download latest pre-compiled Bluepad32 firmware for NINA
+
+Download latest binary from here: https://gitlab.com/ricardoquesada/bluepad32/-/releases
+
+- Download the file with "nina" in its name. E.g: `bluepad32-nina-x.y.z.tar.gz`
+- Uncompress it using [7-zip][7zip], or from command line (`cmd.exe`):
+
+```shell
+c:> tar -xf bluepad32-nina-x.y.z.tar.gz
+c:> cd bluepad32-nina-x.y.z
+c:> dir
+```
+
+- And you should see a file named `bluepad32-nina-x.y.z.bin` (or similar). You will use it later. Keep reading.
+
+![uncompress][uncompress_bluepad32]
+
+[7zip]: https://www.7-zip.org/
+[uncompress_bluepad32]: https://lh3.googleusercontent.com/pw/ADCreHeyGuxiKj7l9EHBCHSbTasF12CVpZBWZEb30z-st1RqizDNGnt8V5hUNEr6JtYogH5ItDw2NmrTlxwe5ZZYk8_9K7mXM273QYOAQ8HE85eVP3NT0zTSP2JXjUlbt542osSy0VYOVUfr_ON9_bNfcHuDiA=w1153-h561-s-no-gm?authuser=0
+
 ### Download arduino-fwuploader
 
 Download latest binary from here: https://github.com/arduino/arduino-fwuploader/releases
@@ -62,6 +82,24 @@ $ arduino-fwuploader firmware list
 
 ### Flash it
 
+#### Windows
+
+You have to know:
+
+- COM port: If you don't know which one it is, open Arduino IDE, and go to `Tools` -> `Port`: It should be something like `COM3` or similar.
+  - **VERY IMPORTANT**: Close Arduino IDE after that. The COM port must be "free". Nobody should be using to flash the firmware.
+- The board name: Choose the correct one from the list above
+
+```
+# Replace with correct board names and COM.
+$ arduino-fwuploader firmware flash -b arduino:mbed_nano:nanorp2040connect -a COM3 -i PATH\TO\bluepad32-nina-full.bin
+```
+
+![screenshot_flashing][screenshot_flashing]
+
+[screenshot_flashing]: https://lh3.googleusercontent.com/pw/ADCreHf8I0rm8Di7YCIH0Q3IBVZa6zl9YcMdLUSnOQ00kSKCk4HSp2FsZ5h9tegByhpeqTcR0T_cD-9mpierf7M4zVc22BybTYdOIWCXnghDx_vFS5nv81oE9N2ocF0VDpu6vVIQGy_PfOqppYFHOrlGvWj7Cw=w1479-h327-s-no-gm?authuser=0
+
+#### Linux & macOS
 ```shell
 # Replace name and address with the correct ones
 export BOARD=arduino:samd:nano_33_iot
