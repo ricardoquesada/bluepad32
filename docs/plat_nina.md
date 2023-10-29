@@ -50,10 +50,10 @@ Download latest binary from here: https://gitlab.com/ricardoquesada/bluepad32/-/
 - Download the file with "nina" in its name. E.g: `bluepad32-nina-x.y.z.tar.gz`
 - Uncompress it using [7-zip][7zip], or from command line (`cmd.exe`):
 
-```shell
-c:> tar -xf bluepad32-nina-x.y.z.tar.gz
-c:> cd bluepad32-nina-x.y.z
-c:> dir
+```bat
+tar -xf bluepad32-nina-x.y.z.tar.gz
+cd bluepad32-nina-x.y.z
+dir
 ```
 
 - And you should see a file named `bluepad32-nina-x.y.z.bin` (or similar). You will use it later. Keep reading.
@@ -91,7 +91,7 @@ You have to know:
 - The board name: Choose the correct one from the list above
 
 ```shell
-c:> arduino-fwuploader firmware flash -b arduino:mbed_nano:nanorp2040connect -a COM3 -i PATH\TO\bluepad32-nina-full.bin
+arduino-fwuploader firmware flash -b arduino:mbed_nano:nanorp2040connect -a COM3 -i PATH\TO\bluepad32-nina-full.bin
 ```
 
 ![screenshot_flashing][screenshot_flashing]
