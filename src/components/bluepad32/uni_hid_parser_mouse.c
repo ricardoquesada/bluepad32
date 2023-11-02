@@ -151,20 +151,9 @@ void uni_hid_parser_mouse_setup(uni_hid_device_t* d) {
 }
 
 void uni_hid_parser_mouse_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len) {
+    ARG_UNUSED(d);
+    ARG_UNUSED(report);
     ARG_UNUSED(len);
-    // Quick hack to support Bluetooth Tank Mouse, which for some reason
-    // it is not parsing the delta X/Y correctly.
-    if (d->vendor_id != TANK_MOUSE_VID || d->product_id != TANK_MOUSE_PID)
-        return;
-
-    uni_controller_t* ctl = &d->controller;
-    const tank_mouse_input_report_t* i = (tank_mouse_input_report_t*)report;
-
-    ctl->mouse.delta_x = process_mouse_delta(d, i->delta_x);
-    ctl->mouse.delta_y = process_mouse_delta(d, i->delta_y);
-    ctl->mouse.scroll_wheel = i->scroll_wheel;
-    ctl->mouse.buttons |= (i->buttons & 0x01) ? MOUSE_BUTTON_LEFT : 0;
-    ctl->mouse.buttons |= (i->buttons & 0x02) ? MOUSE_BUTTON_RIGHT : 0;
 }
 
 void uni_hid_parser_mouse_init_report(uni_hid_device_t* d) {
@@ -180,8 +169,6 @@ void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
                                       uint16_t usage,
                                       int32_t value) {
     ARG_UNUSED(globals);
-    if (d->vendor_id == TANK_MOUSE_VID && d->product_id == TANK_MOUSE_PID)
-        return;
 
     // TODO: should be a union of gamepad/mouse/keyboard
     uni_controller_t* ctl = &d->controller;
