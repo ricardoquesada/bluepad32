@@ -307,10 +307,54 @@ void uni_bt_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
                     logi("SSP User Confirmation Auto accept\n");
                     break;
                 case HCI_EVENT_HID_META: {
-                    logi("UNSUPPORTED ---> HCI_EVENT_HID_META <---\n");
                     uint8_t code = hci_event_hid_meta_get_subevent_code(packet);
                     logi("HCI HID META SUBEVENT: 0x%02x\n", code);
-                    break;
+                    switch (code) {
+                        case HID_SUBEVENT_INCOMING_CONNECTION:
+                            // There is an incoming connection: we can accept it or decline it.
+                            // The hid_host_report_mode in the hid_host_accept_connection function
+                            // allows the application to request a protocol mode.
+                            // For available protocol modes, see hid_protocol_mode_t in btstack_hid.h file.
+                            logi("UNSUPPORTED ---> HCI_EVENT_HID_META : HID_SUBEVENT_INCOMING_CONNECTION <---\n");
+                            break;
+
+                        case HID_SUBEVENT_CONNECTION_OPENED:
+                            // The status field of this event indicates if the control and interrupt
+                            // connections were opened successfully.
+                            logi("UNSUPPORTED ---> HCI_EVENT_HID_META : HID_SUBEVENT_CONNECTION_OPENED <---\n");
+                            break;
+
+                        case HID_SUBEVENT_DESCRIPTOR_AVAILABLE:
+                            // This event will follows HID_SUBEVENT_CONNECTION_OPENED event.
+                            // For incoming connections, i.e. HID Device initiating the connection,
+                            // the HID_SUBEVENT_DESCRIPTOR_AVAILABLE is delayed, and some HID
+                            // reports may be received via HID_SUBEVENT_REPORT event. It is up to
+                            // the application if these reports should be buffered or ignored until
+                            // the HID descriptor is available.
+                            logi("UNSUPPORTED ---> HCI_EVENT_HID_META : HID_SUBEVENT_DESCRIPTOR_AVAILABLE <---\n");
+                            break;
+
+                        case HID_SUBEVENT_REPORT:
+                            // Handle input report.
+                            logi("UNSUPPORTED ---> HCI_EVENT_HID_META : HID_SUBEVENT_REPORT <---\n");
+                            break;
+
+                        case HID_SUBEVENT_SET_PROTOCOL_RESPONSE:
+                            // For incoming connections, the library will set the protocol mode of the
+                            // HID Device as requested in the call to hid_host_accept_connection. The event
+                            // reports the result. For connections initiated by calling hid_host_connect,
+                            // this event will occur only if the established report mode is boot mode.
+                            logi("UNSUPPORTED ---> HCI_EVENT_HID_META : HID_SUBEVENT_SET_PROTOCOL_RESPONSE <---\n");
+                            break;
+
+                        case HID_SUBEVENT_CONNECTION_CLOSED:
+                            // The connection was closed.
+                            logi("UNSUPPORTED ---> HCI_EVENT_HID_META : HID_SUBEVENT_CONNECTION_CLOSED <---\n");
+                            break;
+
+                        default:
+                            break;
+                    }
                 }
                 case HCI_EVENT_INQUIRY_RESULT:
                     // logi("--> HCI_EVENT_INQUIRY_RESULT <--\n");

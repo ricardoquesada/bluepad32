@@ -187,7 +187,7 @@ void uni_bt_bredr_setup(void) {
     // TODO: Do we need EIR, since the name will be requested if not provided?
     hci_set_inquiry_mode(INQUIRY_MODE_RSSI_AND_EIR);
 
-    // btstack_stdin_setup(stdin_process);
+    // try to become master on incoming connections
     hci_set_master_slave_policy(HCI_ROLE_MASTER);
 
     logi("Gap security level: %d\n", security_level);

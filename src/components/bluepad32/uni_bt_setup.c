@@ -57,6 +57,10 @@ static fn_t setup_fns[] = {
 static setup_state_t setup_state = SETUP_STATE_BTSTACK_IN_PROGRESS;
 static btstack_packet_callback_registration_t hci_event_callback_registration;
 
+// SDP
+//#define MAX_ATTRIBUTE_VALUE_SIZE 300
+// static uint8_t hid_descriptor_storage[MAX_ATTRIBUTE_VALUE_SIZE];
+
 static void maybe_delete_or_list_link_keys(void) {
     int32_t delete_keys = uni_get_platform()->get_property(UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS);
     if (delete_keys != 1) {
@@ -193,6 +197,10 @@ int uni_bt_setup(void) {
 
     if (IS_ENABLED(UNI_ENABLE_BLE) && ble_enabled)
         uni_bt_le_setup();
+
+    // Initialize HID Host
+    // hid_host_init(hid_descriptor_storage, sizeof(hid_descriptor_storage));
+    // hid_host_register_packet_handler(uni_bt_packet_handler);
 
     // Disable stdout buffering
     setbuf(stdout, NULL);
