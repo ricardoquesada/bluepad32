@@ -4,11 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - ???
+## [3.9.10] - 2023-11-02
 ### New
-- Keyboard support:
+- Keyboard support (BETA, might change in the futrure):
   - Bluetooth keyboard are supported: Up to 10 keys pressed at the same time + modifiers
-  - Unijoysticle: Keyboard behaves like a joystick using arrow keys or ASDW
+  - Unijoysticle:
+    - Keyboard behaves like a joystick using arrow keys or ASDW
+    - Press "Escape" to change Joystick ports
+    - Press "Tab" to change Modes
 
 ### Changed
 - Custom platform:
@@ -18,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Virtual Devices disabled by default
   - Added `BP32.enableVirtualDevice(bool)` API in BP32 namespace
   - Sketch shows how to use it
+
+### Fixed
+- Tank Mouse (Bluetooth version) works Ok. Good for Amiga users using Unijoysticle.
 
 ## [v3.9.1] - 2023-10-13
 ### New

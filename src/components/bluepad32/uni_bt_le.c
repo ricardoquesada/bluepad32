@@ -681,6 +681,7 @@ void uni_bt_le_on_hci_event_le_meta(const uint8_t* packet, uint16_t size) {
             // Safely ignore it, we handle the GAP advertising report instead
             break;
 
+        case HCI_SUBEVENT_LE_CONNECTION_UPDATE_COMPLETE:
         case HCI_SUBEVENT_LE_READ_REMOTE_FEATURES_COMPLETE:
             // Ignore it
             break;

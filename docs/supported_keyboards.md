@@ -14,9 +14,9 @@ The list of **tested** keyboards is this one:
 
 * Supports: all keys
 * Purchase link: [8BitDo store][8bitdo_keyboard_link]
-* Technical info: BLE, up to 
+* Technical info: BLE, up to 16 simultaneus keys.
 
-[8bitdo_keyboard_photo]: 
+[8bitdo_keyboard_photo]: https://lh3.googleusercontent.com/pw/ADCreHdkkpmH7M3NIo00JwCfMdVEN3EsBLx7Gy5HfGJoqHKsMn_35_8uIW1fkvQinagIlwNbOf68IFCK4KlVykVpYGFfywLrdcT_sU114VLKDxdGoCPAbXQCg6VizyPahEaioY2uuOAbEO9s1nMls-NZB-0Pvg
 [8bitdo_keyboard_link]: https://www.8bitdo.com/retro-mechanical-keyboard/
 
 ## Apple Magic Keyboard 2 Model A1644
@@ -27,21 +27,21 @@ The list of **tested** keyboards is this one:
 * Purchase link: [eBay][magic_mouse_a1657_link]
 * Technical info: BR/EDR, up to 4 simultaneus keys
 
-[magic_keyboard_a1644_photo]: 
+[magic_keyboard_a1644_photo]: https://lh3.googleusercontent.com/pw/ADCreHfu_Mpr9vo72AFaAhpBgJ8VkLXDvoiJuGs9ZeEJAcNsW6vJTY3OD0HYsMEyHB43ZIHO_39q1xkpnee59qp2LCaB9yiZuXGlTERjH3NRFbwYJ1oFv_JJo47xUF6hKY9ImClyXCB0xmnbG-jdtH80WcWK4Q
 [magic_keyboard_a1644_link]: https://www.ebay.com/sch/i.html?_nkw=apple+magic+keyboard+a1644
 
 
 ## Microsoft Bluetooth Keyboard
 
-[![Apple Magic Trackpad A1339][magic_trackpad_a1339_photo]][magic_trackpad_a1339_link]
+[![Microsoft][microsoft_photo]][microsoft_link]
 
-* Supports: movement; left click
-* Purchase link: [eBay][magic_trackpad_a1339_link]
-* Bugs: Right/middle click not working [issue #17][gitlab_issue_17]
+* Supports: all keys
+* Purchase link: [eBay][microsoft_link]
+* Technical info: BLE, up to 10 simultaneus keys
+* Unknown model
 
-[magic_trackpad_a1339_photo]: https://lh3.googleusercontent.com/pw/AM-JKLV-N1Imj77WsdXc-wPtlwxYubS6BAb_X5ipI-gpk2XagClmdcbGyvPddp5F9zy6bsH9Q0ICrEvrd6PdF7EzmsfejmbI7WAaeMBQqI69UIYId5Ehvw4vDAC8CAHsaFpz4veUsgs2_jnjyix2wTdA7PjgAA=-no?
-[magic_trackpad_a1339_link]: https://www.ebay.com/sch/i.html?_nkw=apple+magic+trackpad+a1339
-[gitlab_issue_17]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/17
+[microsoft_photo]: https://lh3.googleusercontent.com/pw/ADCreHd6sI3xeSxU4JFZ0wGpGVqUlPfhcwNHIZNRuTCNJEEaQm0r5qAAJl9hoA4nk0Pq_A7YP_24jF0UPT9SuH3YGD4HOOqA5Pq-Fu7fIDVbVOsD1EVERif272rngfH8XKyVSX7t2V3npU3A0yUUnL-rGGZBhA
+[microsoft_link]: https://www.ebay.com/sch/i.html?_nkw=microsoft+bluetooth+keyboard
 
 
 ## Other supported

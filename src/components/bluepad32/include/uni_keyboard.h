@@ -27,8 +27,9 @@ extern "C" {
 
 #include "uni_common.h"
 
-// Array of pressed keys. No more than 10 can occur, since
-// only 10 fingers are supported.
+// Array of pressed keys. Hardcode it at 10.
+// We expect that keyboards won't support more than 10 press keys at the same time,
+// since we have a max of 10 fingers.
 #define UNI_KEYBOARD_PRESSED_KEYS_MAX 10
 
 // Instead of using the HID_USAGE values, we use a special field for them.

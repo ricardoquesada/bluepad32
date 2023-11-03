@@ -71,14 +71,16 @@ Choose your target platform:
 * 8BitDo controllers
 * iCade
 * Mouse
+* Keyboards
 * And more
 
 NOTE: Original **ESP32** supports all listed controllers. **ESP32-S3** and **ESP32-C3** support only a subset.
 
-See: [Supported gamepads][gamepads] and [supported mice][mice]
+See: [Supported gamepads][gamepads], [supported mice][mice] and [supported keyboards][keyboards]
 
 [gamepads]: https://gitlab.com/ricardoquesada/bluepad32/blob/master/docs/supported_gamepads.md
 [mice]: https://gitlab.com/ricardoquesada/bluepad32/blob/master/docs/supported_mice.md
+[keyboards]: https://gitlab.com/ricardoquesada/bluepad32/blob/master/docs/supported_keyboards.md
 
 ## Pre-compiled binaries
 
