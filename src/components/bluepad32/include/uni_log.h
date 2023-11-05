@@ -13,26 +13,34 @@ extern "C" {
 #include <stdio.h>
 
 #include "uni_config.h"
+#include "sdkconfig.h"
 
 void uni_log(const char* fmt, ...);
 void uni_logv(const char* fmt, va_list args);
 
-#define loge(fmt, ...)                   \
-    do {                                 \
-        if (CONFIG_UNI_LOG_ERROR)        \
-            uni_log(fmt, ##__VA_ARGS__); \
+/*
+ * None = 0
+ * Error = 1
+ * Info = 2
+ * Debug = 3
+ */
+
+#define loge(fmt, ...)                          \
+    do {                                        \
+        if (CONFIG_BLUEPAD32_LOG_LEVEL >= 1)    \
+            uni_log(fmt, ##__VA_ARGS__);        \
     } while (0)
 
-#define logi(fmt, ...)                   \
-    do {                                 \
-        if (CONFIG_UNI_LOG_INFO)         \
-            uni_log(fmt, ##__VA_ARGS__); \
+#define logi(fmt, ...)                          \
+    do {                                        \
+        if (CONFIG_BLUEPAD32_LOG_LEVEL >= 2)    \
+            uni_log(fmt, ##__VA_ARGS__);        \
     } while (0)
 
-#define logd(fmt, ...)                   \
-    do {                                 \
-        if (CONFIG_UNI_LOG_DEBUG)        \
-            uni_log(fmt, ##__VA_ARGS__); \
+#define logd(fmt, ...)                          \
+    do {                                        \
+        if (CONFIG_BLUEPAD32_LOG_LEVEL >= 3)    \
+            uni_log(fmt, ##__VA_ARGS__);        \
     } while (0)
 
 #ifdef __cplusplus

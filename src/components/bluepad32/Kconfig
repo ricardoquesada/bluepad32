@@ -81,19 +81,29 @@ menu "Bluepad32"
             Highly recommended for debugging purposes.
             But must be disabled on AirLift / NINA platforms.
 
-	config UNI_LOG_ERROR
-		int "Enable error-level logging"
-		default 1
+        choice BLUEPAD32_LOG_LEVEL
+            bool "Log verbosity"
+            default BLUEPAD32_LOG_LEVEL_INFO
+            depends on BLUEPAD32_UART_OUTPUT_ENABLE
+            help
+                Specify how much output to see in logs.
 
-	config UNI_LOG_INFO
-		int "Enable info-level logging"
-		default 1
-		
-	config UNI_LOG_DEBUG
-		int "Enable debug-level logging"
-		default 0
-		help
-			It is safe to leave UNI_LOG_DEBUG disabled (unless you are a developer).
+        config BLUEPAD32_LOG_LEVEL_NONE
+            bool "No output"
+        config BLUEPAD32_LOG_LEVEL_ERROR
+            bool "Error"
+        config BLUEPAD32_LOG_LEVEL_INFO
+            bool "Info"
+        config BLUEPAD32_LOG_LEVEL_DEBUG
+            bool "Debug"
+    endchoice
+
+    config BLUEPAD32_LOG_LEVEL
+        int
+        default 0 if BLUEPAD32_LOG_LEVEL_NONE
+        default 1 if BLUEPAD32_LOG_LEVEL_ERROR
+        default 2 if BLUEPAD32_LOG_LEVEL_INFO
+        default 3 if BLUEPAD32_LOG_LEVEL_DEBUG
 
     config BLUEPAD32_USB_CONSOLE_ENABLE
         bool "Enable USB Console"
