@@ -35,6 +35,7 @@ const struct Controller::controllerNames Controller::_controllerNames[] = {
     {Controller::CONTROLLER_TYPE_XInputSwitchController, "XInput Switch"},
     {Controller::CONTROLLER_TYPE_PS5Controller, "DualSense"},
 
+    // Bluepad32 additions
     {Controller::CONTROLLER_TYPE_iCadeController, "iCade"},
     {Controller::CONTROLLER_TYPE_SmartTVRemoteController, "Smart TV Remote"},
     {Controller::CONTROLLER_TYPE_EightBitdoController, "8BitDo"},
@@ -97,6 +98,48 @@ String Controller::getModelName() const {
             return _controllerNames[i].name;
     }
     return "Unknown";
+}
+
+//
+// Keyboard functions
+//
+bool Controller::isKeyPressed(KeyboardKey key) const {
+    // When querying for Modifiers, delegate to modifier function
+    if (key >= Keyboard_LeftControl && key <= Keyboard_RightMeta) {
+        return isModifierPressed(key);
+    }
+
+    for (int i = 0; i < UNI_KEYBOARD_PRESSED_KEYS_MAX; i++) {
+        // Return early on error
+        if (_data.keyboard.pressed_keys[i] <= HID_USAGE_KB_ERROR_UNDEFINED)
+            return false;
+        if (_data.keyboard.pressed_keys[i] == key)
+            return true;
+    }
+    return false;
+}
+
+bool Controller::isModifierPressed(KeyboardKey key) const {
+    static uint8_t convertion[] = {
+        UNI_KEYBOARD_MODIFIER_LEFT_CONTROL,   //
+        UNI_KEYBOARD_MODIFIER_LEFT_SHIFT,     //
+        UNI_KEYBOARD_MODIFIER_LEFT_ALT,       //
+        UNI_KEYBOARD_MODIFIER_LEFT_GUI,       //
+        UNI_KEYBOARD_MODIFIER_RIGHT_CONTROL,  //
+        UNI_KEYBOARD_MODIFIER_RIGHT_SHIFT,    //
+        UNI_KEYBOARD_MODIFIER_RIGHT_ALT,      //
+        UNI_KEYBOARD_MODIFIER_RIGHT_GUI,      //
+    };
+
+    // Safety check, out of range ?
+    if (key < Keyboard_LeftControl || key > Keyboard_RightMeta)
+        return false;
+
+    int idx = key - Keyboard_LeftControl;
+    uint8_t modifier = convertion[idx];
+
+    // Safe to test for non-zero since we know that only one-bit is on in "modifier".
+    return (_data.keyboard.modifiers & modifier);
 }
 
 // Private functions

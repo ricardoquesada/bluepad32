@@ -49,7 +49,7 @@ typedef uni_gamepad_t arduino_gamepad_data_t;
 
 typedef struct {
     uint8_t btaddr[6];    // BT Addr
-    uint8_t type;         // Gamepad model: PS3, PS4, Switch, etc.
+    uint16_t type;        // Gamepad model: PS3, PS4, Switch, etc.
     uint8_t subtype;      // subtype. E.g: Wii Remote 2nd version
     uint16_t vendor_id;   // VID
     uint16_t product_id;  // PID

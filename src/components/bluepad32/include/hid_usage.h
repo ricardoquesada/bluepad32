@@ -137,7 +137,7 @@ extern "C" {
 #define HID_USAGE_KB_HOME                       0x4A
 #define HID_USAGE_KB_PAGE_UP                    0x4B
 #define HID_USAGE_KB_DELETE                     0x4C
-#define HID_USAGE_KB_END1                       0x4D
+#define HID_USAGE_KB_END                        0x4D
 #define HID_USAGE_KB_PAGE_DOWN                  0x4E
 #define HID_USAGE_KB_RIGHT_ARROW                0x4F
 #define HID_USAGE_KB_LEFT_ARROW                 0x50
@@ -145,7 +145,7 @@ extern "C" {
 #define HID_USAGE_KB_UP_ARROW                   0x52
 #define HID_USAGE_KP_NUM_LOCK_CLEAR             0x53
 #define HID_USAGE_KP_SLASH                      0x54
-#define HID_USAGE_KP_ASTERIKS                   0x55
+#define HID_USAGE_KP_ASTERISK                   0x55
 #define HID_USAGE_KP_MINUS                      0x56
 #define HID_USAGE_KP_PLUS                       0x57
 #define HID_USAGE_KP_ENTER                      0x58

@@ -38,45 +38,191 @@ limitations under the License.
 // from "sdkconfig.defaults" with:
 //    CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE=n
 
-GamepadPtr myGamepads[BP32_MAX_GAMEPADS];
+ControllerPtr myControllers[BP32_MAX_GAMEPADS];
 
 // This callback gets called any time a new gamepad is connected.
 // Up to 4 gamepads can be connected at the same time.
-void onConnectedGamepad(GamepadPtr gp) {
+void onConnectedController(ControllerPtr ctl) {
     bool foundEmptySlot = false;
     for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {
-        if (myGamepads[i] == nullptr) {
-            Console.printf("CALLBACK: Gamepad is connected, index=%d\n", i);
+        if (myControllers[i] == nullptr) {
+            Console.printf("CALLBACK: Controller is connected, index=%d\n", i);
             // Additionally, you can get certain gamepad properties like:
             // Model, VID, PID, BTAddr, flags, etc.
-            GamepadProperties properties = gp->getProperties();
-            Console.printf("Gamepad model: %s, VID=0x%04x, PID=0x%04x\n", gp->getModelName(), properties.vendor_id,
+            ControllerProperties properties = ctl->getProperties();
+            Console.printf("Controller model: %s, VID=0x%04x, PID=0x%04x\n", ctl->getModelName(), properties.vendor_id,
                            properties.product_id);
-            myGamepads[i] = gp;
+            myControllers[i] = ctl;
             foundEmptySlot = true;
             break;
         }
     }
     if (!foundEmptySlot) {
-        Console.println("CALLBACK: Gamepad connected, but could not found empty slot");
+        Console.println("CALLBACK: Controller connected, but could not found empty slot");
     }
 }
 
-void onDisconnectedGamepad(GamepadPtr gp) {
-    bool foundGamepad = false;
+void onDisconnectedController(ControllerPtr ctl) {
+    bool foundController = false;
 
     for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {
-        if (myGamepads[i] == gp) {
-            Console.printf("CALLBACK: Gamepad is disconnected from index=%d\n", i);
-            myGamepads[i] = nullptr;
-            foundGamepad = true;
+        if (myControllers[i] == ctl) {
+            Console.printf("CALLBACK: Controller disconnected from index=%d\n", i);
+            myControllers[i] = nullptr;
+            foundController = true;
             break;
         }
     }
 
-    if (!foundGamepad) {
-        Console.println("CALLBACK: Gamepad disconnected, but not found in myGamepads");
+    if (!foundController) {
+        Console.println("CALLBACK: Controller disconnected, but not found in myControllers");
     }
+}
+
+void dumpGamepad(ControllerPtr ctl) {
+    Console.printf(
+        "idx=%d, dpad: 0x%02x, buttons: 0x%04x, axis L: %4d, %4d, axis R: %4d, %4d, brake: %4d, throttle: %4d, "
+        "misc: 0x%02x, gyro x:%6d y:%6d z:%6d, accel x:%6d y:%6d z:%6d\n",
+        ctl->index(),        // Controller Index
+        ctl->dpad(),         // DPAD
+        ctl->buttons(),      // bitmask of pressed buttons
+        ctl->axisX(),        // (-511 - 512) left X Axis
+        ctl->axisY(),        // (-511 - 512) left Y axis
+        ctl->axisRX(),       // (-511 - 512) right X axis
+        ctl->axisRY(),       // (-511 - 512) right Y axis
+        ctl->brake(),        // (0 - 1023): brake button
+        ctl->throttle(),     // (0 - 1023): throttle (AKA gas) button
+        ctl->miscButtons(),  // bitmak of pressed "misc" buttons
+        ctl->gyroX(),        // Gyro X
+        ctl->gyroY(),        // Gyro Y
+        ctl->gyroZ(),        // Gyro Z
+        ctl->accelX(),       // Accelerometer X
+        ctl->accelY(),       // Accelerometer Y
+        ctl->accelZ()        // Accelerometer Z
+    );
+}
+
+void dumpMouse(ControllerPtr ctl) {
+    Console.printf("idx=%d, buttons: 0x%04x, scrollWheel=0x%04x, delta X: %4d, delta Y: %4d\n",
+                   ctl->index(),        // Controller Index
+                   ctl->buttons(),      // bitmask of pressed buttons
+                   ctl->scrollWheel(),  // Scroll Wheel
+                   ctl->deltaX(),       // (-511 - 512) left X Axis
+                   ctl->deltaY()        // (-511 - 512) left Y axis
+    );
+}
+
+void dumpKeyboard(ControllerPtr ctl) {
+    // TODO: Print pressed keys
+    Console.printf("idx=%d\n", ctl->index());
+}
+
+void dumpBalanceBoard(ControllerPtr ctl) {
+    Console.printf("idx=%d,  TL=%u, TR=%u, BL=%u, BR=%u, temperature=%d\n",
+                   ctl->index(),        // Controller Index
+                   ctl->topLeft(),      // top-left scale
+                   ctl->topRight(),     // top-right scale
+                   ctl->bottomLeft(),   // bottom-left scale
+                   ctl->bottomRight(),  // bottom-right scale
+                   ctl->temperature()   // temperature: used to adjust the scale value's precision
+    );
+}
+
+void processGamepad(ControllerPtr ctl) {
+    // There are different ways to query whether a button is pressed.
+    // By query each button individually:
+    //  a(), b(), x(), y(), l1(), etc...
+    if (ctl->a()) {
+        static int colorIdx = 0;
+        // Some gamepads like DS4 and DualSense support changing the color LED.
+        // It is possible to change it by calling:
+        switch (colorIdx % 3) {
+            case 0:
+                // Red
+                ctl->setColorLED(255, 0, 0);
+                break;
+            case 1:
+                // Green
+                ctl->setColorLED(0, 255, 0);
+                break;
+            case 2:
+                // Blue
+                ctl->setColorLED(0, 0, 255);
+                break;
+        }
+        colorIdx++;
+    }
+
+    if (ctl->b()) {
+        // Turn on the 4 LED. Each bit represents one LED.
+        static int led = 0;
+        led++;
+        // Some gamepads like the DS3, DualSense, Nintendo Wii, Nintendo Switch
+        // support changing the "Player LEDs": those 4 LEDs that usually indicate
+        // the "gamepad seat".
+        // It is possible to change them by calling:
+        ctl->setPlayerLEDs(led & 0x0f);
+    }
+
+    if (ctl->x()) {
+        // Duration: 255 is ~2 seconds
+        // force: intensity
+        // Some gamepads like DS3, DS4, DualSense, Switch, Xbox One S support
+        // rumble.
+        // It is possible to set it by calling:
+        ctl->setRumble(0xc0 /* force */, 0xc0 /* duration */);
+    }
+
+    // Another way to query controller data is by getting the buttons() function.
+    // See how the different "dump*" functions dump the Controller info.
+    dumpGamepad(ctl);
+}
+
+void processMouse(ControllerPtr ctl) {
+    // This is just an example.
+    if (ctl->scrollWheel() > 0) {
+        // Do Something
+    } else if (ctl->scrollWheel() < 0) {
+        // Do something else
+    }
+
+    // See "dumpMouse" for possible things to query.
+    dumpMouse(ctl);
+}
+
+void processKeyboard(ControllerPtr ctl) {
+    // This is just an example.
+    if (ctl->isKeyPressed(Keyboard_A)) {
+        // Do Something
+        Console.println("Key 'A' pressed");
+    }
+
+    // Don't do "else" here.
+    // Multiple keys can be pressed at the same time.
+    if (ctl->isKeyPressed(Keyboard_LeftShift)) {
+        // Do something else
+        Console.println("Key 'LEFT SHIFT' pressed");
+    }
+
+    // Don't do "else" here.
+    // Multiple keys can be pressed at the same time.
+    if (ctl->isKeyPressed(Keyboard_LeftArrow)) {
+        // Do something else
+        Console.println("Key 'Left Arrow' pressed");
+    }
+
+    // See "dumpKeyboard" for possible things to query.
+    dumpKeyboard(ctl);
+}
+
+void processBalanceBoard(ControllerPtr ctl) {
+    // This is just an example.
+    if (ctl->topLeft() > 10000) {
+        // Do Something
+    }
+
+    // See "dumpBalanceBoard" for possible things to query.
+    dumpBalanceBoard(ctl);
 }
 
 // Arduino setup function. Runs in CPU 1
@@ -86,7 +232,7 @@ void setup() {
     Console.printf("BD Addr: %2X:%2X:%2X:%2X:%2X:%2X\n", addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
 
     // Setup the Bluepad32 callbacks
-    BP32.setup(&onConnectedGamepad, &onDisconnectedGamepad);
+    BP32.setup(&onConnectedController, &onDisconnectedController);
 
     // "forgetBluetoothKeys()" should be called when the user performs
     // a "device factory reset", or similar.
@@ -114,79 +260,22 @@ void loop() {
     // It is safe to always do this before using the gamepad API.
     // This guarantees that the gamepad is valid and connected.
     for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {
-        GamepadPtr myGamepad = myGamepads[i];
+        ControllerPtr myController = myControllers[i];
 
-        if (myGamepad && myGamepad->isConnected()) {
-            // There are different ways to query whether a button is pressed.
-            // By query each button individually:
-            //  a(), b(), x(), y(), l1(), etc...
-            if (myGamepad->a()) {
-                static int colorIdx = 0;
-                // Some gamepads like DS4 and DualSense support changing the color LED.
-                // It is possible to change it by calling:
-                switch (colorIdx % 3) {
-                    case 0:
-                        // Red
-                        myGamepad->setColorLED(255, 0, 0);
-                        break;
-                    case 1:
-                        // Green
-                        myGamepad->setColorLED(0, 255, 0);
-                        break;
-                    case 2:
-                        // Blue
-                        myGamepad->setColorLED(0, 0, 255);
-                        break;
-                }
-                colorIdx++;
+        if (myController && myController->isConnected()) {
+            if (myController->isGamepad()) {
+                processGamepad(myController);
+            } else if (myController->isMouse()) {
+                processMouse(myController);
+            } else if (myController->isKeyboard()) {
+                processKeyboard(myController);
+            } else if (myController->isBalanceBoard()) {
+                processBalanceBoard(myController);
+            } else {
+                Console.printf("Data not available yet\n");
+                continue;
             }
-
-            if (myGamepad->b()) {
-                // Turn on the 4 LED. Each bit represents one LED.
-                static int led = 0;
-                led++;
-                // Some gamepads like the DS3, DualSense, Nintendo Wii, Nintendo Switch
-                // support changing the "Player LEDs": those 4 LEDs that usually indicate
-                // the "gamepad seat".
-                // It is possible to change them by calling:
-                myGamepad->setPlayerLEDs(led & 0x0f);
-            }
-
-            if (myGamepad->x()) {
-                // Duration: 255 is ~2 seconds
-                // force: intensity
-                // Some gamepads like DS3, DS4, DualSense, Switch, Xbox One S support
-                // rumble.
-                // It is possible to set it by calling:
-                myGamepad->setRumble(0xc0 /* force */, 0xc0 /* duration */);
-            }
-
-            // Another way to query the buttons, is by calling buttons(), or
-            // miscButtons() which return a bitmask.
-            // Some gamepads also have DPAD, axis and more.
-            Console.printf(
-                "idx=%d, dpad: 0x%02x, buttons: 0x%04x, axis L: %4d, %4d, axis R: %4d, %4d, brake: %4d, throttle: %4d, "
-                "misc: 0x%02x, gyro x:%6d y:%6d z:%6d, accel x:%6d y:%6d z:%6d\n",
-                i,                         // Gamepad Index
-                myGamepad->dpad(),         // DPAD
-                myGamepad->buttons(),      // bitmask of pressed buttons
-                myGamepad->axisX(),        // (-511 - 512) left X Axis
-                myGamepad->axisY(),        // (-511 - 512) left Y axis
-                myGamepad->axisRX(),       // (-511 - 512) right X axis
-                myGamepad->axisRY(),       // (-511 - 512) right Y axis
-                myGamepad->brake(),        // (0 - 1023): brake button
-                myGamepad->throttle(),     // (0 - 1023): throttle (AKA gas) button
-                myGamepad->miscButtons(),  // bitmak of pressed "misc" buttons
-                myGamepad->gyroX(),        // Gyro X
-                myGamepad->gyroY(),        // Gyro Y
-                myGamepad->gyroZ(),        // Gyro Z
-                myGamepad->accelX(),       // Accelerometer X
-                myGamepad->accelY(),       // Accelerometer Y
-                myGamepad->accelZ()        // Accelerometer Z
-            );
-
-            // You can query the axis and other properties as well. See ArduinoController.h
-            // For all the available functions.
+            // See ArduinoController.h for all the available functions.
         }
     }
     // The main loop must have some kind of "yield to lower priority task" event.
