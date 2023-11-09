@@ -40,10 +40,6 @@ limitations under the License.
 #include "uni_platform.h"
 #include "uni_virtual_device.h"
 
-#ifdef CONFIG_ESP_CONSOLE_USB_CDC
-#error This example is incompatible with USB CDC console. Please try "console_usb" example instead.
-#endif  // CONFIG_ESP_CONSOLE_USB_CDC
-
 static const char* TAG = "console";
 #define PROMPT_STR "bp32"
 

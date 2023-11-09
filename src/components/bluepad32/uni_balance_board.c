@@ -21,10 +21,10 @@ limitations under the License.
 #include "sdkconfig.h"
 
 // Don't compile it on PC Debug since the console is not present
-#ifndef CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG
+#ifdef CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
 #include <argtable3/argtable3.h>
 #include <esp_console.h>
-#endif  // !CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG
+#endif  // CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
 
 #include "uni_log.h"
 #include "uni_property.h"
@@ -39,7 +39,7 @@ static uni_balance_board_threshold_t bb_threshold = {
     .fire = BB_FIRE_THRESHOLD_DEFAULT,
 };
 
-#ifndef CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG
+#ifdef CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
 static struct {
     struct arg_int* value;
     struct arg_end* end;
@@ -156,14 +156,14 @@ void uni_balance_board_register_cmds(void) {
     ESP_ERROR_CHECK(esp_console_cmd_register(&bb_move_threshold));
     ESP_ERROR_CHECK(esp_console_cmd_register(&bb_fire_threshold));
 }
-#endif  // !CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG
+#endif  // CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
 
 void uni_balance_board_on_init_complete(void) {
-#ifndef CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG
+#ifdef CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
     // Update Balance Board threshold
     bb_threshold.move = get_bb_move_threshold_from_nvs();
     bb_threshold.fire = get_bb_fire_threshold_from_nvs();
-#endif  // !CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG
+#endif  // CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
 }
 
 void uni_balance_board_dump(const uni_balance_board_t* bb) {

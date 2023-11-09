@@ -8,9 +8,9 @@
 
 #include "uni_config.h"
 
-#ifndef CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG
+#ifdef CONFIG_IDF_TARGET
 #include <esp_log.h>
-#endif  // !CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG
+#endif  // CONFIG_IDF_TARGET
 
 void uni_log(const char* format, ...) {
     va_list args;
@@ -21,9 +21,9 @@ void uni_log(const char* format, ...) {
 }
 
 void uni_logv(const char* format, va_list args) {
-#ifdef CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG
-    vfprintf(stderr, format, args);
-#else
+#ifdef CONFIG_IDF_TARGET
     esp_log_writev(ESP_LOG_WARN, "bp32", format, args);
-#endif  // ! UNI_PLATFORM_PC_DEBUG
+#else
+    vfprintf(stderr, format, args);
+#endif  // CONFIG_IDF_TARGET
 }
