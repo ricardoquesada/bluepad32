@@ -4,7 +4,7 @@
 
 ![logo](https://lh3.googleusercontent.com/pw/ACtC-3dNNrE9YKWMQNBTVYl8gkX70jN2qLwSYMQFLR0IzzoRT9uTQ1a9n80O3tyNmF95MLxL9NPWlqm5ph7e9wTGZoHeQWPMsJWqs3qiHub1LcigLtlEX09V6f1DWwQlg52OkeumKDJTG_ext8EN_J6kn0kAqg=-no)
 
-A Bluetooth gamepad "host" for the ESP32 / ESP32-S3 / ESP32-C3.
+A Bluetooth gamepad "host" for the ESP32 / ESP32-S3 / ESP32-C3 / Raspberry Pi Pico W.
 
 Add Bluetooth gamepad support to your projects easily.
 
@@ -18,6 +18,7 @@ Choose your target platform:
 | Arduino using ESP-IDF toolchain | [Template project][esp-idf-bluepad32-arduino] | [Doc][plat_arduino] | [Lego Robot][esp32_example] ([video][esp32_video]), [gbaHD Shield][esp32_example2] (a GameBoy consolizer) |
 | Arduino + NINA coprocessor      | [Arduino Library][bp32-arduino] | [Doc][plat_nina] | [Philips CD-i meets Bluetooth][nina_example] |
 | CircuitPython + AirLift coprocessor | [CircuitPython Library][bp32-circuitpython] | [Doc][plat_airlift] | [Quico console][airlift_example], Controlling 4 servos ([video][airlift_video]) |
+| Pico W            |            |              |                    |
 | Unijoysticle      | [Unijoysticle2][unijoysticle2]| [Doc][plat_unijoysticle] | |
 | MightyMiggy       | [Unijoysticle for Amiga][unijoysticle_sukko] | [Doc][plat_mightymiggy] | |
 | Custom            | | [Doc][plat_custom] | |
@@ -74,7 +75,7 @@ Choose your target platform:
 * Keyboards
 * And more
 
-NOTE: Original **ESP32** supports all listed controllers. **ESP32-S3** and **ESP32-C3** support only a subset.
+NOTE: Original **ESP32** and Pico W support all listed controllers. **ESP32-S3** and **ESP32-C3** support only a subset.
 
 See: [Supported gamepads][gamepads], [supported mice][mice] and [supported keyboards][keyboards]
 
