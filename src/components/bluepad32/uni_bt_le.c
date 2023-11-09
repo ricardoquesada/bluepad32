@@ -895,7 +895,8 @@ void uni_bt_le_setup(void) {
 
     gatt_client_init();
     hids_client_init(hid_descriptor_storage, sizeof(hid_descriptor_storage));
-    scan_parameters_service_client_init();
+    // FIXME: this is an empty function and PicoW toolchain is removing empty function (?)
+    // scan_parameters_service_client_init();
     device_information_service_client_init();
 
     gap_set_scan_parameters(0 /* type: passive */, 48 /* interval */, 48 /* window */);

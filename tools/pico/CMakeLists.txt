@@ -11,22 +11,27 @@ include(pico_sdk_import.cmake)
 
 set(BTSTACK_ROOT ${PICO_SDK_PATH}/lib/btstack)
 
-project(Bluepad32_PicoW C CXX ASM)
+project(bluepad32_picow_app C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
 # initialize the Raspberry Pi Pico SDK
 pico_sdk_init()
 
-add_executable(Bluepad32_PicoW
-    src/main.cpp
+add_executable(bluepad32_picow_app
+    main.c
+    my_platform.c
 )
 
-target_include_directories(Bluepad32_PicoW PRIVATE
+target_include_directories(bluepad32_picow_app PRIVATE
     src
     ../../src/components/bluepad32/include)
-include_directories(Bluepad32_PicoW .)
-target_link_libraries(Bluepad32_PicoW
+
+# Needed for btstack_config.h / sdkconfig.h
+# so that libblupad32 can include them
+include_directories(bluepad32_picow_app .)
+
+target_link_libraries(bluepad32_picow_app
     pico_stdlib
     pico_cyw43_arch_none
     pico_btstack_classic
@@ -34,10 +39,10 @@ target_link_libraries(Bluepad32_PicoW
     bluepad32
 )
 
-add_subdirectory(../../src/components/bluepad32 bluepad32_bin)
+add_subdirectory(../../src/components/bluepad32 libbluepad32)
 
-pico_enable_stdio_usb(Bluepad32_PicoW 1)
-pico_enable_stdio_uart(Bluepad32_PicoW 0)
+pico_enable_stdio_usb(bluepad32_picow_app 1)
+pico_enable_stdio_uart(bluepad32_picow_app 0)
 
 # create map/bin/hex/uf2 file in addition to ELF.
-pico_add_extra_outputs(Bluepad32_PicoW)
+pico_add_extra_outputs(bluepad32_picow_app)

@@ -63,6 +63,9 @@ if(IDF_TARGET)
          "uni_gpio.c"
          "uni_mouse_quadrature.c"
          "uni_property_nvs.c")
+elseif(PICO_SDK_VERSION_STRING)
+    list(APPEND srcs
+         "uni_property_mem.c")
 endif()
 
 if(CONFIG_IDF_TARGET_ESP32)
