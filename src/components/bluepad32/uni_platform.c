@@ -24,7 +24,6 @@ limitations under the License.
 #include "uni_platform_custom.h"
 #include "uni_platform_mightymiggy.h"
 #include "uni_platform_nina.h"
-#include "uni_platform_pc_debug.h"
 
 #ifdef CONFIG_BLUEPAD32_PLATFORM_UNIJOYSTICLE
 #include "uni_platform_unijoysticle.h"
@@ -44,8 +43,6 @@ void uni_platform_init(int argc, const char** argv) {
 
 #ifdef CONFIG_BLUEPAD32_PLATFORM_UNIJOYSTICLE
     _platform = uni_platform_unijoysticle_create();
-#elif defined(CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG)
-    _platform = uni_platform_pc_debug_create();
 #elif defined(CONFIG_BLUEPAD32_PLATFORM_AIRLIFT)
     _platform = uni_platform_airlift_create();
 #elif defined(CONFIG_BLUEPAD32_PLATFORM_MIGHTYMIGGY)
