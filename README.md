@@ -75,7 +75,7 @@ Choose your target platform:
 * Keyboards
 * And more
 
-NOTE: Original **ESP32** and Pico W support all listed controllers. **ESP32-S3** and **ESP32-C3** support only a subset.
+NOTE: Original **ESP32** and **Pico W** support all listed controllers. **ESP32-S3** and **ESP32-C3** support only a subset.
 
 See: [Supported gamepads][gamepads], [supported mice][mice] and [supported keyboards][keyboards]
 
@@ -91,7 +91,7 @@ See: [Supported gamepads][gamepads], [supported mice][mice] and [supported keybo
 
 1. Install ESP-IDF
 
-    Install the ESP32 toolchain. Use version **4.4** or **5.0**. Might work on newer / older
+    Install the ESP32 toolchain. Use version **4.4** or **5.1**. Might work on newer / older
     ones, but not tested.
 
     * <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/>
@@ -147,11 +147,17 @@ See: [Supported gamepads][gamepads], [supported mice][mice] and [supported keybo
 
 Bluepad32 is open source, [licensed under Apache 2][apache2].
 
-However, Bluepad32 depends on the great [BTStack library][btstack-github]. Which is free to use for
+However, Bluepad32 depends on the great [BTstack library][btstack-github]. Which is free to use for
 open source projects. But commercial for closed-source projects.
-[Contact them for details][btstack-homepage]. They are very friendly + helpful
-(I’m not affiliated with them).
+
+If you are developing a commercial product for:
+
+- ESP32: [You should contact BTstack people][btstack-homepage].
+- Pico W: [You are covered by Raspberry Pi License][rpi-btstack-license].
+  
+Notice: I’m not affiliated with BTstack people. But I can tell that they super friendly and willing to help.
 
 [btstack-github]: https://github.com/bluekitchen/btstack
 [apache2]: https://www.apache.org/licenses/LICENSE-2.0
 [btstack-homepage]: https://bluekitchen-gmbh.com/
+[rpi-btstack-license]: https://github.com/raspberrypi/pico-sdk/blob/master/src/rp2_common/pico_btstack/LICENSE.RP
