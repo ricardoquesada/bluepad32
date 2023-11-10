@@ -24,10 +24,12 @@ limitations under the License.
 #include <string.h>
 
 #include "uni_bt.h"
+#include "uni_error.h"
 #include "uni_gamepad.h"
 #include "uni_hid_device.h"
 #include "uni_hid_parser_mouse.h"
 #include "uni_log.h"
+#include "uni_platform.h"
 
 //
 // Globals
@@ -211,7 +213,7 @@ static void trigger_event_on_gamepad(uni_hid_device_t* d) {
 //
 // Entry Point
 //
-struct uni_platform* uni_platform_pc_debug_create(void) {
+struct uni_platform* uni_platform_custom_create(void) {
     static struct uni_platform plat = {
         .name = "PC Debug",
         .init = pc_debug_init,

@@ -77,8 +77,6 @@ Finally in [uni_platform.c] add support for your platform. E.g:
 void uni_platform_init(int argc, const char** argv) {
 #ifdef CONFIG_BLUEPAD32_PLATFORM_UNIJOYSTICLE
     _platform = uni_platform_unijoysticle_create();
-#elif defined(CONFIG_BLUEPAD32_PLATFORM_PC_DEBUG)
-    _platform = uni_platform_pc_debug_create();
 #elif defined(CONFIG_BLUEPAD32_PLATFORM_AIRLIFT)
     _platform = uni_platform_airlift_create();
 #elif defined(CONFIG_BLUEPAD32_PLATFORM_MIGHTYMIGGY)

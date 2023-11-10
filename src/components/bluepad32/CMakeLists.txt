@@ -36,7 +36,6 @@ set(srcs "uni_balance_board.c"
          "uni_platform.c"
          "uni_platform_arduino.c"
          "uni_platform_arduino_bootstrap.cpp"
-         "uni_platform_pc_debug.c"
          "uni_property.c"
          "uni_utils.c"
          "uni_virtual_device.c")

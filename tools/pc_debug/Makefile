@@ -2,7 +2,7 @@
 BTSTACK_ROOT = 	../../external/btstack
 BLUEPAD32_ROOT = ../../src/components/bluepad32
 
-CORE += main.c btstack_stdin_posix.c btstack_tlv_posix.c hci_dump_posix_fs.c
+CORE += main.c my_platform.c btstack_stdin_posix.c btstack_tlv_posix.c hci_dump_posix_fs.c
 
 COMMON += hci_transport_h2_libusb.c btstack_run_loop_posix.c le_device_db_tlv.c btstack_link_key_db_tlv.c wav_util.c btstack_network_posix.c
 COMMON += gatt_client.c att_dispatch.c hids_client.c device_information_service_client.c scan_parameters_service_client.c hid_host.c
@@ -10,7 +10,7 @@ COMMON += btstack_audio_portaudio.c btstack_chipset_zephyr.c rijndael.c hid_devi
 
 include ${BTSTACK_ROOT}/example/Makefile.inc
 
-CFLAGS += -DCONFIG_BLUEPAD32_PLATFORM_PC_DEBUG
+CFLAGS += -DCONFIG_BLUEPAD32_PLATFORM_CUSTOM
 
 CC ?= clang
 CFLAGS  += -g -std=c99 -Wall -Wmissing-prototypes -Wstrict-prototypes -Wshadow -Wunused-parameter -Wredundant-decls -Wsign-compare -Wswitch-default
@@ -108,7 +108,6 @@ bluepad32: ${CORE_OBJ} ${COMMON_OBJ} ${CLASSIC_OBJ} ${SDP_CLIENT} btstack_ring_b
 	${BLUEPAD32_ROOT}/uni_main.o \
 	${BLUEPAD32_ROOT}/uni_mouse.o \
 	${BLUEPAD32_ROOT}/uni_platform.o \
-	${BLUEPAD32_ROOT}/uni_platform_pc_debug.o \
 	${BLUEPAD32_ROOT}/uni_property.o \
 	${BLUEPAD32_ROOT}/uni_property_mem.o \
 	${BLUEPAD32_ROOT}/uni_utils.o \
