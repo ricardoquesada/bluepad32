@@ -18,8 +18,6 @@ limitations under the License.
 
 // Debug version
 
-#include "uni_platform_pc_debug.h"
-
 #include <stdio.h>
 #include <string.h>
 
