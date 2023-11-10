@@ -2,11 +2,11 @@
 
 [![discord](https://img.shields.io/discord/775177861665521725.svg)](https://discord.gg/r5aMn6Cw5q)
 
-![logo](https://lh3.googleusercontent.com/pw/ACtC-3dNNrE9YKWMQNBTVYl8gkX70jN2qLwSYMQFLR0IzzoRT9uTQ1a9n80O3tyNmF95MLxL9NPWlqm5ph7e9wTGZoHeQWPMsJWqs3qiHub1LcigLtlEX09V6f1DWwQlg52OkeumKDJTG_ext8EN_J6kn0kAqg=-no)
+![logo](https://lh3.googleusercontent.com/pw/ADCreHccTUqtDIguBBUaQJH0iWsE6Ee1mLdL8urNKmewdvioWjWqT2rlBIWszdMT5jZOs0HJmrbnB4AEuRoRmE4zeR3TeXQZEHl8xZJCplBb9qtYaA3UCU-Dw8d58jIXsQz1qbzNYhAxQzmDBT1EGBCGW8Zd4w=-no-gm?authuser=0)
 
-A Bluetooth gamepad "host" for the ESP32 / ESP32-S3 / ESP32-C3 / Raspberry Pi Pico W.
+A Bluetooth controller "host" for the ESP32 / ESP32-S3 / ESP32-C3 / Raspberry Pi Pico W.
 
-Add Bluetooth gamepad support to your projects easily.
+Add Bluetooth gamepad, mouse and keyboard support to your projects easily.
 
 ## Where to start
 
