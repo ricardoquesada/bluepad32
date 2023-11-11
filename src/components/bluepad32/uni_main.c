@@ -23,6 +23,7 @@ limitations under the License.
 #include "uni_bt_setup.h"
 #include "uni_config.h"
 #include "uni_console.h"
+#include "uni_esp32.h"
 #include "uni_hid_device.h"
 #include "uni_log.h"
 #include "uni_platform.h"
@@ -32,6 +33,11 @@ limitations under the License.
 
 // Main entry point, runs forever
 int uni_main(int argc, const char** argv) {
+
+#ifdef CONFIG_IDF_TARGET
+    uni_esp32_init();
+#endif
+
     // Disable stdout buffering
     setbuf(stdout, NULL);
 

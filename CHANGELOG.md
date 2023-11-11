@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `uni_main()` does not call `btstack_run_loop_execute()` automatically. Must be called by the user
   - BT scan is OFF by default. Platform must call `uni_bt_enable_new_connections` to enable it.
   - `platform->get_properties()` does nothing. To list/delete Bluetooth keys platform must call them explicitly.
+  - Custom platform:
+    - must call `uni_platform_set_custom(...)` before calling `uni_main()`
+    - `uni_platform_custom_create()` removed
+  - ESP32 main:
+    - `uni_esp32_main()` removed.
+    - User must call the different "init" steps manully. Added helper `uni_esp32_init()`
+    - Rationale: Pico W and ESP32 `main()` is almost the same. Easier to setup/customize/understand.
+  - All examples updated
 - New "unsafe" functions, useful to be called from `platforom->on_init_complete()`
   - `uni_bt_enable_new_connections_unsafe()`
   - `uni_bt_del_keys_unsafe()`

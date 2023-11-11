@@ -37,9 +37,7 @@ void uni_platform_init(int argc, const char** argv) {
     // and Kconfig files.
     // Premade platforms are available as part of this library. Vendors/users
     // may create a "custom" platform by providing an implementation of
-    // uni_platform_custom_create() within a project file (for instance
-    // uni_platform_custom.c) and select the CONFIG_BLUEPAD32_PLATFORM_CUSTOM
-    // from the Makefile or the Kconfig file
+    // "struct uni_platform" and calling "uni_platform_set_custom".
 
 #ifdef CONFIG_BLUEPAD32_PLATFORM_UNIJOYSTICLE
     _platform = uni_platform_unijoysticle_create();
@@ -52,9 +50,12 @@ void uni_platform_init(int argc, const char** argv) {
 #elif defined(CONFIG_BLUEPAD32_PLATFORM_ARDUINO)
     _platform = uni_platform_arduino_create();
 #elif defined(CONFIG_BLUEPAD32_PLATFORM_CUSTOM)
-    _platform = uni_platform_custom_create();
+    if (!_platform) {
+        while (1)
+            loge("Error: call uni_platform_set_custom() before calling uni_main\n");
+    }
 #else
-#error "Platform not defined. Set PLATFORM environment variable"
+#error "Platform not defined. Set CONFIG_BLUEPAD32_PLATFORM"
 #endif
 
     logi("Platform: %s\n", _platform->name);
@@ -65,6 +66,11 @@ struct uni_platform* uni_get_platform(void) {
     return _platform;
 }
 
-void uni_set_platform(struct uni_platform* platform) {
+void uni_platform_set_custom(struct uni_platform* platform) {
+#ifdef CONFIG_BLUEPAD32_PLATFORM_CUSTOM
     _platform = platform;
+#else
+    while (1)
+        loge("Error: uni_platform_set_custom SHOULD only be called on 'custom' platform\n");
+#endif
 }

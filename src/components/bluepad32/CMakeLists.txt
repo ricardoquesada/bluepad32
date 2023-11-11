@@ -110,10 +110,6 @@ else()
     message(FATAL_ERROR "Define target")
 endif()
 
-# adding uni_platform_custom_create to the undefined symbol list, as it
-# needs to be provided by the user externally to this component
-set(ext_symbols "-u uni_platform_custom_create")
-
 # See: https://gitlab.com/ricardoquesada/bluepad32/-/issues/9
 if(DEFINED ENV{BLUEPAD32_ARDUINO})
     # Bluepad32 contains reference to setup() and loop().  If we add main

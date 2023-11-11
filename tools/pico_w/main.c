@@ -23,11 +23,15 @@ limitations under the License.
 #include "sdkconfig.h"
 #include "uni_log.h"
 #include "uni_main.h"
+#include "uni_platform.h"
 
 // Sanity check
 #ifndef CONFIG_BLUEPAD32_PLATFORM_CUSTOM
 #error "Pico W must use BLUEPAD32_PLATFORM_CUSTOM"
 #endif
+
+// Defined in my_platform.c
+struct uni_platform* get_my_platform(void);
 
 int main() {
     stdio_init_all();
@@ -40,6 +44,9 @@ int main() {
 
     // Turn-on LED. Turn it off once init is done.
     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+
+    // Must be called before uni_main()
+    uni_platform_set_custom(get_my_platform());
 
     // Initialize BP32
     uni_main(0, NULL);
