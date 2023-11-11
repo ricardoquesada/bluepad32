@@ -70,6 +70,9 @@
 #include "hci_transport_usb.h"
 #include "sdkconfig.h"
 #include "uni_main.h"
+#include "uni_platform.h"
+
+#include "my_platform.h"
 
 // Sanity check
 #ifndef CONFIG_BLUEPAD32_PLATFORM_CUSTOM
@@ -238,6 +241,9 @@ int main(int argc, const char* argv[]) {
 
     // handle CTRL-c
     signal(SIGINT, sigint_handler);
+
+    // Must be called before uni_main()
+    uni_platform_set_custom(get_my_platform());
 
     // Initialize Bluepad32.
     uni_main(argc, argv);

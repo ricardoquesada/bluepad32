@@ -215,7 +215,7 @@ static void trigger_event_on_gamepad(uni_hid_device_t* d) {
 //
 // Entry Point
 //
-struct uni_platform* uni_platform_custom_create(void) {
+struct uni_platform* get_my_platform(void) {
     static struct uni_platform plat = {
         .name = "My Platform",
         .init = my_platform_init,
