@@ -357,6 +357,22 @@ static void unijoysticle_on_init_complete(void) {
 
     if (g_variant->on_init_complete)
         g_variant->on_init_complete();
+
+    // Safe to call "unsafe" functions since this is executed in BT thread
+    // Start scanning
+    uni_bt_enable_new_connections_unsafe(true);
+
+    // Maybe delete stored Bluetooth keys
+    // Button not supported on this board
+    bool delete_keys = false;
+    if ((g_gpio_config->push_buttons[UNI_PLATFORM_UNIJOYSTICLE_PUSH_BUTTON_0].gpio != -1) &&
+        !gpio_get_level(g_gpio_config->push_buttons[UNI_PLATFORM_UNIJOYSTICLE_PUSH_BUTTON_0].gpio))
+        delete_keys = true;
+
+    if (delete_keys)
+        uni_bt_del_keys_unsafe();
+    else
+        uni_bt_list_keys_unsafe();
 }
 
 static void unijoysticle_on_device_connected(uni_hid_device_t* d) {
@@ -583,47 +599,44 @@ static void unijoysticle_on_controller_data(uni_hid_device_t* d, uni_controller_
 }
 
 static int32_t unijoysticle_get_property(uni_platform_property_t key) {
-    if (key != UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS)
-        return -1;
-
-    if (g_gpio_config->push_buttons[UNI_PLATFORM_UNIJOYSTICLE_PUSH_BUTTON_0].gpio == -1)
-        return -1;
-
-    // Hi-released, Low-pressed
-    return !gpio_get_level(g_gpio_config->push_buttons[UNI_PLATFORM_UNIJOYSTICLE_PUSH_BUTTON_0].gpio);
+    // Deprecated
+    ARG_UNUSED(key);
+    return 0;
 }
 
 static void unijoysticle_on_oob_event(uni_platform_oob_event_t event, void* data) {
-    if (event == UNI_PLATFORM_OOB_BLUETOOTH_ENABLED) {
-        // Turn on/off the BT led
-        bool enabled = (bool)data;
-        uni_gpio_set_level(g_gpio_config->leds[UNI_PLATFORM_UNIJOYSTICLE_LED_BT], enabled);
-        s_bluetooth_led_on = enabled;
+    switch (event) {
+        case UNI_PLATFORM_OOB_BLUETOOTH_ENABLED: {
+            // Turn on/off the BT led
+            bool enabled = (bool)data;
+            uni_gpio_set_level(g_gpio_config->leds[UNI_PLATFORM_UNIJOYSTICLE_LED_BT], enabled);
+            s_bluetooth_led_on = enabled;
 
-        logi("unijoysticle: Bluetooth discovery mode is %s\n", enabled ? "enabled" : "disabled");
+            logi("unijoysticle: Bluetooth discovery mode is %s\n", enabled ? "enabled" : "disabled");
 
-        if (!enabled && !s_skip_next_enable_bluetooth_event) {
-            // Means that Bluetooth was disabled by user from the console.
-            // If so, leave it disabled. The only way to enable it, is again from the console.
-            s_auto_enable_bluetooth = false;
+            if (!enabled && !s_skip_next_enable_bluetooth_event) {
+                // Means that Bluetooth was disabled by user from the console.
+                // If so, leave it disabled. The only way to enable it, is again from the console.
+                s_auto_enable_bluetooth = false;
+            }
+            s_skip_next_enable_bluetooth_event = false;
+            break;
         }
-        s_skip_next_enable_bluetooth_event = false;
-        return;
+
+        case UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON: {
+            uni_hid_device_t* d = data;
+
+            if (d == NULL) {
+                loge("ERROR: unijoysticle_on_device_gamepad_event: Invalid NULL device\n");
+                return;
+            }
+
+            try_swap_ports(d);
+            break;
+        }
+        default:
+            loge("ERROR: unijoysticle_on_device_oob_event: unsupported event: 0x%04x\n", event);
     }
-
-    if (event != UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON) {
-        loge("ERROR: unijoysticle_on_device_oob_event: unsupported event: 0x%04x\n", event);
-        return;
-    }
-
-    uni_hid_device_t* d = data;
-
-    if (d == NULL) {
-        loge("ERROR: unijoysticle_on_device_gamepad_event: Invalid NULL device\n");
-        return;
-    }
-
-    try_swap_ports(d);
 }
 
 static void unijoysticle_device_dump(uni_hid_device_t* d) {

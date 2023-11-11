@@ -86,7 +86,7 @@ bd_addr_t uni_local_bd_addr;
 // Used to implement connection timeout and reconnect timer
 static btstack_context_callback_registration_t cmd_callback_registration;
 
-static bool bt_scanning_enabled = true;
+static bool bt_scanning_enabled;
 
 static void start_scan(void);
 static void stop_scan(void);
@@ -124,7 +124,7 @@ static void start_scan(void) {
 }
 
 static void stop_scan(void) {
-    logi("--> Stop scanning for new controllers\n");
+    logd("--> Stop scanning for new controllers\n");
 
     if (IS_ENABLED(UNI_ENABLE_BREDR))
         uni_bt_bredr_scan_stop();
@@ -231,16 +231,28 @@ void uni_bt_del_keys_safe(void) {
     btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
 }
 
+void uni_bt_del_keys_unsafe(void) {
+    bluetooth_del_keys();
+}
+
 void uni_bt_list_keys_safe(void) {
     cmd_callback_registration.callback = &cmd_callback;
     cmd_callback_registration.context = (void*)CMD_BT_LIST_KEYS;
     btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
 }
 
+void uni_bt_list_keys_unsafe(void) {
+    bluetooth_list_keys();
+}
+
 void uni_bt_enable_new_connections_safe(bool enabled) {
     cmd_callback_registration.callback = &cmd_callback;
     cmd_callback_registration.context = (void*)(enabled ? (intptr_t)CMD_BT_ENABLE : (intptr_t)CMD_BT_DISABLE);
     btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
+}
+
+void uni_bt_enable_new_connections_unsafe(bool enabled) {
+    enable_new_connections(enabled);
 }
 
 void uni_bt_dump_devices_safe(void) {

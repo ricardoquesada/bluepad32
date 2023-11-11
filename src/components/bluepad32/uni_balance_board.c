@@ -158,7 +158,7 @@ void uni_balance_board_register_cmds(void) {
 }
 #endif  // CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
 
-void uni_balance_board_on_init_complete(void) {
+void uni_balance_board_init(void) {
 #ifdef CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
     // Update Balance Board threshold
     bb_threshold.move = get_bb_move_threshold_from_nvs();

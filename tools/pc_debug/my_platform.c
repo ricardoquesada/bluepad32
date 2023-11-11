@@ -43,6 +43,7 @@ typedef struct pc_debug_instance_s {
 // Declarations
 static void trigger_event_on_gamepad(uni_hid_device_t* d);
 static pc_debug_instance_t* get_pc_debug_instance(uni_hid_device_t* d);
+struct uni_platform* uni_platform_custom_create(void);
 
 //
 // Platform Overrides
@@ -80,6 +81,11 @@ static void pc_debug_init(int argc, const char** argv) {
 
 static void pc_debug_on_init_complete(void) {
     logi("pc_debug: on_init_complete()\n");
+
+    // Safe to call "unsafe" functions since they are called from BT thread
+
+    // Start scanning
+    uni_bt_enable_new_connections_unsafe(true);
 }
 
 static void pc_debug_on_device_connected(uni_hid_device_t* d) {
@@ -155,31 +161,36 @@ static void pc_debug_on_controller_data(uni_hid_device_t* d, uni_controller_t* c
 }
 
 static int32_t pc_debug_get_property(uni_platform_property_t key) {
-    logi("pc_debug: get_property(): %d\n", key);
-    if (key != UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS)
-        return -1;
-    return g_delete_keys;
+    // Deprecated
+    ARG_UNUSED(key);
+    return 0;
 }
 
 static void pc_debug_on_oob_event(uni_platform_oob_event_t event, void* data) {
-    logi("pc_debug: on_device_oob_event(): %d\n", event);
+    switch (event) {
+        case UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON: {
+            uni_hid_device_t* d = data;
 
-    if (event != UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON) {
-        logi("pc_debug_on_device_gamepad_event: unsupported event: 0x%04x\n", event);
-        return;
+            if (d == NULL) {
+                loge("ERROR: pc_debug_on_oob_event: Invalid NULL device\n");
+                return;
+            }
+
+            pc_debug_instance_t* ins = get_pc_debug_instance(d);
+            ins->gamepad_seat = ins->gamepad_seat == GAMEPAD_SEAT_A ? GAMEPAD_SEAT_B : GAMEPAD_SEAT_A;
+
+            trigger_event_on_gamepad(d);
+            break;
+        }
+
+        case UNI_PLATFORM_OOB_BLUETOOTH_ENABLED:
+            logi("pc_debug_on_oob_event: Bluetooth enabled: %d\n", (bool)(data));
+            break;
+
+        default:
+            logi("pc_debug_on_oob_event: unsupported event: 0x%04x\n", event);
+            break;
     }
-
-    uni_hid_device_t* d = data;
-
-    if (d == NULL) {
-        loge("ERROR: pc_debug_on_device_gamepad_event: Invalid NULL device\n");
-        return;
-    }
-
-    pc_debug_instance_t* ins = get_pc_debug_instance(d);
-    ins->gamepad_seat = ins->gamepad_seat == GAMEPAD_SEAT_A ? GAMEPAD_SEAT_B : GAMEPAD_SEAT_A;
-
-    trigger_event_on_gamepad(d);
 }
 
 //

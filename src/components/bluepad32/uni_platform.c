@@ -64,3 +64,7 @@ void uni_platform_init(int argc, const char** argv) {
 struct uni_platform* uni_get_platform(void) {
     return _platform;
 }
+
+void uni_set_platform(struct uni_platform* platform) {
+    _platform = platform;
+}

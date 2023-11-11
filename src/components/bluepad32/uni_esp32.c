@@ -60,8 +60,11 @@ int uni_esp32_main(void) {
 
     // hci_dump_init(hci_dump_embedded_stdout_get_instance());
 
-    // Init Bluepad32, and does not return.
-    uni_main(0, NULL);
+    // Init Bluepad32.
+    uni_main(0 /* argc */, NULL /* argv */);
+
+    // Does not return.
+    btstack_run_loop_execute();
 
     return 0;
 }

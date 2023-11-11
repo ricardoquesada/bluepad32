@@ -39,14 +39,19 @@ int uni_bt_init(void);
 
 // List stored Bluetooth keys, created when a device get paired
 void uni_bt_list_keys_safe(void);
+void uni_bt_list_keys_unsafe(void);
 // Delete stored Bluetooth keys
 void uni_bt_del_keys_safe(void);
+void uni_bt_del_keys_unsafe(void);
 // Dump all connected devices.
 void uni_bt_dump_devices_safe(void);
 // Whether to enable new Bluetooth connections.
 // When enabled, the device enters into "discovery" mode, and new un-paired devices are accepted.
 // When disabled, only devices that have paired before can connect.
 void uni_bt_enable_new_connections_safe(bool enabled);
+// Must be called from BTthread
+void uni_bt_enable_new_connections_unsafe(bool enabled);
+
 // Disconnects a device
 void uni_bt_disconnect_device_safe(int device_idx);
 

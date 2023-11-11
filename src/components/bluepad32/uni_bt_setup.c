@@ -44,7 +44,6 @@ typedef enum {
 
 typedef uint8_t (*fn_t)(void);
 
-static void maybe_delete_or_list_link_keys(void);
 static void setup_call_next_fn(void);
 static uint8_t setup_set_event_filter(void);
 static uint8_t setup_write_simple_pairing_mode(void);
@@ -60,22 +59,6 @@ static btstack_packet_callback_registration_t hci_event_callback_registration;
 // SDP
 //#define MAX_ATTRIBUTE_VALUE_SIZE 300
 // static uint8_t hid_descriptor_storage[MAX_ATTRIBUTE_VALUE_SIZE];
-
-static void maybe_delete_or_list_link_keys(void) {
-    int32_t delete_keys = uni_get_platform()->get_property(UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS);
-    if (delete_keys != 1) {
-        if (IS_ENABLED(UNI_ENABLE_BREDR))
-            uni_bt_bredr_list_bonded_keys();
-        if (IS_ENABLED(UNI_ENABLE_BLE))
-            uni_bt_le_list_bonded_keys();
-        return;
-    }
-
-    if (IS_ENABLED(UNI_ENABLE_BREDR))
-        uni_bt_bredr_delete_bonded_keys();
-    if (IS_ENABLED(UNI_ENABLE_BLE))
-        uni_bt_le_delete_bonded_keys();
-}
 
 static uint8_t setup_set_event_filter(void) {
     // Filter out inquiry results before we start the inquiry
@@ -113,23 +96,8 @@ static void setup_call_next_fn(void) {
         // Populate global variable here, and just once.
         gap_local_bd_addr(uni_local_bd_addr);
 
-        // No need to print it: BTstack prints it for us
-        // logi("BTstack up and running on %s.\n", bd_addr_to_str(uni_local_bd_addr));
-        maybe_delete_or_list_link_keys();
-
-        // Start inquiry now, once we know that HCI is running.
-        if (IS_ENABLED(UNI_ENABLE_BREDR))
-            uni_bt_bredr_scan_start();
-        if (IS_ENABLED(UNI_ENABLE_BLE))
-            uni_bt_le_scan_start();
-
-        // Bluepad32 services that needs to be initialized once
-        // the rest of the system is ready.
-        uni_balance_board_on_init_complete();
-
-        // Finaly initialize the "platform"
+        // Only after all BT setup is done, call on_init_complete()
         uni_get_platform()->on_init_complete();
-        uni_get_platform()->on_oob_event(UNI_PLATFORM_OOB_BLUETOOTH_ENABLED, (void*)true);
     }
 }
 
@@ -202,11 +170,12 @@ int uni_bt_setup(void) {
     // hid_host_init(hid_descriptor_storage, sizeof(hid_descriptor_storage));
     // hid_host_register_packet_handler(uni_bt_packet_handler);
 
-    // Disable stdout buffering
-    setbuf(stdout, NULL);
-
     // Turn on the device
-    hci_power_control(HCI_POWER_ON);
+    int err = hci_power_control(HCI_POWER_ON);
+    if (err != 0) {
+        loge("Failed to power on HCI, err = %x#\n", err);
+        return UNI_ERROR_INIT_FAILED;
+    }
 
-    return 0;
+    return UNI_ERROR_SUCCESS;
 }
