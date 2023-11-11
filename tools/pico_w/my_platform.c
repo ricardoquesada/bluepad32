@@ -19,6 +19,8 @@ limitations under the License.
 #include <stdio.h>
 #include <string.h>
 
+#include <pico/cyw43_arch.h>
+
 #include "sdkconfig.h"
 #include "uni_bt.h"
 #include "uni_gamepad.h"
@@ -26,23 +28,13 @@ limitations under the License.
 #include "uni_log.h"
 #include "uni_platform.h"
 
-//
-// Only used when CONFIG_BLUEPAD32_PLATFORM_CUSTOM is selected.
-//
-
-//
-// Globals
-//
-static int g_delete_keys = 0;
-
-// Custom-1 "instance"
-typedef struct my_platform_instance_s {
-    uni_gamepad_seat_t gamepad_seat;  // which "seat" is being used
-} my_platform_instance_t;
+// Sanity check
+#ifndef CONFIG_BLUEPAD32_PLATFORM_CUSTOM
+#error "Pico W must use BLUEPAD32_PLATFORM_CUSTOM"
+#endif
 
 // Declarations
 static void trigger_event_on_gamepad(uni_hid_device_t* d);
-static my_platform_instance_t* get_my_platform_instance(uni_hid_device_t* d);
 
 //
 // Platform Overrides
@@ -51,7 +43,7 @@ static void my_platform_init(int argc, const char** argv) {
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
 
-    logi("custom: init()\n");
+    logi("my_platform: init()\n");
 
 #if 0
     uni_gamepad_mappings_t mappings = GAMEPAD_DEFAULT_MAPPINGS;
@@ -72,23 +64,35 @@ static void my_platform_init(int argc, const char** argv) {
 }
 
 static void my_platform_on_init_complete(void) {
-    logi("custom: on_init_complete()\n");
+    logi("my_platform: on_init_complete()\n");
+
+    // Safe to call "unsafe" functions since they are called from BT thread
+
+    // Start scanning
+    uni_bt_enable_new_connections_unsafe(true);
+
+    // Based on runtime condition you can delete or list the stored BT keys.
+    if (1)
+        uni_bt_del_keys_unsafe();
+    else
+        uni_bt_list_keys_unsafe();
+
+    // Turn off LED once init is done.
+    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
 }
 
 static void my_platform_on_device_connected(uni_hid_device_t* d) {
-    logi("custom: device connected: %p\n", d);
+    logi("my_platform: device connected: %p\n", d);
 }
 
 static void my_platform_on_device_disconnected(uni_hid_device_t* d) {
-    logi("custom: device disconnected: %p\n", d);
+    logi("my_platform: device disconnected: %p\n", d);
 }
 
 static uni_error_t my_platform_on_device_ready(uni_hid_device_t* d) {
-    logi("custom: device ready: %p\n", d);
-    my_platform_instance_t* ins = get_my_platform_instance(d);
-    ins->gamepad_seat = GAMEPAD_SEAT_A;
+    logi("my_platform: device ready: %p\n", d);
 
-    trigger_event_on_gamepad(d);
+    // You can reject the connection by returning an error.
     return UNI_ERROR_SUCCESS;
 }
 
@@ -139,61 +143,71 @@ static void my_platform_on_controller_data(uni_hid_device_t* d, uni_controller_t
                 enabled = true;
             }
             break;
+        case UNI_CONTROLLER_CLASS_BALANCE_BOARD:
+            // Do something
+            uni_balance_board_dump(&ctl->balance_board);
+            break;
+        case UNI_CONTROLLER_CLASS_MOUSE:
+            // Do something
+            uni_mouse_dump(&ctl->mouse);
+            break;
+        case UNI_CONTROLLER_CLASS_KEYBOARD:
+            // Do something
+            uni_keyboard_dump(&ctl->keyboard);
+            break;
         default:
+            loge("Unsupported controller class: %d\n", ctl->klass);
             break;
     }
 }
 
 static int32_t my_platform_get_property(uni_platform_property_t key) {
-    logi("custom: get_property(): %d\n", key);
-    if (key != UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS)
-        return -1;
-    return g_delete_keys;
+    // Deprecated
+    ARG_UNUSED(key);
+    return 0;
 }
 
 static void my_platform_on_oob_event(uni_platform_oob_event_t event, void* data) {
-    logi("custom: on_device_oob_event(): %d\n", event);
+    switch (event) {
+        case UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON:
+            // Optional: do something when "system" button gets pressed.
+            trigger_event_on_gamepad((uni_hid_device_t*)data);
+            break;
 
-    if (event != UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON) {
-        logi("my_platform_on_device_gamepad_event: unsupported event: 0x%04x\n", event);
-        return;
+        case UNI_PLATFORM_OOB_BLUETOOTH_ENABLED:
+            // When the "bt scanning" is on / off. Could by triggered by different events
+            // Useful to notify the user
+            logi("my_platform_on_oob_event: Bluetooth enabled: %d\n", (bool)(data));
+            break;
+
+        default:
+            logi("my_platform_on_oob_event: unsupported event: 0x%04x\n", event);
     }
-
-    uni_hid_device_t* d = data;
-
-    if (d == NULL) {
-        loge("ERROR: my_platform_on_device_gamepad_event: Invalid NULL device\n");
-        return;
-    }
-
-    my_platform_instance_t* ins = get_my_platform_instance(d);
-    ins->gamepad_seat = ins->gamepad_seat == GAMEPAD_SEAT_A ? GAMEPAD_SEAT_B : GAMEPAD_SEAT_A;
-
-    trigger_event_on_gamepad(d);
 }
 
 //
 // Helpers
 //
-static my_platform_instance_t* get_my_platform_instance(uni_hid_device_t* d) {
-    return (my_platform_instance_t*)&d->platform_data[0];
-}
-
 static void trigger_event_on_gamepad(uni_hid_device_t* d) {
-    my_platform_instance_t* ins = get_my_platform_instance(d);
-
     if (d->report_parser.set_rumble != NULL) {
         d->report_parser.set_rumble(d, 0x80 /* value */, 15 /* duration */);
     }
 
     if (d->report_parser.set_player_leds != NULL) {
-        d->report_parser.set_player_leds(d, ins->gamepad_seat);
+        static uint8_t led = 0;
+        led += 1;
+        led &= 0xf;
+        d->report_parser.set_player_leds(d, led);
     }
 
     if (d->report_parser.set_lightbar_color != NULL) {
-        uint8_t red = (ins->gamepad_seat & 0x01) ? 0xff : 0;
-        uint8_t green = (ins->gamepad_seat & 0x02) ? 0xff : 0;
-        uint8_t blue = (ins->gamepad_seat & 0x04) ? 0xff : 0;
+        static uint8_t red = 0x10;
+        static uint8_t green = 0x20;
+        static uint8_t blue = 0x40;
+
+        red += 0x10;
+        green -= 0x20;
+        blue += 0x40;
         d->report_parser.set_lightbar_color(d, red, green, blue);
     }
 }
@@ -203,7 +217,7 @@ static void trigger_event_on_gamepad(uni_hid_device_t* d) {
 //
 struct uni_platform* uni_platform_custom_create(void) {
     static struct uni_platform plat = {
-        .name = "custom",
+        .name = "My Platform",
         .init = my_platform_init,
         .on_init_complete = my_platform_on_init_complete,
         .on_device_connected = my_platform_on_device_connected,
@@ -216,4 +230,3 @@ struct uni_platform* uni_platform_custom_create(void) {
 
     return &plat;
 }
-

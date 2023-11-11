@@ -30,14 +30,13 @@ extern "C" {
 #include "uni_joystick.h"
 
 typedef enum {
-    // The gamepad "System" button was pressed
-    UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON,
-    UNI_PLATFORM_OOB_BLUETOOTH_ENABLED,
+    UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON,  // When the gamepad "system" button was pressed
+    UNI_PLATFORM_OOB_BLUETOOTH_ENABLED,      // When Bluetooth is "scanning"
 } uni_platform_oob_event_t;
 
 typedef enum {
     // Whether or not the Bluetooth stored keys should be deleted at boot time
-    UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS,
+    UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYSS,
 } uni_platform_property_t;
 
 // uni_platform must be defined for each new platform that is implemented.
@@ -89,6 +88,7 @@ struct uni_platform {
 void uni_platform_init(int argc, const char** argv);
 
 struct uni_platform* uni_get_platform(void);
+void uni_set_platform(struct uni_platform* platform);
 
 #ifdef __cplusplus
 }

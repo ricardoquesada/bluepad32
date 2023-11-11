@@ -2305,7 +2305,15 @@ static void mightymiggy_init(int argc, const char** argv) {
 }
 
 static void mightymiggy_on_init_complete(void) {
-    // Nothing to do
+    // Start Scanning
+    uni_bt_enable_new_connections_safe(true);
+
+    // Hi-released, Low-pressed
+    bool pushed = !gpio_get_level(GPIO_PUSH_BUTTON);
+    if (pushed)
+        uni_bt_del_keys_safe();
+    else
+        uni_bt_list_keys_safe();
 }
 
 static void mightymiggy_on_device_connected(uni_hid_device_t* d) {
@@ -2767,11 +2775,9 @@ static void mightymiggy_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) 
 }
 
 static int32_t mightymiggy_get_property(uni_platform_property_t key) {
-    if (key != UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS)
-        return -1;
-
-    // Hi-released, Low-pressed
-    return !gpio_get_level(GPIO_PUSH_BUTTON);
+    // Deprecated
+    ARG_UNUSED(key);
+    return 0;
 }
 
 //

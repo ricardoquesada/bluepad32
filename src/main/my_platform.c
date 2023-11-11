@@ -30,12 +30,7 @@ limitations under the License.
 // Only used when CONFIG_BLUEPAD32_PLATFORM_CUSTOM is selected.
 //
 
-//
-// Globals
-//
-static int g_delete_keys = 0;
-
-// Custom-1 "instance"
+// Custom "instance"
 typedef struct my_platform_instance_s {
     uni_gamepad_seat_t gamepad_seat;  // which "seat" is being used
 } my_platform_instance_t;
@@ -73,6 +68,17 @@ static void my_platform_init(int argc, const char** argv) {
 
 static void my_platform_on_init_complete(void) {
     logi("custom: on_init_complete()\n");
+
+    // Safe to call "unsafe" functions since they are called from BT thread
+
+    // Start scanning
+    uni_bt_enable_new_connections_unsafe(true);
+
+    // Based on runtime condition you can delete or list the stored BT keys.
+    if (1)
+        uni_bt_del_keys_unsafe();
+    else
+        uni_bt_list_keys_unsafe();
 }
 
 static void my_platform_on_device_connected(uni_hid_device_t* d) {
@@ -145,31 +151,37 @@ static void my_platform_on_controller_data(uni_hid_device_t* d, uni_controller_t
 }
 
 static int32_t my_platform_get_property(uni_platform_property_t key) {
-    logi("custom: get_property(): %d\n", key);
-    if (key != UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS)
-        return -1;
-    return g_delete_keys;
+    // Deprecated
+    ARG_UNUSED(key);
+    return 0;
 }
 
 static void my_platform_on_oob_event(uni_platform_oob_event_t event, void* data) {
-    logi("custom: on_device_oob_event(): %d\n", event);
+    switch (event) {
+        case UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON: {
+            uni_hid_device_t* d = data;
 
-    if (event != UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON) {
-        logi("my_platform_on_device_gamepad_event: unsupported event: 0x%04x\n", event);
-        return;
+            if (d == NULL) {
+                loge("ERROR: my_platform_on_oob_event: Invalid NULL device\n");
+                return;
+            }
+            logi("custom: on_device_oob_event(): %d\n", event);
+
+            my_platform_instance_t* ins = get_my_platform_instance(d);
+            ins->gamepad_seat = ins->gamepad_seat == GAMEPAD_SEAT_A ? GAMEPAD_SEAT_B : GAMEPAD_SEAT_A;
+
+            trigger_event_on_gamepad(d);
+            break;
+        }
+
+        case UNI_PLATFORM_OOB_BLUETOOTH_ENABLED:
+            logi("custom: Bluetooth enabled: %d\n", (bool)(data));
+            break;
+
+        default:
+            logi("my_platform_on_oob_event: unsupported event: 0x%04x\n", event);
+            break;
     }
-
-    uni_hid_device_t* d = data;
-
-    if (d == NULL) {
-        loge("ERROR: my_platform_on_device_gamepad_event: Invalid NULL device\n");
-        return;
-    }
-
-    my_platform_instance_t* ins = get_my_platform_instance(d);
-    ins->gamepad_seat = ins->gamepad_seat == GAMEPAD_SEAT_A ? GAMEPAD_SEAT_B : GAMEPAD_SEAT_A;
-
-    trigger_event_on_gamepad(d);
 }
 
 //

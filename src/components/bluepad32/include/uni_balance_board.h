@@ -64,7 +64,7 @@ typedef struct {
 
 void uni_balance_board_dump(const uni_balance_board_t* bb);
 void uni_balance_board_register_cmds(void);
-void uni_balance_board_on_init_complete(void);
+void uni_balance_board_init(void);
 uni_balance_board_threshold_t uni_balance_board_get_threshold(void);
 
 #ifdef __cplusplus

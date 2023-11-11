@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - ???
+### New
+- Pico W support
+  - Support for Raspberry Pi Pico W microcontroller
+  - Supports BLE / BREDR
+  - Console / NVS not supported yet
+
+### Changed
+- Platform boot logic changed a bit. Rationale: "don't make magic changes".
+  - `uni_main()` does not call `btstack_run_loop_execute()` automatically. Must be called by the user
+  - BT scan is OFF by default. Platform must call `uni_bt_enable_new_connections` to enable it.
+  - `platform->get_properties()` does nothing. To list/delete Bluetooth keys platform must call them explicitly.
+- New "unsafe" functions, useful to be called from `platforom->on_init_complete()`
+  - `uni_bt_enable_new_connections_unsafe()`
+  - `uni_bt_del_keys_unsafe()`
+  - `uni_bt_list_keys_unsafe()`
 ## [3.10.3] - 2023-11-26
 ### New
 - Atari Wireless Joystick: Add support for it
@@ -26,8 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Sketch.cpp updated with Keyboard,Mouse,Gamepad,BalanceBoard code
 
 ### Changed
-  - Kconfig: Log Level "choice" and "int" as log level verbosity
-    - Easier to handle in code. Doesn't "pollute" the Kconfig options
+- Kconfig: Log Level "choice" and "int" as log level verbosity
+  - Easier to handle in code. Doesn't "pollute" the Kconfig options
 
 ### Fixed
 - Arduino: Correctly report Keyboard/Mouse types [Github Issue #48][github_issue_48]

@@ -253,7 +253,8 @@ static void arduino_on_device_oob_event(uni_platform_oob_event_t event, void* da
 }
 
 static int32_t arduino_get_property(uni_platform_property_t key) {
-    // FIXME: support well-known uni_platform_property_t keys
+    // Deprecated
+    ARG_UNUSED(key);
     return 0;
 }
 

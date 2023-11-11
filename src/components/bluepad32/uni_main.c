@@ -32,11 +32,14 @@ limitations under the License.
 
 // Main entry point, runs forever
 int uni_main(int argc, const char** argv) {
+    // Disable stdout buffering
+    setbuf(stdout, NULL);
+
     logi("Bluepad32 (C) 2016-2023 Ricardo Quesada and contributors.\n");
     logi("Version: v" UNI_VERSION "\n");
 
-    // Honoring BTStack license
-    logi("BTStack: Copyright (C) 2017 BlueKitchen GmbH.\n");
+    // Honoring BTstack license
+    logi("BTstack: Copyright (C) 2017 BlueKitchen GmbH.\n");
 
     uni_property_init();
     uni_platform_init(argc, argv);
@@ -51,8 +54,7 @@ int uni_main(int argc, const char** argv) {
     uni_console_init();
 #endif  // CONFIG_BLUEPAD32_CONSOLE_ENABLE
 
-    // Does not return.
-    btstack_run_loop_execute();
+    uni_balance_board_init();
 
     return 0;
 }

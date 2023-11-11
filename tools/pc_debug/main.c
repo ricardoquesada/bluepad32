@@ -68,7 +68,13 @@
 #include "hci_dump_posix_fs.h"
 #include "hci_transport.h"
 #include "hci_transport_usb.h"
+#include "sdkconfig.h"
 #include "uni_main.h"
+
+// Sanity check
+#ifndef CONFIG_BLUEPAD32_PLATFORM_CUSTOM
+#error "PC Debug must use BLUEPAD32_PLATFORM_CUSTOM"
+#endif
 
 #define TLV_DB_PATH_PREFIX "/tmp/btstack_"
 #define TLV_DB_PATH_POSTFIX ".tlv"
@@ -233,8 +239,11 @@ int main(int argc, const char* argv[]) {
     // handle CTRL-c
     signal(SIGINT, sigint_handler);
 
-    // Initialize Bluepad32. Does not return.
+    // Initialize Bluepad32.
     uni_main(argc, argv);
+
+    // Does not return.
+    btstack_run_loop_execute();
 
     return 0;
 }

@@ -1027,6 +1027,8 @@ static void nina_on_init_complete(void) {
     // In order to not interfere with Bluetooth that runs in CPU0, SPI code
     // should run in CPU1
     xTaskCreatePinnedToCore(spi_main_loop, "spi_main_loop", 8192, NULL, 1, NULL, 1);
+
+    uni_bt_enable_new_connections_safe(true);
 }
 
 static void nina_on_device_connected(uni_hid_device_t* d) {
@@ -1185,7 +1187,8 @@ static void nina_on_oob_event(uni_platform_oob_event_t event, void* data) {
 }
 
 static int32_t nina_get_property(uni_platform_property_t key) {
-    // FIXME: support well-known uni_platform_property_t keys
+    // Deprecated
+    ARG_UNUSED(key);
     return 0;
 }
 

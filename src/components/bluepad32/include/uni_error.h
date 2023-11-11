@@ -15,6 +15,7 @@ typedef enum {
     UNI_ERROR_INVALID_DEVICE = 1,
     UNI_ERROR_INVALID_CONTROLLER = 2,
     UNI_ERROR_NO_SLOTS = 3,
+    UNI_ERROR_INIT_FAILED = 4,
 } uni_error_t;
 
 #ifdef __cplusplus
