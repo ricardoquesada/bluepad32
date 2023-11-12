@@ -33,7 +33,6 @@ limitations under the License.
 
 // Main entry point, runs forever
 int uni_main(int argc, const char** argv) {
-
 #ifdef CONFIG_IDF_TARGET
     uni_esp32_init();
 #endif
