@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Support for Raspberry Pi Pico W microcontroller
   - Supports BLE / BREDR
   - Console / NVS not supported yet
+  - Internally uses the "custom" platform.
 
 ### Changed
 - Platform boot logic changed a bit. Rationale: "don't make magic changes".
@@ -28,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `uni_bt_enable_new_connections_unsafe()`
   - `uni_bt_del_keys_unsafe()`
   - `uni_bt_list_keys_unsafe()`
+- "PC_DEBUG" platform:
+  - Removed the "PLATFORM_PC_DEBUG" option.
+  - Instead, "pc_debug" still exists, but internally uses "custom" platform.
 
 ## [3.10.1] - 2023-11-05
 ### New
