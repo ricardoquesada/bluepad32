@@ -31,6 +31,12 @@ jobs:
       working-directory: ${{github.workspace}}/pico-sdk
       run: git submodule update --init
 
+    - name: Create build folder
+      run: |
+        echo "Cleaning up previous run"
+        rm -rf "${{github.workspace}}/tools/pico_w/build"
+        mkdir -p "${{github.workspace}}/tools/pico_w/build"
+
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
       # access regardless of the host operating system
