@@ -758,6 +758,7 @@ void uni_hid_device_process_controller(uni_hid_device_t* d) {
     if (uni_get_platform()->on_controller_data != NULL)
         uni_get_platform()->on_controller_data(d, &d->controller);
     else if (uni_get_platform()->on_gamepad_data != NULL)
+        // Deprecated: should implement only on_controller_data
         uni_get_platform()->on_gamepad_data(d, &d->controller.gamepad);
 
     // FIXME: each backend should decide what to do with misc buttons
