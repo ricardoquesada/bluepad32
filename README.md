@@ -87,7 +87,7 @@ See: [Supported gamepads][gamepads], [supported mice][mice] and [supported keybo
 
 * https://gitlab.com/ricardoquesada/bluepad32/-/releases
 
-## How to compile it
+## How to compile it for ESP32
 
 1. Install ESP-IDF
 
@@ -102,7 +102,7 @@ See: [Supported gamepads][gamepads], [supported mice][mice] and [supported keybo
    git clone --recursive https://gitlab.com/ricardoquesada/bluepad32.git
    ```
 
-3. Integrate BTStack into ESP32
+3. Integrate BTstack into ESP32
 
    ```sh
    cd ${BLUEPAD32}/external/btstack/port/esp32
@@ -135,6 +135,32 @@ See: [Supported gamepads][gamepads], [supported mice][mice] and [supported keybo
     idf.py flash monitor
     ```
 
+## How to compile it for Pico W
+
+1. Install Pico SDK
+
+    Install latest stable Pico SDK (v1.5.1 as of 2023-11-11).
+
+    * <https://www.raspberrypi.com/documentation/microcontrollers/c_sdk.html>
+
+2. Compile example project
+
+    ```sh
+    cd tools/pico_w
+    mkdir build
+    cd build
+    cmake .. -DPICO_BOARD=pico_w
+    make -j
+    ```
+
+3. Flash it
+
+    Copy `build/bluepad32_picow_app.uf2` to Pico W.
+
+    Use this guide if you are not sure how to do it:
+
+    * <https://projects.raspberrypi.org/en/projects/get-started-pico-w/>
+
 ## Support
 
 * [Documentation][docs]
@@ -153,9 +179,9 @@ open source projects. But commercial for closed-source projects.
 If you are developing a commercial product for:
 
 - ESP32: [You should contact BTstack people][btstack-homepage].
-- Pico W: [You are covered by Raspberry Pi License][rpi-btstack-license].
+- Pico W: [You are already covered by Raspberry Pi License][rpi-btstack-license].
   
-Notice: I’m not affiliated with BTstack people. But I can tell that they super friendly and willing to help.
+Notice: I’m not affiliated with BTstack people. They are super friendly and willing to help.
 
 [btstack-github]: https://github.com/bluekitchen/btstack
 [apache2]: https://www.apache.org/licenses/LICENSE-2.0
