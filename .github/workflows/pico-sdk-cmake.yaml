@@ -37,6 +37,9 @@ jobs:
         rm -rf "${{github.workspace}}/tools/pico_w/build"
         mkdir -p "${{github.workspace}}/tools/pico_w/build"
 
+    - name: Install dependencies
+      run: sudo apt -y install tzdata pkg-config make cmake ninja gcc-arm-none-eabi
+
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
       # access regardless of the host operating system
