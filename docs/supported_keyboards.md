@@ -33,16 +33,29 @@ The list of **tested** keyboards is this one:
 
 ## Microsoft Designer Bluetooth Keyboard
 
-[![Microsoft][microsoft_photo]][microsoft_link]
+[![Microsoft][microsoft_designer_photo]][microsoft_designer_link]
 
 * Supports: all keys
-* Purchase link: [eBay][microsoft_link]
+* Purchase link: [eBay][microsoft_designer_link]
 * Technical info: BLE, up to 10 simultaneus keys
-* Unknown model
+* Model: Microsoft Designer Desktop
 
-[microsoft_photo]: https://lh3.googleusercontent.com/pw/ADCreHd6sI3xeSxU4JFZ0wGpGVqUlPfhcwNHIZNRuTCNJEEaQm0r5qAAJl9hoA4nk0Pq_A7YP_24jF0UPT9SuH3YGD4HOOqA5Pq-Fu7fIDVbVOsD1EVERif272rngfH8XKyVSX7t2V3npU3A0yUUnL-rGGZBhA
-[microsoft_link]: https://www.microsoft.com/en/accessories/products/keyboards/designer-bluetooth-desktop
+[microsoft_designer_photo]: https://lh3.googleusercontent.com/pw/ADCreHd6sI3xeSxU4JFZ0wGpGVqUlPfhcwNHIZNRuTCNJEEaQm0r5qAAJl9hoA4nk0Pq_A7YP_24jF0UPT9SuH3YGD4HOOqA5Pq-Fu7fIDVbVOsD1EVERif272rngfH8XKyVSX7t2V3npU3A0yUUnL-rGGZBhA
+[microsoft_designer_link]: https://www.microsoft.com/en/accessories/products/keyboards/designer-bluetooth-desktop
 
+
+## Air Mouse with Touchpad Keyboard
+
+[![AliExpress][aliexpress_kb_1_photo]][aliexpress_kb_1_link]
+
+* Supports: all keys
+* Purchase link: [AliExpress][aliexpress_kb_1_link]
+* Technical info: BLE, up to 6 simultaneus keys
+* Model: 2.4G Air mouse with Touchpad keyboard i8 English French Spanish Russian Backlit Mini Wireless Keyboard for PC Android TV Box
+
+
+[aliexpress_kb_1_photo]: https://lh3.googleusercontent.com/pw/ADCreHcXVB7qwKG-A_FxCeM5ix2EGrPSmIuhK0dLwcGU8a4_My_ZCf1tdgALO9UvtNjVcSN934YnyS_pf90YXTxpoylQ4LpZ82uNxchzyVwONS_8gHKrTHFnwK8eo3I7p2iwILX1xNY99hYKZ1kDxTL_ttI-aQ
+[aliexpress_kb_1_link]: https://www.aliexpress.us/item/3256805614460629.html?spm=a2g0o.order_list.order_list_main.5.622d1802klrMWF&gatewayAdapt=glo2usa
 
 ## Other supported
 
