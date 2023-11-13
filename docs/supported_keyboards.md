@@ -31,7 +31,7 @@ The list of **tested** keyboards is this one:
 [magic_keyboard_a1644_link]: https://www.ebay.com/sch/i.html?_nkw=apple+magic+keyboard+a1644
 
 
-## Microsoft Bluetooth Keyboard
+## Microsoft Designer Bluetooth Keyboard
 
 [![Microsoft][microsoft_photo]][microsoft_link]
 
@@ -41,7 +41,7 @@ The list of **tested** keyboards is this one:
 * Unknown model
 
 [microsoft_photo]: https://lh3.googleusercontent.com/pw/ADCreHd6sI3xeSxU4JFZ0wGpGVqUlPfhcwNHIZNRuTCNJEEaQm0r5qAAJl9hoA4nk0Pq_A7YP_24jF0UPT9SuH3YGD4HOOqA5Pq-Fu7fIDVbVOsD1EVERif272rngfH8XKyVSX7t2V3npU3A0yUUnL-rGGZBhA
-[microsoft_link]: https://www.ebay.com/sch/i.html?_nkw=microsoft+bluetooth+keyboard
+[microsoft_link]: https://www.microsoft.com/en/accessories/products/keyboards/designer-bluetooth-desktop
 
 
 ## Other supported
