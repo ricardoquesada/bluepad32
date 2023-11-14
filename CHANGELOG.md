@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.10.2] - 2023-11-13
+### Changed
+- BTstack: Upgraded to latest develop branch as of 2023-11-13
+
+### Fixed
+- Xbox: Axis works Ok (fixed in latest BTstack)
+
 ## [3.10.1] - 2023-11-05
 ### New
 - Arduino: API to handle keyboard
