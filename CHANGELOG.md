@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - "PC_DEBUG" platform:
   - Removed the "PLATFORM_PC_DEBUG" option.
   - Instead, "pc_debug" still exists, but internally uses "custom" platform.
+- Allowlist: rename `uni_bt_allowlist_allow_addr()` to `uni_bt_allowlist_is_allowed_addr()`
 
 ## [3.10.1] - 2023-11-05
 ### New

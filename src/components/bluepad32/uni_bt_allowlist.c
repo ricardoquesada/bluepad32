@@ -86,7 +86,7 @@ static void update_allowlist_from_property(void) {
 //
 // Public functions
 //
-bool uni_bt_allowlist_allow_addr(bd_addr_t addr) {
+bool uni_bt_allowlist_is_allowed_addr(bd_addr_t addr) {
     // If not enforced, all addresses are allowed.
     if (!enforced)
         return true;
