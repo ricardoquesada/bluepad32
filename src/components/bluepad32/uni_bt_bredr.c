@@ -31,7 +31,6 @@ limitations under the License.
 #include "uni_common.h"
 #include "uni_config.h"
 #include "uni_log.h"
-#include "uni_platform.h"
 
 // These are the only two supported platforms with BR/EDR support.
 #if !(defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_TARGET_LIBUSB))
@@ -356,7 +355,7 @@ void uni_bt_bredr_on_l2cap_incoming_connection(uint16_t channel, const uint8_t* 
         "channel=0x%04x, addr=%s\n",
         psm, local_cid, remote_cid, handle, channel, bd_addr_to_str(event_addr));
 
-    if (!uni_bt_allowlist_allow_addr(event_addr)) {
+    if (!uni_bt_allowlist_is_allowed_addr(event_addr)) {
         loge("Declining incoming connection: Device not in allow-list: %s\n", bd_addr_to_str(event_addr));
         l2cap_decline_connection(channel);
         return;
@@ -567,7 +566,7 @@ void uni_bt_bredr_on_gap_inquiry_result(uint16_t channel, const uint8_t* packet,
     }
     logi("\n");
 
-    if (!uni_bt_allowlist_allow_addr(addr)) {
+    if (!uni_bt_allowlist_is_allowed_addr(addr)) {
         loge("Ignoring device, not in allow-list: %s\n", bd_addr_to_str(addr));
         return;
     }

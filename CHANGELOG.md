@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.10.2] - 2023-11-13
 ### Changed
 - BTstack: Upgraded to latest develop branch as of 2023-11-13
+- Allowlist: rename `uni_bt_allowlist_allow_addr()` to `uni_bt_allowlist_is_allowed_addr()`
 
 ### Fixed
 - Xbox: Axis works Ok (fixed in latest BTstack)

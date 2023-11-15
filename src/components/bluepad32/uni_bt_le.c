@@ -52,6 +52,7 @@
 
 #include "uni_bt_le.h"
 
+#include <bluetooth_data_types.h>
 #include <btstack.h>
 #include <btstack_config.h>
 #include <inttypes.h>
@@ -59,7 +60,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "bluetooth_data_types.h"
 #include "sdkconfig.h"
 #include "uni_bt_allowlist.h"
 #include "uni_bt_conn.h"
@@ -759,7 +759,7 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
          bd_addr_to_str(addr));
 
     // Allowlist is only valid for "public" addresses. Doesn't make sense with random ones.
-    if (addr_type == 0 && !uni_bt_allowlist_allow_addr(addr)) {
+    if (addr_type == 0 && !uni_bt_allowlist_is_allowed_addr(addr)) {
         logi("Ignoring device, not in allow-list: %s\n", bd_addr_to_str(addr));
         return;
     }

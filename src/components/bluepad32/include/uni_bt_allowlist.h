@@ -36,14 +36,24 @@ extern "C" {
 //
 
 // Whether or not the address is allowed to connect.
-bool uni_bt_allowlist_allow_addr(bd_addr_t addr);
+bool uni_bt_allowlist_is_allowed_addr(bd_addr_t addr);
+
+// Add a new address to the allow list.
 bool uni_bt_allowlist_add_addr(bd_addr_t addr);
+
+// Remove an existing address from the allow list.
 bool uni_bt_allowlist_remove_addr(bd_addr_t addr);
+
+// Print the allowed-address to the console.
 void uni_bt_allowlist_list(void);
 
+// Whether the allowlist is enabled.
 bool uni_bt_allowlist_is_enabled(void);
+
+// Enables/Disables the allowlist feature.
 void uni_bt_allowlist_set_enabled(bool enabled);
 
+// Initialize the Allowlist feature.
 void uni_bt_allowlist_init(void);
 
 #ifdef __cplusplus
