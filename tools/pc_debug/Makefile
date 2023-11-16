@@ -86,6 +86,7 @@ bluepad32: ${CORE_OBJ} ${COMMON_OBJ} ${CLASSIC_OBJ} ${SDP_CLIENT} btstack_ring_b
 	${BLUEPAD32_ROOT}/uni_hid_parser.o \
 	${BLUEPAD32_ROOT}/uni_hid_parser_8bitdo.o \
 	${BLUEPAD32_ROOT}/uni_hid_parser_android.o \
+	${BLUEPAD32_ROOT}/uni_hid_parser_atari.o \
 	${BLUEPAD32_ROOT}/uni_hid_parser_ds3.o \
 	${BLUEPAD32_ROOT}/uni_hid_parser_ds4.o \
 	${BLUEPAD32_ROOT}/uni_hid_parser_ds5.o \
