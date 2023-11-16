@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Supports BLE / BREDR
   - Console / NVS not supported yet
   - Internally uses the "custom" platform.
+- Atari Wireless Joystick: Add support for it
 
 ### Changed
 - Platform boot logic changed a bit. Rationale: "don't make magic changes".

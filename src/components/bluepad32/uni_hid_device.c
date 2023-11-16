@@ -33,6 +33,7 @@ limitations under the License.
 #include "uni_hid_device_vendors.h"
 #include "uni_hid_parser_8bitdo.h"
 #include "uni_hid_parser_android.h"
+#include "uni_hid_parser_atari.h"
 #include "uni_hid_parser_ds3.h"
 #include "uni_hid_parser_ds4.h"
 #include "uni_hid_parser_ds5.h"
@@ -696,6 +697,12 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             d->report_parser.init_report = uni_hid_parser_steam_init_report;
             d->report_parser.parse_input_report = uni_hid_parser_steam_parse_input_report;
             logi("Device detected as Steam: 0x%02x\n", type);
+            break;
+        case CONTROLLER_TYPE_AtariJoystick:
+            d->report_parser.setup = uni_hid_parser_atari_setup;
+            d->report_parser.init_report = uni_hid_parser_atari_init_report;
+            d->report_parser.parse_input_report = uni_hid_parser_atari_parse_input_report;
+            logi("Device detected as Atari Joystick/Controller: 0x%02x\n", type);
             break;
         case CONTROLLER_TYPE_GenericMouse:
             d->report_parser.setup = uni_hid_parser_mouse_setup;
