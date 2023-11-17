@@ -7,13 +7,14 @@
 
 ## Bluetooth gamepads and their protocol
 
-Most gamepads, as of 2023, use BR/EDR (AKA Bluetooth Classic). Worth noting is that BR/EDR is only supported on ESP32, and **NOT** in ESP32-S3 / ESP32-C3.
+Most gamepads, as of 2023, use BR/EDR (AKA Bluetooth Classic). Worth noting is that BR/EDR is only supported on ESP32 and Pico W, and **NOT** in ESP32-S3 / ESP32-C3.
 
 | Chip     | BR/EDR | BLE |
 | -------- | ------ | --- |
 | ESP32    |    Y   |  Y  |
 | ESP32-S3 |        |  Y  |
 | ESP32-C3 |        |  Y  |
+| Pico W   |    Y   |  Y  |
 
 Non-comprehensive list of supported Bluetooth gamepads their protocols:
 
@@ -32,6 +33,7 @@ Non-comprehensive list of supported Bluetooth gamepads their protocols:
 | Stadia                  |        | Y***|
 | Android                 |    Y   |     |
 | 8BitDo                  |    Y   |     |
+| Atari                   |    Y   |     |
 | iCade                   |    Y   |     |
 | Nimbus                  |    Y   |     |
 | OUYA 1st gen            |    Y   |     |
@@ -336,9 +338,8 @@ Classic Controller can be used.
 [![8bitdo SN30 Pro][8bitdo_sn30_pro_img]][8bitdo_sn30_pro]
 
 - Tested with: [8BitDo SN30 Pro][8bitdo_sn30_pro], [8BitDo Arcade Stick][8bitdo_arcade_stick],
-  [8BitDo Lite][8bitdo_lite], [8BitDo NES30][8bitdo_nes30], [8BitDo M30][8bitdo_m30], [8BitDo Zero 2][8bitdo_zero2]
+  [8BitDo Lite][8bitdo_lite], [8BitDo NES30][8bitdo_nes30], [8BitDo M30][8bitdo_m30], [8BitDo Zero 2][8bitdo_zero2], [8BitDo Ultimate Controller][8bitdo_ultimate]
 - All 8BitDo modes are supported: *Switch*, *Android*, *Windows* and *macOS*.
-- Known issues: [issue #10][issue_10]
 - Protocol: BR/EDR
 
 [8bitdo_sn30_pro_img]: https://lh3.googleusercontent.com/KX3q2kT7UZcEDGN8953RB7msPV343Gworbgaq-eLeKtqSzjTlOIUkoCf0QAf2GrnroQm0ADOCDgj3rK8EWpl2tfqScqExsiSorWZFf7lzA8-m1EoYYkVyjYaeFsSxzcC17kw9CkMNWQ=-no
@@ -348,7 +349,18 @@ Classic Controller can be used.
 [8bitdo_arcade_stick]: https://www.8bitdo.com/arcade-stick/
 [8bitdo_m30]: https://www.8bitdo.com/m30/
 [8bitdo_zero2]: https://www.8bitdo.com/zero2/
-[issue_10]: https://gitlab.com/ricardoquesada/unijoysticle2/issues/10
+[8bitdo_ultimate]: https://www.8bitdo.com/ultimate-bluetooth-controller/
+
+## Atari VCS Joystick
+
+[![Atari Joystick][atari_joystick_photo]][atari_joystick_link]
+
+- Buttons / joystick supported
+- The "paddle" (when you rotate the joystick) is reported as `THROTTLE`
+- Protocol: BR/EDR
+
+[atari_joystick_link]: https://atari.com/products/classic-joystick
+[atari_joystick_photo]: https://lh3.googleusercontent.com/pw/ADCreHeBQRnL5M6Yu_GDtgtJCrTNqZPZp7u2RUuwi347V83ZWYE1L3bFAyR79CqpIpA0aI40xl2u4OhdR8NchCwIcvEdGpz4Qu-8cn2cHo1nKWO5ZyyN_QJgysYl9l0N_OkRw_xSIM0OjdtxaAskStxCbBqvFA=w252-h256-s-no-gm?authuser=0
 
 ## iCade Family
 
