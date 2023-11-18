@@ -22,5 +22,5 @@ jobs:
 
     - name: Compile
       run: |
-        cd tools/pc_debug
+        cd examples/linux
         CC=clang make -j
