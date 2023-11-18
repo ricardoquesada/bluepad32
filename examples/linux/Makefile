@@ -46,7 +46,9 @@ LDFLAGS += $(shell pkg-config libusb-1.0 --libs)
 
 # Bluepad32
 CFLAGS  += -I${BLUEPAD32_ROOT}/include
-#CFLAGS  += -Wextra
+CFLAGS  += -Wextra
+CFLAGS += -DCONFIG_BLUEPAD32_PLATFORM_CUSTOM
+
 
 # add pthread for ctrl-c signal handler
 LDFLAGS += -lpthread
@@ -61,6 +63,8 @@ LDFLAGS += -lpthread
 # use pkg-config for portaudio
 # CFLAGS  += $(shell pkg-config portaudio-2.0 --cflags) -DHAVE_PORTAUDIO
 # LDFLAGS += $(shell pkg-config portaudio-2.0 --libs)
+
+EXAMPLES = bluepad32
 
 clean_src:
 	rm -rf * ${BTSTACK_ROOT}/src/*.o
@@ -113,4 +117,4 @@ bluepad32: ${CORE_OBJ} ${COMMON_OBJ} ${CLASSIC_OBJ} ${SDP_CLIENT} btstack_ring_b
 	${BLUEPAD32_ROOT}/uni_virtual_device.o
 	${CC} $^ ${CFLAGS} ${LDFLAGS} -o $@
 
-all: bluepad32
+all: ${EXAMPLES}

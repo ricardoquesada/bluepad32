@@ -1,7 +1,7 @@
 stages:
   - build
 
-build-debian-pc-debug-gcc:
+build-debian-linux-gcc:
   image: gcc
   variables:
     GIT_SUBMODULE_STRATEGY: normal
@@ -14,7 +14,7 @@ build-debian-pc-debug-gcc:
   script:
     - cd examples/linux && make
 
-build-ubuntu-pc-debug-clang:
+build-ubuntu-linux-clang:
   image: espressif/idf
   variables:
     GIT_SUBMODULE_STRATEGY: normal
