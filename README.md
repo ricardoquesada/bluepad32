@@ -4,7 +4,7 @@
 
 ![logo](https://lh3.googleusercontent.com/pw/ADCreHccTUqtDIguBBUaQJH0iWsE6Ee1mLdL8urNKmewdvioWjWqT2rlBIWszdMT5jZOs0HJmrbnB4AEuRoRmE4zeR3TeXQZEHl8xZJCplBb9qtYaA3UCU-Dw8d58jIXsQz1qbzNYhAxQzmDBT1EGBCGW8Zd4w=-no-gm?authuser=0)
 
-A Bluetooth controller "host" for the ESP32 / ESP32-S3 / ESP32-C3 / Raspberry Pi Pico W.
+A Bluetooth controller "host" for the ESP32, ESP32-S3, ESP32-C3, Raspberry Pi Pico W and Linux.
 
 Add Bluetooth gamepad, mouse and keyboard support to your projects easily.
 
@@ -12,16 +12,17 @@ Add Bluetooth gamepad, mouse and keyboard support to your projects easily.
 
 Choose your target platform:
 
-| Platform          | Start here | Further info | Community projects |
-| ----------------- | ---------- | ------------ | ------------------ |
-| Arduino IDE       | [![Watch the video][youtube_image]](https://youtu.be/0jnY-XXiD8Q) | [Doc][plat_arduino] | [Controller for Tello drone][tello] |
-| Arduino using ESP-IDF toolchain | [Template project][esp-idf-bluepad32-arduino] | [Doc][plat_arduino] | [Lego Robot][esp32_example] ([video][esp32_video]), [gbaHD Shield][esp32_example2] (a GameBoy consolizer) |
-| Arduino + NINA coprocessor      | [Arduino Library][bp32-arduino] | [Doc][plat_nina] | [Philips CD-i meets Bluetooth][nina_example] |
-| CircuitPython + AirLift coprocessor | [CircuitPython Library][bp32-circuitpython] | [Doc][plat_airlift] | [Quico console][airlift_example], Controlling 4 servos ([video][airlift_video]) |
-| Pico W            |            |              |                    |
-| Unijoysticle      | [Unijoysticle2][unijoysticle2]| [Doc][plat_unijoysticle] | |
-| MightyMiggy       | [Unijoysticle for Amiga][unijoysticle_sukko] | [Doc][plat_mightymiggy] | |
-| Custom            | | [Doc][plat_custom] | |
+| Platform                            | Start here                                                        | Further info             | Community projects                                                                                        |
+| ----------------------------------- | ----------------------------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------- |
+| Arduino IDE                         | [![Watch the video][youtube_image]](https://youtu.be/0jnY-XXiD8Q) | [Doc][plat_arduino]      | [Controller for Tello drone][tello]                                                                       |
+| Arduino using ESP-IDF toolchain     | [Template project][esp-idf-bluepad32-arduino]                     | [Doc][plat_arduino]      | [Lego Robot][esp32_example] ([video][esp32_video]), [gbaHD Shield][esp32_example2] (a GameBoy consolizer) |
+| Arduino + NINA coprocessor          | [Arduino Library][bp32-arduino]                                   | [Doc][plat_nina]         | [Philips CD-i meets Bluetooth][nina_example]                                                              |
+| CircuitPython + AirLift coprocessor | [CircuitPython Library][bp32-circuitpython]                       | [Doc][plat_airlift]      | [Quico console][airlift_example], Controlling 4 servos ([video][airlift_video])                           |
+| Pico W                              | [Pico W example][pico-w-example]                                         | [Doc][plat_custom]                         |                                                                                                           |
+| ESP-IDF                             | [ESP32 example][esp32-example]                                         | [Doc][plat_custom]                          |                                                                                                           |
+| Linux                               | [Linux example][linux-example]                                         | [Doc][plat_custom]                         |                                                                                                           |
+| Unijoysticle                        | [Unijoysticle2][unijoysticle2]                                    | [Doc][plat_unijoysticle] |                                                                                                           |
+| MightyMiggy                         | [Unijoysticle for Amiga][unijoysticle_sukko]                      | [Doc][plat_mightymiggy]  |                                                                                                           |
 
 
 [airlift_example]: https://gitlab.com/ricardoquesada/quico
@@ -46,12 +47,13 @@ Choose your target platform:
 
 ## Features
 
-* Supports most, if not all, modern Bluetooth gamepads and mice (see below)
+* Supports most, if not all, modern Bluetooth gamepads, mice and keyboards (see below)
 * Fast (very low latency)
 * Small footprint
 * Uses only one core (CPU0). The remaining one is free to use.
 * C11 based
 * Open Source (see below)
+* Easy to integrate into 3rd party projects
 
 ## Supported controllers
 
@@ -70,6 +72,7 @@ Choose your target platform:
 * Stadia controller
 * PC/Window controller
 * 8BitDo controllers
+* Atari joystick
 * iCade
 * Mouse
 * Keyboards
@@ -85,81 +88,27 @@ See: [Supported gamepads][gamepads], [supported mice][mice] and [supported keybo
 
 ## Pre-compiled binaries
 
+Download pre-compiled binaries for Unijoysticle, Nina, AirLift, MightyMiggy:
+
 * https://gitlab.com/ricardoquesada/bluepad32/-/releases
 
-## How to compile it for ESP32
+## Creating your project
 
-1. Install ESP-IDF
+See the examples folder which includes examples for:
 
-    Install the ESP32 toolchain. Use version **4.4** or **5.1**. Might work on newer / older
-    ones, but not tested.
+* [Bluepad32 for ESP32][esp32-example] (ESP32, ESP32-S3, ESP32-C3)
+* [Bluepad32 for Pico W][pico-w-example]
+* [Bluepad32 for Linux][linux-example]
 
-    * <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/>
+Arduino examples are in:
+* [Bluepad32 for Arduino IDE][arduino-ide-example]
+* [Bluepad32 for Arduino + ESP-IDF][arduino-esp-idf-example]
 
-2. Clone repo
-
-   ```sh
-   git clone --recursive https://gitlab.com/ricardoquesada/bluepad32.git
-   ```
-
-3. Integrate BTstack into ESP32
-
-   ```sh
-   cd ${BLUEPAD32}/external/btstack/port/esp32
-   # This will install BTstack as a component inside Bluepad32 source code (recommended).
-   # Remove "IDF_PATH=../../../../src" if you want it installed in the ESP-IDF folder
-   IDF_PATH=../../../../src ./integrate_btstack.py
-   ```
-
-4. Compile Bluepad32
-
-    Choose target platform (default is *Unijoysticle*):
-
-    ```sh
-    cd ${BLUEPAD32}/src
-    idf.py menuconfig
-    ```
-
-    The Bluepad32 options are in:
-    `Components config` -> `Bluepad32` (find it at the very bottom) -> `Target platform`
-
-    And compile it:
-
-    ```sh
-    idf.py build
-    ```
-
-5. Flash it
-
-    ```sh
-    idf.py flash monitor
-    ```
-
-## How to compile it for Pico W
-
-1. Install Pico SDK
-
-    Install latest stable Pico SDK (v1.5.1 as of 2023-11-11).
-
-    * <https://www.raspberrypi.com/documentation/microcontrollers/c_sdk.html>
-
-2. Compile example project
-
-    ```sh
-    cd tools/pico_w
-    mkdir build
-    cd build
-    cmake .. -DPICO_BOARD=pico_w
-    make -j
-    ```
-
-3. Flash it
-
-    Copy `build/bluepad32_picow_app.uf2` to Pico W.
-
-    Use this guide if you are not sure how to do it:
-
-    * <https://projects.raspberrypi.org/en/projects/get-started-pico-w/>
+[esp32-example]: examples/esp32/
+[pico-w-example]: examples/pico_w/
+[linux-example]: examples/linux
+[arduino-ide-example]: https://www.youtube.com/watch?v=0jnY-XXiD8Q
+[arduino-esp-idf-example]: https://gitlab.com/ricardoquesada/esp-idf-arduino-bluepad32-template
 
 ## Support
 
@@ -180,7 +129,7 @@ If you are developing a commercial product for:
 
 - ESP32: [You should contact BTstack people][btstack-homepage].
 - Pico W: [You are already covered by Raspberry Pi License][rpi-btstack-license].
-  
+
 Notice: I’m not affiliated with BTstack people. They are super friendly and willing to help.
 
 [btstack-github]: https://github.com/bluekitchen/btstack
