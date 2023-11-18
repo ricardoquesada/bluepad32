@@ -70,6 +70,7 @@ void uni_platform_set_custom(struct uni_platform* platform) {
 #ifdef CONFIG_BLUEPAD32_PLATFORM_CUSTOM
     _platform = platform;
 #else
+    ARG_UNUSED(platform);
     while (1)
         loge("Error: uni_platform_set_custom SHOULD only be called on 'custom' platform\n");
 #endif

@@ -74,6 +74,7 @@ static void atari_parse_report_id_01(struct uni_hid_device_s* d, const uint8_t* 
 }
 
 static void atari_parse_report_id_02(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len) {
+    ARG_UNUSED(d);
     // Battery status (???)
     // Report example:
     // 02 34
@@ -81,6 +82,7 @@ static void atari_parse_report_id_02(struct uni_hid_device_s* d, const uint8_t* 
 }
 
 static void atari_parse_report_id_03(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len) {
+    ARG_UNUSED(d);
     // Unknown
     // Report example:
     // 03 44 03 77 1B 4F EC 45 01
