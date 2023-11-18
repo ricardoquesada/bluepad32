@@ -34,8 +34,8 @@ jobs:
     - name: Create build folder
       run: |
         echo "Cleaning up previous run"
-        rm -rf "${{github.workspace}}/tools/pico_w/build"
-        mkdir -p "${{github.workspace}}/tools/pico_w/build"
+        rm -rf "${{github.workspace}}/examples/pico_w/build"
+        mkdir -p "${{github.workspace}}/examples/pico_w/build"
 
     - name: Install dependencies
       run: sudo apt -y install tzdata pkg-config make cmake gcc-arm-none-eabi
@@ -44,7 +44,7 @@ jobs:
       # Use a bash shell so we can use the same syntax for environment variable
       # access regardless of the host operating system
       shell: bash
-      working-directory: ${{github.workspace}}/tools/pico_w/build
+      working-directory: ${{github.workspace}}/examples/pico_w/build
       # Note the current convention is to use the -S and -B options here to specify source
       # and build directories, but this is only available with CMake 3.13 and higher.
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
@@ -55,7 +55,7 @@ jobs:
       run : cat /proc/cpuinfo  | grep processor | wc -l
 
     - name: Build
-      working-directory: ${{github.workspace}}/tools/pico_w/build
+      working-directory: ${{github.workspace}}/examples/pico_w/build
       shell: bash
       # Execute the build.  You can specify a specific target with "--target <NAME>"
       run: cmake --build . --config $BUILD_TYPE --parallel $(nproc)

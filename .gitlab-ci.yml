@@ -12,7 +12,7 @@ build-debian-pc-debug-gcc:
     - apt -y install tzdata
     - apt -y install make pkg-config libusb-1.0-0-dev
   script:
-    - cd tools/pc_debug && make
+    - cd examples/linux && make
 
 build-ubuntu-pc-debug-clang:
   image: espressif/idf
@@ -26,7 +26,7 @@ build-ubuntu-pc-debug-clang:
     - apt -y install clang
     - apt -y install make pkg-config libusb-1.0-0-dev
   script:
-    - cd tools/pc_debug && CC=clang make
+    - cd examples/linux && CC=clang make
 
 build-esp-idf-5.1:
   image: espressif/idf:release-v5.1

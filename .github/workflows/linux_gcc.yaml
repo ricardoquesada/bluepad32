@@ -21,4 +21,4 @@ jobs:
       run: sudo apt -y install tzdata make pkg-config libusb-1.0-0-dev
 
     - name: Compile
-      run: cd tools/pc_debug && make
+      run: cd examples/linux && make
