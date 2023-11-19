@@ -16,9 +16,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
-#ifndef UNI_MAIN_H
-#define UNI_MAIN_H
+#ifndef UNI_INIT_H
+#define UNI_INIT_H
 
-int uni_main(int argc, const char** argv);
+/* Initialize Bluepad32.
+ * argc / argv are parameters passed to the 'platform'
+ */
+int uni_init(int argc, const char** argv);
 
-#endif  // UNI_MAIN_H
+#endif  // UNI_INIT_H
