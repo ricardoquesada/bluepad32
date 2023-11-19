@@ -15,7 +15,7 @@ jobs:
           - check: 'src'
             exclude: 'src/components/(cmd_nvs|cmd_system)'
           - check: 'examples'
-            exclude: ''
+            exclude: 'btstack_config.h'
     steps:
     - uses: actions/checkout@v3
     - name: Run clang-format style check for C/C++/Protobuf programs.
