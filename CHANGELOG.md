@@ -16,10 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Platform boot logic changed a bit. Rationale: "don't make magic changes".
   - `uni_main()` does not call `btstack_run_loop_execute()` automatically. Must be called by the user
+  - `uni_main()` renamed to `uni_init()`.
+    - Rationale:  `uni_init()` just does the initialization. Before `uni_main` was doing init and main loop.
   - BT scan is OFF by default. Platform must call `uni_bt_enable_new_connections` to enable it.
   - `platform->get_properties()` does nothing. To list/delete Bluetooth keys platform must call them explicitly.
   - Custom platform:
-    - must call `uni_platform_set_custom(...)` before calling `uni_main()`
+    - must call `uni_platform_set_custom(...)` before calling `uni_init()`
     - `uni_platform_custom_create()` removed
   - ESP32 main:
     - `uni_esp32_main()` removed.
