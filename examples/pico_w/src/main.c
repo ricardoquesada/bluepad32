@@ -6,8 +6,8 @@
 #include <pico/stdlib.h>
 
 #include "sdkconfig.h"
+#include "uni_init.h"
 #include "uni_log.h"
-#include "uni_main.h"
 #include "uni_platform.h"
 
 // Sanity check
@@ -30,11 +30,11 @@ int main() {
     // Turn-on LED. Turn it off once init is done.
     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
 
-    // Must be called before uni_main()
+    // Must be called before uni_init()
     uni_platform_set_custom(get_my_platform());
 
     // Initialize BP32
-    uni_main(0, NULL);
+    uni_init(0, NULL);
 
     // Does not return.
     btstack_run_loop_execute();

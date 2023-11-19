@@ -21,7 +21,7 @@ limitations under the License.
 #include <btstack_run_loop.h>
 
 #include "sdkconfig.h"
-#include "uni_main.h"
+#include "uni_init.h"
 #include "uni_platform.h"
 
 #ifndef CONFIG_BLUEPAD32_PLATFORM_ARDUINO
@@ -41,7 +41,7 @@ int app_main(void) {
     // hci_dump_init(hci_dump_embedded_stdout_get_instance());
 
     // Init Bluepad32.
-    uni_main(0 /* argc */, NULL /* argv */);
+    uni_init(0 /* argc */, NULL /* argv */);
 
     // Does not return.
     btstack_run_loop_execute();

@@ -36,7 +36,7 @@ limitations under the License.
 #include <hci_dump_embedded_stdout.h>
 
 #include "uni_config.h"
-#include "uni_main.h"
+#include "uni_init.h"
 
 #ifdef UNI_ENABLE_BREDR
 _Static_assert(CONFIG_BTDM_CTRL_BR_EDR_MAX_ACL_CONN >= 2, "Max ACL must be >= 2");

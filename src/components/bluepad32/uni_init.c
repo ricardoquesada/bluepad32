@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
-#include "uni_main.h"
+#include "uni_init.h"
 
 #include "sdkconfig.h"
 #include "uni_bt_allowlist.h"
@@ -31,8 +31,7 @@ limitations under the License.
 #include "uni_version.h"
 #include "uni_virtual_device.h"
 
-// Main entry point, runs forever
-int uni_main(int argc, const char** argv) {
+int uni_init(int argc, const char** argv) {
 #ifdef CONFIG_IDF_TARGET
     uni_esp32_init();
 #endif
