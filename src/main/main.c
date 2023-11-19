@@ -40,11 +40,6 @@ int app_main(void) {
 
     // hci_dump_init(hci_dump_embedded_stdout_get_instance());
 
-#ifdef CONFIG_BLUEPAD32_PLATFORM_CUSTOM
-    // Must be called before uni_main()
-    uni_platform_set_custom(get_my_platform());
-#endif  // CONFIG_BLUEPAD32_PLATFORM_CUSTOM
-
     // Init Bluepad32.
     uni_main(0 /* argc */, NULL /* argv */);
 
