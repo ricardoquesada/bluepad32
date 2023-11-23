@@ -21,13 +21,7 @@ limitations under the License.
 #include <stdio.h>
 #include <string.h>
 
-#include "uni_bt.h"
-#include "uni_error.h"
-#include "uni_gamepad.h"
-#include "uni_hid_device.h"
-#include "uni_hid_parser_mouse.h"
-#include "uni_log.h"
-#include "uni_platform.h"
+#include <uni.h>
 
 //
 // Globals

@@ -21,8 +21,7 @@ limitations under the License.
 #include <btstack_run_loop.h>
 
 #include "sdkconfig.h"
-#include "uni_init.h"
-#include "uni_platform.h"
+#include <uni.h>
 
 #ifndef CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 

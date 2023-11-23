@@ -5,10 +5,9 @@
 
 #include <btstack_port_esp32.h>
 #include <btstack_run_loop.h>
+#include <uni.h>
 
 #include "sdkconfig.h"
-#include "uni_init.h"
-#include "uni_platform.h"
 
 // Sanity check
 #ifndef CONFIG_BLUEPAD32_PLATFORM_CUSTOM

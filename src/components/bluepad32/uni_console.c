@@ -29,15 +29,16 @@ limitations under the License.
 #include <nvs_flash.h>
 
 #include "sdkconfig.h"
-#include "uni_bt.h"
-#include "uni_bt_allowlist.h"
-#include "uni_bt_le.h"
+
+#include "bt/uni_bt.h"
+#include "bt/uni_bt_allowlist.h"
+#include "bt/uni_bt_le.h"
+#include "platform/uni_platform.h"
 #include "uni_common.h"
 #include "uni_gpio.h"
 #include "uni_hid_device.h"
 #include "uni_log.h"
 #include "uni_mouse_quadrature.h"
-#include "uni_platform.h"
 #include "uni_virtual_device.h"
 
 static const char* TAG = "console";

@@ -4,12 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "sdkconfig.h"
-#include "uni_bt.h"
-#include "uni_gamepad.h"
-#include "uni_hid_device.h"
-#include "uni_log.h"
-#include "uni_platform.h"
+#include <uni.h>
 
 // Custom "instance"
 typedef struct my_platform_instance_s {
