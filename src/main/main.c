@@ -20,8 +20,9 @@ limitations under the License.
 #include <btstack_port_esp32.h>
 #include <btstack_run_loop.h>
 
-#include "sdkconfig.h"
 #include <uni.h>
+
+#include "sdkconfig.h"
 
 #ifndef CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 
