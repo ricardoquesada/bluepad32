@@ -25,8 +25,8 @@ extern "C" {
 
 #include <stdint.h>
 
+#include "controller/uni_controller.h"
 #include "uni_common.h"
-#include "uni_gamepad.h"
 #include "uni_platform.h"
 
 enum {

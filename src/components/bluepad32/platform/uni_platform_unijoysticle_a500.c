@@ -28,10 +28,10 @@ limitations under the License.
 
 #include "sdkconfig.h"
 
+#include "controller/uni_controller.h"
 #include "platform/uni_platform_unijoysticle.h"
 #include "uni_common.h"
 #include "uni_config.h"
-#include "uni_gamepad.h"
 #include "uni_hid_device.h"
 #include "uni_log.h"
 #include "uni_mouse_quadrature.h"

@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
-#include "uni_balance_board.h"
+#include "controller/uni_balance_board.h"
 
 #include "sdkconfig.h"
 

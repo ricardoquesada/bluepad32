@@ -25,9 +25,9 @@ limitations under the License.
 #include <math.h>
 #include <time.h>
 
+#include "controller/uni_controller.h"
 #include "hid_usage.h"
 #include "uni_common.h"
-#include "uni_controller.h"
 #include "uni_hid_device.h"
 #include "uni_log.h"
 

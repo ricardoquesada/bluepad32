@@ -33,12 +33,12 @@ limitations under the License.
 
 #include "bt/uni_bt.h"
 #include "cmd_system.h"
+#include "controller/uni_controller.h"
 #include "platform/uni_platform.h"
 #include "platform/uni_platform_arduino_bootstrap.h"
 #include "uni_common.h"
 #include "uni_config.h"
 #include "uni_esp32.h"
-#include "uni_gamepad.h"
 #include "uni_hid_device.h"
 #include "uni_log.h"
 #include "uni_version.h"

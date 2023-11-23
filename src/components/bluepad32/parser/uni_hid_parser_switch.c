@@ -23,7 +23,6 @@ limitations under the License.
 #include "parser/uni_hid_parser_switch.h"
 
 #include <assert.h>
-#include "uni_controller.h"
 
 #define ENABLE_SPI_FLASH_DUMP 0
 #define ENABLE_IMU_REPORT 1
@@ -36,9 +35,9 @@ limitations under the License.
 #endif  // ENABLE_SPI_FLASH_DUMP
 
 #include "bt/uni_bt_conn.h"
+#include "controller/uni_controller.h"
 #include "hid_usage.h"
 #include "uni_common.h"
-#include "uni_gamepad.h"
 #include "uni_hid_device.h"
 #include "uni_log.h"
 

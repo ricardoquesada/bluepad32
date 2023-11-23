@@ -16,18 +16,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
-#include "uni_hci_cmd.h"
+#include "controller/uni_keyboard.h"
 
-// 1: Filter type: Connection Setup (0x02)
-// 1: Filter condition type: Allow connection from Class of Devices (0x01)
-// 3: COD
-// 3: COD Mask
-// 1: Autoaccept: 0x011 (no auto-accept), 0x02 (no auto-accept with role disabled)
-//    0x03 (no auto-accept with role enabled)
-const hci_cmd_t hci_set_event_filter_connection_cod = {HCI_OPCODE_HCI_SET_EVENT_FILTER, "11331"};
+#include "hid_usage.h"
+#include "uni_log.h"
 
-// 1: Filter type: Inquiry (0x01)
-// 1: Filter condition type: Allow connection from Class of Devices (0x01)
-// 3: COD
-// 3: COD Mask
-const hci_cmd_t hci_set_event_filter_inquiry_cod = {HCI_OPCODE_HCI_SET_EVENT_FILTER, "1133"};
+void uni_keyboard_dump(const uni_keyboard_t* kb) {
+    // Don't add "\n"
+    logi("modifiers=%#x, pressed keys=[", kb->modifiers);
+    for (int i = 0; i < UNI_KEYBOARD_PRESSED_KEYS_MAX; i++) {
+        if (kb->pressed_keys[i] == HID_USAGE_KB_NONE || kb->pressed_keys[i] == HID_USAGE_KB_ERROR_ROLL_OVER)
+            break;
+        if (i > 0)
+            logi(", ");
+        logi("%#x", kb->pressed_keys[i]);
+    }
+    logi("]");
+}

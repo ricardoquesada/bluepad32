@@ -27,9 +27,9 @@ limitations under the License.
 
 #include <string.h>
 
+#include "controller/uni_controller.h"
 #include "hid_usage.h"
 #include "uni_config.h"
-#include "uni_gamepad.h"
 #include "uni_hid_device.h"
 #include "uni_log.h"
 

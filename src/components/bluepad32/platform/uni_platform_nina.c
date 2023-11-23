@@ -45,11 +45,11 @@ limitations under the License.
 #include "sdkconfig.h"
 
 #include "bt/uni_bt.h"
+#include "controller/uni_controller.h"
 #include "platform/uni_platform.h"
 #include "uni_common.h"
 #include "uni_config.h"
 #include "uni_esp32.h"
-#include "uni_gamepad.h"
 #include "uni_gpio.h"
 #include "uni_hid_device.h"
 #include "uni_log.h"

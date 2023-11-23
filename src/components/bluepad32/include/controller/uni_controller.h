@@ -25,11 +25,11 @@ extern "C" {
 
 #include <stdint.h>
 
-#include "uni_balance_board.h"
+#include "controller/uni_balance_board.h"
+#include "controller/uni_gamepad.h"
+#include "controller/uni_keyboard.h"
+#include "controller/uni_mouse.h"
 #include "uni_common.h"
-#include "uni_gamepad.h"
-#include "uni_keyboard.h"
-#include "uni_mouse.h"
 
 typedef enum {
     UNI_CONTROLLER_CLASS_NONE = 0,

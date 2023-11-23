@@ -77,9 +77,15 @@ bluepad32: ${CORE_OBJ} ${COMMON_OBJ} ${CLASSIC_OBJ} ${SDP_CLIENT} btstack_ring_b
 	${BLUEPAD32_ROOT}/bt/uni_bt_allowlist.o \
 	${BLUEPAD32_ROOT}/bt/uni_bt_bredr.o \
 	${BLUEPAD32_ROOT}/bt/uni_bt_conn.o \
+	${BLUEPAD32_ROOT}/bt/uni_bt_hci_cmd.o \
 	${BLUEPAD32_ROOT}/bt/uni_bt_le.o \
 	${BLUEPAD32_ROOT}/bt/uni_bt_sdp.o \
 	${BLUEPAD32_ROOT}/bt/uni_bt_setup.o \
+	${BLUEPAD32_ROOT}/controller/uni_balance_board.o \
+	${BLUEPAD32_ROOT}/controller/uni_controller.o \
+	${BLUEPAD32_ROOT}/controller/uni_gamepad.o \
+	${BLUEPAD32_ROOT}/controller/uni_keyboard.o \
+	${BLUEPAD32_ROOT}/controller/uni_mouse.o \
 	${BLUEPAD32_ROOT}/parser/uni_hid_parser.o \
 	${BLUEPAD32_ROOT}/parser/uni_hid_parser_8bitdo.o \
 	${BLUEPAD32_ROOT}/parser/uni_hid_parser_android.o \
@@ -100,17 +106,11 @@ bluepad32: ${CORE_OBJ} ${COMMON_OBJ} ${CLASSIC_OBJ} ${SDP_CLIENT} btstack_ring_b
 	${BLUEPAD32_ROOT}/parser/uni_hid_parser_wii.o \
 	${BLUEPAD32_ROOT}/parser/uni_hid_parser_xboxone.o \
 	${BLUEPAD32_ROOT}/platform/uni_platform.o \
-	${BLUEPAD32_ROOT}/uni_balance_board.o \
 	${BLUEPAD32_ROOT}/uni_circular_buffer.o \
-	${BLUEPAD32_ROOT}/uni_controller.o \
-	${BLUEPAD32_ROOT}/uni_gamepad.o \
-	${BLUEPAD32_ROOT}/uni_hci_cmd.o \
 	${BLUEPAD32_ROOT}/uni_hid_device.o \
 	${BLUEPAD32_ROOT}/uni_init.o \
 	${BLUEPAD32_ROOT}/uni_joystick.o \
-	${BLUEPAD32_ROOT}/uni_keyboard.o \
 	${BLUEPAD32_ROOT}/uni_log.o \
-	${BLUEPAD32_ROOT}/uni_mouse.o \
 	${BLUEPAD32_ROOT}/uni_property.o \
 	${BLUEPAD32_ROOT}/uni_property_mem.o \
 	${BLUEPAD32_ROOT}/uni_utils.o \

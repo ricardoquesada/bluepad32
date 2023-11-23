@@ -16,26 +16,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
-#include "uni_controller.h"
+#include "controller/uni_mouse.h"
+
 #include "uni_log.h"
 
-void uni_controller_dump(const uni_controller_t* ctl) {
-    switch (ctl->klass) {
-        case UNI_CONTROLLER_CLASS_BALANCE_BOARD:
-            uni_balance_board_dump(&ctl->balance_board);
-            break;
-        case UNI_CONTROLLER_CLASS_GAMEPAD:
-            uni_gamepad_dump(&ctl->gamepad);
-            break;
-        case UNI_CONTROLLER_CLASS_MOUSE:
-            uni_mouse_dump(&ctl->mouse);
-            break;
-        case UNI_CONTROLLER_CLASS_KEYBOARD:
-            uni_keyboard_dump(&ctl->keyboard);
-            break;
-        default:
-            logi("uni_controller_dump: Unsupported controller class: %d\n", ctl->klass);
-            break;
-    }
-    logi(", battery=%d\n", ctl->battery);
+void uni_mouse_dump(const uni_mouse_t* ms) {
+    // Don't add "\n"
+    logi("delta_x=%4d, delta_y=%4d, buttons=%#x, misc_buttons=%#x, scroll_wheel=%#x", ms->delta_x, ms->delta_y,
+         ms->buttons, ms->misc_buttons, ms->scroll_wheel);
 }

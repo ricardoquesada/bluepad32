@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
-#include "uni_gamepad.h"
+#include "controller/uni_gamepad.h"
 
 #include <stdbool.h>
 #include <stddef.h>

@@ -23,8 +23,8 @@ limitations under the License.
 
 #include <driver/gpio.h>
 
+#include "controller/uni_controller.h"
 #include "platform/uni_platform.h"
-#include "uni_gamepad.h"
 #include "uni_hid_device.h"
 
 // How many Balance Board entries to store
