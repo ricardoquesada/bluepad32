@@ -4,11 +4,9 @@
 #include <btstack_run_loop.h>
 #include <pico/cyw43_arch.h>
 #include <pico/stdlib.h>
+#include <uni.h>
 
 #include "sdkconfig.h"
-#include "uni_init.h"
-#include "uni_log.h"
-#include "uni_platform.h"
 
 // Sanity check
 #ifndef CONFIG_BLUEPAD32_PLATFORM_CUSTOM

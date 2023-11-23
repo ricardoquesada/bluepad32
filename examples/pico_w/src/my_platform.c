@@ -5,13 +5,9 @@
 #include <string.h>
 
 #include <pico/cyw43_arch.h>
+#include <uni.h>
 
 #include "sdkconfig.h"
-#include "uni_bt.h"
-#include "uni_gamepad.h"
-#include "uni_hid_device.h"
-#include "uni_log.h"
-#include "uni_platform.h"
 
 // Sanity check
 #ifndef CONFIG_BLUEPAD32_PLATFORM_CUSTOM

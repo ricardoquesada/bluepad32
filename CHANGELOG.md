@@ -36,6 +36,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed the "PLATFORM_PC_DEBUG" option.
   - Instead, "pc_debug" still exists, but internally uses "custom" platform.
 - Allowlist: rename `uni_bt_allowlist_allow_addr()` to `uni_bt_allowlist_is_allowed_addr()`
+- Folder organization:
+    - bt/: includes all the Bluetooth related files
+    - platform/: includes all the platform files
+    - parser:/ includes all the parser files
+    - Added <uni.h> file, easier for 3rd party user. Just include that file, and
+      and don't worry about internal folder re-organization.
 
 ## [3.10.3] - 2023-11-26
 ### New

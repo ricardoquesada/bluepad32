@@ -19,14 +19,15 @@ limitations under the License.
 #include "uni_init.h"
 
 #include "sdkconfig.h"
-#include "uni_bt_allowlist.h"
-#include "uni_bt_setup.h"
+
+#include "bt/uni_bt_allowlist.h"
+#include "bt/uni_bt_setup.h"
+#include "platform/uni_platform.h"
 #include "uni_config.h"
 #include "uni_console.h"
 #include "uni_esp32.h"
 #include "uni_hid_device.h"
 #include "uni_log.h"
-#include "uni_platform.h"
 #include "uni_property.h"
 #include "uni_version.h"
 #include "uni_virtual_device.h"

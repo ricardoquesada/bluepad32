@@ -76,9 +76,9 @@
 #include "hci_transport_usb.h"
 
 // Bluepad32 related
+#include <uni.h>
+
 #include "sdkconfig.h"
-#include "uni_init.h"
-#include "uni_platform.h"
 
 // Local includes
 #include "my_platform.h"

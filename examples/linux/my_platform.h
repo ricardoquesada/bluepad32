@@ -1,7 +1,7 @@
 #ifndef MY_PLATFORM
 #define MY_PLATFORM
 
-#include "uni_platform.h"
+#include <uni.h>
 
 struct uni_platform* get_my_platform(void);
 
