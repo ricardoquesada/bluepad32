@@ -24,9 +24,9 @@ limitations under the License.
 #include <stdint.h>
 
 #include "bt/uni_bt_conn.h"
+#include "controller/uni_controller.h"
 #include "parser/uni_hid_parser.h"
 #include "uni_circular_buffer.h"
-#include "uni_controller.h"
 
 #define HID_MAX_NAME_LEN 240
 #define HID_MAX_DESCRIPTOR_LEN 512

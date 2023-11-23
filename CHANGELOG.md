@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - bt/: includes all the Bluetooth related files
     - platform/: includes all the platform files
     - parser:/ includes all the parser files
+    - controller/: controller files
     - Added <uni.h> file, easier for 3rd party user. Just include that file, and
       and don't worry about internal folder re-organization.
 

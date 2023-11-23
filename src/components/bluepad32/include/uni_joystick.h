@@ -21,9 +21,9 @@ limitations under the License.
 
 #include <stdint.h>
 
-#include "uni_balance_board.h"
-#include "uni_gamepad.h"
-#include "uni_keyboard.h"
+#include "controller/uni_balance_board.h"
+#include "controller/uni_gamepad.h"
+#include "controller/uni_keyboard.h"
 
 // Valid for Amiga, Atari 8-bit, Atari St, C64 and others...
 typedef struct {

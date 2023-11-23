@@ -22,7 +22,7 @@ limitations under the License.
 #include <driver/gpio.h>
 #include <stdint.h>
 
-#include "uni_gamepad.h"
+#include "controller/uni_controller.h"
 #include "uni_hid_device.h"
 #include "uni_platform_unijoysticle.h"
 
