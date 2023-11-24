@@ -37,8 +37,6 @@ extern "C" {
 #include "uni_log.h"
 #include "uni_mouse_quadrature.h"
 #include "uni_property.h"
-#include "uni_property_mem.h"
-#include "uni_property_nvs.h"
 #include "uni_utils.h"
 #include "uni_virtual_device.h"
 

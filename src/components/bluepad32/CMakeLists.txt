@@ -59,14 +59,16 @@ if(IDF_TARGET)
     # This files call ESP-IDF functions and should be ported/converted
     # so that can be called from other targets like Pico W
     list(APPEND srcs
-         "uni_console.c"
-         "uni_esp32.c"
+         "arch/uni_console_esp32.c"
+         "arch/uni_property_esp32.c"
+         "arch/uni_uart_esp32.c"
          "uni_gpio.c"
-         "uni_mouse_quadrature.c"
-         "uni_property_nvs.c")
+         "uni_mouse_quadrature.c")
 elseif(PICO_SDK_VERSION_STRING)
     list(APPEND srcs
-         "uni_property_mem.c")
+         "arch/uni_console_pico.c"
+         "arch/uni_property_pico.c"
+         "arch/uni_uart_pico.c")
 endif()
 
 if(CONFIG_IDF_TARGET_ESP32)

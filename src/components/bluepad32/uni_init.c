@@ -25,17 +25,16 @@ limitations under the License.
 #include "platform/uni_platform.h"
 #include "uni_config.h"
 #include "uni_console.h"
-#include "uni_esp32.h"
 #include "uni_hid_device.h"
 #include "uni_log.h"
 #include "uni_property.h"
+#include "uni_uart.h"
 #include "uni_version.h"
 #include "uni_virtual_device.h"
 
 int uni_init(int argc, const char** argv) {
-#ifdef CONFIG_IDF_TARGET
-    uni_esp32_init();
-#endif
+    // UART should be initialized early on in case it is needed to disable it.
+    uni_uart_init();
 
     // Disable stdout buffering
     setbuf(stdout, NULL);

@@ -17,10 +17,6 @@ limitations under the License.
 ****************************************************************************/
 
 #include "uni_property.h"
-#include "uni_property_mem.h"
-#include "uni_property_nvs.h"
-
-#include "sdkconfig.h"
 
 // Globals
 // Keep them sorted
@@ -46,29 +42,3 @@ const char* UNI_PROPERTY_KEY_UNI_MODEL = "bp.uni.model";
 const char* UNI_PROPERTY_KEY_UNI_MOUSE_EMULATION = "bp.uni.mouseemu";
 const char* UNI_PROPERTY_KEY_UNI_SERIAL_NUMBER = "bp.uni.serial";
 const char* UNI_PROPERTY_KEY_UNI_VENDOR = "bp.uni.vendor";
-
-// TODO: Implement "property interface" instead of doing #ifdef
-
-void uni_property_set(const char* key, uni_property_type_t type, uni_property_value_t value) {
-#if defined(CONFIG_IDF_TARGET)
-    uni_property_nvs_set(key, type, value);
-#else
-    uni_property_mem_set(key, type, value);
-#endif
-}
-
-uni_property_value_t uni_property_get(const char* key, uni_property_type_t type, uni_property_value_t def) {
-#if defined(CONFIG_IDF_TARGET)
-    return uni_property_nvs_get(key, type, def);
-#else
-    return uni_property_mem_get(key, type, def);
-#endif
-}
-
-void uni_property_init(void) {
-#if defined(CONFIG_IDF_TARGET)
-    return uni_property_nvs_init();
-#else
-    return uni_property_mem_init();
-#endif
-}

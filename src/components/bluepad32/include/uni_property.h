@@ -28,6 +28,13 @@ typedef enum {
     UNI_PROPERTY_TYPE_STRING,
 } uni_property_type_t;
 
+typedef union {
+    uint8_t u8;
+    uint32_t u32;
+    float f32;
+    char* str;
+} uni_property_value_t;
+
 // Bluepad32-global properties
 // Keep them sorted
 extern const char* UNI_PROPERTY_KEY_ALLOWLIST_ENABLED;
@@ -52,13 +59,8 @@ extern const char* UNI_PROPERTY_KEY_UNI_MOUSE_EMULATION;
 extern const char* UNI_PROPERTY_KEY_UNI_SERIAL_NUMBER;
 extern const char* UNI_PROPERTY_KEY_UNI_VENDOR;
 
-typedef union {
-    uint8_t u8;
-    uint32_t u32;
-    float f32;
-    char* str;
-} uni_property_value_t;
-
+// Interface
+// Each arch needs to implement these functions
 void uni_property_init(void);
 void uni_property_set(const char* key, uni_property_type_t type, uni_property_value_t value);
 uni_property_value_t uni_property_get(const char* key, uni_property_type_t type, uni_property_value_t def);

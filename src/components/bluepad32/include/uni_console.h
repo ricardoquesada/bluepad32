@@ -19,6 +19,9 @@ limitations under the License.
 #ifndef UNI_CONSOLE_H
 #define UNI_CONSOLE_H
 
+// Interface
+// Each arch needs to implement these functions
+
 void uni_console_init(void);
 
 #endif  // UNI_CONSOLE_H
