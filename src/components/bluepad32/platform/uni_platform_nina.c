@@ -49,10 +49,10 @@ limitations under the License.
 #include "platform/uni_platform.h"
 #include "uni_common.h"
 #include "uni_config.h"
-#include "uni_esp32.h"
 #include "uni_gpio.h"
 #include "uni_hid_device.h"
 #include "uni_log.h"
+#include "uni_uart.h"
 #include "uni_version.h"
 
 #ifndef CONFIG_IDF_TARGET_ESP32
@@ -525,7 +525,7 @@ static int request_controllers_data(const uint8_t command[], uint8_t response[])
 
 // Command 0x1a
 static int request_set_debug(const uint8_t command[], uint8_t response[]) {
-    uni_esp32_enable_uart_output(command[4]);
+    uni_uart_enable_output(command[4]);
     response[2] = 1;           // total params
     response[3] = 1;           // param len
     response[4] = command[4];  // return the value requested

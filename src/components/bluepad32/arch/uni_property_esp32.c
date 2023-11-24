@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ****************************************************************************/
 
-#include "uni_property_nvs.h"
+#include "uni_property.h"
 
 #include <nvs.h>
 #include <nvs_flash.h>
@@ -28,7 +28,7 @@ static const char* STORAGE_NAMESPACE = "bp32";
 
 // Uses NVS for storage. Used in all ESP32 Bluepad32 platforms.
 
-void uni_property_nvs_set(const char* key, uni_property_type_t type, uni_property_value_t value) {
+void uni_property_set(const char* key, uni_property_type_t type, uni_property_value_t value) {
     nvs_handle_t nvs_handle;
     esp_err_t err;
     uint32_t* float_alias;
@@ -69,7 +69,7 @@ out:
     nvs_close(nvs_handle);
 }
 
-uni_property_value_t uni_property_nvs_get(const char* key, uni_property_type_t type, uni_property_value_t def) {
+uni_property_value_t uni_property_get(const char* key, uni_property_type_t type, uni_property_value_t def) {
     nvs_handle_t nvs_handle;
     esp_err_t err;
     uni_property_value_t ret;
@@ -111,7 +111,7 @@ uni_property_value_t uni_property_nvs_get(const char* key, uni_property_type_t t
     return ret;
 }
 
-void uni_property_nvs_init() {
+void uni_property_init() {
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         logi("Erasing flash\n");

@@ -73,6 +73,9 @@ clean_src:
 	rm -rf * ${BTSTACK_ROOT}/platform/embedded/*.o
 
 bluepad32: ${CORE_OBJ} ${COMMON_OBJ} ${CLASSIC_OBJ} ${SDP_CLIENT} btstack_ring_buffer.o btstack_hid_parser.o \
+	${BLUEPAD32_ROOT}/arch/uni_console_linux.o \
+	${BLUEPAD32_ROOT}/arch/uni_property_linux.o \
+	${BLUEPAD32_ROOT}/arch/uni_uart_linux.o \
 	${BLUEPAD32_ROOT}/bt/uni_bt.o \
 	${BLUEPAD32_ROOT}/bt/uni_bt_allowlist.o \
 	${BLUEPAD32_ROOT}/bt/uni_bt_bredr.o \
@@ -112,7 +115,6 @@ bluepad32: ${CORE_OBJ} ${COMMON_OBJ} ${CLASSIC_OBJ} ${SDP_CLIENT} btstack_ring_b
 	${BLUEPAD32_ROOT}/uni_joystick.o \
 	${BLUEPAD32_ROOT}/uni_log.o \
 	${BLUEPAD32_ROOT}/uni_property.o \
-	${BLUEPAD32_ROOT}/uni_property_mem.o \
 	${BLUEPAD32_ROOT}/uni_utils.o \
 	${BLUEPAD32_ROOT}/uni_virtual_device.o
 	${CC} $^ ${CFLAGS} ${LDFLAGS} -o $@
