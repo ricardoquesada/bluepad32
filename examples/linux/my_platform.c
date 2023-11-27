@@ -77,6 +77,10 @@ static void pc_debug_on_init_complete(void) {
     logi("pc_debug: on_init_complete()\n");
 
     // Safe to call "unsafe" functions since they are called from BT thread
+    if (g_delete_keys)
+        uni_bt_del_keys_unsafe();
+    else
+        uni_bt_list_keys_unsafe();
 
     // Start scanning
     uni_bt_enable_new_connections_unsafe(true);

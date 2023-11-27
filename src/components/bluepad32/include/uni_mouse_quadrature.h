@@ -55,9 +55,9 @@ void uni_mouse_quadrature_setup_port(int port_idx,
 void uni_mouse_quadrature_update(int port_idx, int32_t dx, int32_t dy);
 void uni_mouse_quadrature_start(int port_idx);
 void uni_mouse_quadrature_pause(int port_idx);
-void uni_mouse_quadrature_deinit();
+void uni_mouse_quadrature_deinit(void);
 
 void uni_mouse_quadrature_set_scale_factor(float scale);
-float uni_mouse_quadrature_get_scale_factor();
+float uni_mouse_quadrature_get_scale_factor(void);
 
 #endif  // UNI_MOUSE_QUADRATURE_H
