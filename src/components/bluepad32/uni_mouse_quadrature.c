@@ -286,7 +286,7 @@ void uni_mouse_quadrature_setup_port(int port_idx,
     s_quadratures[port_idx][UNI_MOUSE_QUADRATURE_ENCODER_V].gpios = v;
 }
 
-void uni_mouse_quadrature_deinit() {
+void uni_mouse_quadrature_deinit(void) {
     // Stop the timers
     for (int i = 0; i < UNI_MOUSE_QUADRATURE_PORT_MAX; i++) {
         for (int j = 0; j < UNI_MOUSE_QUADRATURE_ENCODER_MAX; j++) {
@@ -364,7 +364,7 @@ void uni_mouse_quadrature_set_scale_factor(float scale) {
     uni_property_set(UNI_PROPERTY_KEY_MOUSE_SCALE, UNI_PROPERTY_TYPE_FLOAT, value);
 }
 
-float uni_mouse_quadrature_get_scale_factor() {
+float uni_mouse_quadrature_get_scale_factor(void) {
     uni_property_value_t value;
     uni_property_value_t def;
 

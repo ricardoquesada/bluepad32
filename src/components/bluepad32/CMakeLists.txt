@@ -4,6 +4,7 @@ set(srcs
          "bt/uni_bt_conn.c"
          "bt/uni_bt_hci_cmd.c"
          "bt/uni_bt_le.c"
+         "bt/uni_bt_service.c"
          "bt/uni_bt_setup.c"
          "controller/uni_balance_board.c"
          "controller/uni_controller.c"
