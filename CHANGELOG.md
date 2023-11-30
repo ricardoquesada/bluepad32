@@ -12,7 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Console / NVS not supported yet
   - Internally uses the "custom" platform.
 - Atari Wireless Joystick: Add support for it
-- PS4 Move Copntroller: Add support for it (before was only PS3 Move)
+- PS4 Move Copntroller: Add support for it. Before was only PS3 Move. [Github Issue #41][github_issue_41]
+
+[github_issue_41]: https://github.com/ricardoquesada/bluepad32/issues/41
 
 ### Changed
 - Platform boot logic changed a bit. Rationale: "don't make magic changes".
