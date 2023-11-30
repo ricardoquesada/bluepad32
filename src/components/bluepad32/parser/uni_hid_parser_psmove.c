@@ -31,6 +31,9 @@ limitations under the License.
 #include "uni_hid_device.h"
 #include "uni_log.h"
 
+#define ZCM1_PID 0x03d5
+#define ZCM2_PID 0x0c5e
+
 // Required steps to determine what kind of extensions are supported.
 typedef enum psmove_fsm {
     PSMOVE_FSM_0,                    // Uninitialized
@@ -38,8 +41,15 @@ typedef enum psmove_fsm {
     PSMOVE_FSM_LED_UPDATED,          // LED updated
 } psmove_fsm_t;
 
+typedef enum psmove_model {
+    PSMOVE_MODEL_UNK,
+    PSMOVE_MODEL_ZCM1,
+    PSMOVE_MODEL_ZCM2,
+} psmove_model_t;
+
 // psmove_instance_t represents data used by the psmove driver instance.
 typedef struct psmove_instance_s {
+    psmove_model_t model;
     psmove_fsm_t state;
     uint8_t led_rgb[3];
 } psmove_instance_t;
@@ -94,12 +104,23 @@ typedef struct __attribute((packed)) {
     uint16_t gyro_z2;
 
     uint16_t temperature; /* temperature and magnetomer X */
+} psmove_input_common_report_t;
+
+typedef struct __attribute((packed)) {
+    psmove_input_common_report_t common;
 
     uint8_t magnetometer[4]; /* magnetometer X, Y, Z */
     uint8_t time_low;        /* low byte of timestamp */
     uint8_t extdata[5];      /* external device data (EXT port) */
+} psmove_input_zcm1_report_t;
 
-} psmove_input_report_t;
+typedef struct __attribute((packed)) {
+    psmove_input_common_report_t common;
+
+    uint16_t time;
+    uint16_t unk;
+    uint8_t time_low; /* low byte of timestamp */
+} psmove_input_zcm2_report_t;
 
 static psmove_instance_t* get_psmove_instance(uni_hid_device_t* d);
 static void psmove_send_output_report(uni_hid_device_t* d, psmove_output_report_t* out);
@@ -114,16 +135,18 @@ void uni_hid_parser_psmove_init_report(uni_hid_device_t* d) {
 void uni_hid_parser_psmove_parse_input_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
     // printf_hexdump(report, len);
 
+    // FIXME: parse ZCM1 / ZCM2 parts. For the moment only the "common" is being parsed.
+
     // Report len should be 45, at least in PS Move DS3
-    if (len < sizeof(psmove_input_report_t)) {
-        loge("psmove: Invalid report lenght, got: %d\n want: >= %d", len, sizeof(psmove_input_report_t));
+    if (len < sizeof(psmove_input_common_report_t)) {
+        loge("psmove: Invalid report lenght, got: %d\n want: >= %d", len, sizeof(psmove_input_common_report_t));
         return;
     }
 
-    const psmove_input_report_t* r = (psmove_input_report_t*)report;
+    const psmove_input_common_report_t* r = (psmove_input_common_report_t*)report;
 
     if (r->report_id != 0x01) {
-        loge("ds3: Unexpected report_id, got: 0x%02x, want: 0x01\n", r->report_id);
+        loge("psmove: Unexpected report_id, got: 0x%02x, want: 0x01\n", r->report_id);
         return;
     }
 
@@ -202,6 +225,21 @@ void uni_hid_parser_psmove_set_lightbar_color(uni_hid_device_t* d, uint8_t r, ui
 void uni_hid_parser_psmove_setup(struct uni_hid_device_s* d) {
     psmove_instance_t* ins = get_psmove_instance(d);
     memset(ins, 0, sizeof(*ins));
+
+    switch (d->product_id) {
+        case ZCM1_PID:
+            ins->model = PSMOVE_MODEL_ZCM1;
+            logi("psmove: Detected ZCM1 model\n");
+            break;
+        case ZCM2_PID:
+            ins->model = PSMOVE_MODEL_ZCM2;
+            logi("psmove: Detected ZCM2 model\n");
+            break;
+        default:
+            loge("psmove: Unknown PSMove PID = %#x, assuming ZCM1\n", ins->model);
+            ins->model = PSMOVE_MODEL_ZCM1;
+            break;
+    }
 
     uni_hid_device_set_ready_complete(d);
 }
