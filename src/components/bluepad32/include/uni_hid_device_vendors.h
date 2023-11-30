@@ -703,7 +703,8 @@ static const uni_controller_description_t arrControllers[] = {
     { MAKE_CONTROLLER_ID(0x057e, 0x201e), CONTROLLER_TYPE_SwitchProController, NULL }, // Nintendo Online SEGA Genesis Controller
 
 	// Sony
-    { MAKE_CONTROLLER_ID( 0x054c, 0x03d5 ), CONTROLLER_TYPE_PSMoveController, NULL },  // Sony PS Move (Motion Controller)
+    { MAKE_CONTROLLER_ID( 0x054c, 0x03d5 ), CONTROLLER_TYPE_PSMoveController, NULL },  // Sony PS Move (Motion Controller) ZCM1
+    { MAKE_CONTROLLER_ID( 0x054c, 0x0c5e ), CONTROLLER_TYPE_PSMoveController, NULL },  // Sony PS Move (Motion Controller) ZCM2
 
 	// Atari Modern VCS Controllers
     { MAKE_CONTROLLER_ID( 0x3250, 0x1001 ), CONTROLLER_TYPE_AtariJoystick, NULL },     // Atari Wireless Classic Joystick
