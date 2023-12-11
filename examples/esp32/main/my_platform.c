@@ -1,7 +1,6 @@
 // Example file - Public Domain
 // Need help? https://tinyurl.com/bluepad32-help
 
-#include <stdio.h>
 #include <string.h>
 
 #include <uni.h>
@@ -80,6 +79,8 @@ static void my_platform_on_controller_data(uni_hid_device_t* d, uni_controller_t
     static uni_controller_t prev = {0};
     uni_gamepad_t* gp;
 
+    // Optimization to avoid processing the previous data so that the console
+    // does not get spammed with lot of logs, but remove it from your project.
     if (memcmp(&prev, ctl, sizeof(*ctl)) == 0) {
         return;
     }
