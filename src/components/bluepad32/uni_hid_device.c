@@ -313,8 +313,8 @@ bool uni_hid_device_is_cod_supported(uint32_t cod) {
         // We only care about joysticks, gamepads & mice. But some gamepads,
         // specially cheap ones are advertised as keyboards.
         // FIXME: Which gamepads are advertised as keyboard?
-        return !!(minor_cod & (UNI_BT_COD_MINOR_MICE | UNI_BT_COD_MINOR_KEYBOARD | UNI_BT_COD_MINOR_GAMEPAD |
-                               UNI_BT_COD_MINOR_JOYSTICK));
+        return (minor_cod & (UNI_BT_COD_MINOR_MICE | UNI_BT_COD_MINOR_KEYBOARD | UNI_BT_COD_MINOR_GAMEPAD |
+                             UNI_BT_COD_MINOR_JOYSTICK)) != 0;
     }
 
     // Hack for Amazon Fire TV remote control: CoD: 0x00400408 (Audio + Telephony Hands free)
@@ -363,7 +363,7 @@ bool uni_hid_device_has_name(uni_hid_device_t* d) {
         return false;
     }
 
-    return !!(d->flags & FLAGS_HAS_NAME);
+    return (d->flags & FLAGS_HAS_NAME) != 0;
 }
 
 void uni_hid_device_set_hid_descriptor(uni_hid_device_t* d, const uint8_t* descriptor, int len) {
@@ -384,7 +384,7 @@ bool uni_hid_device_has_hid_descriptor(uni_hid_device_t* d) {
         return false;
     }
 
-    return !!(d->flags & FLAGS_HAS_HID_DESCRIPTOR);
+    return (d->flags & FLAGS_HAS_HID_DESCRIPTOR) != 0;
 }
 
 void uni_hid_device_set_product_id(uni_hid_device_t* d, uint16_t product_id) {
@@ -426,6 +426,11 @@ void uni_hid_device_connect(uni_hid_device_t* d) {
 void uni_hid_device_disconnect(uni_hid_device_t* d) {
     gap_connection_type_t type;
 
+    if (d == NULL) {
+        loge("uni_hid_device_disconnect: invalid hid device: NULL\n");
+        return;
+    }
+
     // Disconnect child first
     if (d->child)
         uni_hid_device_disconnect(d->child);
@@ -433,11 +438,6 @@ void uni_hid_device_disconnect(uni_hid_device_t* d) {
     // Might be called from different states... perhaps the device was already connected.
     // Or perhaps it got disconnected in the middle of a connection.
     bool connected = false;
-
-    if (d == NULL) {
-        loge("uni_hid_device_disconnect: invalid hid device: NULL\n");
-        return;
-    }
 
     if (uni_hid_device_is_virtual_device(d))
         logi("Disconnecting virtual device: %s\n", bd_addr_to_str(d->conn.btaddr));
@@ -737,7 +737,7 @@ bool uni_hid_device_has_controller_type(uni_hid_device_t* d) {
         return false;
     }
 
-    return !!(d->flags & FLAGS_HAS_CONTROLLER_TYPE);
+    return (d->flags & FLAGS_HAS_CONTROLLER_TYPE) != 0;
 }
 
 void uni_hid_device_set_connection_handle(uni_hid_device_t* d, hci_con_handle_t handle) {
@@ -787,7 +787,7 @@ void uni_hid_device_send_report(uni_hid_device_t* d, uint16_t cid, const uint8_t
     if (err != 0) {
         logd("Could not send report (error=0x%04x). Adding it to queue\n", err);
         if (uni_circular_buffer_put(&d->outgoing_buffer, cid, report, len) != 0) {
-            loge("ERROR: ciruclar buffer full. Cannot queue report\n");
+            loge("ERROR: circular buffer full. Cannot queue report\n");
         }
     }
     // Even, if it can send the report, trigger a "can send now event" in case
@@ -872,7 +872,7 @@ bool uni_hid_device_is_gamepad(uni_hid_device_t* d) {
         loge("uni_hid_device_is_gamepad: failed, device is NULL\n");
         return false;
     }
-    // If it a gamepad or a joystick, then we treat it as a gamepad
+    // If it is a gamepad or a joystick, then we treat it as a gamepad
     uint32_t gamepad_cod = UNI_BT_COD_MINOR_GAMEPAD | UNI_BT_COD_MINOR_JOYSTICK;
     return (d->cod & UNI_BT_COD_MAJOR_PERIPHERAL) && (d->cod & gamepad_cod);
 }
@@ -905,7 +905,8 @@ static void process_misc_button_system(uni_hid_device_t* d) {
     // automatically:  press button + release button
     // We artificially add a delay.
     bool requires_delay = (d->controller_type == CONTROLLER_TYPE_SwitchProController ||
-                           d->controller_type == CONTROLLER_TYPE_SwitchJoyConLeft || CONTROLLER_TYPE_SwitchJoyConRight);
+                           d->controller_type == CONTROLLER_TYPE_SwitchJoyConLeft ||
+                           d->controller_type == CONTROLLER_TYPE_SwitchJoyConRight);
 
     if (requires_delay && (d->misc_button_wait_delay & MISC_BUTTON_SYSTEM))
         return;

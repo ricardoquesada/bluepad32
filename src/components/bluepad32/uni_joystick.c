@@ -62,7 +62,7 @@ static void to_single_joy(const uni_gamepad_t* gp, uni_joystick_t* out_joy) {
 void uni_joy_to_single_joy_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t* out_joy) {
     to_single_joy(gp, out_joy);
 
-    // Buttom B is "jump". Good for C64 games
+    // Button B is "jump". Good for C64 games
     out_joy->up |= ((gp->buttons & BUTTON_B) != 0);
 
     // 2nd & 3rd buttons
@@ -76,7 +76,7 @@ void uni_joy_to_twinstick_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t* 
 
     out_joy2->button2 |= ((gp->buttons & BUTTON_X) != 0);
 
-    // Buttom B is "fire"
+    // Button B is "fire"
     out_joy1->fire |= ((gp->buttons & BUTTON_B) != 0);
     // Thumb right is "fire"
     out_joy1->fire |= ((gp->buttons & BUTTON_THUMB_R) != 0);
