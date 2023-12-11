@@ -13,17 +13,16 @@ Add Bluetooth gamepad, mouse and keyboard support to your projects easily.
 Choose your target platform:
 
 | Platform                            | Start here                                                        | Further info             | Community projects                                                                                        |
-| ----------------------------------- | ----------------------------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------- |
+|-------------------------------------|-------------------------------------------------------------------|--------------------------|-----------------------------------------------------------------------------------------------------------|
 | Arduino IDE                         | [![Watch the video][youtube_image]](https://youtu.be/0jnY-XXiD8Q) | [Doc][plat_arduino]      | [Controller for Tello drone][tello]                                                                       |
 | Arduino using ESP-IDF toolchain     | [Template project][esp-idf-bluepad32-arduino]                     | [Doc][plat_arduino]      | [Lego Robot][esp32_example] ([video][esp32_video]), [gbaHD Shield][esp32_example2] (a GameBoy consolizer) |
 | Arduino + NINA coprocessor          | [Arduino Library][bp32-arduino]                                   | [Doc][plat_nina]         | [Philips CD-i meets Bluetooth][nina_example]                                                              |
 | CircuitPython + AirLift coprocessor | [CircuitPython Library][bp32-circuitpython]                       | [Doc][plat_airlift]      | [Quico console][airlift_example], Controlling 4 servos ([video][airlift_video])                           |
-| Pico W                              | [Pico W example][pico-w-example]                                         | [Doc][plat_custom]                         |                                                                                                           |
-| ESP-IDF                             | [ESP32 example][esp32-example]                                         | [Doc][plat_custom]                          |                                                                                                           |
-| Linux                               | [Linux example][linux-example]                                         | [Doc][plat_custom]                         |                                                                                                           |
+| Pico W                              | [Pico W example][pico-w-example]                                  | [Doc][plat_custom]       |                                                                                                           |
+| ESP-IDF                             | [ESP32 example][esp32-example]                                    | [Doc][plat_custom]       |                                                                                                           |
+| Linux                               | [Linux example][linux-example]                                    | [Doc][plat_custom]       |                                                                                                           |
 | Unijoysticle                        | [Unijoysticle2][unijoysticle2]                                    | [Doc][plat_unijoysticle] |                                                                                                           |
 | MightyMiggy                         | [Unijoysticle for Amiga][unijoysticle_sukko]                      | [Doc][plat_mightymiggy]  |                                                                                                           |
-
 
 [airlift_example]: https://gitlab.com/ricardoquesada/quico
 [airlift_video]: https://twitter.com/makermelissa/status/1482596378282913793
@@ -48,6 +47,8 @@ Choose your target platform:
 ## Features
 
 * Supports most, if not all, modern Bluetooth gamepads, mice and keyboards (see below)
+* Supports ESP32 and Pico W
+* Supported APIs: ESP-IDF, Pico-SDK, Arduino and CircuitPython
 * Fast (very low latency)
 * Small footprint
 * Uses only one core (CPU0). The remaining one is free to use.
@@ -78,7 +79,8 @@ Choose your target platform:
 * Keyboards
 * And more
 
-NOTE: Original **ESP32** and **Pico W** support all listed controllers. **ESP32-S3** and **ESP32-C3** support only a subset.
+NOTE: Original **ESP32** and **Pico W** support all listed controllers. **ESP32-S3** and **ESP32-C3** support only a
+subset.
 
 See: [Supported gamepads][gamepads], [supported mice][mice] and [supported keyboards][keyboards]
 
@@ -101,6 +103,7 @@ See the examples folder which includes examples for:
 * [Bluepad32 for Linux][linux-example]
 
 Arduino examples are in:
+
 * [Bluepad32 for Arduino IDE][arduino-ide-example]
 * [Bluepad32 for Arduino + ESP-IDF][arduino-esp-idf-example]
 
