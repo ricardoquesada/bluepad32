@@ -62,7 +62,7 @@ static void update_allowlist_from_property(void) {
     int offset;
     int len;
 
-    // Whether or not it is enabled.
+    // Whether it is enabled.
     def.str = NULL;
     val = uni_property_get(UNI_PROPERTY_KEY_ALLOWLIST_LIST, UNI_PROPERTY_TYPE_STRING, def);
 
@@ -150,7 +150,7 @@ void uni_bt_allowlist_init(void) {
     uni_property_value_t def;
     uni_property_value_t val;
 
-    // Whether or not it is enabled.
+    // Whether it is enabled.
     def.u8 = 0;
     val = uni_property_get(UNI_PROPERTY_KEY_ALLOWLIST_ENABLED, UNI_PROPERTY_TYPE_U8, def);
     enforced = val.u8;

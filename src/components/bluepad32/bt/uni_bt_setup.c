@@ -18,8 +18,6 @@ limitations under the License.
 
 #include "bt/uni_bt_setup.h"
 
-#include <inttypes.h>
-
 #include <btstack.h>
 
 #include "sdkconfig.h"
@@ -29,12 +27,10 @@ limitations under the License.
 #include "bt/uni_bt_defines.h"
 #include "bt/uni_bt_hci_cmd.h"
 #include "bt/uni_bt_le.h"
-#include "bt/uni_bt_sdp.h"
 #include "platform/uni_platform.h"
 #include "uni_common.h"
 #include "uni_config.h"
 #include "uni_log.h"
-#include "uni_property.h"
 
 typedef enum {
     SETUP_STATE_BTSTACK_IN_PROGRESS,
