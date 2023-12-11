@@ -118,7 +118,7 @@ uni_hid_device_t* uni_hid_device_create_virtual(uni_hid_device_t* parent) {
             g_devices[i].controller_type = parent->controller_type;
             g_devices[i].controller_subtype = parent->controller_subtype;
 
-            // All virtual devices has a "controller type", which is known by the parent.
+            // All virtual devices have a "controller type", which is known by the parent.
             g_devices[i].flags |= FLAGS_HAS_CONTROLLER_TYPE;
 
             snprintf(g_devices[i].name, sizeof(g_devices[i].name), "virtual-%d", i);
@@ -548,7 +548,7 @@ bool uni_hid_device_guess_controller_type_from_name(uni_hid_device_t* d, const c
 
     // Try with the different matchers.
     // But don't include Xbox here yet, since we should try to get the HID descriptor first.
-    // This is because there Xbox Wireless has 3 different types of HID descriptors.
+    // This is because the Xbox Wireless has 3 different types of HID descriptors.
     bool ret = uni_hid_parser_ds3_does_name_match(d, name);
     ret = ret || uni_hid_parser_switch_does_name_match(d, name);
 
@@ -796,7 +796,7 @@ void uni_hid_device_send_report(uni_hid_device_t* d, uint16_t cid, const uint8_t
     l2cap_request_can_send_now_event(cid);
 }
 
-// Sends an interrupt-report. If it can't it will queue it and try again later.
+// Sends an interrupt-report. If it can't, it will queue it and try again later.
 void uni_hid_device_send_intr_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
     if (d == NULL) {
         loge("Invalid device\n");
@@ -844,7 +844,7 @@ bool uni_hid_device_does_require_hid_descriptor(uni_hid_device_t* d) {
     }
 
     // If the parser has a "parse_usage" functions, it is safe to assume that a HID descriptor
-    // is needed. "parse_usage" cannot work without a HID descriptor.
+    // is needed. "Parse_usage" cannot work without a HID descriptor.
     return (d->report_parser.parse_usage != NULL);
 }
 
@@ -892,7 +892,7 @@ static void misc_button_enable_callback(btstack_timer_source_t* ts) {
 // process_mic_button_system
 static void process_misc_button_system(uni_hid_device_t* d) {
     if ((d->controller.gamepad.misc_buttons & MISC_BUTTON_SYSTEM) == 0) {
-        // System button released ?
+        // System button released?
         d->misc_button_wait_release &= ~MISC_BUTTON_SYSTEM;
         return;
     }
@@ -927,7 +927,7 @@ static void process_misc_button_system(uni_hid_device_t* d) {
 // process_misc_button_home dumps uni_hid_device debug info in the console.
 static void process_misc_button_home(uni_hid_device_t* d) {
     if ((d->controller.gamepad.misc_buttons & MISC_BUTTON_START) == 0) {
-        // Home button released ? Clear "wait" flag.
+        // Home button released? Clear "wait" flag.
         d->misc_button_wait_release &= ~MISC_BUTTON_START;
         return;
     }

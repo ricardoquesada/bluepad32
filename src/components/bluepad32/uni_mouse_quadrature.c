@@ -24,8 +24,8 @@ limitations under the License.
 
 #include <math.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <string.h>
+#include <sys/cdefs.h>
 
 #include <driver/gpio.h>
 #include <driver/timer.h>
@@ -36,7 +36,7 @@ limitations under the License.
 #include "uni_property.h"
 
 // Probably I could use a smaller divider, and only do "1 tick per 80us".
-// That would work Ok except that it will loose resolution when we divide "128 steps by delta".
+// That would work Ok except that it will lose resolution when we divide "128 steps by delta".
 // APB clock runs at 80Mhz.
 //   Option A:
 //   80Mhz / 80 = 1Mhz = tick every 1us
@@ -140,8 +140,8 @@ static void process_quadrature(struct quadrature_state* q) {
     logd("value: %d, quadrature phase: %d, a=%d, b=%d (%d,%d)\n", q->value, q->phase, a, b, gpio_a, gpio_b);
 }
 
-// Don't be confused that is is just one task.
-// Actually this callback is called from 4 different tasks.
+// Don't be confused, that is just one task.
+// Actually, this callback is called from 4 different tasks.
 static void timer_task(void* arg) {
     uint32_t a = (uint32_t)arg;
     uint16_t port_idx = (a >> 16);
@@ -213,8 +213,8 @@ static void process_update(struct quadrature_state* q, int32_t delta) {
         q->value = abs_delta;
         q->dir = (delta < 0) ? PHASE_DIRECTION_NEG : PHASE_DIRECTION_POS;
 
-        // SmallyMouse2 mentions that 100-120 reports are recevied per second.
-        // According to my test they are ~90, which is in the same order.
+        // SmallyMouse2 mentions that 100-120 reports are received per second.
+        // According to my test, they are ~90, which is in the same order.
         // For simplicity, I'll use 100. It means that, at most, reports are received
         // every 10ms (1 second / 100 reports = 10ms per report).
         //
@@ -224,7 +224,7 @@ static void process_update(struct quadrature_state* q, int32_t delta) {
         // So the ESP32 timer is configured as:
         // - down timer
         // - ticks every 1us
-        // - when it reaches 0, triggers the ISR
+        // - when it reaches 0, triggers the ISR.
         //
         // But a quadrature has 4 states (hence the name). So takes 4 "ticks" to have
         // complete "state.", which is represented with "s_scale_factor",
@@ -232,15 +232,15 @@ static void process_update(struct quadrature_state* q, int32_t delta) {
         //
         // The smaller "units" is, the faster the mouse moves.
         //
-        // But in order to avoid a "division" in the mouse driver, and a multiplication here,
-        // (which will  loose precision), we just use a "s_scale_factor" of 1 instead of 4,
+        // But to avoid a "division" in the mouse driver, and a multiplication here,
+        // (which will lose precision), we just use a "s_scale_factor" of 1 instead of 4,
         // and we don't divide by 4 here.
         // Alternative: Do not divide the time, and use a constant "tick" time. But if we do so,
         // the movement will have "jank".
         // Perhaps for small deltas we can have a predefined "unit time".
         //
         // s_scale_factor is used as a divisor to honor the "scale" name:
-        //  smaller numers make it slower, high number faster
+        // smaller numbers make it slower, high number faster
         float max_ticks = 128 * TICKS_PER_80US;
         float delta_f = abs_delta;
         float units_f = max_ticks / (delta_f * s_scale_factor);
@@ -265,7 +265,7 @@ void uni_mouse_quadrature_init(int cpu_id) {
         }
     }
 
-    // Default value that can be overriden from the console
+    // Default value that can be overridden from the console
     s_scale_factor = uni_mouse_quadrature_get_scale_factor();
 
     // Create tasks
@@ -351,8 +351,8 @@ void uni_mouse_quadrature_update(int port_idx, int32_t dx, int32_t dy) {
         return;
     }
     process_update(&s_quadratures[port_idx][UNI_MOUSE_QUADRATURE_ENCODER_H], dx);
-    // Invert delta Y so that mouse goes the the right direction.
-    // This is based on emperic evidence. Also, it seems that SmallyMouse is doing the same thing
+    // Invert delta Y so that mouse goes the right direction.
+    // This is based on empiric evidence. Also, it seems that SmallyMouse is doing the same thing
     process_update(&s_quadratures[port_idx][UNI_MOUSE_QUADRATURE_ENCODER_V], -dy);
 }
 
@@ -368,7 +368,7 @@ float uni_mouse_quadrature_get_scale_factor(void) {
     uni_property_value_t value;
     uni_property_value_t def;
 
-    def.f32 = 1.0;
+    def.f32 = 1.0f;
 
     value = uni_property_get(UNI_PROPERTY_KEY_MOUSE_SCALE, UNI_PROPERTY_TYPE_FLOAT, def);
     s_scale_factor = value.f32;
