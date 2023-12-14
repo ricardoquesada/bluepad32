@@ -1,3 +1,5 @@
+#include <sys/cdefs.h>
+#include <sys/queue.h>
 /****************************************************************************
 http://retro.moe/unijoysticle2
 
@@ -71,13 +73,13 @@ limitations under the License.
 // --- Defines / Enums
 
 // To be used with Unijoysticle devices that only connect to one port.
-// For exmaple, the Amiga device made by https://arananet.net/
+// For example, the Amiga device made by https://arananet.net/
 // These devices have only one port, so they only cannot use JOYSTICK_PORT_A,
 // and have 3 buttons mapped.
 // Enabled if 1
 #define PLAT_UNIJOYSTICLE_SINGLE_PORT 0
 
-// In some board models not all GPIOs are set. Macro to simplify code for that.
+// In some board models, not all GPIOs are set. Macro to simplify code for that.
 #define SAFE_SET_BIT64(__value) (__value == -1) ? 0 : (1ULL << __value)
 
 // 20 milliseconds ~= 1 frame in PAL
@@ -145,7 +147,7 @@ typedef enum {
 // Cap max events to the max that AtariST can process.
 // This is true for the official AtariST mouse as well.
 // This value was "calculated" using an AtariST 520.
-// Might not be true for newer models, like the Falcon.
+// It might not be true for newer models, like the Falcon.
 #define ATARIST_MOUSE_DELTA_MAX (28)
 
 // --- Structs / Typedefs
@@ -182,8 +184,8 @@ static void handle_event_button(int button_idx);
 // GPIO Interrupt handlers
 static void gpio_isr_handler_button(void* arg);
 
-static void pushbutton_event_task(void* arg);
-static void auto_fire_task(void* arg);
+_Noreturn static void pushbutton_event_task(void* arg);
+_Noreturn static void auto_fire_task(void* arg);
 
 static void maybe_enable_mouse_timers(void);
 
@@ -322,7 +324,7 @@ static void unijoysticle_init(int argc, const char** argv) {
     // Tasks should be created before the ISR, just in case an interrupt
     // gets called before the Task-that-handles-the-ISR gets triggered.
 
-    // Split "events" from "auto_fire", since auto-fire is an on-going event.
+    // Split "events" from "auto_fire", since auto-fire is an ongoing event.
     g_pushbutton_group = xEventGroupCreate();
     xTaskCreate(pushbutton_event_task, "bp.uni.button", 4096, NULL, TASK_PUSH_BUTTON_PRIO, NULL);
 
@@ -381,7 +383,7 @@ static void unijoysticle_on_device_connected(uni_hid_device_t* d) {
         loge("ERROR: unijoysticle_on_device_connected: Invalid NULL device\n");
     }
 
-    // Just blink when a connection is started
+    // Blink when a connection is started
     blink_bt_led(1);
 }
 
@@ -462,7 +464,7 @@ static uni_error_t unijoysticle_on_device_ready(uni_hid_device_t* d) {
     if (used_joystick_ports == (GAMEPAD_SEAT_A | GAMEPAD_SEAT_B))
         return UNI_ERROR_NO_SLOTS;
 
-    // If virtual device is not NULL it means that there was at least two connections:
+    // If virtual device is not NULL, it means that there was at least two connections:
     // - parent
     // - virtual
     // So, disconnect the virtual to allow the new connection.
@@ -616,8 +618,8 @@ static void unijoysticle_on_oob_event(uni_platform_oob_event_t event, void* data
             logi("unijoysticle: Bluetooth discovery mode is %s\n", enabled ? "enabled" : "disabled");
 
             if (!enabled && !s_skip_next_enable_bluetooth_event) {
-                // Means that Bluetooth was disabled by user from the console.
-                // If so, leave it disabled. The only way to enable it, is again from the console.
+                // Means that user disabled Bluetooth from the console.
+                // If so, leave it disabled. The only way to enable it is again from the console.
                 s_auto_enable_bluetooth = false;
             }
             s_skip_next_enable_bluetooth_event = false;
@@ -702,8 +704,8 @@ static void init_quadrature_mouse(void) {
         .b = g_gpio_config->port_a[y2],  // VQ-pulse (right)
     };
 
-    // Mouse AtariST is known to only work only one port A, but for the sake
-    // of completness, both ports are configured on AtariST. Overkill ?
+    // Mouse AtariST is known to only work one port A, but for the sake
+    // of completeness, both ports are configured on AtariST. Overkill?
     struct uni_mouse_quadrature_encoder_gpios port_b_x = {
         .a = g_gpio_config->port_b[x1],  // H-pulse (up)
         .b = g_gpio_config->port_b[x2],  // HQ-pulse (left)
@@ -1005,11 +1007,11 @@ static void process_mouse(uni_hid_device_t* d,
             button3 = g_gpio_config->port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3];
         }
         if (fire != -1)
-            gpio_set_level(fire, !!(buttons & BUTTON_A));
+            gpio_set_level(fire, (buttons & BUTTON_A) != 0);
         if (button2 != -1)
-            gpio_set_level(button2, !!(buttons & BUTTON_B));
+            gpio_set_level(button2, (buttons & BUTTON_B) != 0);
         if (button3 != -1)
-            gpio_set_level(button3, !!(buttons & BUTTON_X));
+            gpio_set_level(button3, (buttons & BUTTON_X) != 0);
     }
 }
 
@@ -1195,7 +1197,7 @@ static void joy_update_port(const uni_joystick_t* joy, const gpio_num_t* gpios) 
     }
 }
 
-static void pushbutton_event_task(void* arg) {
+_Noreturn static void pushbutton_event_task(void* arg) {
     // timeout of 100s
     const TickType_t xTicksToWait = pdMS_TO_TICKS(100000);
     while (1) {
@@ -1214,7 +1216,7 @@ static void pushbutton_event_task(void* arg) {
     }
 }
 
-static void auto_fire_task(void* arg) {
+_Noreturn static void auto_fire_task(void* arg) {
     // timeout of 100s
     const TickType_t timeout = pdMS_TO_TICKS(100000);
     int ms = 1000 / get_autofire_cps_from_nvs() / 2;
@@ -1260,7 +1262,7 @@ static void gpio_isr_handler_button(void* arg) {
     // Stored in RAM
     struct push_button_state* st = &g_push_buttons_state[button_idx];
 
-    // Button released ?
+    // Button released?
     if (gpio_get_level(pb->gpio)) {
         st->last_time_pressed_us = esp_timer_get_time();
         return;
@@ -1457,7 +1459,7 @@ static void set_next_gamepad_mode(uni_hid_device_t* d) {
             if (g_variant->supported_modes & UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK)
                 set_gamepad_mode(d, UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK);
             else
-                set_gamepad_mode(d, UNI_PLATFORM_UNIJOYSTICLE_CMD_SET_GAMEPAD_MODE_NORMAL);
+                set_gamepad_mode(d, UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL);
             break;
         case UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK:
             set_gamepad_mode(d, UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL);
@@ -1658,7 +1660,7 @@ static void try_swap_ports(uni_hid_device_t* d) {
         goto ok;
 
     // Swap joystick ports except if there is a connected gamepad that doesn't have the "System" or "Select" button
-    // pressed. Basically allow:
+    // pressed. Allow:
     //  - swapping mouse+gamepad
     //  - swapping between physical+virtual
     //  - two gamepads while both are pressing the "system" or "select" button at the same time.
@@ -1768,7 +1770,7 @@ static void maybe_enable_bluetooth(bool enabled) {
     // Only enable/disable Bluetooth if automatic is on
     if (!s_auto_enable_bluetooth)
         return;
-    // We are going to receive a "enable BT" event generated by us. Skip it.
+    // We are going to receive an "enable BT" event generated by us. Skip it.
     s_skip_next_enable_bluetooth_event = true;
     uni_bt_enable_new_connections_safe(enabled);
 }
