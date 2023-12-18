@@ -1,4 +1,3 @@
-include(CMakePrintHelpers)
 set(srcs
          "bt/uni_bt.c"
          "bt/uni_bt_allowlist.c"
@@ -47,6 +46,7 @@ set(srcs
     # Bluetooth Classic files used by:
     # - ESP32
     # - Pico W
+    # - Linux (assuming BT dongle supports BR/EDR)
     list(APPEND srcs
          # BR/EDR code only gets compiled on ESP32
          "bt/uni_bt_bredr.c"
@@ -136,6 +136,7 @@ if(DEFINED ENV{BLUEPAD32_ARDUINO})
 endif()
 
 string(REPLACE ";" " " ext_symbols "${ext_symbols}")
+
 if(IDF_TARGET)
     # ESP-IDF
     target_link_libraries(${COMPONENT_LIB} INTERFACE ${ext_symbols})
@@ -153,4 +154,3 @@ elseif(BLUEPAD32_TARGET_LINUX)
 else()
     message(FATAL_ERROR "Define target")
 endif()
-cmake_print_variables(srcs)
