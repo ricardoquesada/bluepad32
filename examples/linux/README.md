@@ -5,8 +5,14 @@ Useful while adding new gamepads and/or testing new features that don't require 
 Make sure that libusb-1.0-dev is installed and do:
 
 ```
-$ make
+$ mkdir build
+$ cd build
+$ cmake ..
+$ make -j
+```
 
-# And run it with sudo:
-$ sudo ./bluepad32
+To run it do:
+```
+$ cd build
+$ sudo ./bluepad32_linux_app
 ```
