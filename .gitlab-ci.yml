@@ -10,9 +10,9 @@ build-debian-linux-gcc:
     - export DEBIAN_FRONTEND=noninteractive
     - apt update
     - apt -y install tzdata
-    - apt -y install make pkg-config libusb-1.0-0-dev
+    - apt -y install make cmake pkg-config libusb-1.0-0-dev
   script:
-    - cd examples/linux && make
+    - cd examples/linux && mkdir build && cd build && cmake .. && CC=gcc make -j
 
 build-ubuntu-linux-clang:
   image: espressif/idf
@@ -26,7 +26,7 @@ build-ubuntu-linux-clang:
     - apt -y install clang
     - apt -y install make pkg-config libusb-1.0-0-dev
   script:
-    - cd examples/linux && CC=clang make
+    - cd examples/linux && mkdir build && cd build && cmake .. && CC=clang make -j
 
 build-esp-idf-5.1:
   image: espressif/idf:release-v5.1

@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Console / NVS not supported yet
   - Internally uses the "custom" platform.
 - Atari Wireless Joystick: Add support for it
-- PS4 Move Copntroller: Add support for it. Before was only PS3 Move. [Github Issue #41][github_issue_41]
+- PS4 Move Controller: Add support for it. Before was only PS3 Move. [Github Issue #41][github_issue_41]
 
 [github_issue_41]: https://github.com/ricardoquesada/bluepad32/issues/41
 
@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `uni_platform_custom_create()` removed
   - ESP32 main:
     - `uni_esp32_main()` removed.
-    - User must call the different "init" steps manully. Added helper `uni_esp32_init()`
+    - Users must call the different "init" steps manually. Added helper `uni_esp32_init()`
     - Rationale: Pico W and ESP32 `main()` is almost the same. Easier to setup/customize/understand.
   - All examples updated
 - New "unsafe" functions, useful to be called from `platforom->on_init_complete()`
@@ -46,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - parser:/ includes all the parser files
     - controller/: controller files
     - Added <uni.h> file, easier for 3rd party user. Just include that file, and
-      and don't worry about internal folder re-organization.
+       don't worry about internal folder re-organization.
 
 ## [3.10.3] - 2023-11-26
 ### New
@@ -67,7 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Arduino: API to handle keyboard
   - `Controller.isKeyboard()`
   - `Controller.isKeypressed(KeyboardKey)`
-  - Sketch.cpp updated with Keyboard,Mouse,Gamepad,BalanceBoard code
+  - Sketch.cpp updated with Keyboard, Mouse, Gamepad, BalanceBoard code
 
 ### Changed
 - Kconfig: Log Level "choice" and "int" as log level verbosity
@@ -81,8 +81,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.10.0] - 2023-11-02
 ### New
-- Keyboard support (BETA, might change in the futrure):
-  - Bluetooth keyboard are supported: Up to 10 keys pressed at the same time + modifiers
+- Keyboard support (BETA, might change in the future):
+  - Bluetooth keyboard is supported: Up to 10 keys pressed at the same time + modifiers
   - Unijoysticle:
     - Keyboard behaves like a joystick using arrow keys or ASDW
     - Press "Escape" to change Joystick ports

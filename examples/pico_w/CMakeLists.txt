@@ -34,7 +34,7 @@ target_include_directories(bluepad32_picow_app PRIVATE
     ${BLUEPAD32_ROOT}/src/components/bluepad32/include)
 
 # Needed for btstack_config.h / sdkconfig.h
-# so that libblupad32 can include them
+# so that libbluepad32 can include them
 include_directories(bluepad32_picow_app src)
 
 target_link_libraries(bluepad32_picow_app
