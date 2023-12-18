@@ -165,11 +165,11 @@ Regarding non-BLE mice, some might work, some might not. See:
 
 Summary:
 
-| Protocol   | Status      | Description                                 | Search for  |  Date  |
-| ---------- | ------------|-------------------------------------------- | ----------- | ------ |
-| BLE        | Should work | BLE **only**, AKA "Low Energy",  "BT 5.0"   | "BLE mouse" | > 2010 |
-| BR/EDR     | Should work | BR/EDR **only**, AKA "Classic", "BT 3.0"    | "Mouse Bluetooth Windows XP" | < 2010 |
-| Dual Mode  | Might work[*]  | Supports both BLE and BR/EDR             | "Tri-Mode BT 3.0, BT 5.0, 2.4Gz"  | > 2010 |
+| Protocol  | Status        | Description                               | Search for                       | Date   |
+|-----------|---------------|-------------------------------------------|----------------------------------|--------|
+| BLE       | Should work   | BLE **only**, AKA "Low Energy",  "BT 5.0" | "BLE mouse"                      | > 2010 |
+| BR/EDR    | Should work   | BR/EDR **only**, AKA "Classic", "BT 3.0"  | "Mouse Bluetooth Windows XP"     | < 2010 |
+| Dual Mode | Might work[*] | Supports both BLE and BR/EDR              | "Tri-Mode BT 3.0, BT 5.0, 2.4Gz" | > 2010 |
 
 *: See [Issue#18][gitlab_issue_18], [Issue BK3632][bk3632_bug]
 

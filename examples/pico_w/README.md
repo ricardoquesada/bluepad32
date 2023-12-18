@@ -23,8 +23,7 @@ Follow these instructions
 
 ## Build
 
-
-And the build
+And then build
 
 ```sh
 mkdir build
@@ -33,9 +32,7 @@ cmake ..
 make -j
 ```
 
-3. Flash it
-
-Copy `build/bluepad32_picow_app.uf2` to Pico W.
+Copy `build/bluepad32_picow_example_app.uf2` to Pico W.
 
 Use this guide if you are not sure how to do it:
 
