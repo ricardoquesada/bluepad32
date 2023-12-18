@@ -49,7 +49,7 @@ static void my_platform_on_init_complete(void) {
     // Start scanning
     uni_bt_enable_new_connections_unsafe(true);
 
-    // Based on runtime condition you can delete or list the stored BT keys.
+    // Based on runtime condition, you can delete or list the stored BT keys.
     if (1)
         uni_bt_del_keys_unsafe();
     else
@@ -80,7 +80,7 @@ static void my_platform_on_controller_data(uni_hid_device_t* d, uni_controller_t
     uni_gamepad_t* gp;
 
     // Optimization to avoid processing the previous data so that the console
-    // does not get spammed with lot of logs, but remove it from your project.
+    // does not get spammed with a lot of logs, but remove it from your project.
     if (memcmp(&prev, ctl, sizeof(*ctl)) == 0) {
         return;
     }
