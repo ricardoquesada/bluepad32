@@ -48,6 +48,7 @@ include_directories(bluepad32_linux_app src)
 target_link_libraries(bluepad32_linux_app
     bluepad32
     btstack
+    m
 )
 
 add_subdirectory(${BLUEPAD32_ROOT}/src/components/bluepad32 libbluepad32)
