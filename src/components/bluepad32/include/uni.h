@@ -28,6 +28,8 @@ extern "C" {
 #include "controller/uni_keyboard.h"
 #include "controller/uni_mouse.h"
 #include "parser/uni_hid_parser.h"
+#include "parser/uni_hid_parser_keyboard.h"
+#include "parser/uni_hid_parser_mouse.h"
 #include "platform/uni_platform.h"
 #include "uni_circular_buffer.h"
 #include "uni_console.h"

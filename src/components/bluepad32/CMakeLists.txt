@@ -1,3 +1,4 @@
+include(CMakePrintHelpers)
 set(srcs
          "bt/uni_bt.c"
          "bt/uni_bt_allowlist.c"
@@ -42,7 +43,7 @@ set(srcs
          "uni_utils.c"
          "uni_virtual_device.c")
 
-if(CONFIG_IDF_TARGET_ESP32 OR PICO_SDK_VERSION_STRING)
+ if(CONFIG_IDF_TARGET_ESP32 OR PICO_SDK_VERSION_STRING OR BLUEPAD32_TARGET_LINUX)
     # Bluetooth Classic files used by:
     # - ESP32
     # - Pico W
@@ -70,6 +71,13 @@ elseif(PICO_SDK_VERSION_STRING)
          "arch/uni_console_pico.c"
          "arch/uni_property_pico.c"
          "arch/uni_uart_pico.c")
+elseif(BLUEPAD32_TARGET_LINUX)
+    list(APPEND srcs
+         "arch/uni_console_linux.c"
+         "arch/uni_property_linux.c"
+         "arch/uni_uart_linux.c")
+else()
+    message(FATAL_ERROR "Define target")
 endif()
 
 if(CONFIG_IDF_TARGET_ESP32)
@@ -107,8 +115,8 @@ if(IDF_TARGET)
     idf_component_register(SRCS "${srcs}"
                         INCLUDE_DIRS "include"
                         REQUIRES ${requires})
-elseif(PICO_SDK_VERSION_STRING)
-    # Valid for Pico W
+elseif(PICO_SDK_VERSION_STRING OR BLUEPAD32_TARGET_LINUX)
+    # Valid for Pico W and Linux
     add_library(bluepad32 ${srcs})
     target_include_directories(bluepad32 PUBLIC ./include)
 else()
@@ -139,6 +147,10 @@ elseif(PICO_SDK_VERSION_STRING)
             pico_btstack_classic
             pico_btstack_cyw43
             )
+elseif(BLUEPAD32_TARGET_LINUX)
+    # Valid for Linux
+    # TODO: Add dependencies here
 else()
     message(FATAL_ERROR "Define target")
 endif()
+cmake_print_variables(srcs)
