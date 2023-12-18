@@ -14,7 +14,7 @@ The list of **tested** keyboards is this one:
 
 * Supports: all keys
 * Purchase link: [8BitDo store][8bitdo_keyboard_link]
-* Technical info: BLE, up to 16 simultaneus keys.
+* Technical info: BLE, up to 16 simultaneous keys.
 
 [8bitdo_keyboard_photo]: https://lh3.googleusercontent.com/pw/ADCreHdkkpmH7M3NIo00JwCfMdVEN3EsBLx7Gy5HfGJoqHKsMn_35_8uIW1fkvQinagIlwNbOf68IFCK4KlVykVpYGFfywLrdcT_sU114VLKDxdGoCPAbXQCg6VizyPahEaioY2uuOAbEO9s1nMls-NZB-0Pvg
 [8bitdo_keyboard_link]: https://www.8bitdo.com/retro-mechanical-keyboard/
@@ -24,8 +24,8 @@ The list of **tested** keyboards is this one:
 [![Apple Magic Keyboard A1644][magic_keyboard_a1644_photo]][magic_keyboard_a1644_link]
 
 * Supports: all keys
-* Purchase link: [eBay][magic_mouse_a1657_link]
-* Technical info: BR/EDR, up to 4 simultaneus keys
+* Purchase link: [eBay][magic_keyboard_a1644_link]
+* Technical info: BR/EDR, up to 4 simultaneous keys
 
 [magic_keyboard_a1644_photo]: https://lh3.googleusercontent.com/pw/ADCreHfu_Mpr9vo72AFaAhpBgJ8VkLXDvoiJuGs9ZeEJAcNsW6vJTY3OD0HYsMEyHB43ZIHO_39q1xkpnee59qp2LCaB9yiZuXGlTERjH3NRFbwYJ1oFv_JJo47xUF6hKY9ImClyXCB0xmnbG-jdtH80WcWK4Q
 [magic_keyboard_a1644_link]: https://www.ebay.com/sch/i.html?_nkw=apple+magic+keyboard+a1644
@@ -37,7 +37,7 @@ The list of **tested** keyboards is this one:
 
 * Supports: all keys
 * Purchase link: [eBay][microsoft_designer_link]
-* Technical info: BLE, up to 10 simultaneus keys
+* Technical info: BLE, up to 10 simultaneous keys
 * Model: Microsoft Designer Desktop
 
 [microsoft_designer_photo]: https://lh3.googleusercontent.com/pw/ADCreHd6sI3xeSxU4JFZ0wGpGVqUlPfhcwNHIZNRuTCNJEEaQm0r5qAAJl9hoA4nk0Pq_A7YP_24jF0UPT9SuH3YGD4HOOqA5Pq-Fu7fIDVbVOsD1EVERif272rngfH8XKyVSX7t2V3npU3A0yUUnL-rGGZBhA
@@ -70,11 +70,11 @@ Regarding non-BLE keyboards, some might work, some might not. See:
 
 Summary:
 
-| Protocol   | Status      | Description                                 | Search for  |  Date  |
-| ---------- | ------------|-------------------------------------------- | ----------- | ------ |
-| BLE        | Should work | BLE **only**, AKA "Low Energy",  "BT 5.0"   | "BLE keyboard" | > 2010 |
-| BR/EDR     | Should work | BR/EDR **only**, AKA "Classic", "BT 3.0"    | "Keyboard Bluetooth Windows XP" | < 2010 |
-| Dual Mode  | Might work[*]  | Supports both BLE and BR/EDR             | "Tri-Mode BT 3.0, BT 5.0, 2.4Gz"  | > 2010 |
+| Protocol  | Status        | Description                               | Search for                       | Date   |
+|-----------|---------------|-------------------------------------------|----------------------------------|--------|
+| BLE       | Should work   | BLE **only**, AKA "Low Energy",  "BT 5.0" | "BLE keyboard"                   | > 2010 |
+| BR/EDR    | Should work   | BR/EDR **only**, AKA "Classic", "BT 3.0"  | "Keyboard Bluetooth Windows XP"  | < 2010 |
+| Dual Mode | Might work[*] | Supports both BLE and BR/EDR              | "Tri-Mode BT 3.0, BT 5.0, 2.4Gz" | > 2010 |
 
 *: See [Issue#18][gitlab_issue_18], [Issue BK3632][bk3632_bug]
 

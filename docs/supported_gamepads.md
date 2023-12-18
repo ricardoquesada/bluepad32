@@ -10,11 +10,11 @@
 Most gamepads, as of 2023, use BR/EDR (AKA Bluetooth Classic). Worth noting is that BR/EDR is only supported on ESP32 and Pico W, and **NOT** in ESP32-S3 / ESP32-C3.
 
 | Chip     | BR/EDR | BLE |
-| -------- | ------ | --- |
-| ESP32    |    Y   |  Y  |
-| ESP32-S3 |        |  Y  |
-| ESP32-C3 |        |  Y  |
-| Pico W   |    Y   |  Y  |
+|----------|--------|-----|
+| ESP32    | Y      | Y   |
+| ESP32-S3 |        | Y   |
+| ESP32-C3 |        | Y   |
+| Pico W   | Y      | Y   |
 
 Non-comprehensive list of supported Bluetooth gamepads their protocols:
 

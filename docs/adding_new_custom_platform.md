@@ -3,9 +3,9 @@
 Adding a new custom platform is easy:
 
 1. Ensure that the file `uni_platform_custom.c` is compiled and linked with your project, an example implementation can be found under `rsc/main`
-1. Create a new platform file such as `src/main/uni_platform_custom_2.c` file
-2. Update `src/main/Kconfig` file
-3. Update`src/main/uni_platform_custom.c` file so that the newly created platform can be selected in the function uni_platform_custom_create()
+2. Create a new platform file such as `src/main/uni_platform_custom_2.c` file
+3. Update `src/main/Kconfig` file
+4. Update`src/main/uni_platform_custom.c` file so that the newly created platform can be selected in the function uni_platform_custom_create()
 
 ## 1. Custom platform file
 
