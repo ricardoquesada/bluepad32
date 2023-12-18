@@ -44,13 +44,13 @@
 // *****************************************************************************
 
 #include <getopt.h>
-#include <hci_dump_posix_stdout.h>
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "hci_dump_posix_stdout.h"
 
 #include "btstack_config.h"
 
