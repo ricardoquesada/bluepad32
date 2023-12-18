@@ -17,6 +17,12 @@ jobs:
       with:
         submodules: 'recursive'
 
+    - name: Create build folder
+      run: |
+        echo "Cleaning up previous run"
+        rm -rf "${{github.workspace}}/examples/linux/build"
+        mkdir -p "${{github.workspace}}/examples/linux/build"
+
     - name: Install dependencies
       run: sudo apt -y install tzdata make pkg-config libusb-1.0-0-dev clang cmake
 
