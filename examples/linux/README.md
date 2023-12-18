@@ -14,5 +14,5 @@ $ make -j
 To run it do:
 ```
 $ cd build
-$ sudo ./bluepad32_linux_app
+$ sudo ./bluepad32_linux_example_app
 ```
