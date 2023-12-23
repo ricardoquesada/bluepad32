@@ -7,7 +7,7 @@ else()
     set(PICO_BOARD "pico_w")
 endif()
 
-set(BLUEPAD32_ROOT ../..)
+set(BLUEPAD32_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 
 # initialize the SDK based on PICO_SDK_PATH
 # note: this must happen before project()

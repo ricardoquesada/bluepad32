@@ -5,7 +5,8 @@ set(CMAKE_C_STANDARD 17)
 
 project(bluepad32_linux_example_app C ASM)
 
-set(BLUEPAD32_ROOT "../..")
+set(BLUEPAD32_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
+
 # To use it from Bluepad32 (up-to-date, with custom patches for controllers):
 set(BTSTACK_ROOT ${BLUEPAD32_ROOT}/external/btstack)
 
