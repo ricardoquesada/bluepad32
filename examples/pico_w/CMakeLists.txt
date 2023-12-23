@@ -7,15 +7,14 @@ else()
     set(PICO_BOARD "pico_w")
 endif()
 
-set(BLUEPAD32_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
-
 # initialize the SDK based on PICO_SDK_PATH
 # note: this must happen before project()
 include(pico_sdk_import.cmake)
 
+set(BLUEPAD32_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
+
 # To use BTstack from Pico SDK do
 #set(BTSTACK_ROOT ${PICO_SDK_PATH}/lib/btstack)
-
 # To use it from Bluepad32 (up-to-date, with custom patches for controllers):
 set(BTSTACK_ROOT ${BLUEPAD32_ROOT}/external/btstack)
 
