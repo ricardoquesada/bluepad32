@@ -4,7 +4,7 @@
 
 #include "bt/uni_bt_service.h"
 
-#include "uni_bt_service.gatt.h"
+#include "bt/uni_bt_service.gatt.h"
 
 static bool service_enabled;
 
