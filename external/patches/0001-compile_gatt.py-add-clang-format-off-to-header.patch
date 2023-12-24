@@ -1,0 +1,27 @@
+From 9e78488eeac0b14dc91bf674882040166f71ad6d Mon Sep 17 00:00:00 2001
+From: Ricardo Quesada <ricardoquesada@gmail.com>
+Date: Sun, 24 Dec 2023 10:12:06 -0800
+Subject: [PATCH] compile_gatt.py: add clang-format off to header
+
+Add clang-format off to header.
+Useful when the auto-generated headers are checked-in a repo with
+clang-format enabled.
+---
+ tool/compile_gatt.py | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/tool/compile_gatt.py b/tool/compile_gatt.py
+index e8c9fdbf7..8cabf5fe8 100755
+--- a/tool/compile_gatt.py
++++ b/tool/compile_gatt.py
+@@ -38,6 +38,7 @@ except ImportError:
+         print("[!] Please install PyCryptodome, e.g. 'pip3 install pycryptodomex' or 'pip3 install pycryptodome'\n")
+ 
+ header = '''
++// clang-format off
+ // {0} generated from {1} for BTstack
+ // it needs to be regenerated when the .gatt file is updated. 
+ 
+-- 
+2.43.0
+
