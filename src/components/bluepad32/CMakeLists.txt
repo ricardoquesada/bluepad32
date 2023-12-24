@@ -1,15 +1,5 @@
 include(CMakePrintHelpers)
 
-if (NOT DEFINED BLUEPAD32_ROOT)
-    set (BLUEPAD32_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../../..)
-    message(WARNING "BLUEPAD32_ROOT not set. Setting to ${BLUEPAD32_ROOT}")
-endif()
-
-if (NOT DEFINED BTSTACK_ROOT)
-    set (BTSTACK_ROOT ${BLUEPAD32_ROOT}/external/btstack)
-    message(WARNING "BTSTACK_ROOT not set. Setting to ${BTSTACK_ROOT}")
-endif()
-
 set(srcs
          "bt/uni_bt.c"
          "bt/uni_bt_allowlist.c"
@@ -107,32 +97,45 @@ if(CONFIG_IDF_TARGET_ESP32)
          "platform/uni_platform_unijoysticle_singleport.c")
 endif()
 
+#
+# Disabled since it depends on having `compile_gatt.py` somewhere to generate it.
+# More difficult to distribute bluepad32 as a "component".
 # BLE Service
 # to generate .h from .gatt files
-if(NOT CMAKE_BUILD_EARLY_EXPANSION)
-    # CMAKE_BUILD_EARLY_EXPANSION needed in ESP32 to prevent command is not scriptable.
-    # See: https://esp32.com/viewtopic.php?t=29402
-    find_package (Python REQUIRED COMPONENTS Interpreter)
-    include_directories(${CMAKE_CURRENT_BINARY_DIR})
-
-    set(GATT_FILES
-            "uni_bt_service.gatt")
-
-    cmake_print_variables(GATT_FILES)
-    cmake_print_variables(BLUEPAD32_ROOT)
-    cmake_print_variables(BTSTACK_ROOT)
-    foreach(GATT_FILE ${GATT_FILES})
-            message("Generating GATT DB file")
-            cmake_print_variables(GATT_FILE)
-            add_custom_command(
-                    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${GATT_FILE}.h
-                    DEPENDS bt/${GATT_FILE}
-                    COMMAND ${Python_EXECUTABLE}
-                    ARGS ${BTSTACK_ROOT}/tool/compile_gatt.py ${CMAKE_CURRENT_SOURCE_DIR}/bt/${GATT_FILE} ${CMAKE_CURRENT_BINARY_DIR}/${GATT_FILE}.h
-            )
-            list(APPEND srcs ${CMAKE_CURRENT_BINARY_DIR}/${GATT_FILE}.h)
-    endforeach(GATT_FILE)
-endif()
+#if (NOT DEFINED BLUEPAD32_ROOT)
+#    set (BLUEPAD32_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../../..)
+#    message(WARNING "BLUEPAD32_ROOT not set. Setting to ${BLUEPAD32_ROOT}")
+#endif()
+#
+#if (NOT DEFINED BTSTACK_ROOT)
+#    set (BTSTACK_ROOT ${BLUEPAD32_ROOT}/external/btstack)
+#    message(WARNING "BTSTACK_ROOT not set. Setting to ${BTSTACK_ROOT}")
+#endif()
+#
+#if(NOT CMAKE_BUILD_EARLY_EXPANSION)
+#    # CMAKE_BUILD_EARLY_EXPANSION needed in ESP32 to prevent command is not scriptable.
+#    # See: https://esp32.com/viewtopic.php?t=29402
+#    find_package (Python REQUIRED COMPONENTS Interpreter)
+#    include_directories(${CMAKE_CURRENT_BINARY_DIR})
+#
+#    set(GATT_FILES
+#            "uni_bt_service.gatt")
+#
+#    cmake_print_variables(GATT_FILES)
+#    cmake_print_variables(BLUEPAD32_ROOT)
+#    cmake_print_variables(BTSTACK_ROOT)
+#    foreach(GATT_FILE ${GATT_FILES})
+#            message("Generating GATT DB file")
+#            cmake_print_variables(GATT_FILE)
+#            add_custom_command(
+#                    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${GATT_FILE}.h
+#                    DEPENDS bt/${GATT_FILE}
+#                    COMMAND ${Python_EXECUTABLE}
+#                    ARGS ${BTSTACK_ROOT}/tool/compile_gatt.py ${CMAKE_CURRENT_SOURCE_DIR}/bt/${GATT_FILE} ${CMAKE_CURRENT_BINARY_DIR}/${GATT_FILE}.h
+#            )
+#            list(APPEND srcs ${CMAKE_CURRENT_BINARY_DIR}/${GATT_FILE}.h)
+#    endforeach(GATT_FILE)
+#endif()
 
 # Valid for ESP-IDF only
 if(IDF_TARGET)

@@ -1,24 +1,6 @@
-/****************************************************************************
-http://retro.moe/unijoysticle2
-
-Copyright 2019 Ricardo Quesada
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-****************************************************************************/
-
-// Generic gamepads. Gamepads that were desigened to be "multi console, and
-// might implemenet usages that are invalid for specific consoles. In order to
-// keep clean the pure-console implementations, add here the generic ones.
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2019 Ricardo Quesada
+// http://retro.moe/unijoysticle2
 
 #include "parser/uni_hid_parser_mouse.h"
 
