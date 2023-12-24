@@ -1,7 +1,7 @@
 
 // clang-format off
 // ../src/components/bluepad32/include/bt/uni_bt_service.gatt.h generated from ../src/components/bluepad32/bt/uni_bt_service.gatt for BTstack
-// it needs to be regenerated when the .gatt file is updated.
+// it needs to be regenerated when the .gatt file is updated. 
 
 // To generate ../src/components/bluepad32/include/bt/uni_bt_service.gatt.h:
 // ../external/btstack/tool/compile_gatt.py ../src/components/bluepad32/bt/uni_bt_service.gatt ../src/components/bluepad32/include/bt/uni_bt_service.gatt.h
