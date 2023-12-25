@@ -12,6 +12,7 @@ extern "C" {
 #include <stdbool.h>
 
 void uni_bt_service_init(void);
+bool uni_bt_service_is_enabled();
 void uni_bt_service_set_enabled(bool enabled);
 
 #ifdef __cplusplus

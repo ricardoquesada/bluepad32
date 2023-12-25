@@ -13,6 +13,7 @@
 #include "bt/uni_bt_defines.h"
 #include "bt/uni_bt_hci_cmd.h"
 #include "bt/uni_bt_le.h"
+#include "bt/uni_bt_service.h"
 #include "platform/uni_platform.h"
 #include "uni_common.h"
 #include "uni_config.h"
@@ -39,7 +40,7 @@ static setup_state_t setup_state = SETUP_STATE_BTSTACK_IN_PROGRESS;
 static btstack_packet_callback_registration_t hci_event_callback_registration;
 
 // SDP
-//#define MAX_ATTRIBUTE_VALUE_SIZE 300
+// #define MAX_ATTRIBUTE_VALUE_SIZE 300
 // static uint8_t hid_descriptor_storage[MAX_ATTRIBUTE_VALUE_SIZE];
 
 static uint8_t setup_set_event_filter(void) {
@@ -124,6 +125,7 @@ bool uni_bt_setup_is_ready() {
 int uni_bt_setup(void) {
     bool bredr_enabled = false;
     bool ble_enabled = false;
+    bool ble_service_enabled = false;
 
     // Initialize L2CAP
     l2cap_init();
@@ -132,6 +134,8 @@ int uni_bt_setup(void) {
         bredr_enabled = uni_bt_bredr_is_enabled();
     if (IS_ENABLED(UNI_ENABLE_BLE))
         ble_enabled = uni_bt_le_is_enabled();
+    if (IS_ENABLED(UNI_ENABLE_BLE))
+        ble_service_enabled = uni_bt_service_is_enabled();
 
     logi("Max connected gamepads: %d\n", CONFIG_BLUEPAD32_MAX_DEVICES);
 
@@ -147,6 +151,9 @@ int uni_bt_setup(void) {
 
     if (IS_ENABLED(UNI_ENABLE_BLE) && ble_enabled)
         uni_bt_le_setup();
+
+    if (IS_ENABLED(UNI_ENABLE_BLE) && ble_service_enabled)
+        uni_bt_service_init();
 
     // Initialize HID Host
     // hid_host_init(hid_descriptor_storage, sizeof(hid_descriptor_storage));
