@@ -35,15 +35,13 @@ typedef enum {
 } uni_platform_oob_event_t;
 
 typedef enum {
-    // Whether or not the Bluetooth stored keys should be deleted at boot time
-    UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYSS,
+    // Whether the Bluetooth stored keys should be deleted at boot time
+    UNI_PLATFORM_PROPERTY_DELETE_STORED_KEYS,
 } uni_platform_property_t;
 
 // uni_platform must be defined for each new platform that is implemented.
 // It contains callbacks and other init functions that each "platform" must
 // implement.
-// For example, in the case for the Unijosyticle2, it contains the GPIOs that
-// must be enable/disable to emulate a C64 joystick.
 struct uni_platform {
     // The name of the platform
     char* name;
@@ -62,7 +60,7 @@ struct uni_platform {
     // When a device (controller) disconnects.
     void (*on_device_disconnected)(uni_hid_device_t* d);
     // When a device (controller) is ready to be used.
-    // Platform can reject the connection by return false.
+    // Platform can reject the connection by returning false.
     uni_error_t (*on_device_ready)(uni_hid_device_t* d);
 
     // Indicates that a gamepad button and/or stick was pressed and/or released.
