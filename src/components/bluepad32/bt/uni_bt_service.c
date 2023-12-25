@@ -146,7 +146,7 @@ void uni_bt_service_init(void) {
     gap_local_bd_addr(local_addr);
     const char* addr_str = bd_addr_to_str(local_addr);
     memcpy(&adv_data[ADV_DATA_LOCAL_NAME_ADDR_OFFSET], &addr_str[12], 2);
-    memcpy(&adv_data[ADV_DATA_LOCAL_NAME_ADDR_OFFSET+2], &addr_str[15], 2);
+    memcpy(&adv_data[ADV_DATA_LOCAL_NAME_ADDR_OFFSET + 2], &addr_str[15], 2);
 }
 
 bool uni_bt_service_is_enabled() {
