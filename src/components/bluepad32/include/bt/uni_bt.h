@@ -29,7 +29,7 @@ extern "C" {
 
 #include "uni_hid_device.h"
 
-// Private, don'tuse
+// Private, don't use
 extern bd_addr_t uni_local_bd_addr;
 
 int uni_bt_init(void);

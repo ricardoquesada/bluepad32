@@ -73,7 +73,7 @@ static void setup_call_next_fn(void) {
     if (setup_fn_idx == ARRAY_SIZE(setup_fns)) {
         setup_state = SETUP_STATE_READY;
 
-        // If finished with the "setup" commands, just finish the setup
+        // If finished with the "setup" commands, finish the setup
         // by printing some debug version.
 
         // Populate global variable here, and just once.
@@ -81,6 +81,10 @@ static void setup_call_next_fn(void) {
 
         // Only after all BT setup is done, call on_init_complete()
         uni_get_platform()->on_init_complete();
+
+        // Platform can disable the service.
+        if (IS_ENABLED(UNI_ENABLE_BLE) && uni_bt_service_is_enabled())
+            uni_bt_service_init();
     }
 }
 
@@ -125,7 +129,6 @@ bool uni_bt_setup_is_ready() {
 int uni_bt_setup(void) {
     bool bredr_enabled = false;
     bool ble_enabled = false;
-    bool ble_service_enabled = false;
 
     // Initialize L2CAP
     l2cap_init();
@@ -134,8 +137,6 @@ int uni_bt_setup(void) {
         bredr_enabled = uni_bt_bredr_is_enabled();
     if (IS_ENABLED(UNI_ENABLE_BLE))
         ble_enabled = uni_bt_le_is_enabled();
-    if (IS_ENABLED(UNI_ENABLE_BLE))
-        ble_service_enabled = uni_bt_service_is_enabled();
 
     logi("Max connected gamepads: %d\n", CONFIG_BLUEPAD32_MAX_DEVICES);
 
@@ -151,9 +152,6 @@ int uni_bt_setup(void) {
 
     if (IS_ENABLED(UNI_ENABLE_BLE) && ble_enabled)
         uni_bt_le_setup();
-
-    if (IS_ENABLED(UNI_ENABLE_BLE) && ble_service_enabled)
-        uni_bt_service_init();
 
     // Initialize HID Host
     // hid_host_init(hid_descriptor_storage, sizeof(hid_descriptor_storage));
