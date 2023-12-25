@@ -4,11 +4,8 @@
 
 #include "bt/uni_bt_service.h"
 
-#include <inttypes.h>
-
 #include <btstack.h>
 
-#include "bt/uni_bt.h"
 #include "bt/uni_bt_service.gatt.h"
 #include "uni_common.h"
 #include "uni_log.h"
@@ -24,36 +21,27 @@ static uint16_t att_read_callback(hci_con_handle_t connection_handle,
                                   uint16_t offset,
                                   uint8_t* buffer,
                                   uint16_t buffer_size);
-static void streamer(void);
 
 // General Discoverable = 0x02
 // BR/EDR Not supported = 0x04
 #define APP_AD_FLAGS 0x06
 
-// Where the 'XXXX' start. To be replaced with the two latest local bdaddr.
-#define ADV_DATA_LOCAL_NAME_ADDR_OFFSET 15
 // clang-format off
-// Not const since the local name will be overwritten with the local address
-static uint8_t adv_data[] = {
+static const uint8_t adv_data[] = {
     // Flags general discoverable
-    0x02, BLUETOOTH_DATA_TYPE_FLAGS, APP_AD_FLAGS,
+    2, BLUETOOTH_DATA_TYPE_FLAGS, APP_AD_FLAGS,
     // Name
-    15, BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME,'B', 'l','u','e','p','a','d','3','2','-','X','X','X','X',
-    // Incomplete List of 16-bit Service Class UUIDs -- AC00 - only valid for testing!
-    3, BLUETOOTH_DATA_TYPE_INCOMPLETE_LIST_OF_16_BIT_SERVICE_CLASS_UUIDS, 0x00, 0xac,
+    5, BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME,'B', 'P', '3', '2',
+    // 4627C4A4-AC00-46B9-B688-AFC5C1BF7F63
+    17, BLUETOOTH_DATA_TYPE_COMPLETE_LIST_OF_128_BIT_SERVICE_CLASS_UUIDS,
+    0x63, 0x7F, 0xBF, 0xC1, 0xC5, 0xAF, 0x88, 0xB6, 0xB9, 0x46, 0x00, 0xAC, 0xA4, 0xC4, 0x27, 0x46,
+
 };
-static const uint8_t adv_data_len = sizeof(adv_data);
 // clang-format on
+static const uint8_t adv_data_len = sizeof(adv_data);
 
 static bool service_enabled = true;
 
-/*
- * @section ATT Write
- *
- * @text The only valid ATT write in this example is to the Client Characteristic Configuration, which configures
- * notification and indication. If the ATT handle matches the client configuration handle, the new configuration value
- * is stored. If notifications get enabled, an ATT_EVENT_CAN_SEND_NOW is requested. See Listing attWrite.
- */
 static int att_write_callback(hci_con_handle_t con_handle,
                               uint16_t att_handle,
                               uint16_t transaction_mode,
@@ -74,14 +62,6 @@ static int att_write_callback(hci_con_handle_t con_handle,
     return 0;
 }
 
-/*
- * @section ATT Read
- *
- * @text The ATT Server handles all reads to constant data. For dynamic data like the custom characteristic, the
- * registered att_read_callback is called. To handle long characteristics and long reads, the att_read_callback is first
- * called with buffer == NULL, to request the total value length. Then it will be called again requesting a chunk of the
- * value. See Listing attRead.
- */
 static uint16_t att_read_callback(hci_con_handle_t connection_handle,
                                   uint16_t att_handle,
                                   uint16_t offset,
@@ -121,11 +101,12 @@ static uint16_t att_read_callback(hci_con_handle_t connection_handle,
     return 0;
 }
 
-/* It configures the ATT Server with the pre-compiled ATT Database generated from the .gatt file.
+/*
+ * Configures the ATT Server with the pre-compiled ATT Database generated from the .gatt file.
  * Finally, it configures the advertisements.
  */
 void uni_bt_service_init(void) {
-    logi("Initializing Bluepad32 BLE service\n");
+    logi("Starting Bluepad32 BLE service UUID: 4627C4A4-AC00-46B9-B688-AFC5C1BF7F63\n");
     // Setup ATT server.
     att_server_init(profile_data, att_read_callback, att_write_callback);
 
@@ -140,13 +121,6 @@ void uni_bt_service_init(void) {
     gap_advertisements_set_params(adv_int_min, adv_int_max, adv_type, 0, null_addr, 0x07, 0x00);
     gap_advertisements_set_data(adv_data_len, (uint8_t*)adv_data);
     gap_advertisements_enable(true);
-
-    // Update LocalName with the latest 2 bytes of local addr.
-    bd_addr_t local_addr;
-    gap_local_bd_addr(local_addr);
-    const char* addr_str = bd_addr_to_str(local_addr);
-    memcpy(&adv_data[ADV_DATA_LOCAL_NAME_ADDR_OFFSET], &addr_str[12], 2);
-    memcpy(&adv_data[ADV_DATA_LOCAL_NAME_ADDR_OFFSET + 2], &addr_str[15], 2);
 }
 
 bool uni_bt_service_is_enabled() {
