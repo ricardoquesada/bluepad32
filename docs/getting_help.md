@@ -10,12 +10,13 @@ Help us help you by providing:
 * Which Bluepad32 platform you are using, and version.
 * Which ESP32 module you are using. Add link if possible
 * Which controller you are using, including controller firmware version. Add link if possible.
-* Which sketch you are using. 
+* Which sketch you are using.
 * Which Operating System you are using
 * Debug log
-* Post question on our [Discord server][discord_server]
+* Post question on our [Discord server][discord_server], or file bugs in the [Issue Tracker][issue_tracker]
 
 [discord_server]: https://discord.gg/r5aMn6Cw5q
+[issue_tracker]: https://gitlab.com/ricardoquesada/bluepad32/-/issues
 
 ## Platforms
 
