@@ -13,10 +13,14 @@ Help us help you by providing:
 * Which sketch you are using.
 * Which Operating System you are using
 * Debug log
-* Post question on our [Discord server][discord_server], or file bugs in the [Issue Tracker][issue_tracker]
+* Post question on our [Discord server][discord_server]
+* File bugs in our:
+  * [Gitlab Issue Tracker][gitlab_issue_tracker] (preferred)
+  * or [Github Issue Tracker][github_issue_tracker]
 
 [discord_server]: https://discord.gg/r5aMn6Cw5q
-[issue_tracker]: https://gitlab.com/ricardoquesada/bluepad32/-/issues
+[gitlab_issue_tracker]: https://gitlab.com/ricardoquesada/bluepad32/-/issues
+[github_issue_tracker]: https://github.com/ricardoquesada/bluepad32/issues
 
 ## Platforms
 
