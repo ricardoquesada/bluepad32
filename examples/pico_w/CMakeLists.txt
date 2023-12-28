@@ -19,7 +19,7 @@ set(BLUEPAD32_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 set(BTSTACK_ROOT ${BLUEPAD32_ROOT}/external/btstack)
 
 project(bluepad32_picow_example_app C CXX ASM)
-set(CMAKE_C_STANDARD 17)
+set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
 # initialize the Raspberry Pi Pico SDK
