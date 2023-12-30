@@ -34,8 +34,6 @@ void uni_platform_init(int argc, const char** argv) {
     _platform = uni_platform_mightymiggy_create();
 #elif defined(CONFIG_BLUEPAD32_PLATFORM_NINA)
     _platform = uni_platform_nina_create();
-#elif defined(CONFIG_BLUEPAD32_PLATFORM_ARDUINO)
-    _platform = uni_platform_arduino_create();
 #elif defined(CONFIG_BLUEPAD32_PLATFORM_CUSTOM)
     if (!_platform) {
         while (1)
