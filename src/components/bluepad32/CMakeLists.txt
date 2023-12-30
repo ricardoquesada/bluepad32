@@ -33,8 +33,6 @@ set(srcs
          "parser/uni_hid_parser_wii.c"
          "parser/uni_hid_parser_xboxone.c"
          "platform/uni_platform.c"
-         "platform/uni_platform_arduino.c"
-         "platform/uni_platform_arduino_bootstrap.cpp"
          "uni_circular_buffer.c"
          "uni_hid_device.c"
          "uni_init.c"
@@ -149,11 +147,6 @@ if(IDF_TARGET)
         list(APPEND requires "cmd_nvs_4.4" "cmd_system_4.4")
     endif()
 
-    # See: https://gitlab.com/ricardoquesada/bluepad32/-/issues/9
-    if(DEFINED ENV{BLUEPAD32_ARDUINO})
-        list(APPEND requires "arduino")
-    endif()
-
     idf_component_register(SRCS "${srcs}"
                         INCLUDE_DIRS "include"
                         REQUIRES ${requires})
@@ -165,23 +158,9 @@ else()
     message(FATAL_ERROR "Define target")
 endif()
 
-# See: https://gitlab.com/ricardoquesada/bluepad32/-/issues/9
-if(DEFINED ENV{BLUEPAD32_ARDUINO})
-    # Bluepad32 contains reference to setup() and loop().  If we add main
-    # component to priv_requires then we create a large circular dependency
-    # (bluepad32 -> main -> bluepad32) and can get linker errors, so
-    # instead we add setup() and loop() to the undefined symbols list so the
-    # linker will always include them.
-    #
-    # (As they are C++ symbol, we need to add the C++ mangled names.)
-    list(APPEND ext_symbols "-u _Z6setupv -u _Z4loopv")
-endif()
-
-string(REPLACE ";" " " ext_symbols "${ext_symbols}")
-
 if(IDF_TARGET)
     # ESP-IDF
-    target_link_libraries(${COMPONENT_LIB} INTERFACE ${ext_symbols})
+    # Nothing
 elseif(PICO_SDK_VERSION_STRING)
     target_link_libraries(bluepad32
             pico_stdlib
