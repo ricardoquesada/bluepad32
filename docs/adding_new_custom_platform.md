@@ -9,7 +9,7 @@ Adding a new custom platform is easy:
 
 ## 1. Custom platform file
 
-Use the existing platform as an exmaple:
+Use the existing platform as an example:
 
 * [src/main/uni_platform_custom_1.c]
 

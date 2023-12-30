@@ -1,5 +1,11 @@
 # Adding a new platform
 
+## DEPRECATED in v4.0
+
+Read [Adding new Custom Platform][adding_new_custom_platform] instead.
+
+[adding_new_custom_platform]: adding_new_custom_platform.md
+
 Adding a new platform is easy:
 
 1. Create your `src/components/bluepad32/uni_platform_yourplatform.c` file
@@ -9,7 +15,7 @@ Adding a new platform is easy:
 
 ## 1. Platform file
 
-Use the existing platform as an exmaple:
+Use the existing platform as an example:
 
 * [uni_platform_nina.c]
 
