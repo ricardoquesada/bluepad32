@@ -7,7 +7,7 @@
 #include <stdint.h>
 
 #include "hid_usage.h"
-#include "uni_keyboard.h"
+#include "controller/uni_keyboard.h"
 
 enum KeyboardKey : uint8_t {
     Keyboard_A = HID_USAGE_KB_A,

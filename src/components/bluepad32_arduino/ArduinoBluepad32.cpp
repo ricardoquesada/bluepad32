@@ -8,11 +8,9 @@
 #error "Must only be compiled when using Bluepad32 Arduino platform"
 #endif  // !CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 
-#include <Arduino.h>
-#include <inttypes.h>
-#include <uni_bt.h>
+#include <bt/uni_bt.h>
+#include <platform/uni_platform_arduino.h>
 #include <uni_log.h>
-#include <uni_platform_arduino.h>
 #include <uni_version.h>
 #include <uni_virtual_device.h>
 

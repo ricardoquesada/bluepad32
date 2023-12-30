@@ -9,7 +9,7 @@
 #error "Must only be compiled when using Bluepad32 Arduino platform"
 #endif  // !CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 
-#include <uni_platform_arduino.h>
+#include <platform/uni_platform_arduino.h>
 
 using ControllerData = arduino_controller_data_t;
 

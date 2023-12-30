@@ -10,7 +10,7 @@
 #endif  // !CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 
 #include <inttypes.h>
-#include <uni_platform_arduino.h>
+#include <platform/uni_platform_arduino.h>
 
 #include <functional>
 

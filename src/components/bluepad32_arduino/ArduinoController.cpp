@@ -1,15 +1,14 @@
 // Copyright 2021 - 2023, Ricardo Quesada, http://retro.moe
 // SPDX-License-Identifier: Apache-2.0 or LGPL-2.1-or-later
 
-#include "ArduinoGamepad.h"
+#include "ArduinoController.h"
 
-#include <inttypes.h>
+#include "sdkconfig.h"
+
 #include <uni_common.h>
 #include <uni_log.h>
-#include <uni_platform_arduino.h>
+#include <platform/uni_platform_arduino.h>
 
-#include "include/ArduinoController.h"
-#include "sdkconfig.h"
 #ifndef CONFIG_BLUEPAD32_PLATFORM_ARDUINO
 #error "Must only be compiled when using Bluepad32 Arduino platform"
 #endif  // !CONFIG_BLUEPAD32_PLATFORM_ARDUINO
