@@ -17,6 +17,9 @@
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
 
+#include <btstack_port_esp32.h>
+#include <btstack_run_loop.h>
+
 #include "bt/uni_bt.h"
 #include "cmd_system.h"
 #include "controller/uni_controller.h"
@@ -24,8 +27,8 @@
 #include "platform/uni_platform_arduino_bootstrap.h"
 #include "uni_common.h"
 #include "uni_config.h"
-#include "uni_esp32.h"
 #include "uni_hid_device.h"
+#include "uni_init.h"
 #include "uni_log.h"
 #include "uni_version.h"
 
@@ -41,7 +44,7 @@ typedef struct arduino_instance_s {
     // It is used to map "_controllers" to the uni_hid_device.
     int8_t controller_idx;
 } arduino_instance_t;
-_Static_assert(sizeof(arduino_instance_t) < HID_DEVICE_MAX_PLATFORM_DATA, "Arduino intance too big");
+_Static_assert(sizeof(arduino_instance_t) < HID_DEVICE_MAX_PLATFORM_DATA, "Arduino instance too big");
 
 static QueueHandle_t _pending_queue = NULL;
 static SemaphoreHandle_t _controller_mutex = NULL;
@@ -426,7 +429,24 @@ struct uni_platform* uni_platform_arduino_create(void) {
 // Autostart
 //
 int app_main(void) {
-    return uni_esp32_main();
+    // hci_dump_open(NULL, HCI_DUMP_STDOUT);
+
+    // Configure BTstack for ESP32 VHCI Controller
+    btstack_init();
+
+    // hci_dump_init(hci_dump_embedded_stdout_get_instance());
+
+#ifdef CONFIG_BLUEPAD32_PLATFORM_CUSTOM
+    // Must be called before uni_init()
+    uni_platform_set_custom(get_my_platform());
+#endif  // CONFIG_BLUEPAD32_PLATFORM_CUSTOM
+
+    // Init Bluepad32.
+    uni_init(0 /* argc */, NULL /* argv */);
+
+    // Does not return.
+    btstack_run_loop_execute();
+    return 0;
 }
 
 #endif  // CONFIG_BLUEPAD32_PLATFORM_ARDUINO
