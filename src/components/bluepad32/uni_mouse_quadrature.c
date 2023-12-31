@@ -347,16 +347,13 @@ void uni_mouse_quadrature_set_scale_factor(float scale) {
     value.f32 = scale;
 
     s_scale_factor = scale;
-    uni_property_set(UNI_PROPERTY_KEY_MOUSE_SCALE, UNI_PROPERTY_TYPE_FLOAT, value);
+    uni_property_set(UNI_PROPERTY_IDX_MOUSE_SCALE, value);
 }
 
 float uni_mouse_quadrature_get_scale_factor(void) {
     uni_property_value_t value;
-    uni_property_value_t def;
 
-    def.f32 = 1.0f;
-
-    value = uni_property_get(UNI_PROPERTY_KEY_MOUSE_SCALE, UNI_PROPERTY_TYPE_FLOAT, def);
+    value = uni_property_get(UNI_PROPERTY_IDX_MOUSE_SCALE);
     s_scale_factor = value.f32;
     return value.f32;
 }

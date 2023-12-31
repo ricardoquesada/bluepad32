@@ -127,10 +127,9 @@ static void my_platform_on_controller_data(uni_hid_device_t* d, uni_controller_t
     }
 }
 
-static int32_t my_platform_get_property(uni_platform_property_t key) {
-    // Deprecated
-    ARG_UNUSED(key);
-    return 0;
+static const uni_property_t* my_platform_get_property(uni_property_idx_t idx) {
+    ARG_UNUSED(idx);
+    return NULL;
 }
 
 static void my_platform_on_oob_event(uni_platform_oob_event_t event, void* data) {

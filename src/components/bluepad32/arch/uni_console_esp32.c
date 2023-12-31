@@ -136,9 +136,9 @@ static int set_gap_security_level(int argc, char** argv) {
 }
 
 static void print_gap_periodic_inquiry(void) {
-    int max = uni_bt_get_gap_max_periodic_lenght();
-    int min = uni_bt_get_gap_min_periodic_lenght();
-    int len = uni_bt_get_gap_inquiry_lenght();
+    int max = uni_bt_get_gap_max_periodic_length();
+    int min = uni_bt_get_gap_min_periodic_length();
+    int len = uni_bt_get_gap_inquiry_length();
     logi("GAP max periodic len: %d, min periodic len: %d, inquiry len: %d\n", max, min, len);
 }
 

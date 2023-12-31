@@ -1,25 +1,48 @@
-/****************************************************************************
-http://retro.moe/unijoysticle2
-
-Copyright 2022 Ricardo Quesada
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-****************************************************************************/
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2022 Ricardo Quesada
+// http://retro.moe/unijoysticle2
 
 #ifndef UNI_PROPERTY_H
 #define UNI_PROPERTY_H
 
 #include <stdint.h>
+
+// Bluepad32-global properties
+// Keep them sorted
+#define UNI_PROPERTY_NAME_ALLOWLIST_ENABLED "bp.bt.allow_en"
+#define UNI_PROPERTY_NAME_ALLOWLIST_LIST "bp.bt.allowlist"
+#define UNI_PROPERTY_NAME_BLE_ENABLED "bp.ble.enabled"
+#define UNI_PROPERTY_NAME_GAP_INQ_LEN "bp.gap.inq_len"
+#define UNI_PROPERTY_NAME_GAP_LEVEL "bp.gap.level"
+#define UNI_PROPERTY_NAME_GAP_MAX_PERIODIC_LEN "bp.gap.max_len"
+#define UNI_PROPERTY_NAME_GAP_MIN_PERIODIC_LEN "bp.gap.min_len"
+#define UNI_PROPERTY_NAME_MOUSE_SCALE "bp.mouse.scale"
+#define UNI_PROPERTY_NAME_VIRTUAL_DEVICE_ENABLED "bp.virt_dev_en"
+
+typedef enum {
+    UNI_PROPERTY_IDX_ALLOWLIST_ENABLED,
+    UNI_PROPERTY_IDX_ALLOWLIST_LIST,
+    UNI_PROPERTY_IDX_BLE_ENABLED,
+    UNI_PROPERTY_IDX_GAP_INQ_LEN,
+    UNI_PROPERTY_IDX_GAP_LEVEL,
+    UNI_PROPERTY_IDX_GAP_MAX_PERIODIC_LEN,
+    UNI_PROPERTY_IDX_GAP_MIN_PERIODIC_LEN,
+    UNI_PROPERTY_IDX_MOUSE_SCALE,
+    UNI_PROPERTY_IDX_VIRTUAL_DEVICE_ENABLED,
+    UNI_PROPERTY_IDX_LAST,
+
+    // Unijoysticle only properties
+    // TODO: Should be moved to the platform file
+    UNI_PROPERTY_IDX_UNI_AUTOFIRE_CPS = UNI_PROPERTY_IDX_LAST,
+    UNI_PROPERTY_IDX_UNI_BB_FIRE_THRESHOLD,
+    UNI_PROPERTY_IDX_UNI_BB_MOVE_THRESHOLD,
+    UNI_PROPERTY_IDX_UNI_C64_POT_MODE,
+    UNI_PROPERTY_IDX_UNI_MODEL,
+    UNI_PROPERTY_IDX_UNI_MOUSE_EMULATION,
+    UNI_PROPERTY_IDX_UNI_SERIAL_NUMBER,
+    UNI_PROPERTY_IDX_UNI_VENDOR,
+    UNI_PROPERTY_IDX_UNI_LAST,
+} uni_property_idx_t;
 
 typedef enum {
     UNI_PROPERTY_TYPE_U8,
@@ -32,37 +55,26 @@ typedef union {
     uint8_t u8;
     uint32_t u32;
     float f32;
-    char* str;
+    char *str;
 } uni_property_value_t;
 
-// Bluepad32-global properties
-// Keep them sorted
-extern const char* UNI_PROPERTY_KEY_ALLOWLIST_ENABLED;
-extern const char* UNI_PROPERTY_KEY_ALLOWLIST_LIST;
-extern const char* UNI_PROPERTY_KEY_BLE_ENABLED;
-extern const char* UNI_PROPERTY_KEY_GAP_INQ_LEN;
-extern const char* UNI_PROPERTY_KEY_GAP_LEVEL;
-extern const char* UNI_PROPERTY_KEY_GAP_MAX_PERIODIC_LEN;
-extern const char* UNI_PROPERTY_KEY_GAP_MIN_PERIODIC_LEN;
-extern const char* UNI_PROPERTY_KEY_MOUSE_SCALE;
-extern const char* UNI_PROPERTY_KEY_VIRTUAL_DEVICE_ENABLED;
+typedef struct {
+    uni_property_idx_t idx;  // Used for debugging: idx must match order
+    const char *name;
+    uni_property_type_t type;
+    uni_property_value_t default_value;
+} uni_property_t;
 
-// Specific to Unijoysticle
-// TODO: Move them to unijoysticle file
-// Keep them sorted
-extern const char* UNI_PROPERTY_KEY_UNI_AUTOFIRE_CPS;
-extern const char* UNI_PROPERTY_KEY_UNI_BB_FIRE_THRESHOLD;
-extern const char* UNI_PROPERTY_KEY_UNI_BB_MOVE_THRESHOLD;
-extern const char* UNI_PROPERTY_KEY_UNI_C64_POT_MODE;
-extern const char* UNI_PROPERTY_KEY_UNI_MODEL;
-extern const char* UNI_PROPERTY_KEY_UNI_MOUSE_EMULATION;
-extern const char* UNI_PROPERTY_KEY_UNI_SERIAL_NUMBER;
-extern const char* UNI_PROPERTY_KEY_UNI_VENDOR;
+void uni_property_init_debug(void);
+
+const uni_property_t *uni_property_get_property_for_index(uni_property_idx_t idx);
 
 // Interface
-// Each arch needs to implement these functions
+// Each arch needs to implement these functions:
 void uni_property_init(void);
-void uni_property_set(const char* key, uni_property_type_t type, uni_property_value_t value);
-uni_property_value_t uni_property_get(const char* key, uni_property_type_t type, uni_property_value_t def);
+
+void uni_property_set(uni_property_idx_t idx, uni_property_value_t value);
+
+uni_property_value_t uni_property_get(uni_property_idx_t idx);
 
 #endif  // UNI_PROPERTY_H
