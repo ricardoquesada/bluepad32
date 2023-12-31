@@ -67,7 +67,7 @@ enum {
     UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_FROM_BOARD_MODEL,  // Used internally for NVS (Deprecated)
     UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_AMIGA,
     UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_ATARIST,
-    UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_AUTO, // Each variant defines it
+    UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_AUTO,  // Each variant defines it
 
     UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_COUNT,
 };
@@ -115,7 +115,7 @@ typedef struct uni_platform_unijoysticle_instance_s {
     uint32_t debouncer;
 } uni_platform_unijoysticle_instance_t;
 _Static_assert(sizeof(uni_platform_unijoysticle_instance_t) < HID_DEVICE_MAX_PLATFORM_DATA,
-"Unijoysticle intance too big");
+               "Unijoysticle intance too big");
 
 typedef void (*uni_platform_unijoysticle_button_cb_t)(int button_idx);
 
@@ -135,10 +135,10 @@ struct uni_platform_unijoysticle_gpio_config {
 
 struct uni_platform_unijoysticle_variant {
     // The name of the variant: A500, C64, 800XL, etc.
-    const char *name;
+    const char* name;
 
     // GPIO configuration
-    const struct uni_platform_unijoysticle_gpio_config *gpio_config;
+    const struct uni_platform_unijoysticle_gpio_config* gpio_config;
 
     // Which features are supported.
     // E.g: Quadrature Mouse
@@ -173,10 +173,10 @@ struct uni_platform_unijoysticle_variant {
 
     // Process gamepad misc buttons
     // Returns "True" if the Misc buttons where processed. Otherwise "False"
-    bool (*process_gamepad_misc_buttons)(uni_hid_device_t *d, uni_gamepad_seat_t seat, uint8_t misc_buttons);
+    bool (*process_gamepad_misc_buttons)(uni_hid_device_t* d, uni_gamepad_seat_t seat, uint8_t misc_buttons);
 };
 
-struct uni_platform *uni_platform_unijoysticle_create(void);
+struct uni_platform* uni_platform_unijoysticle_create(void);
 
 // Can be called from any thread. The command will get executed in the btthread.
 void uni_platform_unijoysticle_run_cmd(uni_platform_unijoysticle_cmd_t cmd);
@@ -185,6 +185,6 @@ void uni_platform_unijoysticle_on_push_button_mode_pressed(int button_idx);
 
 void uni_platform_unijoysticle_on_push_button_swap_pressed(int button_idx);
 
-uni_platform_unijoysticle_instance_t *uni_platform_unijoysticle_get_instance(const uni_hid_device_t *d);
+uni_platform_unijoysticle_instance_t* uni_platform_unijoysticle_get_instance(const uni_hid_device_t* d);
 
 #endif  // UNI_PLATFORM_UNIJOYSTICLE_H

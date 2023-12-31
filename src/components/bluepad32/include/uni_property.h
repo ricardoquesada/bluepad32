@@ -55,19 +55,19 @@ typedef union {
     uint8_t u8;
     uint32_t u32;
     float f32;
-    char *str;
+    char* str;
 } uni_property_value_t;
 
 typedef struct {
     uni_property_idx_t idx;  // Used for debugging: idx must match order
-    const char *name;
+    const char* name;
     uni_property_type_t type;
     uni_property_value_t default_value;
 } uni_property_t;
 
 void uni_property_init_debug(void);
 
-const uni_property_t *uni_property_get_property_for_index(uni_property_idx_t idx);
+const uni_property_t* uni_property_get_property_for_index(uni_property_idx_t idx);
 
 // Interface
 // Each arch needs to implement these functions:

@@ -4,8 +4,8 @@
 
 #include "uni_property.h"
 
-#include <stddef.h>
 #include <assert.h>
+#include <stddef.h>
 
 #include "bt/uni_bt_defines.h"
 #include "platform/uni_platform.h"
