@@ -6,7 +6,6 @@
 
 #include "sdkconfig.h"
 
-#include "platform/uni_platform_arduino.h"
 #include "platform/uni_platform_custom.h"
 #include "platform/uni_platform_mightymiggy.h"
 #include "platform/uni_platform_nina.h"
