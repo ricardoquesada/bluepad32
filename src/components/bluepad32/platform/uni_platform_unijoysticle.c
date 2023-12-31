@@ -220,10 +220,6 @@ static void blink_bt_led(int times);
 static void maybe_enable_bluetooth(bool enabled);
 
 // --- Consts (ROM)
-static const struct uni_platform_unijoysticle_variant* g_variant;
-// Used as cache of g_variant->gpio_config
-static const struct uni_platform_unijoysticle_gpio_config* g_gpio_config;
-
 // Keep them in the order of the defines
 static const char* mouse_modes[] = {
     "unknown",  // UNI_PLATFORM_UNIJOYSTICLE_MOUSE_EMULATION_FROM_BOARD_MODEL
@@ -253,6 +249,10 @@ static const uni_property_t properties[] = {
 _Static_assert(ARRAY_SIZE(properties) == (UNI_PROPERTY_IDX_UNI_LAST - UNI_PROPERTY_IDX_LAST), "Invalid property size");
 
 // --- Globals (RAM)
+
+static const struct uni_platform_unijoysticle_variant* g_variant;
+// Used as cache of g_variant->gpio_config
+static const struct uni_platform_unijoysticle_gpio_config* g_gpio_config;
 
 static EventGroupHandle_t g_pushbutton_group;
 static EventGroupHandle_t g_autofire_group;
@@ -385,11 +385,13 @@ static void unijoysticle_init(int argc, const char** argv) {
     }
 
     // Should be compiled only on debug mode
+#ifndef NDEBUG
     for (int i = 0; i < ARRAY_SIZE(properties); i++) {
         const uni_property_t* p = &properties[i];
         if (p->idx != i + UNI_PROPERTY_IDX_LAST)
             loge("Invalid Unijoysticle property index: %d != %d\n", i + UNI_PROPERTY_IDX_LAST, p->idx);
     }
+#endif
 }
 
 static void unijoysticle_on_init_complete(void) {
@@ -494,7 +496,7 @@ static uni_error_t unijoysticle_on_device_ready(uni_hid_device_t* d) {
     for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         tmp_d = uni_hid_device_get_instance_for_idx(i);
         if (tmp_d != d && uni_hid_device_is_virtual_device(tmp_d)) {
-            // Only one virtual device can be present, so it won't be overriden.
+            // Only one virtual device can be present, so it won't be overridden.
             virtual_d = tmp_d;
             continue;
         }
@@ -575,7 +577,7 @@ static bool test_keyboard_key_pressed(uni_hid_device_t* d, uni_keyboard_t* kb, u
     // Only return true the first time it is pressed.
     // Next time will occur when the button is released and pressed again.
     for (int i = 0; i < UNI_KEYBOARD_PRESSED_KEYS_MAX; i++) {
-        // Assume not found is value is between 0 and 3, which are all errors.
+        // Assume not found if value is between 0 and 3, which are all errors.
         if (kb->pressed_keys[i] < HID_USAGE_KB_ERROR_UNDEFINED)
             break;
         if (kb->pressed_keys[i] == usage_key) {
