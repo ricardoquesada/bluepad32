@@ -45,7 +45,7 @@ typedef enum {
     UNI_PROPERTY_IDX_UNI_LAST,
 
     // Should be the last one
-    UNI_PROPERTY_IDX_COUNT,
+    UNI_PROPERTY_IDX_COUNT = UNI_PROPERTY_IDX_UNI_LAST
 } uni_property_idx_t;
 
 typedef enum {
