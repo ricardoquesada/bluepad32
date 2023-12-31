@@ -39,7 +39,6 @@ enum {
 #define UNI_BALANCE_BOARD_MOVE_THRESHOLD_DEFAULT 1500  // Diff in weight to consider a Movement
 #define UNI_BALANCE_BOARD_FIRE_THRESHOLD_DEFAULT 5000  // Max weight before staring the "de-accel" to trigger fire.
 
-
 // Represents the Balance Board sensor values.
 typedef struct {
     uint16_t tr;      // Top right
@@ -66,7 +65,7 @@ typedef struct {
     int fire;
 } uni_balance_board_threshold_t;
 
-void uni_balance_board_dump(const uni_balance_board_t *bb);
+void uni_balance_board_dump(const uni_balance_board_t* bb);
 
 void uni_balance_board_register_cmds(void);
 

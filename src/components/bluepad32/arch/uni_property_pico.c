@@ -20,7 +20,7 @@ void uni_property_set(uni_property_idx_t idx, uni_property_value_t value) {
 
 uni_property_value_t uni_property_get(uni_property_idx_t idx) {
     uni_property_value_t ret;
-    const uni_property_t *p;
+    const uni_property_t* p;
 
     p = uni_property_get_property_for_index(idx);
     if (p == NULL) {
