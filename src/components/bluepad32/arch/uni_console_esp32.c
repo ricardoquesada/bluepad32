@@ -5,14 +5,11 @@
 #include "uni_console.h"
 
 #include <argtable3/argtable3.h>
-#include <cmd_nvs.h>
 #include <cmd_system.h>
 #include <esp_console.h>
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include <nvs.h>
-#include <nvs_flash.h>
 
 #include "sdkconfig.h"
 
@@ -22,9 +19,9 @@
 #include "platform/uni_platform.h"
 #include "uni_common.h"
 #include "uni_gpio.h"
-#include "uni_hid_device.h"
 #include "uni_log.h"
 #include "uni_mouse_quadrature.h"
+#include "uni_property.h"
 #include "uni_virtual_device.h"
 
 static const char* TAG = "console";
@@ -78,6 +75,11 @@ static struct {
     struct arg_int* enabled;
     struct arg_end* end;
 } virtual_device_enable_args;
+
+static struct {
+    struct arg_str* prop;
+    struct arg_end* end;
+} getprop_args;
 
 static int list_devices(int argc, char** argv) {
     // FIXME: Should not belong to "bluetooth"
@@ -304,6 +306,19 @@ static int virtual_device_enable(int argc, char** argv) {
     return 0;
 }
 
+static int getprop(int argc, char** argv) {
+    int nerrors = arg_parse(argc, argv, (void**)&getprop_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, getprop_args.end, argv[0]);
+
+        // Don't treat it as error, report the current value
+        uni_property_list_all();
+        return 0;
+    }
+    // TODO: parse property name
+    return 0;
+}
+
 static void register_bluepad32() {
     mouse_scale_args.value = arg_dbl1(NULL, NULL, "<value>", "Global mouse scale factor. Higher means faster");
     mouse_scale_args.end = arg_end(2);
@@ -334,6 +349,9 @@ static void register_bluepad32() {
 
     virtual_device_enable_args.enabled = arg_int1(NULL, NULL, "<0 | 1>", "Whether virtual devices are allowed");
     virtual_device_enable_args.end = arg_end(2);
+
+    getprop_args.prop = arg_str1(NULL, NULL, "<property_name>", "Return property value");
+    getprop_args.end = arg_end(2);
 
     const esp_console_cmd_t cmd_list_devices = {
         .command = "list_devices",
@@ -451,6 +469,14 @@ static void register_bluepad32() {
         .argtable = &virtual_device_enable_args,
     };
 
+    const esp_console_cmd_t cmd_getprop = {
+        .command = "getprop",
+        .help = "Get property or all properties",
+        .hint = NULL,
+        .func = &getprop,
+        .argtable = &getprop_args,
+    };
+
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_list_devices));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_disconnect_device));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_gap_security_level));
@@ -465,6 +491,7 @@ static void register_bluepad32() {
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_allowlist_enable));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_mouse_scale));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_virtual_device_enable));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_getprop));
 }
 
 void uni_console_init(void) {

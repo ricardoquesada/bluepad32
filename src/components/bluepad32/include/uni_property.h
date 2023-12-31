@@ -33,6 +33,7 @@ typedef enum {
 
     // Unijoysticle only properties
     // TODO: Should be moved to the platform file
+    // Or could be conditionally compiled.
     UNI_PROPERTY_IDX_UNI_AUTOFIRE_CPS = UNI_PROPERTY_IDX_LAST,
     UNI_PROPERTY_IDX_UNI_BB_FIRE_THRESHOLD,
     UNI_PROPERTY_IDX_UNI_BB_MOVE_THRESHOLD,
@@ -42,6 +43,9 @@ typedef enum {
     UNI_PROPERTY_IDX_UNI_SERIAL_NUMBER,
     UNI_PROPERTY_IDX_UNI_VENDOR,
     UNI_PROPERTY_IDX_UNI_LAST,
+
+    // Should be the last one
+    UNI_PROPERTY_IDX_COUNT,
 } uni_property_idx_t;
 
 typedef enum {
@@ -65,9 +69,10 @@ typedef struct {
     uni_property_value_t default_value;
 } uni_property_t;
 
+const uni_property_t* uni_property_get_property_for_index(uni_property_idx_t idx);
+void uni_property_list_all(void);
 void uni_property_init_debug(void);
 
-const uni_property_t* uni_property_get_property_for_index(uni_property_idx_t idx);
 
 // Interface
 // Each arch needs to implement these functions:

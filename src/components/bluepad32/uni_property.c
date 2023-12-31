@@ -60,6 +60,35 @@ void uni_property_init_debug(void) {
     }
 }
 
+void uni_property_list_all(void) {
+    logi("properties:\n");
+    for (int i = 0; i < UNI_PROPERTY_IDX_COUNT; i++) {
+        const uni_property_t* p = uni_property_get_property_for_index(i);
+        if (!p)
+            // Means the property is not implemented, safe to break here.
+            break;
+        uni_property_value_t val = uni_property_get(i);
+        switch (p->type) {
+            case UNI_PROPERTY_TYPE_U8:
+                logi("%s = %d\n", p->name, val.u8);
+                break;
+            case UNI_PROPERTY_TYPE_U32:
+                logi("%s = %#x (%u)\n", p->name, val.u32, val.u32);
+                break;
+            case UNI_PROPERTY_TYPE_FLOAT:
+                logi("%s = %f\n", p->name, val.f32);
+                break;
+                break;
+            case UNI_PROPERTY_TYPE_STRING:
+                if (val.str)
+                    logi("%s = '%s'\n", p->name, val.str);
+                else
+                    logi("%s = <empty>\n", p->name);
+                break;
+        }
+    }
+}
+
 const uni_property_t* uni_property_get_property_for_index(uni_property_idx_t idx) {
     if (idx >= UNI_PROPERTY_IDX_LAST) {
         if (uni_get_platform()->get_property)
