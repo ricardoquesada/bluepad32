@@ -25,23 +25,41 @@ Choose your target platform:
 | MightyMiggy                         | [Unijoysticle for Amiga][unijoysticle_sukko]                      | [Doc][plat_mightymiggy]  |                                                                                                           |
 
 [airlift_example]: https://gitlab.com/ricardoquesada/quico
+
 [airlift_video]: https://twitter.com/makermelissa/status/1482596378282913793
+
 [bp32-arduino]: https://gitlab.com/ricardoquesada/bluepad32-arduino
+
 [bp32-circuitpython]: https://gitlab.com/ricardoquesada/bluepad32-circuitpython
+
 [esp32_example]: https://github.com/antonvh/LMS-uart-esp/blob/main/Projects/LMS-ESP32/BluePad32_idf/README.md
+
 [esp32_example2]: https://github.com/ManCloud/GBAHD-Shield
+
 [esp32_video]: https://www.instagram.com/p/Ca7T6twKZ0B/
-[esp-idf-bluepad32-arduino]: https://gitlab.com/ricardoquesada/esp-idf-arduino-bluepad32-template
+
+[esp-idf-bluepad32-arduino]: https://github.com/ricardoquesada/esp-idf-arduino-bluepad32-template
+
 [nina_example]: https://eyskens.me/cd-i-meets-bluetooth/
+
 [plat_airlift]: docs/plat_airlift.md
+
 [plat_arduino]: docs/plat_arduino.md
+
 [plat_custom]: docs/adding_new_platform.md
+
 [plat_mightymiggy]: docs/plat_mightymiggy.md
+
 [plat_nina]: docs/plat_nina.md
+
 [plat_unijoysticle]: docs/plat_unijoysticle.md
+
 [tello]: https://github.com/jsolderitsch/ESP32Controller
+
 [unijoysticle2]: https://retro.moe/unijoysticle2/
+
 [unijoysticle_sukko]: https://gitlab.com/SukkoPera/unijoysticle2
+
 [youtube_image]: https://lh3.googleusercontent.com/pw/AJFCJaXiDBy3NcQBBB-WFFVCsvYBs8szExsYQVwG5qqBTtKofjzZtJv_6GSL7_LfYRiypF1K0jjjgziXJuxAhoEawvzV84hlbmVTrGeXQYpVnpILZwWkbFi-ccX4lEzEbYXX-UbsEzpHLhO8qGVuwxOl7I_h1Q=-no?authuser=0
 
 ## Features
@@ -85,7 +103,9 @@ subset.
 See: [Supported gamepads][gamepads], [supported mice][mice] and [supported keyboards][keyboards]
 
 [gamepads]: https://gitlab.com/ricardoquesada/bluepad32/blob/master/docs/supported_gamepads.md
+
 [mice]: https://gitlab.com/ricardoquesada/bluepad32/blob/master/docs/supported_mice.md
+
 [keyboards]: https://gitlab.com/ricardoquesada/bluepad32/blob/master/docs/supported_keyboards.md
 
 ## Pre-compiled binaries
@@ -108,9 +128,13 @@ Arduino examples are in:
 * [Bluepad32 for Arduino + ESP-IDF][arduino-esp-idf-example]
 
 [esp32-example]: examples/esp32/
+
 [pico-w-example]: examples/pico_w/
+
 [linux-example]: examples/linux
+
 [arduino-ide-example]: https://www.youtube.com/watch?v=0jnY-XXiD8Q
+
 [arduino-esp-idf-example]: https://gitlab.com/ricardoquesada/esp-idf-arduino-bluepad32-template
 
 ## Support
@@ -119,6 +143,7 @@ Arduino examples are in:
 * [Discord][discord]
 
 [docs]: https://gitlab.com/ricardoquesada/bluepad32/-/tree/master/docs
+
 [discord]: https://discord.gg/r5aMn6Cw5q
 
 ## License
@@ -136,6 +161,9 @@ If you are developing a commercial product for:
 Notice: I’m not affiliated with BTstack people. They are super friendly and willing to help.
 
 [btstack-github]: https://github.com/bluekitchen/btstack
+
 [apache2]: https://www.apache.org/licenses/LICENSE-2.0
+
 [btstack-homepage]: https://bluekitchen-gmbh.com/
+
 [rpi-btstack-license]: https://github.com/raspberrypi/pico-sdk/blob/master/src/rp2_common/pico_btstack/LICENSE.RP
