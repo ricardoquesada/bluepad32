@@ -73,7 +73,7 @@ void uni_property_list_all(void) {
                 logi("%s = %d\n", p->name, val.u8);
                 break;
             case UNI_PROPERTY_TYPE_U32:
-                logi("%s = %#x (%u)\n", p->name, val.u32, val.u32);
+                logi("%s = %u (%#x)\n", p->name, val.u32, val.u32);
                 break;
             case UNI_PROPERTY_TYPE_FLOAT:
                 logi("%s = %f\n", p->name, val.f32);

@@ -73,7 +73,6 @@ const uni_property_t* uni_property_get_property_for_index(uni_property_idx_t idx
 void uni_property_list_all(void);
 void uni_property_init_debug(void);
 
-
 // Interface
 // Each arch needs to implement these functions:
 void uni_property_init(void);
