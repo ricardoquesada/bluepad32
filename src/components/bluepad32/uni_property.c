@@ -85,6 +85,9 @@ void uni_property_list_all(void) {
                 else
                     logi("%s = <empty>\n", p->name);
                 break;
+            default:
+                loge("%s = Unsupported property type %d\n", p->name, p->type);
+                break;
         }
     }
 }
