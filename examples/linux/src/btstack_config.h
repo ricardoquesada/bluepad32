@@ -4,6 +4,8 @@
 // Documentation: https://bluekitchen-gmbh.com/btstack/#how_to/
 //
 
+// clang-format off
+
 #ifndef BTSTACK_CONFIG_H
 #define BTSTACK_CONFIG_H
 
