@@ -928,11 +928,11 @@ void uni_bt_le_disconnect(uni_hid_device_t* d) {
 }
 
 void uni_bt_le_set_enabled(bool enabled) {
-    // Called from different Task. Don't call btstack functions.
+    // Called from different Task. Don't call BTstack functions.
     uni_property_value_t val;
 
     val.u8 = enabled;
-    uni_property_set(UNI_PROPERTY_KEY_BLE_ENABLED, UNI_PROPERTY_TYPE_U8, val);
+    uni_property_set(UNI_PROPERTY_IDX_BLE_ENABLED, val);
 
     ble_enabled = enabled;
 }
@@ -941,14 +941,8 @@ bool uni_bt_le_is_enabled() {
     // Expensive call. Avoid calling it from this same file.
     // Called from "uni_bt_setup"
     uni_property_value_t val;
-    uni_property_value_t def;
 
-#ifdef CONFIG_BLUEPAD32_ENABLE_BLE_BY_DEFAULT
-    def.u8 = 1;
-#else
-    def.u8 = 0;
-#endif  // CONFIG_BLUEPAD32_ENABLE_BLE_BY_DEFAULT
-    val = uni_property_get(UNI_PROPERTY_KEY_BLE_ENABLED, UNI_PROPERTY_TYPE_U8, def);
+    val = uni_property_get(UNI_PROPERTY_IDX_BLE_ENABLED);
 
     ble_enabled = val.u8;
 

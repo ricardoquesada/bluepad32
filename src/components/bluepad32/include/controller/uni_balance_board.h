@@ -33,8 +33,12 @@ enum {
     UNI_BALANCE_BOARD_STATE_FIRE,       // "fire pressed"
 };
 
+// Balance Board defaults
 #define UNI_BALANCE_BOARD_FIRE_MAX_FRAMES 25   // Max frames that fire can be kept pressed
-#define UNI_BALANCE_BOARD_IDLE_THRESHOLD 1600  // Below this value, it is considered that noone is on top of the BB
+#define UNI_BALANCE_BOARD_IDLE_THRESHOLD 1600  // Below this value, it is considered that no one is on top of the BB
+#define UNI_BALANCE_BOARD_MOVE_THRESHOLD_DEFAULT 1500  // Diff in weight to consider a Movement
+#define UNI_BALANCE_BOARD_FIRE_THRESHOLD_DEFAULT 5000  // Max weight before staring the "de-accel" to trigger fire.
+
 
 // Represents the Balance Board sensor values.
 typedef struct {
@@ -62,9 +66,12 @@ typedef struct {
     int fire;
 } uni_balance_board_threshold_t;
 
-void uni_balance_board_dump(const uni_balance_board_t* bb);
+void uni_balance_board_dump(const uni_balance_board_t *bb);
+
 void uni_balance_board_register_cmds(void);
+
 void uni_balance_board_init(void);
+
 uni_balance_board_threshold_t uni_balance_board_get_threshold(void);
 
 #ifdef __cplusplus

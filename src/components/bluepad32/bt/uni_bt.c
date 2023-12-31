@@ -469,21 +469,13 @@ void uni_bt_set_gap_security_level(int gap) {
     uni_property_value_t val;
 
     val.u32 = gap;
-    uni_property_set(UNI_PROPERTY_KEY_GAP_LEVEL, UNI_PROPERTY_TYPE_U32, val);
+    uni_property_set(UNI_PROPERTY_IDX_GAP_LEVEL, val);
 }
 
 int uni_bt_get_gap_security_level() {
     uni_property_value_t val;
-    uni_property_value_t def;
 
-    // It seems that with gap_security_level(0) all controllers work except Nintendo Switch Pro controller.
-#if CONFIG_BLUEPAD32_GAP_SECURITY
-    def.u32 = 2;
-#else
-    def.u32 = 0;
-#endif  // CONFIG_BLUEPAD32_GAP_SECURITY
-
-    val = uni_property_get(UNI_PROPERTY_KEY_GAP_LEVEL, UNI_PROPERTY_TYPE_U32, def);
+    val = uni_property_get(UNI_PROPERTY_IDX_GAP_LEVEL);
     return val.u32;
 }
 
@@ -491,15 +483,13 @@ void uni_bt_set_gap_inquiry_length(int len) {
     uni_property_value_t val;
 
     val.u8 = len;
-    uni_property_set(UNI_PROPERTY_KEY_GAP_INQ_LEN, UNI_PROPERTY_TYPE_U8, val);
+    uni_property_set(UNI_PROPERTY_IDX_GAP_INQ_LEN, val);
 }
 
-int uni_bt_get_gap_inquiry_lenght(void) {
+int uni_bt_get_gap_inquiry_length(void) {
     uni_property_value_t val;
-    uni_property_value_t def;
 
-    def.u8 = UNI_BT_INQUIRY_LENGTH;
-    val = uni_property_get(UNI_PROPERTY_KEY_GAP_INQ_LEN, UNI_PROPERTY_TYPE_U8, def);
+    val = uni_property_get(UNI_PROPERTY_IDX_GAP_INQ_LEN);
     return val.u8;
 }
 
@@ -507,15 +497,13 @@ void uni_bt_set_gap_max_peridic_length(int len) {
     uni_property_value_t val;
 
     val.u8 = len;
-    uni_property_set(UNI_PROPERTY_KEY_GAP_MAX_PERIODIC_LEN, UNI_PROPERTY_TYPE_U8, val);
+    uni_property_set(UNI_PROPERTY_IDX_GAP_MAX_PERIODIC_LEN, val);
 }
 
-int uni_bt_get_gap_max_periodic_lenght(void) {
+int uni_bt_get_gap_max_periodic_length(void) {
     uni_property_value_t val;
-    uni_property_value_t def;
 
-    def.u8 = UNI_BT_MAX_PERIODIC_LENGTH;
-    val = uni_property_get(UNI_PROPERTY_KEY_GAP_MAX_PERIODIC_LEN, UNI_PROPERTY_TYPE_U8, def);
+    val = uni_property_get(UNI_PROPERTY_IDX_GAP_MAX_PERIODIC_LEN);
     return val.u8;
 }
 
@@ -523,15 +511,13 @@ void uni_bt_set_gap_min_peridic_length(int len) {
     uni_property_value_t val;
 
     val.u8 = len;
-    uni_property_set(UNI_PROPERTY_KEY_GAP_MIN_PERIODIC_LEN, UNI_PROPERTY_TYPE_U8, val);
+    uni_property_set(UNI_PROPERTY_IDX_GAP_MIN_PERIODIC_LEN, val);
 }
 
-int uni_bt_get_gap_min_periodic_lenght(void) {
+int uni_bt_get_gap_min_periodic_length(void) {
     uni_property_value_t val;
-    uni_property_value_t def;
 
-    def.u8 = UNI_BT_MIN_PERIODIC_LENGTH;
-    val = uni_property_get(UNI_PROPERTY_KEY_GAP_MIN_PERIODIC_LEN, UNI_PROPERTY_TYPE_U8, def);
+    val = uni_property_get(UNI_PROPERTY_IDX_GAP_MIN_PERIODIC_LEN);
     return val.u8;
 }
 

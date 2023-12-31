@@ -8,49 +8,44 @@
 
 // Don't compile it on PC Debug since the console is not present
 #ifdef CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
+
 #include <argtable3/argtable3.h>
 #include <esp_console.h>
+
 #endif  // CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
 
 #include "uni_log.h"
 #include "uni_property.h"
 
-// Balance Board defaults
-#define BB_MOVE_THRESHOLD_DEFAULT 1500  // Diff in weight to consider a Movement
-#define BB_FIRE_THRESHOLD_DEFAULT 5000  // Max weight before staring the "de-accel" to trigger fire.
-
 // Gets initialized at platform_init time.
 static uni_balance_board_threshold_t bb_threshold = {
-    .move = BB_MOVE_THRESHOLD_DEFAULT,
-    .fire = BB_FIRE_THRESHOLD_DEFAULT,
+        .move = UNI_BALANCE_BOARD_MOVE_THRESHOLD_DEFAULT,
+        .fire = UNI_BALANCE_BOARD_FIRE_THRESHOLD_DEFAULT,
 };
 
 #ifdef CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
 static struct {
-    struct arg_int* value;
-    struct arg_end* end;
+    struct arg_int *value;
+    struct arg_end *end;
 } bb_move_threshold_args;
 
 static struct {
-    struct arg_int* value;
-    struct arg_end* end;
+    struct arg_int *value;
+    struct arg_end *end;
 } bb_fire_threshold_args;
 
 static void set_bb_move_threshold_to_nvs(int threshold) {
     uni_property_value_t value;
     value.u32 = threshold;
 
-    uni_property_set(UNI_PROPERTY_KEY_UNI_BB_MOVE_THRESHOLD, UNI_PROPERTY_TYPE_U32, value);
+    uni_property_set(UNI_PROPERTY_IDX_UNI_BB_MOVE_THRESHOLD, value);
     logi("Done\n");
 }
 
 static int get_bb_move_threshold_from_nvs(void) {
     uni_property_value_t value;
-    uni_property_value_t def;
 
-    def.u32 = BB_MOVE_THRESHOLD_DEFAULT;
-
-    value = uni_property_get(UNI_PROPERTY_KEY_UNI_BB_MOVE_THRESHOLD, UNI_PROPERTY_TYPE_U32, def);
+    value = uni_property_get(UNI_PROPERTY_IDX_UNI_BB_MOVE_THRESHOLD);
     return value.u32;
 }
 
@@ -58,22 +53,19 @@ static void set_bb_fire_threshold_to_nvs(int threshold) {
     uni_property_value_t value;
     value.u32 = threshold;
 
-    uni_property_set(UNI_PROPERTY_KEY_UNI_BB_FIRE_THRESHOLD, UNI_PROPERTY_TYPE_U32, value);
+    uni_property_set(UNI_PROPERTY_IDX_UNI_BB_FIRE_THRESHOLD, value);
     logi("Done\n");
 }
 
 static int get_bb_fire_threshold_from_nvs(void) {
     uni_property_value_t value;
-    uni_property_value_t def;
 
-    def.u32 = BB_FIRE_THRESHOLD_DEFAULT;
-
-    value = uni_property_get(UNI_PROPERTY_KEY_UNI_BB_FIRE_THRESHOLD, UNI_PROPERTY_TYPE_U32, def);
+    value = uni_property_get(UNI_PROPERTY_IDX_UNI_BB_FIRE_THRESHOLD);
     return value.u32;
 }
 
-static int cmd_bb_move_threshold(int argc, char** argv) {
-    int nerrors = arg_parse(argc, argv, (void**)&bb_move_threshold_args);
+static int cmd_bb_move_threshold(int argc, char **argv) {
+    int nerrors = arg_parse(argc, argv, (void **) &bb_move_threshold_args);
     if (nerrors != 0) {
         arg_print_errors(stderr, bb_move_threshold_args.end, argv[0]);
 
@@ -92,8 +84,8 @@ static int cmd_bb_move_threshold(int argc, char** argv) {
     return 0;
 }
 
-static int cmd_bb_fire_threshold(int argc, char** argv) {
-    int nerrors = arg_parse(argc, argv, (void**)&bb_fire_threshold_args);
+static int cmd_bb_fire_threshold(int argc, char **argv) {
+    int nerrors = arg_parse(argc, argv, (void **) &bb_fire_threshold_args);
     if (nerrors != 0) {
         arg_print_errors(stderr, bb_fire_threshold_args.end, argv[0]);
 
@@ -120,28 +112,29 @@ void uni_balance_board_register_cmds(void) {
     bb_fire_threshold_args.end = arg_end(2);
 
     const esp_console_cmd_t bb_move_threshold = {
-        .command = "bb_move_threshold",
-        .help =
+            .command = "bb_move_threshold",
+            .help =
             "Get/Set the Balance Board 'Move Weight' threshold\n"
             "Default: 1500",  // BB_MOVE_THRESHOLD_DEFAULT
-        .hint = NULL,
-        .func = &cmd_bb_move_threshold,
-        .argtable = &bb_move_threshold_args,
+            .hint = NULL,
+            .func = &cmd_bb_move_threshold,
+            .argtable = &bb_move_threshold_args,
     };
 
     const esp_console_cmd_t bb_fire_threshold = {
-        .command = "bb_fire_threshold",
-        .help =
+            .command = "bb_fire_threshold",
+            .help =
             "Get/Set the Balance Board 'Fire Weight' threshold\n"
             "Default: 5000",  // BB_FIRE_THRESHOLD_DEFAULT
-        .hint = NULL,
-        .func = &cmd_bb_fire_threshold,
-        .argtable = &bb_fire_threshold_args,
+            .hint = NULL,
+            .func = &cmd_bb_fire_threshold,
+            .argtable = &bb_fire_threshold_args,
     };
 
     ESP_ERROR_CHECK(esp_console_cmd_register(&bb_move_threshold));
     ESP_ERROR_CHECK(esp_console_cmd_register(&bb_fire_threshold));
 }
+
 #endif  // CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
 
 void uni_balance_board_init(void) {
@@ -152,7 +145,7 @@ void uni_balance_board_init(void) {
 #endif  // CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
 }
 
-void uni_balance_board_dump(const uni_balance_board_t* bb) {
+void uni_balance_board_dump(const uni_balance_board_t *bb) {
     // Don't add "\n"
     logi("tl=%d, tr=%d, bl=%d, br=%d, temperature=%d", bb->tl, bb->tr, bb->bl, bb->br, bb->temperature);
 }

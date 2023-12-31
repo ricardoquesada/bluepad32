@@ -1,20 +1,6 @@
-/****************************************************************************
-http://retro.moe/unijoysticle2
-
-Copyright 2022 Ricardo Quesada
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-****************************************************************************/
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2022 Ricardo Quesada
+// http://retro.moe/unijoysticle2
 
 #ifndef UNI_BT_DEFINES_H
 #define UNI_BT_DEFINES_H
@@ -57,9 +43,9 @@ limitations under the License.
 // Delicate balance between inquiry + pause.
 // If the interval is too short, some devices won't get discovered (e.g: 8BitDo SN30 Pro in dinput/xinput modes)
 // If the interval is too big, some devices won't be able to re-connect (e.g: Wii Remotes)
-// These are the default values, but that be overriden from the console.
+// These are the default values, but that be overridden from the console.
 #define UNI_BT_MAX_PERIODIC_LENGTH 5  // In 1.28s unit
-#define UNI_BT_MIN_PERIODIC_LENGTH 4  // In 1.28s  unit
+#define UNI_BT_MIN_PERIODIC_LENGTH 4  // In 1.28s unit
 #define UNI_BT_INQUIRY_LENGTH 3       // In 1.28s unit
 
 // Taken from 7.1.19 Remote Name Request Command

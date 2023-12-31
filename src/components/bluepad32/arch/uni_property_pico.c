@@ -4,26 +4,33 @@
 
 #include "uni_property.h"
 
+#include <stddef.h>
+
 #include "uni_common.h"
 
 // TODO: Implement a memory cache.
 // Used only in non-ESP32 platforms.
 // Short-term solution: just return the default value.
 
-void uni_property_set(const char* key, uni_property_type_t type, uni_property_value_t value) {
-    ARG_UNUSED(key);
-    ARG_UNUSED(type);
+void uni_property_set(uni_property_idx_t idx, uni_property_value_t value) {
+    ARG_UNUSED(idx);
     ARG_UNUSED(value);
     /* Nothing */
 }
 
-uni_property_value_t uni_property_get(const char* key, uni_property_type_t type, uni_property_value_t def) {
-    ARG_UNUSED(key);
-    ARG_UNUSED(type);
+uni_property_value_t uni_property_get(uni_property_idx_t idx) {
+    uni_property_value_t ret;
+    const uni_property_t *p;
 
-    return def;
+    p = uni_property_get_property_for_index(idx);
+    if (p == NULL) {
+        ret.u8 = 0;
+        return ret;
+    }
+
+    return p->default_value;
 }
 
 void uni_property_init(void) {
-    /* Nothing */
+    uni_property_init_debug();
 }

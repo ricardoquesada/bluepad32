@@ -62,11 +62,11 @@ void uni_bt_get_local_bd_addr_safe(bd_addr_t addr);
 void uni_bt_set_gap_security_level(int gap);
 int uni_bt_get_gap_security_level(void);
 void uni_bt_set_gap_inquiry_length(int len);
-int uni_bt_get_gap_inquiry_lenght(void);
+int uni_bt_get_gap_inquiry_length(void);
 void uni_bt_set_gap_max_peridic_length(int len);
-int uni_bt_get_gap_max_periodic_lenght(void);
+int uni_bt_get_gap_max_periodic_length(void);
 void uni_bt_set_gap_min_peridic_length(int len);
-int uni_bt_get_gap_min_periodic_lenght(void);
+int uni_bt_get_gap_min_periodic_length(void);
 
 //
 //  Private functions. Don't call them

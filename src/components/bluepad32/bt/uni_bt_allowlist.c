@@ -37,20 +37,18 @@ static void update_allowlist_to_property(void) {
     }
 
     val.str = str;
-    uni_property_set(UNI_PROPERTY_KEY_ALLOWLIST_LIST, UNI_PROPERTY_TYPE_STRING, val);
+    uni_property_set(UNI_PROPERTY_IDX_ALLOWLIST_LIST, val);
 }
 
 static void update_allowlist_from_property(void) {
     // Parses the list from the property and stored it locally.
-    uni_property_value_t def;
     uni_property_value_t val;
     bd_addr_t addr;
     int offset;
     int len;
 
     // Whether it is enabled.
-    def.str = NULL;
-    val = uni_property_get(UNI_PROPERTY_KEY_ALLOWLIST_LIST, UNI_PROPERTY_TYPE_STRING, def);
+    val = uni_property_get(UNI_PROPERTY_IDX_ALLOWLIST_LIST);
 
     if (val.str == NULL)
         return;
@@ -128,17 +126,15 @@ void uni_bt_allowlist_set_enabled(bool enabled) {
         enforced = enabled;
 
         val.u8 = enforced;
-        uni_property_set(UNI_PROPERTY_KEY_ALLOWLIST_ENABLED, UNI_PROPERTY_TYPE_U8, val);
+        uni_property_set(UNI_PROPERTY_IDX_ALLOWLIST_ENABLED, val);
     }
 }
 
 void uni_bt_allowlist_init(void) {
-    uni_property_value_t def;
     uni_property_value_t val;
 
     // Whether it is enabled.
-    def.u8 = 0;
-    val = uni_property_get(UNI_PROPERTY_KEY_ALLOWLIST_ENABLED, UNI_PROPERTY_TYPE_U8, def);
+    val = uni_property_get(UNI_PROPERTY_IDX_ALLOWLIST_ENABLED);
     enforced = val.u8;
 
     // The list of allowed-list addresses.

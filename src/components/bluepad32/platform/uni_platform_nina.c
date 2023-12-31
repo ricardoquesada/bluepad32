@@ -1172,10 +1172,9 @@ static void nina_on_oob_event(uni_platform_oob_event_t event, void* data) {
     // TODO: Do something ?
 }
 
-static int32_t nina_get_property(uni_platform_property_t key) {
-    // Deprecated
-    ARG_UNUSED(key);
-    return 0;
+static const uni_property_t* nina_get_property(uni_property_idx_t idx) {
+    ARG_UNUSED(idx);
+    return NULL;
 }
 
 //
