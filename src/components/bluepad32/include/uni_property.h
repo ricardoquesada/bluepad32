@@ -5,8 +5,8 @@
 #ifndef UNI_PROPERTY_H
 #define UNI_PROPERTY_H
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 // Bluepad32-global properties
 // Keep them sorted
