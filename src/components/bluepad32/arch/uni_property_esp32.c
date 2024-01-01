@@ -14,14 +14,18 @@ static const char* STORAGE_NAMESPACE = "bp32";
 
 // Uses NVS for storage. Used in all ESP32 Bluepad32 platforms.
 
-void uni_property_set(uni_property_idx_t idx, uni_property_value_t value) {
+void uni_property_set_with_property(const uni_property_t* p, uni_property_value_t value) {
     nvs_handle_t nvs_handle;
     esp_err_t err;
     uint32_t* float_alias;
 
-    const uni_property_t* p = uni_property_get_property_for_index(idx);
     if (!p) {
-        loge("Could not find property %d\n", idx);
+        loge("Cannot set invalid property\n");
+        return;
+    }
+
+    if (p->flags & UNI_PROPERTY_FLAG_READ_ONLY) {
+        loge("Cannot set READ_ONLY property: '%s'\n", p->name);
         return;
     }
 
@@ -62,16 +66,15 @@ out:
     nvs_close(nvs_handle);
 }
 
-uni_property_value_t uni_property_get(uni_property_idx_t idx) {
+uni_property_value_t uni_property_get_with_property(const uni_property_t* p) {
     nvs_handle_t nvs_handle;
     esp_err_t err;
     uni_property_value_t ret;
     size_t str_len;
     static char str_ret[128];
 
-    const uni_property_t* p = uni_property_get_property_for_index(idx);
     if (!p) {
-        loge("Could not find property %d\n", idx);
+        loge("Cannot get invalid property\n");
         ret.u8 = 0;
         return ret;
     }
