@@ -4,26 +4,28 @@
 
 #include "uni_property.h"
 
-#include <assert.h>
+#include <stdbool.h>
 #include <stddef.h>
 
 #include "bt/uni_bt_defines.h"
 #include "platform/uni_platform.h"
 #include "sdkconfig.h"
 #include "uni_log.h"
+#include "uni_version.h"
 
 static const uni_property_t properties[] = {
-    {UNI_PROPERTY_IDX_ALLOWLIST_ENABLED, UNI_PROPERTY_NAME_ALLOWLIST_ENABLED, UNI_PROPERTY_TYPE_U8,
-     .default_value.u8 = 0},
+    {UNI_PROPERTY_IDX_ALLOWLIST_ENABLED, UNI_PROPERTY_NAME_ALLOWLIST_ENABLED, UNI_PROPERTY_TYPE_BOOL,
+     .default_value.boolean = false},
     {UNI_PROPERTY_IDX_ALLOWLIST_LIST, UNI_PROPERTY_NAME_ALLOWLIST_LIST, UNI_PROPERTY_TYPE_STRING,
      .default_value.str = NULL},
-    {UNI_PROPERTY_IDX_BLE_ENABLED, UNI_PROPERTY_NAME_BLE_ENABLED, UNI_PROPERTY_TYPE_U8,
+    {UNI_PROPERTY_IDX_BLE_ENABLED, UNI_PROPERTY_NAME_BLE_ENABLED, UNI_PROPERTY_TYPE_BOOL,
 #ifdef CONFIG_BLUEPAD32_ENABLE_BLE_BY_DEFAULT
-     .default_value.u8 = 1
+     .default_value.boolean = true
 #else
      .default_value.u8 = 0
 #endif  // CONFIG_BLUEPAD32_ENABLE_BLE_BY_DEFAULT
     },
+    {UNI_PROPERTY_IDX_BUILD, UNI_PROPERTY_NAME_BUILD, UNI_PROPERTY_TYPE_STRING, .default_value.str = UNI_BUILD},
     {UNI_PROPERTY_IDX_GAP_INQ_LEN, UNI_PROPERTY_NAME_GAP_INQ_LEN, UNI_PROPERTY_TYPE_U8,
      .default_value.u8 = UNI_BT_INQUIRY_LENGTH},
     // It seems that with gap_security_level(0) all controllers work except Nintendo Switch Pro controller.
@@ -39,9 +41,10 @@ static const uni_property_t properties[] = {
     {UNI_PROPERTY_IDX_GAP_MIN_PERIODIC_LEN, UNI_PROPERTY_NAME_GAP_MIN_PERIODIC_LEN, UNI_PROPERTY_TYPE_U8,
      .default_value.u8 = UNI_BT_MIN_PERIODIC_LENGTH},
     {UNI_PROPERTY_IDX_MOUSE_SCALE, UNI_PROPERTY_NAME_MOUSE_SCALE, UNI_PROPERTY_TYPE_FLOAT, .default_value.f32 = 1.0f},
-    {UNI_PROPERTY_IDX_VIRTUAL_DEVICE_ENABLED, UNI_PROPERTY_NAME_VIRTUAL_DEVICE_ENABLED, UNI_PROPERTY_TYPE_U8,
+    {UNI_PROPERTY_IDX_VERSION, UNI_PROPERTY_NAME_VERSION, UNI_PROPERTY_TYPE_STRING, .default_value.str = UNI_VERSION},
+    {UNI_PROPERTY_IDX_VIRTUAL_DEVICE_ENABLED, UNI_PROPERTY_NAME_VIRTUAL_DEVICE_ENABLED, UNI_PROPERTY_TYPE_BOOL,
 #ifdef CONFIG_BLUEPAD32_ENABLE_VIRTUAL_DEVICE_BY_DEFAULT
-     .default_value.u8 = 1
+     .default_value.boolean = true
 #else
      .default_value.u8 = 0
 #endif  // CONFIG_BLUEPAD32_ENABLE_VIRTUAL_DEVICE_BY_DEFAULT
@@ -69,6 +72,9 @@ void uni_property_list_all(void) {
             break;
         uni_property_value_t val = uni_property_get(i);
         switch (p->type) {
+            case UNI_PROPERTY_TYPE_BOOL:
+                logi("%s = %s\n", p->name, val.boolean ? "true" : "false");
+                break;
             case UNI_PROPERTY_TYPE_U8:
                 logi("%s = %d\n", p->name, val.u8);
                 break;

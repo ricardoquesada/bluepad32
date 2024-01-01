@@ -32,6 +32,7 @@ void uni_property_set(uni_property_idx_t idx, uni_property_value_t value) {
     }
 
     switch (p->type) {
+        case UNI_PROPERTY_TYPE_BOOL:
         case UNI_PROPERTY_TYPE_U8:
             err = nvs_set_u8(nvs_handle, p->name, value.u8);
             break;
@@ -83,6 +84,7 @@ uni_property_value_t uni_property_get(uni_property_idx_t idx) {
     }
 
     switch (p->type) {
+        case UNI_PROPERTY_TYPE_BOOL:
         case UNI_PROPERTY_TYPE_U8:
             err = nvs_get_u8(nvs_handle, p->name, &ret.u8);
             break;

@@ -6,28 +6,33 @@
 #define UNI_PROPERTY_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 // Bluepad32-global properties
 // Keep them sorted
 #define UNI_PROPERTY_NAME_ALLOWLIST_ENABLED "bp.bt.allow_en"
 #define UNI_PROPERTY_NAME_ALLOWLIST_LIST "bp.bt.allowlist"
 #define UNI_PROPERTY_NAME_BLE_ENABLED "bp.ble.enabled"
+#define UNI_PROPERTY_NAME_BUILD "bp.build"
 #define UNI_PROPERTY_NAME_GAP_INQ_LEN "bp.gap.inq_len"
 #define UNI_PROPERTY_NAME_GAP_LEVEL "bp.gap.level"
 #define UNI_PROPERTY_NAME_GAP_MAX_PERIODIC_LEN "bp.gap.max_len"
 #define UNI_PROPERTY_NAME_GAP_MIN_PERIODIC_LEN "bp.gap.min_len"
 #define UNI_PROPERTY_NAME_MOUSE_SCALE "bp.mouse.scale"
+#define UNI_PROPERTY_NAME_VERSION "bp.version"
 #define UNI_PROPERTY_NAME_VIRTUAL_DEVICE_ENABLED "bp.virt_dev_en"
 
 typedef enum {
     UNI_PROPERTY_IDX_ALLOWLIST_ENABLED,
     UNI_PROPERTY_IDX_ALLOWLIST_LIST,
     UNI_PROPERTY_IDX_BLE_ENABLED,
+    UNI_PROPERTY_IDX_BUILD,
     UNI_PROPERTY_IDX_GAP_INQ_LEN,
     UNI_PROPERTY_IDX_GAP_LEVEL,
     UNI_PROPERTY_IDX_GAP_MAX_PERIODIC_LEN,
     UNI_PROPERTY_IDX_GAP_MIN_PERIODIC_LEN,
     UNI_PROPERTY_IDX_MOUSE_SCALE,
+    UNI_PROPERTY_IDX_VERSION,
     UNI_PROPERTY_IDX_VIRTUAL_DEVICE_ENABLED,
     UNI_PROPERTY_IDX_LAST,
 
@@ -49,6 +54,7 @@ typedef enum {
 } uni_property_idx_t;
 
 typedef enum {
+    UNI_PROPERTY_TYPE_BOOL,
     UNI_PROPERTY_TYPE_U8,
     UNI_PROPERTY_TYPE_U32,
     UNI_PROPERTY_TYPE_FLOAT,
@@ -56,6 +62,7 @@ typedef enum {
 } uni_property_type_t;
 
 typedef union {
+    bool boolean;
     uint8_t u8;
     uint32_t u32;
     float f32;

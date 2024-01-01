@@ -113,7 +113,7 @@ typedef enum {
     // Unknown model
     BOARD_MODEL_UNK,
 
-    // Unijosyticle 2: Through hole version
+    // Unijosyticle 2: Through-hole version
     BOARD_MODEL_UNIJOYSTICLE2,
 
     // Unijoysticle 2 plus: SMT version
@@ -157,66 +157,39 @@ struct push_button_state {
 // --- Function declaration
 
 static board_model_t get_uni_model_from_pins();
-
 static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat);
-
 static void process_joystick(uni_hid_device_t* d, uni_gamepad_seat_t seat, const uni_joystick_t* joy);
-
 static void process_mouse(uni_hid_device_t* d,
                           uni_gamepad_seat_t seat,
                           int32_t delta_x,
                           int32_t delta_y,
                           uint16_t buttons);
-
 static void process_gamepad(uni_hid_device_t* d, uni_gamepad_t* gp);
-
 static void process_balance_board(uni_hid_device_t* d, uni_balance_board_t* bb);
-
 static void process_keyboard(uni_hid_device_t* d, uni_keyboard_t* kb);
-
 static void joy_update_port(const uni_joystick_t* joy, const gpio_num_t* gpios);
-
 static void init_quadrature_mouse(void);
-
 static int get_mouse_emulation_from_nvs(void);
-
 // Interrupt handlers
 static void handle_event_button(int button_idx);
-
 // GPIO Interrupt handlers
 static void gpio_isr_handler_button(void* arg);
-
 _Noreturn static void pushbutton_event_task(void* arg);
-
 _Noreturn static void auto_fire_task(void* arg);
-
 static void maybe_enable_mouse_timers(void);
-
 // Commands or Event related
 static int cmd_swap_ports(int argc, char** argv);
-
 static int cmd_gamepad_mode(int argc, char** argv);
-
 static int cmd_autofire_cps(int argc, char** argv);
-
 static int cmd_mouse_emulation(int argc, char** argv);
-
 static int cmd_version(int argc, char** argv);
-
 static void swap_ports(void);
-
 static void try_swap_ports(uni_hid_device_t* d);
-
 static void set_next_gamepad_mode(uni_hid_device_t* d);
-
 static void set_gamepad_mode(uni_hid_device_t* d, uni_platform_unijoysticle_gamepad_mode_t mode);
-
 static void get_gamepad_mode(uni_hid_device_t* d);
-
 static void version(void);
-
 static void blink_bt_led(int times);
-
 static void maybe_enable_bluetooth(bool enabled);
 
 // --- Consts (ROM)
