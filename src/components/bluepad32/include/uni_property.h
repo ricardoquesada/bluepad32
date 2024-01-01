@@ -13,7 +13,6 @@
 #define UNI_PROPERTY_NAME_ALLOWLIST_ENABLED "bp.bt.allow_en"
 #define UNI_PROPERTY_NAME_ALLOWLIST_LIST "bp.bt.allowlist"
 #define UNI_PROPERTY_NAME_BLE_ENABLED "bp.ble.enabled"
-#define UNI_PROPERTY_NAME_BUILD "bp.build"
 #define UNI_PROPERTY_NAME_GAP_INQ_LEN "bp.gap.inq_len"
 #define UNI_PROPERTY_NAME_GAP_LEVEL "bp.gap.level"
 #define UNI_PROPERTY_NAME_GAP_MAX_PERIODIC_LEN "bp.gap.max_len"
@@ -26,7 +25,6 @@ typedef enum {
     UNI_PROPERTY_IDX_ALLOWLIST_ENABLED,
     UNI_PROPERTY_IDX_ALLOWLIST_LIST,
     UNI_PROPERTY_IDX_BLE_ENABLED,
-    UNI_PROPERTY_IDX_BUILD,
     UNI_PROPERTY_IDX_GAP_INQ_LEN,
     UNI_PROPERTY_IDX_GAP_LEVEL,
     UNI_PROPERTY_IDX_GAP_MAX_PERIODIC_LEN,
@@ -83,9 +81,7 @@ void uni_property_init_debug(void);
 // Interface
 // Each arch needs to implement these functions:
 void uni_property_init(void);
-
 void uni_property_set(uni_property_idx_t idx, uni_property_value_t value);
-
 uni_property_value_t uni_property_get(uni_property_idx_t idx);
 
 #endif  // UNI_PROPERTY_H

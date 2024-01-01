@@ -1,20 +1,6 @@
-/****************************************************************************
-http://retro.moe/unijoysticle2
-
-Copyright 2019 Ricardo Quesada
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-****************************************************************************/
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2019 Ricardo Quesada
+// http://retro.moe/unijoysticle2
 
 #ifndef UNI_HID_PARSER_H
 #define UNI_HID_PARSER_H
@@ -24,7 +10,7 @@ limitations under the License.
 // Forward declarations
 struct uni_hid_device_s;
 
-// btstack bug:
+// BTstack bug:
 // see: https://github.com/bluekitchen/btstack/issues/187
 struct hid_globals_s {
     int32_t logical_minimum;
@@ -57,7 +43,7 @@ typedef void (*report_device_dump_t)(struct uni_hid_device_s* d);
 
 // Parsers should implement these optional functions:
 typedef struct {
-    // Called only once, when the type of gamepad is known.
+    // Called only once when the type of gamepad is known.
     report_setup_fn_t setup;
     // Called before starting a new report
     report_init_report_fn_t init_report;
@@ -69,7 +55,7 @@ typedef struct {
     report_parse_feature_report_fn_t parse_feature_report;
     // If implemented, turns on/off the different gamepad LEDs
     report_set_player_leds_fn_t set_player_leds;
-    // If implemented, changes the lightbar color (e.g: in DS4 and DualSense)
+    // If implemented, changes the lightbar color (e.g.: in DS4 and DualSense)
     report_set_lightbar_color_fn_t set_lightbar_color;
     // If implemented, activates rumble in the gamepad
     report_set_rumble_fn_t set_rumble;
