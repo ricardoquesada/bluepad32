@@ -25,7 +25,6 @@ static const uni_property_t properties[] = {
      .default_value.u8 = 0
 #endif  // CONFIG_BLUEPAD32_ENABLE_BLE_BY_DEFAULT
     },
-    {UNI_PROPERTY_IDX_BUILD, UNI_PROPERTY_NAME_BUILD, UNI_PROPERTY_TYPE_STRING, .default_value.str = UNI_BUILD},
     {UNI_PROPERTY_IDX_GAP_INQ_LEN, UNI_PROPERTY_NAME_GAP_INQ_LEN, UNI_PROPERTY_TYPE_U8,
      .default_value.u8 = UNI_BT_INQUIRY_LENGTH},
     // It seems that with gap_security_level(0) all controllers work except Nintendo Switch Pro controller.

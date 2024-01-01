@@ -1,20 +1,6 @@
-/****************************************************************************
-http://retro.moe/unijoysticle2
-
-Copyright 2019 Ricardo Quesada
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-****************************************************************************/
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2019 Ricardo Quesada
+// http://retro.moe/unijoysticle2
 
 #ifndef UNI_PLATFORM_UNIJOYSTICLE_H
 #define UNI_PLATFORM_UNIJOYSTICLE_H
@@ -141,17 +127,17 @@ struct uni_platform_unijoysticle_variant {
     const struct uni_platform_unijoysticle_gpio_config* gpio_config;
 
     // Which features are supported.
-    // E.g: Quadrature Mouse
+    // E.g.: Quadrature Mouse
     uint32_t flags;
 
     // Which "modes" are supported.
-    // E.g: Twin stick, normal, mouse.
+    // E.g.: Twin stick, normal, mouse.
     uint32_t supported_modes;
 
     // If any, which mouse emulation should be used by default
     int default_mouse_emulation;
 
-    // Each platforms defines the preferred seat (AKA port)
+    // Each platform defines the preferred seat (AKA port)
     // for the device type. If the seat is already used, it will use
     // the available one.
     uni_gamepad_seat_t preferred_seat_for_joystick;
@@ -172,7 +158,7 @@ struct uni_platform_unijoysticle_variant {
     void (*set_gpio_level_for_pot)(gpio_num_t gpio, bool value);
 
     // Process gamepad misc buttons
-    // Returns "True" if the Misc buttons where processed. Otherwise "False"
+    // Returns "True" if the Misc buttons where processed. Otherwise, "False"
     bool (*process_gamepad_misc_buttons)(uni_hid_device_t* d, uni_gamepad_seat_t seat, uint8_t misc_buttons);
 };
 
@@ -180,11 +166,8 @@ struct uni_platform* uni_platform_unijoysticle_create(void);
 
 // Can be called from any thread. The command will get executed in the btthread.
 void uni_platform_unijoysticle_run_cmd(uni_platform_unijoysticle_cmd_t cmd);
-
 void uni_platform_unijoysticle_on_push_button_mode_pressed(int button_idx);
-
 void uni_platform_unijoysticle_on_push_button_swap_pressed(int button_idx);
-
 uni_platform_unijoysticle_instance_t* uni_platform_unijoysticle_get_instance(const uni_hid_device_t* d);
 
 #endif  // UNI_PLATFORM_UNIJOYSTICLE_H

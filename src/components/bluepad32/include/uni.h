@@ -9,8 +9,8 @@
 extern "C" {
 #endif
 
-// A include file that includes all files.
-// Useful for 3rd party developers that only cares about including just one file.
+// An include file that includes all files.
+// Useful for 3rd party developers that only care about including just one file.
 
 #include "sdkconfig.h"
 

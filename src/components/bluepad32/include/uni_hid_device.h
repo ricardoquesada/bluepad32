@@ -1,20 +1,6 @@
-/****************************************************************************
-http://retro.moe/unijoysticle2
-
-Copyright 2019 Ricardo Quesada
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-****************************************************************************/
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2019 Ricardo Quesada
+// http://retro.moe/unijoysticle2
 
 #ifndef UNI_HID_DEVICE_H
 #define UNI_HID_DEVICE_H
@@ -42,7 +28,7 @@ typedef enum {
 } uni_sdp_query_type_t;
 
 struct uni_hid_device_s {
-    uint32_t cod;  // class of device
+    uint32_t cod;  // Class of Device.
     uint16_t vendor_id;
     uint16_t product_id;
     char name[HID_MAX_NAME_LEN];
@@ -63,7 +49,7 @@ struct uni_hid_device_s {
     // And Nintendo Switch Pro gamepad requires to do the SDP query after l2cap
     // connect, so we use this variable to determine when to do the SDP query.
     // TODO: Actually this is not entirely true since it works Ok when using
-    // Unijoysticle + btstack + libusb in Linux. The correct thing to do is to
+    // Unijoysticle + BTstack + libusb in Linux. The correct thing to do is to
     // debug the Linux connection and see what packets are sent before the
     // connection.
     uni_sdp_query_type_t sdp_query_type;
@@ -81,9 +67,9 @@ struct uni_hid_device_s {
     // Functions used to parse the usage page/usage.
     uni_report_parser_t report_parser;
 
-    // Buttons that needs to be released before triggering the action again.
+    // Buttons that need to be released before triggering the action again.
     uint32_t misc_button_wait_release;
-    // Buttons that needs to wait for a delay before triggering the action again.
+    // Buttons that need to wait for a delay before triggering the action again.
     uint32_t misc_button_wait_delay;
     // Needed for Nintendo Switch family of controllers.
     btstack_timer_source_t misc_button_delay_timer;
@@ -93,7 +79,7 @@ struct uni_hid_device_s {
     uni_circular_buffer_t outgoing_buffer;
 
     // Bytes reserved to gamepad's parser instances.
-    // E.g: The Wii driver uses it for the state machine.
+    // E.g.: The Wii driver uses it for the state machine.
     uint8_t parser_data[HID_DEVICE_MAX_PARSER_DATA];
 
     // Bytes reserved to different platforms.
@@ -120,12 +106,12 @@ void uni_hid_device_setup(void);
 
 uni_hid_device_t* uni_hid_device_create(bd_addr_t address);
 
-// Used for controllers that implement two input devices like DualShock4 which is a gamepad and a mouse
-// at the same time. The mouse will be the "vritual" device in this case.
+// Used for controllers that implement two input devices like DualShock4, which is a gamepad and a mouse
+// at the same time. The mouse will be the "virtual" device in this case.
 uni_hid_device_t* uni_hid_device_create_virtual(uni_hid_device_t* parent);
 
 // Don't add any other get_instance_for_XXX function.
-// Insteaad use: get_instance_with_predicate()
+// Instead use: get_instance_with_predicate()
 uni_hid_device_t* uni_hid_device_get_instance_for_address(bd_addr_t addr);
 uni_hid_device_t* uni_hid_device_get_instance_for_cid(uint16_t cid);
 // BLE only

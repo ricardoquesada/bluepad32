@@ -9,12 +9,4 @@
 
 #define UNI_VERSION "3.99.0"
 
-#ifndef UNI_BUILD
-#ifdef PROJECT_VER
-#define UNI_BUILD PROJECT_VER
-#else
-#define UNI_BUILD "<unk>"
-#endif  // PROJECT_VER
-#endif  // UNI_BUILD
-
 #endif  // UNI_VERSION_H
