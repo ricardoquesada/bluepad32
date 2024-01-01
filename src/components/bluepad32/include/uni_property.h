@@ -8,6 +8,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "uni_common.h"
+
 // Bluepad32-global properties
 // Keep them sorted
 #define UNI_PROPERTY_NAME_ALLOWLIST_ENABLED "bp.bt.allow_en"
@@ -67,21 +69,27 @@ typedef union {
     char* str;
 } uni_property_value_t;
 
+typedef enum {
+    UNI_PROPERTY_FLAG_READ_ONLY = BIT(0),
+} uni_property_flag_t;
+
 typedef struct {
     uni_property_idx_t idx;  // Used for debugging: idx must match order
     const char* name;
     uni_property_type_t type;
     uni_property_value_t default_value;
+    uni_property_flag_t flags;
 } uni_property_t;
 
-const uni_property_t* uni_property_get_property_for_index(uni_property_idx_t idx);
+void uni_property_set(uni_property_idx_t idx, uni_property_value_t value);
+uni_property_value_t uni_property_get(uni_property_idx_t idx);
 void uni_property_list_all(void);
 void uni_property_init_debug(void);
 
 // Interface
 // Each arch needs to implement these functions:
 void uni_property_init(void);
-void uni_property_set(uni_property_idx_t idx, uni_property_value_t value);
-uni_property_value_t uni_property_get(uni_property_idx_t idx);
+void uni_property_set_with_property(const uni_property_t* p, uni_property_value_t value);
+uni_property_value_t uni_property_get_with_property(const uni_property_t* p);
 
 #endif  // UNI_PROPERTY_H

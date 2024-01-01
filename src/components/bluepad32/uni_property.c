@@ -40,7 +40,8 @@ static const uni_property_t properties[] = {
     {UNI_PROPERTY_IDX_GAP_MIN_PERIODIC_LEN, UNI_PROPERTY_NAME_GAP_MIN_PERIODIC_LEN, UNI_PROPERTY_TYPE_U8,
      .default_value.u8 = UNI_BT_MIN_PERIODIC_LENGTH},
     {UNI_PROPERTY_IDX_MOUSE_SCALE, UNI_PROPERTY_NAME_MOUSE_SCALE, UNI_PROPERTY_TYPE_FLOAT, .default_value.f32 = 1.0f},
-    {UNI_PROPERTY_IDX_VERSION, UNI_PROPERTY_NAME_VERSION, UNI_PROPERTY_TYPE_STRING, .default_value.str = UNI_VERSION},
+    {UNI_PROPERTY_IDX_VERSION, UNI_PROPERTY_NAME_VERSION, UNI_PROPERTY_TYPE_STRING, .default_value.str = UNI_VERSION,
+     .flags = UNI_PROPERTY_FLAG_READ_ONLY},
     {UNI_PROPERTY_IDX_VIRTUAL_DEVICE_ENABLED, UNI_PROPERTY_NAME_VIRTUAL_DEVICE_ENABLED, UNI_PROPERTY_TYPE_BOOL,
 #ifdef CONFIG_BLUEPAD32_ENABLE_VIRTUAL_DEVICE_BY_DEFAULT
      .default_value.boolean = true
@@ -52,6 +53,20 @@ static const uni_property_t properties[] = {
     // TODO: Platform specific. Should be defined in its own file.
 };
 _Static_assert(ARRAY_SIZE(properties) == UNI_PROPERTY_IDX_LAST, "Invalid properties size");
+
+// Helpers
+static const uni_property_t* get_property(uni_property_idx_t idx) {
+    if (idx >= UNI_PROPERTY_IDX_LAST) {
+        if (uni_get_platform()->get_property)
+            return uni_get_platform()->get_property(idx);
+        // Invalid
+        return NULL;
+    }
+
+    return &properties[idx];
+}
+
+// Public functions
 
 void uni_property_init_debug(void) {
     for (int i = 0; i < ARRAY_SIZE(properties); i++) {
@@ -65,11 +80,11 @@ void uni_property_init_debug(void) {
 void uni_property_list_all(void) {
     logi("properties:\n");
     for (int i = 0; i < UNI_PROPERTY_IDX_COUNT; i++) {
-        const uni_property_t* p = uni_property_get_property_for_index(i);
+        const uni_property_t* p = get_property(i);
         if (!p)
             // Means the property is not implemented, safe to break here.
             break;
-        uni_property_value_t val = uni_property_get(i);
+        uni_property_value_t val = uni_property_get_with_property(p);
         switch (p->type) {
             case UNI_PROPERTY_TYPE_BOOL:
                 logi("%s = %s\n", p->name, val.boolean ? "true" : "false");
@@ -97,13 +112,22 @@ void uni_property_list_all(void) {
     }
 }
 
-const uni_property_t* uni_property_get_property_for_index(uni_property_idx_t idx) {
-    if (idx >= UNI_PROPERTY_IDX_LAST) {
-        if (uni_get_platform()->get_property)
-            return uni_get_platform()->get_property(idx);
-        // Invalid
-        return NULL;
+void uni_property_set(uni_property_idx_t idx, uni_property_value_t value) {
+    const uni_property_t* p = get_property(idx);
+    if (!p) {
+        loge("Could not find property %d\n", idx);
+        return;
     }
+    uni_property_set_with_property(p, value);
+}
 
-    return &properties[idx];
+uni_property_value_t uni_property_get(uni_property_idx_t idx) {
+    const uni_property_t* p = get_property(idx);
+    if (!p) {
+        uni_property_value_t ret;
+        loge("Could not find property %d\n", idx);
+        ret.u8 = 0;
+        return ret;
+    }
+    return uni_property_get_with_property(p);
 }
