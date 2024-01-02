@@ -52,9 +52,17 @@ static int att_write_callback(hci_con_handle_t con_handle,
 
     switch (att_handle) {
         case ATT_CHARACTERISTIC_4627C4A4_AC01_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
+            // Commands
             logi("Value handle: %04x, mode=%#x, offset=%d, buffer=%p, buffer_size=%d\n", att_handle, transaction_mode,
                  offset, buffer, buffer_size);
             break;
+        case ATT_CHARACTERISTIC_4627C4A4_AC02_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
+            // Properties
+            logi("Value handle: %04x, mode=%#x, offset=%d, buffer=%p, buffer_size=%d\n", att_handle, transaction_mode,
+                 offset, buffer, buffer_size);
+            break;
+        case ATT_CHARACTERISTIC_4627C4A4_AC03_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
+            // Testing
         default:
             logi("Default Write to 0x%04x, len %u\n", att_handle, buffer_size);
             break;
@@ -72,6 +80,13 @@ static uint16_t att_read_callback(hci_con_handle_t connection_handle,
     logi("att_read_callback handle: %#x\n", att_handle);
     switch (att_handle) {
         case ATT_CHARACTERISTIC_4627C4A4_AC01_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
+            // Commands
+            break;
+        case ATT_CHARACTERISTIC_4627C4A4_AC02_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
+            // Properties
+            break;
+        case ATT_CHARACTERISTIC_4627C4A4_AC03_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
+            // Testing
             break;
         case ATT_CHARACTERISTIC_ORG_BLUETOOTH_CHARACTERISTIC_BATTERY_LEVEL_01_VALUE_HANDLE:
             break;

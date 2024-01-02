@@ -6,8 +6,17 @@ CHARACTERISTIC, GATT_DATABASE_HASH, READ,
 
 // Bluepad32 Service
 PRIMARY_SERVICE, 4627C4A4-AC00-46B9-B688-AFC5C1BF7F63
-// Current
+
+// Used for commands, like:
+// delete stored bt keys, reset device, list connected devices, set/read GPIOs, etc.
 CHARACTERISTIC, 4627C4A4-AC01-46B9-B688-AFC5C1BF7F63, READ | WRITE | DYNAMIC
+
+// Used for properties: set property, read property, read all properties, etc.
+// In theory "set property" and "read property" could be a command (merged with the previous characteristic).
+CHARACTERISTIC, 4627C4A4-AC02-46B9-B688-AFC5C1BF7F63, READ | WRITE | DYNAMIC
+
+// Used for testing: TBD
+CHARACTERISTIC, 4627C4A4-AC03-46B9-B688-AFC5C1BF7F63, READ | WRITE | DYNAMIC
 
 // add Battery Service
 #import <battery_service.gatt>
