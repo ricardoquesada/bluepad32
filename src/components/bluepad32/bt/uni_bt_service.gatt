@@ -7,22 +7,39 @@ CHARACTERISTIC, GATT_DATABASE_HASH, READ,
 // Bluepad32 Service
 PRIMARY_SERVICE, 4627C4A4-AC00-46B9-B688-AFC5C1BF7F63
 
-// Used for commands, like:
-// delete stored bt keys, reset device, list connected devices, set/read GPIOs, etc.
-CHARACTERISTIC, 4627C4A4-AC01-46B9-B688-AFC5C1BF7F63, READ | WRITE | DYNAMIC
+// Bluepad32 version
+CHARACTERISTIC, 4627C4A4-AC01-46B9-B688-AFC5C1BF7F63, READ | DYNAMIC
 
-// Used for properties: set property, read property, read all properties, etc.
-// In theory "set property" and "read property" could be a command (merged with the previous characteristic).
+// Whether to enable BLE connections
 CHARACTERISTIC, 4627C4A4-AC02-46B9-B688-AFC5C1BF7F63, READ | WRITE | DYNAMIC
 
-// Used for testing: TBD
+// Whether to enable Virtual Devices
 CHARACTERISTIC, 4627C4A4-AC03-46B9-B688-AFC5C1BF7F63, READ | WRITE | DYNAMIC
+
+// Mappings: Nintendo or Xbox: A,B,X,Y vs B,A,Y,X
+CHARACTERISTIC, 4627C4A4-AC04-46B9-B688-AFC5C1BF7F63, READ | WRITE | DYNAMIC
+
+// Whether to enable Allowlist in connections
+CHARACTERISTIC, 4627C4A4-AC05-46B9-B688-AFC5C1BF7F63, READ | WRITE | DYNAMIC
+
+// List of addresses in the allowlist, separated by ","
+CHARACTERISTIC, 4627C4A4-AC06-46B9-B688-AFC5C1BF7F63, READ | WRITE | DYNAMIC
+
+// List of connected devices, separated by ","
+CHARACTERISTIC, 4627C4A4-AC07-46B9-B688-AFC5C1BF7F63, READ | DYNAMIC
+
+// Disconnect a device
+CHARACTERISTIC, 4627C4A4-AC08-46B9-B688-AFC5C1BF7F63, WRITE | DYNAMIC
+
+// Delete stored Bluetooth bond keys
+CHARACTERISTIC, 4627C4A4-AC09-46B9-B688-AFC5C1BF7F63, WRITE | DYNAMIC
+
+// Reset device
+CHARACTERISTIC, 4627C4A4-AC0A-46B9-B688-AFC5C1BF7F63, WRITE | DYNAMIC
+
 
 // add Battery Service
 #import <battery_service.gatt>
 
 // add Device ID Service
 #import <device_information_service.gatt>
-
-// add HID Service
-// #import <hids.gatt>
