@@ -6,6 +6,8 @@
 
 #include <btstack.h>
 
+#include "bt/uni_bt.h"
+#include "bt/uni_bt_le.h"
 #include "bt/uni_bt_service.gatt.h"
 #include "uni_common.h"
 #include "uni_log.h"
@@ -52,18 +54,22 @@ static int att_write_callback(hci_con_handle_t con_handle,
     ARG_UNUSED(offset);
 
     switch (att_handle) {
-        case ATT_CHARACTERISTIC_4627C4A4_AC01_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
-            // Commands
-            logi("Value handle: %04x, mode=%#x, offset=%d, buffer=%p, buffer_size=%d\n", att_handle, transaction_mode,
-                 offset, buffer, buffer_size);
-            break;
-        case ATT_CHARACTERISTIC_4627C4A4_AC02_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
-            // Properties
-            logi("Value handle: %04x, mode=%#x, offset=%d, buffer=%p, buffer_size=%d\n", att_handle, transaction_mode,
-                 offset, buffer, buffer_size);
-            break;
-        case ATT_CHARACTERISTIC_4627C4A4_AC03_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
-            // Testing
+        case ATT_CHARACTERISTIC_4627C4A4_AC03_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
+            // Whether to enable BLE connections
+            if (buffer_size != 1)
+                return 0;
+            const bool enabled = buffer[0];
+            uni_bt_le_set_enabled(enabled);
+            return 1;
+        }
+        case ATT_CHARACTERISTIC_4627C4A4_AC04_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
+            // Scan for new connections
+            if (buffer_size != 1)
+                return 0;
+            const bool enabled = buffer[0];
+            uni_bt_enable_new_connections_unsafe(enabled);
+            return 1;
+        }
         default:
             logi("Default Write to 0x%04x, len %u\n", att_handle, buffer_size);
             break;
@@ -78,19 +84,27 @@ static uint16_t att_read_callback(hci_con_handle_t connection_handle,
                                   uint16_t buffer_size) {
     ARG_UNUSED(connection_handle);
 
-    logi("att_read_callback handle: %#x\n", att_handle);
     switch (att_handle) {
         case ATT_CHARACTERISTIC_4627C4A4_AC01_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
             // version
             return att_read_callback_handle_blob((const uint8_t*)uni_version, (uint16_t)strlen(uni_version), offset,
                                                  buffer, buffer_size);
             break;
-        case ATT_CHARACTERISTIC_4627C4A4_AC02_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
-            break;
-        case ATT_CHARACTERISTIC_4627C4A4_AC03_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
-            break;
-        case ATT_CHARACTERISTIC_4627C4A4_AC04_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
-            break;
+        case ATT_CHARACTERISTIC_4627C4A4_AC02_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
+            // Max supported connections
+            const uint8_t max = CONFIG_BLUEPAD32_MAX_DEVICES;
+            return att_read_callback_handle_blob(&max, (uint16_t)1, offset, buffer, buffer_size);
+        }
+        case ATT_CHARACTERISTIC_4627C4A4_AC03_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
+            // Whether to enable BLE connections
+            const uint8_t enabled = uni_bt_le_is_enabled();
+            return att_read_callback_handle_blob(&enabled, (uint16_t)1, offset, buffer, buffer_size);
+        }
+        case ATT_CHARACTERISTIC_4627C4A4_AC04_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
+            // Scan for new connections
+            const uint8_t scanning = uni_bt_enable_new_connections_is_enabled();
+            return att_read_callback_handle_blob(&scanning, (uint16_t)1, offset, buffer, buffer_size);
+        }
         case ATT_CHARACTERISTIC_4627C4A4_AC05_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
             break;
         case ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:

@@ -256,6 +256,10 @@ void uni_bt_enable_new_connections_unsafe(bool enabled) {
     enable_new_connections(enabled);
 }
 
+bool uni_bt_enable_new_connections_is_enabled(void) {
+    return bt_scanning_enabled;
+}
+
 void uni_bt_dump_devices_safe(void) {
     cmd_callback_registration.callback = &cmd_callback;
     cmd_callback_registration.context = (void*)CMD_DUMP_DEVICES;
