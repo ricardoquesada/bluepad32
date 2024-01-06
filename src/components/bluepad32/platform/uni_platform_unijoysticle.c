@@ -925,7 +925,7 @@ static board_model_t get_uni_model_from_pins(void) {
     // Uni 2 A500:  Hi       Hi        Lo       Lo        Lo
     // Uni 2 800XL: Hi       Hi        Lo       Hi        Lo
     // Uni 2 C64:   Low      Hi        Lo
-    // Single port: Hi       Low       Hi
+    // Single port: Hi       Low       Hi       Lo        Lo
 
     gpio_set_direction(GPIO_NUM_4, GPIO_MODE_INPUT);
     gpio_set_pull_mode(GPIO_NUM_4, GPIO_PULLUP_ONLY);
@@ -937,14 +937,16 @@ static board_model_t get_uni_model_from_pins(void) {
     gpio_set_pull_mode(GPIO_NUM_15, GPIO_PULLUP_ONLY);
 
     // GPIO 36-39 are input only and don't have internal Pull ups/downs.
+    gpio_set_direction(GPIO_NUM_36, GPIO_MODE_INPUT);
     gpio_set_direction(GPIO_NUM_39, GPIO_MODE_INPUT);
 
     int gpio_4 = gpio_get_level(GPIO_NUM_4);
     int gpio_5 = gpio_get_level(GPIO_NUM_5);
     int gpio_15 = gpio_get_level(GPIO_NUM_15);
+    int gpio_36 = gpio_get_level(GPIO_NUM_36);
     int gpio_39 = gpio_get_level(GPIO_NUM_39);
 
-    logi("Unijoysticle: Board ID values: %d,%d,%d\n", gpio_4, gpio_5, gpio_15);
+    logi("Unijoysticle: Board ID values: %d,%d,%d,%d,%d\n", gpio_4, gpio_5, gpio_15, gpio_36, gpio_39);
     if (gpio_5 == 0)
         model = BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT;
     else if (gpio_4 == 1 && gpio_15 == 1)
@@ -958,7 +960,7 @@ static board_model_t get_uni_model_from_pins(void) {
     else if (gpio_4 == 0 && gpio_15 == 0)
         model = BOARD_MODEL_UNIJOYSTICLE2_C64;
     else {
-        logi("Unijoysticle: Invalid Board ID value: %d,%d,%d\n", gpio_4, gpio_5, gpio_15);
+        logi("Unijoysticle: Invalid Board ID value: %d,%d,%d,%d,%d\n", gpio_4, gpio_5, gpio_15, gpio_36, gpio_39);
         model = BOARD_MODEL_UNIJOYSTICLE2;
     }
 
@@ -967,6 +969,7 @@ static board_model_t get_uni_model_from_pins(void) {
     gpio_set_pull_mode(GPIO_NUM_5, GPIO_FLOATING);
     gpio_set_pull_mode(GPIO_NUM_15, GPIO_FLOATING);
     gpio_set_pull_mode(GPIO_NUM_36, GPIO_FLOATING);
+    gpio_set_pull_mode(GPIO_NUM_39, GPIO_FLOATING);
     return model;
 #endif  // !PLAT_UNIJOYSTICLE_SINGLE_PORT
 }
