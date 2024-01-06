@@ -1066,7 +1066,8 @@ static void process_gamepad(uni_hid_device_t* d, uni_gamepad_t* gp) {
                 d->controller_subtype == CONTROLLER_SUBTYPE_WIIMOTE_ACCEL)
                 uni_joy_to_single_from_wii_accel(gp, &joy);
             else
-                uni_joy_to_single_joy_from_gamepad(gp, &joy, g_variant->flags & UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_TWO_BUTTONS);
+                uni_joy_to_single_joy_from_gamepad(
+                    gp, &joy, g_variant->flags & UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_TWO_BUTTONS);
             process_joystick(d, ins->seat, &joy);
             break;
         case UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK:
