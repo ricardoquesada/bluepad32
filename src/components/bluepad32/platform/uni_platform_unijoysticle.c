@@ -38,6 +38,7 @@
 #include "platform/uni_platform_unijoysticle_800xl.h"
 #include "platform/uni_platform_unijoysticle_a500.h"
 #include "platform/uni_platform_unijoysticle_c64.h"
+#include "platform/uni_platform_unijoysticle_msx.h"
 #include "platform/uni_platform_unijoysticle_singleport.h"
 #include "uni_common.h"
 #include "uni_config.h"
@@ -124,6 +125,9 @@ typedef enum {
 
     // Unijosyticle 2 C64 version
     BOARD_MODEL_UNIJOYSTICLE2_C64,
+
+    // Unijosyticle 2 MSX version
+    BOARD_MODEL_UNIJOYSTICLE2_MSX,
 
     // Unijosyticle 2 800XL version
     BOARD_MODEL_UNIJOYSTICLE2_800XL,
@@ -283,6 +287,9 @@ static void unijoysticle_init(int argc, const char** argv) {
             break;
         case BOARD_MODEL_UNIJOYSTICLE2_C64:
             g_variant = uni_platform_unijoysticle_c64_create_variant();
+            break;
+        case BOARD_MODEL_UNIJOYSTICLE2_MSX:
+            g_variant = uni_platform_unijoysticle_msx_create_variant();
             break;
         case BOARD_MODEL_UNIJOYSTICLE2_800XL:
             g_variant = uni_platform_unijoysticle_800xl_create_variant();
@@ -926,6 +933,7 @@ static board_model_t get_uni_model_from_pins(void) {
     // Uni 2 800XL: Hi       Hi        Lo       Hi        Lo
     // Uni 2 C64:   Low      Hi        Lo
     // Single port: Hi       Low       Hi       Lo        Lo
+    // Uni 2 MSX:   Hi       Low       Hi       Lo        Hi
 
     gpio_set_direction(GPIO_NUM_4, GPIO_MODE_INPUT);
     gpio_set_pull_mode(GPIO_NUM_4, GPIO_PULLUP_ONLY);
@@ -947,7 +955,9 @@ static board_model_t get_uni_model_from_pins(void) {
     int gpio_39 = gpio_get_level(GPIO_NUM_39);
 
     logi("Unijoysticle: Board ID values: %d,%d,%d,%d,%d\n", gpio_4, gpio_5, gpio_15, gpio_36, gpio_39);
-    if (gpio_5 == 0)
+    if (gpio_4 == 1 && gpio_5 == 0 && gpio_15 == 1 && gpio_36 == 0 && gpio_39 == 1)
+        model = BOARD_MODEL_UNIJOYSTICLE2_MSX;
+    else if (gpio_5 == 0)
         model = BOARD_MODEL_UNIJOYSTICLE2_SINGLE_PORT;
     else if (gpio_4 == 1 && gpio_15 == 1)
         model = BOARD_MODEL_UNIJOYSTICLE2;
@@ -1056,7 +1066,7 @@ static void process_gamepad(uni_hid_device_t* d, uni_gamepad_t* gp) {
                 d->controller_subtype == CONTROLLER_SUBTYPE_WIIMOTE_ACCEL)
                 uni_joy_to_single_from_wii_accel(gp, &joy);
             else
-                uni_joy_to_single_joy_from_gamepad(gp, &joy);
+                uni_joy_to_single_joy_from_gamepad(gp, &joy, g_variant->flags & UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_TWO_BUTTONS);
             process_joystick(d, ins->seat, &joy);
             break;
         case UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK:
