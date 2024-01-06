@@ -68,14 +68,7 @@ static void update_allowlist_from_property(void) {
     }
 }
 
-//
-// Public functions
-//
-bool uni_bt_allowlist_is_allowed_addr(bd_addr_t addr) {
-    // If not enforced, all addresses are allowed.
-    if (!enforced)
-        return true;
-
+static bool is_address_in_allowlist(bd_addr_t addr) {
     for (size_t i = 0; i < ARRAY_SIZE(addr_allow_list); i++) {
         if (bd_addr_cmp(addr, addr_allow_list[i]) == 0)
             return true;
@@ -84,7 +77,22 @@ bool uni_bt_allowlist_is_allowed_addr(bd_addr_t addr) {
     return false;
 }
 
+//
+// Public functions
+//
+bool uni_bt_allowlist_is_allowed_addr(bd_addr_t addr) {
+    // If not enforced, all addresses are allowed.
+    if (!enforced)
+        return true;
+
+    return is_address_in_allowlist(addr);
+}
+
 bool uni_bt_allowlist_add_addr(bd_addr_t addr) {
+    // Don't add duplicate entries
+    if (is_address_in_allowlist(addr))
+        return false;
+
     for (size_t i = 0; i < ARRAY_SIZE(addr_allow_list); i++) {
         if (bd_addr_cmp(addr_allow_list[i], zero_addr) == 0) {
             bd_addr_copy(addr_allow_list[i], addr);
