@@ -26,7 +26,7 @@ typedef struct {
 } uni_joystick_t;
 
 // Gamepad related
-void uni_joy_to_single_joy_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t* out_joy);
+void uni_joy_to_single_joy_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t* out_joy, int use_two_buttons);
 void uni_joy_to_twinstick_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t* out_joy1, uni_joystick_t* out_joy2);
 
 // Wii related

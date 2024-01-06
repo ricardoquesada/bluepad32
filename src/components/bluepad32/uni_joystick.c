@@ -44,11 +44,16 @@ static void to_single_joy(const uni_gamepad_t* gp, uni_joystick_t* out_joy) {
 }
 
 // Basic Mode: One gamepad controls one joystick
-void uni_joy_to_single_joy_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t* out_joy) {
+void uni_joy_to_single_joy_from_gamepad(const uni_gamepad_t* gp, uni_joystick_t* out_joy, int use_two_buttons) {
     to_single_joy(gp, out_joy);
 
-    // Button B is "jump". Good for C64 games
-    out_joy->up |= ((gp->buttons & BUTTON_B) != 0);
+    if (!use_two_buttons) {
+        // Buttom B is "jump". Good for C64 games
+        out_joy->up |= ((gp->buttons & BUTTON_B) != 0);
+    } else {
+        // Buttom B is second joystick button, as in MSX
+        out_joy->button2 = ((gp->buttons & BUTTON_B) != 0);
+    }
 
     // 2nd & 3rd buttons
     out_joy->button2 |= ((gp->buttons & BUTTON_X) != 0);

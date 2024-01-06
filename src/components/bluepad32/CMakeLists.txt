@@ -92,6 +92,7 @@ if(CONFIG_IDF_TARGET_ESP32)
          "platform/uni_platform_unijoysticle_800xl.c"
          "platform/uni_platform_unijoysticle_a500.c"
          "platform/uni_platform_unijoysticle_c64.c"
+         "platform/uni_platform_unijoysticle_msx.c"
          "platform/uni_platform_unijoysticle_singleport.c")
 endif()
 
