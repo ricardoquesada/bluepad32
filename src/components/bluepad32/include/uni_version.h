@@ -5,8 +5,8 @@
 #ifndef UNI_VERSION_H
 #define UNI_VERSION_H
 
-#include "sdkconfig.h"
-
 #define UNI_VERSION "3.99.0"
+
+extern const char* uni_version;
 
 #endif  // UNI_VERSION_H
