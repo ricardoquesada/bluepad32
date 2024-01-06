@@ -32,11 +32,13 @@ void uni_bt_del_keys_unsafe(void);
 // Dump all connected devices.
 void uni_bt_dump_devices_safe(void);
 // Whether to enable new Bluetooth connections.
-// When enabled, the device enters into "discovery" mode, and new un-paired devices are accepted.
+// When enabled, the device scans for new connections, and it will try to auto-connect to supported  devices.
 // When disabled, only devices that have paired before can connect.
 void uni_bt_enable_new_connections_safe(bool enabled);
 // Must be called from BTthread
 void uni_bt_enable_new_connections_unsafe(bool enabled);
+// Returns whether new connections are accepted.
+bool uni_bt_enable_new_connections_is_enabled(void);
 
 // Disconnects a device
 void uni_bt_disconnect_device_safe(int device_idx);
