@@ -40,6 +40,7 @@ set(srcs
          "uni_log.c"
          "uni_property.c"
          "uni_utils.c"
+         "uni_version.c"
          "uni_virtual_device.c")
 
  if(CONFIG_IDF_TARGET_ESP32 OR PICO_SDK_VERSION_STRING OR BLUEPAD32_TARGET_LINUX)
