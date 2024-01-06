@@ -30,6 +30,9 @@ bool uni_bt_allowlist_add_addr(bd_addr_t addr);
 // Remove an existing address from the allow list.
 bool uni_bt_allowlist_remove_addr(bd_addr_t addr);
 
+// Remove all entries from the allow list.
+bool uni_bt_allowlist_remove_all(void);
+
 // Print the allowed-address to the console.
 void uni_bt_allowlist_list(void);
 

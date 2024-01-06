@@ -114,6 +114,14 @@ bool uni_bt_allowlist_remove_addr(bd_addr_t addr) {
     return false;
 }
 
+bool uni_bt_allowlist_remove_all(void) {
+    for (size_t i = 0; i < ARRAY_SIZE(addr_allow_list); i++) {
+        bd_addr_copy(addr_allow_list[i], zero_addr);
+    }
+    update_allowlist_to_property();
+    return true;
+}
+
 void uni_bt_allowlist_list(void) {
     logi("Bluetooth allowlist addresses:\n");
     for (size_t i = 0; i < ARRAY_SIZE(addr_allow_list); i++) {
