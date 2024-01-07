@@ -19,8 +19,8 @@ void uni_bt_service_set_enabled(bool enabled);
 
 // Callbacks from uni_hid_device that will be notified to the BLE client.
 void uni_bt_service_on_device_ready(const uni_hid_device_t* d);
-void uni_bt_service_on_device_connected(const uni_hid_device_t *d);
-void uni_bt_service_on_device_disconnected(const uni_hid_device_t *d);
+void uni_bt_service_on_device_connected(const uni_hid_device_t* d);
+void uni_bt_service_on_device_disconnected(const uni_hid_device_t* d);
 
 #ifdef __cplusplus
 }
