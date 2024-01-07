@@ -62,7 +62,7 @@ struct uni_hid_device_s {
     // Gamepad
     uint16_t controller_type;                     // type of controller. E.g: DualShock4, Switch ,etc.
     uni_controller_subtype_t controller_subtype;  // sub-type of controller attached
-    uni_controller_t controller;                  // What kind of controller it is
+    uni_controller_t controller;                  // Data
 
     // Functions used to parse the usage page/usage.
     uni_report_parser_t report_parser;
@@ -120,7 +120,7 @@ uni_hid_device_t* uni_hid_device_get_instance_for_connection_handle(hci_con_hand
 uni_hid_device_t* uni_hid_device_get_first_device_with_state(uni_bt_conn_state_t state);
 uni_hid_device_t* uni_hid_device_get_instance_with_predicate(uni_hid_device_predicate_t predicate, void* data);
 uni_hid_device_t* uni_hid_device_get_instance_for_idx(int idx);
-int uni_hid_device_get_idx_for_instance(uni_hid_device_t* d);
+int uni_hid_device_get_idx_for_instance(const uni_hid_device_t* d);
 
 void uni_hid_device_init(uni_hid_device_t* d);
 
