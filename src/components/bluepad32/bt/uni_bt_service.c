@@ -79,36 +79,43 @@ static void notify_client(void);
 static void maybe_notify_client();
 
 static void notify_client(void) {
-    logi("**** notify_client\n");
-    // find next active streaming connection
-    int idx = -1;
+    logi("**** notify_client, current idx = %d\n", connection_index);
+    uint8_t status;
+    client_connection_t* ctx = NULL;
+
     for (int i = connection_index; i < MAX_NR_CLIENT_CONNECTIONS; i++) {
         // active found?
         if ((client_connections[i].connection_handle != HCI_CON_HANDLE_INVALID) &&
             (client_connections[i].notification_enabled)) {
-            idx = i;
+            ctx = &client_connections[i];
             break;
         }
     }
 
     // Already iterated all clients, stop
-    if (idx == -1)
+    if (!ctx) {
+        logi("No connections founds\n");
+        connection_index = 0;
         return;
-
-    client_connection_t* ctx = &client_connections[idx];
+    }
 
     // send
-    logi("***** notifying client with handle = %#x\n", ctx->connection_handle);
-    att_server_notify(ctx->connection_handle, ctx->value_handle, (const uint8_t*)compact_devices,
-                      sizeof(compact_devices));
+    logi("***** notifying client with conn_handle = %#x, value_handle = %#x\n", ctx->connection_handle,
+         ctx->value_handle);
+    status = att_server_notify(ctx->connection_handle, ctx->value_handle, (const uint8_t*)compact_devices,
+                               sizeof(compact_devices));
+    if (status != ERROR_CODE_SUCCESS) {
+        loge("BLE Service: Failed to notify client, error: %#x\n", status);
+    }
 
-    // Next client
     connection_index++;
-    if (connection_index == MAX_NR_CLIENT_CONNECTIONS)
+    if (connection_index == MAX_NR_CLIENT_CONNECTIONS) {
+        // Start from 1st client for next notification.
         connection_index = 0;
-
-    // request next send event
-    att_server_request_can_send_now_event(ctx->connection_handle);
+    } else {
+        // Have not sent notification to all clients, schedule next.
+        att_server_request_can_send_now_event(ctx->connection_handle);
+    }
 }
 
 static void maybe_notify_client(void) {
@@ -145,7 +152,7 @@ static int att_write_callback(hci_con_handle_t con_handle,
             ctx->notification_enabled =
                 little_endian_read_16(buffer, 0) == GATT_CLIENT_CHARACTERISTICS_CONFIGURATION_NOTIFICATION;
             ctx->value_handle = ATT_CHARACTERISTIC_4627C4A4_AC05_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE;
-            logi("notification enabled = %d\n", ctx->notification_enabled);
+            logi("notification enabled = %d for handle %#x\n", ctx->notification_enabled, ctx->connection_handle);
             break;
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC03_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
@@ -264,13 +271,15 @@ static void att_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* p
 
     client_connection_t* ctx;
 
+    logi("**** ATT packet handler: %#x\n", packet_type);
+
     if (packet_type != HCI_EVENT_PACKET)
         return;
 
     switch (hci_event_packet_get_type(packet)) {
         case ATT_EVENT_CONNECTED:
             // setup new
-            logi("New device connected\n");
+            logi("ATT_EVENT_CONNECTED\n");
             ctx = connection_for_conn_handle(HCI_CON_HANDLE_INVALID);
             if (!ctx)
                 break;
@@ -278,9 +287,12 @@ static void att_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* p
             logi("New device connected handle = %#x\n", ctx->connection_handle);
             break;
         case ATT_EVENT_CAN_SEND_NOW:
+            logi("ATT_EVENT_CAN_SEND_NOW\n");
+            printf_hexdump(packet, size);
             notify_client();
             break;
         case ATT_EVENT_DISCONNECTED:
+            logi("ATT_EVENT_DISCONNECTED\n");
             ctx = connection_for_conn_handle(att_event_disconnected_get_handle(packet));
             if (!ctx)
                 break;
@@ -288,6 +300,7 @@ static void att_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* p
             ctx->connection_handle = HCI_CON_HANDLE_INVALID;
             break;
         default:
+            logi("Unsupported ATT_EVENT: %#x\n", hci_event_packet_get_type(packet));
             break;
     }
 }
