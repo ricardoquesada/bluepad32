@@ -12,7 +12,7 @@
 #include "bt/uni_bt_bredr.h"
 #include "bt/uni_bt_defines.h"
 #include "bt/uni_bt_le.h"
-#include "controller/uni_controller.h"
+#include "bt/uni_bt_service.h"
 #include "parser/uni_hid_parser_8bitdo.h"
 #include "parser/uni_hid_parser_android.h"
 #include "parser/uni_hid_parser_atari.h"
@@ -32,7 +32,6 @@
 #include "parser/uni_hid_parser_wii.h"
 #include "parser/uni_hid_parser_xboxone.h"
 #include "platform/uni_platform.h"
-#include "uni_circular_buffer.h"
 #include "uni_common.h"
 #include "uni_config.h"
 #include "uni_hid_device_vendors.h"
@@ -184,7 +183,7 @@ uni_hid_device_t* uni_hid_device_get_instance_for_idx(int idx) {
     return &g_devices[idx];
 }
 
-int uni_hid_device_get_idx_for_instance(uni_hid_device_t* d) {
+int uni_hid_device_get_idx_for_instance(const uni_hid_device_t* d) {
     int idx = (d - &g_devices[0]) / sizeof(g_devices[0]);
 
     if (idx < 0 || idx >= CONFIG_BLUEPAD32_MAX_DEVICES)
@@ -250,6 +249,8 @@ bool uni_hid_device_set_ready_complete(uni_hid_device_t* d) {
         return false;
     }
 
+    uni_bt_service_on_device_ready(d);
+
     uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_READY);
     return true;
 }
@@ -271,9 +272,11 @@ void uni_hid_device_on_connected(uni_hid_device_t* d, bool connected) {
     if (connected) {
         // connected
         uni_get_platform()->on_device_connected(d);
+        uni_bt_service_on_device_connected(d);
     } else {
         // disconnected
         uni_get_platform()->on_device_disconnected(d);
+        uni_bt_service_on_device_disconnected(d);
     }
 }
 
