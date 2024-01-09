@@ -18,23 +18,27 @@
 #define APP_AD_FLAGS 0x06
 
 // HID name, truncated to smaller value.
-#define HID_NAME_COMPACT_LEN 16
+#define HID_NAME_COMPACT_LEN 8
 _Static_assert(HID_NAME_COMPACT_LEN <= HID_MAX_NAME_LEN, "Truncated name is bigger than original name");
 // Max number of clients that can connect to the service at the same time.
 #define MAX_NR_CLIENT_CONNECTIONS 2
 
+// Don't know how to increate MTU for notification, so use the minimum which is 20 (23 - 3)
+#define NOTIFICATION_MTU 20
+
 // Struct sent to the BLE client
 // A compact version of uni_hid_device_t.
 typedef struct __attribute((packed)) {
-    bd_addr_t addr;
-    uint16_t vendor_id;
-    uint16_t product_id;
+    uint8_t idx;          // device index number: 0...CONFIG_BLUEPAD32_MAX_DEVICES-1
+    bd_addr_t addr;       // 6 bytes
+    uint16_t vendor_id;   // 2 bytes
+    uint16_t product_id;  // 2 bytes
     uint8_t state;
     uint8_t incoming;
     uint16_t controller_type;
     uni_controller_subtype_t controller_subtype;
-    char name[HID_NAME_COMPACT_LEN];  // Name, truncated
 } compact_device_t;
+_Static_assert(sizeof(compact_device_t) <= NOTIFICATION_MTU, "compact_device_t too big");
 
 // client connection
 typedef struct {
@@ -43,8 +47,11 @@ typedef struct {
     hci_con_handle_t connection_handle;
 } client_connection_t;
 static client_connection_t client_connections[MAX_NR_CLIENT_CONNECTIONS];
-// round robin sending
-static int connection_index;
+
+// Iterate all over the connected clients
+static int notification_connection_idx;
+// Iterate all over the connected controllers
+// static int notification_device_idx;
 
 static compact_device_t compact_devices[CONFIG_BLUEPAD32_MAX_DEVICES];
 static bool service_enabled = true;
@@ -79,11 +86,11 @@ static void notify_client(void);
 static void maybe_notify_client();
 
 static void notify_client(void) {
-    logi("**** notify_client, current idx = %d\n", connection_index);
+    logi("**** notify_client, current idx = %d\n", notification_connection_idx);
     uint8_t status;
     client_connection_t* ctx = NULL;
 
-    for (int i = connection_index; i < MAX_NR_CLIENT_CONNECTIONS; i++) {
+    for (int i = notification_connection_idx; i < MAX_NR_CLIENT_CONNECTIONS; i++) {
         // active found?
         if ((client_connections[i].connection_handle != HCI_CON_HANDLE_INVALID) &&
             (client_connections[i].notification_enabled)) {
@@ -95,7 +102,7 @@ static void notify_client(void) {
     // Already iterated all clients, stop
     if (!ctx) {
         logi("No connections founds\n");
-        connection_index = 0;
+        notification_connection_idx = 0;
         return;
     }
 
@@ -103,15 +110,16 @@ static void notify_client(void) {
     logi("***** notifying client with conn_handle = %#x, value_handle = %#x\n", ctx->connection_handle,
          ctx->value_handle);
     status = att_server_notify(ctx->connection_handle, ctx->value_handle, (const uint8_t*)compact_devices,
-                               sizeof(compact_devices));
+                               /*sizeof(compact_devices)*/ 20);
+    printf_hexdump(compact_devices, sizeof(compact_devices));
     if (status != ERROR_CODE_SUCCESS) {
         loge("BLE Service: Failed to notify client, error: %#x\n", status);
     }
 
-    connection_index++;
-    if (connection_index == MAX_NR_CLIENT_CONNECTIONS) {
+    notification_connection_idx++;
+    if (notification_connection_idx == MAX_NR_CLIENT_CONNECTIONS) {
         // Start from 1st client for next notification.
-        connection_index = 0;
+        notification_connection_idx = 0;
     } else {
         // Have not sent notification to all clients, schedule next.
         att_server_request_can_send_now_event(ctx->connection_handle);
@@ -144,15 +152,17 @@ static int att_write_callback(hci_con_handle_t con_handle,
     client_connection_t* ctx;
 
     switch (att_handle) {
-        case ATT_CHARACTERISTIC_4627C4A4_AC05_46B9_B688_AFC5C1BF7F63_01_CLIENT_CONFIGURATION_HANDLE: {
+        case ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_CLIENT_CONFIGURATION_HANDLE: {
             logi("Client configuration for notify\n");
             ctx = connection_for_conn_handle(con_handle);
             if (!ctx)
                 break;
             ctx->notification_enabled =
                 little_endian_read_16(buffer, 0) == GATT_CLIENT_CHARACTERISTICS_CONFIGURATION_NOTIFICATION;
-            ctx->value_handle = ATT_CHARACTERISTIC_4627C4A4_AC05_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE;
+            ctx->value_handle = ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE;
             logi("notification enabled = %d for handle %#x\n", ctx->notification_enabled, ctx->connection_handle);
+            if (ctx->notification_enabled)
+                att_server_request_can_send_now_event(ctx->connection_handle);
             break;
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC03_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
@@ -270,6 +280,7 @@ static void att_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* p
     UNUSED(size);
 
     client_connection_t* ctx;
+    int mtu;
 
     logi("**** ATT packet handler: %#x\n", packet_type);
 
@@ -284,7 +295,15 @@ static void att_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* p
             if (!ctx)
                 break;
             ctx->connection_handle = att_event_connected_get_handle(packet);
-            logi("New device connected handle = %#x\n", ctx->connection_handle);
+            mtu = att_server_get_mtu(ctx->connection_handle);
+            logi("New device connected handle = %#x, mtu = %d\n", ctx->connection_handle, mtu);
+            break;
+        case ATT_EVENT_MTU_EXCHANGE_COMPLETE:
+            mtu = att_event_mtu_exchange_complete_get_MTU(packet) - 3;
+            ctx = connection_for_conn_handle(att_event_mtu_exchange_complete_get_handle(packet));
+            if (!ctx)
+                break;
+            printf("ATT MTU = %u\n", mtu);
             break;
         case ATT_EVENT_CAN_SEND_NOW:
             logi("ATT_EVENT_CAN_SEND_NOW\n");
@@ -357,8 +376,6 @@ void uni_bt_service_on_device_ready(const uni_hid_device_t* d) {
     // Update the things that could have changed from "on_device_connected" callback.
     compact_devices[idx].controller_subtype = d->controller_subtype;
     compact_devices[idx].state = d->conn.connected;
-    // No need to end the name with 0
-    memcpy(compact_devices[idx].name, d->name, HID_NAME_COMPACT_LEN - 1);
 
     maybe_notify_client();
 }
@@ -381,8 +398,6 @@ void uni_bt_service_on_device_connected(const uni_hid_device_t* d) {
     memcpy(compact_devices[idx].addr, d->conn.btaddr, 6);
     compact_devices[idx].state = d->conn.state;
     compact_devices[idx].incoming = d->conn.incoming;
-    // No need to end the name with 0
-    memcpy(compact_devices[idx].name, d->name, HID_NAME_COMPACT_LEN - 1);
 
     maybe_notify_client();
 }
