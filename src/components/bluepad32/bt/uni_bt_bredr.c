@@ -415,7 +415,7 @@ void uni_bt_bredr_on_l2cap_channel_opened(uint16_t channel, const uint8_t* packe
     status = l2cap_event_channel_opened_get_status(packet);
     if (status) {
         logi("L2CAP Connection failed: 0x%02x.\n", status);
-        // Practice showed that if the connections fails, just disconnect/remove
+        // Practice showed that if the connection fails, just disconnect/remove
         // so that the connection can start again.
         if (status == L2CAP_CONNECTION_RESPONSE_RESULT_REFUSED_SECURITY) {
             logi("Probably GAP-security-related issues. Set GAP security to 2\n");

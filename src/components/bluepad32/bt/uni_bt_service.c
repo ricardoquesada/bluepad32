@@ -20,8 +20,9 @@
 // HID name, truncated to smaller value.
 #define HID_NAME_COMPACT_LEN 8
 _Static_assert(HID_NAME_COMPACT_LEN <= HID_MAX_NAME_LEN, "Truncated name is bigger than original name");
+
 // Max number of clients that can connect to the service at the same time.
-#define MAX_NR_CLIENT_CONNECTIONS 2
+#define MAX_NR_CLIENT_CONNECTIONS 1
 
 // Don't know how to increate MTU for notification, so use the minimum which is 20 (23 - 3)
 #define NOTIFICATION_MTU 20
@@ -48,10 +49,10 @@ typedef struct {
 } client_connection_t;
 static client_connection_t client_connections[MAX_NR_CLIENT_CONNECTIONS];
 
-// Iterate all over the connected clients
+// Iterate all over the connected clients, but only one is supported. Hardcoded to 0, don't change.
 static int notification_connection_idx;
 // Iterate all over the connected controllers
-// static int notification_device_idx;
+static int notification_device_idx;
 
 static compact_device_t compact_devices[CONFIG_BLUEPAD32_MAX_DEVICES];
 static bool service_enabled = true;
@@ -82,48 +83,49 @@ static uint16_t att_read_callback(hci_con_handle_t connection_handle,
                                   uint8_t* buffer,
                                   uint16_t buffer_size);
 static client_connection_t* connection_for_conn_handle(hci_con_handle_t conn_handle);
+static bool next_notify_device(void);
 static void notify_client(void);
 static void maybe_notify_client();
+
+static bool is_notify_client_valid(void) {
+    return ((client_connections[notification_connection_idx].connection_handle != HCI_CON_HANDLE_INVALID) &&
+            (client_connections[notification_connection_idx].notification_enabled));
+}
+
+static bool next_notify_device(void) {
+    // TODO: For simplicity, we send all 4 devices.
+    // But we should only send the connected ones.
+    notification_device_idx++;
+    if (notification_device_idx == CONFIG_BLUEPAD32_MAX_DEVICES) {
+        notification_device_idx = 0;
+        return true;
+    }
+    return false;
+}
 
 static void notify_client(void) {
     logi("**** notify_client, current idx = %d\n", notification_connection_idx);
     uint8_t status;
-    client_connection_t* ctx = NULL;
+    client_connection_t* ctx;
+    bool finish_round;
 
-    for (int i = notification_connection_idx; i < MAX_NR_CLIENT_CONNECTIONS; i++) {
-        // active found?
-        if ((client_connections[i].connection_handle != HCI_CON_HANDLE_INVALID) &&
-            (client_connections[i].notification_enabled)) {
-            ctx = &client_connections[i];
-            break;
-        }
-    }
-
-    // Already iterated all clients, stop
-    if (!ctx) {
-        logi("No connections founds\n");
-        notification_connection_idx = 0;
+    if (!is_notify_client_valid())
         return;
-    }
+
+    ctx = &client_connections[notification_connection_idx];
 
     // send
     logi("***** notifying client with conn_handle = %#x, value_handle = %#x\n", ctx->connection_handle,
          ctx->value_handle);
-    status = att_server_notify(ctx->connection_handle, ctx->value_handle, (const uint8_t*)compact_devices,
-                               /*sizeof(compact_devices)*/ 20);
-    printf_hexdump(compact_devices, sizeof(compact_devices));
+    status = att_server_notify(ctx->connection_handle, ctx->value_handle,
+                               (const uint8_t*)&compact_devices[notification_device_idx], sizeof(compact_devices[0]));
     if (status != ERROR_CODE_SUCCESS) {
         loge("BLE Service: Failed to notify client, error: %#x\n", status);
     }
 
-    notification_connection_idx++;
-    if (notification_connection_idx == MAX_NR_CLIENT_CONNECTIONS) {
-        // Start from 1st client for next notification.
-        notification_connection_idx = 0;
-    } else {
-        // Have not sent notification to all clients, schedule next.
+    finish_round = next_notify_device();
+    if (!finish_round)
         att_server_request_can_send_now_event(ctx->connection_handle);
-    }
 }
 
 static void maybe_notify_client(void) {
