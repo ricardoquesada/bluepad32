@@ -104,7 +104,8 @@ static bool next_notify_device(void) {
 }
 
 static void notify_client(void) {
-    logi("**** notify_client, current idx = %d\n", notification_connection_idx);
+    logi("**** notify_client, client idx = %d, device idx = %d\n", notification_connection_idx,
+         notification_device_idx);
     uint8_t status;
     client_connection_t* ctx;
     bool finish_round;
@@ -347,6 +348,8 @@ void uni_bt_service_init(void) {
     memset(&client_connections, 0, sizeof(client_connections));
     for (int i = 0; i < MAX_NR_CLIENT_CONNECTIONS; i++)
         client_connections[i].connection_handle = HCI_CON_HANDLE_INVALID;
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++)
+        compact_devices[i].idx = i;
 
     // register for ATT events
     att_server_register_packet_handler(att_packet_handler);
@@ -415,7 +418,8 @@ void uni_bt_service_on_device_disconnected(const uni_hid_device_t* d) {
     int idx = uni_hid_device_get_idx_for_instance(d);
     if (idx < 0)
         return;
-    memset(&compact_devices[idx], 0, sizeof(compact_device_t));
+    memset(&compact_devices[idx], 0, sizeof(compact_devices[0]));
+    compact_devices[idx].idx = idx;
 
     maybe_notify_client();
 }
