@@ -7,19 +7,18 @@
 #include <btstack.h>
 
 #include "bt/uni_bt.h"
+#include "bt/uni_bt_allowlist.h"
 #include "bt/uni_bt_le.h"
 #include "bt/uni_bt_service.gatt.h"
+#include "controller/uni_gamepad.h"
 #include "uni_common.h"
 #include "uni_log.h"
 #include "uni_version.h"
+#include "uni_virtual_device.h"
 
 // General Discoverable = 0x02
 // BR/EDR Not supported = 0x04
 #define APP_AD_FLAGS 0x06
-
-// HID name, truncated to smaller value.
-#define HID_NAME_COMPACT_LEN 8
-_Static_assert(HID_NAME_COMPACT_LEN <= HID_MAX_NAME_LEN, "Truncated name is bigger than original name");
 
 // Max number of clients that can connect to the service at the same time.
 #define MAX_NR_CLIENT_CONNECTIONS 1
@@ -104,8 +103,7 @@ static bool next_notify_device(void) {
 }
 
 static void notify_client(void) {
-    logi("**** notify_client, client idx = %d, device idx = %d\n", notification_connection_idx,
-         notification_device_idx);
+    logd("Notifying client idx = %d, device idx = %d\n", notification_connection_idx, notification_device_idx);
     uint8_t status;
     client_connection_t* ctx;
     bool finish_round;
@@ -116,8 +114,6 @@ static void notify_client(void) {
     ctx = &client_connections[notification_connection_idx];
 
     // send
-    logi("***** notifying client with conn_handle = %#x, value_handle = %#x\n", ctx->connection_handle,
-         ctx->value_handle);
     status = att_server_notify(ctx->connection_handle, ctx->value_handle,
                                (const uint8_t*)&compact_devices[notification_device_idx], sizeof(compact_devices[0]));
     if (status != ERROR_CODE_SUCCESS) {
@@ -130,7 +126,6 @@ static void notify_client(void) {
 }
 
 static void maybe_notify_client(void) {
-    logi("**** maybe_notify_client\n");
     client_connection_t* ctx = NULL;
 
     for (int i = 0; i < MAX_NR_CLIENT_CONNECTIONS; i++) {
@@ -156,16 +151,17 @@ static int att_write_callback(hci_con_handle_t con_handle,
 
     switch (att_handle) {
         case ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_CLIENT_CONFIGURATION_HANDLE: {
-            logi("Client configuration for notify\n");
             ctx = connection_for_conn_handle(con_handle);
             if (!ctx)
                 break;
             ctx->notification_enabled =
                 little_endian_read_16(buffer, 0) == GATT_CLIENT_CHARACTERISTICS_CONFIGURATION_NOTIFICATION;
             ctx->value_handle = ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE;
-            logi("notification enabled = %d for handle %#x\n", ctx->notification_enabled, ctx->connection_handle);
             if (ctx->notification_enabled)
                 att_server_request_can_send_now_event(ctx->connection_handle);
+
+            logi("BLE Service: Notification enabled = %d for handle %#x\n", ctx->notification_enabled,
+                 ctx->connection_handle);
             break;
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC03_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
@@ -185,7 +181,7 @@ static int att_write_callback(hci_con_handle_t con_handle,
             return 1;
         }
         default:
-            logi("Default Write to 0x%04x, len %u\n", att_handle, buffer_size);
+            logi("BLE Service: Unsupported write to 0x%04x, len %u\n", att_handle, buffer_size);
             break;
     }
     return 0;
@@ -203,7 +199,6 @@ static uint16_t att_read_callback(hci_con_handle_t connection_handle,
             // version
             return att_read_callback_handle_blob((const uint8_t*)uni_version, (uint16_t)strlen(uni_version), offset,
                                                  buffer, buffer_size);
-            break;
         case ATT_CHARACTERISTIC_4627C4A4_AC02_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
             // Max supported connections
             const uint8_t max = CONFIG_BLUEPAD32_MAX_DEVICES;
@@ -223,22 +218,48 @@ static uint16_t att_read_callback(hci_con_handle_t connection_handle,
             // Connected devices
             return att_read_callback_handle_blob((const void*)compact_devices, (uint16_t)sizeof(compact_devices),
                                                  offset, buffer, buffer_size);
-            break;
         case ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
+            // Notify all connected devices, only when there is a change, one at a time.
+            // Ideally it should be merged with the previous one, but don't know how to increase
+            // the MTU for the notify package.
+            // Notify only. Read not supported.
+            loge("BLE Service: 4627C4A4_AC06_46B9_B688_AFC5C1BF7F63 does not support read\n");
             break;
-        case ATT_CHARACTERISTIC_4627C4A4_AC07_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
-            break;
-        case ATT_CHARACTERISTIC_4627C4A4_AC08_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
-            break;
-        case ATT_CHARACTERISTIC_4627C4A4_AC09_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
-            break;
-        case ATT_CHARACTERISTIC_4627C4A4_AC0A_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
-            break;
+        case ATT_CHARACTERISTIC_4627C4A4_AC07_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
+            // Mappings type: Xbox, Nintendo or custom
+            const uint8_t mappings_type = uni_gamepad_get_mappings_type();
+            return att_read_callback_handle_blob(&mappings_type, (uint16_t)1, offset, buffer, buffer_size);
+        }
+        case ATT_CHARACTERISTIC_4627C4A4_AC08_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
+            // Whether to enable Allowlist in connections
+            // Scan for new connections
+            const uint8_t allowlist_enabled = uni_bt_allowlist_is_enabled();
+            return att_read_callback_handle_blob(&allowlist_enabled, (uint16_t)1, offset, buffer, buffer_size);
+        }
+        case ATT_CHARACTERISTIC_4627C4A4_AC09_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
+            // List of addresses in the allowlist.
+            const bd_addr_t* addresses;
+            int total;
+            uni_bt_allowlist_get_all(&addresses, &total);
+            return att_read_callback_handle_blob((const uint8_t*)addresses, (uint16_t)sizeof(bd_addr_t) * total, offset,
+                                                 buffer, buffer_size);
+        }
+        case ATT_CHARACTERISTIC_4627C4A4_AC0A_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
+            // Whether to enable Virtual Devices
+            const uint8_t virtual_enabled = uni_virtual_device_is_enabled();
+            return att_read_callback_handle_blob(&virtual_enabled, (uint16_t)1, offset, buffer, buffer_size);
+        }
         case ATT_CHARACTERISTIC_4627C4A4_AC0B_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
+            // Disconnect a device
+            loge("BLE Service: 4627C4A4_AC0B_46B9_B688_AFC5C1BF7F63 does not support read\n");
             break;
         case ATT_CHARACTERISTIC_4627C4A4_AC0C_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
+            // Delete stored Bluetooth bond keys
+            loge("BLE Service: 4627C4A4_AC0C_46B9_B688_AFC5C1BF7F63 does not support read\n");
             break;
         case ATT_CHARACTERISTIC_4627C4A4_AC0D_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
+            // Reset device
+            loge("BLE Service: 4627C4A4_AC0D_46B9_B688_AFC5C1BF7F63 does not support read\n");
             break;
 
         case ATT_CHARACTERISTIC_ORG_BLUETOOTH_CHARACTERISTIC_BATTERY_LEVEL_01_VALUE_HANDLE:
@@ -285,44 +306,39 @@ static void att_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* p
     client_connection_t* ctx;
     int mtu;
 
-    logi("**** ATT packet handler: %#x\n", packet_type);
-
     if (packet_type != HCI_EVENT_PACKET)
         return;
 
     switch (hci_event_packet_get_type(packet)) {
         case ATT_EVENT_CONNECTED:
             // setup new
-            logi("ATT_EVENT_CONNECTED\n");
             ctx = connection_for_conn_handle(HCI_CON_HANDLE_INVALID);
             if (!ctx)
                 break;
             ctx->connection_handle = att_event_connected_get_handle(packet);
             mtu = att_server_get_mtu(ctx->connection_handle);
-            logi("New device connected handle = %#x, mtu = %d\n", ctx->connection_handle, mtu);
+            logi("BLE Service: New client connected handle = %#x, mtu = %d\n", ctx->connection_handle, mtu);
             break;
         case ATT_EVENT_MTU_EXCHANGE_COMPLETE:
             mtu = att_event_mtu_exchange_complete_get_MTU(packet) - 3;
             ctx = connection_for_conn_handle(att_event_mtu_exchange_complete_get_handle(packet));
             if (!ctx)
                 break;
-            printf("ATT MTU = %u\n", mtu);
             break;
         case ATT_EVENT_CAN_SEND_NOW:
-            logi("ATT_EVENT_CAN_SEND_NOW\n");
             printf_hexdump(packet, size);
             notify_client();
             break;
         case ATT_EVENT_DISCONNECTED:
-            logi("ATT_EVENT_DISCONNECTED\n");
             ctx = connection_for_conn_handle(att_event_disconnected_get_handle(packet));
             if (!ctx)
                 break;
+            logi("BLE Service: client disconnected, handle = %#x\n", ctx->connection_handle);
             memset(ctx, 0, sizeof(*ctx));
             ctx->connection_handle = HCI_CON_HANDLE_INVALID;
             break;
         default:
-            logi("Unsupported ATT_EVENT: %#x\n", hci_event_packet_get_type(packet));
+            logi("BLE Service: Unsupported ATT_EVENT: %#x\n", hci_event_packet_get_type(packet));
             break;
     }
 }
@@ -367,7 +383,6 @@ void uni_bt_service_set_enabled(bool enabled) {
 }
 
 void uni_bt_service_on_device_ready(const uni_hid_device_t* d) {
-    logi("**** device_ready\n");
     // Must be called from BTstack task
     if (!d)
         return;
@@ -386,7 +401,6 @@ void uni_bt_service_on_device_ready(const uni_hid_device_t* d) {
 }
 
 void uni_bt_service_on_device_connected(const uni_hid_device_t* d) {
-    logi("**** device_connected\n");
     // Must be called from BTstack task
     if (!d)
         return;
@@ -408,7 +422,6 @@ void uni_bt_service_on_device_connected(const uni_hid_device_t* d) {
 }
 
 void uni_bt_service_on_device_disconnected(const uni_hid_device_t* d) {
-    logi("**** device_disconnected\n");
     // Must be called from BTstack task
     if (!d)
         return;

@@ -131,6 +131,11 @@ void uni_bt_allowlist_list(void) {
     }
 }
 
+void uni_bt_allowlist_get_all(const bd_addr_t **addresses, int* total) {
+    *addresses = addr_allow_list;
+    *total = CONFIG_BLUEPAD32_MAX_ALLOWLIST;
+}
+
 bool uni_bt_allowlist_is_enabled(void) {
     return enforced;
 }
