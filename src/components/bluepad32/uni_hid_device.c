@@ -39,12 +39,13 @@
 #include "uni_virtual_device.h"
 
 enum {
-    FLAGS_HAS_COD = (1 << 8),
-    FLAGS_HAS_NAME = (1 << 9),
-    FLAGS_HAS_HID_DESCRIPTOR = (1 << 10),
-    FLAGS_HAS_VENDOR_ID = (1 << 11),
-    FLAGS_HAS_PRODUCT_ID = (1 << 12),
-    FLAGS_HAS_CONTROLLER_TYPE = (1 << 13),
+    // TODO: Why do they start at bit 8 and not bit 0 (???).
+    FLAGS_HAS_COD = BIT(8),
+    FLAGS_HAS_NAME = BIT(9),
+    FLAGS_HAS_HID_DESCRIPTOR = BIT(10),
+    FLAGS_HAS_VENDOR_ID = BIT(11),
+    FLAGS_HAS_PRODUCT_ID = BIT(12),
+    FLAGS_HAS_CONTROLLER_TYPE = BIT(13),
 };
 
 #define MISC_BUTTON_DELAY_MS 200
@@ -849,7 +850,7 @@ bool uni_hid_device_is_mouse(uni_hid_device_t* d) {
 
 bool uni_hid_device_is_keyboard(uni_hid_device_t* d) {
     if (d == NULL) {
-        loge("uni_hid_device_is_keybaord: failed, device is NULL\n");
+        loge("uni_hid_device_is_keyboard: failed, device is NULL\n");
         return false;
     }
     uint32_t keyboard_cod = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_KEYBOARD;

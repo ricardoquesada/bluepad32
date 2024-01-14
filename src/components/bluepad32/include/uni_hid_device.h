@@ -60,8 +60,8 @@ struct uni_hid_device_s {
     // TODO: Create a union of gamepad/mouse/keyboard structs
     // At the moment "mouse" reuses gamepad struct, but it is a hack.
     // Gamepad
-    uint16_t controller_type;                     // type of controller. E.g: DualShock4, Switch ,etc.
-    uni_controller_subtype_t controller_subtype;  // sub-type of controller attached
+    uint16_t controller_type;                     // type of controller. E.g: DualShock4, Switch, etc.
+    uni_controller_subtype_t controller_subtype;  // sub-type of controller attached, used for Wii mostly
     uni_controller_t controller;                  // Data
 
     // Functions used to parse the usage page/usage.
@@ -78,12 +78,12 @@ struct uni_hid_device_s {
     // immediately.
     uni_circular_buffer_t outgoing_buffer;
 
-    // Bytes reserved to gamepad's parser instances.
+    // Bytes reserved to controller's parser instances.
     // E.g.: The Wii driver uses it for the state machine.
     uint8_t parser_data[HID_DEVICE_MAX_PARSER_DATA];
 
     // Bytes reserved to different platforms.
-    // E.g: C64 or Airlift might use it to store different values.
+    // E.g.: C64 or Airlift might use it to store different values.
     uint8_t platform_data[HID_DEVICE_MAX_PLATFORM_DATA];
 
     // Bluetooth connection info.

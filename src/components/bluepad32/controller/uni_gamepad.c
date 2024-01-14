@@ -13,7 +13,7 @@
 #include "uni_log.h"
 
 static uni_gamepad_mappings_t map;
-static bool mappings_enabled = false;
+static uni_gamepad_mappings_type_t mappings_type;
 
 static struct {
     uni_controller_type_t type;
@@ -46,6 +46,7 @@ static struct {
     {CONTROLLER_TYPE_NimbusController, "Nimbus"},
     {CONTROLLER_TYPE_OUYAController, "OUYA"},
     {CONTROLLER_TYPE_PSMoveController, "PS Move"},
+    {CONTROLLER_TYPE_AtariJoystick, "Atari Joystick"},
 
     {CONTROLLER_TYPE_GenericKeyboard, "Keyboard"},
     {CONTROLLER_TYPE_GenericMouse, "Mouse"},
@@ -120,9 +121,26 @@ static int32_t get_mappings_value_for_pedal(uni_gamepad_mappings_pedal_t pedal_t
 uni_gamepad_t uni_gamepad_remap(const uni_gamepad_t* gp) {
     uni_gamepad_t new_gp = {0};
 
-    // Quick return if mappings is not enabled.
-    if (!mappings_enabled)
+    // Quick return if default mappings is being used
+    if (mappings_type == UNI_GAMEPAD_MAPPINGS_TYPE_XBOX)
         return *gp;
+
+    if (mappings_type == UNI_GAMEPAD_MAPPINGS_TYPE_SWITCH) {
+        new_gp = *gp;
+
+        // Invert A with B, and X with Y
+        if (gp->buttons & BUTTON_A)
+            new_gp.buttons |= BIT(map.button_b);
+        if (gp->buttons & BUTTON_B)
+            new_gp.buttons |= BIT(map.button_a);
+        if (gp->buttons & BUTTON_X)
+            new_gp.buttons |= BIT(map.button_y);
+        if (gp->buttons & BUTTON_Y)
+            new_gp.buttons |= BIT(map.button_x);
+        return new_gp;
+    }
+
+    // else UNI_GAMEPAD_MAPPINGS_TYPE_CUSTOM
 
     if (gp->buttons & BUTTON_A)
         new_gp.buttons |= BIT(map.button_a);
@@ -183,8 +201,16 @@ uni_gamepad_t uni_gamepad_remap(const uni_gamepad_t* gp) {
 }
 
 void uni_gamepad_set_mappings(const uni_gamepad_mappings_t* mappings) {
-    mappings_enabled = true;
+    mappings_type = UNI_GAMEPAD_MAPPINGS_TYPE_CUSTOM;
     map = *mappings;
+}
+
+void uni_gamepad_set_mappings_type(uni_gamepad_mappings_type_t type) {
+    mappings_type = type;
+}
+
+uni_gamepad_mappings_type_t uni_gamepad_get_mappings_type(void) {
+    return mappings_type;
 }
 
 void uni_gamepad_dump(const uni_gamepad_t* gp) {

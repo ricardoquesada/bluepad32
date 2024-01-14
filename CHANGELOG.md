@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Internally uses the "custom" platform.
 - Atari Wireless Joystick: Add support for it
 - PS4 Move Controller: Add support for it. Before was only PS3 Move. [Github Issue #41][github_issue_41]
+- Mappings: can change between Xbox, Switch and custom mappings
+- BLE Service: Can read,write Bluepad32 properties from a BLE client (E.g.: mobile phone)
 
 [github_issue_41]: https://github.com/ricardoquesada/bluepad32/issues/41
 
