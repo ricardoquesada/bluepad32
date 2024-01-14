@@ -54,7 +54,7 @@ static int notification_connection_idx;
 static int notification_device_idx;
 
 static compact_device_t compact_devices[CONFIG_BLUEPAD32_MAX_DEVICES];
-static bool service_enabled = true;
+static bool service_enabled;
 
 // clang-format off
 static const uint8_t adv_data[] = {

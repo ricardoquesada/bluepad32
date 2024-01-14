@@ -121,22 +121,25 @@ static int32_t get_mappings_value_for_pedal(uni_gamepad_mappings_pedal_t pedal_t
 uni_gamepad_t uni_gamepad_remap(const uni_gamepad_t* gp) {
     uni_gamepad_t new_gp = {0};
 
-    // Quick return if default mappings is being used
+    // Quick return if using default mappings
     if (mappings_type == UNI_GAMEPAD_MAPPINGS_TYPE_XBOX)
         return *gp;
 
     if (mappings_type == UNI_GAMEPAD_MAPPINGS_TYPE_SWITCH) {
         new_gp = *gp;
 
+        // Turn off original buttons
+        new_gp.buttons &= ~(BUTTON_A | BUTTON_B | BUTTON_X | BUTTON_Y);
+
         // Invert A with B, and X with Y
         if (gp->buttons & BUTTON_A)
-            new_gp.buttons |= BIT(map.button_b);
+            new_gp.buttons |= BUTTON_B;
         if (gp->buttons & BUTTON_B)
-            new_gp.buttons |= BIT(map.button_a);
+            new_gp.buttons |= BUTTON_A;
         if (gp->buttons & BUTTON_X)
-            new_gp.buttons |= BIT(map.button_y);
+            new_gp.buttons |= BUTTON_Y;
         if (gp->buttons & BUTTON_Y)
-            new_gp.buttons |= BIT(map.button_x);
+            new_gp.buttons |= BUTTON_X;
         return new_gp;
     }
 
