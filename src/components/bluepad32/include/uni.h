@@ -21,6 +21,7 @@ extern "C" {
 #include "bt/uni_bt_hci_cmd.h"
 #include "bt/uni_bt_le.h"
 #include "bt/uni_bt_sdp.h"
+#include "bt/uni_bt_service.h"
 #include "bt/uni_bt_setup.h"
 #include "controller/uni_balance_board.h"
 #include "controller/uni_controller.h"
