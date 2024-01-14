@@ -17,7 +17,6 @@ extern const int AXIS_NORMALIZE_RANGE;
 extern const int AXIS_THRESHOLD;
 
 typedef enum {
-    // Predefined mappings
     UNI_GAMEPAD_MAPPINGS_TYPE_XBOX,    // A (south), B (east), X (west), Y (north). Default
     UNI_GAMEPAD_MAPPINGS_TYPE_SWITCH,  // A (east), B (south), X (north), Y (west)
     UNI_GAMEPAD_MAPPINGS_TYPE_CUSTOM,  // User provided its own mappings

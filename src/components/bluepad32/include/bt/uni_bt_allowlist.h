@@ -38,7 +38,7 @@ void uni_bt_allowlist_list(void);
 
 // Return a pointer to the addresses.
 // Do not modify the returned data.
-void uni_bt_allowlist_get_all(const bd_addr_t **addresses, int* total);
+void uni_bt_allowlist_get_all(const bd_addr_t** addresses, int* total);
 
 // Whether the allowlist is enabled.
 bool uni_bt_allowlist_is_enabled(void);
