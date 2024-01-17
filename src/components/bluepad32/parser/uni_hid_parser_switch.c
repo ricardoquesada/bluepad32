@@ -513,8 +513,11 @@ static void process_reply_read_spi_factory_stick_calibration(struct uni_hid_devi
     ins->cal_ry.max = ins->cal_ry.center + cal_ry_max;
 
     logi("Switch: Stick calibration info: x=%d,%d,%d, y=%d,%d,%d, rx=%d,%d,%d, ry=%d,%d,%d\n", ins->cal_x.min,
-         ins->cal_x.center, ins->cal_x.max, ins->cal_y.min, ins->cal_y.center, ins->cal_y.max, ins->cal_rx.min,
-         ins->cal_rx.center, ins->cal_rx.max, ins->cal_ry.min, ins->cal_ry.center, ins->cal_ry.max);
+         ins->cal_x.center, ins->cal_x.max,                     // x
+         ins->cal_y.min, ins->cal_y.center, ins->cal_y.max,     // y
+         ins->cal_rx.min, ins->cal_rx.center, ins->cal_rx.max,  // rx
+         ins->cal_ry.min, ins->cal_ry.center, ins->cal_ry.max   // ry
+    );
 }
 
 static void process_reply_read_spi_user_stick_calibration(struct uni_hid_device_s* d, const uint8_t* data, int len) {
@@ -555,9 +558,10 @@ static void process_reply_read_spi_factory_imu_calibration(struct uni_hid_device
     logi(
         "Switch: IMU calibration info: accel.offset=%d,%d,%d, accel.scale=%d,%d,%d, gyro.offset=%d,%d,%d, gyro."
         "scale=%d,%d,%d\n",
-        ins->cal_accel.offset[0], ins->cal_accel.offset[1], ins->cal_accel.offset[2], ins->cal_accel.scale[0],
-        ins->cal_accel.scale[1], ins->cal_accel.scale[2], ins->cal_gyro.offset[0], ins->cal_gyro.offset[1],
-        ins->cal_gyro.offset[2], ins->cal_gyro.scale[0], ins->cal_gyro.scale[1], ins->cal_gyro.scale[2]);
+        ins->cal_accel.offset[0], ins->cal_accel.offset[1], ins->cal_accel.offset[2],  // accel offset
+        ins->cal_accel.scale[0], ins->cal_accel.scale[1], ins->cal_accel.scale[2],     // accel scale
+        ins->cal_gyro.offset[0], ins->cal_gyro.offset[1], ins->cal_gyro.offset[2],     // gyro offset
+        ins->cal_gyro.scale[0], ins->cal_gyro.scale[1], ins->cal_gyro.scale[2]);       // gyro scale
 }
 
 // Reply to SUBCMD_REQ_DEV_INFO
