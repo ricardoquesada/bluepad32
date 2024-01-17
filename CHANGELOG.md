@@ -51,6 +51,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
      don't worry about internal folder re-organization.
 - Arduino platform:
   - Removed from "bluepad32" repo. Moved to the [Bluepad32 Arduino template][bluepad32-arduinotemplate] project.
+### Fixed
+- Switch: Parse calibration correctly. Does not crash. [Fixes Github Issue #61][github_issue_61]
+
+[github_issue_61]: https://github.com/ricardoquesada/bluepad32/issues/61
 
 [bluepad32-arduino-template]: https://github.com/ricardoquesada/esp-idf-arduino-bluepad32-template
 
