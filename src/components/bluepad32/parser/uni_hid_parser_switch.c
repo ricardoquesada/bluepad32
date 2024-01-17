@@ -195,7 +195,7 @@ struct switch_buttons_s {
 
 struct switch_report_30_s {
     struct switch_buttons_s buttons;
-    struct switch_imu_data_s imu[3];  // contains 3 samples differenciated by 5ms (?) each
+    struct switch_imu_data_s imu[3];  // contains 3 samples differentiated by 5ms (?) each
 } __attribute__((packed));
 
 struct switch_report_21_s {
@@ -531,18 +531,18 @@ static void process_reply_read_spi_user_stick_calibration(struct uni_hid_device_
 static void process_reply_read_spi_factory_imu_calibration(struct uni_hid_device_s* d, const uint8_t* data, int len) {
     switch_instance_t* ins = get_switch_instance(d);
 
-    if (len < SWITCH_FACTORY_IMU_CAL_DATA_SIZE + 5) {
+    if (len < SWITCH_FACTORY_IMU_CAL_DATA_SIZE) {
         loge("Switch: invalid spi factory imu calibration len; got %d, wanted %d\n", len,
-             SWITCH_FACTORY_IMU_CAL_DATA_SIZE + 5);
+             SWITCH_FACTORY_IMU_CAL_DATA_SIZE);
         return;
     }
 
     for (int i = 0; i < 3; i++) {
         int j = i * 2;
-        ins->cal_accel.offset[i] = *((int16_t*)&data[i + j]);
-        ins->cal_accel.scale[i] = *((int16_t*)&data[i + j + 6]);
-        ins->cal_accel.offset[i] = *((int16_t*)&data[i] + j + 12);
-        ins->cal_accel.scale[i] = *((int16_t*)&data[i + j + 18]);
+        ins->cal_accel.offset[i] = *((int16_t*)&data[j]);
+        ins->cal_accel.scale[i] = *((int16_t*)&data[j + 6]);
+        ins->cal_accel.offset[i] = *((int16_t*)&data[j + 12]);
+        ins->cal_accel.scale[i] = *((int16_t*)&data[j + 18]);
     }
 
     for (int i = 0; i < 3; i++) {
@@ -602,16 +602,16 @@ static void process_reply_spi_flash_read(struct uni_hid_device_s* d, const struc
 
     switch (ins->state) {
         case STATE_READ_FACTORY_STICK_CALIBRATION:
-            process_reply_read_spi_factory_stick_calibration(d, r->data, mem_len + 5);
+            process_reply_read_spi_factory_stick_calibration(d, r->data, mem_len);
             break;
         case STATE_READ_USER_STICK_CALIBRATION:
-            process_reply_read_spi_user_stick_calibration(d, r->data, mem_len + 5);
+            process_reply_read_spi_user_stick_calibration(d, r->data, mem_len);
             break;
         case STATE_READ_FACTORY_IMU_CALIBRATION:
-            process_reply_read_spi_factory_imu_calibration(d, r->data, mem_len + 5);
+            process_reply_read_spi_factory_imu_calibration(d, r->data, mem_len);
             break;
         case STATE_DUMP_FLASH:
-            process_reply_read_spi_dump(d, r->data, mem_len + 5);
+            process_reply_read_spi_dump(d, r->data, mem_len);
             break;
         default:
             loge("Switch: unexpected state: %d, spi_read size reply %d at 0x%04x\n", ins->state, mem_len, addr);
