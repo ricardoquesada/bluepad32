@@ -149,7 +149,7 @@ typedef struct switch_instance_s {
     int debug_fd;         // File descriptor where dump is saved
     uint32_t debug_addr;  // Current dump address
 } switch_instance_t;
-_Static_assert(sizeof(switch_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "Switch intance too big");
+_Static_assert(sizeof(switch_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "Switch instance too big");
 
 struct switch_subcmd_request {
     // Report related
@@ -340,7 +340,7 @@ void uni_hid_parser_switch_setup(struct uni_hid_device_s* d) {
         ins->cal_gyro.offset[i] = DEFAULT_GYRO_OFFSET;
         ins->cal_gyro.scale[i] = DEFAULT_GYRO_SCALE;
 
-        // Divisors that must be updated after calibration data is udpated.
+        // Divisors that must be updated after calibration data is updated.
         ins->imu_cal_accel_divisor[i] = ins->cal_accel.scale[i] - ins->cal_accel.offset[i];
         ins->imu_cal_gyro_divisor[i] = ins->cal_gyro.scale[i] - ins->cal_gyro.offset[i];
     }
@@ -396,7 +396,7 @@ static void process_fsm(struct uni_hid_device_s* d) {
     if (ins->state != STATE_SETUP)
         btstack_run_loop_remove_timer(&ins->setup_timer);
 
-    // But re-schdule it for the next step
+    // But re-schedule it for the next step
     if (ins->state != STATE_READY) {
         btstack_run_loop_set_timer_context(&ins->setup_timer, d);
         btstack_run_loop_set_timer_handler(&ins->setup_timer, &switch_setup_timeout_callback);
@@ -546,7 +546,7 @@ static void process_reply_read_spi_factory_imu_calibration(struct uni_hid_device
     }
 
     for (int i = 0; i < 3; i++) {
-        // Divisors that must be updated after calibration data is udpated.
+        // Divisors that must be updated after calibration data is updated.
         // FIXME: move to its own function
         ins->imu_cal_accel_divisor[i] = ins->cal_accel.scale[i] - ins->cal_accel.offset[i];
         ins->imu_cal_gyro_divisor[i] = ins->cal_gyro.scale[i] - ins->cal_gyro.offset[i];
