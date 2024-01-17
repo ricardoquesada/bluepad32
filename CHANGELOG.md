@@ -54,6 +54,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [bluepad32-arduino-template]: https://github.com/ricardoquesada/esp-idf-arduino-bluepad32-template
 
+### Fixed
+- Switch: Parse calibration correctly. Does not crash. [Fixes Github Issue #61][github_issue_61]
+
+[github_issue_61]: https://github.com/ricardoquesada/bluepad32/issues/61
+
 ## [3.10.1] - 2023-11-05
 ### New
 - Arduino: API to handle keyboard
