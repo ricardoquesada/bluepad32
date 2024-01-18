@@ -60,7 +60,7 @@ typedef struct {
     uint8_t prev_color_blue;
     uint8_t prev_rumble;
 } ds4_instance_t;
-_Static_assert(sizeof(ds4_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "DS4 intance too big");
+_Static_assert(sizeof(ds4_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "DS4 instance too big");
 
 typedef struct __attribute((packed)) {
     // Report related
@@ -140,9 +140,9 @@ typedef struct __attribute((packed)) {
 typedef struct __attribute((packed)) {
     uint8_t report_id;  // Must be DS4_FEATURE_REPORT_FIRMWARE_VERSION
     char string_date[11];
-    uint8_t unk_0[5];  // All zeroes apparenlty
+    uint8_t unk_0[5];  // All zeroes apparently
     char string_time[8];
-    uint8_t unk_1[9];  // All zeroes apparenlty
+    uint8_t unk_1[9];  // All zeroes apparently
     uint8_t unk_2;     // Value 1
     uint16_t hw_version;
     uint32_t unk_3;
@@ -219,10 +219,10 @@ void uni_hid_parser_ds4_setup(struct uni_hid_device_s* d) {
     if (!uni_hid_device_set_ready_complete(d))
         return;
 
-    // Don't add any timer. If Calibration report is not supported,
-    // it is safe to asume that the fw_request won't be supported as well.
+    // Don't add any timer. If calibration report is not supported,
+    // it is safe to assume that the fw_request won't be supported as well.
 
-    // Only after the connection was accepted we should create the virtual device.
+    // Only after the connection was accepted, we should create the virtual device.
     uni_hid_device_t* child = uni_hid_device_create_virtual(d);
     if (!child) {
         loge("DS4: Failed to create virtual device\n");
@@ -637,7 +637,7 @@ static void ds4_send_enable_lightbar_report(uni_hid_device_t* d) {
 static void ds4_parse_mouse(uni_hid_device_t* d, const ds4_input_report_11_t* r) {
     ds4_instance_t* ins = get_ds4_instance(d);
 
-    // We can safely assume that device is connected and report is valid, otherwise
+    // We can safely assume that device is connected and report is valid; otherwise
     // this function should have not been called.
 
     if (r->num_touch_reports < 1) {
@@ -673,7 +673,7 @@ static void ds4_parse_mouse(uni_hid_device_t* d, const ds4_input_report_11_t* r)
     // Previous delta only if we are touching the touchpad.
     ins->prev_touch_active = !(point->contact & BIT(7));
 
-    // Update prev regarless of whether it is valid.
+    // Update prev regardless of whether it is valid.
     ins->x_prev = x;
     ins->y_prev = y;
 

@@ -80,7 +80,7 @@ typedef struct {
     bool prev_touch_active;
 
 } ds5_instance_t;
-_Static_assert(sizeof(ds5_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "DS5 intance too big");
+_Static_assert(sizeof(ds5_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "DS5 instance too big");
 
 typedef struct __attribute((packed)) {
     // Bluetooth only
@@ -607,7 +607,7 @@ static void ds5_send_enable_lightbar_report(uni_hid_device_t* d) {
         return;
     }
 
-    // Only after the connection was accepted we should create the virtual device.
+    // Only after the connection was accepted, we should create the virtual device.
     uni_hid_device_t* child = uni_hid_device_create_virtual(d);
     if (!child) {
         loge("DS5: Failed to create virtual device\n");
@@ -631,7 +631,7 @@ static void ds5_parse_mouse(uni_hid_device_t* d, const uint8_t* report, uint16_t
 
     ds5_instance_t* ins = get_ds5_instance(d);
 
-    // We can safely assume that device is connected and report is valid, otherwise
+    // We can safely assume that device is connected and report is valid; otherwise
     // this function should have not been called.
 
     uni_controller_t* ctl = &d->controller;
@@ -662,7 +662,7 @@ static void ds5_parse_mouse(uni_hid_device_t* d, const uint8_t* report, uint16_t
     // Previous delta only if we are touching the touchpad.
     ins->prev_touch_active = !(r->points[0].contact & BIT(7));
 
-    // Update prev regarless of whether it is valid.
+    // Update prev regardless of whether it is valid.
     ins->x_prev = x;
     ins->y_prev = y;
 

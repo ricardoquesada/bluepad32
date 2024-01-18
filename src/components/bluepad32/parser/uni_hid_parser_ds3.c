@@ -50,7 +50,7 @@ typedef struct ds3_instance_s {
     uint8_t player_leds;  // bitmap of LEDs
     bool clone_controller;
 } ds3_instance_t;
-_Static_assert(sizeof(ds3_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "DS3 intance too big");
+_Static_assert(sizeof(ds3_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "DS3 instance too big");
 
 // As defined here:
 // https://github.com/ros-drivers/joystick_drivers/blob/52e8fcfb5619382a04756207b228fbc569f9a3ca/ps3joy/scripts/ps3joy_node.py#L276
@@ -137,7 +137,7 @@ void uni_hid_parser_ds3_parse_input_report(uni_hid_device_t* d, const uint8_t* r
     }
 
     // Report len should be 49, at least in DS3. Not sure whether clones or older
-    // sixaxis version report th same lenght. To be safe, only query about the
+    // sixaxis version report the same length. To be safe, only query about the
     // data that is going to be used.
     if (len < 30) {
         loge("ds3: Invalid report length, got: %d\n want: >= 29", len);
@@ -189,7 +189,7 @@ void uni_hid_parser_ds3_parse_input_report(uni_hid_device_t* d, const uint8_t* r
             ctl->battery = 255;
             break;
         default:
-            logi("DS3: Battery status not supproted: %d\n", r->battery_status);
+            logi("DS3: Battery status not supported: %d\n", r->battery_status);
     }
 
     // Buttons
@@ -275,7 +275,7 @@ void uni_hid_parser_ds3_setup(struct uni_hid_device_s* d) {
                                              0x00};
     uni_hid_device_send_ctrl_report(d, (uint8_t*)&sixaxisEnableReports, sizeof(sixaxisEnableReports));
 
-    // TODO: should set "ready_complete" once we receive an ack from DS3 regaring report id 0xf4 (???)
+    // TODO: should set "ready_complete" once we receive an ack from DS3 regarding report id 0xf4 (???)
     uni_hid_device_set_ready_complete(d);
 }
 
