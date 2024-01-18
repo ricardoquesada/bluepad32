@@ -969,9 +969,9 @@ static void process_pending_requests(void) {
 
             case PENDING_REQUEST_CMD_DISCONNECT:
                 // Don't call "uni_hid_device_disconnect" since it will
-                // disconnec the "d" immediately and functions in the
-                // stack trace might depend on it. Instead call it from
-                // a callback.
+                // disconnect the "d" immediately and functions in the
+                // stack trace might depend on it.
+                // Instead, call it from a callback.
                 idx = uni_hid_device_get_idx_for_instance(d);
                 uni_bt_disconnect_device_safe(idx);
                 break;
@@ -1009,9 +1009,8 @@ static void nina_on_init_complete(void) {
     _pending_queue = xQueueCreate(MAX_PENDING_REQUESTS, sizeof(pending_request_t));
     assert(_pending_queue != NULL);
 
-    // Create SPI main loop thread
-    // In order to not interfere with Bluetooth that runs in CPU0, SPI code
-    // should run in CPU1
+    // Create SPI main loop thread.
+    // To not interfere with Bluetooth that runs in CPU0, SPI code should run in CPU1
     xTaskCreatePinnedToCore(spi_main_loop, "spi_main_loop", 8192, NULL, 1, NULL, 1);
 
     uni_bt_enable_new_connections_safe(true);

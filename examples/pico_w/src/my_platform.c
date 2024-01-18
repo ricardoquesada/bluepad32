@@ -53,7 +53,7 @@ static void my_platform_on_init_complete(void) {
     // Start scanning
     uni_bt_enable_new_connections_unsafe(true);
 
-    // Based on runtime condition you can delete or list the stored BT keys.
+    // Based on runtime condition, you can delete or list the stored BT keys.
     if (1)
         uni_bt_del_keys_unsafe();
     else
@@ -89,7 +89,7 @@ static void my_platform_on_controller_data(uni_hid_device_t* d, uni_controller_t
     }
     prev = *ctl;
     // Print device Id before dumping gamepad.
-    logi("(%p) ", d);
+    logi("(%p) id=%d ", d, uni_hid_device_get_idx_for_instance(d));
     uni_controller_dump(ctl);
 
     switch (ctl->klass) {
