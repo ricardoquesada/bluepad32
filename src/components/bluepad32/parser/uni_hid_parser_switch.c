@@ -33,7 +33,9 @@ static const uint16_t NINTENDO_VID = 0x057e;
 static const uint16_t SWITCH_JOYCON_L_PID = 0x2006;
 static const uint16_t SWITCH_JOYCON_R_PID = 0x2007;
 static const uint16_t SWITCH_PRO_CONTROLLER_PID = 0x2009;
-static const uint16_t SWITCH_SNES_CONTROLLER_PID = 0x2017;
+static const uint16_t SWITCH_ONLINE_SNES_CONTROLLER_PID = 0x2017;
+//static const uint16_t SWITCH_ONLINE_N64_CONTROLLER_PID = 0x2019;
+//static const uint16_t SWITCH_ONLINE_SEGA_CONTROLLER_PID = 0x201e;
 
 #define SWITCH_FACTORY_STICK_CAL_DATA_SIZE 18
 static const uint16_t SWITCH_FACTORY_STICK_CAL_DATA_ADDR = 0x603d;
@@ -1130,7 +1132,12 @@ bool uni_hid_parser_switch_does_name_match(struct uni_hid_device_s* d, const cha
         {"Pro Controller", NINTENDO_VID, SWITCH_PRO_CONTROLLER_PID},
         {"Joy-Con (L)", NINTENDO_VID, SWITCH_JOYCON_L_PID},
         {"Joy-Con (R)", NINTENDO_VID, SWITCH_JOYCON_R_PID},
-        {"SNES Controller", NINTENDO_VID, SWITCH_SNES_CONTROLLER_PID},
+        {"SNES Controller", NINTENDO_VID, SWITCH_ONLINE_SNES_CONTROLLER_PID},
+#if 0
+        // TODO: Untested. What are the real names for N64 and SEGA controllers.
+        {"N64 Controller", NINTENDO_VID, SWITCH_ONLINE_N64_CONTROLLER_PID},
+        {"SEGA Controller", NINTENDO_VID, SWITCH_ONLINE_SEGA_CONTROLLER_PID},
+#endif
     };
 
     for (long unsigned i = 0; i < ARRAY_SIZE(devices); i++) {
