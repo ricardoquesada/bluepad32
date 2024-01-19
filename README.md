@@ -18,7 +18,7 @@ Choose your target platform:
 | Arduino using ESP-IDF toolchain     | [Template project][esp-idf-bluepad32-arduino]                     | [Doc][plat_arduino]      | [Lego Robot][esp32_example] ([video][esp32_video]), [gbaHD Shield][esp32_example2] (a GameBoy consolizer) |
 | Arduino + NINA coprocessor          | [Arduino Library][bp32-arduino]                                   | [Doc][plat_nina]         | [Philips CD-i meets Bluetooth][nina_example]                                                              |
 | CircuitPython + AirLift coprocessor | [CircuitPython Library][bp32-circuitpython]                       | [Doc][plat_airlift]      | [Quico console][airlift_example], Controlling 4 servos ([video][airlift_video])                           |
-| Pico W                              | [Pico W example][pico-w-example]                                  | [Doc][plat_custom]       |                                                                                                           |
+| Pico W                              | [Pico W example][pico-w-example]                                  | [Doc][plat_custom]       | [Pico Switch][pico_switch]                                                                                |
 | ESP-IDF                             | [ESP32 example][esp32-example]                                    | [Doc][plat_custom]       |                                                                                                           |
 | Linux                               | [Linux example][linux-example]                                    | [Doc][plat_custom]       |                                                                                                           |
 | Unijoysticle                        | [Unijoysticle2][unijoysticle2]                                    | [Doc][plat_unijoysticle] |                                                                                                           |
@@ -41,6 +41,8 @@ Choose your target platform:
 [esp-idf-bluepad32-arduino]: https://github.com/ricardoquesada/esp-idf-arduino-bluepad32-template
 
 [nina_example]: https://eyskens.me/cd-i-meets-bluetooth/
+
+[pico-switch]: https://github.com/juan518munoz/PicoSwitch-WirelessGamepadAdapter
 
 [plat_airlift]: docs/plat_airlift.md
 
