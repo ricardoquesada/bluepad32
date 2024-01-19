@@ -36,7 +36,7 @@ struct uni_platform* uni_platform_custom_2_create(void) {
 Bluepad32 only uses one core of the ESP32 (CPU0). The remaining one (CPU1) is
 free to use. As an example, NINA uses it to read from SPI. See [uni_platform_nina.c] for details.
 
-[uni_platform_nina.c]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/main/src/components/bluepad32/uni_platform_nina.c
+[uni_platform_nina.c]: https://github.com/ricardoquesada/bluepad32/blob/develop/src/components/bluepad32/platform/uni_platform_nina.c
 
 ## 2. Update Kconfig file
 
@@ -62,13 +62,13 @@ idf.py menuconfig
 And then select `Component config` -> `Bluepad32 Custom Platform` -> `Target platform`
 
 
-[src/main/Kconfig]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/main/src/main/Kconfig
+[src/main/Kconfig]: https://github.com/ricardoquesada/bluepad32/blob/main/src/components/bluepad32/Kconfig
 [kconfig_doc]: https://www.kernel.org/doc/html/latest/kbuild/kconfig-language.html
 
 
 ## 3. Edit uni_platform_custom.c
 
-Finally in [uni_platform_custom.c] add support for your platform. E.g:
+Finally, in [uni_platform_custom.c] add support for your platform. E.g:
 
 ```c
 void uni_platform_custom_create() {
