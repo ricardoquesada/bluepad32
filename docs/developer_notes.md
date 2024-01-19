@@ -41,7 +41,7 @@
 
 ## Analizing a core dump
 
-Since v2.4.0, core dumps are stored in flash. And they can be retreived using:
+Since v2.4.0, core dumps are stored in flash. And they can be retrieved using:
 
  ```sh
  # Using just one command

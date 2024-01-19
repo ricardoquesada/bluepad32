@@ -2,9 +2,9 @@
 
 If you only want to flash the latest firmware version without downloading the toolchain + sources you should do:
 
-Download latest precompiled firmware from here:
+Download the latest precompiled firmware from here:
 
-- <https://gitlab.com/ricardoquesada/bluepad32/-/releases>
+- <https://github.com/ricardoquesada/bluepad32/releases>
 
 And then you can flash it either using:
 
@@ -62,13 +62,13 @@ Parameters:
 
 # Compiling + flashing firmware
 
-Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity only the instructions for v5.0 are mentioned.
+Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity, only the instructions for v5.0 are mentioned.
 
 ## For Windows
 
 1. Install [ESP-IDF v5.0][esp-idf-windows-installer]. For further info, read: [ESP-IDF Getting Started for Windows][esp-idf-windows-setup]
 
-   * Either the Online or Offline version shoud work
+   * Either the Online or Offline version should work
    * When asked which components to install, don't change anything. Default options are Ok.
    * When asked whether ESP can modify the system, answer "Yes"
 
@@ -77,7 +77,7 @@ Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity only the 
 3. From the ESP-IDF cmd, clone Bluepad32 repo
 
    ```sh
-   git clone --recursive https://gitlab.com/ricardoquesada/bluepad32.git
+   git clone --recursive https://github.com/ricardoquesada/bluepad32.git
    ```
 
 4. Setup

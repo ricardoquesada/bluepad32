@@ -28,9 +28,9 @@ Choose your target platform:
 
 [airlift_video]: https://twitter.com/makermelissa/status/1482596378282913793
 
-[bp32-arduino]: https://gitlab.com/ricardoquesada/bluepad32-arduino
+[bp32-arduino]: https://github.com/ricardoquesada/bluepad32-arduino
 
-[bp32-circuitpython]: https://gitlab.com/ricardoquesada/bluepad32-circuitpython
+[bp32-circuitpython]: https://github.com/ricardoquesada/bluepad32-circuitpython
 
 [esp32_example]: https://github.com/antonvh/LMS-uart-esp/blob/main/Projects/LMS-ESP32/BluePad32_idf/README.md
 
@@ -104,17 +104,17 @@ subset.
 
 See: [Supported gamepads][gamepads], [supported mice][mice] and [supported keyboards][keyboards]
 
-[gamepads]: https://gitlab.com/ricardoquesada/bluepad32/blob/master/docs/supported_gamepads.md
+[gamepads]: https://github.com/ricardoquesada/bluepad32/blob/master/docs/supported_gamepads.md
 
-[mice]: https://gitlab.com/ricardoquesada/bluepad32/blob/master/docs/supported_mice.md
+[mice]: https://github.com/ricardoquesada/bluepad32/blob/master/docs/supported_mice.md
 
-[keyboards]: https://gitlab.com/ricardoquesada/bluepad32/blob/master/docs/supported_keyboards.md
+[keyboards]: https://github.com/ricardoquesada/bluepad32/blob/master/docs/supported_keyboards.md
 
 ## Pre-compiled binaries
 
 Download pre-compiled binaries for Unijoysticle, Nina, AirLift, MightyMiggy:
 
-* https://gitlab.com/ricardoquesada/bluepad32/-/releases
+* https://github.com/ricardoquesada/bluepad32/releases
 
 ## Creating your project
 
@@ -137,14 +137,14 @@ Arduino examples are in:
 
 [arduino-ide-example]: https://www.youtube.com/watch?v=0jnY-XXiD8Q
 
-[arduino-esp-idf-example]: https://gitlab.com/ricardoquesada/esp-idf-arduino-bluepad32-template
+[arduino-esp-idf-example]: https://github.com/ricardoquesada/esp-idf-arduino-bluepad32-template
 
 ## Support
 
 * [Documentation][docs]
 * [Discord][discord]
 
-[docs]: https://gitlab.com/ricardoquesada/bluepad32/-/tree/master/docs
+[docs]: https://github.com/ricardoquesada/bluepad32/tree/main/docs
 
 [discord]: https://discord.gg/r5aMn6Cw5q
 
