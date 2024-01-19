@@ -6,7 +6,7 @@ Remember:
 
 The list of **tested** keyboards is this one:
 
-[file_bug]: https://gitlab.com/ricardoquesada/bluepad32/-/issues
+[file_bug]: https://github.com/ricardoquesada/bluepad32/issues
 
 ## 8BitDo Retro Mechanical Keyboard
 

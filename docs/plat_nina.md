@@ -45,7 +45,7 @@ To flash Bluepad32 firmware, you have to:
 
 ### Download latest pre-compiled Bluepad32 firmware for NINA
 
-Download latest binary from here: https://gitlab.com/ricardoquesada/bluepad32/-/releases
+Download latest binary from here: https://github.com/ricardoquesada/bluepad32/releases
 
 - Download the file with "nina" in its name. E.g: `bluepad32-nina-x.y.z.tar.gz`
 - Uncompress it using [7-zip][7zip], or from command line (`cmd.exe`):
@@ -185,10 +185,10 @@ export ESPPORT=/dev/ttyACM0
 esptool.py --port ${ESPPORT} --baud 115200 --before no_reset write_flash 0x1000 ./build/bootloader/bootloader.bin 0x10000 ./build/bluepad32-airlift.bin 0x8000 ./build/partitions_singleapp.bin
 ```
 
-[readme]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/README.md
+[readme]: https://github.com/ricardoquesada/bluepad32/blob/main/README.md
 
 ## Example
 
 The Bluepad32 library for Arduino with examples is available here:
 
-- http://gitlab.com/ricardoquesada/bluepad32-arduino
+- https://github.com/ricardoquesada/bluepad32-arduino

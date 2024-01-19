@@ -133,7 +133,7 @@ Both the D-Pad and <kbd>Left Analog</kbd> always work as direction buttons.
 
 You can grab a precompiled firmware from here (choose latest version):
 
-* https://gitlab.com/ricardoquesada/bluepad32/tags
+* https://github.com/ricardoquesada/bluepad32/releases
 
 And download the `bluepad32-mightymiggy.zip`. It includes a README with instructions.
 
@@ -152,7 +152,7 @@ idf.py build
 
 Please refer to the [general instructions][flashing] for more information on compiling and flashing.
 
-[readme]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/README.md
+[readme]: https://github.com/ricardoquesada/bluepad32/blob/main/README.md
 [flashing]: firmware_setup.md
 
 [1]: https://lh3.googleusercontent.com/sfRd1qSHaxe4he4lt63Xjsr_ejmrthB00bPpIj4CwuUOyzKy3otIrdsPqhy_Y0U78Ibcw5bssuUOgKxNsvhvq6AQGlmigtj2tWA67HQHEaDU4tEmq850Z47rwRW9EzAhFGi6XrgUhUI=-no

@@ -151,7 +151,7 @@ Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity, only the
 3. Clone Bluepad32 repo
 
    ```sh
-   git clone --recursive https://gitlab.com/ricardoquesada/bluepad32.git
+   git clone --recursive https://github.com/ricardoquesada/bluepad32.git
    ```
 
 4. Setup
