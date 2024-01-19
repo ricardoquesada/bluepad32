@@ -84,7 +84,7 @@ And compile & flash!
 **RECOMMENDED for Advanced users**.
 
 ```sh
-git clone --recursive https://gitlab.com/ricardoquesada/esp-idf-arduino-bluepad32-template.git my_project
+git clone --recursive https://github.com/ricardoquesada/esp-idf-arduino-bluepad32-template.git my_project
 ```
 
 ... and that's it.

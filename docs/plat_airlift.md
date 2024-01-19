@@ -153,7 +153,7 @@ esptool.reset()
 time.sleep(0.5)
 ```
 
-[readme]: https://gitlab.com/ricardoquesada/bluepad32/-/blob/master/README.md
+[readme]: https://github.com/ricardoquesada/bluepad32/blob/main/README.md
 [matrix_portal_m4]: https://learn.adafruit.com/adafruit-matrixportal-m4
 [passthrough firmware]: https://learn.adafruit.com/adafruit-airlift-breakout/upgrade-external-esp32-airlift-firmware
 
@@ -161,7 +161,7 @@ time.sleep(0.5)
 
 The Bluepad32 library for CircuitPython, including a working example is available here:
 
-* https://gitlab.com/ricardoquesada/bluepad32-circuitpython
+* https://github.com/ricardoquesada/bluepad32-circuitpython
 
 ## How to debug Bluepad32 for AirLift
 

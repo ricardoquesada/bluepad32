@@ -6,7 +6,7 @@ Remember:
 
 The list of **tested** mice is this one:
 
-[file_bug]: https://gitlab.com/ricardoquesada/bluepad32/-/issues
+[file_bug]: https://github.com/ricardoquesada/bluepad32/issues
 
 ## Apple Magic Mouse A1296 (1st gen)
 
