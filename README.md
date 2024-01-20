@@ -42,7 +42,7 @@ Choose your target platform:
 
 [nina_example]: https://eyskens.me/cd-i-meets-bluetooth/
 
-[pico-switch]: https://github.com/juan518munoz/PicoSwitch-WirelessGamepadAdapter
+[pico_switch]: https://github.com/juan518munoz/PicoSwitch-WirelessGamepadAdapter
 
 [plat_airlift]: docs/plat_airlift.md
 
