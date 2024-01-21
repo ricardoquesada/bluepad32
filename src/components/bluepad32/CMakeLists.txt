@@ -63,6 +63,7 @@ if(IDF_TARGET)
     # so that can be called from other targets like Pico W
     list(APPEND srcs
          "arch/uni_console_esp32.c"
+         "arch/uni_log_esp32.c"
          "arch/uni_property_esp32.c"
          "arch/uni_uart_esp32.c"
          "uni_gpio.c"
@@ -70,11 +71,13 @@ if(IDF_TARGET)
 elseif(PICO_SDK_VERSION_STRING)
     list(APPEND srcs
          "arch/uni_console_pico.c"
+         "arch/uni_log_pico.c"
          "arch/uni_property_pico.c"
          "arch/uni_uart_pico.c")
 elseif(BLUEPAD32_TARGET_LINUX)
     list(APPEND srcs
          "arch/uni_console_linux.c"
+         "arch/uni_log_linux.c"
          "arch/uni_property_linux.c"
          "arch/uni_uart_linux.c")
 else()

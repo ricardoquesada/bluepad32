@@ -57,8 +57,8 @@ static void pc_debug_init(int argc, const char** argv) {
 
     uni_gamepad_set_mappings(&mappings);
 #endif
-    uni_gamepad_set_mappings_type(UNI_GAMEPAD_MAPPINGS_TYPE_SWITCH);
-    uni_bt_service_set_enabled(false);
+    uni_gamepad_set_mappings_type(UNI_GAMEPAD_MAPPINGS_TYPE_XBOX);
+    uni_bt_service_set_enabled(true);
 }
 
 static void pc_debug_on_init_complete(void) {
