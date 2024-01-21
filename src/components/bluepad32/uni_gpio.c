@@ -5,7 +5,6 @@
 #include "uni_gpio.h"
 
 #include <argtable3/argtable3.h>
-#include <driver/adc.h>
 #include <driver/gpio.h>
 #include <driver/ledc.h>
 #include <esp_console.h>
