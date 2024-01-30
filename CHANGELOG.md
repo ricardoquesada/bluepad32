@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - ???
+## [4.0-beta0] - 2024-01-30
 ### New
 - Pico W support
   - Support for Raspberry Pi Pico W microcontroller
@@ -15,8 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PS4 Move Controller: Add support for it. Before was only PS3 Move. [Github Issue #41][github_issue_41]
 - Mappings: can change between Xbox, Switch and custom mappings
 - BLE Service: Can read,write Bluepad32 properties from a BLE client (E.g.: mobile phone)
+- Bluetooth: Expose RSSI property. WIP, part of [Github Issue #42][github_issue_42]
 
 [github_issue_41]: https://github.com/ricardoquesada/bluepad32/issues/41
+[github_issue_42]: https://github.com/ricardoquesada/bluepad32/issues/42
 
 ### Changed
 - Platform boot logic changed a bit. Rationale: "don't make magic changes".
@@ -51,11 +53,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
      don't worry about internal folder re-organization.
 - Arduino platform:
   - Removed from "bluepad32" repo. Moved to the [Bluepad32 Arduino template][bluepad32-arduinotemplate] project.
+  - Removed from "bluepad32" repo. Moved to the [Bluepad32 Arduino template][bluepad32-arduino-template] project.
+- Docs: Using Github as the default place, not Gitlab
+
 ### Fixed
 - Switch: Parse calibration correctly. Does not crash. [Fixes Github Issue #61][github_issue_61]
+- NINA: Disconnect gamepad works Ok. [Fixes Github Issue #8][github_arduino_issue_8]
 
 [github_issue_61]: https://github.com/ricardoquesada/bluepad32/issues/61
-
+[github_arduino_issue_8]: https://github.com/ricardoquesada/bluepad32-arduino/issues/8
 [bluepad32-arduino-template]: https://github.com/ricardoquesada/esp-idf-arduino-bluepad32-template
 
 ## [3.10.3] - 2023-11-26
