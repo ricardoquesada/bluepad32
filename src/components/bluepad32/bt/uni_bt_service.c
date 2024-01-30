@@ -66,8 +66,9 @@ static const uint8_t adv_data[] = {
     17, BLUETOOTH_DATA_TYPE_COMPLETE_LIST_OF_128_BIT_SERVICE_CLASS_UUIDS,
     0x63, 0x7F, 0xBF, 0xC1, 0xC5, 0xAF, 0x88, 0xB6, 0xB9, 0x46, 0x00, 0xAC, 0xA4, 0xC4, 0x27, 0x46,
 };
+_Static_assert(sizeof(adv_data) <= 31, "adv_data too big");
 // clang-format on
-static int adv_data_len = sizeof(adv_data);
+static const int adv_data_len = sizeof(adv_data);
 
 static void att_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
 static int att_write_callback(hci_con_handle_t con_handle,

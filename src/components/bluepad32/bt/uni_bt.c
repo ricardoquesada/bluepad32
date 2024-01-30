@@ -450,6 +450,17 @@ void uni_bt_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
                     if (IS_ENABLED(UNI_ENABLE_BLE))
                         uni_bt_le_on_gap_event_advertising_report(packet, size);
                     break;
+                case GAP_EVENT_RSSI_MEASUREMENT: {
+                    uint8_t rssi = gap_event_rssi_measurement_get_rssi(packet);
+                    hci_con_handle_t conn = gap_event_rssi_measurement_get_con_handle(packet);
+                    uni_hid_device_t* d = uni_hid_device_get_instance_for_connection_handle(conn);
+                    if (!d) {
+                        loge("Could not found device for connection handle: %x\n", conn);
+                        break;
+                    }
+                    d->conn.rssi = rssi;
+                    break;
+                }
                 // GATT EVENTS (BLE only)
                 case GATT_EVENT_LONG_CHARACTERISTIC_VALUE_QUERY_RESULT:
                     logd("--> GATT_EVENT_LONG_CHARACTERISTIC_VALUE_QUERY_RESULT\n");
