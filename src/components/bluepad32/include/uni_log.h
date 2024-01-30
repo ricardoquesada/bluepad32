@@ -16,6 +16,8 @@ extern "C" {
 #include "uni_config.h"
 
 void uni_log(const char* fmt, ...);
+
+// Should be overridden by each architecture.
 void uni_logv(const char* fmt, va_list args);
 
 /*
