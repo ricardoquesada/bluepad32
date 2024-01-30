@@ -582,6 +582,7 @@ void uni_bt_bredr_on_gap_inquiry_result(uint16_t channel, const uint8_t* packet,
             uni_hid_device_set_cod(d, cod);
             d->conn.page_scan_repetition_mode = page_scan_repetition_mode;
             d->conn.clock_offset = clock_offset | UNI_BT_CLOCK_OFFSET_VALID;
+            d->conn.rssi = rssi;
 
             if (name_len > 0 && !uni_hid_device_has_name(d)) {
                 uni_hid_device_set_name(d, name_buffer);

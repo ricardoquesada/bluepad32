@@ -48,8 +48,12 @@ typedef struct {
     uint16_t control_cid;
     uint16_t interrupt_cid;
 
+    // BR/EDR only
     uint8_t page_scan_repetition_mode;
     uint16_t clock_offset;
+
+    // BLE & BR/EDR
+    uint8_t rssi;
 
     bool incoming;
     bool connected;
