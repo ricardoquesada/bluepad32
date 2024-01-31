@@ -1,19 +1,24 @@
 site_name: Bluepad32
 site_url: https://retro.moe/
-theme:
-  name: readthedocs
-  highlightjs: true
-  hljs_languages:
-    - yaml
-    - rust
-  analytics:
-    gtag: G-FXKBEY2NKF
+site_author: Ricardo Quesada
+copyright: Copyright &copy; 2019-2024 Ricardo Quesada & contributors
+
+repo_url: https://github.com/ricardoquesada/bluepad32
+repo_name: ricardoquesada/bluepad32
+edit_uri: blob/main/docs
+
+watch:
+  - README.md
+  - CHANGELOG.md
+
 nav:
   - Home: index.md
+  - Help: getting_help.md
   - Controllers:
     - supported_gamepads.md
     - supported_mice.md
     - supported_keyboards.md
+    - pair_ds3.md
   - Platforms:
     - plat_arduino.md
     - plat_nina.md
@@ -26,3 +31,24 @@ nav:
     - adding_new_platform.md
     - architecture.md
     - developer_notes.md
+
+theme:
+  name: readthedocs
+  features:
+    - navigation.expand
+    - navigation.sections
+  font: false
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: deep purple
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: deep purple
+  analytics:
+    gtag: G-FXKBEY2NKF
+
