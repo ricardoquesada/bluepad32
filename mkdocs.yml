@@ -1,0 +1,20 @@
+site_name: Bluepad32
+site_url: https://retro.moe/
+nav:
+  - Home: index.md
+  - Controllers:
+    - supported_gamepads.md
+    - supported_mice.md
+    - supported_keyboards.md
+  - Platforms:
+    - plat_arduino.md
+    - plat_nina.md
+    - plat_airlift.md
+    - plat_unijoysticle.md
+    - plat_mightymiggy.md
+  - Developer:
+    - firmware_setup.md
+    - adding_new_custom_platform.md
+    - adding_new_platform.md
+    - architecture.md
+    - developer_notes.md
