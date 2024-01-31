@@ -1,5 +1,13 @@
 site_name: Bluepad32
 site_url: https://retro.moe/
+theme:
+  name: readthedocs
+  highlightjs: true
+  hljs_languages:
+    - yaml
+    - rust
+  analytics:
+    gtag: G-FXKBEY2NKF
 nav:
   - Home: index.md
   - Controllers:
