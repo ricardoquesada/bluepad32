@@ -33,7 +33,7 @@ nav:
     - developer_notes.md
 
 theme:
-  name: readthedocs
+  name: material
   features:
     - navigation.expand
     - navigation.sections
