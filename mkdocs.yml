@@ -54,3 +54,7 @@ theme:
   analytics:
     gtag: G-FXKBEY2NKF
 
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
