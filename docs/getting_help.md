@@ -1,4 +1,4 @@
-# Getting Help for Bluepad32
+# Support
 
 http://tinyurl.com/bluepad32-help
 
