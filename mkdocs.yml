@@ -13,7 +13,9 @@ watch:
 
 nav:
   - Home: index.md
-  - Help: getting_help.md
+  - Getting Started:
+    - getting_started.md
+    - getting_help.md
   - Controllers:
     - supported_gamepads.md
     - supported_mice.md
