@@ -26,7 +26,7 @@ Flashing your device from the command line requires [`esptool.py`](https://docs.
 
 To flash your device:
 
-```sh
+``` sh
 # Linux
 export ESPPORT=/dev/ttyUSB0 # This may be different if you have multiple USB serial devices connected.
 # macOS
@@ -76,13 +76,13 @@ Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity, only the
 
 3. From the ESP-IDF cmd, clone Bluepad32 repo
 
-   ```sh
+   ``` sh
    git clone --recursive https://github.com/ricardoquesada/bluepad32.git
    ```
 
 4. Setup
 
-    ```cmd
+    ``` cmd
     # Setup BTStack
     cd bluepad32\external\btstack\port\esp32
     # This will install BTstack as a component inside Bluepad32 source code (recommended).
@@ -94,7 +94,7 @@ Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity, only the
     IMPORTANT: Once you complete the previous step, restart ESP-IDF CMD. This is because IDF_PATH
     has been modified, and the easiest way to restore it is to relaunch CMD.
 
-    ```cmd
+    ``` cmd
     # Setup Bluepad32 Platform
     cd bluepad32\src
     idf.py menuconfig
@@ -104,7 +104,7 @@ Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity, only the
 
 5. Compile it
 
-    ```cmd
+    ``` cmd
     # Compile it
     cd bluepad32\src
     idf.py build
@@ -122,7 +122,7 @@ Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity, only the
 
     Install ESP-IDF dependencies (taken from [here][toolchain-deps]):
 
-    ```sh
+    ``` sh
     # For Ubuntu / Debian
     sudo apt-get install git wget flex bison gperf python3 python3-pip python3-setuptools cmake ninja-build ccache libffi-dev libssl-dev dfu-util libusb-1.0-0
     ```
@@ -130,14 +130,14 @@ Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity, only the
     And in case you don't have permissions to open `/dev/ttyUSB0`, do:
     (taken from [here][ttyusb0])
 
-    ```sh
+    ``` sh
     # You MUST logout/login (or in some cases reboot Linux) after running this command
     sudo usermod -a -G dialout $USER
     ```
 
 2. Install and setup ESP-IDF
 
-    ```sh
+    ``` sh
     # Needs to be done just once
     # Clone the ESP-IDF git repo
     mkdir ~/esp && cd ~/esp
@@ -150,13 +150,13 @@ Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity, only the
 
 3. Clone Bluepad32 repo
 
-   ```sh
+   ``` sh
    git clone --recursive https://github.com/ricardoquesada/bluepad32.git
    ```
 
 4. Setup
 
-    ```sh
+    ``` sh
     # Setup BTStack
     cd ${BLUEPAD32}/external/btstack/port/esp32
     # This will install BTstack as a component inside Bluepad32 source code (recommended).
@@ -164,7 +164,7 @@ Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity, only the
     IDF_PATH=../../../../src ./integrate_btstack.py
     ```
 
-    ```sh
+    ``` sh
     # Setup Bluepad32 Platform
     cd ${BLUEPAD32}/src
     idf.py menuconfig
@@ -174,7 +174,7 @@ Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity, only the
 
 5. Compile it
 
-    ```sh
+    ``` sh
     # Compile it
     cd ${BLUEPAD32}/src
     idf.py build
@@ -190,17 +190,17 @@ Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity, only the
 
 ## Optional: Linux as a target device
 
-Only if you target Linux as a device (not a ESP32 device):
+Only if you target Linux as a device (not an ESP32 device):
 
 1. Install dependencies
 
-  ```sh
+  ``` sh
   sudo apt install libusb-1.0.0-dev
   ```
 
 2. Setup BTSTack for libusb
 
-  ```sh
+  ``` sh
   cd ${BLUEPAD32}/external/btstack/port/libusb
   make
   ```
