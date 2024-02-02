@@ -8,30 +8,61 @@ Choose the right one depending on your knowledge, devkits and requirements:
 
     For Arduino developers, there are three options.
 
-    1. Using Arduino IDE with an ESP32 devkit
+    * Arduino IDE  with an ESP32 devkit
+    * Arduino Core with an ESP32 devkit
+    * Arduino IDE with an Arduino NINA devkit
 
-        - Works with any [ESP32][amazon_esp32_devkit], [ESP32-S3][amazon_esp32_s3_devkit] or [ESP32-C3][amazon_esp32_c3_devkit] devkit
-        - WiFi API available
-        - Bluetooth:
-             - :material-check: Available by using the [BTstack API][btstack].
-             - :material-close: DO NOT use [Arduino BLE library][arduino_ble_library]. It won't work.
-        - Easy to setup, easy to use, easy to update.
-        - Recommended for beginners and existing Arduino users
+    Let's analyze them in detail:
 
-        <iframe width="560" height="315" src="https://www.youtube.com/embed/0jnY-XXiD8Q?si=YphWYgQf0a1YX_nq" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+    ### Arduino IDE with an ESP32 devkit
 
-        !!! Bug
-            [Arduino Nano ESP32][arduino_nano_esp32] board is not supported at the moment.
-            See [Github issue #65][github_issue_65] for status.
+    - Works with any [ESP32][amazon_esp32_devkit], [ESP32-S3][amazon_esp32_s3_devkit] or [ESP32-C3][amazon_esp32_c3_devkit] devkit
+    - WiFi API available
+    - Bluetooth:
+         - :material-check: Available by using the [BTstack API][btstack].
+         - :material-close: DO NOT use [Arduino BLE library][arduino_ble_library]. It won't work.
+    - Easy to setup, easy to use, easy to update.
+    - Recommended for beginners and existing Arduino users
+    - :material-close: Bluepad32 logs cannot be seen. It is difficult to debug if a controller cannot connect.
+    - Start by watching this video:
+
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/0jnY-XXiD8Q?si=YphWYgQf0a1YX_nq" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+
+    !!! Bug
+        [Arduino Nano ESP32][arduino_nano_esp32] board is not supported at the moment.
+        See [Github issue #65][github_issue_65] for status.
 
 
-    2. Using Arduino Core (not the IDE) with ESP-IDF toolchain
+    ### Arduino Core (not the IDE) with ESP-IDF toolchain
 
-    3. Using Arduino IDE with an Arduino NINA board
+    Similar to the previous option but user has more control.
 
-        !!! Warning
+    - Works with any [ESP32][amazon_esp32_devkit], [ESP32-S3][amazon_esp32_s3_devkit] or [ESP32-C3][amazon_esp32_c3_devkit] devkit
+    - WiFi API available
+    - Bluetooth:
+         - :material-check: Available by using the [BTstack API][btstack].
+         - :material-close: DO NOT use [Arduino BLE library][arduino_ble_library]. It won't work.
+    - Setup requires extra steps
+    - :material-check: Bluepad32 logs can be seen
+    - :material-check: Bluepad32 console: interact with Bluepad32 from a serial console.
+    - Recommended for advanced users
+    - Start here: <https://github.com/ricardoquesada/esp-idf-arduino-bluepad32-template>
 
-            Only use if the only thing you have is an Arduino NINA board.
+    ### Arduino IDE with an Arduino NINA board
+
+    !!! Warning
+
+        Only use if the only thing you have is an Arduino NINA board.
+
+    - Only supports these boards:
+        - [Arduino Nano RP2040 Connect][nano_rp2040]
+        - [Arduino Nano 33 IoT][nano_33_iot]
+        - [Arduino MKR WiFi 1010][mkr_wifi]
+        - [Arduino UNO WiFi Rev.2][uni_wifi]
+        - [Arduino Arduino MKR Vidor 4000][mkr_vidor_4000]
+    - :material-close: WiFi: Not supported. You cannot use the WiFi API
+    - :material-close: Bluetooth: Not supported. You cannot use the Bluetooth API
+    - :material-close: Bluepad32 logs cannot be seen. It is difficult to debug if a controller cannot connect.
 
 === "CircuitPython"
 
@@ -114,3 +145,13 @@ Choose the right one depending on your knowledge, devkits and requirements:
 [btstack]: https://github.com/bluekitchen/btstack
 
 [arduino_ble_library]: https://www.arduino.cc/reference/en/libraries/arduinoble/
+
+[nano_rp2040]: https://store-usa.arduino.cc/products/arduino-nano-rp2040-connect-with-headers
+
+[nano_33_iot]: https://store-usa.arduino.cc/products/arduino-nano-33-iot
+
+[mkr_wifi]: https://store-usa.arduino.cc/products/arduino-mkr-wifi-1010
+
+[uni_wifi]: https://store-usa.arduino.cc/products/arduino-uno-wifi-rev2
+
+[mkr_vidor_4000]: https://store.arduino.cc/products/arduino-mkr-vidor-4000
