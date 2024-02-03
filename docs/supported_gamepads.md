@@ -4,10 +4,10 @@
 
 [Supported gamepads]:https://lh3.googleusercontent.com/pw/AMWts8BB7wT51jpn3HxWHuZLiEM2lX05gmTDsnldHszkXuYqxbowNvtxPtpbHh3CNjv1OBzeyadZjNLNBgE4w2tl2WmP8M9gGBCfWhzmZGQnHBlERSoy5W2dj6-EYmT84yteKTFjp4Jz2H3DgByFiKXaxfFC2g=-no
 
-
 ## Bluetooth gamepads and their protocol
 
-Most gamepads, as of 2023, use BR/EDR (AKA Bluetooth Classic). Worth noting is that BR/EDR is only supported on ESP32 and Pico W, and **NOT** in ESP32-S3 / ESP32-C3.
+Most gamepads, as of 2023, use BR/EDR (AKA Bluetooth Classic). Worth noting is that BR/EDR is only supported on ESP32
+and Pico W, and **NOT** in ESP32-S3 / ESP32-C3.
 
 | Chip     | BR/EDR | BLE |
 |----------|--------|-----|
@@ -18,32 +18,31 @@ Most gamepads, as of 2023, use BR/EDR (AKA Bluetooth Classic). Worth noting is t
 
 Non-comprehensive list of supported Bluetooth gamepads their protocols:
 
-| Gamepad                 | BR/EDR | BLE |
-| ----------------------- | ------ | --- |
-| DualSense (PS5)         |    Y   |     |
-| DUALSHOCK 4 (PS4)       |    Y   |     |
-| DUALSHOCK 3 (PS3)       |    Y   |     |
-| Nintendo Switch Pro     |    Y   |     |
-| Nintendo Switch JoyCons |    Y   |     |
-| Nintendo Wii U Pro      |    Y   |     |
-| Nintendo Wii Remote     |    Y   |     |
-| Nintendo Balance Board  |    Y   |     |
-| Xbox Wireless           |    Y*  |  Y* |
-| Steam                   |        | Y** |
-| Stadia                  |        | Y***|
-| Android                 |    Y   |     |
-| 8BitDo                  |    Y   |     |
-| Atari                   |    Y   |     |
-| iCade                   |    Y   |     |
-| Nimbus                  |    Y   |     |
-| OUYA 1st gen            |    Y   |     |
+| Gamepad                 | BR/EDR | BLE  |
+|-------------------------|--------|------|
+| DualSense (PS5)         | Y      |      |
+| DUALSHOCK 4 (PS4)       | Y      |      |
+| DUALSHOCK 3 (PS3)       | Y      |      |
+| Nintendo Switch Pro     | Y      |      |
+| Nintendo Switch JoyCons | Y      |      |
+| Nintendo Wii U Pro      | Y      |      |
+| Nintendo Wii Remote     | Y      |      |
+| Nintendo Balance Board  | Y      |      |
+| Xbox Wireless           | Y*     | Y*   |
+| Steam                   |        | Y**  |
+| Stadia                  |        | Y*** |
+| Android                 | Y      |      |
+| 8BitDo                  | Y      |      |
+| Atari                   | Y      |      |
+| iCade                   | Y      |      |
+| Nimbus                  | Y      |      |
+| OUYA 1st gen            | Y      |      |
 
 *: Xbox Controller Firmware v3.x and v4.x use BR/EDR. Firmware v5.x and later use BLE.
 
 **: Requires [Steam Controller Bluetooth firmware update][steam_instructions]
 
 ***: Requires [Stadia Bluetooth firmware update][stadia_instructions]
-
 
 # Supported gamepads
 
@@ -54,10 +53,12 @@ List of supported gamepads with supported features, known bugs, etc.
 [![ddualsense_gamepad][dualsense]][11]
 
 - Supported features: rumble, lightbar color, player LEDs
-- Pair instructions: While pressing and holding the Create button, press and hold the PS button until the light bar blinks ([Sony official instructions][dualsense_pair_instructions]).
+- Pair instructions: While pressing and holding the Create button, press and hold the PS button until the light bar
+  blinks ([Sony official instructions][dualsense_pair_instructions]).
 - Protocol: BR/EDR
 
 [dualsense]: https://lh3.googleusercontent.com/pw/ACtC-3d1CVA-e5srBTDhTD6D-3BSWYi7MncfECPj_9bQJfcGOAKIHrP6g6Ha7xAD0trE59eN-Qv_U33MklCFPskPWRLjfFI4ITHEol8RAmTYNHFNrA-gwhoXEn2ks_M7UDDbxiKhNdaPNXexxgj5zzOtpBjiyw=-no
+
 [dualsense_pair_instructions]: https://www.playstation.com/en-us/support/hardware/pair-dualsense-controller-bluetooth/
 
 ## Sony DUALSHOCK 4 (PS4)
@@ -67,13 +68,13 @@ List of supported gamepads with supported features, known bugs, etc.
 - Supports both the 2013 (CUH-ZCT1) and 2016 (CUH-ZCT2) editions
 - Supported features: rumble, lightbar color
 - Some clones are known to work Ok
-- Pair instructions: While pressing and holding the SHARE button, press and hold the PS Button until the light bar flashes ([Sony official instructions][dualshock4_pair_instructions]).
+- Pair instructions: While pressing and holding the SHARE button, press and hold the PS Button until the light bar
+  flashes ([Sony official instructions][dualshock4_pair_instructions]).
 - Protocol: BR/EDR
 
-
 [dualshock_4]: https://lh3.googleusercontent.com/_0sAxKXbSkk4g8rWJzTNxAirz2hD632jW4TGjGVOwjoac8sD4AfiN9PA1HdGWhm_ujcVygDlEG-LENPemF7IyFhqVsHgVHfCMVeFVjBbeDl-fUUjdMbRYAE8FiKdyWM_UBNUNmVy9Ro=-no
-[dualshock4_pair_instructions]:  https://www.playstation.com/en-us/support/hardware/ps4-pair-dualshock-4-wireless-with-pc-or-mac/
 
+[dualshock4_pair_instructions]:  https://www.playstation.com/en-us/support/hardware/ps4-pair-dualshock-4-wireless-with-pc-or-mac/
 
 ## Sony DUALSHOCK 3 (PS3)
 
@@ -85,6 +86,7 @@ List of supported gamepads with supported features, known bugs, etc.
 - Protocol: BR/EDR
 
 [dualshock_3]: https://lh3.googleusercontent.com/pw/ACtC-3dEBJYkdIpF5_icFUY7n7otgw5LPpLyviKS14JL2EJtuiDBt6Kk-XcKlIIP9JCgT0yxJVN1KuW-JICpilYKhMGfDxQt6vjJm8r_lRS1R9IyOX4iBlUQoIrflt9KmSjXBjcJlS81cmKaGB166HF608v5MA=-no
+
 [pair_ds3]: pair_ds3.md
 
 ## Sony Motion Controller
@@ -96,7 +98,9 @@ List of supported gamepads with supported features, known bugs, etc.
 - Protocol: BR/EDR
 
 [psmove_img]: https://lh3.googleusercontent.com/pw/AMWts8BzubFwU-wHy0En5sqr1Rezbu9wj_kAM4Bchu86-P7EgDOS2SSyt490IeGHYp2a50JrG6WgSXEVQyUX_qgdpsn8rSjCCdc968WhOAMGKOsqYe6ZjvG1hraET1VNzoVfZrNJkuWNuBpkezLDAt9exoXvZg=-no?authuser=0
+
 [psmove_ebay]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw=sony+playstation+ps3+move+motion+controller&_sacat=0
+
 [psmove_pair]: https://github.com/thp/psmoveapi
 
 ## Nintendo Switch Pro
@@ -108,6 +112,7 @@ List of supported gamepads with supported features, known bugs, etc.
 - Protocol: BR/EDR
 
 [switch_pro]: https://en.wikipedia.org/wiki/Nintendo_Switch_Pro_Controller
+
 [switch_pro_img]: https://lh3.googleusercontent.com/33hrGYM117T9pPrW0L-wr7bl0trLXooqmp4I78XV9vWkumHE8mK8Z_5KJZFzWKNpJg31gvrxHC0agF5BUgVr2f6awNYb98R-xPIWaawG6b0XwxHzm8hzz39Wnnv6qLmeEXsRaeoybsA=-no
 
 ## Nintendo Switch JoyCon
@@ -123,6 +128,7 @@ Both Left and Right JoyCon are supported.
 - Protocol: BR/EDR
 
 [switch_joycon]: https://en.wikipedia.org/wiki/Joy-Con
+
 [switch_joycon_img]: https://lh3.googleusercontent.com/pw/ACtC-3cN7JVNm3SvOM3IeKiAg4Ex03Dg7yxozBRNNV95Ycr_0J1eHF03_oDz8ydwpTZCFcPPfFuSzroK4UQ-3KcM0Y2XKew8deuYTqu_q5Q0nEEjA_KTQJCioVRU0IEbBGXHqy2ybtTP7EXp3p-7_RfjYK7Wjg=w360-no
 
 ## Nintendo Wii U Pro controller
@@ -141,9 +147,9 @@ Both Left and Right JoyCon are supported.
 
 - Supports both Wii Remote (RVL-003) and Wii Remote Motion Plus (RVL-036)
 - Supports 3 modes:
-  - Sideways mode (default)
-  - Wheel mode (Accelerometer)
-  - Vertical mode
+    - Sideways mode (default)
+    - Wheel mode (Accelerometer)
+    - Vertical mode
 - Supported features: player LEDs
 - To start pairing, use the "Sync" method (press "Sync" button).
 - Protocol: BR/EDR
@@ -174,6 +180,7 @@ Both Left and Right JoyCon are supported.
 - LED #4 will be on in this mode.
 
 [wii_remote]: https://lh3.googleusercontent.com/pw/AM-JKLVMaoR_vkTyY3z1WBu2ZkdnfcaRZ_hbti95vT1-V57NjMidxB8XacACXdZy_Qa-mAg_8vhv-zkV2CZpbW338qEUys0z1KF4iqdD25JygowZXN2OJ08GbYirPe-FjfQGMzKP7zVQOcg2M8d5jGIpf3zItA=-no
+
 [wii_sideways]: https://forums.dolphin-emu.org/Thread-how-to-hold-the-wii-remote
 
 ## Nintendo Wii Remote + Nunchuk
@@ -203,6 +210,7 @@ have to press the "+" button in the Wii Remote while connecting or reconnecting.
 - Use Wii Remote shoulder button for "left" fire.
 
 [wii_nunchuk_img]: https://lh3.googleusercontent.com/DtCjBt0zrNEDBSgTmaP4BhPlDFfJePFtyBbLvqhEnxG5wjlIjbL1j3akOqbb4_tsSEuVGq1VaBZ_2T94TYNG8tjzxthE-Theo-gphrnG7AW8GEzd7vrmNqjVtGJjDcdhTnkJbsdCCFk=-no
+
 [wii_nunchuk]: https://en.wikipedia.org/wiki/Wii_Remote#Nunchuk
 
 ## Nintendo Wii Remote + Classic Controller / Classic Controller Pro
@@ -239,10 +247,11 @@ Classic Controller can be used.
 - Supported features: rumble (when using BR/EDR)
 - Pair instructions: Same as model "1914", see below.
 - Protocol:
-  - BLE: Since firmware v5
-  - BR/EDR: Before firmware v5
+    - BLE: Since firmware v5
+    - BR/EDR: Before firmware v5
 
 [xbox_1708_ebay]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw=xbox+wireless+controller+1708&_sacat=0
+
 [xbox_1708]: https://lh3.googleusercontent.com/YmONc-MhVZhnE8HVRgzH7FKSpT_29MLeIF70U5AfrcBuCtuNJ2Ln5xkmSpNqO0myrFpnDLbFvR2TRTRu0xcqvP3cLNaq1BBpruEAn-Z7vBbwzNtaXx7eQaLLF7aa8tt2Wa0IcYxeD08=-no
 
 ## Xbox Wireless (model 1914, 3 buttons)
@@ -254,12 +263,13 @@ Classic Controller can be used.
 - Supports Xbox Controller firmware: v5.15 or newer
 - Supported features: N/A
 - Pair instructions:
-  - Turn on your controller by pressing the Xbox button.
-  - Press the controller’s Pair button for 3 seconds and release.
-  - Done. Bluepad32 will connect to it once it receives the "advertisement" broadcast message.
+    - Turn on your controller by pressing the Xbox button.
+    - Press the controller’s Pair button for 3 seconds and release.
+    - Done. Bluepad32 will connect to it once it receives the "advertisement" broadcast message.
 - Protocol: BLE
 
 [xbox_1914_ebay]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw=xbox+wireless+controller+1914&_sacat=0
+
 [xbox_1914]: https://lh3.googleusercontent.com/pw/AMWts8BjOU-jTHHhK6S7PFfyvRpBr8FlUhKdoebHK83tp536cRWaX2yfo1CiXnDyWe8RGg7CMtjc4DiU-Fji0Er-88Vtr7RXSGfF3xKoel6VRmogMwSWWdKbQswxzB3wULe06nOYRrVpcqJUkgeKF4hotwyxaw=-no?authuser=0
 
 ## Xbox Adaptive Controller
@@ -268,12 +278,13 @@ Classic Controller can be used.
 
 - Supports Xbox Controller firmware: v5.15 or newer
 - Pair instructions:
-  - Press "pair" button at the back of the controller.
-  - Wait until Xbox logo blinks
-  - Done. Bluepad32 will connect to it once it receives the "advertisement" broadcast message.
+    - Press "pair" button at the back of the controller.
+    - Wait until Xbox logo blinks
+    - Done. Bluepad32 will connect to it once it receives the "advertisement" broadcast message.
 - Protocol: BLE
 
 [xbox_adaptive_site]: https://www.xbox.com/en-US/accessories/controllers/xbox-adaptive-controller
+
 [xbox_adaptive_img]: https://lh3.googleusercontent.com/pw/AJFCJaVs47b7HLG5IR7uBp3Gyi9XOiSaSZgW2Ux1_qgdJpPayy5gHRt5sg0atyjayhOMFI9cobKHtrsEqHdunrCj6V3sxHuFvAZbLhVHgssRvqW0FFA3KMlV71zrRDNEueQv3-Jb7IpfFZJJKUmCtwCpOjEobg=-no?authuser=0
 
 ## Android
@@ -284,6 +295,7 @@ Classic Controller can be used.
 - Protocol: Depends on the gamepad. Most use BR/EDR. Only a few use BLE.
 
 [android_gamepad]: https://lh3.googleusercontent.com/S3H1pEGYGT5aVTwF3ySWHF7vqbonDYR0UxOLJBxFe5At6Q4AP_4TQUCaNOiEXD22U4H3C0lVP1E3m26H3QM4rIbgp1wysbQoSt1NpD61snlWES5N5zGUgx20c2sfFCKZL4w_Gl66Y1s=-no
+
 [stratus_duo]: https://steelseries.com/gaming-controllers/stratus-duo
 
 ## Steam Controller
@@ -292,14 +304,16 @@ Classic Controller can be used.
 
 - Controller must be [flashed with Bluetooth firmware][steam_instructions]
 - Supported features:
-  - Disables "lizard mode" (keyboard / mouse mouse)
-  - Supports Dpad, triggers, buttons, thumbstick, right pad
+    - Disables "lizard mode" (keyboard / mouse mouse)
+    - Supports Dpad, triggers, buttons, thumbstick, right pad
 - Pair instructions:
-  - Press "Y" + "Steam" button
+    - Press "Y" + "Steam" button
 - Protocol: BLE
 
 [steam_ebay]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw=steam+controller+1001&_sacat=0
+
 [steam_instructions]: https://help.steampowered.com/en/faqs/view/1796-5FC3-88B3-C85F
+
 [steam_controller_img]:  https://lh3.googleusercontent.com/pw/AJFCJaX2KZ4NOFbcc0QuI-qgHReYsfsogpRIL1--86cZsMzrVmpDKuFPNHyGKeFXaCiQLtdCSey0SaH9fcj-OG7zDLUGZuZQ1B6wbLQ-pQrD883iMdH6g7fT7oQ-HfVkQXQGH-ZQRTD-LGITxIdI3Gx6VvdD-A=-no
 
 ## Stadia Controller
@@ -310,7 +324,9 @@ Classic Controller can be used.
 - Protocol: BLE
 
 [stadia_ebay]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw=stadia+controller&_sacat=0
+
 [stadia_instructions]: https://stadia.google.com/controller/index_en_US.html
+
 [stadia_controller]: https://lh3.googleusercontent.com/pw/AMWts8BsCTnzKGc0UEQ7JaXXG84UIwCwXMFOnF0_JC6pTKptxh8xFIxyxsilC1hZmJ8z9U102-MR60ecBoHiHCSH5hINvsWcQ1Q4l1iFgJaMISAawpCgJlEShlAg0-SIw9rjAmTrSXhEHo0uUNZzFV9MVmxUBA=-no?authuser=0
 
 ## SteelSeries Nimbus
@@ -321,6 +337,7 @@ Classic Controller can be used.
 - Protocol: BR/EDR
 
 [nimbus_steelseries_img]: https://lh3.googleusercontent.com/QeK4QebBIw4O-vWuyc-oxTGT_eST6BZ_2y6R9X5cuXPsQVQgZRdm5JEYs982dDKkYDs7AqCIGZyCQBRPJgLJ3ZxNqt_7KYMl9uKkWtmR0P89VbYgC4cMtkEFob2ihA8J6UxGHQ_4Tw0=-no
+
 [nimbus]: https://steelseries.com/gaming-controllers/nimbus
 
 ## OUYA
@@ -331,6 +348,7 @@ Classic Controller can be used.
 - Protocol: BR/EDR
 
 [ouya_1gen]: https://lh3.googleusercontent.com/FtbQLbt1QrzU59TTPQHIEarGZItlPik0bGWo40iDu0rnMwddCEwKMcy8LAe_fqzklaSKfMbt3-EvFJI4Vcoz3gSPTgC9MnTog3MyGfNWMc0Wq2Idq1kzjPOpRIS5OXeSqSSmIfGa5-w=-no
+
 [issue_7]: https://gitlab.com/ricardoquesada/unijoysticle2/issues/7
 
 ## 8BitDo Family
@@ -343,12 +361,19 @@ Classic Controller can be used.
 - Protocol: BR/EDR
 
 [8bitdo_sn30_pro_img]: https://lh3.googleusercontent.com/KX3q2kT7UZcEDGN8953RB7msPV343Gworbgaq-eLeKtqSzjTlOIUkoCf0QAf2GrnroQm0ADOCDgj3rK8EWpl2tfqScqExsiSorWZFf7lzA8-m1EoYYkVyjYaeFsSxzcC17kw9CkMNWQ=-no
+
 [8bitdo_nes30]: https://www.google.com/search?q=8bitdo+nes30
+
 [8bitdo_lite]: https://www.8bitdo.com/lite/
+
 [8bitdo_sn30_pro]: https://www.8bitdo.com/sn30-pro-g-classic-or-sn30-pro-sn/
+
 [8bitdo_arcade_stick]: https://www.8bitdo.com/arcade-stick/
+
 [8bitdo_m30]: https://www.8bitdo.com/m30/
+
 [8bitdo_zero2]: https://www.8bitdo.com/zero2/
+
 [8bitdo_ultimate]: https://www.8bitdo.com/ultimate-bluetooth-controller/
 
 ## Atari VCS Joystick
@@ -360,6 +385,7 @@ Classic Controller can be used.
 - Protocol: BR/EDR
 
 [atari_joystick_link]: https://atari.com/products/classic-joystick
+
 [atari_joystick_photo]: https://lh3.googleusercontent.com/pw/ADCreHeBQRnL5M6Yu_GDtgtJCrTNqZPZp7u2RUuwi347V83ZWYE1L3bFAyR79CqpIpA0aI40xl2u4OhdR8NchCwIcvEdGpz4Qu-8cn2cHo1nKWO5ZyyN_QJgysYl9l0N_OkRw_xSIM0OjdtxaAskStxCbBqvFA=w252-h256-s-no-gm?authuser=0
 
 ## iCade Family
@@ -373,6 +399,7 @@ Classic Controller can be used.
 - Protocol: BR/EDR
 
 [icade_img]: https://lh3.googleusercontent.com/owslbSElM2BJL5M9h3hqksaCJhjAGf7DyfEwRFxxqjdG3Y73D5V9ScI0zVNokmSJMO6jrHMuX7j437kB-ER7kCAzc8GPX4ir9MPEVdypuxMneoIuzp3yAY8DqvkItbSZY0hlaAUMPn8=-no
+
 [icade_url]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=m570.l1313&_nkw=icade+cabinet&_sacat=0&LH_TitleDesc=0&_osacat=0&_odkw=icade+cabinet
 
 ### iCade 8-bitty
@@ -382,6 +409,7 @@ Classic Controller can be used.
 - Protocol: BR/EDR
 
 [8bitty_img]: https://lh3.googleusercontent.com/LKf4C5SDVlE1mx91vyh8S7AhaJgsgiBZlOuLSVlIKMllSzMbWqOj6lXFmYfPn8fFxBblsXmNyEFVreaJFaxKLjBVTTMhJ2k4Z6C-40c8MSSNCCCokPrhWS_rDQoHtVx01Xckqx-62FI=-no
+
 [8bitty_url]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=m570.l1313&_nkw=icade+8-bitty&_sacat=0&LH_TitleDesc=0&_osacat=0&_odkw=icade+8bitty
 
 ## Amazon Fire TV Remote
@@ -401,7 +429,8 @@ In general, any Bluetooth Classic (not BLE) controller that supports HID is supp
 
 BLE controllers are supported, but this is an experimental feature as of Bluepad32 v3.6
 
-There many *generic* Bluetooth controllers that sometimes are offered as gifts in conferences. Usually these *generic* Bluetooth controllers have different connection modes. Use the HID one.
+There many *generic* Bluetooth controllers that sometimes are offered as gifts in conferences. Usually these *generic*
+Bluetooth controllers have different connection modes. Use the HID one.
 
 - Select Button + X + Right trigger to enter into Gamepad mode
 - Select Button + X + Left trigger to enter in iCade mode.
@@ -430,8 +459,8 @@ Y<-   ->A             X<-   ->B
     B                     A
  ```
 
- So, instead of honoring the button names, N30 will get remapped to match the
- virtual gamepad layout, meaning that:
+So, instead of honoring the button names, N30 will get remapped to match the
+virtual gamepad layout, meaning that:
 
 - Button B -> A
 - Button A -> B
@@ -460,13 +489,23 @@ Many of the virtual buttons/pads are left unmapped, but could be mapped in the f
 - M3: Button Back
 
 [1]: https://lh3.googleusercontent.com/sfRd1qSHaxe4he4lt63Xjsr_ejmrthB00bPpIj4CwuUOyzKy3otIrdsPqhy_Y0U78Ibcw5bssuUOgKxNsvhvq6AQGlmigtj2tWA67HQHEaDU4tEmq850Z47rwRW9EzAhFGi6XrgUhUI=-no
+
 [11]: https://www.playstation.com/en-us/accessories/dualsense-wireless-controller/
+
 [12]: https://www.playstation.com/en-us/explore/accessories/dualshock-3-ps3/
+
 [14]: https://www.playstation.com/en-us/explore/accessories/gaming-controllers/dualshock-4/
+
 [15]: https://www.asus.com/us/Home-Entertainment/Gamepad-TV500BG/
+
 [16]: https://www.amazon.com/PowerA-MOGA-Pro-Power-Electronic-Games/dp/B00FB5RBJM?th=1
+
 [17]: http://www.gamingonfire.com/2014-amazon-fire-gaming-controller-1st-gen/
+
 [19]: https://www.amazon.com/OUYA-Wireless-Controller/dp/B002I0GX38?th=1
+
 [22]: https://www.amazon.com/Alexa-Voice-Remote-Amazon-Stick/dp/B071D41YC3
+
 [27]: https://en.wikipedia.org/wiki/Wii_U_Pro_Controller
+
 [29]: https://en.wikipedia.org/wiki/Wii_Remote
