@@ -45,7 +45,8 @@ struct uni_platform {
     void (*on_device_disconnected)(uni_hid_device_t* d);
 
     // When a device (controller) is ready to be used.
-    // Platform can reject the connection by returning false.
+    // Platform can accpe/reject the connection.
+    // To accept it return UNI_ERROR_SUCCESS.
     uni_error_t (*on_device_ready)(uni_hid_device_t* d);
 
     // Indicates that a gamepad button and/or stick was pressed and/or released.
