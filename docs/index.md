@@ -11,7 +11,7 @@ In other words, it allows gamepads, keyboards and mice to connect to your projec
 ## Features
 
 * Supports most, if not all, modern Bluetooth gamepads, mice and keyboards
-* Supports ESP32 and Pico W microcontrollers
+* Supports ESP32 (ESP32, ESP32-S3, ESP32-C3) and Pico W microcontrollers
 * Supported APIs: ESP-IDF, Pico-SDK, Arduino and CircuitPython
 * Fast (very low latency)
 * Small footprint
@@ -19,3 +19,23 @@ In other words, it allows gamepads, keyboards and mice to connect to your projec
 * C11 based
 * Open Source
 * Easy to integrate into 3rd party projects
+
+## Supported controllers
+
+Supports most, if not all, modern Bluetooth controllers like:
+
+* DualSense
+* DualShock 4
+* DualShock 3
+* Xbox Wireless
+* Nintendo Switch
+* Nintendo Wii U
+* Nintendo Wii and extensions like: Wii Mote, Balance Board, Nunchuk, etc.
+* Android
+* Steam
+* Stadia
+* 8Bitdo
+* Keyboard
+* Mouse
+* and more
+
