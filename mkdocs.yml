@@ -5,7 +5,7 @@ copyright: Copyright &copy; 2019-2024 Ricardo Quesada & contributors
 
 repo_url: https://github.com/ricardoquesada/bluepad32
 repo_name: ricardoquesada/bluepad32
-edit_uri: blob/main/docs
+edit_uri: blob/develop/docs
 
 watch:
   - README.md
@@ -30,13 +30,12 @@ nav:
     - plat_unijoysticle.md
     - plat_mightymiggy.md
   - Developer:
-    - firmware_setup.md
-    - adding_new_custom_platform.md
+    - 'Flashing firmware': firmware_setup.md
     - adding_new_platform.md
     - architecture.md
     - developer_notes.md
     - 'Release Notes': release_notes.md
-    - 'Issue Tracker':  https://github.com/ricardoquesada/bluepad32/issues
+    - 'Issue Tracker': https://github.com/ricardoquesada/bluepad32/issues
   - About:
     - Authors: authors.md
     - license.md
@@ -45,21 +44,14 @@ theme:
   name: material
   features:
     - navigation.expand
-    - navigation.sections
   font: false
   icon:
     repo: fontawesome/brands/github
-  palette:
-    - media: "(prefers-color-scheme: dark)"
-      scheme: slate
-      primary: deep purple
-      accent: deep purple
-    - media: "(prefers-color-scheme: light)"
-      scheme: default
-      primary: deep purple
-      accent: deep purple
+
+extra:
   analytics:
-    gtag: G-FXKBEY2NKF
+    provider: google
+    property: G-FXKBEY2NKF
 
 markdown_extensions:
   - admonition
