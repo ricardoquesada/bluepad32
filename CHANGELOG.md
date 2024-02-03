@@ -4,21 +4,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [4.0-beta0] - 2024-01-30
+## [4.0-beta0] - 2024-02-03
 ### New
 - Pico W support
   - Support for Raspberry Pi Pico W microcontroller
-  - Supports BLE / BREDR
+  - Supports BLE / BR/EDR
   - Console / NVS not supported yet
   - Internally uses the "custom" platform.
-- Atari Wireless Joystick: Add support for it
 - PS4 Move Controller: Add support for it. Before was only PS3 Move. [Github Issue #41][github_issue_41]
-- Mappings: can change between Xbox, Switch and custom mappings
-- BLE Service: Can read,write Bluepad32 properties from a BLE client (E.g.: mobile phone)
+- Mappings: can change between Xbox, Switch and custom mappings. Fixes [Gitlab Issue #26][gitlab_issue_26]
+- BLE Service: Can read,write Bluepad32 properties from a BLE client (E.g.: mobile phone). Still WIP.
 - Bluetooth: Expose RSSI property. WIP, part of [Github Issue #42][github_issue_42]
 
 [github_issue_41]: https://github.com/ricardoquesada/bluepad32/issues/41
 [github_issue_42]: https://github.com/ricardoquesada/bluepad32/issues/42
+[gitlab_issue_26]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/26
 
 ### Changed
 - Platform boot logic changed a bit. Rationale: "don't make magic changes".
@@ -53,16 +53,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
      don't worry about internal folder re-organization.
 - Arduino platform:
   - Removed from "bluepad32" repo. Moved to the [Bluepad32 Arduino template][bluepad32-arduino-template] project.
-- Docs: Using Github as the default place, not Gitlab
+- Docs: Using Github as the default repo, not Gitlab
+- Docs: Documentation hosted in readthedocs: <https://bluepad32.readthedocs.io/>
 
 [bluepad32-arduino-template]: https://github.com/ricardoquesada/esp-idf-arduino-bluepad32-template
 
 ### Fixed
 - Switch: Parse calibration correctly. Does not crash. [Fixes Github Issue #61][github_issue_61]
-- NINA: Disconnect gamepad works Ok. [Fixes Github Issue #8][github_arduino_issue_8]
+- Arduino & NINA: Disconnect gamepad works Ok. Fixes [Github Issue #8][github_arduino_issue_8] and [Github Issue #50][github_issue_50]
 
 [github_issue_61]: https://github.com/ricardoquesada/bluepad32/issues/61
-[github_arduino_issue_8]: https://github.com/ricardoquesada/bluepad32-arduino/issues/8 
+[github_arduino_issue_8]: https://github.com/ricardoquesada/bluepad32-arduino/issues/8
+[github_issue_50]: https://github.com/ricardoquesada/bluepad32/issues/50
+
+## [3.10.3] - 2023-11-26
+### New
+- Atari Wireless Joystick: Add support for it
+
+### Changed
+- Allowlist: rename `uni_bt_allowlist_allow_addr()` to `uni_bt_allowlist_is_allowed_addr()`
+
+## [3.10.2] - 2023-11-13
+### Changed
+- BTstack: Upgraded to latest develop branch as of 2023-11-13
+
+### Fixed
+- Xbox: Axis works Ok (fixed in latest BTstack)
 
 ## [3.10.1] - 2023-11-05
 ### New
