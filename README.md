@@ -2,7 +2,7 @@
 
 [![discord](https://img.shields.io/discord/775177861665521725.svg)](https://discord.gg/r5aMn6Cw5q)
 
-![logo](https://lh3.googleusercontent.com/pw/ADCreHccTUqtDIguBBUaQJH0iWsE6Ee1mLdL8urNKmewdvioWjWqT2rlBIWszdMT5jZOs0HJmrbnB4AEuRoRmE4zeR3TeXQZEHl8xZJCplBb9qtYaA3UCU-Dw8d58jIXsQz1qbzNYhAxQzmDBT1EGBCGW8Zd4w=-no-gm?authuser=0)
+![logo](https://github.com/ricardoquesada/bluepad32/blob/main/docs/images/bluepad32-logo.png?raw=true)
 
 A Bluetooth controller "host" for the ESP32, ESP32-S3, ESP32-C3, Raspberry Pi Pico W and Linux.
 
@@ -144,7 +144,7 @@ Arduino examples are in:
 * [Documentation][docs]
 * [Discord][discord]
 
-[docs]: https://github.com/ricardoquesada/bluepad32/tree/main/docs
+[docs]: https://bluepad32.readthedocs.io/en/latest/
 
 [discord]: https://discord.gg/r5aMn6Cw5q
 
