@@ -66,15 +66,17 @@ Choose the right one depending on your knowledge, devkits and requirements:
 
 === "CircuitPython"
 
-    Hola
+    WIP. In the meantime read: [Bluepad32 for CircuitPython][bp32-circuitpython]
 
 === "ESP-IDF"
 
-    Hola
+    WIP. In the meantime use this example as reference: [ESP-IDF example][esp32-example]
 
 === "Pico SDK"
 
-    Hola
+    WIP. In the meantime use this example as reference: [Pico W example][pico-w-example]
+
+## Comparison table
 
 | Platform                            | Start here                                                        | Further info        | Community projects                                                                                        | Features                                                     |
 |-------------------------------------|-------------------------------------------------------------------|---------------------|-----------------------------------------------------------------------------------------------------------|--------------------------------------------------------------|
