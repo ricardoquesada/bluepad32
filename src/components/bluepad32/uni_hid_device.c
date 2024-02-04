@@ -481,7 +481,7 @@ void uni_hid_device_delete(uni_hid_device_t* d) {
 }
 
 void uni_hid_device_dump_device(uni_hid_device_t* d) {
-    char* conn_type;
+    const char* conn_type;
     gap_connection_type_t type;
 
     if (uni_hid_device_is_virtual_device(d)) {

@@ -1122,7 +1122,7 @@ void uni_hid_parser_switch_set_rumble(struct uni_hid_device_s* d, uint8_t value,
 
 bool uni_hid_parser_switch_does_name_match(struct uni_hid_device_s* d, const char* name) {
     struct device_s {
-        char* name;
+        const char* name;
         int vid;
         int pid;
     };

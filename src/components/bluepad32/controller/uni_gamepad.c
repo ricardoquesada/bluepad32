@@ -17,7 +17,7 @@ static uni_gamepad_mappings_type_t mappings_type;
 
 static struct {
     uni_controller_type_t type;
-    char* name;
+    const char* name;
 } controller_names[] = {
     {CONTROLLER_TYPE_UnknownSteamController, "Unknown Steam"},
     {CONTROLLER_TYPE_SteamController, "Steam"},
@@ -230,7 +230,7 @@ void uni_gamepad_dump(const uni_gamepad_t* gp) {
     );
 }
 
-char* uni_gamepad_get_model_name(int type) {
+const char* uni_gamepad_get_model_name(int type) {
     for (size_t i = 0; i < ARRAY_SIZE(controller_names); i++) {
         if (controller_names[i].type == type)
             return controller_names[i].name;

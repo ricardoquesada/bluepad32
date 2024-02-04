@@ -33,7 +33,7 @@ struct mouse_resolution {
     uint16_t vid;
     uint16_t pid;
     // If name is NULL, it means it should not be used.
-    char* name;
+    const char* name;
     float scale;
 };
 

@@ -484,7 +484,7 @@ void uni_hid_parser_xboxone_set_rumble(uni_hid_device_t* d, uint8_t value, uint8
 }
 
 void uni_hid_parser_xboxone_device_dump(uni_hid_device_t* d) {
-    static char* versions[] = {
+    static const char* versions[] = {
         "v3.1",
         "v4.8",
         "v5.x",
