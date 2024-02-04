@@ -16,7 +16,7 @@ void uni_virtual_device_set_enabled(bool enabled) {
     if (enabled != virtual_device_enabled) {
         virtual_device_enabled = enabled;
 
-        val.u8 = enabled;
+        val.boolean = enabled;
         uni_property_set(UNI_PROPERTY_IDX_VIRTUAL_DEVICE_ENABLED, val);
     }
 }
@@ -29,5 +29,5 @@ void uni_virtual_device_init(void) {
     uni_property_value_t val;
 
     val = uni_property_get(UNI_PROPERTY_IDX_VIRTUAL_DEVICE_ENABLED);
-    virtual_device_enabled = val.u8;
+    virtual_device_enabled = val.boolean;
 }

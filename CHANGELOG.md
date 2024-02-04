@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### New
 - Pico W support
   - Support for Raspberry Pi Pico W microcontroller
-  - Supports BLE / BR/EDR
+  - Supports BLE and BR/EDR
   - Console / NVS not supported yet
   - Internally uses the "custom" platform.
 - PS4 Move Controller: Add support for it. Before was only PS3 Move. [Github Issue #41][github_issue_41]
@@ -53,8 +53,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
      don't worry about internal folder re-organization.
 - Arduino platform:
   - Removed from "bluepad32" repo. Moved to the [Bluepad32 Arduino template][bluepad32-arduino-template] project.
-- Docs: Using Github as the default repo, not Gitlab
+- Virtual Device: Disabled by default. To enable it call: `void uni_virtual_device_set_enabled(true);`
+- BTstack: Using latest develop branch. Hash: 4b3f8617054370b0e96650ee65edea1c23591ed4
 - Docs: Documentation hosted in readthedocs: <https://bluepad32.readthedocs.io/>
+- Docs: New Bluepad32 logo <https://github.com/ricardoquesada/bluepad32/blob/main/docs/images/bluepad32-logo.png>
+- Docs: Using Github as the default repo, not Gitlab
 
 [bluepad32-arduino-template]: https://github.com/ricardoquesada/esp-idf-arduino-bluepad32-template
 
@@ -675,7 +678,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bluetooth: Replaced the old "auto_delete" code, which used "counts", with
   one based on a timer. New code includes incoming connections.
 - Bluetooth: SDP query + state machine refactor.
-  SDP query timeout using btstack timers instead of ad-hoc one.
+  SDP query timeout using BTstack timers instead of ad-hoc one.
   SDP query moved to its ow file.
   Perform VID/PID query before HID-descriptor.
   If HID-descriptor is not needed, don't do the query. Reduces connection latency.
@@ -855,7 +858,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
         project. Easier for other non-unijoysticle user to integrate into their
         own projects. New name for the firmware: "bluepad32".
 - tools:
-  - Compiles & updated to new btstack code
+  - Compiles & updated to new BTstack code
   - Added "circuitpython_paint.py": Example of how to use Bluepad32 with
     MatrixPortal M4 (AirLift)
 - BTstack: Using master 2020-10-07 - 16f6f81ae588cf9f7d69b19328eee69fbd03db94
@@ -1000,7 +1003,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Firmware: Nintendo Wii U Pro support: Works Ok on ESP32.
 - Firmware: Bluetooth state machine. Code clean-up. It is easier to mantain.
-- Firmware: Using btstack master-branch. Commit: dbb3cbc198393187c63748b8b0ed0a7357c9f190
+- Firmware: Using BTstack master-branch. Commit: dbb3cbc198393187c63748b8b0ed0a7357c9f190
 
 ### Removed
 - Firmware: Name discovery disabled for the moment
@@ -1011,7 +1014,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Firmware: Using ESP-IDF v3.2.2
-- Firmware: Using btstack develop-branch. Commit: a4ea32feba8ca8a16509a75d3d80e8017ca2cf3b
+- Firmware: Using BTstack develop-branch. Commit: a4ea32feba8ca8a16509a75d3d80e8017ca2cf3b
 
 ## [0.2.1] - 2019-06-29
 ### Added
@@ -1020,7 +1023,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Firmware: Gamepad names are fetched correctly.
-- Firmware: Using btstack develop-branch. Commit: 32b46fec1df77000b2e383d209074f4c2866ebdf
+- Firmware: Using BTstack develop-branch. Commit: 32b46fec1df77000b2e383d209074f4c2866ebdf
 - Firmware: "apple" parser renamed to "nimbus" parser.
 
 ## [0.2.0] - 2019-05-22
@@ -1035,7 +1038,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Firmware: Atari ST mouse support
   - Buttons working as expected
   - A bit smoother than v0.1.0 but still not good enough
-- Firmware: Updated link to http://retro.moe/unijoysticle2
+- Firmware: Updated link to <http://retro.moe/unijoysticle2>
 - Firmware: Using ESP-IDF v3.2. Commit: 286202caa31b61c2182209f37f8069a0b60fb942
   - Components Bluetooth: enabled
     - Bluedroid: disabled
@@ -1047,10 +1050,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Main XTAL frequency: Autodetect
   - Components Wi-Fi
     - Software controls WiFi/Bluetooth coexistence: disabled
-- Firmware: Using btstack develop-branch. Commit: 4ce43359e6190a70dcb8ef079b902c1583c2abe4
+- Firmware: Using BTstack develop-branch. Commit: 4ce43359e6190a70dcb8ef079b902c1583c2abe4
 
 ## [0.1.0] - 2019-04-15
 ### Added
 - Firmware: v0.1.0
   - Using ESP-IDF v3.1.3. Commit: cf5dbadf4f25b395887238a7d4d8251c279afa8c
-  - Using btstack develop-branch. Commit: 8b22c04ddc425565c8e4002a6d4d26a53426a31f
+  - Using BTstack develop-branch. Commit: 8b22c04ddc425565c8e4002a6d4d26a53426a31f

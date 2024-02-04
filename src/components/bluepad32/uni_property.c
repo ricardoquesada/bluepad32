@@ -22,7 +22,7 @@ static const uni_property_t properties[] = {
 #ifdef CONFIG_BLUEPAD32_ENABLE_BLE_BY_DEFAULT
      .default_value.boolean = true
 #else
-     .default_value.u8 = 0
+     .default_value.boolean = false
 #endif  // CONFIG_BLUEPAD32_ENABLE_BLE_BY_DEFAULT
     },
     {UNI_PROPERTY_IDX_GAP_INQ_LEN, UNI_PROPERTY_NAME_GAP_INQ_LEN, UNI_PROPERTY_TYPE_U8,
@@ -46,7 +46,7 @@ static const uni_property_t properties[] = {
 #ifdef CONFIG_BLUEPAD32_ENABLE_VIRTUAL_DEVICE_BY_DEFAULT
      .default_value.boolean = true
 #else
-     .default_value.u8 = 0
+     .default_value.boolean = false
 #endif  // CONFIG_BLUEPAD32_ENABLE_VIRTUAL_DEVICE_BY_DEFAULT
     },
 
