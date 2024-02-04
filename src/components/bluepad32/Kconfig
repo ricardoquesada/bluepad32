@@ -150,7 +150,7 @@ menu "Bluepad32"
 
     config BLUEPAD32_ENABLE_VIRTUAL_DEVICE_BY_DEFAULT
         bool "Enable Virtual Devices by default"
-        default y
+        default n
         help
             A Virtual Device is when a controller like DualSense or DualShock4
             supports also mouse (it is a touchpad, but converted to mouse).
