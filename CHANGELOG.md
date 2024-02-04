@@ -193,7 +193,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v3.8.2] - 2023-08-02
 ### Changed
 - Unijoysticle: 800XL uses port one as default for joystick and port 2 as default for mouse.
-  Each "variant" can specify easily the default ports.
+  Each "variant" can easily specify the default ports.
 
 ### Fixed
 - Allowlist: Can be called from C++ (Arduino).
@@ -235,12 +235,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Unijoysticle: "Enhanced mode" renamed to "Twin Stick" mode.
   Seems to be the name that has been used for games like Robotron 2084.
-- Unijoysticle: Refactor. Each boards has its own file, and its own "class".
-  Easier to extend / mantain.
+- Unijoysticle: Refactor. Each board has its own file, and its own "class".
+  Easier to extend / maintain.
 
 ### Fixed
 - Wii + Accel mode: Buttons "A" and "Trigger" act as fire.
-  Before "fire" was not mapped and it was not possible to play games like Lemans.
+  Before "fire" was not mapped, and it was not possible to play games like Lemans.
 - Unijoysticle: Twin Stick works with 2nd buttons
 
 ## [v3.7.3] - 2023-06-17
@@ -259,7 +259,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Either press the gamepad or board "swap" button.
   The blue LED will blink once after the swap.
   The console command `list_devices` will display `mode=enhanced swapped` when it is swapped.
-  Otherwise it just shows `mode=enhanced`.
+  Otherwise, it just shows `mode=enhanced`.
 
 ### Fixed
 - Nintendo Switch: reports battery correctly.
@@ -289,21 +289,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - GameSir T3s gamepad, when in iOS mode works.
   GameSir iOS mode is basically impersonating an Xbox Wireless with FW 4.8.
-  Althought the recommened for GameSir T3s, is to use it in Switch mode.
+  Although the recommended for GameSir T3s, is to use it in Switch mode.
 
 [gitlab_issue_28]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/28
 [github_issue_36]: https://github.com/ricardoquesada/bluepad32/issues/36
 
 ## [v3.7.1] - 2023-04-30
 ### New
-- DualSense / DualShock 4: Report Acceleromenter and Gyro data
+- DualSense / DualShock 4: Report Accelerometer and Gyro data
 - Steam Controller: Add support for Steam Controller.
   - Disables "lizard" mode
   - Dpad, buttons, triggers, thumbstick, right pad supported.
   - Gyro/Accel: not supported ATM
 
 ### Fixed
-- Xbox Adaptive Controller: Works as expeted. Removed "unsupported usage" messages.
+- Xbox Adaptive Controller: Works as expected. Removed "unsupported usage" messages.
 - Arduino / NINA / CircuitPython: Add APIs to read gyro / accel.
 
 ## [v3.7.0] - 2023-04-17
@@ -322,7 +322,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support ESP32-S3 / ESP32-C3
   Only BLE gamepads are supported, since BR/EDR is not supported on ESP32-S3 / ESP32-C3.
   Notice that ESP32-S3 has two cores, like ESP32. Bluetooth stack runs on one core,
-  and Arduino Sketch runs on on the other core.
+  and Arduino Sketch runs on the other core.
   But ESP32-C3 only has one core. Meaning that both Bluetooth and Arduino Sketch share the same
   core. It works perfectly well for basic applications. But ESP32 or ESP32-S3 is a better option
   for advanced application.s
@@ -345,7 +345,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### New
 - Add support for Sony Motion Controller
 - Unijoysticle: Gamepad button "Start" triggers "gamepad change mode".
-  It is useful to switch back an forth from "gamepad" to "mouse" mode without the need
+  It is useful to switch back and forth from "gamepad" to "mouse" mode without the need
   to press the "black button" on the Unijoysticle.
   - On V2+ / A500 it cycles between: `normal` -> `mouse` -> `enhanced` modes
   - On V2 / C64 it cycles between: `normal` -> `enhanced` modes.
@@ -383,7 +383,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v3.6.0-rc1] - 2023-01-29
 ### New
 - BLE support (experimental). Enable it from "idf.py menuconfig" or
-  from console with "set_ble_enabled". It is disabled by default
+  from console with `set_ble_enabled`. It is disabled by default
   Tested with:
   - Xbox Wireless Controller model 1914 with Firmware 5.15
   - Xbox Wireless Controller model 1708 with Firmware 5.15
