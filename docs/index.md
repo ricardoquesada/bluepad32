@@ -22,7 +22,7 @@ In other words, it allows gamepads, keyboards and mice to connect to your projec
 
 ## Supported controllers
 
-Supports most, if not all, modern Bluetooth controllers like:
+Non-exhaustive list:
 
 * DualSense
 * DualShock 4
@@ -39,3 +39,7 @@ Supports most, if not all, modern Bluetooth controllers like:
 * Mouse
 * and more
 
+If your favorite controller is not supported, [let us know][filing_a_bug]
+
+
+[filing_a_bug]: https://github.com/ricardoquesada/bluepad32/issues
