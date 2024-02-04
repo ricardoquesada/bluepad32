@@ -52,6 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added <uni.h> file, easier for 3rd party user. Just include that file, and
      don't worry about internal folder re-organization.
 - Arduino platform:
+  - Removed from "bluepad32" repo. Moved to the [Bluepad32 Arduino template][bluepad32-arduinotemplate] project.
   - Removed from "bluepad32" repo. Moved to the [Bluepad32 Arduino template][bluepad32-arduino-template] project.
 - Virtual Device: Disabled by default. To enable it call: `void uni_virtual_device_set_enabled(true);`
 - BTstack: Using latest develop branch. Hash: 4b3f8617054370b0e96650ee65edea1c23591ed4
