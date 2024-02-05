@@ -102,7 +102,7 @@ Choose the right one depending on your knowledge, devkits and requirements:
 
 [esp-idf-bluepad32-arduino]: https://github.com/ricardoquesada/esp-idf-arduino-bluepad32-template
 
-[esp32-example]: examples/esp32/
+[esp32-example]: https://github.com/ricardoquesada/bluepad32/tree/main/examples/esp32
 
 [esp32_example2]: https://github.com/ManCloud/GBAHD-Shield
 
@@ -110,25 +110,25 @@ Choose the right one depending on your knowledge, devkits and requirements:
 
 [esp32_video]: https://www.instagram.com/p/Ca7T6twKZ0B/
 
-[linux-example]: examples/linux
+[linux-example]: https://github.com/ricardoquesada/bluepad32/tree/main/examples/linux
 
 [nina_example]: https://eyskens.me/cd-i-meets-bluetooth/
 
-[pico-w-example]: examples/pico_w/
+[pico-w-example]: https://github.com/ricardoquesada/bluepad32/tree/main/examples/pico_w
 
 [pico_switch]: https://github.com/juan518munoz/PicoSwitch-WirelessGamepadAdapter
 
-[plat_airlift]: docs/plat_airlift.md
+[plat_airlift]: plat_airlift.md
 
-[plat_arduino]: docs/plat_arduino.md
+[plat_arduino]: plat_arduino.md
 
-[plat_custom]: docs/adding_new_platform.md
+[plat_custom]: adding_new_platform.md
 
-[plat_mightymiggy]: docs/plat_mightymiggy.md
+[plat_mightymiggy]: plat_mightymiggy.md
 
-[plat_nina]: docs/plat_nina.md
+[plat_nina]: plat_nina.md
 
-[plat_unijoysticle]: docs/plat_unijoysticle.md
+[plat_unijoysticle]: plat_unijoysticle.md
 
 [tello]: https://github.com/jsolderitsch/ESP32Controller
 
