@@ -49,7 +49,7 @@ People who contributed hardware and/or donations:
 - Christian Ruecker
 - Sol Huebner [*]
 - Kelly Keeton
-- Phase Dock (https://phasedock.com/) [*]
+- Phase Dock (<https://phasedock.com/>) [*]
 - James Solderitsch [*]
 
 [*]: Multiple times or generous donations
