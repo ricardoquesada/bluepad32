@@ -32,7 +32,7 @@ nav:
   - Developer:
     - 'Flashing firmware': firmware_setup.md
     - adding_new_platform.md
-    - architecture.md
+    - 'Architecture': architecture.md
     - developer_notes.md
     - 'Release Notes': release_notes.md
     - 'Issue Tracker': https://github.com/ricardoquesada/bluepad32/issues
