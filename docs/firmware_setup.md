@@ -1,5 +1,9 @@
 # Flashing precompiled firmware
 
+!!! Note
+
+    Only valid for Arduino NINA, Adafruit AirLift, Unijoysticle and MightyMiggy boards.
+
 If you only want to flash the latest firmware version without downloading the toolchain + sources you should do:
 
 Download the latest precompiled firmware from here:
@@ -83,7 +87,7 @@ Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity, only the
 4. Setup
 
     ``` cmd
-    # Setup BTStack
+    # Setup BTstack
     cd bluepad32\external\btstack\port\esp32
     # This will install BTstack as a component inside Bluepad32 source code (recommended).
     # Remove "IDF_PATH=../../../../src" if you want it installed in the ESP-IDF folder
@@ -157,7 +161,7 @@ Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity, only the
 4. Setup
 
     ``` sh
-    # Setup BTStack
+    # Setup BTstack
     cd ${BLUEPAD32}/external/btstack/port/esp32
     # This will install BTstack as a component inside Bluepad32 source code (recommended).
     # Remove "IDF_PATH=../../../../src" if you want it installed in the ESP-IDF folder
@@ -198,7 +202,7 @@ Only if you target Linux as a device (not an ESP32 device):
   sudo apt install libusb-1.0.0-dev
   ```
 
-2. Setup BTSTack for libusb
+2. Setup BTstack for libusb
 
   ``` sh
   cd ${BLUEPAD32}/external/btstack/port/libusb

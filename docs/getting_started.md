@@ -1,4 +1,4 @@
-# Choose platform
+# Choose target platform
 
 Bluepad32 supports different platforms, and different microcontrollers.
 
