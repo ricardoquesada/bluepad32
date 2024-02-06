@@ -118,17 +118,17 @@ Choose the right one depending on your knowledge, devkits and requirements:
 
 [pico_switch]: https://github.com/juan518munoz/PicoSwitch-WirelessGamepadAdapter
 
-[plat_airlift]: plat_airlift.md
+[plat_airlift]: plat_airlift
 
-[plat_arduino]: plat_arduino.md
+[plat_arduino]: plat_arduino
 
-[plat_custom]: adding_new_platform.md
+[plat_custom]: adding_new_platform
 
-[plat_mightymiggy]: plat_mightymiggy.md
+[plat_mightymiggy]: plat_mightymiggy
 
-[plat_nina]: plat_nina.md
+[plat_nina]: plat_nina
 
-[plat_unijoysticle]: plat_unijoysticle.md
+[plat_unijoysticle]: plat_unijoysticle
 
 [tello]: https://github.com/jsolderitsch/ESP32Controller
 
