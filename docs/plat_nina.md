@@ -4,7 +4,7 @@
 
     **Deprecated**. Will be mantained during 2024. But removed in 2025.
     Depends on 'SPI Flash Legacy' which was removed in ESP-IDF v5.0.
-    Besides it has limited functionality. Use [Arduino][plat_arduino] instead.
+    Besides, it has limited functionality. Use [Arduino][plat_arduino] instead.
 
 ## What is NINA
 

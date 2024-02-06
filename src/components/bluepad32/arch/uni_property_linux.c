@@ -4,12 +4,17 @@
 
 #include "uni_property.h"
 
+#include <btstack_tlv_posix.h>
+#include <btstack_util.h>
+#include <hci.h>
+
 #include "uni_common.h"
 #include "uni_log.h"
 
-// TODO: Implement a memory cache.
-// Used only in non-ESP32 platforms.
-// Short-term solution: just return the default value.
+#define TLV_DB_PATH_PREFIX "/tmp/bp32_property.tvl"
+
+static const btstack_tlv_t* tlv_impl;
+static btstack_tlv_posix_t tlv_context;
 
 void uni_property_set_with_property(const uni_property_t* p, uni_property_value_t value) {
     ARG_UNUSED(value);
@@ -37,4 +42,9 @@ uni_property_value_t uni_property_get_with_property(const uni_property_t* p) {
 
 void uni_property_init(void) {
     uni_property_init_debug();
+
+    tlv_impl = btstack_tlv_posix_init_instance(&tlv_context, TLV_DB_PATH_PREFIX);
+    btstack_tlv_set_instance(tlv_impl, &tlv_context);
+
+    logi("uni_property TLV path: %s\n", TLV_DB_PATH_PREFIX);
 }

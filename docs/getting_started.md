@@ -54,7 +54,7 @@ Choose the right one depending on your knowledge, devkits and requirements:
 
         **Deprecated**. Will be mantained during 2024. But removed in 2025.
         Depends on 'SPI Flash Legacy' which was removed in ESP-IDF v5.0.
-        Besides it has limited functionality. Use [Arduino][plat_arduino] instead.
+        Besides, it has limited functionality. Use [Arduino][plat_arduino] instead.
 
     - Only supports these boards:
         - [Arduino Nano RP2040 Connect][nano_rp2040]
