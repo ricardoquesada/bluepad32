@@ -24,9 +24,9 @@ nav:
     - supported_keyboards.md
     - pair_ds3.md
   - Platforms:
-    - 'Arduino + ESP32 boards': plat_arduino.md
-    - 'Arduino + NINA boards': plat_nina.md
-    - 'CircuitPython + AirLift boards': plat_airlift.md
+    - 'Arduino + ESP32 board': plat_arduino.md
+    - 'Arduino + NINA board': plat_nina.md
+    - 'CircuitPython + AirLift board': plat_airlift.md
     - 'Unijoysticle board': plat_unijoysticle.md
     - 'MightyMiggy board': plat_mightymiggy.md
   - Developer:

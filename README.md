@@ -44,17 +44,17 @@ Choose your target platform:
 
 [pico_switch]: https://github.com/juan518munoz/PicoSwitch-WirelessGamepadAdapter
 
-[plat_airlift]: docs/plat_airlift.md
+[plat_airlift]: https://bluepad32.readthedocs.io/en/latest/plat_airlift
 
-[plat_arduino]: docs/plat_arduino.md
+[plat_arduino]: https://bluepad32.readthedocs.io/en/latest/plat_arduino
 
-[plat_custom]: docs/adding_new_platform.md
+[plat_custom]: https://bluepad32.readthedocs.io/en/latest/adding_new_platform
 
-[plat_mightymiggy]: docs/plat_mightymiggy.md
+[plat_mightymiggy]: https://bluepad32.readthedocs.io/en/latest/plat_mightymiggy
 
-[plat_nina]: docs/plat_nina.md
+[plat_nina]: https://bluepad32.readthedocs.io/en/latest/plat_nina
 
-[plat_unijoysticle]: docs/plat_unijoysticle.md
+[plat_unijoysticle]: https://bluepad32.readthedocs.io/en/latest/plat_unijoysticle
 
 [tello]: https://github.com/jsolderitsch/ESP32Controller
 
