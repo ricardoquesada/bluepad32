@@ -52,7 +52,9 @@ Choose the right one depending on your knowledge, devkits and requirements:
 
     !!! Warning
 
-        Only use if the only thing you have is an Arduino NINA board.
+        **Deprecated**. Will be mantained during 2024. But removed in 2025.
+        Depends on 'SPI Flash Legacy' which was removed in ESP-IDF v5.0.
+        Besides it has limited functionality. Use [Arduino][plat_arduino] instead.
 
     - Only supports these boards:
         - [Arduino Nano RP2040 Connect][nano_rp2040]
@@ -118,17 +120,17 @@ Choose the right one depending on your knowledge, devkits and requirements:
 
 [pico_switch]: https://github.com/juan518munoz/PicoSwitch-WirelessGamepadAdapter
 
-[plat_airlift]: plat_airlift
+[plat_airlift]: ../plat_airlift
 
-[plat_arduino]: plat_arduino
+[plat_arduino]: ../plat_arduino
 
-[plat_custom]: adding_new_platform
+[plat_custom]: ../adding_new_platform
 
-[plat_mightymiggy]: plat_mightymiggy
+[plat_mightymiggy]: ../plat_mightymiggy
 
-[plat_nina]: plat_nina
+[plat_nina]: ../plat_nina
 
-[plat_unijoysticle]: plat_unijoysticle
+[plat_unijoysticle]: ../plat_unijoysticle
 
 [tello]: https://github.com/jsolderitsch/ESP32Controller
 

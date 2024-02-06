@@ -1,5 +1,11 @@
 # Bluepad32 firmware for NINA
 
+!!! Warning
+
+    **Deprecated**. Will be mantained during 2024. But removed in 2025.
+    Depends on 'SPI Flash Legacy' which was removed in ESP-IDF v5.0.
+    Besides it has limited functionality. Use [Arduino][plat_arduino] instead.
+
 ## What is NINA
 
 NINA is a family of [ESP32 modules][nina-esp32].
@@ -38,6 +44,7 @@ Bluepad32 firmware is "compatible-enough" with the original firmware:
 [mkr_wifi]: https://store-usa.arduino.cc/products/arduino-mkr-wifi-1010
 [uni_wifi]: https://store-usa.arduino.cc/products/arduino-uno-wifi-rev2
 [mkr_vidor_4000]: https://store.arduino.cc/products/arduino-mkr-vidor-4000
+[plat_arduino]: ../plat_arduino
 
 ## Flashing pre-compiled Bluepad32 firmware
 

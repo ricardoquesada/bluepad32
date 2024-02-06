@@ -2,8 +2,8 @@
 
 !!! Note
 
-    Only for users that want to use Pico SDK / ESP-IDF API directly. 
-    E.g.: Arduino / CircuitPython users **SHOULD NOT** add a new platform.
+    Only for users that want to use Pico SDK / ESP-IDF / Linux raw API directly. 
+    E.g.: **Not** for Arduino users.
 
 You will need to add your own platform when using the raw (low-level) ESP-IDF / Pico SDK API.
 

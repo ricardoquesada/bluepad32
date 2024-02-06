@@ -24,11 +24,11 @@ nav:
     - supported_keyboards.md
     - pair_ds3.md
   - Platforms:
-    - plat_arduino.md
-    - plat_nina.md
-    - plat_airlift.md
-    - plat_unijoysticle.md
-    - plat_mightymiggy.md
+    - 'Arduino + ESP32 boards': plat_arduino.md
+    - 'Arduino + NINA boards': plat_nina.md
+    - 'CircuitPython + AirLift boards': plat_airlift.md
+    - 'Unijoysticle board': plat_unijoysticle.md
+    - 'MightyMiggy board': plat_mightymiggy.md
   - Developer:
     - 'Flashing firmware': firmware_setup.md
     - adding_new_platform.md
