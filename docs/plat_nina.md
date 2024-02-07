@@ -143,7 +143,11 @@ Firmware version installed: Bluepad32 for NINA v3.6.0-rc0
 
 ## Flashing self-compiled Bluepad32 firmware
 
-To flash a self-compiled firmware, you should do:
+!!! Note
+
+    If you already installed the pre-compiled firmware, skip this step
+
+To flash self-compiled firmware, you should do:
 
 1. Put the Arduino board in "pass-through" mode
 2. Compile it yourself and flash it.
@@ -206,8 +210,29 @@ esptool.py --port ${ESPPORT} --baud 115200 --before no_reset write_flash 0x1000 
 
 [readme]: https://github.com/ricardoquesada/bluepad32/blob/main/README.md
 
+## Install Arduino Library
+
+You need to install the [Bluepad32-arduino][bluepad32_arduino_lib] library:
+
+From Arduino Menu do: `Tools` -> `Manage Libraries...` -> Search for "bluepad32" and install it.
+
+![bluepad32_arduino_library_image][bluepad32_arduino_library_image]
+
+[bluepad32_arduino_lib]: https://github.com/ricardoquesada/bluepad32-arduino
+
+[bluepad32_arduino_library_image]: https://lh3.googleusercontent.com/pw/ABLVV86gMcXNZYEeH7baJ-6G_z9nVn-Z24fm7FWbMCaXtx8-r8AJPVHhq1d5zdeVw0zB71nHsJrYtAfOekVgxIjNTc1DUPa8PGftKcuQYIwwnY7ctJ91dfoK73L-T2lv9C-noOE2RC8iRZISbWynDR1kr-432Q=-no-gm?authuser=0
+
 ## Example
 
-The Bluepad32 library for Arduino with examples is available here:
+After choosing your board, from Arduino Menu do: `File` -> `Examples` -> `Bluepad32` -> `Controller`
 
-- <https://github.com/ricardoquesada/bluepad32-arduino>
+![bluepad32_arduino_example][bluepad32_arduino_example_image]
+
+!!! Note
+
+    The board must be the regular Arduino board. E.g.: "Arduino Uno WiFi Rev2".
+    And **NOT** any of the "esp32 + bluepad32" boards.
+
+[bluepad32_arduino_example_image]: https://lh3.googleusercontent.com/pw/ABLVV85GvpUOL7J40Vc9utFUchorngX0ergZeuJgS0iiIOfSStcQLnDwP33S23QH_DsCHjs9U9lt0nRdfY3eyckitnN9ulZTZpKLaTFj2m97vf-XJIUgYSda5AhJyFWXDmGLaFJ2wPiS4xDftzecXE1VKVu2JA=-no-gm?authuser=0
+
+    
