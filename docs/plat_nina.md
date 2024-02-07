@@ -1,4 +1,4 @@
-# Bluepad32 firmware for NINA boards
+# Bluepad32 for NINA boards
 
 !!! Warning
 

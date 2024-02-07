@@ -1,4 +1,4 @@
-# Bluepad32 firmware for Arduino + ESP32
+# Bluepad32 for Arduino + ESP32
 
 ## Supported boards
 
@@ -132,7 +132,7 @@ It is split in four parts:
 Create an ESP-IDF project from template:
 
 ```sh
-# One simiple way to start a new ESP-IDF project, is to clone the "template" project
+# One simple way to start a new ESP-IDF project, is to clone the "template" project
 git clone --recursive https://github.com/espressif/esp-idf-template my_project
 ```
 

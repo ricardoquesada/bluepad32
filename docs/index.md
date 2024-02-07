@@ -28,7 +28,7 @@ Non-exhaustive list:
 * Nintendo Switch, Wii U, Wii and Wii extensions
 * Xbox Wireless
 * Android
-* 8Bitdo
+* 8BitDo
 * Keyboard
 * Mouse
 * and more
