@@ -87,42 +87,42 @@ Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity, only the
 
 3. From the ESP-IDF cmd, clone Bluepad32 repo
 
-   ``` sh
-   git clone --recursive https://github.com/ricardoquesada/bluepad32.git
-   ```
+      ```sh
+      git clone --recursive https://github.com/ricardoquesada/bluepad32.git
+      ```
 
 4. Setup
 
-    ``` cmd
-    # Setup BTstack
-    cd bluepad32\external\btstack\port\esp32
-    # This will install BTstack as a component inside Bluepad32 source code (recommended).
-    # Remove "IDF_PATH=../../../../src" if you want it installed in the ESP-IDF folder
-    set IDF_PATH=..\..\..\..\src
-    python integrate_btstack.py
-    ```
+      ```cmd
+      # Setup BTstack
+      cd bluepad32\external\btstack\port\esp32
+      # This will install BTstack as a component inside Bluepad32 source code (recommended).
+      # Remove "IDF_PATH=../../../../src" if you want it installed in the ESP-IDF folder
+      set IDF_PATH=..\..\..\..\src
+      python integrate_btstack.py
+      ```
 
-   IMPORTANT: Once you complete the previous step, restart ESP-IDF CMD. This is because IDF_PATH
-   has been modified, and the easiest way to restore it is to relaunch CMD.
+      IMPORTANT: Once you complete the previous step, restart ESP-IDF CMD. This is because IDF_PATH
+      has been modified, and the easiest way to restore it is to relaunch CMD.
 
-    ``` cmd
-    # Setup Bluepad32 Platform
-    cd bluepad32\src
-    idf.py menuconfig
-    ```
+      ```cmd
+      # Setup Bluepad32 Platform
+      cd bluepad32\src
+      idf.py menuconfig
+      ```
 
-   And select `Component config` -> `Bluepad32` -> `Target platform` (choose the right one for you).
+      And select `Component config` -> `Bluepad32` -> `Target platform` (choose the right one for you).
 
 5. Compile it
 
-    ``` cmd
-    # Compile it
-    cd bluepad32\src
-    idf.py build
+      ```cmd
+      # Compile it
+      cd bluepad32\src
+      idf.py build
 
-    # Flash + open debug terminal
-    idf.py flash monitor
-    ```
+      # Flash + open debug terminal
+      idf.py flash monitor
+      ```
 
 [esp-idf-windows-setup]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/windows-setup.html
 
@@ -132,68 +132,68 @@ Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity, only the
 
 1. Requirements and permissions
 
-   Install ESP-IDF dependencies (taken from [here][toolchain-deps]):
+      Install ESP-IDF dependencies (taken from [here][toolchain-deps]):
 
-    ``` sh
-    # For Ubuntu / Debian
-    sudo apt-get install git wget flex bison gperf python3 python3-pip python3-setuptools cmake ninja-build ccache libffi-dev libssl-dev dfu-util libusb-1.0-0
-    ```
+      ```sh
+      # For Ubuntu / Debian
+      sudo apt-get install git wget flex bison gperf python3 python3-pip python3-setuptools cmake ninja-build ccache libffi-dev libssl-dev dfu-util libusb-1.0-0
+      ```
 
-   And in case you don't have permissions to open `/dev/ttyUSB0`, do:
-   (taken from [here][ttyusb0])
+      And in case you don't have permissions to open `/dev/ttyUSB0`, do:
+      (taken from [here][ttyusb0])
 
-    ``` sh
-    # You MUST logout/login (or in some cases reboot Linux) after running this command
-    sudo usermod -a -G dialout $USER
-    ```
+      ```sh
+      # You MUST logout/login (or in some cases reboot Linux) after running this command
+      sudo usermod -a -G dialout $USER
+      ```
 
 2. Install and setup ESP-IDF
 
-    ``` sh
-    # Needs to be done just once
-    # Clone the ESP-IDF git repo
-    mkdir ~/esp && cd ~/esp
-    git clone -b release/v5.0 --recursive https://github.com/espressif/esp-idf.git
+      ```sh
+      # Needs to be done just once
+      # Clone the ESP-IDF git repo
+      mkdir ~/esp && cd ~/esp
+      git clone -b release/v5.0 --recursive https://github.com/espressif/esp-idf.git
 
-    # Then install the toolchain
-    cd ~/esp/esp-idf
-    ./install.sh
-    ```
+      # Then install the toolchain
+      cd ~/esp/esp-idf
+      ./install.sh
+      ```
 
 3. Clone Bluepad32 repo
 
-   ``` sh
-   git clone --recursive https://github.com/ricardoquesada/bluepad32.git
-   ```
+      ```sh
+      git clone --recursive https://github.com/ricardoquesada/bluepad32.git
+      ```
 
 4. Setup
 
-    ``` sh
-    # Setup BTstack
-    cd ${BLUEPAD32}/external/btstack/port/esp32
-    # This will install BTstack as a component inside Bluepad32 source code (recommended).
-    # Remove "IDF_PATH=../../../../src" if you want it installed in the ESP-IDF folder
-    IDF_PATH=../../../../src ./integrate_btstack.py
-    ```
+       ```sh
+       # Setup BTstack
+       cd ${BLUEPAD32}/external/btstack/port/esp32
+       # This will install BTstack as a component inside Bluepad32 source code (recommended).
+       # Remove "IDF_PATH=../../../../src" if you want it installed in the ESP-IDF folder
+       IDF_PATH=../../../../src ./integrate_btstack.py
+       ```
 
-    ``` sh
-    # Setup Bluepad32 Platform
-    cd ${BLUEPAD32}/src
-    idf.py menuconfig
-    ```
+       ```sh
+       # Setup Bluepad32 Platform
+       cd ${BLUEPAD32}/src
+       idf.py menuconfig
+       ```
 
-   And select `Component config` -> `Bluepad32` -> `Target platform` (choose the right one for you).
+       And select `Component config` -> `Bluepad32` -> `Target platform` (choose the right one for you).
 
 5. Compile it
 
-    ``` sh
-    # Compile it
-    cd ${BLUEPAD32}/src
-    idf.py build
+       ```sh
+       # Compile it
+       cd ${BLUEPAD32}/src
+       idf.py build
 
-    # Flash + open debug terminal
-    idf.py flash monitor
-    ```
+       # Flash + open debug terminal
+       idf.py flash monitor
+       ```
 
 [toolchain-deps]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/linux-setup.html
 
@@ -205,24 +205,24 @@ Only if you target Linux as a device (not an ESP32 device):
 
 1. Install dependencies
 
-  ``` sh
-  sudo apt install libusb-1.0.0-dev
-  ```
+      ```sh
+      sudo apt install libusb-1.0.0-dev
+      ```
 
 2. Setup BTstack for libusb
 
-  ``` sh
-  cd ${BLUEPAD32}/external/btstack/port/libusb
-  make
-  ```
+      ```sh
+      cd ${BLUEPAD32}/external/btstack/port/libusb
+      make
+      ```
 
 3. Compile Bluepad32
 
-  ```sh
-  cd ${BLUEPAD32}/tools/pc_debug
-  make
-  sudo ./bluepad32
-  ```
+      ```sh
+      cd ${BLUEPAD32}/tools/pc_debug
+      make
+      sudo ./bluepad32
+      ```
 
 Put the gamepad in discovery mode. The gamepad should be recognized and when you press buttons, you should see them on
 the console.
