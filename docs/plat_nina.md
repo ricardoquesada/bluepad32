@@ -1,4 +1,4 @@
-# Bluepad32 firmware for NINA
+# Bluepad32 firmware for NINA boards
 
 !!! Warning
 
@@ -53,11 +53,11 @@ Bluepad32 firmware is "compatible-enough" with the original firmware:
 
 [plat_arduino]: ../plat_arduino
 
-## Flashing pre-compiled Bluepad32 firmware
+## Option A: Flashing pre-compiled Bluepad32 firmware
 
 To flash Bluepad32 firmware, you have to:
 
-### Download latest pre-compiled Bluepad32 firmware for NINA
+### Download the latest pre-compiled Bluepad32 firmware for NINA
 
 Download latest binary from here: https://github.com/ricardoquesada/bluepad32/releases
 
@@ -80,7 +80,7 @@ dir
 
 ### Download arduino-fwuploader
 
-Download latest binary from here: https://github.com/arduino/arduino-fwuploader/releases
+Download the latest binary from here: https://github.com/arduino/arduino-fwuploader/releases
 
 ### Select correct board name
 
@@ -108,7 +108,7 @@ You have to know:
       the firmware.
 - The board name: Choose the correct one from the list above
 
-```shell
+``` shell
 arduino-fwuploader firmware flash -b arduino:mbed_nano:nanorp2040connect -a COM3 -i PATH\TO\bluepad32-nina-full.bin
 ```
 
@@ -118,18 +118,18 @@ arduino-fwuploader firmware flash -b arduino:mbed_nano:nanorp2040connect -a COM3
 
 #### Linux & macOS
 
-```shell
+``` shell
 # Replace name and address with the correct ones
 export BOARD=arduino:samd:nano_33_iot
 export ADDRESS=/dev/ttyACM0
-$ arduino-fwuploader firmware flash -b $BOARD -a $ADDRESS -i bluepad32-nina-full.bin
+arduino-fwuploader firmware flash -b $BOARD -a $ADDRESS -i bluepad32-nina-full.bin
 ```
 
 ### Verify
 
 To verify that the flash was successful, do:
 
-```shell
+``` shell
 $ arduino-fwuploader firmware get-version -b $BOARD -a $ADDRESS
 ```
 
@@ -141,7 +141,7 @@ And you should see:
 Firmware version installed: Bluepad32 for NINA v3.6.0-rc0
 ```
 
-## Flashing self-compiled Bluepad32 firmware
+## Option B: Flashing self-compiled Bluepad32 firmware
 
 !!! Note
 
@@ -170,7 +170,7 @@ Install the requirements described here: [README.md][readme].
 
 Chose `nina` as the target platform:
 
-```sh
+``` sh
 cd ${BLUEPAD32}/src
 
 # Select Nina platform:
@@ -183,7 +183,7 @@ idf.py build
 
 On Nano 32 IoT / MKR WIFI 1010, doing `idf.py flash` will just work.
 
-```sh
+``` sh
 # Only valid for:
 #   * Nano 33 IoT
 #   * MKR WIFI 1010
@@ -227,6 +227,8 @@ From Arduino Menu do: `Tools` -> `Manage Libraries...` -> Search for "bluepad32"
 After choosing your board, from Arduino Menu do: `File` -> `Examples` -> `Bluepad32` -> `Controller`
 
 ![bluepad32_arduino_example][bluepad32_arduino_example_image]
+
+Compile it and flash it. Done! :smile:
 
 !!! Note
 
