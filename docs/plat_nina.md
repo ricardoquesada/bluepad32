@@ -19,8 +19,8 @@ These modules are present on some Arduino boards like:
 
 NINA modules are co-processors, usually used only to bring WiFi or BLE to the main processor.
 
-In order to have gamepad support, the original NINA firmware must be replaced
-with Bluepad32 firmware. This is a simple step that needs to be done just once,
+To have gamepad support, the original NINA firmware must be replaced
+with Bluepad32 firmware. This is a simple step that needs to be done just once
 and can be "undone" at any time.
 
 ![how-does-it-work](images/bluepad32-nina-how-does-it-work.png)
@@ -28,7 +28,7 @@ and can be "undone" at any time.
 This is how it works:
 
 - Gamepad (A) talks to NINA module (B)
-- NINA module (B) talks to main processor (C)
+- NINA module (B) talks to the main processor (C)
 
 Bluepad32 firmware is "compatible-enough" with the original firmware:
 
@@ -38,12 +38,19 @@ Bluepad32 firmware is "compatible-enough" with the original firmware:
   to have gamepad support working.
 
 [nina-esp32]: https://www.u-blox.com/en/product/nina-w10-series-open-cpu
+
 [nina-fw]: https://github.com/arduino/nina-fw
+
 [nano_rp2040]: https://store-usa.arduino.cc/products/arduino-nano-rp2040-connect-with-headers
+
 [nano_33_iot]: https://store-usa.arduino.cc/products/arduino-nano-33-iot
+
 [mkr_wifi]: https://store-usa.arduino.cc/products/arduino-mkr-wifi-1010
+
 [uni_wifi]: https://store-usa.arduino.cc/products/arduino-uno-wifi-rev2
+
 [mkr_vidor_4000]: https://store.arduino.cc/products/arduino-mkr-vidor-4000
+
 [plat_arduino]: ../plat_arduino
 
 ## Flashing pre-compiled Bluepad32 firmware
@@ -68,6 +75,7 @@ dir
 ![uncompress][uncompress_bluepad32]
 
 [7zip]: https://www.7-zip.org/
+
 [uncompress_bluepad32]: https://lh3.googleusercontent.com/pw/ADCreHeyGuxiKj7l9EHBCHSbTasF12CVpZBWZEb30z-st1RqizDNGnt8V5hUNEr6JtYogH5ItDw2NmrTlxwe5ZZYk8_9K7mXM273QYOAQ8HE85eVP3NT0zTSP2JXjUlbt542osSy0VYOVUfr_ON9_bNfcHuDiA=w1153-h561-s-no-gm?authuser=0
 
 ### Download arduino-fwuploader
@@ -83,6 +91,7 @@ Download latest binary from here: https://github.com/arduino/arduino-fwuploader/
 * `arduino:mbed_nano:nanorp2040connect` for Arduino Nano RP2040 Connect
 
 You can see all boards names by doing:
+
 ```shell
 $ arduino-fwuploader firmware list
 ```
@@ -93,8 +102,10 @@ $ arduino-fwuploader firmware list
 
 You have to know:
 
-- COM port: If you don't know which one it is, open Arduino IDE, and go to `Tools` -> `Port`: It should be something like `COM3`.
-  - **VERY IMPORTANT**: Close Arduino IDE after that. The COM port must be "free". Nobody should be using it to flash the firmware.
+- COM port: If you don't know which one it is, open Arduino IDE, and go to `Tools` -> `Port`: It should be something
+  like `COM3`.
+    - **VERY IMPORTANT**: Close Arduino IDE after that. The COM port must be "free". Nobody should be using it to flash
+      the firmware.
 - The board name: Choose the correct one from the list above
 
 ```shell
@@ -106,6 +117,7 @@ arduino-fwuploader firmware flash -b arduino:mbed_nano:nanorp2040connect -a COM3
 [screenshot_flashing]: https://lh3.googleusercontent.com/pw/ADCreHf8I0rm8Di7YCIH0Q3IBVZa6zl9YcMdLUSnOQ00kSKCk4HSp2FsZ5h9tegByhpeqTcR0T_cD-9mpierf7M4zVc22BybTYdOIWCXnghDx_vFS5nv81oE9N2ocF0VDpu6vVIQGy_PfOqppYFHOrlGvWj7Cw=w1479-h327-s-no-gm?authuser=0
 
 #### Linux & macOS
+
 ```shell
 # Replace name and address with the correct ones
 export BOARD=arduino:samd:nano_33_iot
@@ -198,4 +210,4 @@ esptool.py --port ${ESPPORT} --baud 115200 --before no_reset write_flash 0x1000 
 
 The Bluepad32 library for Arduino with examples is available here:
 
-- https://github.com/ricardoquesada/bluepad32-arduino
+- <https://github.com/ricardoquesada/bluepad32-arduino>
