@@ -53,8 +53,8 @@ List of supported gamepads with supported features, known bugs, etc.
 [![ddualsense_gamepad][dualsense]][11]
 
 - Supported features: rumble, lightbar color, player LEDs
-- Pair instructions: While pressing and holding the Create button, press and hold the PS button until the light bar
-  blinks ([Sony official instructions][dualsense_pair_instructions]).
+- Pair instructions: While pressing and holding the Create button, press and hold the PS button until the
+  light bar blinks ([Sony official instructions][dualsense_pair_instructions]).
 - Protocol: BR/EDR
 
 [dualsense]: https://lh3.googleusercontent.com/pw/ACtC-3d1CVA-e5srBTDhTD6D-3BSWYi7MncfECPj_9bQJfcGOAKIHrP6g6Ha7xAD0trE59eN-Qv_U33MklCFPskPWRLjfFI4ITHEol8RAmTYNHFNrA-gwhoXEn2ks_M7UDDbxiKhNdaPNXexxgj5zzOtpBjiyw=-no
@@ -68,8 +68,8 @@ List of supported gamepads with supported features, known bugs, etc.
 - Supports both the 2013 (CUH-ZCT1) and 2016 (CUH-ZCT2) editions
 - Supported features: rumble, lightbar color
 - Some clones are known to work Ok
-- Pair instructions: While pressing and holding the SHARE button, press and hold the PS Button until the light bar
-  flashes ([Sony official instructions][dualshock4_pair_instructions]).
+- Pair instructions: While pressing and holding the SHARE button, press and hold the PS Button until the
+  light bar flashes ([Sony official instructions][dualshock4_pair_instructions]).
 - Protocol: BR/EDR
 
 [dualshock_4]: https://lh3.googleusercontent.com/_0sAxKXbSkk4g8rWJzTNxAirz2hD632jW4TGjGVOwjoac8sD4AfiN9PA1HdGWhm_ujcVygDlEG-LENPemF7IyFhqVsHgVHfCMVeFVjBbeDl-fUUjdMbRYAE8FiKdyWM_UBNUNmVy9Ro=-no
@@ -158,7 +158,7 @@ Both Left and Right JoyCon are supported.
 
 - Default mode. No need to press anything special to enter this mode.
 - Use Wii Remote in [horiontal position][wii_sideways].
-- DPAD for regular movements.
+- D-pad for regular movements.
 - Button "1" for fire.
 - Button "2" for jump.
 
@@ -166,7 +166,7 @@ Both Left and Right JoyCon are supported.
 
 - Enter this mode by pressing "A" (A == accelerometer, easy to remember) while connecting or reconnecting.
 - Rotate left/right for left/right movements
-- Use DPAD for up/down movements
+- Use D-pad for up/down movements
 - Button "A" for fire.
 - Button "shoulder" to jump.
 - LED #3 will be on in this mode.
@@ -174,7 +174,7 @@ Both Left and Right JoyCon are supported.
 ### Vertical mode
 
 - Enter this mode by pressing button "+" while connecting or reconnecting.
-- DPAD for regular movements.
+- D-pad for regular movements.
 - Button "shoulder" for fire.
 - Button "A" to jump.
 - LED #4 will be on in this mode.
@@ -206,7 +206,7 @@ have to press the "+" button in the Wii Remote while connecting or reconnecting.
 - Enter this mode by pressing button "+" while connecting or reconnecting.
 - Use Nunchuk joystick for "right" movement.
 - Nunchuck button C for "right" fire.
-- Use Wii Remote DPAD for "left" movement.
+- Use Wii Remote D-pad for "left" movement.
 - Use Wii Remote shoulder button for "left" fire.
 
 [wii_nunchuk_img]: https://lh3.googleusercontent.com/DtCjBt0zrNEDBSgTmaP4BhPlDFfJePFtyBbLvqhEnxG5wjlIjbL1j3akOqbb4_tsSEuVGq1VaBZ_2T94TYNG8tjzxthE-Theo-gphrnG7AW8GEzd7vrmNqjVtGJjDcdhTnkJbsdCCFk=-no
@@ -305,7 +305,7 @@ Classic Controller can be used.
 - Controller must be [flashed with Bluetooth firmware][steam_instructions]
 - Supported features:
     - Disables "lizard mode" (keyboard / mouse mouse)
-    - Supports Dpad, triggers, buttons, thumbstick, right pad
+    - Supports D-pad, triggers, buttons, thumbstick, right pad
 - Pair instructions:
     - Press "Y" + "Steam" button
 - Protocol: BLE
@@ -356,7 +356,8 @@ Classic Controller can be used.
 [![8bitdo SN30 Pro][8bitdo_sn30_pro_img]][8bitdo_sn30_pro]
 
 - Tested with: [8BitDo SN30 Pro][8bitdo_sn30_pro], [8BitDo Arcade Stick][8bitdo_arcade_stick],
-  [8BitDo Lite][8bitdo_lite], [8BitDo NES30][8bitdo_nes30], [8BitDo M30][8bitdo_m30], [8BitDo Zero 2][8bitdo_zero2], [8BitDo Ultimate Controller][8bitdo_ultimate]
+  [8BitDo Lite][8bitdo_lite], [8BitDo NES30][8bitdo_nes30], [8BitDo M30][8bitdo_m30],
+  [8BitDo Zero 2][8bitdo_zero2], [8BitDo Ultimate Controller][8bitdo_ultimate]
 - All 8BitDo modes are supported: *Switch*, *Android*, *Windows* and *macOS*.
 - Protocol: BR/EDR
 

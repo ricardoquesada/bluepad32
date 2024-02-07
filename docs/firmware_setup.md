@@ -21,12 +21,16 @@ And then you can flash it either using:
 
 Supported platforms: Linux, macOS and Windows
 
-Flashing your device from the command line requires [`esptool.py`](https://docs.espressif.com/projects/esptool/en/latest/esp32/) ([source code](https://github.com/espressif/esptool)):
+Flashing your device from the command line
+requires [`esptool.py`](https://docs.espressif.com/projects/esptool/en/latest/esp32/) ([source code](https://github.com/espressif/esptool)):
 
 - Ubuntu / Debian: `sudo apt install esptool`
 - Fedora / Red Hat: `sudo dnf install esptool`
 - macOS with [Homebrew](https://brew.sh/) installed: `brew install esptool`
-- Windows, macOS without Homebrew, and other OSes: after installing Python, run `pip install esptool`. Python is [available for download here](https://www.python.org/downloads/). On Windows 10 and newer, you can also [install Python from the Microsoft Store](https://www.microsoft.com/store/productId/9PJPW5LDXLZ5) to get automatic updates.
+- Windows, macOS without Homebrew, and other OSes: after installing Python, run `pip install esptool`. Python
+  is [available for download here](https://www.python.org/downloads/). On Windows 10 and newer, you can
+  also [install Python from the Microsoft Store](https://www.microsoft.com/store/productId/9PJPW5LDXLZ5) to get
+  automatic updates.
 
 To flash your device:
 
@@ -43,7 +47,9 @@ set ESPPORT=COM??  # You can find a list of COM devices in Device Manager.
 python -m esptool --port ${ESPPORT} --baud 115200 --before default_reset --after hard_reset write_flash 0x0000 bluepad32-unijoysticle-full.bin
 ```
 
-On Linux, the flash operation may fail with a permissions error if you're not running as root. If you'd like to be able to flash as a standard user, you can instead change the permissions for the appropriate ttyUSB device to allow writes by unprivileged users.
+On Linux, the flash operation may fail with a permissions error if you're not running as root. If you'd like to be able
+to flash as a standard user, you can instead change the permissions for the appropriate ttyUSB device to allow writes by
+unprivileged users.
 
 ## GUI (ESP32 Flash Download Tool)
 
@@ -70,11 +76,12 @@ Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity, only the
 
 ## For Windows
 
-1. Install [ESP-IDF v5.0][esp-idf-windows-installer]. For further info, read: [ESP-IDF Getting Started for Windows][esp-idf-windows-setup]
+1. Install [ESP-IDF v5.0][esp-idf-windows-installer]. For further info,
+   read: [ESP-IDF Getting Started for Windows][esp-idf-windows-setup]
 
-   * Either the Online or Offline version should work
-   * When asked which components to install, don't change anything. Default options are Ok.
-   * When asked whether ESP can modify the system, answer "Yes"
+    * Either the Online or Offline version should work
+    * When asked which components to install, don't change anything. Default options are Ok.
+    * When asked whether ESP can modify the system, answer "Yes"
 
 2. Launch the "ESP-IDF v5.0 CMD" (type that in the Windows search box)
 
@@ -95,8 +102,8 @@ Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity, only the
     python integrate_btstack.py
     ```
 
-    IMPORTANT: Once you complete the previous step, restart ESP-IDF CMD. This is because IDF_PATH
-    has been modified, and the easiest way to restore it is to relaunch CMD.
+   IMPORTANT: Once you complete the previous step, restart ESP-IDF CMD. This is because IDF_PATH
+   has been modified, and the easiest way to restore it is to relaunch CMD.
 
     ``` cmd
     # Setup Bluepad32 Platform
@@ -104,7 +111,7 @@ Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity, only the
     idf.py menuconfig
     ```
 
-    And select `Component config` -> `Bluepad32` -> `Target platform` (choose the right one for you).
+   And select `Component config` -> `Bluepad32` -> `Target platform` (choose the right one for you).
 
 5. Compile it
 
@@ -118,21 +125,22 @@ Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity, only the
     ```
 
 [esp-idf-windows-setup]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/windows-setup.html
+
 [esp-idf-windows-installer]: https://dl.espressif.com/dl/esp-idf/?idf=5.0
 
 ## For Linux / macOS
 
 1. Requirements and permissions
 
-    Install ESP-IDF dependencies (taken from [here][toolchain-deps]):
+   Install ESP-IDF dependencies (taken from [here][toolchain-deps]):
 
     ``` sh
     # For Ubuntu / Debian
     sudo apt-get install git wget flex bison gperf python3 python3-pip python3-setuptools cmake ninja-build ccache libffi-dev libssl-dev dfu-util libusb-1.0-0
     ```
 
-    And in case you don't have permissions to open `/dev/ttyUSB0`, do:
-    (taken from [here][ttyusb0])
+   And in case you don't have permissions to open `/dev/ttyUSB0`, do:
+   (taken from [here][ttyusb0])
 
     ``` sh
     # You MUST logout/login (or in some cases reboot Linux) after running this command
@@ -174,7 +182,7 @@ Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity, only the
     idf.py menuconfig
     ```
 
-    And select `Component config` -> `Bluepad32` -> `Target platform` (choose the right one for you).
+   And select `Component config` -> `Bluepad32` -> `Target platform` (choose the right one for you).
 
 5. Compile it
 
@@ -187,10 +195,9 @@ Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity, only the
     idf.py flash monitor
     ```
 
-
 [toolchain-deps]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/linux-setup.html
-[ttyusb0]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/establish-serial-connection.html#linux-dialout-group
 
+[ttyusb0]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/establish-serial-connection.html#linux-dialout-group
 
 ## Optional: Linux as a target device
 
@@ -217,4 +224,5 @@ Only if you target Linux as a device (not an ESP32 device):
   sudo ./bluepad32
   ```
 
-Put the gamepad in discovery mode. The gamepad should be recognized and when you press buttons, you should see them on the console.
+Put the gamepad in discovery mode. The gamepad should be recognized and when you press buttons, you should see them on
+the console.

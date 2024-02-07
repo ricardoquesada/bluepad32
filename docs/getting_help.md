@@ -16,6 +16,7 @@ Help us help you by providing:
 * File bugs in our [Github Issue Tracker][github_issue_tracker]
 
 [discord_server]: https://discord.gg/r5aMn6Cw5q
+
 [github_issue_tracker]: https://github.com/ricardoquesada/bluepad32/issues
 
 ## Platforms
@@ -57,14 +58,16 @@ E.g.: I'm using a genuine Nintendo Switch JoyCon using FW 3.72.
 
 If you are using a controller not listed there, YOU ARE ON YOUR OWN!
 
-But if you really want us to support a gamepad that is not listed there, contact us (Send us a Private Message in Discord channel). The way it works is:
+But if you really want us to support a gamepad that is not listed there, contact us (Send us a Private Message in
+Discord channel). The way it works is:
 
 * You send us a link to the gamepad that is not supported, like the Amazon link.
 * You send us via PayPal the cost of the gamepad + shipping.
-* We purchase it, and we will do our best to support it. But we don't guarantee anything... so many things can go wrong... especially with low-cost clones where many features are not implemented.
-
+* We purchase it, and we will do our best to support it. But we don't guarantee anything... so many things can go
+  wrong... especially with low-cost clones where many features are not implemented.
 
 [supported_gamepads]: supported_gamepads.md
+
 [supported_mice]: supported_mice.md
 
 ## Sketch
@@ -94,7 +97,6 @@ Use services like: <http://gist.github.com>
 Attaching a screenshot might be useful, but the screenshot is not a replacement of the Debug Log.
 
 E.g.: The console output can be found on this link (add link).
-
 
 <http://tinyurl.com/bluepad32-help>
 

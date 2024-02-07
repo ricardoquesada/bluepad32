@@ -193,7 +193,7 @@ idf.py flash
 But on NANO RP2040 Connect and UNO WiFi Rev.2, you have to flash it using the `--before no_reset` option,
 and **NOT** `--before default_reset`. E.g:
 
-```sh
+``` sh
 # Only valid for:
 #   * Nano RP2040 Connect
 #   * UNO WiFi Rev.2

@@ -142,6 +142,8 @@ Real world examples:
 - [ESP-IDF example][esp_idf_example]
 - [Linux example][linux_example]
 
-[pico_sdk_example]: https://github.com/ricardoquesada/bluepad32/tree/develop/examples/pico_w 
+[pico_sdk_example]: https://github.com/ricardoquesada/bluepad32/tree/develop/examples/pico_w
+
 [esp_idf_example]: https://github.com/ricardoquesada/bluepad32/tree/develop/examples/esp32
+
 [linux_example]: https://github.com/ricardoquesada/bluepad32/tree/develop/examples/linux
