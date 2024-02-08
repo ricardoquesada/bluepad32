@@ -92,8 +92,8 @@ And compile & flash!
 
 Install ESP-IDF toolchain by following these instructions:
 
-    - [Windows][esp_idf_win]
-    - [Linux or macOS][esp_idf_linux]
+* [ESP-IDF for Windows][esp_idf_win]
+* [ESP-IDF for Linux or macOS][esp_idf_linux]
 
 [esp_idf_win]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/windows-setup.html
 [esp_idf_linux]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/linux-macos-setup.html
