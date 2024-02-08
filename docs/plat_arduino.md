@@ -19,7 +19,7 @@ There are three ways to setup a Bluepad32 Arduino project for ESP32 chips:
 
 [arduino-core]: https://github.com/espressif/arduino-esp32
 
-## Option A: Create an "Arduino Core for ESP32 + Bluepad32" library
+## Option A: Create an "Arduino Core for ESP32 + Bluepad32" board
 
 **RECOMMENDED for Arduino IDE users**.
 
