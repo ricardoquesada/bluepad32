@@ -26,7 +26,7 @@ typedef enum {
 // implement.
 struct uni_platform {
     // The name of the platform
-    char* name;
+    const char* name;
 
     // Platform "callbacks".
 

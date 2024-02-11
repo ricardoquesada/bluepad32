@@ -727,15 +727,14 @@ void uni_bt_bredr_on_hci_remote_name_request_complete(uint16_t channel, const ui
     hci_event_remote_name_request_complete_get_bd_addr(packet, event_addr);
     d = uni_hid_device_get_instance_for_address(event_addr);
     if (d != NULL) {
-        // FIXME: This must be a const char*
-        char* name = NULL;
+        const char* name = NULL;
         status = hci_event_remote_name_request_complete_get_status(packet);
         if (status) {
             // Failed to get the name, just fake one
             logi("Failed to fetch name for %s, error = 0x%02x\n", bd_addr_to_str(event_addr), status);
             name = "Controller without name";
         } else {
-            name = (char*)hci_event_remote_name_request_complete_get_remote_name(packet);
+            name = hci_event_remote_name_request_complete_get_remote_name(packet);
         }
         logi("Name: '%s'\n", name);
         uni_hid_device_set_name(d, name);

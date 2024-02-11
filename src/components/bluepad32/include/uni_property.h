@@ -66,7 +66,7 @@ typedef union {
     uint8_t u8;
     uint32_t u32;
     float f32;
-    char* str;
+    const char* str;
 } uni_property_value_t;
 
 typedef enum {
