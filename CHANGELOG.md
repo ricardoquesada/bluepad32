@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [4.0-beta1] - ???
+## [4.0-beta1] - 2024-02-24
 ### New
 - Pico W: Implement property using BTstack TLV
 - Linux: Implement property using BTstack TLV
@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Doc: Many fixes to documentation, including adding/changing/removing pages to MKDocs.
+- Misc: Make `const` different variables that needed to be constants.
 
 ## [4.0-beta0] - 2024-02-04
 ### New

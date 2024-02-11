@@ -133,11 +133,6 @@ int uni_bt_setup(void) {
     // Initialize L2CAP
     l2cap_init();
 
-    uni_property_value_t val;
-    val.boolean = true;
-    uni_property_set(UNI_PROPERTY_IDX_BLE_ENABLED, val);
-    uni_property_set(UNI_PROPERTY_IDX_ALLOWLIST_ENABLED, val);
-    uni_property_set(UNI_PROPERTY_IDX_VIRTUAL_DEVICE_ENABLED, val);
     if (IS_ENABLED(UNI_ENABLE_BREDR))
         bredr_enabled = uni_bt_bredr_is_enabled();
     if (IS_ENABLED(UNI_ENABLE_BLE))
