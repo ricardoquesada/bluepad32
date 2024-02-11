@@ -68,9 +68,8 @@ uni_property_value_t uni_property_get_with_property(const uni_property_t* p) {
     }
 
     if (p->type == UNI_PROPERTY_TYPE_STRING) {
-        loge("Unsupported property type: string\n");
-        value.str = "unsupported";
-        return value;
+        loge("No TLV for %s, returning default value\n", p->name);
+        return p->default_value;
     }
 
     switch (p->type) {

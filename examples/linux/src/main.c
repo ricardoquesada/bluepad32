@@ -187,7 +187,6 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
                     btstack_strcpy(tlv_db_path, sizeof(tlv_db_path), TLV_DB_PATH_PREFIX);
                     btstack_strcat(tlv_db_path, sizeof(tlv_db_path), bd_addr_to_str_with_delimiter(local_addr, '-'));
                     btstack_strcat(tlv_db_path, sizeof(tlv_db_path), TLV_DB_PATH_POSTFIX);
-                    printf("TLV path: %s", tlv_db_path);
                     if (tlv_reset) {
                         int rc = unlink(tlv_db_path);
                         if (rc == 0) {
@@ -198,6 +197,7 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
                     }
                     printf("\n");
                     get_or_create_instance_tlv();
+                    printf("TLV path: %s\n", tlv_context_ptr->db_path);
 #ifdef ENABLE_CLASSIC
                     hci_set_link_key_db(btstack_link_key_db_tlv_get_instance(tlv_impl, &tlv_context));
 #endif
