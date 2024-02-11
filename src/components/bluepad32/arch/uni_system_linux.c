@@ -4,5 +4,8 @@
 
 #include "uni_system.h"
 
+#include "uni_log.h"
+
 void uni_system_reboot(void) {
+    logi("uni_system_reboot() not implemented in Linux\n");
 }
