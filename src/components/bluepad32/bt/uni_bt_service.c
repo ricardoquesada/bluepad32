@@ -13,6 +13,7 @@
 #include "controller/uni_gamepad.h"
 #include "uni_common.h"
 #include "uni_log.h"
+#include "uni_system.h"
 #include "uni_version.h"
 #include "uni_virtual_device.h"
 
@@ -232,6 +233,16 @@ static int att_write_callback(hci_con_handle_t con_handle,
             if (!delete)
                 return 0;
             uni_bt_del_keys_unsafe();
+            return 1;
+        }
+        case ATT_CHARACTERISTIC_4627C4A4_AC0D_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
+            // Reset device
+            if (buffer_size != 1 || offset != 0)
+                return 0;
+            bool reset = buffer[0];
+            if (!reset)
+                return 0;
+            uni_system_reboot();
             return 1;
         }
         default:

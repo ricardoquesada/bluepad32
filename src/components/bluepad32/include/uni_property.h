@@ -74,7 +74,7 @@ typedef enum {
 } uni_property_flag_t;
 
 typedef struct {
-    uni_property_idx_t idx;  // Used for debugging: idx must match order
+    uni_property_idx_t idx;  // Used for debugging: idx must match order, and for tlv
     const char* name;
     uni_property_type_t type;
     uni_property_value_t default_value;

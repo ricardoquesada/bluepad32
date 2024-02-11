@@ -91,6 +91,7 @@ static char tlv_db_path[100];
 static bool tlv_reset;
 static const btstack_tlv_t* tlv_impl;
 static btstack_tlv_posix_t tlv_context;
+static btstack_tlv_posix_t* tlv_context_ptr;
 static bd_addr_t local_addr;
 
 int btstack_main(int argc, const char* argv[]);
@@ -102,6 +103,18 @@ static btstack_packet_callback_registration_t hci_event_callback_registration;
 
 // shutdown
 static bool shutdown_triggered;
+
+static void create_instance_tlv(void) {
+    tlv_impl = btstack_tlv_posix_init_instance(&tlv_context, tlv_db_path);
+    btstack_tlv_set_instance(tlv_impl, &tlv_context);
+    tlv_context_ptr = &tlv_context;
+}
+
+static void get_or_create_instance_tlv(void) {
+    btstack_tlv_get_instance(&tlv_impl, (void**)&tlv_context_ptr);
+    if (!tlv_impl || !tlv_context_ptr)
+        create_instance_tlv();
+}
 
 static void local_version_information_handler(uint8_t* packet) {
     printf("Local version information:\n");
@@ -184,8 +197,7 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
                         }
                     }
                     printf("\n");
-                    tlv_impl = btstack_tlv_posix_init_instance(&tlv_context, tlv_db_path);
-                    btstack_tlv_set_instance(tlv_impl, &tlv_context);
+                    get_or_create_instance_tlv();
 #ifdef ENABLE_CLASSIC
                     hci_set_link_key_db(btstack_link_key_db_tlv_get_instance(tlv_impl, &tlv_context));
 #endif
