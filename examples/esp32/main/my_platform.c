@@ -39,6 +39,7 @@ static void my_platform_init(int argc, const char** argv) {
 
     uni_gamepad_set_mappings(&mappings);
 #endif
+    //    uni_bt_service_set_enabled(true);
 }
 
 static void my_platform_on_init_complete(void) {
