@@ -78,7 +78,7 @@ static int att_write_callback(hci_con_handle_t con_handle,
                               uint16_t offset,
                               uint8_t* buffer,
                               uint16_t buffer_size);
-static uint16_t att_read_callback(hci_con_handle_t connection_handle,
+static uint16_t att_read_callback(hci_con_handle_t conn_handle,
                                   uint16_t att_handle,
                                   uint16_t offset,
                                   uint8_t* buffer,
@@ -252,12 +252,12 @@ static int att_write_callback(hci_con_handle_t con_handle,
     return 0;
 }
 
-static uint16_t att_read_callback(hci_con_handle_t connection_handle,
+static uint16_t att_read_callback(hci_con_handle_t conn_handle,
                                   uint16_t att_handle,
                                   uint16_t offset,
                                   uint8_t* buffer,
                                   uint16_t buffer_size) {
-    ARG_UNUSED(connection_handle);
+    ARG_UNUSED(conn_handle);
 
     switch (att_handle) {
         case ATT_CHARACTERISTIC_4627C4A4_AC01_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
@@ -361,11 +361,11 @@ static client_connection_t* connection_for_conn_handle(hci_con_handle_t conn_han
 }
 
 static void att_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
-    UNUSED(channel);
-    UNUSED(size);
-
     client_connection_t* ctx;
     int mtu;
+
+    UNUSED(channel);
+    UNUSED(size);
 
     if (packet_type != HCI_EVENT_PACKET)
         return;
@@ -397,6 +397,16 @@ static void att_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* p
             logi("BLE Service: client disconnected, handle = %#x\n", ctx->connection_handle);
             memset(ctx, 0, sizeof(*ctx));
             ctx->connection_handle = HCI_CON_HANDLE_INVALID;
+            break;
+        case HCI_EVENT_LE_META:
+            switch (hci_event_le_meta_get_subevent_code(packet)) {
+                case HCI_SUBEVENT_LE_CONNECTION_COMPLETE:
+                    // Deprecated. Replaced by ATT_EVENT_CONNECTED
+                    break;
+                default:
+                    logi("Unsupported HCI_EVENT_LE_META: %#x\n", hci_event_le_meta_get_subevent_code(packet));
+                    break;
+            }
             break;
         default:
             logi("BLE Service: Unsupported ATT_EVENT: %#x\n", hci_event_packet_get_type(packet));
