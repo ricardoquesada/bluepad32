@@ -55,29 +55,21 @@
 #include "bt/uni_bt.h"
 
 #include <btstack.h>
-#include <btstack_config.h>
 #include <inttypes.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "sdkconfig.h"
 
-#include "bt/uni_bt.h"
 #include "bt/uni_bt_bredr.h"
-#include "bt/uni_bt_conn.h"
-#include "bt/uni_bt_defines.h"
 #include "bt/uni_bt_hci_cmd.h"
 #include "bt/uni_bt_le.h"
-#include "bt/uni_bt_sdp.h"
+#include "bt/uni_bt_service.h"
 #include "bt/uni_bt_setup.h"
-#include "parser/uni_hid_parser.h"
 #include "platform/uni_platform.h"
 #include "uni_common.h"
 #include "uni_config.h"
 #include "uni_hid_device.h"
-#include "uni_hid_device_vendors.h"
 #include "uni_log.h"
 #include "uni_property.h"
 
@@ -99,6 +91,8 @@ enum {
     CMD_BT_DISABLE,
     CMD_DUMP_DEVICES,
     CMD_DISCONNECT_DEVICE,
+    CMD_BLE_SERVICE_ENABLE,
+    CMD_BLE_SERVICE_DISABLE,
 };
 
 static void bluetooth_del_keys(void) {
@@ -216,6 +210,12 @@ static void cmd_callback(void* context) {
             uni_hid_device_disconnect(d);
             uni_hid_device_delete(d);
             break;
+        case CMD_BLE_SERVICE_ENABLE:
+            uni_bt_service_set_enabled(true);
+            break;
+        case CMD_BLE_SERVICE_DISABLE:
+            uni_bt_service_set_enabled(false);
+            break;
         default:
             loge("Unknown command: %#x\n", cmd);
             break;
@@ -270,6 +270,13 @@ void uni_bt_disconnect_device_safe(int device_idx) {
     unsigned long idx = (unsigned long)device_idx;
     cmd_callback_registration.callback = &cmd_callback;
     cmd_callback_registration.context = (void*)(CMD_DISCONNECT_DEVICE | (idx << 16));
+    btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
+}
+
+void uni_bt_enable_service_safe(bool enabled) {
+    cmd_callback_registration.callback = &cmd_callback;
+    cmd_callback_registration.context =
+        (void*)(enabled ? (intptr_t)CMD_BLE_SERVICE_ENABLE : (intptr_t)CMD_BLE_SERVICE_DISABLE);
     btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
 }
 

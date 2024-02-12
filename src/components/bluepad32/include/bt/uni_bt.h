@@ -23,7 +23,7 @@ int uni_bt_init(void);
 // Public functions
 // Safe to call these functions from another task and/or CPU
 
-// List stored Bluetooth keys, created when a device get paired
+// List stored Bluetooth keys, created when a device gets paired
 void uni_bt_list_keys_safe(void);
 void uni_bt_list_keys_unsafe(void);
 // Delete stored Bluetooth keys
@@ -39,6 +39,8 @@ void uni_bt_enable_new_connections_safe(bool enabled);
 void uni_bt_enable_new_connections_unsafe(bool enabled);
 // Returns whether new connections are accepted.
 bool uni_bt_enable_new_connections_is_enabled(void);
+// Enables the BLE service
+void uni_bt_enable_service_safe(bool enabled);
 
 // Disconnects a device
 void uni_bt_disconnect_device_safe(int device_idx);
