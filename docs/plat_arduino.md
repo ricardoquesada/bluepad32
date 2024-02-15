@@ -6,6 +6,11 @@ It works on **any ESP32 / ESP32-S3 / ESP32-C3 module** where the [Arduino Core f
 In other words, if you already have Arduino working on a ESP32 / ESP32-S3 / ESP32-C3 module, you can have Bluepad32
 running on it as well.
 
+!!! Bug
+
+    [Arduino Nano ESP32][arduino_nano_esp32] board is not supported at the moment.
+    See [Github issue #65][github_issue_65] for status.
+
 There are two ways to setup a Bluepad32 Arduino project for ESP32 chips:
 
 * Option A: Use Arduino IDE
@@ -16,12 +21,14 @@ There are two ways to setup a Bluepad32 Arduino project for ESP32 chips:
     * Includes advanced features
 
 [arduino-core]: https://github.com/espressif/arduino-esp32
+[github_issue_65]: https://github.com/ricardoquesada/bluepad32/issues/65
+[arduino_nano_esp32]: https://store-usa.arduino.cc/products/nano-esp32
 
 ## Option A: Create an "Arduino Core for ESP32 + Bluepad32" board
 
 **RECOMMENDED for Arduino IDE users**.
 
-[![Watch the video][youtube_image]](https://youtu.be/0jnY-XXiD8Q)
+<iframe width="560" height="315" src="https://www.youtube.com/embed/0jnY-XXiD8Q?si=YphWYgQf0a1YX_nq" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 
 These 4 steps are needed:
 
@@ -29,8 +36,6 @@ These 4 steps are needed:
 2. Install ESP32 and Bluepad32 files
 3. Select a "ESP32 + Bluepad32" board
 4. Open the "Bluepad32" example
-
-[youtube_image]: https://lh3.googleusercontent.com/pw/AJFCJaXiDBy3NcQBBB-WFFVCsvYBs8szExsYQVwG5qqBTtKofjzZtJv_6GSL7_LfYRiypF1K0jjjgziXJuxAhoEawvzV84hlbmVTrGeXQYpVnpILZwWkbFi-ccX4lEzEbYXX-UbsEzpHLhO8qGVuwxOl7I_h1Q=-no?authuser=0
 
 ### 1. Add ESP32 and Bluepad32 board packages to Board Manager
 
@@ -86,7 +91,7 @@ And compile & flash!
 
 !!! Note
 
-    Recommended for advanced users
+    Recommended for advanced users.
 
 ### Install ESP-IDF toolchain
 
@@ -122,3 +127,7 @@ To fine-tune it do:
 # Add / edit / remove components with:
 idf.py menuconfig
 ```
+
+### Further reading
+
+Detailed instructions here: <https://github.com/ricardoquesada/esp-idf-arduino-bluepad32-template>

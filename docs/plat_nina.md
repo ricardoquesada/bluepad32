@@ -34,8 +34,18 @@ Bluepad32 firmware is "compatible-enough" with the original firmware:
 
 - Uses SPI, and the same GPIOs to talk to the main processor
 - Uses the same protocol that runs on top of SPI
-- But not all messages are implemented. Only the ones that are needed
-  to have gamepad support working.
+- But not all messages are implemented, and has some limitations:
+    - :material-check: Only Bluepad32 features are implemented
+    - :material-close: Bluepad32 logs cannot be seen
+    - :material-close: Bluepad32 console not supported
+    - :material-close: WiFi commands are NOT supported
+    - :material-close: BLE commands are NOT supported
+
+
+!!! Warning
+
+    WiFi and Bluetooth are not supported in NINA boards.
+
 
 [nina-esp32]: https://www.u-blox.com/en/product/nina-w10-series-open-cpu
 

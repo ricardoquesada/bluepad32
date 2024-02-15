@@ -8,63 +8,9 @@ Choose the right one depending on your knowledge, devkits and requirements:
 
     For Arduino developers, there are three options.
 
-    * Arduino IDE  with an ESP32 devkit
-    * Arduino Core with an ESP32 devkit
-    * Arduino IDE with an Arduino NINA devkit
-
-    Let's analyze them in detail:
-
-    ### Arduino IDE with an ESP32 devkit
-
-    - Works with any [ESP32][amazon_esp32_devkit], [ESP32-S3][amazon_esp32_s3_devkit] or [ESP32-C3][amazon_esp32_c3_devkit] devkit
-    - WiFi API available
-    - Bluetooth:
-         - :material-check: Available by using the [BTstack API][btstack].
-         - :material-close: DO NOT use [Arduino BLE library][arduino_ble_library]. It won't work.
-    - Easy to setup, easy to use, easy to update.
-    - Recommended for beginners and existing Arduino users
-    - :material-close: Bluepad32 logs cannot be seen. It is difficult to debug if a controller cannot connect.
-    - Start by watching this video:
-
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/0jnY-XXiD8Q?si=YphWYgQf0a1YX_nq" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-
-    !!! Bug
-        [Arduino Nano ESP32][arduino_nano_esp32] board is not supported at the moment.
-        See [Github issue #65][github_issue_65] for status.
-
-
-    ### Arduino Core (not the IDE) with ESP-IDF toolchain
-
-    Similar to the previous option but user has more control.
-
-    - Works with any [ESP32][amazon_esp32_devkit], [ESP32-S3][amazon_esp32_s3_devkit] or [ESP32-C3][amazon_esp32_c3_devkit] devkit
-    - WiFi API available
-    - Bluetooth:
-         - :material-check: Available by using the [BTstack API][btstack].
-         - :material-close: DO NOT use [Arduino BLE library][arduino_ble_library]. It won't work.
-    - Setup requires extra steps
-    - :material-check: Bluepad32 logs can be seen
-    - :material-check: Bluepad32 console: interact with Bluepad32 from a serial console.
-    - Recommended for advanced users
-    - Start here: <https://github.com/ricardoquesada/esp-idf-arduino-bluepad32-template>
-
-    ### Arduino IDE with an Arduino NINA board
-
-    !!! Warning
-
-        **Deprecated**. Will be mantained during 2024. But removed in 2025.
-        Depends on 'SPI Flash Legacy' which was removed in ESP-IDF v5.0.
-        Besides, it has limited functionality. Use [Arduino][plat_arduino] instead.
-
-    - Only supports these boards:
-        - [Arduino Nano RP2040 Connect][nano_rp2040]
-        - [Arduino Nano 33 IoT][nano_33_iot]
-        - [Arduino MKR WiFi 1010][mkr_wifi]
-        - [Arduino UNO WiFi Rev.2][uni_wifi]
-        - [Arduino Arduino MKR Vidor 4000][mkr_vidor_4000]
-    - :material-close: WiFi: Not supported. You cannot use the WiFi API
-    - :material-close: Bluetooth: Not supported. You cannot use the Bluetooth API
-    - :material-close: Bluepad32 logs cannot be seen. It is difficult to debug if a controller cannot connect.
+    * [Arduino IDE with an ESP32 devkit][plat_arduino]
+    * [Arduino Core with an ESP32 devkit using ESP-IDF toolchain][plat_arduino]
+    * [Arduino IDE with an Arduino NINA devkit][plat_nina]
 
 === "CircuitPython"
 
@@ -80,15 +26,15 @@ Choose the right one depending on your knowledge, devkits and requirements:
 
 ## Comparison table
 
-| Platform                            | Start here                                                        | Further info        | Community projects                                                                                        | Features                                                     |
-|-------------------------------------|-------------------------------------------------------------------|---------------------|-----------------------------------------------------------------------------------------------------------|--------------------------------------------------------------|
-| Arduino IDE                         | [![Watch the video][youtube_image]](https://youtu.be/0jnY-XXiD8Q) | [Doc][plat_arduino] | [Controller for Tello drone][tello]                                                                       | Easy to debug, WiFi / BT, familiar IDE, Arduino libraries    |
-| Arduino using ESP-IDF toolchain     | [Template project][esp-idf-bluepad32-arduino]                     | [Doc][plat_arduino] | [Lego Robot][esp32_example] ([video][esp32_video]), [gbaHD Shield][esp32_example2] (a GameBoy consolizer) | Very easy to debug, console, WiFi / BT, Arduino libraries    |
-| Arduino + NINA coprocessor          | [Arduino Library][bp32-arduino]                                   | [Doc][plat_nina]    | [Philips CD-i meets Bluetooth][nina_example]                                                              | Difficult to debug, familiar IDE, Arduino libraries          |
-| CircuitPython + AirLift coprocessor | [CircuitPython Library][bp32-circuitpython]                       | [Doc][plat_airlift] | [Quico console][airlift_example], Controlling 4 servos ([video][airlift_video])                           | Difficult to debug, easy to program, CircuitPython libraries |
-| Pico W                              | [Pico W example][pico-w-example]                                  | [Doc][plat_custom]  | [Pico Switch][pico_switch]                                                                                | Very easy to debug, WiFi / BT, for advanced developers       |
-| ESP-IDF                             | [ESP32 example][esp32-example]                                    | [Doc][plat_custom]  |                                                                                                           | Very easy to debug, WiFi / BT, for advanced developers       |
-| Linux                               | [Linux example][linux-example]                                    | [Doc][plat_custom]  |                                                                                                           | Very easy to debug, WiFi / BT, useful for quick development  | 
+| Platform                            | Start here                                                        | Further info        | Community projects                                                                                        | Features                                                                    |
+|-------------------------------------|-------------------------------------------------------------------|---------------------|-----------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------|
+| Arduino IDE                         | [![Watch the video][youtube_image]](https://youtu.be/0jnY-XXiD8Q) | [Doc][plat_arduino] | [Controller for Tello drone][tello]                                                                       | Easy to debug, supports WiFi / BLE, familiar IDE, Arduino libraries         |
+| Arduino using ESP-IDF toolchain     | [Template project][esp-idf-bluepad32-arduino]                     | [Doc][plat_arduino] | [Lego Robot][esp32_example] ([video][esp32_video]), [gbaHD Shield][esp32_example2] (a GameBoy consolizer) | Very easy to debug, console, supports WiFi / BLE, Arduino libraries         |
+| Arduino + NINA coprocessor          | [Arduino Library][bp32-arduino]                                   | [Doc][plat_nina]    | [Philips CD-i meets Bluetooth][nina_example]                                                              | Difficult to debug, familiar IDE, Arduino libraries, no WiFi / BLE          |
+| CircuitPython + AirLift coprocessor | [CircuitPython Library][bp32-circuitpython]                       | [Doc][plat_airlift] | [Quico console][airlift_example], Controlling 4 servos ([video][airlift_video])                           | Difficult to debug, easy to program, CircuitPython libraries, no WiFi / BLE |
+| Pico W                              | [Pico W example][pico-w-example]                                  | [Doc][plat_custom]  | [Pico Switch][pico_switch]                                                                                | Very easy to debug, supports WiFi / BLE, for advanced developers            |
+| ESP-IDF                             | [ESP32 example][esp32-example]                                    | [Doc][plat_custom]  |                                                                                                           | Very easy to debug, supports WiFi / BLE, for advanced developers            |
+| Posix (Linux, macOS)                | [Posix example][posix-example]                                    | [Doc][plat_custom]  |                                                                                                           | Very easy to debug, supports WiFi / BLE, useful for quick development       | 
 
 [airlift_example]: https://gitlab.com/ricardoquesada/quico
 
@@ -112,7 +58,7 @@ Choose the right one depending on your knowledge, devkits and requirements:
 
 [esp32_video]: https://www.instagram.com/p/Ca7T6twKZ0B/
 
-[linux-example]: https://github.com/ricardoquesada/bluepad32/tree/main/examples/linux
+[posix-example]: https://github.com/ricardoquesada/bluepad32/tree/main/examples/posix
 
 [nina_example]: https://eyskens.me/cd-i-meets-bluetooth/
 
@@ -135,10 +81,6 @@ Choose the right one depending on your knowledge, devkits and requirements:
 [tello]: https://github.com/jsolderitsch/ESP32Controller
 
 [youtube_image]: https://lh3.googleusercontent.com/pw/AJFCJaXiDBy3NcQBBB-WFFVCsvYBs8szExsYQVwG5qqBTtKofjzZtJv_6GSL7_LfYRiypF1K0jjjgziXJuxAhoEawvzV84hlbmVTrGeXQYpVnpILZwWkbFi-ccX4lEzEbYXX-UbsEzpHLhO8qGVuwxOl7I_h1Q=-no?authuser=0
-
-[github_issue_65]: https://github.com/ricardoquesada/bluepad32/issues/65
-
-[arduino_nano_esp32]: https://store-usa.arduino.cc/products/nano-esp32
 
 [amazon_esp32_devkit]: https://www.amazon.com/s?k=esp32+devkit
 
