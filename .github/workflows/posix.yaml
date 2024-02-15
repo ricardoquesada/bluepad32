@@ -24,8 +24,8 @@ jobs:
     - name: Create build folder
       run: |
         echo "Cleaning up previous run"
-        rm -rf "${{github.workspace}}/examples/linux/build"
-        mkdir -p "${{github.workspace}}/examples/linux/build"
+        rm -rf "${{github.workspace}}/examples/posix/build"
+        mkdir -p "${{github.workspace}}/examples/posix/build"
 
     - name: Install dependencies
       run: sudo apt -y install tzdata make pkg-config libusb-1.0-0-dev clang cmake
@@ -34,7 +34,7 @@ jobs:
       # Use a bash shell so we can use the same syntax for environment variable
       # access regardless of the host operating system
       shell: bash
-      working-directory: ${{github.workspace}}/examples/linux/build
+      working-directory: ${{github.workspace}}/examples/posix/build
       # Note the current convention is to use the -S and -B options here to specify source
       # and build directories, but this is only available with CMake 3.13 and higher.
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
@@ -45,7 +45,7 @@ jobs:
       run : cat /proc/cpuinfo  | grep processor | wc -l
 
     - name: Build
-      working-directory: ${{github.workspace}}/examples/linux/build
+      working-directory: ${{github.workspace}}/examples/posix/build
       shell: bash
       # Execute the build.  You can specify a specific target with "--target <NAME>"
       run: cmake --build . --config $BUILD_TYPE --parallel $(nproc)

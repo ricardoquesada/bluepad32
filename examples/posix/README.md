@@ -1,4 +1,4 @@
-## Bluepad32 for Linux
+## Bluepad32 for Linux, macOS and other POSIX systems
 
 Useful while adding new gamepads and/or testing new features that don't require a microcontroller.
 
@@ -14,5 +14,5 @@ $ make -j
 To run it do:
 ```
 $ cd build
-$ sudo ./bluepad32_linux_example_app
+$ sudo ./bluepad32_posix_example_app
 ```

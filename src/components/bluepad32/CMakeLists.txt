@@ -43,7 +43,7 @@ set(srcs
          "uni_version.c"
          "uni_virtual_device.c")
 
- if(CONFIG_IDF_TARGET_ESP32 OR PICO_SDK_VERSION_STRING OR BLUEPAD32_TARGET_LINUX)
+ if(CONFIG_IDF_TARGET_ESP32 OR PICO_SDK_VERSION_STRING OR BLUEPAD32_TARGET_POSIX)
     # Bluetooth Classic files used by:
     # - ESP32
     # - Pico W
@@ -76,13 +76,13 @@ elseif(PICO_SDK_VERSION_STRING)
          "arch/uni_log_pico.c"
          "arch/uni_property_pico.c"
          "arch/uni_uart_pico.c")
-elseif(BLUEPAD32_TARGET_LINUX)
+elseif(BLUEPAD32_TARGET_POSIX)
     list(APPEND srcs
-         "arch/uni_console_linux.c"
-         "arch/uni_system_linux.c"
-         "arch/uni_log_linux.c"
-         "arch/uni_property_linux.c"
-         "arch/uni_uart_linux.c")
+         "arch/uni_console_posix.c"
+         "arch/uni_system_posix.c"
+         "arch/uni_log_posix.c"
+         "arch/uni_property_posix.c"
+         "arch/uni_uart_posix.c")
 else()
     message(FATAL_ERROR "Define target")
 endif()
@@ -158,7 +158,7 @@ if(IDF_TARGET)
     idf_component_register(SRCS "${srcs}"
                         INCLUDE_DIRS "include"
                         REQUIRES ${requires})
-elseif(PICO_SDK_VERSION_STRING OR BLUEPAD32_TARGET_LINUX)
+elseif(PICO_SDK_VERSION_STRING OR BLUEPAD32_TARGET_POSIX)
     # Valid for Pico W and Linux
     add_library(bluepad32 ${srcs})
     target_include_directories(bluepad32 PUBLIC ./include)
@@ -177,7 +177,7 @@ elseif(PICO_SDK_VERSION_STRING)
             pico_btstack_classic
             pico_btstack_cyw43
             )
-elseif(BLUEPAD32_TARGET_LINUX)
+elseif(BLUEPAD32_TARGET_POSIX)
     # Valid for Linux
     # TODO: Add dependencies here
 else()

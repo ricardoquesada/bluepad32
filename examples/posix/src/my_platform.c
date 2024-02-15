@@ -2,9 +2,6 @@
 // Copyright 2019 Ricardo Quesada
 // http://retro.moe/unijoysticle2
 
-// Debug version
-
-#include <stdio.h>
 #include <string.h>
 
 #include <uni.h>
@@ -15,21 +12,21 @@
 static int g_enhanced_mode = 0;
 static int g_delete_keys = 0;
 
-// PC Debug "instance"
-typedef struct pc_debug_instance_s {
+// Posix "instance"
+typedef struct posix_instance_s {
     uni_gamepad_seat_t gamepad_seat;  // which "seat" is being used
-} pc_debug_instance_t;
+} posix_instance_t;
 
 // Declarations
 static void trigger_event_on_gamepad(uni_hid_device_t* d);
-static pc_debug_instance_t* get_pc_debug_instance(uni_hid_device_t* d);
+static posix_instance_t* get_posix_instance(uni_hid_device_t* d);
 struct uni_platform* uni_platform_custom_create(void);
 
 //
 // Platform Overrides
 //
-static void pc_debug_init(int argc, const char** argv) {
-    logi("pc_debug: init()\n");
+static void posix_init(int argc, const char** argv) {
+    logi("posix: init()\n");
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--enhanced") == 0 || strcmp(argv[i], "-e") == 0) {
             g_enhanced_mode = 1;
@@ -61,8 +58,8 @@ static void pc_debug_init(int argc, const char** argv) {
     uni_bt_service_set_enabled(true);
 }
 
-static void pc_debug_on_init_complete(void) {
-    logi("pc_debug: on_init_complete()\n");
+static void posix_on_init_complete(void) {
+    logi("posix: on_init_complete()\n");
 
     // Safe to call "unsafe" functions since they are called from BT thread
     if (g_delete_keys)
@@ -76,24 +73,24 @@ static void pc_debug_on_init_complete(void) {
     uni_bt_enable_new_connections_unsafe(true);
 }
 
-static void pc_debug_on_device_connected(uni_hid_device_t* d) {
-    logi("pc_debug: device connected: %p\n", d);
+static void posix_on_device_connected(uni_hid_device_t* d) {
+    logi("posix: device connected: %p\n", d);
 }
 
-static void pc_debug_on_device_disconnected(uni_hid_device_t* d) {
-    logi("pc_debug: device disconnected: %p\n", d);
+static void posix_on_device_disconnected(uni_hid_device_t* d) {
+    logi("posix: device disconnected: %p\n", d);
 }
 
-static uni_error_t pc_debug_on_device_ready(uni_hid_device_t* d) {
-    logi("pc_debug: device ready: %p\n", d);
-    pc_debug_instance_t* ins = get_pc_debug_instance(d);
+static uni_error_t posix_on_device_ready(uni_hid_device_t* d) {
+    logi("posix: device ready: %p\n", d);
+    posix_instance_t* ins = get_posix_instance(d);
     ins->gamepad_seat = GAMEPAD_SEAT_A;
 
     trigger_event_on_gamepad(d);
     return UNI_ERROR_SUCCESS;
 }
 
-static void pc_debug_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl) {
+static void posix_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl) {
     static uint8_t leds = 0;
     static uint8_t enabled = true;
     static uni_controller_t prev = {0};
@@ -148,22 +145,22 @@ static void pc_debug_on_controller_data(uni_hid_device_t* d, uni_controller_t* c
     }
 }
 
-static const uni_property_t* pc_debug_get_property(uni_property_idx_t idx) {
+static const uni_property_t* posix_get_property(uni_property_idx_t idx) {
     ARG_UNUSED(idx);
     return NULL;
 }
 
-static void pc_debug_on_oob_event(uni_platform_oob_event_t event, void* data) {
+static void posix_on_oob_event(uni_platform_oob_event_t event, void* data) {
     switch (event) {
         case UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON: {
             uni_hid_device_t* d = data;
 
             if (d == NULL) {
-                loge("ERROR: pc_debug_on_oob_event: Invalid NULL device\n");
+                loge("ERROR: posix_on_oob_event: Invalid NULL device\n");
                 return;
             }
 
-            pc_debug_instance_t* ins = get_pc_debug_instance(d);
+            posix_instance_t* ins = get_posix_instance(d);
             ins->gamepad_seat = ins->gamepad_seat == GAMEPAD_SEAT_A ? GAMEPAD_SEAT_B : GAMEPAD_SEAT_A;
 
             trigger_event_on_gamepad(d);
@@ -171,11 +168,11 @@ static void pc_debug_on_oob_event(uni_platform_oob_event_t event, void* data) {
         }
 
         case UNI_PLATFORM_OOB_BLUETOOTH_ENABLED:
-            logi("pc_debug_on_oob_event: Bluetooth enabled: %d\n", (bool)(data));
+            logi("posix_on_oob_event: Bluetooth enabled: %d\n", (bool)(data));
             break;
 
         default:
-            logi("pc_debug_on_oob_event: unsupported event: 0x%04x\n", event);
+            logi("posix_on_oob_event: unsupported event: 0x%04x\n", event);
             break;
     }
 }
@@ -183,12 +180,12 @@ static void pc_debug_on_oob_event(uni_platform_oob_event_t event, void* data) {
 //
 // Helpers
 //
-static pc_debug_instance_t* get_pc_debug_instance(uni_hid_device_t* d) {
-    return (pc_debug_instance_t*)&d->platform_data[0];
+static posix_instance_t* get_posix_instance(uni_hid_device_t* d) {
+    return (posix_instance_t*)&d->platform_data[0];
 }
 
 static void trigger_event_on_gamepad(uni_hid_device_t* d) {
-    pc_debug_instance_t* ins = get_pc_debug_instance(d);
+    posix_instance_t* ins = get_posix_instance(d);
 
     if (d->report_parser.set_rumble != NULL) {
         d->report_parser.set_rumble(d, 0x80 /* value */, 15 /* duration */);
@@ -211,15 +208,15 @@ static void trigger_event_on_gamepad(uni_hid_device_t* d) {
 //
 struct uni_platform* get_my_platform(void) {
     static struct uni_platform plat = {
-        .name = "PC Debug",
-        .init = pc_debug_init,
-        .on_init_complete = pc_debug_on_init_complete,
-        .on_device_connected = pc_debug_on_device_connected,
-        .on_device_disconnected = pc_debug_on_device_disconnected,
-        .on_device_ready = pc_debug_on_device_ready,
-        .on_oob_event = pc_debug_on_oob_event,
-        .on_controller_data = pc_debug_on_controller_data,
-        .get_property = pc_debug_get_property,
+        .name = "Posix",
+        .init = posix_init,
+        .on_init_complete = posix_on_init_complete,
+        .on_device_connected = posix_on_device_connected,
+        .on_device_disconnected = posix_on_device_disconnected,
+        .on_device_ready = posix_on_device_ready,
+        .on_oob_event = posix_on_oob_event,
+        .on_controller_data = posix_on_controller_data,
+        .get_property = posix_get_property,
     };
 
     return &plat;

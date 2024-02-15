@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### New
 - BLE Service: Added `uni_bt_enable_service_safe(bool)` API to enable/disable in runtime
 
+### Changed
+- "linux" example renamed to "posix" since it also works on macOS
+
 ### Fixed
 - Pico W/Linux: string properties return default value instead of error.
 

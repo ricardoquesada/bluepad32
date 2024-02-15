@@ -3,15 +3,15 @@ cmake_minimum_required(VERSION 3.13)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_C_STANDARD 11)
 
-project(bluepad32_linux_example_app C ASM)
+project(bluepad32_posix_example_app C ASM)
 
 set(BLUEPAD32_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 
 # To use it from Bluepad32 (up-to-date, with custom patches for controllers):
 set(BTSTACK_ROOT ${BLUEPAD32_ROOT}/external/btstack)
 
-# Define "Linux" as target "microcontroller"
-set(BLUEPAD32_TARGET_LINUX "true")
+# Define "posic" as target "microcontroller"
+set(BLUEPAD32_TARGET_POSIX "true")
 
 # Define "Custom" as target platform
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DCONFIG_BLUEPAD32_PLATFORM_CUSTOM")
@@ -33,20 +33,20 @@ endif()
 # note: this must happen before project()
 include(btstack_import.cmake)
 
-add_executable(bluepad32_linux_example_app
+add_executable(bluepad32_posix_example_app
 		src/main.c
 		src/my_platform.c
 )
 
-target_include_directories(bluepad32_linux_example_app PRIVATE
+target_include_directories(bluepad32_posix_example_app PRIVATE
     src
     ${BLUEPAD32_ROOT}/src/components/bluepad32/include)
 
 # Needed for btstack_config.h / sdkconfig.h
 # so that libbluepad32 can include them
-include_directories(bluepad32_linux_example_app src)
+include_directories(bluepad32_posix_example_app src)
 
-target_link_libraries(bluepad32_linux_example_app
+target_link_libraries(bluepad32_posix_example_app
     bluepad32
     btstack
     m
