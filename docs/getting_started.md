@@ -9,7 +9,7 @@ Choose the right one depending on your knowledge, devkits and requirements:
     For Arduino developers, there are three options.
 
     * [Arduino IDE with an ESP32 devkit][plat_arduino]
-    * [Arduino Core with an ESP32 devkit using ESP-IDF toolchain][plat_arduino]
+    * [Arduino Core with an ESP32 devkit using ESP-IDF toolchain][plat_arduino] (supports PlatformIO)
     * [Arduino IDE with an Arduino NINA devkit][plat_nina]
 
 === "CircuitPython"
