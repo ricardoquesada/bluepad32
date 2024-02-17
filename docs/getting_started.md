@@ -2,7 +2,7 @@
 
 Bluepad32 supports different platforms, and different microcontrollers.
 
-Choose the right one depending on your knowledge, devkits and requirements:
+Choose the right one depending on your knowledge, devkit board and requirements:
 
 === "Arduino"
 
@@ -18,23 +18,28 @@ Choose the right one depending on your knowledge, devkits and requirements:
 
 === "ESP-IDF"
 
-    WIP. In the meantime use this example as reference: [ESP-IDF example][esp32-example]
+    * Works with ESP32 microcontrollers: ESP32, ESP32-S3, ESP32-C3.
+    * Works both with ESP-IDF v4.4 and v5.X
+    * Uses the ESP-IDF SDK
+    * Use this example as reference: [ESP32 example][esp32-example]
 
 === "Pico SDK"
 
-    WIP. In the meantime use this example as reference: [Pico W example][pico-w-example]
+    * Works with Pico W microcontroller.
+    * Uses the Pico SDK.
+    * Use this example as reference: [Pico W example][pico-w-example]
 
 ## Comparison table
 
-| Platform                            | Start here                                                        | Further info        | Community projects                                                                                        | Features                                                                    |
-|-------------------------------------|-------------------------------------------------------------------|---------------------|-----------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------|
-| Arduino IDE                         | [![Watch the video][youtube_image]](https://youtu.be/0jnY-XXiD8Q) | [Doc][plat_arduino] | [Controller for Tello drone][tello]                                                                       | Easy to debug, supports WiFi / BLE, familiar IDE, Arduino libraries         |
-| Arduino using ESP-IDF toolchain     | [Template project][esp-idf-bluepad32-arduino]                     | [Doc][plat_arduino] | [Lego Robot][esp32_example] ([video][esp32_video]), [gbaHD Shield][esp32_example2] (a GameBoy consolizer) | Very easy to debug, console, supports WiFi / BLE, Arduino libraries         |
-| Arduino + NINA coprocessor          | [Arduino Library][bp32-arduino]                                   | [Doc][plat_nina]    | [Philips CD-i meets Bluetooth][nina_example]                                                              | Difficult to debug, familiar IDE, Arduino libraries, no WiFi / BLE          |
-| CircuitPython + AirLift coprocessor | [CircuitPython Library][bp32-circuitpython]                       | [Doc][plat_airlift] | [Quico console][airlift_example], Controlling 4 servos ([video][airlift_video])                           | Difficult to debug, easy to program, CircuitPython libraries, no WiFi / BLE |
-| Pico W                              | [Pico W example][pico-w-example]                                  | [Doc][plat_custom]  | [Pico Switch][pico_switch]                                                                                | Very easy to debug, supports WiFi / BLE, for advanced developers            |
-| ESP-IDF                             | [ESP32 example][esp32-example]                                    | [Doc][plat_custom]  |                                                                                                           | Very easy to debug, supports WiFi / BLE, for advanced developers            |
-| Posix (Linux, macOS)                | [Posix example][posix-example]                                    | [Doc][plat_custom]  |                                                                                                           | Very easy to debug, supports WiFi / BLE, useful for quick development       | 
+| Platform                            | Start here                                                        | Further info        | Community projects                                                                                        | WiFi / BLE       | Other Features                                                      |
+|-------------------------------------|-------------------------------------------------------------------|---------------------|-----------------------------------------------------------------------------------------------------------|------------------|---------------------------------------------------------------------|
+| Arduino IDE                         | [![Watch the video][youtube_image]](https://youtu.be/0jnY-XXiD8Q) | [Doc][plat_arduino] | [Controller for Tello drone][tello]                                                                       | :material-check: | Easy to debug, familiar IDE, Arduino libraries                      |
+| Arduino using ESP-IDF toolchain     | [Template project][esp-idf-bluepad32-arduino]                     | [Doc][plat_arduino] | [Lego Robot][esp32_example] ([video][esp32_video]), [gbaHD Shield][esp32_example2] (a GameBoy consolizer) | :material-check: | Very easy to debug, console, Arduino libraries, PlatformIO          |
+| Arduino + NINA coprocessor          | [Arduino Library][bp32-arduino]                                   | [Doc][plat_nina]    | [Philips CD-i meets Bluetooth][nina_example]                                                              | :material-close: | Difficult to debug, familiar IDE, Arduino libraries, **deprecated** |
+| CircuitPython + AirLift coprocessor | [CircuitPython Library][bp32-circuitpython]                       | [Doc][plat_airlift] | [Quico console][airlift_example], Controlling 4 servos ([video][airlift_video])                           | :material-close: | Difficult to debug, easy to program, CircuitPython libraries        |
+| Pico W                              | [Pico W example][pico-w-example]                                  | [Doc][plat_custom]  | [Pico Switch][pico_switch]                                                                                | :material-check: | Very easy to debug, for advanced developers, Pico SDK               |
+| ESP-IDF                             | [ESP32 example][esp32-example]                                    | [Doc][plat_custom]  |                                                                                                           | :material-check: | Very easy to debug, for advanced developers, ESP-IDF SDK            |
+| Posix (Linux, macOS)                | [Posix example][posix-example]                                    | [Doc][plat_custom]  |                                                                                                           | :material-check: | Very easy to debug, useful for quick development                    | 
 
 [airlift_example]: https://gitlab.com/ricardoquesada/quico
 
