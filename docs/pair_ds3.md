@@ -15,7 +15,7 @@ By default, DS3 is disabled since it requires `gap_set_security_level(0)`.
 But that change breaks Nintendo Switch and other gamepads, so it is disabled.
 To enable it, you should change on setting in `menuconfig`:
 
-``` sh
+```sh
 idf.py menuconfig
 ```
 
@@ -60,13 +60,13 @@ $ sudo apt install libhidapi-dev
 
 On Gentoo Linux run:
 
-``` sh
+```sh
 sudo emerge dev-libs/hidapi
 ```
 
 On MacOS run:
 
-``` sh
+```sh
 brew install hidapi
 ```
 
@@ -93,7 +93,7 @@ For Windows: I don't know, you are in your own.
 
 * Compile the "sixaxis pairer":
 
-``` sh
+```sh
 cd bluepad32/tools
 make sixaxispairer
 sudo ./sixaxispairer XX:XX:XX:XX:XX:XX  # Following our example, it should be CC:50:E3:AF:E2:96
@@ -106,12 +106,12 @@ sudo ./sixaxispairer XX:XX:XX:XX:XX:XX  # Following our example, it should be CC
 Use [PS Move API][psmoveapi].
 E.g.:
 
-``` sh
+```sh
 # To list the connected devices to your Linux machine
 $ sudo psmove list
 ```
 
-``` sh
+```sh
 # To list the connected devices to your Linux machine
 $ sudo psmove pair XX:XX:XX:XX:XX:XX  # Following our example, it should be CC:50:E3:AF:E2:96
 ```

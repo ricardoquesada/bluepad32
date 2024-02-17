@@ -1,10 +1,10 @@
 # Bluepad32 for Unijoysticle
 
-![Unijoysticle 2](https://lh3.googleusercontent.com/DChZhkyEl-qqZ3r9N7_RhzvF4zDkSdgNyZwczBofnp28D6ncXcbGq3CXBc5SeC5zooUbBCRo87stuAx-4Q7FwItz1NfaZ4_EJjX3pIroiiR-fcXPzZWk0OifvtaoA8iUJsQQnhkC9q4=-no)
+![Unijoysticle 2](https://lh3.googleusercontent.com/pw/ABLVV859WZpHjZH8U9XC8veB8h42R_UZ7o8VQ4QTochbCWiSX7YutqnLAP-jkjUUIjn-O_DRN1F9SoMF59t-RvPk5dHSGaq-r_ifd-qL0LJsC2tCl6ePQqjYfbTXnGfYm2_FegLKXaoEqdZ1i5thebTTa4X_Hg=-no-gm?authuser=0)
 
 ## What is Unijoysticle
 
-Unijoysticle is a device that connects to retro computers like the Commodore 64.
+Unijoysticle is a device that connects to retro computers like the Commodore 64, Amiga or Atari.
 Basically you can play Commodore 64 games using modern gamepads.
 
 Detailed information about the project can be found here:

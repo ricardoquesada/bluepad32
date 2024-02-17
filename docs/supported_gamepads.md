@@ -4,46 +4,6 @@
 
 [Supported gamepads]:https://lh3.googleusercontent.com/pw/AMWts8BB7wT51jpn3HxWHuZLiEM2lX05gmTDsnldHszkXuYqxbowNvtxPtpbHh3CNjv1OBzeyadZjNLNBgE4w2tl2WmP8M9gGBCfWhzmZGQnHBlERSoy5W2dj6-EYmT84yteKTFjp4Jz2H3DgByFiKXaxfFC2g=-no
 
-## Bluetooth gamepads and their protocol
-
-Most gamepads, as of 2023, use BR/EDR (AKA Bluetooth Classic). Worth noting is that BR/EDR is only supported on ESP32
-and Pico W, and **NOT** in ESP32-S3 / ESP32-C3.
-
-| Chip     | BR/EDR | BLE |
-|----------|--------|-----|
-| ESP32    | Y      | Y   |
-| ESP32-S3 |        | Y   |
-| ESP32-C3 |        | Y   |
-| Pico W   | Y      | Y   |
-
-Non-comprehensive list of supported Bluetooth gamepads their protocols:
-
-| Gamepad                 | BR/EDR | BLE  |
-|-------------------------|--------|------|
-| DualSense (PS5)         | Y      |      |
-| DUALSHOCK 4 (PS4)       | Y      |      |
-| DUALSHOCK 3 (PS3)       | Y      |      |
-| Nintendo Switch Pro     | Y      |      |
-| Nintendo Switch JoyCons | Y      |      |
-| Nintendo Wii U Pro      | Y      |      |
-| Nintendo Wii Remote     | Y      |      |
-| Nintendo Balance Board  | Y      |      |
-| Xbox Wireless           | Y*     | Y*   |
-| Steam                   |        | Y**  |
-| Stadia                  |        | Y*** |
-| Android                 | Y      |      |
-| 8BitDo                  | Y      |      |
-| Atari                   | Y      |      |
-| iCade                   | Y      |      |
-| Nimbus                  | Y      |      |
-| OUYA 1st gen            | Y      |      |
-
-*: Xbox Controller Firmware v3.x and v4.x use BR/EDR. Firmware v5.x and later use BLE.
-
-**: Requires [Steam Controller Bluetooth firmware update][steam_instructions]
-
-***: Requires [Stadia Bluetooth firmware update][stadia_instructions]
-
 # Supported gamepads
 
 List of supported gamepads with supported features, known bugs, etc.
@@ -438,56 +398,45 @@ Bluetooth controllers have different connection modes. Use the HID one.
 
 [generic_gamepad]: https://lh3.googleusercontent.com/JG0sQGQ4lmFIITl_nincUDdPi-mlYPol-RSQrnoxsYZf1_cc16A4WMod_ttuLJoIQigvcZ_ZF6NiA7p54bBQP-Eu52b28mbjfVCwsMjuu_LCQB9Lj0k9e5UkW_PkRM12IB0HrW8ah0k=-no
 
-# Supported mice
+## Bluetooth gamepads and their protocol
 
-For the list of supported mice, go here: [supported_mice.md](supported_mice.md)
+Most gamepads, as of 2024, use BR/EDR (AKA Bluetooth Classic). Only a few use BLE.
+Worth noting is that BR/EDR is only supported on ESP32 and Pico W, but **NOT** in ESP32-S3 / ESP32-C3.
 
-# Technical notes: Virtual gamepad
+| Chip     | BR/EDR | BLE |
+|----------|--------|-----|
+| ESP32    | Y      | Y   |
+| ESP32-S3 |        | Y   |
+| ESP32-C3 |        | Y   |
+| Pico W   | Y      | Y   |
 
-Internally, all controllers are converted to a virtual gamepad which is very similar
-to the Android/Xbox One gamepads layout. The different parsers convert the physical
-gamepads to the virtual gamepad.
+Non-comprehensive list of supported Bluetooth gamepads their protocols:
 
-Button are mapped based on physical position, and not on names. For example, 8bitdo N30 gamepad
-uses the Nintendo layout, which is different than the Virtual Gamepad layout:
+| Gamepad                 | BR/EDR | BLE  |
+|-------------------------|--------|------|
+| DualSense (PS5)         | Y      |      |
+| DUALSHOCK 4 (PS4)       | Y      |      |
+| DUALSHOCK 3 (PS3)       | Y      |      |
+| Nintendo Switch Pro     | Y      |      |
+| Nintendo Switch JoyCons | Y      |      |
+| Nintendo Wii U Pro      | Y      |      |
+| Nintendo Wii Remote     | Y      |      |
+| Nintendo Balance Board  | Y      |      |
+| Xbox Wireless           | Y*     | Y*   |
+| Steam                   |        | Y**  |
+| Stadia                  |        | Y*** |
+| Android                 | Y      |      |
+| 8BitDo                  | Y      |      |
+| Atari                   | Y      |      |
+| iCade                   | Y      |      |
+| Nimbus                  | Y      |      |
+| OUYA 1st gen            | Y      |      |
 
-```
-NES30 layout     Virtual Gamepad layout
-    X                     Y
-    ^                     ^
-Y<-   ->A             X<-   ->B
-    v                     v
-    B                     A
- ```
+*: Xbox Controller Firmware v3.x and v4.x use BR/EDR. Firmware v5.x and later use BLE.
 
-So, instead of honoring the button names, N30 will get remapped to match the
-virtual gamepad layout, meaning that:
+**: Requires [Steam Controller Bluetooth firmware update][steam_instructions]
 
-- Button B -> A
-- Button A -> B
-- Button Y -> X
-- Button X -> Y
-
-## Virtual gamepad mappings
-
-Many of the virtual buttons/pads are left unmapped, but could be mapped in the future.
-
-![virtual_gamepad][1]
-
-- 1: D-pad
-- 2: Axis X & Y, Button Thumb Left
-- 3: Axis Rx & Ry, Button Thumb Right
-- 4: Button X
-- 5: Button A
-- 6: Button Y
-- 7: Button B
-- 8: Button Shoulder Right
-- 9: Accelerator, Trigger Button Right
-- 10: Brake, Trigger Button Left
-- 11: Button Shoulder Left
-- M1: Button System
-- M2: Button Home
-- M3: Button Back
+***: Requires [Stadia Bluetooth firmware update][stadia_instructions]
 
 [1]: https://lh3.googleusercontent.com/sfRd1qSHaxe4he4lt63Xjsr_ejmrthB00bPpIj4CwuUOyzKy3otIrdsPqhy_Y0U78Ibcw5bssuUOgKxNsvhvq6AQGlmigtj2tWA67HQHEaDU4tEmq850Z47rwRW9EzAhFGi6XrgUhUI=-no
 

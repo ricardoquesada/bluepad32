@@ -128,7 +128,7 @@ arduino-fwuploader firmware flash -b arduino:mbed_nano:nanorp2040connect -a COM3
 
 #### Linux & macOS
 
-``` shell
+```shell
 # Replace name and address with the correct ones
 export BOARD=arduino:samd:nano_33_iot
 export ADDRESS=/dev/ttyACM0
@@ -139,7 +139,7 @@ arduino-fwuploader firmware flash -b $BOARD -a $ADDRESS -i bluepad32-nina-full.b
 
 To verify that the flash was successful, do:
 
-``` shell
+```shell
 $ arduino-fwuploader firmware get-version -b $BOARD -a $ADDRESS
 ```
 
@@ -180,7 +180,7 @@ Install the requirements described here: [README.md][readme].
 
 Chose `nina` as the target platform:
 
-``` sh
+```sh
 cd ${BLUEPAD32}/src
 
 # Select Nina platform:
@@ -193,7 +193,7 @@ idf.py build
 
 On Nano 32 IoT / MKR WIFI 1010, doing `idf.py flash` will just work.
 
-``` sh
+```sh
 # Only valid for:
 #   * Nano 33 IoT
 #   * MKR WIFI 1010
@@ -207,7 +207,7 @@ idf.py flash
 But on NANO RP2040 Connect and UNO WiFi Rev.2, you have to flash it using the `--before no_reset` option,
 and **NOT** `--before default_reset`. E.g:
 
-``` sh
+```sh
 # Only valid for:
 #   * Nano RP2040 Connect
 #   * UNO WiFi Rev.2
@@ -246,5 +246,3 @@ Compile it and flash it. Done! :smile:
     And **NOT** any of the "esp32 + bluepad32" boards.
 
 [bluepad32_arduino_example_image]: https://lh3.googleusercontent.com/pw/ABLVV85GvpUOL7J40Vc9utFUchorngX0ergZeuJgS0iiIOfSStcQLnDwP33S23QH_DsCHjs9U9lt0nRdfY3eyckitnN9ulZTZpKLaTFj2m97vf-XJIUgYSda5AhJyFWXDmGLaFJ2wPiS4xDftzecXE1VKVu2JA=-no-gm?authuser=0
-
-    

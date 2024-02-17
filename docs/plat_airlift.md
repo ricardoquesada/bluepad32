@@ -123,7 +123,7 @@ If step 4a) failed, you can try by using this CircuitPython code.
 Copy & paste this file in your `CIRCUITPYTHON` folder with the name `code.py`.
 And also copy the `bluepad32-airlift-full-xxx.bin` to the `CIRCUITPYTHON` folder.
 
-``` python
+```python
 import time
 import board
 import busio
