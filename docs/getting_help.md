@@ -101,5 +101,5 @@ Attaching a screenshot might be useful, but the screenshot is not a replacement 
 
 E.g.: The console output can be found on this link (add link).
 
-<http://tinyurl.com/bluepad32-help>
+<http://bit.ly/bluepad32-help>
 
