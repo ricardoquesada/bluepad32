@@ -2,13 +2,13 @@
 
 Bluepad32 supports different IDEs, and different microcontrollers. These are the options:
 
-| IDE / MCU                 | ESP32 family     | NINA co-processor | Airlift co-processor | Pico W           |
-|---------------------------|------------------|-------------------|----------------------|------------------|
-| Arduino IDE               | :material-check: | :material-check:  |                      |                  |
-| Arduino Core / PlatformIO | :material-check: |                   |                      |                  |
-| CircuitPython             |                  |                   | :material-check:     |                  |
-| ESP-IDF (raw API)         | :material-check: |                   |                      |                  |
-| PICO SDK (raw API)        |                  |                   |                      | :material-check: |
+| IDE / MCU          | ESP32 family     | NINA co-processor | Airlift co-processor | Pico W           |
+|--------------------|------------------|-------------------|----------------------|------------------|
+| Arduino IDE        | :material-check: | :material-check:  |                      |                  |
+| Arduino Core       | :material-check: |                   |                      |                  |
+| CircuitPython      |                  |                   | :material-check:     |                  |
+| ESP-IDF (raw API)  | :material-check: |                   |                      |                  |
+| PICO SDK (raw API) |                  |                   |                      | :material-check: |
 
 Choose the right one depending on your knowledge, devkit board and requirements:
 
@@ -30,6 +30,7 @@ Choose the right one depending on your knowledge, devkit board and requirements:
     * Works with ESP32 microcontrollers: ESP32, ESP32-S3, ESP32-C3.
     * Works both with ESP-IDF v4.4 and v5.X
     * Uses the ESP-IDF SDK
+    * Can be used with PlatformIO
     * Use this example as reference: [ESP32 example][esp32-example]
 
 === "Pico SDK"
@@ -43,11 +44,11 @@ Choose the right one depending on your knowledge, devkit board and requirements:
 | Platform                            | Start here                                                        | Further info        | Community projects                                                                                        | WiFi / BLE       | Other Features                                                      |
 |-------------------------------------|-------------------------------------------------------------------|---------------------|-----------------------------------------------------------------------------------------------------------|------------------|---------------------------------------------------------------------|
 | Arduino IDE                         | [![Watch the video][youtube_image]](https://youtu.be/0jnY-XXiD8Q) | [Doc][plat_arduino] | [Controller for Tello drone][tello]                                                                       | :material-check: | Easy to debug, familiar IDE, Arduino libraries                      |
-| Arduino Core / PlatformIO           | [Template project][esp-idf-bluepad32-arduino]                     | [Doc][plat_arduino] | [Lego Robot][esp32_example] ([video][esp32_video]), [gbaHD Shield][esp32_example2] (a GameBoy consolizer) | :material-check: | Very easy to debug, console, Arduino libraries, PlatformIO, ESP-IDF |
+| Arduino Core / PlatformIO           | [Template project][esp-idf-bluepad32-arduino]                     | [Doc][plat_arduino] | [Lego Robot][esp32_example] ([video][esp32_video]), [gbaHD Shield][esp32_example2] (a GameBoy consolizer) | :material-check: | Very easy to debug, console, Arduino libraries, ESP-IDF, PlatformIO |
 | Arduino IDE + NINA coprocessor      | [Arduino Library][bp32-arduino]                                   | [Doc][plat_nina]    | [Philips CD-i meets Bluetooth][nina_example]                                                              | :material-close: | Difficult to debug, familiar IDE, Arduino libraries, **deprecated** |
 | CircuitPython + AirLift coprocessor | [CircuitPython Library][bp32-circuitpython]                       | [Doc][plat_airlift] | [Quico console][airlift_example], Controlling 4 servos ([video][airlift_video])                           | :material-close: | Difficult to debug, easy to program, CircuitPython libraries        |
 | Pico W                              | [Pico W example][pico-w-example]                                  | [Doc][plat_custom]  | [Pico Switch][pico_switch]                                                                                | :material-check: | Very easy to debug, for advanced developers, Pico SDK               |
-| ESP-IDF                             | [ESP32 example][esp32-example]                                    | [Doc][plat_custom]  |                                                                                                           | :material-check: | Very easy to debug, for advanced developers, ESP-IDF                |
+| ESP-IDF / PlatformIO                | [ESP32 example][esp32-example]                                    | [Doc][plat_custom]  |                                                                                                           | :material-check: | Very easy to debug, for advanced developers, ESP-IDF, PlatformIO    |
 | Posix (Linux, macOS)                | [Posix example][posix-example]                                    | [Doc][plat_custom]  |                                                                                                           | :material-check: | Very easy to debug, useful for quick development                    | 
 
 [airlift_example]: https://gitlab.com/ricardoquesada/quico
