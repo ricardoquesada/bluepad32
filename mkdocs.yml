@@ -15,14 +15,13 @@ watch:
 
 nav:
   - Home: index.md
-  - Getting Started:
-    - getting_started.md
-    - getting_help.md
+  - Getting Started: getting_started.md
+  - Getting Help: getting_help.md
   - Controllers:
     - supported_gamepads.md
     - supported_mice.md
     - supported_keyboards.md
-    - pair_ds3.md
+    - 'How to pair a DualShock3': pair_ds3.md
   - Platforms:
     - 'Arduino + ESP32 board': plat_arduino.md
     - 'Arduino + NINA board': plat_nina.md

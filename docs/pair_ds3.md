@@ -1,35 +1,12 @@
-# How to pair a DUALSHOCK3 (sixaxis) & Motion Controller with the ESP32
+# How to pair a DualShock 3 (sixaxis) & Motion Controller
 
-The DUALSHOCK3 gamepad does not implement the entire Bluetooth stack. It requires "manual pairing" in order to work.
-
-## Only valid for Bluepad32 v3.5 or newer
-
-DS3 support is enabled by default. It is no longer needed to patch Bluepad32.
-
-Also, since v3.5, it is possible to change the `GAP Security` from the console by using the
-`set_gap_security_level` command. But again, this is no longer needed in versions >= 3.5.
-
-## Only valid for Bluepad32 < 3.5
-
-By default, DS3 is disabled since it requires `gap_set_security_level(0)`.
-But that change breaks Nintendo Switch and other gamepads, so it is disabled.
-To enable it, you should change on setting in `menuconfig`:
-
-```sh
-idf.py menuconfig
-```
-
-And select `Component config` -> `Bluepad32` -> `Enable GAP Security` (must be disabled)
-
-And then you have to re-compile the firmware (see here for [firmware compilation instructions]).
-
-[firmware compilation instructions]: firmware_setup.md
+The DualShock 3 gamepad does not implement the entire Bluetooth stack. It requires "manual pairing" in order to work.
 
 ## Manual pair
 
-### Fetch the ESP32 Bluetooth Address
+### Fetch the ESP32 / Pico W Bluetooth Address
 
-* Connect a terminal to the ESP32 using 115200 baud 8N1.
+* Connect a terminal to the ESP32/Pico W using 115200 baud 8N1.
 
 * Watch the logs. You should see something like:
 

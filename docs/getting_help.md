@@ -1,4 +1,4 @@
-# Support
+# Getting help
 
 Something not working as expected?
 
@@ -27,6 +27,8 @@ Bluepad32 supports different platforms, like:
 * Arduino IDE for NINA coprocessors, like the Arduino Nano RP2040 Connect
 * Arduino + ESP-IDF
 * CircuitPython for AirLift coprocessors
+* ESP-IDF
+* Pico SDK
 * Unijoysticle
 * MightyMiggy
 
@@ -34,11 +36,11 @@ So, provide the platform you are using, and the version. And also which Bluepad3
 
 E.g: I'm using Arduino IDE v2.0.9 with Bluepad32 v3.7.3
 
-## ESP32 Module
+## DevKit Module
 
-Not all modules are created equal.
+Not all devkits are created equal.
 
-Which ESP32 Module are you using? Provide a link to the device.
+Which devkkit are you using? Provide a link to the device.
 
 E.g: I'm using Sparkfun Thing Plus - ESP32 WROOM: <https://www.sparkfun.com/products/17381>
 
@@ -50,6 +52,7 @@ The officially supported controllers are enumerated here:
 
 * [Supported gamepads][supported_gamepads]
 * [Supported mice][supported_mice]
+* [Supported keyboards][supported_keyboards]
 
 Please provide: brand, model, firmware and link to the device (if applicable).
 Also mention whether it is genuine or a knock-off.
@@ -66,9 +69,9 @@ Discord channel). The way it works is:
 * We purchase it, and we will do our best to support it. But we don't guarantee anything... so many things can go
   wrong... especially with low-cost clones where many features are not implemented.
 
-[supported_gamepads]: supported_gamepads.md
-
-[supported_mice]: supported_mice.md
+[supported_gamepads]: ../supported_gamepads/
+[supported_mice]: ../supported_mice/
+[supported_keyboards]: ../supported_keyboards/
 
 ## Sketch
 
