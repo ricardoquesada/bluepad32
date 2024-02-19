@@ -26,6 +26,9 @@ body:
       options:
         - I don't know
         - latest from develop branch
+        - 4.0-beta2
+        - 4.0-beta1
+        - 4.0-beta0
         - 3.10.3
         - 3.10.2
         - 3.10.1
@@ -58,6 +61,9 @@ body:
         - Arduino ESP-IDF
         - Arduino + NINA
         - CircuitPython + AirLift
+        - ESP-IDF
+        - Pico SDK
+        - Posic (Linux, macOS)
         - Unijoysticle
         - MightyMiggy
         - Other
@@ -74,21 +80,22 @@ body:
       description: Which controller are you using ?
       value: "Xbox Wireless 1708 using firmware 5.15.1923. Link to controller: https://example.com"
   - type: dropdown
-    id: esp32
+    id: mcu
     attributes:
-      label: ESP32 chip
-      description: What ESP32 chip are you using?
+      label: Microcontroller
+      description: What microcontroller are you using?
       options:
         - ESP32
         - ESP32-S3
         - ESP32-C3
+        - Pico W
     validations:
       required: true
   - type: textarea
-    id: esp32-custom
+    id: mcu-custom
     attributes:
-      label: ESP32 board
-      description: Which ESP32 board/module are you using?
+      label: Microcontroller board
+      description: Which board/module are you using?
       value: "ESP32-S3-WROOM1 DevKit from Lolin. This is the store URL: https://example.com"
   - type: dropdown
     id: os
