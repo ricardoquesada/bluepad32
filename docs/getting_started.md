@@ -1,6 +1,14 @@
 # Choose target platform
 
-Bluepad32 supports different platforms, and different microcontrollers.
+Bluepad32 supports different IDEs, and different microcontrollers. These are the options:
+
+| IDE / MCU                 | ESP32 family     | NINA co-processor | Airlift co-processor | Pico W           |
+|---------------------------|------------------|-------------------|----------------------|------------------|
+| Arduino IDE               | :material-check: | :material-check:  |                      |                  |
+| Arduino Core / PlatformIO | :material-check: |                   |                      |                  |
+| CircuitPython             |                  |                   | :material-check:     |                  |
+| ESP-IDF (raw API)         | :material-check: |                   |                      |                  |
+| PICO SDK (raw API)        |                  |                   |                      | :material-check: |
 
 Choose the right one depending on your knowledge, devkit board and requirements:
 
@@ -14,7 +22,8 @@ Choose the right one depending on your knowledge, devkit board and requirements:
 
 === "CircuitPython"
 
-    WIP. In the meantime read: [Bluepad32 for CircuitPython][bp32-circuitpython]
+    * Works with Airlift co-processor boards.
+    * Detailed info here: [Bluepad32 for CircuitPython][bp32-circuitpython]
 
 === "ESP-IDF"
 
@@ -29,7 +38,7 @@ Choose the right one depending on your knowledge, devkit board and requirements:
     * Uses the Pico SDK.
     * Use this example as reference: [Pico W example][pico-w-example]
 
-## Comparison table
+## Where to start
 
 | Platform                            | Start here                                                        | Further info        | Community projects                                                                                        | WiFi / BLE       | Other Features                                                      |
 |-------------------------------------|-------------------------------------------------------------------|---------------------|-----------------------------------------------------------------------------------------------------------|------------------|---------------------------------------------------------------------|

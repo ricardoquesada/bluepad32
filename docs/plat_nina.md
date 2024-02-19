@@ -2,7 +2,7 @@
 
 !!! Warning
 
-    **Deprecated**. Will be mantained during 2024. But removed in 2025.
+    **Deprecated**. Will be mantained until August 2024.
     Depends on 'SPI Flash Legacy' which was removed in ESP-IDF v5.0.
     Besides, it has limited functionality. Use [Arduino][plat_arduino] instead.
 
