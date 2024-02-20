@@ -1,4 +1,4 @@
-name: Build with ESP-IDF v5.1
+name: Build with ESP-IDF v5.2
 
 on:
   push:
@@ -17,6 +17,10 @@ jobs:
       with:
         submodules: 'recursive'
 
+    - name: Patch BTStack
+      shell: bash
+      run: cd external/btstack && git apply ../patches/*.patch
+
     - name: Install BTStack
       shell: bash
       run: cd external/btstack/port/esp32 && IDF_PATH=../../../../src/ ./integrate_btstack.py
@@ -24,7 +28,7 @@ jobs:
     - name: Unijoysticle build
       uses: espressif/esp-idf-ci-action@main
       with:
-        esp_idf_version: release-v5.1
+        esp_idf_version: release-v5.2
         target: esp32
         path: 'src'
         command: 'idf.py -B build_plat_unijoysticle -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.plat_unijoysticle" build'
@@ -32,7 +36,7 @@ jobs:
     - name: AirLift build
       uses: espressif/esp-idf-ci-action@main
       with:
-        esp_idf_version: release-v5.1
+        esp_idf_version: release-v5.2
         target: esp32
         path: 'src'
         command: 'idf.py -B build_plat_airlift -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.plat_airlift" build'
@@ -40,7 +44,7 @@ jobs:
     - name: NINA build
       uses: espressif/esp-idf-ci-action@main
       with:
-        esp_idf_version: release-v5.1
+        esp_idf_version: release-v5.2
         target: esp32
         path: 'src'
         command: 'idf.py -B build_plat_nina -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.plat_nina" build'
@@ -48,7 +52,7 @@ jobs:
     - name: MightyMiggy build
       uses: espressif/esp-idf-ci-action@main
       with:
-        esp_idf_version: release-v5.1
+        esp_idf_version: release-v5.2
         target: esp32
         path: 'src'
         command: 'idf.py -B build_plat_mightymiggy -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.plat_mightymiggy" build'
@@ -56,7 +60,7 @@ jobs:
     - name: Example build
       uses: espressif/esp-idf-ci-action@main
       with:
-        esp_idf_version: release-v5.1
+        esp_idf_version: release-v5.2
         target: esp32
         path: 'examples/esp32'
         command: 'idf.py build'

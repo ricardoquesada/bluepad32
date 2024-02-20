@@ -495,6 +495,7 @@ static void register_bluepad32() {
 }
 
 void uni_console_init(void) {
+#ifdef CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
     esp_console_repl_t* repl = NULL;
     esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
     esp_console_dev_uart_config_t uart_config = ESP_CONSOLE_DEV_UART_CONFIG_DEFAULT();
@@ -531,4 +532,5 @@ void uni_console_init(void) {
 
     // Should not happen
     // vTaskDelete(NULL);
+#endif  // CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
 }

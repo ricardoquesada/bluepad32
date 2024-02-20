@@ -66,7 +66,6 @@ if(IDF_TARGET)
          "arch/uni_system_esp32.c"
          "arch/uni_log_esp32.c"
          "arch/uni_property_esp32.c"
-         "arch/uni_uart_esp32.c"
          "uni_gpio.c"
          "uni_mouse_quadrature.c")
 elseif(PICO_SDK_VERSION_STRING)
@@ -74,15 +73,13 @@ elseif(PICO_SDK_VERSION_STRING)
          "arch/uni_console_pico.c"
          "arch/uni_system_pico.c"
          "arch/uni_log_pico.c"
-         "arch/uni_property_pico.c"
-         "arch/uni_uart_pico.c")
+         "arch/uni_property_pico.c")
 elseif(BLUEPAD32_TARGET_POSIX)
     list(APPEND srcs
          "arch/uni_console_posix.c"
          "arch/uni_system_posix.c"
          "arch/uni_log_posix.c"
-         "arch/uni_property_posix.c"
-         "arch/uni_uart_posix.c")
+         "arch/uni_property_posix.c")
 else()
     message(FATAL_ERROR "Define target")
 endif()

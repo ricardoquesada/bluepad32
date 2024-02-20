@@ -38,7 +38,6 @@
 #include "uni_gpio.h"
 #include "uni_hid_device.h"
 #include "uni_log.h"
-#include "uni_uart.h"
 #include "uni_version.h"
 
 #ifndef CONFIG_IDF_TARGET_ESP32
@@ -184,6 +183,7 @@ static nina_controller_properties_t _controllers_properties[CONFIG_BLUEPAD32_MAX
 static volatile uni_gamepad_seat_t _gamepad_seats;
 
 static nina_instance_t* get_nina_instance(uni_hid_device_t* d);
+
 static uint8_t predicate_nina_index(uni_hid_device_t* d, void* data);
 
 //
@@ -511,7 +511,9 @@ static int request_controllers_data(const uint8_t command[], uint8_t response[])
 
 // Command 0x1a
 static int request_set_debug(const uint8_t command[], uint8_t response[]) {
-    uni_uart_enable_output(command[4]);
+    // Since v4.0, this feature is not supported anymore. Cannot enable/disable output in runtime
+    // This is to simplify how the console is initialized.
+    //    uni_uart_enable_output(command[4]);
     response[2] = 1;           // total params
     response[3] = 1;           // param len
     response[4] = command[4];  // return the value requested
@@ -525,6 +527,7 @@ static int request_set_debug(const uint8_t command[], uint8_t response[]) {
 // See:
 // https://github.com/arduino-libraries/WiFiNINA/blob/master/src/utility/wl_definitions.h
 enum { WL_IDLE_STATUS = 0 };
+
 static int request_get_conn_status(const uint8_t command[], uint8_t response[]) {
     response[2] = 1;  // total params
     response[3] = 1;  // param len
@@ -678,14 +681,14 @@ static int request_analog_read(const uint8_t command[], uint8_t response[]) {
 }
 
 typedef int (*command_handler_t)(const uint8_t command[], uint8_t response[] /* out */);
+
 const command_handler_t command_handlers[] = {
     // 0x00 -> 0x0f: Bluepad32 own extensions
     // These 16 entries are NULL in NINA. Perhaps they are reserved for future
     // use? Seems to be safe to use them for Bluepad32 commands.
     request_protocol_version,
     request_gamepads_data,                 // data
-    request_set_gamepad_player_leds,       // the 4 LEDs that is available in many
-                                           // gamepads.
+    request_set_gamepad_player_leds,       // the 4 LEDs that is available in many gamepads.
     request_set_gamepad_color_led,         // available on DS4, DualSense
     request_set_gamepad_rumble,            // available on DS4, Xbox, Switch, etc.
     request_forget_bluetooth_keys,         // forget stored Bluetooth keys

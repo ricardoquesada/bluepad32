@@ -71,20 +71,10 @@ menu "Bluepad32"
 
             Only disable it if you want to use DualShock 3 gamepads.
 
-
-    config BLUEPAD32_UART_OUTPUT_ENABLE
-        bool "Enable UART output"
-        default  y
-        depends on !BLUEPAD32_PLATFORM_AIRLIFT && !BLUEPAD32_PLATFORM_NINA
-        help
-            Enables UART output (console output).
-            Highly recommended for debugging purposes.
-            But must be disabled on AirLift / NINA platforms.
-
-        choice BLUEPAD32_LOG_LEVEL
+    choice BLUEPAD32_LOG_LEVEL
             bool "Log verbosity"
             default BLUEPAD32_LOG_LEVEL_INFO
-            depends on BLUEPAD32_UART_OUTPUT_ENABLE
+            depends on !ESP_CONSOLE_NONE
             help
                 Specify how much output to see in logs.
 
@@ -108,7 +98,7 @@ menu "Bluepad32"
     config BLUEPAD32_USB_CONSOLE_ENABLE
         bool "Enable USB Console"
         default  y
-        depends on BLUEPAD32_UART_OUTPUT_ENABLE
+        depends on !ESP_CONSOLE_NONE
         help
             Enables the USB console.
             User can interact with the Bluepad32 firmware via commands.

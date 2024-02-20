@@ -6,7 +6,7 @@
 
 #include "sdkconfig.h"
 
-// Don't compile it on PC Debug since the console is not present
+// Don't compile it on when console is not present
 #ifdef CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
 
 #include <argtable3/argtable3.h>
@@ -103,8 +103,10 @@ static int cmd_bb_fire_threshold(int argc, char** argv) {
     logi("New Balance Board Fire threshold: %d\n", threshold);
     return 0;
 }
+#endif  // CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
 
 void uni_balance_board_register_cmds(void) {
+#ifdef CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
     bb_move_threshold_args.value = arg_int1(NULL, NULL, "<threshold>", "balance board 'move weight' threshold");
     bb_move_threshold_args.end = arg_end(2);
 
@@ -133,9 +135,8 @@ void uni_balance_board_register_cmds(void) {
 
     ESP_ERROR_CHECK(esp_console_cmd_register(&bb_move_threshold));
     ESP_ERROR_CHECK(esp_console_cmd_register(&bb_fire_threshold));
-}
-
 #endif  // CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
+}
 
 void uni_balance_board_init(void) {
 #ifdef CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
