@@ -36,7 +36,7 @@ build-esp-idf-5.1:
   before_script:
     - pushd .
     - cd external/btstack
-    - git apply < ../patches/*.patch
+    - git apply ../patches/*.patch
     - cd port/esp32
     - IDF_PATH=../../../../src/ ./integrate_btstack.py
     - popd
@@ -63,7 +63,7 @@ build-esp-idf-4.4:
   before_script:
     - pushd .
     - cd external/btstack
-    - git apply < ../patches/0002-l2cap-allow-incoming-connection-with-not-enough.patch
+    - git apply ../patches/*.patch
     - cd port/esp32
     - IDF_PATH=../../../../src/ ./integrate_btstack.py
     - popd
