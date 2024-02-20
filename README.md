@@ -20,7 +20,7 @@ Choose your target platform:
 | CircuitPython + AirLift coprocessor | [CircuitPython Library][bp32-circuitpython]                       | [Doc][plat_airlift]      | [Quico console][airlift_example], Controlling 4 servos ([video][airlift_video])                           |
 | Pico W                              | [Pico W example][pico-w-example]                                  | [Doc][plat_custom]       | [Pico Switch][pico_switch]                                                                                |
 | ESP-IDF                             | [ESP32 example][esp32-example]                                    | [Doc][plat_custom]       |                                                                                                           |
-| Linux                               | [Linux example][linux-example]                                    | [Doc][plat_custom]       |                                                                                                           |
+| Posix (Linux, macOS)                | [Linux example][posix-example]                                    | [Doc][plat_custom]       |                                                                                                           |
 | Unijoysticle                        | [Unijoysticle2][unijoysticle2]                                    | [Doc][plat_unijoysticle] |                                                                                                           |
 | MightyMiggy                         | [Unijoysticle for Amiga][unijoysticle_sukko]                      | [Doc][plat_mightymiggy]  |                                                                                                           |
 
@@ -81,8 +81,8 @@ Choose your target platform:
 ![Supported gamepads](https://lh3.googleusercontent.com/pw/AMWts8BB7wT51jpn3HxWHuZLiEM2lX05gmTDsnldHszkXuYqxbowNvtxPtpbHh3CNjv1OBzeyadZjNLNBgE4w2tl2WmP8M9gGBCfWhzmZGQnHBlERSoy5W2dj6-EYmT84yteKTFjp4Jz2H3DgByFiKXaxfFC2g=-no)
 
 * Sony DualSense (PS5)
-* Sony DUALSHOCK 4 (PS4)
-* Sony DUALSHOCK 3 (PS3)
+* Sony DualShock 4 (PS4)
+* Sony DualShock 3 (PS3)
 * Nintendo Switch Pro controller
 * Nintendo Switch JoyCon
 * Nintendo Wii U controller
@@ -122,7 +122,7 @@ See the examples folder which includes examples for:
 
 * [Bluepad32 for ESP32][esp32-example] (ESP32, ESP32-S3, ESP32-C3)
 * [Bluepad32 for Pico W][pico-w-example]
-* [Bluepad32 for Linux][linux-example]
+* [Bluepad32 for Posix (Linux, macOS)][posic-example]
 
 Arduino examples are in:
 
@@ -133,7 +133,7 @@ Arduino examples are in:
 
 [pico-w-example]: examples/pico_w/
 
-[linux-example]: examples/linux
+[posix-example]: examples/posix
 
 [arduino-ide-example]: https://www.youtube.com/watch?v=0jnY-XXiD8Q
 
