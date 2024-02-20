@@ -2,18 +2,17 @@
 
 Something not working as expected?
 
-TL;DR:
+* :simple-discord: Post questions on [Discord server][discord_server]
+* :simple-github: File bugs / feature requests in [Github Issue Tracker][github_issue_tracker]
 
-Help us help you by providing:
+Add the following info:
 
-* Which Bluepad32 platform you are using, and version.
-* Which ESP32 module you are using. Add a link if possible
-* Which controller you are using, including the controller firmware version. Add a link if possible.
-* Which sketch you are using.
-* Which Operating System you are using
+* Bluepad32 platform you are using, and version.
+* Devkit/board you are using. Add a link if possible
+* Controller you are using, including the controller firmware version. Add a link if possible.
+* Sketch you are using.
+* Host Operating System you are using
 * Debug log
-* Post question on our [Discord server][discord_server]
-* File bugs in our [Github Issue Tracker][github_issue_tracker]
 
 [discord_server]: https://discord.gg/r5aMn6Cw5q
 
@@ -101,5 +100,5 @@ Attaching a screenshot might be useful, but the screenshot is not a replacement 
 
 E.g.: The console output can be found on this link (add link).
 
-<http://bit.ly/bluepad32-help>
+*(link to this page: <http://bit.ly/bluepad32-help>)*
 
