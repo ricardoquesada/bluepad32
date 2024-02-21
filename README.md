@@ -1,6 +1,7 @@
 # Bluepad32
 
 [![discord](https://img.shields.io/discord/775177861665521725.svg)](https://discord.gg/r5aMn6Cw5q)
+[![Documentation Status](https://readthedocs.org/projects/bluepad32/badge/?version=latest)](https://bluepad32.readthedocs.io/en/latest/?badge=latest)
 
 <img src="https://github.com/ricardoquesada/bluepad32/blob/main/docs/images/bluepad32-logo.png?raw=true" alt="drawing" width="800"/>
 
