@@ -60,17 +60,21 @@ E.g.: I'm using a genuine Nintendo Switch JoyCon using FW 3.72.
 
 If you are using a controller not listed there, YOU ARE ON YOUR OWN!
 
-But if you really want us to support a gamepad that is not listed there, contact us (Send us a Private Message in
-Discord channel). The way it works is:
+### Supporting unsupported controllers
 
-* You send us a link to the gamepad that is not supported, like the Amazon link.
-* You send us via PayPal the cost of the gamepad + shipping.
-* We purchase it, and we will do our best to support it. But we don't guarantee anything... so many things can go
-  wrong... especially with low-cost clones where many features are not implemented.
+If you really want us to support a controller that is not supported, contact us (Send us a Private Message in
+Discord channel :simple-discord:, or [file a feature request][github_bug] :simple-github: ). The way it works is:
+
+* You send us a link to the controller that is not supported, like the Amazon or AliExpress link.
+* You send us [via PayPal][paypal] :simple-paypal: the cost of the gamepad + shipping to the US.
+* We purchase it, and we will do our best to support it. But we don't guarantee anything. So many things can go
+  wrong, especially with low-cost clones where many features are not implemented.
 
 [supported_gamepads]: ../supported_gamepads/
 [supported_mice]: ../supported_mice/
 [supported_keyboards]: ../supported_keyboards/
+[paypal]: https://www.paypal.com/paypalme/RicardoQuesada
+[github_bug]: https://github.com/ricardoquesada/bluepad32/issues
 
 ## Sketch
 
