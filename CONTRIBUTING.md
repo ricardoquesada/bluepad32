@@ -4,7 +4,8 @@ There a different ways to contribute to the Bluepad32 project, like:
 
 * Word of mouth
 * and/or improving the documentation
-* and/or filing bugs...
+* and/or filing bugs
+* donations
 
 Here is a detailed list of how you can contribute to the project:
 
