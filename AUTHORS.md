@@ -1,8 +1,8 @@
 # Bluepad32 authors
 
-Main author: [Ricardo Quesada](http://retro.moe)
+Main author and maintainer: [Ricardo Quesada](http://retro.moe)
 
-Code contributors:
+## Code contributors
 
 - Marcelo Lorenzati:
     - Added DualShock3 gamepad support
@@ -36,7 +36,7 @@ Code contributors:
 - juan518munoz:
     - Improvements to Pico W support
 
-People who contributed with ideas and/or testing:
+## People who contributed with ideas and/or testing
 
 - Esteban/PVM and many other PVMers: Dualshock4 and general testing
 - Pyrofer: Wii / Wii U beta testing and ideas
@@ -44,7 +44,7 @@ People who contributed with ideas and/or testing:
 - Zibi: Mouse testing in Atari ST
 - GulliversReisen / polychromatik: Testing in Vampire v4 Stand Alone
 
-People who contributed hardware and/or donations:
+## People who contributed hardware and/or donations
 
 - Christian Ruecker
 - Sol Huebner [*]
