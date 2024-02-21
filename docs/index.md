@@ -24,24 +24,17 @@ In other words, it allows gamepads, keyboards and mice to connect to your projec
 
 Non-exhaustive list:
 
-* Sony DualSense, DualShock 4, DualShock 3
-* Nintendo Switch, Wii U, Wii and Wii extensions
-* Xbox Wireless
-* Android
-* 8BitDo
+* Sony DualSense, DualShock 4, DualShock 3 :material-sony-playstation:
+* Nintendo Switch, Wii U, Wii and Wii extensions :material-nintendo-switch:
+* Xbox Wireless :material-microsoft-xbox-controller:
+* Android :material-android:
 * Keyboard
 * Mouse
 * and more
 
-For detailed list see: [Supported gamepads][supported_gamepads], [supported mice][supported_mice]
-and [supported keyboards][supported_keyboards].
-
-If your favorite controller is not supported, [let us know][filing_a_bug].
+For detailed list see: [Supported gamepads][supported_gamepads] :material-gamepad-variant:,
+[supported mice][supported_mice] :material-mouse: and [supported keyboards][supported_keyboards] :material-keyboard:.
 
 [supported_gamepads]: supported_gamepads
-
 [supported_mice]: supported_mice
-
 [supported_keyboards]: supported_keyboards
-
-[filing_a_bug]: https://github.com/ricardoquesada/bluepad32/issues

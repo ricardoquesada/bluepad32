@@ -2,8 +2,8 @@
 
 Something not working as expected?
 
-* :simple-discord: Post questions on [Discord server][discord_server]
-* :simple-github: File bugs / feature requests in [Github Issue Tracker][github_issue_tracker]
+* Post questions on [Discord server][discord_server] :simple-discord:
+* File bugs / feature requests in [Github Issue Tracker][github_issue_tracker] :simple-github:
 
 Add the following info:
 
@@ -13,8 +13,6 @@ Add the following info:
 * Sketch you are using.
 * Host Operating System you are using
 * Debug log
-
-[discord_server]: https://discord.gg/r5aMn6Cw5q
 
 [github_issue_tracker]: https://github.com/ricardoquesada/bluepad32/issues
 
@@ -49,9 +47,9 @@ Not all controllers behave the same way... some are reliable... some not.
 
 The officially supported controllers are enumerated here:
 
-* [Supported gamepads][supported_gamepads]
-* [Supported mice][supported_mice]
-* [Supported keyboards][supported_keyboards]
+* [Supported gamepads][supported_gamepads] :material-gamepad-variant:
+* [Supported mice][supported_mice] :material-mouse:
+* [Supported keyboards][supported_keyboards] :material-keyboard:
 
 Please provide: brand, model, firmware and link to the device (if applicable).
 Also mention whether it is genuine or a knock-off.
@@ -63,7 +61,7 @@ If you are using a controller not listed there, YOU ARE ON YOUR OWN!
 ### Supporting unsupported controllers
 
 If you really want us to support a controller that is not supported, contact us (Send us a Private Message in
-Discord channel :simple-discord:, or [file a feature request][github_bug] :simple-github: ). The way it works is:
+[Discord][discord_server] :simple-discord:, or [file a feature request][github_bug] :simple-github: ). The way it works is:
 
 * You send us a link to the controller that is not supported, like the Amazon or AliExpress link.
 * You send us [via PayPal][paypal] :simple-paypal: the cost of the gamepad + shipping to the US.
@@ -105,4 +103,6 @@ Attaching a screenshot might be useful, but the screenshot is not a replacement 
 E.g.: The console output can be found on this link (add link).
 
 *(link to this page: <http://bit.ly/bluepad32-help>)*
+
+[discord_server]: https://discord.gg/r5aMn6Cw5q
 
