@@ -51,6 +51,7 @@ Main author and maintainer: [Ricardo Quesada](http://retro.moe)
 - Kelly Keeton
 - Phase Dock (<https://phasedock.com/>) [*]
 - James Solderitsch [*]
+- Joshua Clay [*]
 
 [*]: Multiple times or generous donations
 
