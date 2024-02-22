@@ -2,7 +2,7 @@
 
 !!! Note
 
-    Only for users that want to use Pico SDK / ESP-IDF / Linux raw API directly. 
+    Only for users that want to use Pico SDK / ESP-IDF / Posix raw API directly. 
     E.g.: **Not** for Arduino users.
 
 You will need to add your own platform when using the raw (low-level) ESP-IDF / Pico SDK API.
@@ -14,7 +14,7 @@ You need to configure your "custom platform".
 
 You `main.c` file should look like this.
 
-``` c
+```c
 // main.c
 int app_main(void) {
     btstack_init();
@@ -34,7 +34,7 @@ int app_main(void) {
 
 And `my_platform.c` should look like this:
 
-``` c
+```c
 // my_platform.c
 #include <uni.h>
 
@@ -140,10 +140,10 @@ Real world examples:
 
 - [Pico SDK example][pico_sdk_example]
 - [ESP-IDF example][esp_idf_example]
-- [Linux example][linux_example]
+- [Posix example][posix_example]
 
 [pico_sdk_example]: https://github.com/ricardoquesada/bluepad32/tree/develop/examples/pico_w
 
 [esp_idf_example]: https://github.com/ricardoquesada/bluepad32/tree/develop/examples/esp32
 
-[linux_example]: https://github.com/ricardoquesada/bluepad32/tree/develop/examples/linux
+[posix_example]: https://github.com/ricardoquesada/bluepad32/tree/develop/examples/posix

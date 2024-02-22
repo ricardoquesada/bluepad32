@@ -36,7 +36,7 @@ WIP
   │             │           │         │       │              │  │
 ┌─▼─────────────▼───────────▼─┐ ┌─────▼───────▼──┐ ┌─────────▼──▼──────────┐
 │                             │ │                │ │                       │
-│            ESP-IDF          │ │    Pico SDK    │ │    posix / libusb     │    Operating System
+│            ESP-IDF          │ │    Pico SDK    │ │    Posix / libusb     │    Operating System
 │                             │ │                │ │                       │
 └────────────────┬────────────┘ └────────┬───────┘ └───────────┬───────────┘
                  │                       │                     │
@@ -44,9 +44,9 @@ WIP
 ┌────────────────▼────────────┐ ┌────────▼───────┐ ┌───────────▼───────────┐
 │                             │ │                │ │                       │
 │                             │ │                │ │                       │
-│ ESP32 / ESP32-S3 / ESP32-C3 │ │  Raspberry Pi  │ │                       │
-│                             │ │                │ │         Linux         │     Hardware
-│        Microcontroller      │ │     Pico W     │ │                       │
+│ ESP32 / ESP32-S3 / ESP32-C3 │ │  Raspberry Pi  │ │         Posix         │
+│                             │ │                │ │                       │     Hardware
+│        Microcontroller      │ │     Pico W     │ │      Linux, macOS     │
 │                             │ │                │ │                       │
 │                             │ │                │ │                       │
 └─────────────────────────────┘ └────────────────┘ └───────────────────────┘
