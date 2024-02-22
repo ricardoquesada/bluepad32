@@ -1,11 +1,10 @@
 # Bluepad32
 
 [![discord](https://img.shields.io/discord/775177861665521725.svg)](https://discord.gg/r5aMn6Cw5q)
-[![Documentation Status](https://readthedocs.org/projects/bluepad32/badge/?version=latest)](https://bluepad32.readthedocs.io/en/latest/?badge=latest)
 
 <img src="https://github.com/ricardoquesada/bluepad32/blob/main/docs/images/bluepad32-logo.png?raw=true" alt="drawing" width="800"/>
 
-A Bluetooth controller "host" for the ESP32, ESP32-S3, ESP32-C3, Raspberry Pi Pico W and Linux.
+A Bluetooth controller "host" for the ESP32, ESP32-S3, ESP32-C3, Raspberry Pi Pico W and Posix (Linux, macOS).
 
 Add Bluetooth gamepad, mouse and keyboard support to your projects easily.
 
@@ -21,7 +20,7 @@ Choose your target platform:
 | CircuitPython + AirLift coprocessor | [CircuitPython Library][bp32-circuitpython]                       | [Doc][plat_airlift]      | [Quico console][airlift_example], Controlling 4 servos ([video][airlift_video])                           |
 | Pico W                              | [Pico W example][pico-w-example]                                  | [Doc][plat_custom]       | [Pico Switch][pico_switch]                                                                                |
 | ESP-IDF                             | [ESP32 example][esp32-example]                                    | [Doc][plat_custom]       |                                                                                                           |
-| Posix (Linux, macOS)                | [Linux example][posix-example]                                    | [Doc][plat_custom]       |                                                                                                           |
+| Posix (Linux, macOS)                | [Posix example][posix-example]                                    | [Doc][plat_custom]       |                                                                                                           |
 | Unijoysticle                        | [Unijoysticle2][unijoysticle2]                                    | [Doc][plat_unijoysticle] |                                                                                                           |
 | MightyMiggy                         | [Unijoysticle for Amiga][unijoysticle_sukko]                      | [Doc][plat_mightymiggy]  |                                                                                                           |
 
@@ -123,7 +122,7 @@ See the examples folder which includes examples for:
 
 * [Bluepad32 for ESP32][esp32-example] (ESP32, ESP32-S3, ESP32-C3)
 * [Bluepad32 for Pico W][pico-w-example]
-* [Bluepad32 for Posix (Linux, macOS)][posic-example]
+* [Bluepad32 for Posix (Linux, macOS)][posix-example]
 
 Arduino examples are in:
 
@@ -142,10 +141,10 @@ Arduino examples are in:
 
 ## Support
 
-* [Documentation][docs]
-* [Discord][discord]
+* [Documentation][docs] [![Documentation Status](https://readthedocs.org/projects/bluepad32/badge/?version=latest)](https://bluepad32.readthedocs.io/?badge=latest)
+* [Discord][discord] [![discord](https://img.shields.io/discord/775177861665521725.svg)](https://discord.gg/r5aMn6Cw5q)
 
-[docs]: https://bluepad32.readthedocs.io/en/latest/
+[docs]: https://bluepad32.readthedocs.io/
 
 [discord]: https://discord.gg/r5aMn6Cw5q
 

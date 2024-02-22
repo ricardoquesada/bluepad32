@@ -21,7 +21,7 @@ int uni_init(int argc, const char** argv) {
     // Disable stdout buffering
     setbuf(stdout, NULL);
 
-    logi("Bluepad32 (C) 2016-2023 Ricardo Quesada and contributors.\n");
+    logi("Bluepad32 (C) 2016-2024 Ricardo Quesada and contributors.\n");
     logi("Version: v" UNI_VERSION "\n");
 
     // Honoring BTstack license
