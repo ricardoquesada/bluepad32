@@ -6,7 +6,7 @@ The DualShock 3 gamepad does not implement the entire Bluetooth stack. It requir
 
 ### Fetch the ESP32 / Pico W Bluetooth Address
 
-* Connect a terminal to the ESP32/Pico W using 115200 baud 8N1.
+* Connect a terminal to the ESP32 / Pico W using 115200 baud 8N1.
 
 * Watch the logs. You should see something like:
 
@@ -20,7 +20,7 @@ BTstack up and running at CC:50:E3:AF:E2:96     <------ THIS IS THE BLUETOOTH AD
 Btstack ready!
 ```
 
-In this example, the ESP32 Address is "CC:50:E3:AF:E2:96".
+In this example, the BT address is "CC:50:E3:AF:E2:96".
 
 ### Plug in the DS3 gamepad
 
@@ -41,13 +41,13 @@ On Gentoo Linux run:
 sudo emerge dev-libs/hidapi
 ```
 
-On MacOS run:
+On macOS run:
 
 ```sh
 brew install hidapi
 ```
 
-on Mac you will also have to modify the Makefile to look like so
+on macOS you will also have to modify the Makefile to look like so
 
 ```
 INCLUDES := -I/opt/homebrew/Cellar/hidapi/0.13.1/include
