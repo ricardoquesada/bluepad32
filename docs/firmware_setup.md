@@ -72,18 +72,20 @@ Parameters:
 
 # Compiling + flashing firmware
 
-Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity, only the instructions for v5.0 are mentioned.
+!!! Note
+
+    Although Bluepad32 works both with ESP-IDF v4.4 and 5.x, Unijoysticle, NINA and MightyMiggy require ESP-IDF v4.4.
 
 ## For Windows
 
-1. Install [ESP-IDF v5.0][esp-idf-windows-installer]. For further info,
+1. Install [ESP-IDF v4.4][esp-idf-windows-installer]. For further info,
    read: [ESP-IDF Getting Started for Windows][esp-idf-windows-setup]
 
     * Either the Online or Offline version should work
     * When asked which components to install, don't change anything. Default options are Ok.
     * When asked whether ESP can modify the system, answer "Yes"
 
-2. Launch the "ESP-IDF v5.0 CMD" (type that in the Windows search box)
+2. Launch the "ESP-IDF v4.4 CMD" (type that in the Windows search box)
 
 3. From the ESP-IDF cmd, clone Bluepad32 repo
 
@@ -126,7 +128,7 @@ Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity, only the
 
 [esp-idf-windows-setup]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/windows-setup.html
 
-[esp-idf-windows-installer]: https://dl.espressif.com/dl/esp-idf/?idf=5.0
+[esp-idf-windows-installer]: https://dl.espressif.com/dl/esp-idf/?idf=4.4
 
 ## For Linux / macOS
 
@@ -153,7 +155,7 @@ Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity, only the
       # Needs to be done just once
       # Clone the ESP-IDF git repo
       mkdir ~/esp && cd ~/esp
-      git clone -b release/v5.0 --recursive https://github.com/espressif/esp-idf.git
+      git clone -b release/v4.4 --recursive https://github.com/espressif/esp-idf.git
 
       # Then install the toolchain
       cd ~/esp/esp-idf
@@ -165,64 +167,32 @@ Note: Both ESP-IDF **v4.4** and **v5.0** are supported. For simplicity, only the
       ```sh
       git clone --recursive https://github.com/ricardoquesada/bluepad32.git
       ```
+ 
+4. Patch BTstack
 
-4. Setup
+      ```sh
+      cd ${BLUEPAD32_SRC}/external/btstack
+      git apply ../patches/*.patch 
+      ```
 
-       ```sh
-       # Setup BTstack
-       cd ${BLUEPAD32}/external/btstack/port/esp32
-       # This will install BTstack as a component inside Bluepad32 source code (recommended).
-       # Remove "IDF_PATH=../../../../src" if you want it installed in the ESP-IDF folder
-       IDF_PATH=../../../../src ./integrate_btstack.py
-       ```
+5. Setup
 
-       ```sh
-       # Setup Bluepad32 Platform
-       cd ${BLUEPAD32}/src
-       idf.py menuconfig
-       ```
+      ```sh
+      # Setup BTstack
+      cd ${BLUEPAD32}/external/btstack/port/esp32
+      # This will install BTstack as a component inside Bluepad32 source code (recommended).
+      # Remove "IDF_PATH=../../../../src" if you want it installed in the ESP-IDF folder
+      IDF_PATH=../../../../src ./integrate_btstack.py
+      ```
 
-       And select `Component config` -> `Bluepad32` -> `Target platform` (choose the right one for you).
+6. Compile it
 
-5. Compile it
-
-       ```sh
-       # Compile it
-       cd ${BLUEPAD32}/src
-       idf.py build
-
-       # Flash + open debug terminal
-       idf.py flash monitor
-       ```
+      ```sh
+      # Compile it
+      cd ${BLUEPAD32}/tools/fw
+      ./build.py all
+      ```
 
 [toolchain-deps]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/linux-setup.html
 
 [ttyusb0]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/establish-serial-connection.html#linux-dialout-group
-
-## Optional: Linux as a target device
-
-Only if you target Linux as a device (not an ESP32 device):
-
-1. Install dependencies
-
-      ```sh
-      sudo apt install libusb-1.0.0-dev
-      ```
-
-2. Setup BTstack for libusb
-
-      ```sh
-      cd ${BLUEPAD32}/external/btstack/port/libusb
-      make
-      ```
-
-3. Compile Bluepad32
-
-      ```sh
-      cd ${BLUEPAD32}/tools/pc_debug
-      make
-      sudo ./bluepad32
-      ```
-
-Put the gamepad in discovery mode. The gamepad should be recognized and when you press buttons, you should see them on
-the console.

@@ -8,7 +8,7 @@ Bluepad32 supports different IDEs, and different microcontrollers. These are the
 | Arduino Core       | :material-check: |                   |                      |                  |
 | CircuitPython      |                  |                   | :material-check:     |                  |
 | ESP-IDF (raw API)  | :material-check: |                   |                      |                  |
-| PICO SDK (raw API) |                  |                   |                      | :material-check: |
+| Pico SDK (raw API) |                  |                   |                      | :material-check: |
 
 Choose the right one depending on your knowledge, devkit board and requirements:
 
