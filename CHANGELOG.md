@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - "linux" example renamed to "posix" since it also works on macOS
 - UART: UART console cannot be toggled at runtime. It can only be disabled at compile-time via "menuconfig"
   - Needed to use IDF-IDF v5.2
-  - It might also fix Arduino Nano ESP32 [Github Issue #65][github_issue_65]
+  - Fixes Arduino Nano ESP32 [Github Issue #65][github_issue_65]
+- Documentation: Improved documentation
 
 [github_issue_65]: https://github.com/ricardoquesada/bluepad32/issues/65
 
