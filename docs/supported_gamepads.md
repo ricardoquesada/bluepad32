@@ -205,13 +205,13 @@ Classic Controller can be used.
 - Must be the *model 1708* (released in 2016) and not earlier. *Model 1797* should work.
 - Supports Xbox Controller firmware: v3.1 (BR/EDR), v4.8 (BR/EDR), v5.15 or newer (BLE)
 - Supported features: rumble (when using BR/EDR)
+- Bugs: rumble not working when using BLE: [Github issue 69][github_issue_69]
 - Pair instructions: Same as model "1914", see below.
 - Protocol:
     - BLE: Since firmware v5
     - BR/EDR: Before firmware v5
 
 [xbox_1708_ebay]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw=xbox+wireless+controller+1708&_sacat=0
-
 [xbox_1708]: https://lh3.googleusercontent.com/YmONc-MhVZhnE8HVRgzH7FKSpT_29MLeIF70U5AfrcBuCtuNJ2Ln5xkmSpNqO0myrFpnDLbFvR2TRTRu0xcqvP3cLNaq1BBpruEAn-Z7vBbwzNtaXx7eQaLLF7aa8tt2Wa0IcYxeD08=-no
 
 ## Xbox Wireless (model 1914, 3 buttons)
@@ -222,6 +222,7 @@ Classic Controller can be used.
 - Should be *model 1914*. Other "3 button" models should work as well.
 - Supports Xbox Controller firmware: v5.15 or newer
 - Supported features: N/A
+- Bugs: rumble not working when using BLE: [Github issue 69][github_issue_69]
 - Pair instructions:
     - Turn on your controller by pressing the Xbox button.
     - Press the controller’s Pair button for 3 seconds and release.
@@ -229,8 +230,8 @@ Classic Controller can be used.
 - Protocol: BLE
 
 [xbox_1914_ebay]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw=xbox+wireless+controller+1914&_sacat=0
-
 [xbox_1914]: https://lh3.googleusercontent.com/pw/AMWts8BjOU-jTHHhK6S7PFfyvRpBr8FlUhKdoebHK83tp536cRWaX2yfo1CiXnDyWe8RGg7CMtjc4DiU-Fji0Er-88Vtr7RXSGfF3xKoel6VRmogMwSWWdKbQswxzB3wULe06nOYRrVpcqJUkgeKF4hotwyxaw=-no?authuser=0
+[github_issue_69]: https://github.com/ricardoquesada/bluepad32/issues/69
 
 ## Xbox Adaptive Controller
 
@@ -308,8 +309,6 @@ Classic Controller can be used.
 - Protocol: BR/EDR
 
 [ouya_1gen]: https://lh3.googleusercontent.com/FtbQLbt1QrzU59TTPQHIEarGZItlPik0bGWo40iDu0rnMwddCEwKMcy8LAe_fqzklaSKfMbt3-EvFJI4Vcoz3gSPTgC9MnTog3MyGfNWMc0Wq2Idq1kzjPOpRIS5OXeSqSSmIfGa5-w=-no
-
-[issue_7]: https://gitlab.com/ricardoquesada/unijoysticle2/issues/7
 
 ## 8BitDo Family
 
