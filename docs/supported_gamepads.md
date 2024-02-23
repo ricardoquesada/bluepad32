@@ -21,7 +21,7 @@ List of supported gamepads with supported features, known bugs, etc.
 
 [dualsense_pair_instructions]: https://www.playstation.com/en-us/support/hardware/pair-dualsense-controller-bluetooth/
 
-## Sony DUALSHOCK 4 (PS4)
+## Sony Dualshock 4 (PS4)
 
 [![ds4_gamepad][dualshock_4]][14]
 
@@ -36,7 +36,7 @@ List of supported gamepads with supported features, known bugs, etc.
 
 [dualshock4_pair_instructions]:  https://www.playstation.com/en-us/support/hardware/ps4-pair-dualshock-4-wireless-with-pc-or-mac/
 
-## Sony DUALSHOCK 3 (PS3)
+## Sony DualShock 3 (PS3)
 
 [![ds3_gamepad][dualshock_3]][12]
 
@@ -415,8 +415,8 @@ Non-comprehensive list of supported Bluetooth gamepads their protocols:
 | Gamepad                 | BR/EDR | BLE  |
 |-------------------------|--------|------|
 | DualSense (PS5)         | Y      |      |
-| DUALSHOCK 4 (PS4)       | Y      |      |
-| DUALSHOCK 3 (PS3)       | Y      |      |
+| DualShock 4 (PS4)       | Y      |      |
+| DualShock 3 (PS3)       | Y      |      |
 | Nintendo Switch Pro     | Y      |      |
 | Nintendo Switch JoyCons | Y      |      |
 | Nintendo Wii U Pro      | Y      |      |
