@@ -402,34 +402,34 @@ Bluetooth controllers have different connection modes. Use the HID one.
 Most gamepads, as of 2024, use BR/EDR (AKA Bluetooth Classic). Only a few use BLE.
 Worth noting is that BR/EDR is only supported on ESP32 and Pico W, but **NOT** in ESP32-S3 / ESP32-C3.
 
-| Chip     | BR/EDR | BLE |
-|----------|--------|-----|
-| ESP32    | Y      | Y   |
-| ESP32-S3 |        | Y   |
-| ESP32-C3 |        | Y   |
-| Pico W   | Y      | Y   |
+| Chip     | BR/EDR           | BLE              |
+|----------|------------------|------------------|
+| ESP32    | :material-check: | :material-check: |
+| ESP32-S3 |                  | :material-check: |
+| ESP32-C3 |                  | :material-check: |
+| Pico W   | :material-check: | :material-check: |
 
 Non-comprehensive list of supported Bluetooth gamepads their protocols:
 
-| Gamepad                 | BR/EDR | BLE  |
-|-------------------------|--------|------|
-| DualSense (PS5)         | Y      |      |
-| DualShock 4 (PS4)       | Y      |      |
-| DualShock 3 (PS3)       | Y      |      |
-| Nintendo Switch Pro     | Y      |      |
-| Nintendo Switch JoyCons | Y      |      |
-| Nintendo Wii U Pro      | Y      |      |
-| Nintendo Wii Remote     | Y      |      |
-| Nintendo Balance Board  | Y      |      |
-| Xbox Wireless           | Y*     | Y*   |
-| Steam                   |        | Y**  |
-| Stadia                  |        | Y*** |
-| Android                 | Y      |      |
-| 8BitDo                  | Y      |      |
-| Atari                   | Y      |      |
-| iCade                   | Y      |      |
-| Nimbus                  | Y      |      |
-| OUYA 1st gen            | Y      |      |
+| Gamepad                 | BR/EDR            | BLE                 |
+|-------------------------|-------------------|---------------------|
+| DualSense (PS5)         | :material-check:  |                     |
+| DualShock 4 (PS4)       | :material-check:  |                     |
+| DualShock 3 (PS3)       | :material-check:  |                     |
+| Nintendo Switch Pro     | :material-check:  |                     |
+| Nintendo Switch JoyCons | :material-check:  |                     |
+| Nintendo Wii U Pro      | :material-check:  |                     |
+| Nintendo Wii Remote     | :material-check:  |                     |
+| Nintendo Balance Board  | :material-check:  |                     |
+| Xbox Wireless           | :material-check:* | :material-check:*   |
+| Steam                   |                   | :material-check:**  |
+| Stadia                  |                   | :material-check:*** |
+| Android                 |                   |                     |
+| 8BitDo                  | :material-check:  |                     |
+| Atari                   | :material-check:  |                     |
+| iCade                   | :material-check:  |                     |
+| Nimbus                  | :material-check:  |                     |
+| OUYA 1st gen            | :material-check:  |                     |
 
 *: Xbox Controller Firmware v3.x and v4.x use BR/EDR. Firmware v5.x and later use BLE.
 
