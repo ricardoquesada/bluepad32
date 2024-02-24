@@ -648,6 +648,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             d->report_parser.parse_feature_report = uni_hid_parser_ds5_parse_feature_report;
             d->report_parser.set_player_leds = uni_hid_parser_ds5_set_player_leds;
             d->report_parser.set_lightbar_color = uni_hid_parser_ds5_set_lightbar_color;
+            d->report_parser.set_trigger_effect = uni_hid_parser_ds5_set_trigger_effect;
             d->report_parser.set_rumble = uni_hid_parser_ds5_set_rumble;
             d->report_parser.device_dump = uni_hid_parser_ds5_device_dump;
             logi("Device detected as DualSense: 0x%02x\n", type);

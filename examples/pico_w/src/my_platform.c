@@ -6,9 +6,13 @@
 #include <string.h>
 
 #include <pico/cyw43_arch.h>
+#include <pico/time.h>
 #include <uni.h>
+#include "parser/uni_hid_parser_ds5.h"
 
 #include "sdkconfig.h"
+
+#include <bluetooth.h>
 
 // Sanity check
 #ifndef CONFIG_BLUEPAD32_PLATFORM_CUSTOM
@@ -79,11 +83,31 @@ static uni_error_t my_platform_on_device_ready(uni_hid_device_t* d) {
     return UNI_ERROR_SUCCESS;
 }
 
+uint8_t iterate_through_trigger_effects(uint8_t trigger_effect[11], uint8_t trigger_effect_index) {
+    if(trigger_effect_index == 0) {
+        ds5_generate_trigger_effect_vibration(trigger_effect, 3, 8, 15);
+        return trigger_effect_index + 1;
+    } else if (trigger_effect_index == 1) {
+        ds5_generate_trigger_effect_weapon(trigger_effect, 5, 7, 6);
+        return trigger_effect_index + 1;
+    } else if (trigger_effect_index == 2) {
+        ds5_generate_trigger_effect_feedback(trigger_effect, 2, 8);
+        return trigger_effect_index + 1;
+    } else {
+        ds5_generate_trigger_effect_off(trigger_effect);
+        return 0;
+    }
+}
+
 static void my_platform_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl) {
     static uint8_t leds = 0;
     static uint8_t enabled = true;
     static uni_controller_t prev = {0};
     uni_gamepad_t* gp;
+    static uint8_t trigger_effect[11];
+    static uint8_t trigger_effect_index_left = 0, trigger_effect_index_right = 0;
+    static uint32_t trigger_effect_spam_prevention_timestamp;
+    static uint8_t trigger_effect_spam_prevention_timestamp_has_set = 0;
 
     if (memcmp(&prev, ctl, sizeof(*ctl)) == 0) {
         return;
@@ -112,6 +136,30 @@ static void my_platform_on_controller_data(uni_hid_device_t* d, uni_controller_t
                 uint8_t g = (gp->axis_y * 256) / 512;
                 uint8_t b = (gp->axis_rx * 256) / 512;
                 d->report_parser.set_lightbar_color(d, r, g, b);
+            }
+ 
+            // toggle between FFBs for left trigger
+            if ((gp->dpad & DPAD_LEFT) && d->report_parser.set_trigger_effect != NULL) {
+                // prevent button spam
+                if (trigger_effect_spam_prevention_timestamp_has_set == 0 ||
+                time_us_32() - trigger_effect_spam_prevention_timestamp >= 1000 * 1000) {
+                    trigger_effect_spam_prevention_timestamp = time_us_32();
+                    trigger_effect_spam_prevention_timestamp_has_set = 1;
+                    trigger_effect_index_left = iterate_through_trigger_effects(trigger_effect, trigger_effect_index_left);
+                    d->report_parser.set_trigger_effect(d, 0, trigger_effect);
+                }
+            }
+
+            // toggle between FFBs for right trigger
+            if ((gp->dpad & DPAD_RIGHT) && d->report_parser.set_trigger_effect != NULL) {
+                // prevent button spam
+                if (trigger_effect_spam_prevention_timestamp_has_set == 0 ||
+                time_us_32() - trigger_effect_spam_prevention_timestamp >= 1000 * 1000) {
+                    trigger_effect_spam_prevention_timestamp = time_us_32();
+                    trigger_effect_spam_prevention_timestamp_has_set = 1;
+                    trigger_effect_index_right = iterate_through_trigger_effects(trigger_effect, trigger_effect_index_right);
+                    d->report_parser.set_trigger_effect(d, 1, trigger_effect);
+                }
             }
 
             // Toggle Bluetooth connections
