@@ -35,6 +35,8 @@ Main author and maintainer: [Ricardo Quesada](http://retro.moe)
     - created original Pico W support
 - juan518munoz:
     - Improvements to Pico W support
+- Recep Selim Ağırman:
+    - DualSense Adaptive trigger support
 
 ## People who contributed with ideas and/or testing
 

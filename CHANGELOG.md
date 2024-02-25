@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [4.0-beta2] - ???
 ### New
 - BLE Service: Added `uni_bt_enable_service_safe(bool)` API to enable/disable in runtime
+- DualSense: Add support for adaptive trigger
 
 ### Changed
 - "linux" example renamed to "posix" since it also works on macOS
