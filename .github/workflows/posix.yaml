@@ -1,4 +1,4 @@
-name: Makefile Clang
+name: Posix
 
 on:
   push:
@@ -28,7 +28,7 @@ jobs:
         mkdir -p "${{github.workspace}}/examples/posix/build"
 
     - name: Install dependencies
-      run: sudo apt -y install tzdata make pkg-config libusb-1.0-0-dev clang cmake
+      run: sudo apt-get update && sudo apt -y install tzdata make pkg-config libusb-1.0-0-dev clang cmake
 
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable

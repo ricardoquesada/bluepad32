@@ -38,7 +38,7 @@ jobs:
         mkdir -p "${{github.workspace}}/examples/pico_w/build"
 
     - name: Install dependencies
-      run: sudo apt -y install tzdata pkg-config make cmake gcc-arm-none-eabi
+      run: sudo apt-get update && sudo apt -y install tzdata pkg-config make cmake gcc-arm-none-eabi
 
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
