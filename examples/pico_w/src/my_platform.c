@@ -84,7 +84,7 @@ static uni_error_t my_platform_on_device_ready(uni_hid_device_t* d) {
 }
 
 uint8_t iterate_through_trigger_effects(uint8_t trigger_effect[11], uint8_t trigger_effect_index) {
-    if(trigger_effect_index == 0) {
+    if (trigger_effect_index == 0) {
         ds5_generate_trigger_effect_vibration(trigger_effect, 3, 8, 15);
         return trigger_effect_index + 1;
     } else if (trigger_effect_index == 1) {
@@ -137,15 +137,16 @@ static void my_platform_on_controller_data(uni_hid_device_t* d, uni_controller_t
                 uint8_t b = (gp->axis_rx * 256) / 512;
                 d->report_parser.set_lightbar_color(d, r, g, b);
             }
- 
+
             // toggle between FFBs for left trigger
             if ((gp->dpad & DPAD_LEFT) && d->report_parser.set_trigger_effect != NULL) {
                 // prevent button spam
                 if (trigger_effect_spam_prevention_timestamp_has_set == 0 ||
-                time_us_32() - trigger_effect_spam_prevention_timestamp >= 1000 * 1000) {
+                    time_us_32() - trigger_effect_spam_prevention_timestamp >= 1000 * 1000) {
                     trigger_effect_spam_prevention_timestamp = time_us_32();
                     trigger_effect_spam_prevention_timestamp_has_set = 1;
-                    trigger_effect_index_left = iterate_through_trigger_effects(trigger_effect, trigger_effect_index_left);
+                    trigger_effect_index_left =
+                        iterate_through_trigger_effects(trigger_effect, trigger_effect_index_left);
                     d->report_parser.set_trigger_effect(d, 0, trigger_effect);
                 }
             }
@@ -154,10 +155,11 @@ static void my_platform_on_controller_data(uni_hid_device_t* d, uni_controller_t
             if ((gp->dpad & DPAD_RIGHT) && d->report_parser.set_trigger_effect != NULL) {
                 // prevent button spam
                 if (trigger_effect_spam_prevention_timestamp_has_set == 0 ||
-                time_us_32() - trigger_effect_spam_prevention_timestamp >= 1000 * 1000) {
+                    time_us_32() - trigger_effect_spam_prevention_timestamp >= 1000 * 1000) {
                     trigger_effect_spam_prevention_timestamp = time_us_32();
                     trigger_effect_spam_prevention_timestamp_has_set = 1;
-                    trigger_effect_index_right = iterate_through_trigger_effects(trigger_effect, trigger_effect_index_right);
+                    trigger_effect_index_right =
+                        iterate_through_trigger_effects(trigger_effect, trigger_effect_index_right);
                     d->report_parser.set_trigger_effect(d, 1, trigger_effect);
                 }
             }
