@@ -208,7 +208,7 @@ static void ds5_parse_mouse(uni_hid_device_t* d, const uint8_t* report, uint16_t
 void ds5_generate_trigger_effect_off(uint8_t effect[11]) {
     effect[0] = 0x05;
 
-    for (uint8_t i = 1; i < 8; i++)
+    for (uint8_t i = 1; i < 11; i++)
         effect[i] = 0x0;
 }
 
