@@ -39,7 +39,7 @@ typedef void (*report_parse_feature_report_fn_t)(struct uni_hid_device_s* d,
 typedef void (*report_set_player_leds_fn_t)(struct uni_hid_device_s* d, uint8_t leds);
 typedef void (*report_set_lightbar_color_fn_t)(struct uni_hid_device_s* d, uint8_t r, uint8_t g, uint8_t b);
 typedef void (*report_set_trigger_effect_fn_t)(struct uni_hid_device_s* d,
-                                               const uint8_t trigger_type,
+                                               uint8_t trigger_type,
                                                const uint8_t trigger_effect[11]);
 typedef void (*report_set_rumble_fn_t)(struct uni_hid_device_s* d, uint8_t force, uint8_t duration);
 typedef void (*report_device_dump_t)(struct uni_hid_device_s* d);

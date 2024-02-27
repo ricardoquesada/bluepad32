@@ -213,9 +213,16 @@ void ds5_generate_trigger_effect_off(uint8_t effect[11]) {
 
 // position: should between 0 and 9, inclusive
 // strength: should between 0 and 8, inclusive
-void ds5_generate_trigger_effect_feedback(uint8_t effect[11], const uint8_t position, const uint8_t strength) {
-    assert(0 <= position && position <= 9);
-    assert(0 <= strength && strength <= 8);
+void ds5_generate_trigger_effect_feedback(uint8_t effect[11], uint8_t position, uint8_t strength) {
+    if (position > 9) {
+        loge("DS5: Invalid position %d, expected =< 9\n", position);
+        return;
+    }
+
+    if (strength > 8) {
+        loge("DS5: Invalid strength %d, expected =< 8\n", strength);
+        return;
+    }
 
     effect[0] = 0x21;
 
@@ -241,12 +248,21 @@ void ds5_generate_trigger_effect_feedback(uint8_t effect[11], const uint8_t posi
 // end_position: should be between start_position + 1 and 8, inclusive
 // strength: should be between 0 and 8, inclusive
 void ds5_generate_trigger_effect_weapon(uint8_t effect[11],
-                                        const uint8_t start_position,
-                                        const uint8_t end_position,
-                                        const uint8_t strength) {
-    assert(2 <= start_position && start_position <= 7);
-    assert(start_position + 1 <= end_position && end_position <= 8);
-    assert(0 <= strength && strength <= 8);
+                                        uint8_t start_position,
+                                        uint8_t end_position,
+                                        uint8_t strength) {
+    if (start_position < 2 || start_position > 7) {
+        loge("DS5: Invalid start_position %d, expected 2 <= start_position <= 7\n", start_position);
+        return;
+    }
+    if (end_position <= start_position || end_position > 8) {
+        loge("DS5: Invalid end_position %d, expected start_position < end_position <= 8\n", end_position);
+        return;
+    }
+    if (strength > 8) {
+        loge("DS5: Invalid strength %d, expected <= 8\n", end_position);
+        return;
+    }
 
     effect[0] = 0x25;
 
@@ -262,12 +278,15 @@ void ds5_generate_trigger_effect_weapon(uint8_t effect[11],
 // position: should be between 0 and 9, inclusive
 // amplitude: should be between 0 and 8, inclusive
 // frequency: should be in Hz
-void ds5_generate_trigger_effect_vibration(uint8_t effect[11],
-                                           const uint8_t position,
-                                           const uint8_t amplitude,
-                                           const uint8_t frequency) {
-    assert(0 <= position && position <= 9);
-    assert(0 <= amplitude && amplitude <= 8);
+void ds5_generate_trigger_effect_vibration(uint8_t effect[11], uint8_t position, uint8_t amplitude, uint8_t frequency) {
+    if (position > 9) {
+        loge("DS5: Invalid position %d, expected <= 9\n", position);
+        return;
+    }
+    if (amplitude > 8) {
+        loge("DS5: Invalid amplitude %d, expected <= 8\n", position);
+        return;
+    }
 
     effect[0] = 0x26;
 
@@ -583,10 +602,13 @@ void uni_hid_parser_ds5_set_lightbar_color(struct uni_hid_device_s* d, uint8_t r
 
 // trigger_type: 0 if left, 1 if right
 void uni_hid_parser_ds5_set_trigger_effect(struct uni_hid_device_s* d,
-                                           const uint8_t trigger_type,
+                                           uint8_t trigger_type,
                                            const uint8_t trigger_effect[11]) {
     // It should be either left trigger or right trigger.
-    assert(trigger_type == 0 || trigger_type == 1);
+    if (trigger_type > 1) {
+        loge("DS5: Invalid trigger_type: %d, expected 0 or 1\n", trigger_type);
+        return;
+    }
 
     ds5_output_report_t out = {.valid_flag0 = (trigger_type == 0) ? DS5_FLAG0_LEFT_FFB : DS5_FLAG0_RIGHT_FFB};
 
