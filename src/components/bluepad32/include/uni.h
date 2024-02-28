@@ -35,6 +35,7 @@ extern "C" {
 #include "uni_circular_buffer.h"
 #include "uni_console.h"
 #include "uni_hid_device.h"
+#include "uni_hid_device_vendors.h"
 #include "uni_init.h"
 #include "uni_joystick.h"
 #include "uni_log.h"

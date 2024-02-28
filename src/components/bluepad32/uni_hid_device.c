@@ -629,7 +629,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             d->report_parser.parse_input_report = uni_hid_parser_ds3_parse_input_report;
             d->report_parser.set_player_leds = uni_hid_parser_ds3_set_player_leds;
             d->report_parser.set_rumble = uni_hid_parser_ds3_set_rumble;
-            logi("Device detected as DUALSHOCK3: 0x%02x\n", type);
+            logi("Device detected as DualShock 3: 0x%02x\n", type);
             break;
         case CONTROLLER_TYPE_PS4Controller:
             d->report_parser.setup = uni_hid_parser_ds4_setup;
@@ -639,7 +639,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             d->report_parser.set_lightbar_color = uni_hid_parser_ds4_set_lightbar_color;
             d->report_parser.set_rumble = uni_hid_parser_ds4_set_rumble;
             d->report_parser.device_dump = uni_hid_parser_ds4_device_dump;
-            logi("Device detected as DUALSHOCK4: 0x%02x\n", type);
+            logi("Device detected as DualShock 4: 0x%02x\n", type);
             break;
         case CONTROLLER_TYPE_PS5Controller:
             d->report_parser.init_report = uni_hid_parser_ds5_init_report;
@@ -648,7 +648,6 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             d->report_parser.parse_feature_report = uni_hid_parser_ds5_parse_feature_report;
             d->report_parser.set_player_leds = uni_hid_parser_ds5_set_player_leds;
             d->report_parser.set_lightbar_color = uni_hid_parser_ds5_set_lightbar_color;
-            d->report_parser.set_trigger_effect = uni_hid_parser_ds5_set_trigger_effect;
             d->report_parser.set_rumble = uni_hid_parser_ds5_set_rumble;
             d->report_parser.device_dump = uni_hid_parser_ds5_device_dump;
             logi("Device detected as DualSense: 0x%02x\n", type);
@@ -656,7 +655,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
         case CONTROLLER_TYPE_8BitdoController:
             d->report_parser.init_report = uni_hid_parser_8bitdo_init_report;
             d->report_parser.parse_usage = uni_hid_parser_8bitdo_parse_usage;
-            logi("Device detected as 8BITDO: 0x%02x\n", type);
+            logi("Device detected as 8BitDo: 0x%02x\n", type);
             break;
         case CONTROLLER_TYPE_GenericController:
             d->report_parser.init_report = uni_hid_parser_generic_init_report;

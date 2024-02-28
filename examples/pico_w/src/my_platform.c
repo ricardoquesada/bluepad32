@@ -89,21 +89,17 @@ static uni_error_t my_platform_on_device_ready(uni_hid_device_t* d) {
     return UNI_ERROR_SUCCESS;
 }
 
-void iterate_through_trigger_effects(int trigger_effect_index, uint8_t out_trigger_effect[11]) {
+ds5_adaptive_trigger_effect_t next_trigger_adaptive_effect(int trigger_effect_index) {
     switch (trigger_effect_index) {
         case TRIGGER_EFFECT_VIBRATION:
-            ds5_generate_trigger_effect_vibration(3, 8, 15, out_trigger_effect);
-            break;
+            return ds5_new_adaptive_trigger_effect_vibration(3, 8, 15);
         case TRIGGER_EFFECT_WEAPON:
-            ds5_generate_trigger_effect_weapon(5, 7, 6, out_trigger_effect);
-            break;
+            return ds5_new_adaptive_trigger_effect_weapon(5, 7, 6);
         case TRIGGER_EFFECT_FEEDBACK:
-            ds5_generate_trigger_effect_feedback(2, 8, out_trigger_effect);
-            break;
+            return ds5_new_adaptive_trigger_effect_feedback(2, 8);
         case TRIGGER_EFFECT_OFF:
         default:
-            ds5_generate_trigger_effect_off(out_trigger_effect);
-            break;
+            return ds5_new_adaptive_trigger_effect_off();
     }
 }
 
@@ -112,7 +108,7 @@ static void my_platform_on_controller_data(uni_hid_device_t* d, uni_controller_t
     static uint8_t enabled = true;
     static uni_controller_t prev = {0};
     uni_gamepad_t* gp;
-    static uint8_t trigger_effect[11];
+    static ds5_adaptive_trigger_effect_t trigger_effect;
     static int trigger_effect_index_left = 0, trigger_effect_index_right = 0;
     static uint32_t trigger_effect_spam_prevention_timestamp;
     static uint8_t trigger_effect_spam_prevention_timestamp_has_set = 0;
@@ -147,32 +143,32 @@ static void my_platform_on_controller_data(uni_hid_device_t* d, uni_controller_t
             }
 
             // toggle between FFBs for left trigger
-            if ((gp->dpad & DPAD_LEFT) && d->report_parser.set_trigger_effect != NULL) {
+            if ((gp->dpad & DPAD_LEFT) && d->controller_type == CONTROLLER_TYPE_PS5Controller) {
                 // prevent button spam
                 if (trigger_effect_spam_prevention_timestamp_has_set == 0 ||
                     time_us_32() - trigger_effect_spam_prevention_timestamp >= 1000 * 1000) {
                     trigger_effect_spam_prevention_timestamp = time_us_32();
                     trigger_effect_spam_prevention_timestamp_has_set = 1;
-                    iterate_through_trigger_effects(trigger_effect_index_left, trigger_effect);
+                    trigger_effect = next_trigger_adaptive_effect(trigger_effect_index_left);
                     trigger_effect_index_left++;
                     if (trigger_effect_index_left >= TRIGGER_EFFECT_COUNT)
                         trigger_effect_index_left = 0;
-                    d->report_parser.set_trigger_effect(d, UNI_TRIGGER_EFFECT_TYPE_LEFT, trigger_effect);
+                    ds5_set_adaptive_trigger_effect(d, UNI_ADAPTIVE_TRIGGER_TYPE_LEFT, &trigger_effect);
                 }
             }
 
             // toggle between FFBs for right trigger
-            if ((gp->dpad & DPAD_RIGHT) && d->report_parser.set_trigger_effect != NULL) {
+            if ((gp->dpad & DPAD_RIGHT) && d->controller_type == CONTROLLER_TYPE_PS5Controller) {
                 // prevent button spam
                 if (trigger_effect_spam_prevention_timestamp_has_set == 0 ||
                     time_us_32() - trigger_effect_spam_prevention_timestamp >= 1000 * 1000) {
                     trigger_effect_spam_prevention_timestamp = time_us_32();
                     trigger_effect_spam_prevention_timestamp_has_set = 1;
-                    iterate_through_trigger_effects(trigger_effect_index_right, trigger_effect);
+                    trigger_effect = next_trigger_adaptive_effect(trigger_effect_index_right);
                     trigger_effect_index_right++;
                     if (trigger_effect_index_right > TRIGGER_EFFECT_COUNT)
                         trigger_effect_index_right = 0;
-                    d->report_parser.set_trigger_effect(d, UNI_TRIGGER_EFFECT_TYPE_RIGHT, trigger_effect);
+                    ds5_set_adaptive_trigger_effect(d, UNI_ADAPTIVE_TRIGGER_TYPE_RIGHT, &trigger_effect);
                 }
             }
 

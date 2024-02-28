@@ -10,11 +10,6 @@
 // Forward declarations
 struct uni_hid_device_s;
 
-typedef enum {
-    UNI_TRIGGER_EFFECT_TYPE_LEFT,
-    UNI_TRIGGER_EFFECT_TYPE_RIGHT,
-} uni_trigger_effect_type_t;
-
 // BTstack bug:
 // see: https://github.com/bluekitchen/btstack/issues/187
 struct hid_globals_s {
@@ -43,9 +38,6 @@ typedef void (*report_parse_feature_report_fn_t)(struct uni_hid_device_s* d,
                                                  uint16_t report_len);
 typedef void (*report_set_player_leds_fn_t)(struct uni_hid_device_s* d, uint8_t leds);
 typedef void (*report_set_lightbar_color_fn_t)(struct uni_hid_device_s* d, uint8_t r, uint8_t g, uint8_t b);
-typedef void (*report_set_trigger_effect_fn_t)(struct uni_hid_device_s* d,
-                                               uni_trigger_effect_type_t trigger_type,
-                                               const uint8_t trigger_effect[11]);
 typedef void (*report_set_rumble_fn_t)(struct uni_hid_device_s* d, uint8_t force, uint8_t duration);
 typedef void (*report_device_dump_t)(struct uni_hid_device_s* d);
 
@@ -65,8 +57,6 @@ typedef struct {
     report_set_player_leds_fn_t set_player_leds;
     // If implemented, changes the lightbar color (e.g.: in DS4 and DualSense)
     report_set_lightbar_color_fn_t set_lightbar_color;
-    // If implemented, applies trigger effects on triggers (e.g.: in DS5)
-    report_set_trigger_effect_fn_t set_trigger_effect;
     // If implemented, activates rumble in the gamepad
     report_set_rumble_fn_t set_rumble;
     // If implemented, it dumps device info

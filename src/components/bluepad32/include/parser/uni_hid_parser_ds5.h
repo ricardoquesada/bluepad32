@@ -1,5 +1,6 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: Apache-2.0, MIT
 // Copyright 2019 Ricardo Quesada
+// 2021-2022 John "Nielk1" Klein
 // http://retro.moe/unijoysticle2
 
 #ifndef UNI_HID_PARSER_DS5_H
@@ -9,45 +10,60 @@
 
 #include "parser/uni_hid_parser.h"
 
-/******* Dualsense(DS5) Adaptive Trigger Effects - Start *******/
-// Built with help of https://gist.github.com/Nielk1/6d54cc2c00d2201ccb8c2720ad7538db, licensed under MIT License
-// Currently only implemented ones marked as "safe"
+typedef struct __attribute((packed)) {
+    uint8_t effect;
+    uint8_t data[10];
+} ds5_adaptive_trigger_effect_t;
 
-// Switches trigger effect off
-void ds5_generate_trigger_effect_off(uint8_t out_effect[11]);
+typedef enum {
+    UNI_ADAPTIVE_TRIGGER_TYPE_LEFT,
+    UNI_ADAPTIVE_TRIGGER_TYPE_RIGHT,
+} ds5_adaptive_trigger_type_t;
 
+// Warning: Adaptive trigger API is experimental. Might change in the future without further notice.
+// Switches adaptive trigger effect off
+ds5_adaptive_trigger_effect_t ds5_new_adaptive_trigger_effect_off(void);
+
+// Provides feedback when the user depresses the trigger equal to, or greater than, the start position.
 // position: should between 0 and 9, inclusive
 // strength: should between 0 and 8, inclusive
-void ds5_generate_trigger_effect_feedback(uint8_t position, uint8_t strength, uint8_t out_effect[11]);
+ds5_adaptive_trigger_effect_t ds5_new_adaptive_trigger_effect_feedback(uint8_t position, uint8_t strength);
 
+// Provides feedback when the user depresses the trigger between the start and the end positions.
 // start_position: should be between 2 and 7, inclusive
 // end_position: should be between start_position + 1 and 8, inclusive
 // strength: should be between 0 and 8, inclusive
-void ds5_generate_trigger_effect_weapon(uint8_t start_position,
-                                        uint8_t end_position,
-                                        uint8_t strength,
-                                        uint8_t out_effect[11]);
+ds5_adaptive_trigger_effect_t ds5_new_adaptive_trigger_effect_weapon(uint8_t start_position,
+                                                                     uint8_t end_position,
+                                                                     uint8_t strength);
 
-// Warning! Not to be confused with gamepad rumble feature. This is an adaptive trigger effect!
+// Vibrates when the user depresses the trigger equal to, or greater than, the start position.
 // position: should be between 0 and 9, inclusive
 // amplitude: should be between 0 and 8, inclusive
 // frequency: should be in Hz
-void ds5_generate_trigger_effect_vibration(uint8_t position,
-                                           uint8_t amplitude,
-                                           uint8_t frequency,
-                                           uint8_t out_effect[11]);
-/******* Dualsense(DS5) Adaptive Trigger Effects - End *******/
+ds5_adaptive_trigger_effect_t ds5_new_adaptive_trigger_effect_vibration(uint8_t position,
+                                                                        uint8_t amplitude,
+                                                                        uint8_t frequency);
+
+void ds5_set_adaptive_trigger_effect(struct uni_hid_device_s* d,
+                                     ds5_adaptive_trigger_type_t trigger_type,
+                                     const ds5_adaptive_trigger_effect_t* effect);
 
 // For DualSense gamepads
 void uni_hid_parser_ds5_setup(struct uni_hid_device_s* d);
+
 void uni_hid_parser_ds5_init_report(struct uni_hid_device_s* d);
+
 void uni_hid_parser_ds5_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len);
+
 void uni_hid_parser_ds5_parse_feature_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len);
+
 void uni_hid_parser_ds5_set_player_leds(struct uni_hid_device_s* d, uint8_t value);
+
 void uni_hid_parser_ds5_set_lightbar_color(struct uni_hid_device_s* d, uint8_t r, uint8_t g, uint8_t b);
-void uni_hid_parser_ds5_set_trigger_effect(struct uni_hid_device_s* d,
-                                           uni_trigger_effect_type_t trigger_type,
-                                           const uint8_t trigger_effect[11]);
+
 void uni_hid_parser_ds5_set_rumble(struct uni_hid_device_s* d, uint8_t value, uint8_t duration);
+
 void uni_hid_parser_ds5_device_dump(struct uni_hid_device_s* d);
+
 #endif  // UNI_HID_PARSER_DS5_H
