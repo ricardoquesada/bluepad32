@@ -2,7 +2,6 @@
 // Need help? https://tinyurl.com/bluepad32-help
 
 #include <stddef.h>
-#include <stdio.h>
 #include <string.h>
 
 #include <pico/cyw43_arch.h>
@@ -12,12 +11,19 @@
 
 #include "sdkconfig.h"
 
-#include <bluetooth.h>
-
 // Sanity check
 #ifndef CONFIG_BLUEPAD32_PLATFORM_CUSTOM
 #error "Pico W must use BLUEPAD32_PLATFORM_CUSTOM"
 #endif
+
+enum {
+    TRIGGER_EFFECT_VIBRATION,
+    TRIGGER_EFFECT_WEAPON,
+    TRIGGER_EFFECT_FEEDBACK,
+    TRIGGER_EFFECT_OFF,
+
+    TRIGGER_EFFECT_COUNT,
+};
 
 // Declarations
 static void trigger_event_on_gamepad(uni_hid_device_t* d);
@@ -83,19 +89,21 @@ static uni_error_t my_platform_on_device_ready(uni_hid_device_t* d) {
     return UNI_ERROR_SUCCESS;
 }
 
-uint8_t iterate_through_trigger_effects(uint8_t trigger_effect[11], uint8_t trigger_effect_index) {
-    if (trigger_effect_index == 0) {
-        ds5_generate_trigger_effect_vibration(trigger_effect, 3, 8, 15);
-        return trigger_effect_index + 1;
-    } else if (trigger_effect_index == 1) {
-        ds5_generate_trigger_effect_weapon(trigger_effect, 5, 7, 6);
-        return trigger_effect_index + 1;
-    } else if (trigger_effect_index == 2) {
-        ds5_generate_trigger_effect_feedback(trigger_effect, 2, 8);
-        return trigger_effect_index + 1;
-    } else {
-        ds5_generate_trigger_effect_off(trigger_effect);
-        return 0;
+void iterate_through_trigger_effects(int trigger_effect_index, uint8_t out_trigger_effect[11]) {
+    switch (trigger_effect_index) {
+        case TRIGGER_EFFECT_VIBRATION:
+            ds5_generate_trigger_effect_vibration(3, 8, 15, out_trigger_effect);
+            break;
+        case TRIGGER_EFFECT_WEAPON:
+            ds5_generate_trigger_effect_weapon(5, 7, 6, out_trigger_effect);
+            break;
+        case TRIGGER_EFFECT_FEEDBACK:
+            ds5_generate_trigger_effect_feedback(2, 8, out_trigger_effect);
+            break;
+        case TRIGGER_EFFECT_OFF:
+        default:
+            ds5_generate_trigger_effect_off(out_trigger_effect);
+            break;
     }
 }
 
@@ -105,7 +113,7 @@ static void my_platform_on_controller_data(uni_hid_device_t* d, uni_controller_t
     static uni_controller_t prev = {0};
     uni_gamepad_t* gp;
     static uint8_t trigger_effect[11];
-    static uint8_t trigger_effect_index_left = 0, trigger_effect_index_right = 0;
+    static int trigger_effect_index_left = 0, trigger_effect_index_right = 0;
     static uint32_t trigger_effect_spam_prevention_timestamp;
     static uint8_t trigger_effect_spam_prevention_timestamp_has_set = 0;
 
@@ -145,9 +153,11 @@ static void my_platform_on_controller_data(uni_hid_device_t* d, uni_controller_t
                     time_us_32() - trigger_effect_spam_prevention_timestamp >= 1000 * 1000) {
                     trigger_effect_spam_prevention_timestamp = time_us_32();
                     trigger_effect_spam_prevention_timestamp_has_set = 1;
-                    trigger_effect_index_left =
-                        iterate_through_trigger_effects(trigger_effect, trigger_effect_index_left);
-                    d->report_parser.set_trigger_effect(d, 0, trigger_effect);
+                    iterate_through_trigger_effects(trigger_effect_index_left, trigger_effect);
+                    trigger_effect_index_left++;
+                    if (trigger_effect_index_left >= TRIGGER_EFFECT_COUNT)
+                        trigger_effect_index_left = 0;
+                    d->report_parser.set_trigger_effect(d, UNI_TRIGGER_EFFECT_TYPE_LEFT, trigger_effect);
                 }
             }
 
@@ -158,9 +168,11 @@ static void my_platform_on_controller_data(uni_hid_device_t* d, uni_controller_t
                     time_us_32() - trigger_effect_spam_prevention_timestamp >= 1000 * 1000) {
                     trigger_effect_spam_prevention_timestamp = time_us_32();
                     trigger_effect_spam_prevention_timestamp_has_set = 1;
-                    trigger_effect_index_right =
-                        iterate_through_trigger_effects(trigger_effect, trigger_effect_index_right);
-                    d->report_parser.set_trigger_effect(d, 1, trigger_effect);
+                    iterate_through_trigger_effects(trigger_effect_index_right, trigger_effect);
+                    trigger_effect_index_right++;
+                    if (trigger_effect_index_right > TRIGGER_EFFECT_COUNT)
+                        trigger_effect_index_right = 0;
+                    d->report_parser.set_trigger_effect(d, UNI_TRIGGER_EFFECT_TYPE_RIGHT, trigger_effect);
                 }
             }
 
