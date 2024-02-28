@@ -319,6 +319,8 @@ static int getprop(int argc, char** argv) {
     return 0;
 }
 
+#ifdef CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
+
 static void register_bluepad32() {
     mouse_scale_args.value = arg_dbl1(NULL, NULL, "<value>", "Global mouse scale factor. Higher means faster");
     mouse_scale_args.end = arg_end(2);
@@ -493,6 +495,7 @@ static void register_bluepad32() {
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_virtual_device_enable));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_getprop));
 }
+#endif  // CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
 
 void uni_console_init(void) {
 #ifdef CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
