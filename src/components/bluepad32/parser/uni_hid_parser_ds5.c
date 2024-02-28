@@ -337,6 +337,11 @@ ds5_adaptive_trigger_effect_t ds5_new_adaptive_trigger_effect_vibration(uint8_t 
 void ds5_set_adaptive_trigger_effect(struct uni_hid_device_s* d,
                                      ds5_adaptive_trigger_type_t type,
                                      const ds5_adaptive_trigger_effect_t* effect) {
+    if (effect->effect == DS5_ADAPTIVE_TRIGGER_EFFECT_INVALID) {
+        loge("DS5: Invalid trigger effect\n");
+        return;
+    }
+
     ds5_output_report_t out = {.valid_flag0 =
                                    (type == UNI_ADAPTIVE_TRIGGER_TYPE_LEFT) ? DS5_FLAG0_FFB_LEFT : DS5_FLAG0_FFB_RIGHT};
 
