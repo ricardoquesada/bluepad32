@@ -12,8 +12,6 @@
 #include <assert.h>
 
 #include "bt/uni_bt_defines.h"
-#include "hid_usage.h"
-#include "uni_common.h"
 #include "uni_config.h"
 #include "uni_hid_device.h"
 #include "uni_log.h"
@@ -260,6 +258,8 @@ ds5_adaptive_trigger_effect_t ds5_new_adaptive_trigger_effect_feedback(uint8_t p
     out.data[5] = (force_zones >> 24) & 0xFF;
     for (int i = 6; i < 10; i++)
         out.data[i] = 0;
+
+    return out;
 }
 
 ds5_adaptive_trigger_effect_t ds5_new_adaptive_trigger_effect_weapon(uint8_t start_position,
@@ -332,6 +332,8 @@ ds5_adaptive_trigger_effect_t ds5_new_adaptive_trigger_effect_vibration(uint8_t 
     out.data[7] = 0;
     out.data[8] = frequency;
     out.data[9] = 0;
+
+    return out;
 }
 
 void ds5_set_adaptive_trigger_effect(struct uni_hid_device_s* d,
