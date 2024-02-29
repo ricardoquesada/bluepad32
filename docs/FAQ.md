@@ -35,22 +35,21 @@ backward compatibility.
 
 ## When Bluepad32 was created ?
 
-TL;DR: Project started in 2016, but it was renamed to Bluepad32 in November 2020.
+TL;DR: 2019, although original project started in 2016, and it was renamed to Bluepad32 in 2020.
 
 - Started [Unijoysticle][unijoysticle] project (WiFi gamepad for Commodore 64): [2016-03-28][uni1_first_commit]
-- Decided to support Bluetooth in late 2018, first commit was: [2019-01-02][fw_first_commit] (done in the Unijoysticle repo)
+- Decided to support Bluetooth in late 2018, first commit was: [2019-01-02][fw_first_commit]
 - Created Unijoysticle2 repo: [2019-02-06][fw_uni2_repo] (copied files from Unijoysticle repo)
 - First public release of the firmware v0.1.0: [2019-04-27][fw_first_release]
 - Renamed firmware to Bluepad32: [November 2020][fw_as_bluepad32] (hardware was still called Unijoysticle2)
 
 ```mermaid
 timeline
-        2016-03-28: Unijoysticle for ESP8266 + WiFi only, first commit
-        2019-01-02: Initial ESP32 port, with Bluetooth support
-        2019-02-06: Created Unijoysticle2 repo, for ESP32 + Bluetooth
-        2019-04-27: Firmware first public release v0.1.0
-        2020-11-20: Renamed firmware to Bluepad32, release v2.0.0-beta0
-
+        2016-03-28: First Unijoysticle commit, ESP8266 + WiFi only
+        2019-01-02: Initial Unijoysticle ESP32 port, with Bluetooth support
+        2019-02-06: Created Unijoysticle2 repo
+        2019-04-27: Released v0.1.0, first public frelease
+        2020-11-20: Released v2.0.0-beta0: Renamed to Bluepad32
 ```
 
 [unijoysticle]: https://retro.moe/unijoysticle
