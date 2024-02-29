@@ -6,6 +6,7 @@
 // Technical info taken from:
 // https://aur.archlinux.org/cgit/aur.git/tree/hid-playstation.c?h=hid-playstation-dkms
 // https://gist.github.com/Nielk1/6d54cc2c00d2201ccb8c2720ad7538db
+// https://controllers.fandom.com/wiki/Sony_DualSense
 
 #include "parser/uni_hid_parser_ds5.h"
 
