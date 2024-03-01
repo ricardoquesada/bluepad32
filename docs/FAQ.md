@@ -64,8 +64,7 @@ timeline
 
 TL;DR: There were no alternatives back in 2019
 
-I started Bluepad32 in January 2019, although it was not called Bluepad32 back then.
-Back then there was not Bluetooth Classic (BR/EDR) implementation available for ESP32.
+When I started Bluepad32 back in January 2019, there was no Bluetooth Classic (BR/EDR) implementation available for ESP32.
 
 I had two options:
 
