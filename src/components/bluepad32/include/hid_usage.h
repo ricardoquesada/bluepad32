@@ -3,7 +3,7 @@
 // http://retro.moe/unijoysticle2
 
 // USB HID Usages table (Bluetooth uses the same table):
-// https://www.usb.org/sites/default/files/documents/hut1_12v2.pdf
+// https://www.usb.org/sites/default/files/hut1_5.pdf
 
 #ifndef HID_USAGE_H
 #define HID_USAGE_H
@@ -21,6 +21,7 @@ extern "C" {
 #define HID_USAGE_PAGE_KEYBOARD_KEYPAD          0x07
 #define HID_USAGE_PAGE_BUTTON                   0x09
 #define HID_USAGE_PAGE_CONSUMER                 0x0c
+#define HID_USAGE_PAGE_DIGITIZER                0x0d
 
 // HID usages for Generic Desktop Page
 #define HID_USAGE_AXIS_X                        0x30
@@ -268,6 +269,7 @@ extern "C" {
 /* E8 - FFFF: reserved */
 
 // HID usages for Consumer Page
+#define HID_USAGE_POWER                         0x30
 #define HID_USAGE_MENU                          0x40
 #define HID_USAGE_ASSIGN_SELECTION              0x81
 #define HID_USAGE_ORDER_MOVIE                   0x85
@@ -280,12 +282,25 @@ extern "C" {
 #define HID_USAGE_REWIND                        0xb4
 #define HID_USAGE_PLAY_PAUSE                    0xcd
 #define HID_USAGE_MUTE                          0xe2
-#define HID_USAGE_VOLUMEN_UP                    0xe9
-#define HID_USAGE_VOLUMEN_DOWN                  0xea
+#define HID_USAGE_VOLUME_UP                     0xe9
+#define HID_USAGE_VOLUME_DOWN                   0xea
+// >= 0x0180: "AL" == Application Launch Buttons
+#define HID_USAGE_AL_CALCULATOR                 0x0192
+#define HID_USAGE_AL_KEYBOARD_LAYOUT            0x01ae
+// >= 0x0200: "AC" == Generic GUI Application Control
 #define HID_USAGE_AC_SEARCH                     0x0221
 #define HID_USAGE_AC_HOME                       0x0223
 #define HID_USAGE_AC_BACK                       0x0224
+#define HID_USAGE_AC_SCROLL_UP                  0x0233
+#define HID_USAGE_AC_SCROLL_DOWN                0x0234
+#define HID_USAGE_AC_SCROLL                     0x0235
 #define HID_USAGE_AC_PAN                        0x0238
+
+// HID usages for Digitizer page
+#define HID_USAGE_IN_RANGE                      0x32
+#define HID_USAGE_TIP_SWITCH                    0x42
+#define HID_USAGE_CONTACT_IDENTIFIER            0x51
+#define HID_USAGE_CONTACT_COUNT                 0x54
 
 // clang-format on
 

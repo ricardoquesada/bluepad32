@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### New
 - BLE Service: Added `uni_bt_enable_service_safe(bool)` API to enable/disable in runtime
 - DualSense: Add support for adaptive trigger
+- Add support for RX-05 TikTok Ring Controller [Github Issue #68][github_issue_68]
 
 ### Changed
 - "linux" example renamed to "posix" since it also works on macOS
@@ -17,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documentation: Improved documentation
 
 [github_issue_65]: https://github.com/ricardoquesada/bluepad32/issues/65
+[github_issue_68]: https://github.com/ricardoquesada/bluepad32/issues/68
 
 ### Fixed
 - Pico W/Linux: string properties return default value instead of error.

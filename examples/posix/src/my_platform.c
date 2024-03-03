@@ -55,7 +55,7 @@ static void posix_init(int argc, const char** argv) {
     uni_gamepad_set_mappings(&mappings);
 #endif
     uni_gamepad_set_mappings_type(UNI_GAMEPAD_MAPPINGS_TYPE_XBOX);
-    uni_bt_service_set_enabled(true);
+    //    uni_bt_service_set_enabled(true);
 }
 
 static void posix_on_init_complete(void) {

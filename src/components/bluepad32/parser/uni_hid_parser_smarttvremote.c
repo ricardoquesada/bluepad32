@@ -87,8 +87,8 @@ void uni_hid_parser_smarttvremote_parse_usage(uni_hid_device_t* d,
                 case HID_USAGE_REWIND:
                 case HID_USAGE_PLAY_PAUSE:
                 case HID_USAGE_MUTE:
-                case HID_USAGE_VOLUMEN_UP:
-                case HID_USAGE_VOLUMEN_DOWN:
+                case HID_USAGE_VOLUME_UP:
+                case HID_USAGE_VOLUME_DOWN:
                 case HID_USAGE_AC_SEARCH:  // mic / search
                     break;
                 case HID_USAGE_AC_HOME:
