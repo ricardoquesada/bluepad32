@@ -53,7 +53,6 @@ static void my_platform_init(int argc, const char** argv) {
 
     uni_gamepad_set_mappings(&mappings);
 #endif
-    //    uni_bt_service_set_enabled(true);
 }
 
 static void my_platform_on_init_complete(void) {
@@ -72,6 +71,10 @@ static void my_platform_on_init_complete(void) {
 
     // Turn off LED once init is done.
     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
+
+    //    uni_bt_service_set_enabled(true);
+
+    uni_property_list_all();
 }
 
 static void my_platform_on_device_connected(uni_hid_device_t* d) {

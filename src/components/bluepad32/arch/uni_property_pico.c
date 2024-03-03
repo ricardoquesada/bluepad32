@@ -10,12 +10,17 @@
 
 #include "uni_log.h"
 
-// TODO: Implement a memory cache.
-// Used only in non-ESP32 platforms.
-// Short-term solution: just return the default value.
-
 static const btstack_tlv_t* tlv_impl;
 static btstack_tlv_flash_bank_t* tlv_context;
+
+// Prevent possible clashes from user using TLV directly
+static const char tag_0 = 'B';
+static const char tag_1 = 'P';
+static const char tag_2 = '3';
+
+static uint32_t pico_get_tag_for_index(uint8_t index) {
+    return (tag_0 << 24) | (tag_1 << 16) | (tag_2 << 8) | index;
+}
 
 void uni_property_set_with_property(const uni_property_t* p, uni_property_value_t value) {
     uint8_t* data;
@@ -51,7 +56,7 @@ void uni_property_set_with_property(const uni_property_t* p, uni_property_value_
             return;
     }
 
-    if (tlv_impl->store_tag(tlv_context, p->idx, data, size)) {
+    if (tlv_impl->store_tag(tlv_context, pico_get_tag_for_index(p->idx), data, size)) {
         loge("Failed to store property %s(%d)\n", p->name, p->idx);
     }
 }
@@ -68,7 +73,7 @@ uni_property_value_t uni_property_get_with_property(const uni_property_t* p) {
     }
 
     if (p->type == UNI_PROPERTY_TYPE_STRING) {
-        loge("No TLV for %s, returning default value\n", p->name);
+        loge("No TLV for %s, returning default value '%s'\n", p->name, p->default_value.str);
         return p->default_value;
     }
 
@@ -91,9 +96,10 @@ uni_property_value_t uni_property_get_with_property(const uni_property_t* p) {
             return value;
     }
 
-    read = tlv_impl->get_tag(tlv_context, p->idx, (uint8_t*)&value, size);
+    read = tlv_impl->get_tag(tlv_context, pico_get_tag_for_index(p->idx), (uint8_t*)&value, size);
     if (read == 0) {
-        logd("Property %s (%d) not found in DB, returning default\n", p->name, p->idx);
+        logd("Property %s (idx=%d, tag=%#x) not found in DB, returning default\n", p->name, p->idx,
+             pico_get_tag_for_index(p->idx));
         return p->default_value;
     }
     return value;

@@ -17,6 +17,15 @@ static const btstack_tlv_t* tlv_impl;
 static btstack_tlv_posix_t tlv_context;
 static btstack_tlv_posix_t* tlv_context_ptr;
 
+// Prevent possible clashes from user using TLV directly
+static const char tag_0 = 'B';
+static const char tag_1 = 'P';
+static const char tag_2 = '3';
+
+static uint32_t posix_get_tag_for_index(uint8_t index) {
+    return (tag_0 << 24) | (tag_1 << 16) | (tag_2 << 8) | index;
+}
+
 static void create_instance_tlv(void) {
     logi("uni_property TLV path: %s\n", TLV_DB_PATH_PREFIX);
     tlv_impl = btstack_tlv_posix_init_instance(&tlv_context, TLV_DB_PATH_PREFIX);
@@ -64,8 +73,8 @@ void uni_property_set_with_property(const uni_property_t* p, uni_property_value_
             return;
     }
 
-    if (tlv_impl->store_tag(tlv_context_ptr, p->idx, data, size)) {
-        loge("Failed to store property %s(%d)\n", p->name, p->idx);
+    if (tlv_impl->store_tag(tlv_context_ptr, posix_get_tag_for_index(p->idx), data, size)) {
+        loge("Failed to store property %s(%d)\n", p->name, posix_get_tag_for_index(p->idx));
     }
 }
 
@@ -104,9 +113,9 @@ uni_property_value_t uni_property_get_with_property(const uni_property_t* p) {
             return value;
     }
 
-    read = tlv_impl->get_tag(tlv_context_ptr, p->idx, (uint8_t*)&value, size);
+    read = tlv_impl->get_tag(tlv_context_ptr, posix_get_tag_for_index(p->idx), (uint8_t*)&value, size);
     if (read == 0) {
-        logd("Property %s (%d) not found in DB, returning default\n", p->name, p->idx);
+        logd("Property %s (%#x) not found in DB, returning default\n", p->name, posix_get_tag_for_index(p->idx));
         return p->default_value;
     }
     return value;

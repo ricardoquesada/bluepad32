@@ -17,12 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixes Arduino Nano ESP32 [Github Issue #65][github_issue_65]
 - Documentation: Improved documentation
 
+### Fixed
+- Pico W/Posix: string properties return default value instead of error.
+- Pico W/Posix: TLV uses its own namespace to prevent clash from user code.
+- Keyboard: 8BitDo Retro Keyboard volume knob works Ok.
+ 
 [github_issue_65]: https://github.com/ricardoquesada/bluepad32/issues/65
 [github_issue_68]: https://github.com/ricardoquesada/bluepad32/issues/68
 
-### Fixed
-- Pico W/Linux: string properties return default value instead of error.
-- Keyboard: 8BitDo Retro Keyboard volume knob works Ok.
 
 ## [4.0-beta1] - 2024-02-11
 ### New
