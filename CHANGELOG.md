@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Pico W/Linux: string properties return default value instead of error.
+- Keyboard: 8BitDo Retro Keyboard volume knob works Ok.
 
 ## [4.0-beta1] - 2024-02-11
 ### New
