@@ -198,6 +198,9 @@ void uni_hid_parser_keyboard_parse_usage(uni_hid_device_t* d,
             // Used to support TikTok Ring Controller. See:
             // https://github.com/ricardoquesada/bluepad32/issues/68
             switch (usage) {
+                case 0:
+                    // Undefined, used by 8BitDo Retro Keyboard
+                    break;
                 case HID_USAGE_POWER:
                     d->controller.keyboard.pressed_keys[idx++] = HID_USAGE_KB_POWER;
                     ins->pressed_key_index = idx;
