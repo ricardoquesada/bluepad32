@@ -1,4 +1,4 @@
-# Bluepad32 for NINA boards
+# Bluepad32 for NINA-W10 boards
 
 !!! Warning
 
@@ -6,10 +6,10 @@
     Depends on 'SPI Flash Legacy' which was removed in ESP-IDF v5.0.
     Besides, it has limited functionality. Use [Arduino][plat_arduino] instead.
 
-## What is NINA
+## What is NINA-W10
 
-NINA is a family of [ESP32 modules][nina-esp32].
-These modules are present on some Arduino boards like:
+NINA-W10 is series of [ESP32 modules][nina-esp32].
+These module are present on some Arduino boards like:
 
 - [Arduino Nano RP2040 Connect][nano_rp2040]
 - [Arduino Nano 33 IoT][nano_33_iot]
@@ -17,9 +17,9 @@ These modules are present on some Arduino boards like:
 - [Arduino UNO WiFi Rev.2][uni_wifi]
 - [Arduino Arduino MKR Vidor 4000][mkr_vidor_4000]
 
-NINA modules are co-processors, usually used only to bring WiFi or BLE to the main processor.
+NINA-W10 modules are co-processors, usually used only to bring WiFi or BLE to the main processor.
 
-To have gamepad support, the original NINA firmware must be replaced
+To have gamepad support, the original NINA-W10 firmware must be replaced
 with Bluepad32 firmware. This is a simple step that needs to be done just once
 and can be "undone" at any time.
 
@@ -27,8 +27,8 @@ and can be "undone" at any time.
 
 This is how it works:
 
-- Gamepad (A) talks to NINA module (B)
-- NINA module (B) talks to the main processor (C)
+- Gamepad (A) talks to NINA-W10 module (B)
+- NINA-W10 module (B) talks to the main processor (C)
 
 Bluepad32 firmware is "compatible-enough" with the original firmware:
 
@@ -44,7 +44,7 @@ Bluepad32 firmware is "compatible-enough" with the original firmware:
 
 !!! Warning
 
-    WiFi and Bluetooth are not supported in NINA boards.
+    WiFi and Bluetooth are not supported in NINA-W10 boards.
 
 
 [nina-esp32]: https://www.u-blox.com/en/product/nina-w10-series-open-cpu
@@ -67,7 +67,7 @@ Bluepad32 firmware is "compatible-enough" with the original firmware:
 
 To flash Bluepad32 firmware, you have to:
 
-### Download the latest pre-compiled Bluepad32 firmware for NINA
+### Download the latest pre-compiled Bluepad32 firmware for NINA-W10
 
 Download latest binary from here: https://github.com/ricardoquesada/bluepad32/releases
 
