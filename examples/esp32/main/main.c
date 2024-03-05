@@ -5,6 +5,7 @@
 
 #include <btstack_port_esp32.h>
 #include <btstack_run_loop.h>
+#include <btstack_stdio_esp32.h>
 #include <uni.h>
 
 #include "sdkconfig.h"
@@ -19,6 +20,11 @@ struct uni_platform* get_my_platform(void);
 
 int app_main(void) {
     // hci_dump_open(NULL, HCI_DUMP_STDOUT);
+
+    // Don't use BTstack buffered UART. It conflicts with the console.
+#ifndef CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
+    btstack_stdio_init();
+#endif // CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
 
     // Configure BTstack for ESP32 VHCI Controller
     btstack_init();
