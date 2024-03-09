@@ -32,9 +32,9 @@
 #define WITH_TASKS_INFO 1
 #endif
 
-// Arduino and Unijoysticle overrides have their own "version" command that calls this one.
+// Unijoysticle overrides have their own "version" command that calls this one.
 // So, don't register "version"
-#if defined(CONFIG_BLUEPAD32_PLATFORM_UNIJOYSTICLE) || defined(CONFIG_BLUEPAD32_PLATFORM_ARDUINO)
+#if defined(CONFIG_BLUEPAD32_PLATFORM_UNIJOYSTICLE)
 #define WITH_VERSION 0
 #else
 #define WITH_VERSION 1

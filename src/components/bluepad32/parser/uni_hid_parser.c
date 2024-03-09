@@ -21,7 +21,7 @@ void uni_hid_parse_input_report(struct uni_hid_device_s* d, const uint8_t* repor
         rp->init_report(d);
 
     // Certain devices like Nintendo Wii U Pro doesn't support HID descriptor.
-    // For those kind of devices, just send the raw report.
+    // For those kinds of devices, send the raw report.
     if (rp->parse_input_report) {
         rp->parse_input_report(d, report, report_len);
     }
@@ -68,7 +68,7 @@ int32_t uni_hid_parser_process_axis(hid_globals_t* globals, uint32_t value) {
     // Get the range: how big can be the number
     int32_t range = (max - min) + 1;
 
-    // First we "center" the value, meaning that 0 is when the axis is not used.
+    // First, we "center" the value, meaning that 0 is when the axis is not used.
     int32_t centered = value - range / 2 - min;
 
     // Then we normalize between -512 and 511
@@ -84,7 +84,7 @@ int32_t uni_hid_parser_process_pedal(hid_globals_t* globals, uint32_t value) {
     int32_t max = globals->logical_maximum;
     int32_t min = globals->logical_minimum;
 
-    // Amazon Fire 1st Gen reports max value as unsigned (0xff == 255) but the
+    // Amazon Fire 1st Gen reports max value as unsigned (0xff == 255), but the
     // spec says they are signed. So the parser correctly treats it as -1 (0xff).
     if (max == -1) {
         max = (1 << globals->report_size) - 1;
@@ -134,7 +134,7 @@ void uni_hid_parser_process_dpad(uint16_t usage, uint32_t value, uint8_t* dpad) 
                 *dpad &= ~DPAD_LEFT;
             break;
         default:
-            logi("Unsupported DPAD usage: 0x%02x", usage);
+            logi("Unsupported D-pad usage: 0x%02x", usage);
             break;
     }
 }

@@ -12,18 +12,10 @@ menu "Bluepad32"
                 Targets Adafruit devices that have an AirLift co-processor,
                 like the Adafruit Metro M4 Express AirLift.
 
-        config BLUEPAD32_PLATFORM_ARDUINO
-            bool "Arduino"
-            depends on ENABLE_ARDUINO_DEPENDS
-            help
-                Targets ESP32 devices, like the ESP32 Mini Dev Kit.
-                To be used with ESP32 Core for Arduino component.
-
         config BLUEPAD32_PLATFORM_MIGHTYMIGGY
             bool "MightyMiggy"
             help
                 Targets MightyMiggy device.
-
 
         config BLUEPAD32_PLATFORM_NINA
             bool "NINA"
