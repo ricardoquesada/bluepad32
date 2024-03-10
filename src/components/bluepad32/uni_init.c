@@ -21,11 +21,11 @@ int uni_init(int argc, const char** argv) {
     // Disable stdout buffering
     setbuf(stdout, NULL);
 
-    logi("Bluepad32 (C) 2016-2024 Ricardo Quesada and contributors.\n");
-    logi("Version: v" UNI_VERSION "\n");
+    loge("Bluepad32 (C) 2016-2024 Ricardo Quesada and contributors.\n");
+    loge("Version: v" UNI_VERSION "\n");
 
     // Honoring BTstack license
-    logi("BTstack: Copyright (C) 2017 BlueKitchen GmbH.\n");
+    loge("BTstack: Copyright (C) 2017 BlueKitchen GmbH.\n");
 
     uni_property_init();
     uni_platform_init(argc, argv);

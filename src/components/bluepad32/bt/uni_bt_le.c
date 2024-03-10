@@ -384,7 +384,7 @@ static void device_information_packet_handler(uint8_t packet_type, uint16_t chan
                         // hids_client_disconnect(con_handle);
                     }
                     if (status != ERROR_CODE_SUCCESS) {
-                        logi("HID client connection failed, status 0x%02x\n", status);
+                        logi("HID client connection failed, status=%#x\n", status);
                         hog_disconnect(con_handle);
                         break;
                     }
@@ -393,10 +393,10 @@ static void device_information_packet_handler(uint8_t packet_type, uint16_t chan
 
                     status = hids_client_enable_notifications(hids_cid);
                     if (status != ERROR_CODE_SUCCESS)
-                        loge("Failed to enable client notifications for hics_cid=%d\n", hids_cid);
+                        logi("Failed to enable client notifications for hics_cid=%d, status=%#x\n", hids_cid, status);
                     break;
                 default:
-                    logi("Device Information service client connection failed, err 0x%02x.\n", status);
+                    logi("Device Information service client connection failed, error=%#x.\n", status);
                     hog_disconnect(con_handle);
                     break;
             }
