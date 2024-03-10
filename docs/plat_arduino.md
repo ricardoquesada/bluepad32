@@ -21,7 +21,7 @@ There are two ways to setup a Bluepad32 Arduino project for ESP32 chips:
     * Includes advanced features
 
 [arduino-core]: https://github.com/espressif/arduino-esp32
-[github_issue_65]: https://github.com/ricardoquesada/bluepad32/issues/65
+[github_issue_65]: https://github.com/ricardoquesada/bluepad32/issues/65#issuecomment-1987046804
 [arduino_nano_esp32]: https://store-usa.arduino.cc/products/nano-esp32
 [lolin_s3_mini]: https://www.wemos.cc/en/latest/s3/s3_mini.html
 

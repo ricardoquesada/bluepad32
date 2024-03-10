@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pico W/Posix: TLV uses its own namespace to prevent clash from user code.
 - Keyboard: 8BitDo Retro Keyboard volume knob works Ok.
 
-[github_issue_65]: https://github.com/ricardoquesada/bluepad32/issues/65
+[github_issue_65]: https://github.com/ricardoquesada/bluepad32/issues/65#issuecomment-1987046804
 [github_issue_68]: https://github.com/ricardoquesada/bluepad32/issues/68
 
 
