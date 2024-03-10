@@ -8,8 +8,8 @@ running on it as well.
 
 !!! Bug
 
-    [Arduino Nano ESP32][arduino_nano_esp32] board is not supported at the moment.
-    See [Github issue #65][github_issue_65] for status.
+    No output in certain ESP32-S3 boards like [Arduino Nano ESP32][arduino_nano_esp32] or [Lolin S3 Mini][lolin_s3_mini] ?
+    Read [Github issue #65][github_issue_65] to see how to enable it.
 
 There are two ways to setup a Bluepad32 Arduino project for ESP32 chips:
 

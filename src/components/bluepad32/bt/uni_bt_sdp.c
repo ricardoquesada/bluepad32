@@ -217,7 +217,7 @@ static void sdp_query_timeout(btstack_timer_source_t* ts) {
 // Public functions
 
 void uni_bt_sdp_query_start(uni_hid_device_t* d) {
-    loge("-----------> sdp_query_start()\n");
+    logi("-----------> sdp_query_start()\n");
     // Needed for the SDP query since it only supports one SDP query at the time.
     if (sdp_device != NULL) {
         logi("Another SDP query is in progress (%s), disconnecting...\n", bd_addr_to_str(sdp_device->conn.btaddr));
@@ -237,7 +237,7 @@ void uni_bt_sdp_query_start(uni_hid_device_t* d) {
 }
 
 void uni_bt_sdp_query_end(uni_hid_device_t* d) {
-    loge("<----------- sdp_query_end()\n");
+    logi("<----------- sdp_query_end()\n");
     uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_FETCHED);
     sdp_device = NULL;
     btstack_run_loop_remove_timer(&sdp_query_timer);
@@ -288,7 +288,7 @@ void uni_bt_sdp_query_start_hid_descriptor(uni_hid_device_t* d) {
 
 void uni_bt_sdp_server_init() {
     // Only initialize the SDP record. Just needed for DualShock/DualSense to have
-    // a successful reconnect.
+    // a successful reconnecting.
     sdp_init();
 
     device_id_create_sdp_record(device_id_sdp_service_buffer, 0x10003, DEVICE_ID_VENDOR_ID_SOURCE_BLUETOOTH,

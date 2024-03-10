@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [4.0-beta2] - ???
+## [4.0-beta2] - 2024-03-09
 ### New
 - BLE Service: Added `uni_bt_enable_service_safe(bool)` API to enable/disable in runtime
 - DualSense: Add support for adaptive trigger
@@ -14,14 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - "linux" example renamed to "posix" since it also works on macOS
 - UART: UART console cannot be toggled at runtime. It can only be disabled at compile-time via "menuconfig"
   - Needed to use IDF-IDF v5.2
-  - Fixes Arduino Nano ESP32 [Github Issue #65][github_issue_65]
+  - Improves Arduino Nano ESP32 [Github Issue #65][github_issue_65] by forwarding Bluepad32 logs to Arduino.
 - Documentation: Improved documentation
+- Arduino IDE:
+  - ESP32-S3 boards, like 'Arduino Nano ESP32' or 'Lolin S3 Mini' can see output using different compile. For details see [Github Issue #65][github_issue_65]
+  - Calls `btstack_stdio_init()` to have buffered output
 
 ### Fixed
 - Pico W/Posix: string properties return default value instead of error.
 - Pico W/Posix: TLV uses its own namespace to prevent clash from user code.
 - Keyboard: 8BitDo Retro Keyboard volume knob works Ok.
- 
+
 [github_issue_65]: https://github.com/ricardoquesada/bluepad32/issues/65
 [github_issue_68]: https://github.com/ricardoquesada/bluepad32/issues/68
 
