@@ -88,7 +88,8 @@ uni_hid_device_t* uni_hid_device_create_virtual(uni_hid_device_t* parent) {
         if (bd_addr_cmp(g_devices[i].conn.btaddr, zero_addr) == 0) {
             logi("Creating virtual device (idx=%d)\n", i);
 
-            memset(&g_devices[i], 0, sizeof(g_devices[i]));
+            // Don't memset the device, it is already "clean".
+            // memsetting could break the initialization.
 
             // Both parent and child share the same address.
             // Seems safe to copy the address. "get_instance_by_address" skips
@@ -103,7 +104,6 @@ uni_hid_device_t* uni_hid_device_create_virtual(uni_hid_device_t* parent) {
             g_devices[i].cod = parent->cod;
             g_devices[i].controller_type = parent->controller_type;
             g_devices[i].controller_subtype = parent->controller_subtype;
-            g_devices[i].conn.handle = UNI_BT_CONN_HANDLE_INVALID;
 
             // All virtual devices have a "controller type", which is known by the parent.
             g_devices[i].flags |= FLAGS_HAS_CONTROLLER_TYPE;
