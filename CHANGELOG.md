@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0-beta3] - ???
+### Fixed
+- Virtual Device: Don't remove virtual device when Xbox device is connected. Fixes [Github Issue #77][github_issue_77]
+
+[github_issue_77]: https://github.com/ricardoquesada/bluepad32/issues/77
+
 ## [4.0-beta2] - 2024-03-09
 ### New
 - BLE Service: Added `uni_bt_enable_service_safe(bool)` API to enable/disable in runtime

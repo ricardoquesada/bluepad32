@@ -153,11 +153,9 @@ static void on_hci_disconnection_complete(uint16_t channel, const uint8_t* packe
     reason = hci_event_disconnection_complete_get_reason(packet);
     status = hci_event_disconnection_complete_get_status(packet);
 
-    // Xbox Wireless Controller starts an incoming connection when told to
-    // enter in "discovery mode". If the connection fails (HCI_EVENT_DISCONNECTION_COMPLETE
-    // is generated) then it starts the discovery.
-    // So, just delete the possible-previous created entry. This highly increase
-    // the reliability with Xbox Wireless controllers.
+    // Xbox Wireless Controller starts an incoming connection when told to enter in "discovery mode". If the connection
+    // fails (HCI_EVENT_DISCONNECTION_COMPLETE is generated) then it starts the discovery. So, delete the
+    // possible-previous created entry. This highly increases the reliability of Xbox Wireless controllers.
     d = uni_hid_device_get_instance_for_connection_handle(handle);
     if (d) {
         // Get type before it gets destroyed.
