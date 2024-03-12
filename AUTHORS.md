@@ -54,6 +54,7 @@ Main author and maintainer: [Ricardo Quesada](http://retro.moe)
 - Phase Dock (<https://phasedock.com/>) [*]
 - James Solderitsch [*]
 - Joshua Clay [*]
+- Microbmen (Retro6502)
 
 [*]: Multiple times or generous donations
 
