@@ -679,14 +679,14 @@ static const uni_controller_description_t arrControllers[] = {
 	// Smart TV remotes
 	{ MAKE_CONTROLLER_ID(0x1949, 0x0401), CONTROLLER_TYPE_SmartTVRemoteController, NULL},  // Amazon Fire TV remote Controlelr 1st gen
 
-	// 8-Bitdo controllers
-	{ MAKE_CONTROLLER_ID(0x2820, 0x0009), CONTROLLER_TYPE_8BitdoController, NULL},  // 8Bitdo NES30 Gamepro
-	{ MAKE_CONTROLLER_ID(0x2dc8, 0x0651), CONTROLLER_TYPE_8BitdoController, NULL},  // 8Bitdo M30
-	{ MAKE_CONTROLLER_ID(0x2dc8, 0x2830), CONTROLLER_TYPE_8BitdoController, NULL},  // 8Bitdo SFC30
-	{ MAKE_CONTROLLER_ID(0x2dc8, 0x2840), CONTROLLER_TYPE_8BitdoController, NULL},  // 8Bitdo SNES30
-	{ MAKE_CONTROLLER_ID(0x2dc8, 0x3230), CONTROLLER_TYPE_8BitdoController, NULL},  // 8Bitdo Zero 2
-	{ MAKE_CONTROLLER_ID(0x2dc8, 0x6100), CONTROLLER_TYPE_8BitdoController, NULL},  // 8Bitdo SF30 Pro
-	{ MAKE_CONTROLLER_ID(0x2dc8, 0x6101), CONTROLLER_TYPE_8BitdoController, NULL},  // 8Bitdo SN30 Pro
+	// 8BitDo controllers
+	{ MAKE_CONTROLLER_ID(0x2820, 0x0009), CONTROLLER_TYPE_8BitdoController, NULL},  // 8BitDo NES30 Gamepro
+	{ MAKE_CONTROLLER_ID(0x2dc8, 0x0651), CONTROLLER_TYPE_8BitdoController, NULL},  // 8BitDo M30
+	{ MAKE_CONTROLLER_ID(0x2dc8, 0x2830), CONTROLLER_TYPE_8BitdoController, NULL},  // 8BitDo SFC30
+	{ MAKE_CONTROLLER_ID(0x2dc8, 0x2840), CONTROLLER_TYPE_8BitdoController, NULL},  // 8BitDo SNES30
+	{ MAKE_CONTROLLER_ID(0x2dc8, 0x3230), CONTROLLER_TYPE_8BitdoController, NULL},  // 8BitDo Zero 2
+	{ MAKE_CONTROLLER_ID(0x2dc8, 0x6100), CONTROLLER_TYPE_8BitdoController, NULL},  // 8BitDo SF30 Pro
+	{ MAKE_CONTROLLER_ID(0x2dc8, 0x6101), CONTROLLER_TYPE_8BitdoController, NULL},  // 8BitDo SN30 Pro
 
 	// Generic gamepad
 	{ MAKE_CONTROLLER_ID(0x0a5c, 0x4502), CONTROLLER_TYPE_GenericController, NULL},  // White-label mini gamepad received as gift in conference
@@ -696,18 +696,18 @@ static const uni_controller_description_t arrControllers[] = {
 	{ MAKE_CONTROLLER_ID(0x0111, 0x1431), CONTROLLER_TYPE_AndroidController, NULL},  // SteelSeries Stratus Duo (Bluetooth)
 
 	// Nintendo
-	{ MAKE_CONTROLLER_ID(0x057e, 0x0330), CONTROLLER_TYPE_WiiController, NULL},        // Nintendo Wii U Pro
-	{ MAKE_CONTROLLER_ID(0x057e, 0x0306), CONTROLLER_TYPE_WiiController, NULL},        // Nintendo Wii Remote
-    { MAKE_CONTROLLER_ID(0x057e, 0x2017), CONTROLLER_TYPE_SwitchProController, NULL }, // Nintendo Online SNES Controller
-    { MAKE_CONTROLLER_ID(0x057e, 0x2019), CONTROLLER_TYPE_SwitchProController, NULL }, // Nintendo Online N64 Controller
-    { MAKE_CONTROLLER_ID(0x057e, 0x201e), CONTROLLER_TYPE_SwitchProController, NULL }, // Nintendo Online SEGA Genesis Controller
+	{ MAKE_CONTROLLER_ID(0x057e, 0x0330), CONTROLLER_TYPE_WiiController, NULL},         // Nintendo Wii U Pro
+	{ MAKE_CONTROLLER_ID(0x057e, 0x0306), CONTROLLER_TYPE_WiiController, NULL},         // Nintendo Wii Remote
+        { MAKE_CONTROLLER_ID(0x057e, 0x2017), CONTROLLER_TYPE_SwitchProController, NULL },  // Nintendo Online SNES Controller
+        { MAKE_CONTROLLER_ID(0x057e, 0x2019), CONTROLLER_TYPE_SwitchProController, NULL },  // Nintendo Online N64 Controller
+        { MAKE_CONTROLLER_ID(0x057e, 0x201e), CONTROLLER_TYPE_SwitchProController, NULL },  // Nintendo Online SEGA Genesis Controller
 
 	// Sony
-    { MAKE_CONTROLLER_ID( 0x054c, 0x03d5 ), CONTROLLER_TYPE_PSMoveController, NULL },  // Sony PS Move (Motion Controller) ZCM1
-    { MAKE_CONTROLLER_ID( 0x054c, 0x0c5e ), CONTROLLER_TYPE_PSMoveController, NULL },  // Sony PS Move (Motion Controller) ZCM2
+        { MAKE_CONTROLLER_ID( 0x054c, 0x03d5 ), CONTROLLER_TYPE_PSMoveController, NULL },   // Sony PS Move (Motion Controller) ZCM1
+        { MAKE_CONTROLLER_ID( 0x054c, 0x0c5e ), CONTROLLER_TYPE_PSMoveController, NULL },   // Sony PS Move (Motion Controller) ZCM2
 
 	// Atari Modern VCS Controllers
-    { MAKE_CONTROLLER_ID( 0x3250, 0x1001 ), CONTROLLER_TYPE_AtariJoystick, NULL },     // Atari Wireless Classic Joystick
+        { MAKE_CONTROLLER_ID( 0x3250, 0x1001 ), CONTROLLER_TYPE_AtariJoystick, NULL },      // Atari Wireless Classic Joystick
 
 	// Bluepad32 addons to here.
 };
