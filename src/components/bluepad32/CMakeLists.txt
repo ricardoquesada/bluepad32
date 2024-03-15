@@ -41,7 +41,8 @@ set(srcs
          "uni_property.c"
          "uni_utils.c"
          "uni_version.c"
-         "uni_virtual_device.c")
+         "uni_virtual_device.c"
+        controller/uni_controller_type.c)
 
  if(CONFIG_IDF_TARGET_ESP32 OR PICO_SDK_VERSION_STRING OR BLUEPAD32_TARGET_POSIX)
     # Bluetooth Classic files used by:

@@ -15,10 +15,10 @@
 
 #include "bt/uni_bt.h"
 #include "controller/uni_controller.h"
+#include "controller/uni_controller_type.h"
 #include "uni_common.h"
 #include "uni_config.h"
 #include "uni_hid_device.h"
-#include "uni_hid_device_vendors.h"
 #include "uni_joystick.h"
 #include "uni_log.h"
 

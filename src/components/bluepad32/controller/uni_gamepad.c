@@ -9,7 +9,7 @@
 
 #include "uni_common.h"
 #include "uni_config.h"
-#include "uni_hid_device_vendors.h"
+#include "controller/uni_controller_type.h"
 #include "uni_log.h"
 
 static uni_gamepad_mappings_t map;
