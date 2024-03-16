@@ -33,6 +33,8 @@ typedef enum {
     STATE_QUERY_END,
 } steam_query_state_t;
 
+// TODO: Can this be refactored to use `hids_client_send_write_report()`
+
 // "100F6C32-1735-4313-B402-38567131E5F3"
 static uint8_t le_steam_service_uuid[16] = {0x10, 0x0f, 0x6c, 0x32, 0x17, 0x35, 0x43, 0x13,
                                             0xb4, 0x02, 0x38, 0x56, 0x71, 0x31, 0xe5, 0xf3};
