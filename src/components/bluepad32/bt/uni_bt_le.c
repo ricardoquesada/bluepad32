@@ -283,9 +283,18 @@ static void hids_client_packet_handler(uint8_t packet_type, uint16_t channel, ui
                         loge("Hids Cid: Could not find valid device for hids_cid=%d\n", hids_cid);
                         break;
                     }
+#if 0
+                    status = hids_client_enable_notifications(hids_cid);
+                    if (status != ERROR_CODE_SUCCESS)
+                        logi("Failed to enable client notifications for hids_cid=%d, status=%#x\n", hids_cid, status);
+                    else
+                        logi("Client notifications enabled for for hids_cid=%d\n", hids_cid);
+#endif
+
                     uni_hid_device_guess_controller_type_from_pid_vid(device);
                     uni_hid_device_connect(device);
                     uni_hid_device_set_ready(device);
+
                     resume_scanning_hint();
                     break;
                 default:
@@ -390,10 +399,6 @@ static void device_information_packet_handler(uint8_t packet_type, uint16_t chan
                     }
                     logi("Using hids_cid=%d\n", hids_cid);
                     device->hids_cid = hids_cid;
-
-                    status = hids_client_enable_notifications(hids_cid);
-                    if (status != ERROR_CODE_SUCCESS)
-                        logi("Failed to enable client notifications for hics_cid=%d, status=%#x\n", hids_cid, status);
                     break;
                 default:
                     logi("Device Information service client connection failed, error=%#x.\n", status);
@@ -707,7 +712,7 @@ void uni_bt_le_on_hci_event_encryption_change(const uint8_t* packet, uint16_t si
         return;
     }
     // This event is also triggered by Classic, and might crash the stack.
-    // Real case: Connect a Wii , disconnect it, and try re-connection
+    // Real case: Connect a Wii, disconnect it, and try re-connection
     if (device->conn.protocol != UNI_BT_CONN_PROTOCOL_BLE)
         // Abort on non BLE connections
         return;
