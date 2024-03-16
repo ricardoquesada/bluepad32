@@ -18,6 +18,9 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
+// Taken from:
+// https://github.com/libsdl-org/SDL/blob/main/src/joystick/controller_list.h
+
 // DO NOT INCLUDE.
 // CAN ONLY BE INCLUDED FROM uni_controller_type.c
 

@@ -18,6 +18,9 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
+// Taken from:
+// https://github.com/libsdl-org/SDL/blob/main/src/joystick/controller_type.c
+
 #include "controller/uni_controller_type.h"
 
 #include <stdbool.h>
