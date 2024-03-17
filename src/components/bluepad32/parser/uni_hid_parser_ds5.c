@@ -32,19 +32,29 @@
 #define DS5_GYRO_RES_PER_DEG_S 1024
 #define DS5_GYRO_RANGE (2048 * DS5_GYRO_RES_PER_DEG_S)
 
+#define DS5_FEATURE_VERSION(major, minor) ((major & 0xff) << 8 | (minor & 0xff))
+
+// Edge has different features and non-edge
+#define DS5_PID 0x0ce6
+#define DS5_EDGE_PID 0x0df2
+
 enum {
-    // Values for flag 0
+    // Values for flag0
     DS5_FLAG0_COMPATIBLE_VIBRATION = BIT(0),
     DS5_FLAG0_HAPTICS_SELECT = BIT(1),
     DS5_FLAG0_FFB_RIGHT = BIT(2),
     DS5_FLAG0_FFB_LEFT = BIT(3),
 
-    // Values for flag 1
-    DS5_FLAG1_LIGHTBAR = BIT(2),
-    DS5_FLAG1_PLAYER_LED = BIT(4),
+    // Values for flag1
+    DS5_FLAG1_MIC_MUTE_LED_CONTROL_ENABLE = BIT(0),
+    DS5_FLAG1_POWER_SAVE_CONTROL_ENABLE = BIT(1),
+    DS5_FLAG1_LIGHTBAR_CONTROL_ENABLE = BIT(2),
+    DS5_FLAG1_RELEASE_LEDS = BIT(3),
+    DS5_FLAG1_PLAYER_LED_CONTROL_ENABLE = BIT(4),
 
-    // Values for flag 2
+    // Values for flag2
     DS5_FLAG2_LIGHTBAR_SETUP_CONTROL_ENABLE = BIT(1),
+    DS5_FLAG2_COMPATIBLE_VIBRATION2 = BIT(2),
 
     // Values for lightbar_setup
     DS5_LIGHTBAR_SETUP_LIGHT_OUT = BIT(1),  // Fade light out
@@ -80,6 +90,8 @@ typedef struct {
     ds5_state_t state;
     uint32_t hw_version;
     uint32_t fw_version;
+    uint16_t update_version;
+    bool use_vibration2;
 
     struct ds5_calibration_data gyro_calib_data[3];
     struct ds5_calibration_data accel_calib_data[3];
@@ -170,7 +182,9 @@ typedef struct __attribute((packed)) {
     char unk_0[4];
     uint32_t hw_version;
     uint32_t fw_version;
-    char unk_1[28];
+    char unk_1[12];
+    uint16_t update_version;
+    char unk_2[14];
     uint32_t crc32;
 } ds5_feature_report_firmware_version_t;
 _Static_assert(sizeof(ds5_feature_report_firmware_version_t) == DS5_FEATURE_REPORT_FIRMWARE_VERSION_SIZE,
@@ -415,6 +429,7 @@ void uni_hid_parser_ds5_parse_feature_report(uni_hid_device_t* d, const uint8_t*
             ds5_feature_report_firmware_version_t* r = (ds5_feature_report_firmware_version_t*)report;
             ins->hw_version = r->hw_version;
             ins->fw_version = r->fw_version;
+            ins->update_version = r->update_version;
 
             // ASCII-z strings
             char date_z[sizeof(r->string_date) + 1] = {0};
@@ -423,7 +438,11 @@ void uni_hid_parser_ds5_parse_feature_report(uni_hid_device_t* d, const uint8_t*
             strncpy(date_z, r->string_date, sizeof(date_z) - 1);
             strncpy(time_z, r->string_time, sizeof(time_z) - 1);
 
-            logi("DS5: fw version: 0x%08x, hw version: 0x%08x\n", ins->fw_version, ins->hw_version);
+            // Supported in DualSense Edge, and in new regular DualSense.
+            // "Vibration2" is the new way to rumble. The old one was emulating classic controllers.
+            ins->use_vibration2 = (d->product_id == DS5_EDGE_PID || ins->update_version >= DS5_FEATURE_VERSION(2, 21));
+
+            uni_hid_parser_ds5_device_dump(d);
             logi("DS5: Firmware build date: %s, %s\n", date_z, time_z);
 
             ds5_request_calibration_report(d);
@@ -623,7 +642,7 @@ void uni_hid_parser_ds5_set_player_leds(struct uni_hid_device_s* d, uint8_t valu
 
     ds5_output_report_t out = {
         .player_leds = led_values[value % ARRAY_SIZE(led_values)],
-        .valid_flag1 = DS5_FLAG1_PLAYER_LED,
+        .valid_flag1 = DS5_FLAG1_PLAYER_LED_CONTROL_ENABLE,
     };
 
     ds5_send_output_report(d, &out);
@@ -634,7 +653,7 @@ void uni_hid_parser_ds5_set_lightbar_color(struct uni_hid_device_s* d, uint8_t r
         .lightbar_red = r,
         .lightbar_green = g,
         .lightbar_blue = b,
-        .valid_flag1 = DS5_FLAG1_LIGHTBAR,
+        .valid_flag1 = DS5_FLAG1_LIGHTBAR_CONTROL_ENABLE,
     };
 
     ds5_send_output_report(d, &out);
@@ -646,12 +665,17 @@ void uni_hid_parser_ds5_set_rumble(struct uni_hid_device_s* d, uint8_t value, ui
         return;
 
     ds5_output_report_t out = {
-        .valid_flag0 = DS5_FLAG0_HAPTICS_SELECT | DS5_FLAG0_COMPATIBLE_VIBRATION,
+        .valid_flag0 = DS5_FLAG0_HAPTICS_SELECT,
 
         // Right motor: small force; left motor: big force
         .motor_right = value,
         .motor_left = value,
     };
+
+    if (ins->use_vibration2)
+        out.valid_flag2 |= DS5_FLAG2_COMPATIBLE_VIBRATION2;
+    else
+        out.valid_flag0 |= DS5_FLAG0_COMPATIBLE_VIBRATION;
 
     ds5_send_output_report(d, &out);
 
@@ -666,7 +690,8 @@ void uni_hid_parser_ds5_set_rumble(struct uni_hid_device_s* d, uint8_t value, ui
 
 void uni_hid_parser_ds5_device_dump(uni_hid_device_t* d) {
     ds5_instance_t* ins = get_ds5_instance(d);
-    logi("\tDS5: FW version %#x, HW version %#x\n", ins->fw_version, ins->hw_version);
+    logi("DS5: FW version: %#x, HW version: %#x, update version: %#x, use vibration2: %d\n", ins->fw_version,
+         ins->hw_version, ins->update_version, ins->use_vibration2);
 }
 
 //
@@ -749,7 +774,7 @@ static void ds5_send_enable_lightbar_report(uni_hid_device_t* d) {
     // Also, sending an output report enables input report 0x31.
     ds5_output_report_t out = {
         .lightbar_blue = 255,
-        .valid_flag1 = DS5_FLAG1_LIGHTBAR,
+        .valid_flag1 = DS5_FLAG1_LIGHTBAR_CONTROL_ENABLE,
 
         .valid_flag2 = DS5_FLAG2_LIGHTBAR_SETUP_CONTROL_ENABLE,
         .lightbar_setup = DS5_LIGHTBAR_SETUP_LIGHT_OUT,
