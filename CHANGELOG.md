@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [4.0-beta3] - ???
+### New
+- New Rumble API: `set_dual_rumble(start_delayed_ms, duration_ms, weak_magnitude, strong_magnitude)`. Fixes [Github Issue #83][github_issue_83]
+ 
 ### Fixed
 - Virtual Device: Don't remove virtual device when Xbox device is connected. Fixes [Github Issue #77][github_issue_77]
 - Xbox: Add rumble support for Xbox Firmware v5.x. Fixes [Github Issue #69][github_issue_69]
@@ -12,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [github_issue_69]: https://github.com/ricardoquesada/bluepad32/issues/69
 [github_issue_77]: https://github.com/ricardoquesada/bluepad32/issues/77
+[github_issue_83]: https://github.com/ricardoquesada/bluepad32/issues/83
 [gitlab_issue_36]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/36
 
 ## [4.0-beta2] - 2024-03-09
