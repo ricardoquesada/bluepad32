@@ -81,6 +81,7 @@ void uni_hid_parser_stadia_set_dual_rumble(struct uni_hid_device_s* d,
             break;
         default:
             // Do nothing
+            break;
     }
 
     if (start_delay_ms == 0) {
