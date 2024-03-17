@@ -280,6 +280,9 @@ Classic Controller can be used.
 [![Stadia Controller][stadia_controller]][stadia_ebay]
 
 - Controller must be [flashed with Bluetooth firmware][stadia_instructions]
+- Supported features: rumble
+- Pair instructions:
+  - Press "Y" + "Stadia" button
 - Protocol: BLE
 
 [stadia_ebay]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw=stadia+controller&_sacat=0
