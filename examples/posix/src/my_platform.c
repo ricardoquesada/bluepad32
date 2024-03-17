@@ -91,8 +91,8 @@ static uni_error_t posix_on_device_ready(uni_hid_device_t* d) {
 }
 
 static void posix_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl) {
-    static uint8_t leds = 0;
-    static uint8_t enabled = true;
+    //    static uint8_t leds = 0;
+    //    static uint8_t enabled = true;
     static uni_controller_t prev = {0};
     uni_gamepad_t* gp;
 
@@ -128,6 +128,7 @@ static void posix_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl)
                 d->report_parser.play_dual_rumble(d, 0, 100, 0, 255);
             }
 
+#if 0
             // Buttons: Control LEDs On/Off
             if ((gp->buttons & BUTTON_B) && d->report_parser.set_player_leds != NULL) {
                 d->report_parser.set_player_leds(d, leds++ & 0x0f);
@@ -151,6 +152,7 @@ static void posix_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl)
                 uni_bt_enable_new_connections_safe(true);
                 enabled = true;
             }
+#endif
             break;
         case UNI_CONTROLLER_CLASS_MOUSE:
             uni_hid_parser_mouse_device_dump(d);

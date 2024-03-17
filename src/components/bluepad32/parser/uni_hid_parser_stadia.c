@@ -100,6 +100,9 @@ void uni_hid_parser_stadia_play_dual_rumble(struct uni_hid_device_s* d,
     }
 }
 
+//
+// Helpers
+//
 static void stadia_play_dual_rumble_now(struct uni_hid_device_s* d,
                                         uint16_t duration_ms,
                                         uint8_t weak_magnitude,
@@ -128,9 +131,6 @@ static void stadia_play_dual_rumble_now(struct uni_hid_device_s* d,
     btstack_run_loop_add_timer(&ins->rumble_timer_duration);
 }
 
-//
-// Helpers
-//
 static stadia_instance_t* get_stadia_instance(uni_hid_device_t* d) {
     return (stadia_instance_t*)&d->parser_data[0];
 }
