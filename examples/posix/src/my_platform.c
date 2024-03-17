@@ -110,22 +110,22 @@ static void posix_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl)
 
             // Debugging
             // Axis ry: control rumble
-            if ((gp->buttons & BUTTON_A) && d->report_parser.set_dual_rumble != NULL) {
-                d->report_parser.set_dual_rumble(d, 1000, 100, 0, 255);
+            if ((gp->buttons & BUTTON_A) && d->report_parser.play_dual_rumble != NULL) {
+                d->report_parser.play_dual_rumble(d, 1000, 100, 0, 255);
             } else if ((gp->buttons & BUTTON_A) && d->report_parser.set_rumble != NULL) {
                 d->report_parser.set_rumble(d, 0x80, 50);
             }
 
-            if ((gp->buttons & BUTTON_B) && d->report_parser.set_dual_rumble != NULL) {
-                d->report_parser.set_dual_rumble(d, 0, 100, 255, 0);
+            if ((gp->buttons & BUTTON_B) && d->report_parser.play_dual_rumble != NULL) {
+                d->report_parser.play_dual_rumble(d, 0, 100, 255, 0);
             }
 
-            if ((gp->buttons & BUTTON_X) && d->report_parser.set_dual_rumble != NULL) {
-                d->report_parser.set_dual_rumble(d, 0, 100, 255, 255);
+            if ((gp->buttons & BUTTON_X) && d->report_parser.play_dual_rumble != NULL) {
+                d->report_parser.play_dual_rumble(d, 0, 100, 255, 255);
             }
 
-            if ((gp->buttons & BUTTON_Y) && d->report_parser.set_dual_rumble != NULL) {
-                d->report_parser.set_dual_rumble(d, 0, 100, 0, 255);
+            if ((gp->buttons & BUTTON_Y) && d->report_parser.play_dual_rumble != NULL) {
+                d->report_parser.play_dual_rumble(d, 0, 100, 0, 255);
             }
 
             // Buttons: Control LEDs On/Off
@@ -202,8 +202,8 @@ static posix_instance_t* get_posix_instance(uni_hid_device_t* d) {
 static void trigger_event_on_gamepad(uni_hid_device_t* d) {
     posix_instance_t* ins = get_posix_instance(d);
 
-    if (d->report_parser.set_dual_rumble != NULL) {
-        d->report_parser.set_dual_rumble(
+    if (d->report_parser.play_dual_rumble != NULL) {
+        d->report_parser.play_dual_rumble(
             d, 0 /* delayed start ms */, 150 /* duration ms */, 0 /* weak_magnitude */, 255 /* strong_magnitude */
         );
     } else if (d->report_parser.set_rumble != NULL) {

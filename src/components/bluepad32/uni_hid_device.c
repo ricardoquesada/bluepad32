@@ -607,7 +607,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             if (d->vendor_id == UNI_HID_PARSER_STADIA_VID && d->product_id == UNI_HID_PARSER_STADIA_PID) {
                 d->report_parser.setup = uni_hid_parser_stadia_setup;
                 d->report_parser.set_rumble = uni_hid_parser_stadia_set_rumble;
-                d->report_parser.set_dual_rumble = uni_hid_parser_stadia_set_dual_rumble;
+                d->report_parser.play_dual_rumble = uni_hid_parser_stadia_play_dual_rumble;
                 logi("Device detected as Stadia: 0x%02x\n", type);
             } else {
                 logi("Device detected as Android: 0x%02x\n", type);

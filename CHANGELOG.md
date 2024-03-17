@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.0-beta3] - ???
 ### New
-- New Rumble API: `set_dual_rumble(start_delayed_ms, duration_ms, weak_magnitude, strong_magnitude)`. Fixes [Github Issue #83][github_issue_83]
+- New Rumble API: `play_dual_rumble(start_delayed_ms, duration_ms, weak_magnitude, strong_magnitude)`. Fixes [Github Issue #83][github_issue_83]
 - DualSense: Support "vibration2" rumble for DualSense Edge and newer regular DualSense
  
 ### Fixed
