@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [4.0-beta3] - ???
 ### Fixed
 - Virtual Device: Don't remove virtual device when Xbox device is connected. Fixes [Github Issue #77][github_issue_77]
-- Xbox: Rumble works on Xbox Firmware v5.x. Fixes [Github Issue #69][github_issue_69]
+- Xbox: Add rumble support for Xbox Firmware v5.x. Fixes [Github Issue #69][github_issue_69]
+- Stadia: Add rumble support. Fixes [Gitlab Issue #36][gitlab_issue_36]
 
 [github_issue_69]: https://github.com/ricardoquesada/bluepad32/issues/69
 [github_issue_77]: https://github.com/ricardoquesada/bluepad32/issues/77
+[gitlab_issue_36]: https://gitlab.com/ricardoquesada/bluepad32/-/issues/36
 
 ## [4.0-beta2] - 2024-03-09
 ### New

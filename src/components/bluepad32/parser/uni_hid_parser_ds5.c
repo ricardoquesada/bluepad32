@@ -200,19 +200,12 @@ typedef struct __attribute((packed)) {
 _Static_assert(sizeof(ds5_feature_report_calibration_t) == DS5_FEATURE_REPORT_CALIBRATION_SIZE, "Invalid size");
 
 static ds5_instance_t* get_ds5_instance(uni_hid_device_t* d);
-
 static void ds5_send_output_report(uni_hid_device_t* d, ds5_output_report_t* out);
-
 static void ds5_send_enable_lightbar_report(uni_hid_device_t* d);
-
 static void ds5_request_pairing_info_report(uni_hid_device_t* d);
-
 static void ds5_request_firmware_version_report(uni_hid_device_t* d);
-
 static void ds5_request_calibration_report(uni_hid_device_t* d);
-
 static void ds5_set_rumble_off(btstack_timer_source_t* ts);
-
 static void ds5_parse_mouse(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
 
 ds5_adaptive_trigger_effect_t ds5_new_adaptive_trigger_effect_off(void) {

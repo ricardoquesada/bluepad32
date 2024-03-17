@@ -28,6 +28,7 @@
 #include "parser/uni_hid_parser_ouya.h"
 #include "parser/uni_hid_parser_psmove.h"
 #include "parser/uni_hid_parser_smarttvremote.h"
+#include "parser/uni_hid_parser_stadia.h"
 #include "parser/uni_hid_parser_steam.h"
 #include "parser/uni_hid_parser_switch.h"
 #include "parser/uni_hid_parser_wii.h"
@@ -603,7 +604,13 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             d->report_parser.init_report = uni_hid_parser_android_init_report;
             d->report_parser.parse_usage = uni_hid_parser_android_parse_usage;
             d->report_parser.set_player_leds = uni_hid_parser_android_set_player_leds;
-            logi("Device detected as Android: 0x%02x\n", type);
+            if (d->vendor_id == UNI_HID_PARSER_STADIA_VID && d->product_id == UNI_HID_PARSER_STADIA_PID) {
+                d->report_parser.setup = uni_hid_parser_stadia_setup;
+                d->report_parser.set_rumble = uni_hid_parser_stadia_set_rumble;
+                logi("Device detected as Stadia: 0x%02x\n", type);
+            } else {
+                logi("Device detected as Android: 0x%02x\n", type);
+            }
             break;
         case CONTROLLER_TYPE_NimbusController:
             d->report_parser.init_report = uni_hid_parser_nimbus_init_report;

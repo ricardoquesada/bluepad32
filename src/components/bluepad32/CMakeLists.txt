@@ -10,6 +10,7 @@ set(srcs
          "bt/uni_bt_setup.c"
          "controller/uni_balance_board.c"
          "controller/uni_controller.c"
+         "controller/uni_controller_type.c"
          "controller/uni_gamepad.c"
          "controller/uni_keyboard.c"
          "controller/uni_mouse.c"
@@ -28,6 +29,7 @@ set(srcs
          "parser/uni_hid_parser_ouya.c"
          "parser/uni_hid_parser_psmove.c"
          "parser/uni_hid_parser_smarttvremote.c"
+         "parser/uni_hid_parser_stadia.c"
          "parser/uni_hid_parser_steam.c"
          "parser/uni_hid_parser_switch.c"
          "parser/uni_hid_parser_wii.c"
@@ -41,8 +43,7 @@ set(srcs
          "uni_property.c"
          "uni_utils.c"
          "uni_version.c"
-         "uni_virtual_device.c"
-        controller/uni_controller_type.c)
+         "uni_virtual_device.c")
 
  if(CONFIG_IDF_TARGET_ESP32 OR PICO_SDK_VERSION_STRING OR BLUEPAD32_TARGET_POSIX)
     # Bluetooth Classic files used by:
