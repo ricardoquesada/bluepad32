@@ -54,17 +54,25 @@ enum xboxone_firmware {
     XBOXONE_FIRMWARE_V5,    // BLE version
 };
 
+// Actuators for the force feedback (FF).
+enum {
+    XBOXONE_FF_WEAK = BIT(0),
+    XBOXONE_FF_STRONG = BIT(1),
+    XBOXONE_FF_TRIGGER_RIGHT = BIT(2),
+    XBOXONE_FF_TRIGGER_LEFT = BIT(3),
+};
+
 struct xboxone_ff_report {
     // Report related
     uint8_t transaction_type;  // type of transaction
     uint8_t report_id;         // report id, should be XBOX_RUMBLE_REPORT_ID
 
     // Force-feedback related
-    uint8_t enable_actuators;    // LSB 0-3 for each actuator
-    uint8_t force_left_trigger;  // HID descriptor says that it goes from 0-100
-    uint8_t force_right_trigger;
-    uint8_t force_left;
-    uint8_t force_right;
+    uint8_t enable_actuators;        // LSB 0-3 for each actuator
+    uint8_t magnitude_left_trigger;  // HID descriptor says that it goes from 0-100
+    uint8_t magnitude_right_trigger;
+    uint8_t magnitude_strong;
+    uint8_t magnitude_weak;
     uint8_t duration_10ms;
     uint8_t start_delay_10ms;
     uint8_t loop_count;  // how many times "duration" is repeated
@@ -88,7 +96,7 @@ static void parse_usage_firmware_v4_v5(uni_hid_device_t* d,
                                        uint16_t usage,
                                        int32_t value);
 
-// Needed for the GameSir T3s controller when put in iOS mode, which is basically impersonates a
+// Needed for the GameSir T3s controller when put in iOS mode, which is basically impersonating an
 // Xbox Wireless controller with FW 4.8.
 bool uni_hid_parser_xboxone_does_name_match(struct uni_hid_device_s* d, const char* name) {
     if (!name)
@@ -471,26 +479,18 @@ void uni_hid_parser_xboxone_play_dual_rumble(struct uni_hid_device_s* d,
 
     xboxone_instance_t* ins = get_xboxone_instance(d);
 
-    // Actuators for the force feedback (FF).
-    enum {
-        FF_RIGHT = 1 << 0,
-        FF_LEFT = 1 << 1,
-        FF_TRIGGER_RIGHT = 1 << 2,
-        FF_TRIGGER_LEFT = 1 << 3,
-    };
-
     struct xboxone_ff_report ff = {
         .transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT,
         .report_id = XBOX_RUMBLE_REPORT_ID,
-        .enable_actuators = FF_RIGHT | FF_LEFT,
-        .force_left_trigger = 0,
-        .force_right_trigger = 0,
-        // Don't enable force_left/force_right actuators.
+        .enable_actuators = XBOXONE_FF_STRONG | XBOXONE_FF_WEAK,
+        .magnitude_left_trigger = 0,
+        .magnitude_right_trigger = 0,
+        // Don't enable magnitude_left/magnitude_right actuators.
         // They keep vibrating forever on some 8BitDo controllers
         // https://gitlab.com/ricardoquesada/unijoysticle2/-/issues/10
         // Magnitude is 0..100 so scale the 8-bit input here
-        .force_left = ((uint16_t)(strong_magnitude * 100)) / UINT8_MAX,
-        .force_right = ((uint16_t)(weak_magnitude * 100)) / UINT8_MAX,
+        .magnitude_strong = ((uint16_t)(strong_magnitude * 100)) / UINT8_MAX,
+        .magnitude_weak = ((uint16_t)(weak_magnitude * 100)) / UINT8_MAX,
         .duration_10ms = duration_ms / 10,
         .start_delay_10ms = start_delay_ms / 10,
         .loop_count = 0,
@@ -499,7 +499,7 @@ void uni_hid_parser_xboxone_play_dual_rumble(struct uni_hid_device_s* d,
     if (ins->version == XBOXONE_FIRMWARE_V5) {
         status = hids_client_send_write_report(d->hids_cid, XBOX_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
                                                &ff.enable_actuators,  // skip the first type bytes,
-                                               sizeof(ff) - 2         // substract the 2 bytes from total
+                                               sizeof(ff) - 2         // subtract the 2 bytes from total
         );
         if (status != ERROR_CODE_SUCCESS)
             loge("Xbox: Failed to send rumble report, error=%#x\n", status);
