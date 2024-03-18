@@ -1121,10 +1121,10 @@ void uni_hid_parser_switch_set_rumble(struct uni_hid_device_s* d, uint8_t value,
 }
 
 void uni_hid_parser_switch_play_dual_rumble(struct uni_hid_device_s* d,
-                                         uint16_t start_delay_ms,
-                                         uint16_t duration_ms,
-                                         uint8_t weak_magnitude,
-                                         uint8_t strong_magnitude) {
+                                            uint16_t start_delay_ms,
+                                            uint16_t duration_ms,
+                                            uint8_t weak_magnitude,
+                                            uint8_t strong_magnitude) {
     if (d == NULL) {
         loge("Switch: Invalid device\n");
         return;
