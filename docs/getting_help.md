@@ -122,9 +122,11 @@ Example of question with the needed info:
     I'm using Bluepad32 v3.9.0 with a SparkFun Thing ESP32.
     I'm using it with Arduino IDE v2.1.0.
 
-    When I'm connecting a DualShock 4, the gamepad connects, but rumble doesn't work. I'm calling it using: `ctl->setRumble(0xc0, 0xc0)`.
+    I'm trying to enable rumble with:
 
-    But it works with a Nintendo Switch controller.
+    `ctl->setRumble(0xc0, 0xc0);`.
+
+    It works with a Nintendo Switch controller, but it doesn't work with a DualShock 4 controller.
     This is the output [attach console output].
 
     What could be the issue ?
