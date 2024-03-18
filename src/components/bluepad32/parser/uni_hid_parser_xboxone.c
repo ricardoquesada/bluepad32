@@ -65,8 +65,8 @@ struct xboxone_ff_report {
     uint8_t force_right_trigger;
     uint8_t force_left;
     uint8_t force_right;
-    uint8_t duration;  // unknown unit, 255 is ~second
-    uint8_t start_delay;
+    uint8_t duration_10ms;
+    uint8_t start_delay_10ms;
     uint8_t loop_count;  // how many times "duration" is repeated
 } __attribute__((packed));
 
@@ -454,6 +454,14 @@ static void parse_usage_firmware_v4_v5(uni_hid_device_t* d,
 }
 
 void uni_hid_parser_xboxone_set_rumble(uni_hid_device_t* d, uint8_t value, uint8_t duration) {
+    uni_hid_parser_xboxone_play_dual_rumble(d, 0, duration * 4 / 10, value, value);
+}
+
+void uni_hid_parser_xboxone_play_dual_rumble(struct uni_hid_device_s* d,
+                                             uint16_t start_delay_ms,
+                                             uint16_t duration_ms,
+                                             uint8_t weak_magnitude,
+                                             uint8_t strong_magnitude) {
     uint8_t status;
 
     if (d == NULL) {
@@ -471,22 +479,20 @@ void uni_hid_parser_xboxone_set_rumble(uni_hid_device_t* d, uint8_t value, uint8
         FF_TRIGGER_LEFT = 1 << 3,
     };
 
-    // TODO: It seems that the max value is 127. Double check
-    value /= 2;
-
     struct xboxone_ff_report ff = {
         .transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT,
-        .report_id = XBOX_RUMBLE_REPORT_ID,  // taken from HID descriptor
-        .enable_actuators = FF_RIGHT | FF_LEFT | FF_TRIGGER_LEFT | FF_TRIGGER_RIGHT,
-        .force_left_trigger = value,
-        .force_right_trigger = value,
+        .report_id = XBOX_RUMBLE_REPORT_ID,
+        .enable_actuators = FF_RIGHT | FF_LEFT,
+        .force_left_trigger = 0,
+        .force_right_trigger = 0,
         // Don't enable force_left/force_right actuators.
         // They keep vibrating forever on some 8BitDo controllers
         // https://gitlab.com/ricardoquesada/unijoysticle2/-/issues/10
-        .force_left = 0,
-        .force_right = 0,
-        .duration = duration,
-        .start_delay = 0,
+        // Magnitude is 0..100 so scale the 8-bit input here
+        .force_left = ((uint16_t)(strong_magnitude * 100)) / UINT8_MAX,
+        .force_right = ((uint16_t)(weak_magnitude * 100)) / UINT8_MAX,
+        .duration_10ms = duration_ms / 10,
+        .start_delay_10ms = start_delay_ms / 10,
         .loop_count = 0,
     };
 

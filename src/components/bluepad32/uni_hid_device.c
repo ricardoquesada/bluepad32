@@ -597,6 +597,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             d->report_parser.init_report = uni_hid_parser_xboxone_init_report;
             d->report_parser.parse_usage = uni_hid_parser_xboxone_parse_usage;
             d->report_parser.set_rumble = uni_hid_parser_xboxone_set_rumble;
+            d->report_parser.play_dual_rumble = uni_hid_parser_xboxone_play_dual_rumble;
             d->report_parser.device_dump = uni_hid_parser_xboxone_device_dump;
             logi("Device detected as Xbox Wireless: 0x%02x\n", type);
             break;
