@@ -108,8 +108,6 @@ Attaching a screenshot might be useful, but the screenshot is not a replacement 
 
 E.g.: The console output can be found on this link (add link).
 
-*(link to this page: <http://bit.ly/bluepad32-help>)*
-
 [discord_server]: https://discord.gg/r5aMn6Cw5q
 
 ## Example
@@ -127,7 +125,12 @@ Example of question with the needed info:
     `ctl->setRumble(0xc0, 0xc0);`.
 
     It works with a Nintendo Switch controller, but it doesn't work with a DualShock 4 controller.
-    This is the output [attach console output].
+
+    - This is the output [attach console output or post it in gist.github.com]
+    - The complete sketch is here: [attach sketch or post it in gist.github.com]
 
     What could be the issue ?
+
+
+*(link to this page: <http://bit.ly/bluepad32-help>)*
 
