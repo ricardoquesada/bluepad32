@@ -688,7 +688,7 @@ void uni_hid_parser_ds5_play_dual_rumble(struct uni_hid_device_s* d,
                                          uint8_t weak_magnitude,
                                          uint8_t strong_magnitude) {
     if (d == NULL) {
-        loge("Stadia: Invalid device\n");
+        loge("DS5: Invalid device\n");
         return;
     }
 

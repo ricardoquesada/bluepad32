@@ -647,6 +647,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             d->report_parser.parse_feature_report = uni_hid_parser_ds4_parse_feature_report;
             d->report_parser.set_lightbar_color = uni_hid_parser_ds4_set_lightbar_color;
             d->report_parser.set_rumble = uni_hid_parser_ds4_set_rumble;
+            d->report_parser.play_dual_rumble = uni_hid_parser_ds4_play_dual_rumble;
             d->report_parser.device_dump = uni_hid_parser_ds4_device_dump;
             logi("Device detected as DualShock 4: 0x%02x\n", type);
             break;

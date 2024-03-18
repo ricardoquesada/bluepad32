@@ -16,6 +16,11 @@ void uni_hid_parser_ds4_parse_input_report(struct uni_hid_device_s* d, const uin
 void uni_hid_parser_ds4_parse_feature_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len);
 void uni_hid_parser_ds4_set_lightbar_color(struct uni_hid_device_s* d, uint8_t r, uint8_t g, uint8_t b);
 void uni_hid_parser_ds4_set_rumble(struct uni_hid_device_s* d, uint8_t value, uint8_t duration);
+void uni_hid_parser_ds4_play_dual_rumble(struct uni_hid_device_s* d,
+                                         uint16_t start_delay_ms,
+                                         uint16_t duration_ms,
+                                         uint8_t weak_magnitude,
+                                         uint8_t strong_magnitude);
 void uni_hid_parser_ds4_device_dump(struct uni_hid_device_s* d);
 
 #endif  // UNI_HID_PARSER_DS4_H
