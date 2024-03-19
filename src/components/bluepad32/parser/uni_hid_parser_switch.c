@@ -1240,9 +1240,9 @@ static int32_t calibrate_axis(int16_t v, switch_cal_stick_t cal) {
 }
 
 static void switch_play_dual_rumble_now(struct uni_hid_device_s* d,
-                                 uint16_t duration_ms,
-                                 uint8_t weak_magnitude,
-                                 uint8_t strong_magnitude) {
+                                        uint16_t duration_ms,
+                                        uint8_t weak_magnitude,
+                                        uint8_t strong_magnitude) {
     struct switch_subcmd_request req = {
         .report_id = OUTPUT_RUMBLE_ONLY,
     };
