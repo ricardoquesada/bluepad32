@@ -639,6 +639,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             d->report_parser.parse_input_report = uni_hid_parser_ds3_parse_input_report;
             d->report_parser.set_player_leds = uni_hid_parser_ds3_set_player_leds;
             d->report_parser.set_rumble = uni_hid_parser_ds3_set_rumble;
+            d->report_parser.play_dual_rumble = uni_hid_parser_ds3_play_dual_rumble;
             logi("Device detected as DualShock 3: 0x%02x\n", type);
             break;
         case CONTROLLER_TYPE_PS4Controller:

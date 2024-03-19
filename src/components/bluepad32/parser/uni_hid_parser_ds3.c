@@ -44,11 +44,24 @@ typedef enum ds3_fsm {
     DS3_FSM_LED_UPDATED,          // LED updated
 } ds3_fsm_t;
 
+typedef enum {
+    DS3_STATE_RUMBLE_DISABLED,
+    DS3_STATE_RUMBLE_DELAYED,
+} ds3_state_rumble_t;
+
 // ds3_instance_t represents data used by the DS3 driver instance.
 typedef struct ds3_instance_s {
     ds3_fsm_t state;
     uint8_t player_leds;  // bitmap of LEDs
     bool clone_controller;
+
+    btstack_timer_source_t rumble_timer_delayed_start;
+    ds3_state_rumble_t rumble_state;
+
+    // Used by delayed start
+    uint16_t rumble_weak_magnitude;
+    uint16_t rumble_strong_magnitude;
+    uint16_t rumble_duration_ms;
 } ds3_instance_t;
 _Static_assert(sizeof(ds3_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "DS3 instance too big");
 
@@ -122,6 +135,11 @@ typedef struct __attribute((packed)) {
 static ds3_instance_t* get_ds3_instance(uni_hid_device_t* d);
 static void ds3_update_led(uni_hid_device_t* d, uint8_t player_leds);
 static void ds3_send_output_report(uni_hid_device_t* d, ds3_output_report_t* out);
+static void ds3_set_rumble_on(btstack_timer_source_t* ts);
+static void ds3_play_dual_rumble_now(struct uni_hid_device_s* d,
+                                     uint16_t duration_ms,
+                                     uint8_t weak_magnitude,
+                                     uint8_t strong_magnitude);
 
 void uni_hid_parser_ds3_init_report(uni_hid_device_t* d) {
     uni_controller_t* ctl = &d->controller;
@@ -264,6 +282,45 @@ void uni_hid_parser_ds3_set_rumble(uni_hid_device_t* d, uint8_t value, uint8_t d
     ds3_send_output_report(d, &out);
 }
 
+void uni_hid_parser_ds3_play_dual_rumble(struct uni_hid_device_s* d,
+                                         uint16_t start_delay_ms,
+                                         uint16_t duration_ms,
+                                         uint8_t weak_magnitude,
+                                         uint8_t strong_magnitude) {
+    if (d == NULL) {
+        loge("DS3: Invalid device\n");
+        return;
+    }
+
+    if ((weak_magnitude == 0 && strong_magnitude == 0) || duration_ms == 0)
+        return;
+
+    ds3_instance_t* ins = get_ds3_instance(d);
+    switch (ins->rumble_state) {
+        case DS3_STATE_RUMBLE_DELAYED:
+            btstack_run_loop_remove_timer(&ins->rumble_timer_delayed_start);
+            break;
+        default:
+            // Do nothing
+            break;
+    }
+
+    if (start_delay_ms == 0) {
+        ds3_play_dual_rumble_now(d, duration_ms, weak_magnitude, strong_magnitude);
+    } else {
+        // Set timer to have a delayed start
+        ins->rumble_timer_delayed_start.process = &ds3_set_rumble_on;
+        ins->rumble_timer_delayed_start.context = d;
+        ins->rumble_state = DS3_STATE_RUMBLE_DELAYED;
+        ins->rumble_duration_ms = duration_ms;
+        ins->rumble_strong_magnitude = strong_magnitude;
+        ins->rumble_weak_magnitude = weak_magnitude;
+
+        btstack_run_loop_set_timer(&ins->rumble_timer_delayed_start, start_delay_ms);
+        btstack_run_loop_add_timer(&ins->rumble_timer_delayed_start);
+    }
+}
+
 void uni_hid_parser_ds3_setup(struct uni_hid_device_s* d) {
     // Dual Shock 3 Sixasis requires a magic packet to be sent in order to enable reports. Taken from:
     // https://github.com/torvalds/linux/blob/1d1df41c5a33359a00e919d54eaebfb789711fdc/drivers/hid/hid-sony.c#L1684
@@ -320,6 +377,38 @@ static void ds3_update_led(uni_hid_device_t* d, uint8_t player_leds) {
     out.player_leds = player_leds << 1;
 
     ds3_send_output_report(d, &out);
+}
+
+static void ds3_play_dual_rumble_now(struct uni_hid_device_s* d,
+                                     uint16_t duration_ms,
+                                     uint8_t weak_magnitude,
+                                     uint8_t strong_magnitude) {
+    ds3_instance_t* ins = get_ds3_instance(d);
+
+    ds3_output_report_t out = {0};
+    // Convert from milliseconds to old "duration".
+    // TODO: Tried to let it rumble forever with 0xff and then turn it off
+    // with a timer, but didn't work. Needs further research, in the meantime
+    // this seems to work Ok.
+    out.motor_right_duration = (duration_ms >> 2) & 0xff;
+    out.motor_right_enabled = (weak_magnitude != 0);  // 0 or 1 only
+    out.motor_left_duration = (duration_ms >> 2) & 0xff;
+    out.motor_left_force = strong_magnitude;
+
+    // Don't overwrite Player LEDs
+    // LED cmd. LED1==2, LED2==4, etc...
+    out.player_leds = ins->player_leds << 1;
+
+    ds3_send_output_report(d, &out);
+
+    ins->rumble_state = DS3_STATE_RUMBLE_DISABLED;
+}
+
+static void ds3_set_rumble_on(btstack_timer_source_t* ts) {
+    uni_hid_device_t* d = ts->context;
+    ds3_instance_t* ins = get_ds3_instance(d);
+
+    ds3_play_dual_rumble_now(d, ins->rumble_duration_ms, ins->rumble_weak_magnitude, ins->rumble_strong_magnitude);
 }
 
 static void ds3_send_output_report(uni_hid_device_t* d, ds3_output_report_t* out) {

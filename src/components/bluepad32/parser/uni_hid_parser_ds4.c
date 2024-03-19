@@ -550,6 +550,9 @@ void uni_hid_parser_ds4_play_dual_rumble(struct uni_hid_device_s* d,
         return;
     }
 
+    if ((weak_magnitude == 0 && strong_magnitude == 0) || duration_ms == 0)
+        return;
+
     ds4_instance_t* ins = get_ds4_instance(d);
     switch (ins->rumble_state) {
         case DS4_STATE_RUMBLE_DELAYED:
