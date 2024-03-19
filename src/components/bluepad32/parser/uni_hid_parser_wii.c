@@ -37,7 +37,6 @@ enum wii_flags {
     WII_FLAGS_NONE = 0,
     WII_FLAGS_VERTICAL = BIT(0),
     WII_FLAGS_ACCEL = BIT(1),
-    WII_FLAGS_RUMBLE = BIT(2),
 };
 
 // Taken from Linux kernel: hid-wiimote.h
@@ -109,6 +108,12 @@ enum wii_fsm {
                            // Gamepad ready to be used
 };
 
+typedef enum {
+    WII_STATE_RUMBLE_DISABLED,
+    WII_STATE_RUMBLE_DELAYED,
+    WII_STATE_RUMBLE_IN_PROGRESS,
+} wii_state_rumble_t;
+
 // As defined here: http://wiibrew.org/wiki/Wiimote#0x21:_Read_Memory_Data
 typedef enum wii_read_type {
     WII_READ_FROM_MEM = 0,
@@ -152,7 +157,14 @@ typedef struct wii_instance_s {
     enum wii_devtype dev_type;
     enum wii_exttype ext_type;
     uni_gamepad_seat_t gamepad_seat;
-    btstack_timer_source_t rumble_timer;
+
+    // Although technically, we can use one timer for delay and duration, easier to debug/maintain if we have two.
+    btstack_timer_source_t rumble_timer_duration;
+    btstack_timer_source_t rumble_timer_delayed_start;
+    wii_state_rumble_t rumble_state;
+
+    // Used by delayed start
+    uint16_t rumble_duration_ms;
 
     balance_board_calibration_t balance_board_calibration;
 
@@ -188,7 +200,9 @@ static void wii_fsm_dump_eeprom(uni_hid_device_t* d);
 static void wii_read_mem(uni_hid_device_t* d, wii_read_type_t t, uint32_t offset, uint16_t size);
 static wii_instance_t* get_wii_instance(uni_hid_device_t* d);
 static void wii_set_led(uni_hid_device_t* d, uni_gamepad_seat_t seat);
-static void wii_rumble_off(btstack_timer_source_t* ts);
+static void wii_set_rumble_on(btstack_timer_source_t* ts);
+static void wii_set_rumble_off(btstack_timer_source_t* ts);
+static void wii_play_dual_rumble_now(struct uni_hid_device_s* d, uint16_t duration_ms);
 
 // Constants
 static const char* wii_devtype_names[] = {
@@ -1286,24 +1300,43 @@ void uni_hid_parser_wii_set_rumble(struct uni_hid_device_s* d, uint8_t value, ui
     if (ins->state < WII_FSM_LED_UPDATED) {
         return;
     }
+}
 
-    // Already enabled? return
-    if (ins->flags & WII_FLAGS_RUMBLE)
+void uni_hid_parser_wii_play_dual_rumble(struct uni_hid_device_s* d,
+                                         uint16_t start_delay_ms,
+                                         uint16_t duration_ms,
+                                         uint8_t weak_magnitude,
+                                         uint8_t strong_magnitude) {
+    if (d == NULL) {
+        loge("Wii: Invalid device\n");
         return;
+    }
 
-    ins->flags |= WII_FLAGS_RUMBLE;
+    wii_instance_t* ins = get_wii_instance(d);
+    switch (ins->rumble_state) {
+        case WII_STATE_RUMBLE_DELAYED:
+            btstack_run_loop_remove_timer(&ins->rumble_timer_delayed_start);
+            break;
+        case WII_STATE_RUMBLE_IN_PROGRESS:
+            btstack_run_loop_remove_timer(&ins->rumble_timer_duration);
+            break;
+        default:
+            // Do nothing
+            break;
+    }
 
-    // Setup timer for "rumble off"
-    int ms = duration * 4;  // duration: 256 ~= 1 second
-    btstack_run_loop_set_timer_context(&ins->rumble_timer, d);
-    btstack_run_loop_set_timer_handler(&ins->rumble_timer, &wii_rumble_off);
-    btstack_run_loop_set_timer(&ins->rumble_timer, ms);
-    btstack_run_loop_add_timer(&ins->rumble_timer);
+    if (start_delay_ms == 0) {
+        wii_play_dual_rumble_now(d, duration_ms);
+    } else {
+        // Set timer to have a delayed start
+        ins->rumble_timer_delayed_start.process = &wii_set_rumble_on;
+        ins->rumble_timer_delayed_start.context = d;
+        ins->rumble_state = WII_STATE_RUMBLE_DELAYED;
+        ins->rumble_duration_ms = duration_ms;
 
-    uint8_t report[] = {
-        0xa2, WIIPROTO_REQ_RUMBLE, 0x01 /* Rumble on*/
-    };
-    uni_hid_device_send_intr_report(d, report, sizeof(report));
+        btstack_run_loop_set_timer(&ins->rumble_timer_delayed_start, start_delay_ms);
+        btstack_run_loop_add_timer(&ins->rumble_timer_delayed_start);
+    }
 }
 
 //
@@ -1332,20 +1365,43 @@ static void wii_set_led(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
     }
 
     // Rumble could be enabled
-    if (ins->flags & WII_FLAGS_RUMBLE) {
+    if (ins->rumble_state == WII_STATE_RUMBLE_IN_PROGRESS)
         led |= 0x01;
-    }
+
     report[2] = led;
     uni_hid_device_send_intr_report(d, report, sizeof(report));
 }
 
-static void wii_rumble_off(btstack_timer_source_t* ts) {
+static void wii_play_dual_rumble_now(struct uni_hid_device_s* d, uint16_t duration_ms) {
+    wii_instance_t* ins = get_wii_instance(d);
+
+    uint8_t report[] = {
+        0xa2, WIIPROTO_REQ_RUMBLE, 0x01 /* Rumble on*/
+    };
+    uni_hid_device_send_intr_report(d, report, sizeof(report));
+
+    // Set timer to turn off rumble
+    ins->rumble_timer_duration.process = &wii_set_rumble_off;
+    ins->rumble_timer_duration.context = d;
+    ins->rumble_state = WII_STATE_RUMBLE_IN_PROGRESS;
+    btstack_run_loop_set_timer(&ins->rumble_timer_duration, duration_ms);
+    btstack_run_loop_add_timer(&ins->rumble_timer_duration);
+}
+
+static void wii_set_rumble_on(btstack_timer_source_t* ts) {
+    uni_hid_device_t* d = ts->context;
+    wii_instance_t* ins = get_wii_instance(d);
+
+    wii_play_dual_rumble_now(d, ins->rumble_duration_ms);
+}
+
+static void wii_set_rumble_off(btstack_timer_source_t* ts) {
     uni_hid_device_t* d = btstack_run_loop_get_timer_context(ts);
     wii_instance_t* ins = get_wii_instance(d);
 
     // No need to protect it with a mutex since it runs in the same main thread
-    assert(ins->flags & WII_FLAGS_RUMBLE);
-    ins->flags &= ~WII_FLAGS_RUMBLE;
+    assert(ins->rumble_state == WII_STATE_RUMBLE_IN_PROGRESS);
+    ins->rumble_state = WII_STATE_RUMBLE_DISABLED;
 
     // Disable rumble
     uint8_t report[] = {
