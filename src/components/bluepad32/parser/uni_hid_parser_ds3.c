@@ -262,26 +262,6 @@ void uni_hid_parser_ds3_set_player_leds(uni_hid_device_t* d, uint8_t leds) {
     ds3_update_led(d, leds);
 }
 
-void uni_hid_parser_ds3_set_rumble(uni_hid_device_t* d, uint8_t value, uint8_t duration) {
-    if (duration == 0xff)
-        duration = 0xfe;
-    uint8_t right = !!value;
-    uint8_t left = value;
-
-    ds3_output_report_t out = {0};
-    out.motor_right_duration = duration;
-    out.motor_right_enabled = right;
-    out.motor_left_duration = duration;
-    out.motor_left_force = left;
-
-    // Don't overwrite Player LEDs
-    // LED cmd. LED1==2, LED2==4, etc...
-    ds3_instance_t* ins = get_ds3_instance(d);
-    out.player_leds = ins->player_leds << 1;
-
-    ds3_send_output_report(d, &out);
-}
-
 void uni_hid_parser_ds3_play_dual_rumble(struct uni_hid_device_s* d,
                                          uint16_t start_delay_ms,
                                          uint16_t duration_ms,
@@ -296,14 +276,8 @@ void uni_hid_parser_ds3_play_dual_rumble(struct uni_hid_device_s* d,
         return;
 
     ds3_instance_t* ins = get_ds3_instance(d);
-    switch (ins->rumble_state) {
-        case DS3_STATE_RUMBLE_DELAYED:
-            btstack_run_loop_remove_timer(&ins->rumble_timer_delayed_start);
-            break;
-        default:
-            // Do nothing
-            break;
-    }
+    if (ins->rumble_state == DS3_STATE_RUMBLE_DELAYED)
+        btstack_run_loop_remove_timer(&ins->rumble_timer_delayed_start);
 
     if (start_delay_ms == 0) {
         ds3_play_dual_rumble_now(d, duration_ms, weak_magnitude, strong_magnitude);

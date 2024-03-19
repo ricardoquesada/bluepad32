@@ -7,12 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [4.0-beta3] - ???
 ### New
 - New Rumble API: `play_dual_rumble(start_delayed_ms, duration_ms, weak_magnitude, strong_magnitude)`. Fixes [Github Issue #83][github_issue_83]
+  - The old `set_rumble(magnitude, duration)` was removed from Bluepad32 "raw", but kept in Arduino API.
+  - To convert your old code to the new one do: `play_dual_rumble(0, duration * 4, force, force);`
 - DualSense: Support "vibration2" rumble for DualSense Edge and newer regular DualSense
  
 ### Fixed
 - Virtual Device: Don't remove virtual device when Xbox device is connected. Fixes [Github Issue #77][github_issue_77]
 - Xbox: Add rumble support for Xbox Firmware v5.x. Fixes [Github Issue #69][github_issue_69]
 - Stadia: Add rumble support. Fixes [Gitlab Issue #36][gitlab_issue_36]
+- PSMove: Duration in rumble works as expected.
+- PSMove: LEDs don't get overwritten by rumble.
 
 [github_issue_69]: https://github.com/ricardoquesada/bluepad32/issues/69
 [github_issue_77]: https://github.com/ricardoquesada/bluepad32/issues/77

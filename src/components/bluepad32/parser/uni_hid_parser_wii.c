@@ -1287,21 +1287,6 @@ void uni_hid_parser_wii_set_player_leds(uni_hid_device_t* d, uint8_t leds) {
     wii_set_led(d, leds);
 }
 
-void uni_hid_parser_wii_set_rumble(struct uni_hid_device_s* d, uint8_t value, uint8_t duration) {
-    ARG_UNUSED(value);
-
-    if (d == NULL) {
-        loge("Wii: ERROR: Invalid device\n");
-        return;
-    }
-
-    wii_instance_t* ins = get_wii_instance(d);
-
-    if (ins->state < WII_FSM_LED_UPDATED) {
-        return;
-    }
-}
-
 void uni_hid_parser_wii_play_dual_rumble(struct uni_hid_device_s* d,
                                          uint16_t start_delay_ms,
                                          uint16_t duration_ms,
@@ -1316,6 +1301,10 @@ void uni_hid_parser_wii_play_dual_rumble(struct uni_hid_device_s* d,
         return;
 
     wii_instance_t* ins = get_wii_instance(d);
+    if (ins->state < WII_FSM_LED_UPDATED) {
+        return;
+    }
+
     switch (ins->rumble_state) {
         case WII_STATE_RUMBLE_DELAYED:
             btstack_run_loop_remove_timer(&ins->rumble_timer_delayed_start);

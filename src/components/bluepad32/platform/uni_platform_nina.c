@@ -966,8 +966,10 @@ static void process_pending_requests(void) {
                 break;
 
             case PENDING_REQUEST_CMD_RUMBLE:
-                if (d->report_parser.set_rumble != NULL)
-                    d->report_parser.set_rumble(d, request.args[0], request.args[1]);
+                if (d->report_parser.play_dual_rumble != NULL)
+                    d->report_parser.play_dual_rumble(d, 0 /* delayed start ms */, request.args[1] * 4 /* duration */,
+                                                      request.args[0] /* weak magnitude */,
+                                                      request.args[0] /* strong magnitude */);
                 break;
 
             case PENDING_REQUEST_CMD_DISCONNECT:
@@ -1086,7 +1088,7 @@ static uni_error_t nina_on_device_ready(uni_hid_device_t* d) {
     _controllers_properties[idx].vendor_id = d->vendor_id;
     _controllers_properties[idx].product_id = d->product_id;
     _controllers_properties[idx].flags = (d->report_parser.set_player_leds ? PROPERTY_FLAG_PLAYER_LEDS : 0) |
-                                         (d->report_parser.set_rumble ? PROPERTY_FLAG_RUMBLE : 0) |
+                                         (d->report_parser.play_dual_rumble ? PROPERTY_FLAG_RUMBLE : 0) |
                                          (d->report_parser.set_lightbar_color ? PROPERTY_FLAG_PLAYER_LIGHTBAR : 0);
 
     // TODO: Most probably a device cannot be a mouse a keyboard and a gamepad at the same time,

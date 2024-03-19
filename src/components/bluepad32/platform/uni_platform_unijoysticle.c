@@ -1189,8 +1189,9 @@ static void set_gamepad_seat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
         lightbar_or_led_set = true;
     }
 
-    if (!lightbar_or_led_set && d->report_parser.set_rumble != NULL) {
-        d->report_parser.set_rumble(d, 0x80 /* value */, 0x04 /* duration */);
+    if (!lightbar_or_led_set && d->report_parser.play_dual_rumble != NULL) {
+        d->report_parser.play_dual_rumble(d, 0 /* delayed start ms */, 30 /* duration ms */, 0x80 /* weak magnitude */,
+                                          0x40 /* strong magnitude */);
     }
 }
 

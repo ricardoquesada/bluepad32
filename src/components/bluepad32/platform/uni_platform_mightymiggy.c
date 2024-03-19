@@ -1148,9 +1148,10 @@ static void setSeat(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
     } else if (d->report_parser.set_player_leds != NULL) {
         // 2nd best option: set player LEDs
         d->report_parser.set_player_leds(d, seat);
-    } else if (d->report_parser.set_rumble != NULL) {
+    } else if (d->report_parser.play_dual_rumble != NULL) {
         // Finally, as last resort, rumble
-        d->report_parser.set_rumble(d, 0x80 /* value */, 0x04 /* duration */);
+        d->report_parser.play_dual_rumble(d, 0 /* delayed start ms */, 30 /* duration ms */, 0x80 /* weak magnitude */,
+                                          0x40 /* strong magnitude */);
     }
 }
 

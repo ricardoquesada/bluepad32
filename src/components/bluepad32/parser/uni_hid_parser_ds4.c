@@ -536,10 +536,6 @@ void uni_hid_parser_ds4_set_lightbar_color(uni_hid_device_t* d, uint8_t r, uint8
     ds4_send_output_report(d, &out);
 }
 
-void uni_hid_parser_ds4_set_rumble(struct uni_hid_device_s* d, uint8_t value, uint8_t duration) {
-    uni_hid_parser_ds4_play_dual_rumble(d, 0, duration * 4, value, value);
-}
-
 void uni_hid_parser_ds4_play_dual_rumble(struct uni_hid_device_s* d,
                                          uint16_t start_delay_ms,
                                          uint16_t duration_ms,

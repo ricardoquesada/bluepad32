@@ -57,10 +57,6 @@ void uni_hid_parser_stadia_setup(uni_hid_device_t* d) {
     uni_hid_device_set_ready_complete(d);
 }
 
-void uni_hid_parser_stadia_set_rumble(uni_hid_device_t* d, uint8_t value, uint8_t duration) {
-    uni_hid_parser_stadia_play_dual_rumble(d, 0, duration * 4, value, value);
-}
-
 void uni_hid_parser_stadia_play_dual_rumble(struct uni_hid_device_s* d,
                                             uint16_t start_delay_ms,
                                             uint16_t duration_ms,

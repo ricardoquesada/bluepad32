@@ -123,8 +123,9 @@ static void enable_rumble_callback(void* context) {
         // Use mask instead of == since Rumble should be active when the gamepad is in Twin Stick Mode.
         if ((ins->seat & seat) == 0)
             continue;
-        if (d->report_parser.set_rumble != NULL)
-            d->report_parser.set_rumble(d, 0x80 /* value */, 0x04 /* duration */);
+        if (d->report_parser.play_dual_rumble != NULL)
+            d->report_parser.play_dual_rumble(d, 0 /* delayed start ms */, 30 /* duration ms */,
+                                              0x80 /* weak magnitude */, 0x40 /* strong magnitude */);
     }
 }
 

@@ -33,11 +33,25 @@ typedef enum psmove_model {
     PSMOVE_MODEL_ZCM2,
 } psmove_model_t;
 
+typedef enum {
+    PSMOVE_STATE_RUMBLE_DISABLED,
+    PSMOVE_STATE_RUMBLE_DELAYED,
+    PSMOVE_STATE_RUMBLE_IN_PROGRESS,
+} psmove_state_rumble_t;
+
 // psmove_instance_t represents data used by the psmove driver instance.
 typedef struct psmove_instance_s {
     psmove_model_t model;
     psmove_fsm_t state;
     uint8_t led_rgb[3];
+
+    btstack_timer_source_t rumble_timer_duration;
+    btstack_timer_source_t rumble_timer_delayed_start;
+    psmove_state_rumble_t rumble_state;
+
+    // Used by delayed start
+    uint16_t rumble_magnitude;
+    uint16_t rumble_duration_ms;
 } psmove_instance_t;
 _Static_assert(sizeof(psmove_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "PSMove intance too big");
 
@@ -110,6 +124,9 @@ typedef struct __attribute((packed)) {
 
 static psmove_instance_t* get_psmove_instance(uni_hid_device_t* d);
 static void psmove_send_output_report(uni_hid_device_t* d, psmove_output_report_t* out);
+static void psmove_set_rumble_on(btstack_timer_source_t* ts);
+static void psmove_set_rumble_off(btstack_timer_source_t* ts);
+static void psmove_play_dual_rumble_now(struct uni_hid_device_s* d, uint16_t duration_ms, uint8_t magnitude);
 
 void uni_hid_parser_psmove_init_report(uni_hid_device_t* d) {
     uni_controller_t* ctl = &d->controller;
@@ -182,28 +199,61 @@ void uni_hid_parser_psmove_parse_input_report(uni_hid_device_t* d, const uint8_t
         ctl->battery = r->battery * 51;
 }
 
-void uni_hid_parser_psmove_set_rumble(uni_hid_device_t* d, uint8_t value, uint8_t duration) {
-    ARG_UNUSED(duration);
+void uni_hid_parser_psmove_play_dual_rumble(struct uni_hid_device_s* d,
+                                            uint16_t start_delay_ms,
+                                            uint16_t duration_ms,
+                                            uint8_t weak_magnitude,
+                                            uint8_t strong_magnitude) {
+    if (d == NULL) {
+        loge("psmove: Invalid device\n");
+        return;
+    }
+
+    if ((weak_magnitude == 0 && strong_magnitude == 0) || duration_ms == 0)
+        return;
+
+    uint8_t magnitude = btstack_max(weak_magnitude, strong_magnitude);
 
     psmove_instance_t* ins = get_psmove_instance(d);
-    psmove_output_report_t out = {
-        .report_id = 0x06,
-        // Don't overwrite LED RGB
-        .led_rgb[0] = ins->led_rgb[0],
-        .led_rgb[1] = ins->led_rgb[1],
-        .led_rgb[2] = ins->led_rgb[2],
-        .rumble = value,
-    };
+    switch (ins->rumble_state) {
+        case PSMOVE_STATE_RUMBLE_DELAYED:
+            btstack_run_loop_remove_timer(&ins->rumble_timer_delayed_start);
+            break;
+        case PSMOVE_STATE_RUMBLE_IN_PROGRESS:
+            btstack_run_loop_remove_timer(&ins->rumble_timer_duration);
+            break;
+        default:
+            // Do nothing
+            break;
+    }
 
-    psmove_send_output_report(d, &out);
+    if (start_delay_ms == 0) {
+        psmove_play_dual_rumble_now(d, duration_ms, magnitude);
+    } else {
+        // Set timer to have a delayed start
+        ins->rumble_timer_delayed_start.process = &psmove_set_rumble_on;
+        ins->rumble_timer_delayed_start.context = d;
+        ins->rumble_state = PSMOVE_STATE_RUMBLE_DELAYED;
+        ins->rumble_duration_ms = duration_ms;
+        ins->rumble_magnitude = magnitude;
+
+        btstack_run_loop_set_timer(&ins->rumble_timer_delayed_start, start_delay_ms);
+        btstack_run_loop_add_timer(&ins->rumble_timer_delayed_start);
+    }
 }
 
 void uni_hid_parser_psmove_set_lightbar_color(uni_hid_device_t* d, uint8_t r, uint8_t g, uint8_t b) {
+    psmove_instance_t* ins = get_psmove_instance(d);
+    ins->led_rgb[0] = r;
+    ins->led_rgb[1] = g;
+    ins->led_rgb[2] = b;
+
     psmove_output_report_t out = {
         .report_id = 0x06,
         .led_rgb[0] = r,
         .led_rgb[1] = g,
         .led_rgb[2] = b,
+        .rumble = ins->rumble_magnitude,
     };
     psmove_send_output_report(d, &out);
 }
@@ -235,6 +285,58 @@ void uni_hid_parser_psmove_setup(struct uni_hid_device_s* d) {
 //
 static psmove_instance_t* get_psmove_instance(uni_hid_device_t* d) {
     return (psmove_instance_t*)&d->parser_data[0];
+}
+
+static void psmove_play_dual_rumble_now(struct uni_hid_device_s* d, uint16_t duration_ms, uint8_t magnitude) {
+    psmove_instance_t* ins = get_psmove_instance(d);
+    psmove_output_report_t out = {
+        .report_id = 0x06,
+        // Don't overwrite LED RGB
+        .led_rgb[0] = ins->led_rgb[0],
+        .led_rgb[1] = ins->led_rgb[1],
+        .led_rgb[2] = ins->led_rgb[2],
+        .rumble = magnitude,
+    };
+
+    // Cache it until rumble is off. Might be used by LEDs
+    ins->rumble_magnitude = magnitude;
+
+    psmove_send_output_report(d, &out);
+
+    // Set timer to turn off rumble
+    ins->rumble_timer_duration.process = &psmove_set_rumble_off;
+    ins->rumble_timer_duration.context = d;
+    ins->rumble_state = PSMOVE_STATE_RUMBLE_IN_PROGRESS;
+    btstack_run_loop_set_timer(&ins->rumble_timer_duration, duration_ms);
+    btstack_run_loop_add_timer(&ins->rumble_timer_duration);
+}
+
+static void psmove_set_rumble_on(btstack_timer_source_t* ts) {
+    uni_hid_device_t* d = ts->context;
+    psmove_instance_t* ins = get_psmove_instance(d);
+
+    psmove_play_dual_rumble_now(d, ins->rumble_duration_ms, ins->rumble_magnitude);
+}
+
+static void psmove_set_rumble_off(btstack_timer_source_t* ts) {
+    uni_hid_device_t* d = ts->context;
+    psmove_instance_t* ins = get_psmove_instance(d);
+
+    // No need to protect it with a mutex since it runs in the same main thread
+    assert(ins->rumble_state != PSMOVE_STATE_RUMBLE_DISABLED);
+    ins->rumble_state = PSMOVE_STATE_RUMBLE_DISABLED;
+    ins->rumble_magnitude = 0;
+
+    psmove_output_report_t out = {
+        .report_id = 0x06,
+        // Don't overwrite LED RGB
+        .led_rgb[0] = ins->led_rgb[0],
+        .led_rgb[1] = ins->led_rgb[1],
+        .led_rgb[2] = ins->led_rgb[2],
+        .rumble = 0,
+    };
+
+    psmove_send_output_report(d, &out);
 }
 
 static void psmove_send_output_report(uni_hid_device_t* d, psmove_output_report_t* out) {

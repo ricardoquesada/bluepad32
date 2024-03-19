@@ -596,7 +596,6 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             d->report_parser.setup = uni_hid_parser_xboxone_setup;
             d->report_parser.init_report = uni_hid_parser_xboxone_init_report;
             d->report_parser.parse_usage = uni_hid_parser_xboxone_parse_usage;
-            d->report_parser.set_rumble = uni_hid_parser_xboxone_set_rumble;
             d->report_parser.play_dual_rumble = uni_hid_parser_xboxone_play_dual_rumble;
             d->report_parser.device_dump = uni_hid_parser_xboxone_device_dump;
             logi("Device detected as Xbox Wireless: 0x%02x\n", type);
@@ -607,7 +606,6 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             d->report_parser.set_player_leds = uni_hid_parser_android_set_player_leds;
             if (d->vendor_id == UNI_HID_PARSER_STADIA_VID && d->product_id == UNI_HID_PARSER_STADIA_PID) {
                 d->report_parser.setup = uni_hid_parser_stadia_setup;
-                d->report_parser.set_rumble = uni_hid_parser_stadia_set_rumble;
                 d->report_parser.play_dual_rumble = uni_hid_parser_stadia_play_dual_rumble;
                 logi("Device detected as Stadia: 0x%02x\n", type);
             } else {
@@ -630,7 +628,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             d->report_parser.init_report = uni_hid_parser_psmove_init_report;
             d->report_parser.parse_input_report = uni_hid_parser_psmove_parse_input_report;
             d->report_parser.set_lightbar_color = uni_hid_parser_psmove_set_lightbar_color;
-            d->report_parser.set_rumble = uni_hid_parser_psmove_set_rumble;
+            d->report_parser.play_dual_rumble = uni_hid_parser_psmove_play_dual_rumble;
             logi("Device detected as PS Move: 0x%02x\n", type);
             break;
         case CONTROLLER_TYPE_PS3Controller:
@@ -638,7 +636,6 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             d->report_parser.init_report = uni_hid_parser_ds3_init_report;
             d->report_parser.parse_input_report = uni_hid_parser_ds3_parse_input_report;
             d->report_parser.set_player_leds = uni_hid_parser_ds3_set_player_leds;
-            d->report_parser.set_rumble = uni_hid_parser_ds3_set_rumble;
             d->report_parser.play_dual_rumble = uni_hid_parser_ds3_play_dual_rumble;
             logi("Device detected as DualShock 3: 0x%02x\n", type);
             break;
@@ -648,7 +645,6 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             d->report_parser.parse_input_report = uni_hid_parser_ds4_parse_input_report;
             d->report_parser.parse_feature_report = uni_hid_parser_ds4_parse_feature_report;
             d->report_parser.set_lightbar_color = uni_hid_parser_ds4_set_lightbar_color;
-            d->report_parser.set_rumble = uni_hid_parser_ds4_set_rumble;
             d->report_parser.play_dual_rumble = uni_hid_parser_ds4_play_dual_rumble;
             d->report_parser.device_dump = uni_hid_parser_ds4_device_dump;
             logi("Device detected as DualShock 4: 0x%02x\n", type);
@@ -660,7 +656,6 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             d->report_parser.parse_feature_report = uni_hid_parser_ds5_parse_feature_report;
             d->report_parser.set_player_leds = uni_hid_parser_ds5_set_player_leds;
             d->report_parser.set_lightbar_color = uni_hid_parser_ds5_set_lightbar_color;
-            d->report_parser.set_rumble = uni_hid_parser_ds5_set_rumble;
             d->report_parser.play_dual_rumble = uni_hid_parser_ds5_play_dual_rumble;
             d->report_parser.device_dump = uni_hid_parser_ds5_device_dump;
             logi("Device detected as DualSense: 0x%02x\n", type);
@@ -680,7 +675,6 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             d->report_parser.init_report = uni_hid_parser_wii_init_report;
             d->report_parser.parse_input_report = uni_hid_parser_wii_parse_input_report;
             d->report_parser.set_player_leds = uni_hid_parser_wii_set_player_leds;
-            d->report_parser.set_rumble = uni_hid_parser_wii_set_rumble;
             d->report_parser.play_dual_rumble = uni_hid_parser_wii_play_dual_rumble;
             d->report_parser.device_dump = uni_hid_parser_wii_device_dump;
             logi("Device detected as Wii controller: 0x%02x\n", type);
@@ -692,7 +686,6 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             d->report_parser.init_report = uni_hid_parser_switch_init_report;
             d->report_parser.parse_input_report = uni_hid_parser_switch_parse_input_report;
             d->report_parser.set_player_leds = uni_hid_parser_switch_set_player_leds;
-            d->report_parser.set_rumble = uni_hid_parser_switch_set_rumble;
             d->report_parser.play_dual_rumble = uni_hid_parser_switch_play_dual_rumble;
             d->report_parser.device_dump = uni_hid_parser_switch_device_dump;
             logi("Device detected as Nintendo Switch Pro controller: 0x%02x\n", type);
@@ -795,8 +788,7 @@ void uni_hid_device_send_report(uni_hid_device_t* d, uint16_t cid, const uint8_t
             loge("ERROR: circular buffer full. Cannot queue report\n");
         }
     }
-    // Even, if it can send the report, trigger a "can send now event" in case
-    // a report was queued.
+    // Even, if it can send the report, trigger a "can send now event" in case a report was queued.
     // TODO: Is this really needed?
     l2cap_request_can_send_now_event(cid);
 }

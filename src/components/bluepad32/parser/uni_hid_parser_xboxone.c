@@ -461,10 +461,6 @@ static void parse_usage_firmware_v4_v5(uni_hid_device_t* d,
     }
 }
 
-void uni_hid_parser_xboxone_set_rumble(uni_hid_device_t* d, uint8_t value, uint8_t duration) {
-    uni_hid_parser_xboxone_play_dual_rumble(d, 0, duration * 4 / 10, value, value);
-}
-
 void uni_hid_parser_xboxone_play_dual_rumble(struct uni_hid_device_s* d,
                                              uint16_t start_delay_ms,
                                              uint16_t duration_ms,
