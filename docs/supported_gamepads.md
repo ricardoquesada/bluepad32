@@ -12,7 +12,7 @@ List of supported gamepads with supported features, known bugs, etc.
 
 [![ddualsense_gamepad][dualsense]][11]
 
-- Supported features: rumble, lightbar color, player LEDs, adaptive trigger effects
+- Supported features: rumble, lightbar color, player LEDs, adaptive trigger effects, gyro, accelerometer
 - Pair instructions: While pressing and holding the Create button, press and hold the PS button until the
   light bar blinks ([Sony official instructions][dualsense_pair_instructions]).
 - Protocol: BR/EDR
@@ -26,7 +26,7 @@ List of supported gamepads with supported features, known bugs, etc.
 [![ds4_gamepad][dualshock_4]][14]
 
 - Supports both the 2013 (CUH-ZCT1) and 2016 (CUH-ZCT2) editions
-- Supported features: rumble, lightbar color
+- Supported features: rumble, lightbar color, gyro, accelerometer
 - Some clones are known to work Ok
 - Pair instructions: While pressing and holding the SHARE button, press and hold the PS Button until the
   light bar flashes ([Sony official instructions][dualshock4_pair_instructions]).
@@ -53,7 +53,7 @@ List of supported gamepads with supported features, known bugs, etc.
 
 [![Sony Motion Controller][psmove_img]][psmove_ebay]
 
-- Supported features: buttons, rumble, LED
+- Supported features: buttons, rumble, LED, gyro, accelerometer
 - Requires that the [controller is manually paired][psmove_pair] to the device.
 - Protocol: BR/EDR
 
@@ -67,7 +67,7 @@ List of supported gamepads with supported features, known bugs, etc.
 
 [![Switch Pro][switch_pro_img]][switch_pro]
 
-- Supported features: rumble, player LEDs
+- Supported features: rumble, player LEDs, gyro, accelerometer
 - Some clones are known to work Ok
 - Protocol: BR/EDR
 
@@ -110,7 +110,7 @@ Both Left and Right JoyCon are supported.
     - Sideways mode (default)
     - Wheel mode (Accelerometer)
     - Vertical mode
-- Supported features: player LEDs, rumble
+- Supported features: player LEDs, rumble, accelerometer
 - To start pairing, use the "Sync" method (press "Sync" button).
 - Protocol: BR/EDR
 
