@@ -174,9 +174,9 @@ static my_platform_instance_t* get_my_platform_instance(uni_hid_device_t* d) {
 static void trigger_event_on_gamepad(uni_hid_device_t* d) {
     my_platform_instance_t* ins = get_my_platform_instance(d);
 
-    if (d->report_parser.play_dual_rumble!= NULL) {
-        d->report_parser.play_dual_rumble(d, 0 /* delayed start ms */, 150 /* duration ms */,
-                                          128 /* weak magnitude */, 40 /* strong magnitude */);
+    if (d->report_parser.play_dual_rumble != NULL) {
+        d->report_parser.play_dual_rumble(d, 0 /* delayed start ms */, 150 /* duration ms */, 128 /* weak magnitude */,
+                                          40 /* strong magnitude */);
     }
 
     if (d->report_parser.set_player_leds != NULL) {
