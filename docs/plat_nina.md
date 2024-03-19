@@ -230,7 +230,7 @@ From Arduino Menu do: `Tools` -> `Manage Libraries...` -> Search for "bluepad32"
 
 [bluepad32_arduino_lib]: https://github.com/ricardoquesada/bluepad32-arduino
 
-[bluepad32_arduino_library_image]: https://lh3.googleusercontent.com/pw/ABLVV86gMcXNZYEeH7baJ-6G_z9nVn-Z24fm7FWbMCaXtx8-r8AJPVHhq1d5zdeVw0zB71nHsJrYtAfOekVgxIjNTc1DUPa8PGftKcuQYIwwnY7ctJ91dfoK73L-T2lv9C-noOE2RC8iRZISbWynDR1kr-432Q=-no-gm?authuser=0
+[bluepad32_arduino_library_image]: https://lh3.googleusercontent.com/pw/AP1GczM-WtLavu39Va-__3hEPPwYIfHesXCZMjvjB_IFP6vYCGkxmZCbDUB4DEn1wSbNFD9_BTggW8v9zh4VDCSnt6qYg9XvL4yZqvBTLOkzN_dpam7YBrEXgrIyoBAHxyP_ruTLTaWNon75-4MQiTHf9zFaxg=-no-gm?authuser=0
 
 ## Example
 
