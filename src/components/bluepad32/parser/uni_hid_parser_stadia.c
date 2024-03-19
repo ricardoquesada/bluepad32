@@ -14,8 +14,8 @@
 #define STADIA_RUMBLE_REPORT_ID 0x05
 
 struct stadia_ff_report {
-    uint16_t strong_magnitude;
-    uint16_t weak_magnitude;
+    uint16_t strong_magnitude;  // Left: 2100 RPM
+    uint16_t weak_magnitude;    // Right: 3350 RPM
 } __attribute__((packed));
 
 enum {
