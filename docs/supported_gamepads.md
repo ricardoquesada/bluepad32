@@ -12,7 +12,7 @@ List of supported gamepads with supported features, known bugs, etc.
 
 [![ddualsense_gamepad][dualsense]][11]
 
-- Supported features: rumble, lightbar color, player LEDs
+- Supported features: rumble, lightbar color, player LEDs, adaptive trigger effects
 - Pair instructions: While pressing and holding the Create button, press and hold the PS button until the
   light bar blinks ([Sony official instructions][dualsense_pair_instructions]).
 - Protocol: BR/EDR
@@ -53,7 +53,7 @@ List of supported gamepads with supported features, known bugs, etc.
 
 [![Sony Motion Controller][psmove_img]][psmove_ebay]
 
-- Supported features: buttons
+- Supported features: buttons, rumble, LED
 - Requires that the [controller is manually paired][psmove_pair] to the device.
 - Protocol: BR/EDR
 
@@ -95,7 +95,7 @@ Both Left and Right JoyCon are supported.
 
 [![Wii U Pro][wii_u_pro]][27]
 
-- Supported features: player LEDs
+- Supported features: player LEDs, rumble
 - Some clones are known to work Ok
 - Protocol: BR/EDR
 
@@ -110,7 +110,7 @@ Both Left and Right JoyCon are supported.
     - Sideways mode (default)
     - Wheel mode (Accelerometer)
     - Vertical mode
-- Supported features: player LEDs
+- Supported features: player LEDs, rumble
 - To start pairing, use the "Sync" method (press "Sync" button).
 - Protocol: BR/EDR
 
@@ -220,7 +220,7 @@ Classic Controller can be used.
 - This is the "3 button" model
 - Should be *model 1914*. Other "3 button" models should work as well.
 - Supports Xbox Controller firmware: v5.15 or newer
-- Supported features: N/A
+- Supported features: rumble
 - Pair instructions:
     - Turn on your controller by pressing the Xbox button.
     - Press the controller’s Pair button for 3 seconds and release.
