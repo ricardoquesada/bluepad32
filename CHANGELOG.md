@@ -4,11 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [4.0-beta3] - ???
+## [4.0-rc0] - ???
 ### New
 - New Rumble API: `play_dual_rumble(start_delayed_ms, duration_ms, weak_magnitude, strong_magnitude)`. Fixes [Github Issue #83][github_issue_83]
-  - The old `set_rumble(magnitude, duration)` was removed from Bluepad32 "raw", but kept in Arduino API.
-  - To convert your old code to the new one do: `play_dual_rumble(0, duration * 4, force, force);`
+  - The old `set_rumble(magnitude, duration)` was removed from Bluepad32 "raw"
+  - In Arduino API, users can still use the old one, but it is deprecated. A compile-time warning will appear.
+  - To convert your old code to the new one, do: `play_dual_rumble(0, duration * 4, force, force);`
 - DualSense: Support "vibration2" rumble for DualSense Edge and newer regular DualSense
  
 ### Fixed

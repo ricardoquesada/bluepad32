@@ -38,6 +38,11 @@ typedef void (*report_parse_feature_report_fn_t)(struct uni_hid_device_s* d,
                                                  uint16_t report_len);
 typedef void (*report_set_player_leds_fn_t)(struct uni_hid_device_s* d, uint8_t leds);
 typedef void (*report_set_lightbar_color_fn_t)(struct uni_hid_device_s* d, uint8_t r, uint8_t g, uint8_t b);
+// start_delay_ms: a delayed start measured in milliseconds. Use 0 to start rumble immediately.
+// duration_ms: duration of rumble in milliseconds. The controller might limit the max duration.
+// weak_magnitude: The magnitude for the "weak motor".
+// strong_magnitude: The magnitude for the "strong motor".
+// If the controller has only one motor, then the max value between "weak" and "strong" is used.
 typedef void (*report_play_dual_rumble_fn_t)(struct uni_hid_device_s* d,
                                              uint16_t start_delay_ms,
                                              uint16_t duration_ms,
