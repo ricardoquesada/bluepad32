@@ -1,0 +1,47 @@
+From 5fe5454388b599f6bc3c7dfac513534e591cefdc Mon Sep 17 00:00:00 2001
+From: Ricardo Quesada <ricardoquesada@gmail.com>
+Date: Sat, 16 Mar 2024 05:47:43 -0700
+Subject: [PATCH] hids_client: after a query is complete, set state back to
+ HIDS_CLIENT_STATE_CONNECTED
+
+This commit sets the client state back to HIDS_CLIENT_STATE_CONNECTED
+after receiving a GATT_EVENT_QUERY_COMPLETE event.
+
+Fixes https://github.com/bluekitchen/btstack/issues/573
+---
+ src/ble/gatt-service/hids_client.c | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/ble/gatt-service/hids_client.c b/src/ble/gatt-service/hids_client.c
+index 1195f5ae5..a3e7e32ac 100644
+--- a/src/ble/gatt-service/hids_client.c
++++ b/src/ble/gatt-service/hids_client.c
+@@ -608,14 +608,22 @@ static void handle_notification_event(uint8_t packet_type, uint16_t channel, uin
+ }
+ 
+ static void handle_report_event(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size) {
++    uint8_t type;
+     UNUSED(packet_type);
+     UNUSED(channel);
+-    
+-    if (hci_event_packet_get_type(packet) != GATT_EVENT_CHARACTERISTIC_VALUE_QUERY_RESULT) return;
++
++    type = hci_event_packet_get_type(packet);
++    if (type != GATT_EVENT_CHARACTERISTIC_VALUE_QUERY_RESULT && type != GATT_EVENT_QUERY_COMPLETE)
++        return;
+     
+     hids_client_t * client = hids_get_client_for_con_handle(gatt_event_characteristic_value_query_result_get_handle(packet));
+     if (client == NULL) return;
+-    
++
++    if (client->state == HIDS_CLIENT_W4_WRITE_REPORT_DONE) {
++        client->state = HIDS_CLIENT_STATE_CONNECTED;
++        return;
++    }
++
+     if (client->state != HIDS_CLIENT_W4_GET_REPORT_RESULT){
+         return;
+     }
+-- 
+2.44.0
+
