@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [4.0-rc0] - ???
+## [4.0-rc0] - 2024-03-20
 ### New
 - New Rumble API: `play_dual_rumble(start_delayed_ms, duration_ms, weak_magnitude, strong_magnitude)`. Fixes [Github Issue #83][github_issue_83]
   - The old `set_rumble(magnitude, duration)` was removed from Bluepad32 "raw"

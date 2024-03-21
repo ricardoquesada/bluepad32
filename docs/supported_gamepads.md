@@ -12,7 +12,12 @@ List of supported gamepads with supported features, known bugs, etc.
 
 [![ddualsense_gamepad][dualsense]][11]
 
-- Supported features: rumble, lightbar color, player LEDs, adaptive trigger effects, gyro, accelerometer
+Supported "extra features":
+
+| Rumble           | Lightbar color   | Player LEDs      | Adaptive trigger effects | Gyro / Accelerometer | virtual mouse (touchpad) |
+|------------------|------------------|------------------|--------------------------|----------------------|--------------------------|
+| :material-check: | :material-check: | :material-check: | :material-check:         | :material-check:     | :material-check:         |
+
 - Pair instructions: While pressing and holding the Create button, press and hold the PS button until the
   light bar blinks ([Sony official instructions][dualsense_pair_instructions]).
 - Protocol: BR/EDR
@@ -25,8 +30,13 @@ List of supported gamepads with supported features, known bugs, etc.
 
 [![ds4_gamepad][dualshock_4]][14]
 
+Supported "extra features":
+
+| Rumble           | Lightbar color   | Gyro / Accelerometer | virtual mouse (touchpad) |
+|------------------|------------------|----------------------|--------------------------|
+| :material-check: | :material-check: | :material-check:     | :material-check:         |
+
 - Supports both the 2013 (CUH-ZCT1) and 2016 (CUH-ZCT2) editions
-- Supported features: rumble, lightbar color, gyro, accelerometer
 - Some clones are known to work Ok
 - Pair instructions: While pressing and holding the SHARE button, press and hold the PS Button until the
   light bar flashes ([Sony official instructions][dualshock4_pair_instructions]).
@@ -40,7 +50,12 @@ List of supported gamepads with supported features, known bugs, etc.
 
 [![ds3_gamepad][dualshock_3]][12]
 
-- Supported features: rumble, player LEDs
+Supported "extra features":
+
+| Rumble           | Gyro / Accelerometer |
+|------------------|----------------------|
+| :material-check: | :material-check:     |
+
 - Requires that the [DS3 is manually paired][pair_ds3] to the device.
 - Some clones are known to work Ok
 - Protocol: BR/EDR
@@ -53,7 +68,12 @@ List of supported gamepads with supported features, known bugs, etc.
 
 [![Sony Motion Controller][psmove_img]][psmove_ebay]
 
-- Supported features: buttons, rumble, LED, gyro, accelerometer
+Supported "extra features":
+
+| Rumble           | LED              | Gyro / Accelerometer |
+|------------------|------------------|----------------------|
+| :material-check: | :material-check: | :material-check:     |
+
 - Requires that the [controller is manually paired][psmove_pair] to the device.
 - Protocol: BR/EDR
 
@@ -67,7 +87,12 @@ List of supported gamepads with supported features, known bugs, etc.
 
 [![Switch Pro][switch_pro_img]][switch_pro]
 
-- Supported features: rumble, player LEDs, gyro, accelerometer
+Supported "extra features":
+
+| Rumble           | Player LEDs      | Gyro / Accelerometer |
+|------------------|------------------|----------------------|
+| :material-check: | :material-check: | :material-check:     |
+
 - Some clones are known to work Ok
 - Protocol: BR/EDR
 
@@ -81,8 +106,12 @@ List of supported gamepads with supported features, known bugs, etc.
 
 Both Left and Right JoyCon are supported.
 
-- Supported features: player LEDs
-- They must be used in "horizontal" mode.
+Supported "extra features":
+
+| Player LEDs      | Gyro / Accelerometer | Orientation mode      |
+|------------------|----------------------|-----------------------|
+| :material-check: | :material-check:     | Sideways (horizontal) |
+
 - Each JoyCon represents one gamepad. Cannot be used as a single/combined gamepad.
 - Some clones are known to work Ok
 - Protocol: BR/EDR
@@ -95,7 +124,12 @@ Both Left and Right JoyCon are supported.
 
 [![Wii U Pro][wii_u_pro]][27]
 
-- Supported features: player LEDs, rumble
+Supported "extra features":
+
+| Player LEDs      | Rumble           |
+|------------------|------------------|
+| :material-check: | :material-check: |
+
 - Some clones are known to work Ok
 - Protocol: BR/EDR
 
@@ -104,6 +138,12 @@ Both Left and Right JoyCon are supported.
 ## Nintendo Wii Remote
 
 [![Wii Remote][wii_remote]][29]
+
+Supported "extra features":
+
+| Player LEDs      | Rumble           | Orientation modes                                                    |
+|------------------|------------------|----------------------------------------------------------------------|
+| :material-check: | :material-check: | Sideways mode (default) / Wheel mode (Accelerometer) / Vertical mode |
 
 - Supports both Wii Remote (RVL-003) and Wii Remote Motion Plus (RVL-036)
 - Supports 3 modes:
@@ -201,26 +241,37 @@ Classic Controller can be used.
 
 [![Xbox 1708][xbox_1708]][xbox_1708_ebay]
 
+Supported "extra features":
+
+| Rumble           |
+|------------------|
+| :material-check: |
+
 - This is the "2 button" model
 - Must be the *model 1708* (released in 2016) and not earlier. *Model 1797* should work.
 - Supports Xbox Controller firmware: v3.1 (BR/EDR), v4.8 (BR/EDR), v5.15 or newer (BLE)
-- Supported features: rumble
 - Pair instructions: Same as model "1914", see below.
 - Protocol:
     - BLE: Since firmware v5
     - BR/EDR: Before firmware v5
 
 [xbox_1708_ebay]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw=xbox+wireless+controller+1708&_sacat=0
+
 [xbox_1708]: https://lh3.googleusercontent.com/YmONc-MhVZhnE8HVRgzH7FKSpT_29MLeIF70U5AfrcBuCtuNJ2Ln5xkmSpNqO0myrFpnDLbFvR2TRTRu0xcqvP3cLNaq1BBpruEAn-Z7vBbwzNtaXx7eQaLLF7aa8tt2Wa0IcYxeD08=-no
 
 ## Xbox Wireless (model 1914, 3 buttons)
 
 [![Xbox 1914][xbox_1914]][xbox_1914_ebay]
 
+Supported "extra features":
+
+| Rumble           |
+|------------------|
+| :material-check: |
+
 - This is the "3 button" model
 - Should be *model 1914*. Other "3 button" models should work as well.
 - Supports Xbox Controller firmware: v5.15 or newer
-- Supported features: rumble
 - Pair instructions:
     - Turn on your controller by pressing the Xbox button.
     - Press the controller’s Pair button for 3 seconds and release.
@@ -228,7 +279,9 @@ Classic Controller can be used.
 - Protocol: BLE
 
 [xbox_1914_ebay]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw=xbox+wireless+controller+1914&_sacat=0
+
 [xbox_1914]: https://lh3.googleusercontent.com/pw/AMWts8BjOU-jTHHhK6S7PFfyvRpBr8FlUhKdoebHK83tp536cRWaX2yfo1CiXnDyWe8RGg7CMtjc4DiU-Fji0Er-88Vtr7RXSGfF3xKoel6VRmogMwSWWdKbQswxzB3wULe06nOYRrVpcqJUkgeKF4hotwyxaw=-no?authuser=0
+
 [github_issue_69]: https://github.com/ricardoquesada/bluepad32/issues/69
 
 ## Xbox Adaptive Controller
@@ -279,10 +332,15 @@ Classic Controller can be used.
 
 [![Stadia Controller][stadia_controller]][stadia_ebay]
 
+Supported "extra features":
+
+| Rumble           |
+|------------------|
+| :material-check: |
+
 - Controller must be [flashed with Bluetooth firmware][stadia_instructions]
-- Supported features: rumble
 - Pair instructions:
-  - Press "Y" + "Stadia" button
+    - Press "Y" + "Stadia" button
 - Protocol: BLE
 
 [stadia_ebay]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw=stadia+controller&_sacat=0
@@ -314,6 +372,12 @@ Classic Controller can be used.
 ## 8BitDo Family
 
 [![8bitdo SN30 Pro][8bitdo_sn30_pro_img]][8bitdo_sn30_pro]
+
+Supported "extra features":
+
+| Rumble      | Player LEDs | Gyro / Accelerometer |
+|-------------|-------------|----------------------|
+| Some models | Some models | Some models          |
 
 - Tested with: [8BitDo SN30 Pro][8bitdo_sn30_pro], [8BitDo Arcade Stick][8bitdo_arcade_stick],
   [8BitDo Lite][8bitdo_lite], [8BitDo NES30][8bitdo_nes30], [8BitDo M30][8bitdo_m30],
@@ -423,6 +487,7 @@ Non-comprehensive list of supported Bluetooth gamepads their protocols:
 | Nintendo Wii Remote     | :material-check:  |                     |
 | Nintendo Balance Board  | :material-check:  |                     |
 | Xbox Wireless           | :material-check:* | :material-check:*   |
+| Xbox Adaptive           |                   | :material-check:*   |
 | Steam                   |                   | :material-check:**  |
 | Stadia                  |                   | :material-check:*** |
 | Android                 |                   |                     |
