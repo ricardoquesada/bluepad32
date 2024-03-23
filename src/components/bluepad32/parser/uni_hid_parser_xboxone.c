@@ -64,6 +64,7 @@ enum {
 
 typedef enum {
     XBOXONE_STATE_RUMBLE_DISABLED,
+    XBOXONE_STATE_RUMBLE_DELAYED,
     XBOXONE_STATE_RUMBLE_IN_PROGRESS,
 } xboxone_state_rumble_t;
 
@@ -90,14 +91,30 @@ typedef struct xboxone_instance_s {
     // So we use a timer to cancel the rumbling after "duration".
     // https://gitlab.com/ricardoquesada/unijoysticle2/-/issues/10
     // https://github.com/ricardoquesada/bluepad32/issues/85
+    // We also use a delayed timer, instead of the internal Xbox delay. More compatible.
     btstack_timer_source_t rumble_timer_duration;
+    btstack_timer_source_t rumble_timer_delayed_start;
     xboxone_state_rumble_t rumble_state;
+
+    // Used by delayed start
+    uint16_t rumble_duration_ms;
+    uint8_t rumble_trigger_left;
+    uint8_t rumble_trigger_right;
+    uint8_t rumble_weak_magnitude;
+    uint8_t rumble_strong_magnitude;
 
 } xboxone_instance_t;
 _Static_assert(sizeof(xboxone_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "Xbox one instance too big");
 
 static xboxone_instance_t* get_xboxone_instance(uni_hid_device_t* d);
+static void xboxone_set_rumble_on(btstack_timer_source_t* ts);
 static void xboxone_set_rumble_off(btstack_timer_source_t* ts);
+static void xboxone_play_quad_rumble_now(struct uni_hid_device_s* d,
+                                         uint16_t duration_ms,
+                                         uint8_t trigger_left,
+                                         uint8_t trigger_right,
+                                         uint8_t weak_magnitude,
+                                         uint8_t strong_magnitude);
 static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
                                       hid_globals_t* globals,
                                       uint16_t usage_page,
@@ -490,8 +507,6 @@ void xboxone_play_quad_rumble(struct uni_hid_device_s* d,
                               uint8_t right_trigger,
                               uint8_t weak_magnitude,
                               uint8_t strong_magnitude) {
-    uint8_t status = ERROR_CODE_SUCCESS;
-
     if (d == NULL) {
         loge("Xbox: Invalid device\n");
         return;
@@ -502,6 +517,9 @@ void xboxone_play_quad_rumble(struct uni_hid_device_s* d,
 
     xboxone_instance_t* ins = get_xboxone_instance(d);
     switch (ins->rumble_state) {
+        case XBOXONE_STATE_RUMBLE_DELAYED:
+            btstack_run_loop_remove_timer(&ins->rumble_timer_delayed_start);
+            break;
         case XBOXONE_STATE_RUMBLE_IN_PROGRESS:
             btstack_run_loop_remove_timer(&ins->rumble_timer_duration);
             break;
@@ -510,7 +528,51 @@ void xboxone_play_quad_rumble(struct uni_hid_device_s* d,
             break;
     }
 
+    if (start_delay_ms == 0) {
+        xboxone_play_quad_rumble_now(d, duration_ms, left_trigger, right_trigger, weak_magnitude, strong_magnitude);
+    } else {
+        // Set timer to have a delayed start
+        ins->rumble_timer_delayed_start.process = &xboxone_set_rumble_on;
+        ins->rumble_timer_delayed_start.context = d;
+        ins->rumble_state = XBOXONE_STATE_RUMBLE_DELAYED;
+        ins->rumble_duration_ms = duration_ms;
+        ins->rumble_trigger_left = left_trigger;
+        ins->rumble_trigger_right = right_trigger;
+        ins->rumble_strong_magnitude = strong_magnitude;
+        ins->rumble_weak_magnitude = weak_magnitude;
+
+        btstack_run_loop_set_timer(&ins->rumble_timer_delayed_start, start_delay_ms);
+        btstack_run_loop_add_timer(&ins->rumble_timer_delayed_start);
+    }
+}
+
+void uni_hid_parser_xboxone_device_dump(uni_hid_device_t* d) {
+    static const char* versions[] = {
+        "v3.1",
+        "v4.8",
+        "v5.x",
+    };
+    xboxone_instance_t* ins = get_xboxone_instance(d);
+    if (ins->version >= 0 && ins->version < ARRAY_SIZE(versions))
+        logi("\tXbox: FW version %s\n", versions[ins->version]);
+}
+
+//
+// Helpers
+//
+xboxone_instance_t* get_xboxone_instance(uni_hid_device_t* d) {
+    return (xboxone_instance_t*)&d->parser_data[0];
+}
+
+static void xboxone_play_quad_rumble_now(struct uni_hid_device_s* d,
+                                         uint16_t duration_ms,
+                                         uint8_t left_trigger,
+                                         uint8_t right_trigger,
+                                         uint8_t weak_magnitude,
+                                         uint8_t strong_magnitude) {
+    uint8_t status = ERROR_CODE_SUCCESS;
     uint8_t mask = 0;
+
     mask |= (left_trigger != 0) ? XBOXONE_FF_TRIGGER_LEFT : 0;
     mask |= (right_trigger != 0) ? XBOXONE_FF_TRIGGER_RIGHT : 0;
     mask |= (weak_magnitude != 0) ? XBOXONE_FF_WEAK : 0;
@@ -526,10 +588,12 @@ void xboxone_play_quad_rumble(struct uni_hid_device_s* d,
         .magnitude_right_trigger = ((uint16_t)(right_trigger * 100)) / UINT8_MAX,
         .magnitude_strong = ((uint16_t)(strong_magnitude * 100)) / UINT8_MAX,
         .magnitude_weak = ((uint16_t)(weak_magnitude * 100)) / UINT8_MAX,
-        .duration_10ms = 0xff,  // forever
-        .start_delay_10ms = start_delay_ms / 10,
-        .loop_count = 0xff,  // forever
+        .duration_10ms = 0xff,  // forever, timer will turn it off
+        .start_delay_10ms = 0,
+        .loop_count = 4,  // timer will turn it off, but in case it fails, limit it to no more than 5 iterations
     };
+
+    xboxone_instance_t* ins = get_xboxone_instance(d);
 
     if (ins->version == XBOXONE_FIRMWARE_V5) {
         status = hids_client_send_write_report(d->hids_cid, XBOX_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
@@ -552,22 +616,12 @@ void xboxone_play_quad_rumble(struct uni_hid_device_s* d,
     }
 }
 
-void uni_hid_parser_xboxone_device_dump(uni_hid_device_t* d) {
-    static const char* versions[] = {
-        "v3.1",
-        "v4.8",
-        "v5.x",
-    };
+static void xboxone_set_rumble_on(btstack_timer_source_t* ts) {
+    uni_hid_device_t* d = ts->context;
     xboxone_instance_t* ins = get_xboxone_instance(d);
-    if (ins->version >= 0 && ins->version < ARRAY_SIZE(versions))
-        logi("\tXbox: FW version %s\n", versions[ins->version]);
-}
 
-//
-// Helpers
-//
-xboxone_instance_t* get_xboxone_instance(uni_hid_device_t* d) {
-    return (xboxone_instance_t*)&d->parser_data[0];
+    xboxone_play_quad_rumble_now(d, ins->rumble_duration_ms, ins->rumble_trigger_left, ins->rumble_trigger_right,
+                                 ins->rumble_weak_magnitude, ins->rumble_strong_magnitude);
 }
 
 static void xboxone_set_rumble_off(btstack_timer_source_t* ts) {

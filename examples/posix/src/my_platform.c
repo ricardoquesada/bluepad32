@@ -12,6 +12,15 @@
 static int g_enhanced_mode = 0;
 static int g_delete_keys = 0;
 
+enum {
+    TRIGGER_EFFECT_VIBRATION,
+    TRIGGER_EFFECT_WEAPON,
+    TRIGGER_EFFECT_FEEDBACK,
+    TRIGGER_EFFECT_OFF,
+
+    TRIGGER_EFFECT_COUNT,
+};
+
 // Posix "instance"
 typedef struct posix_instance_s {
     uni_gamepad_seat_t gamepad_seat;  // which "seat" is being used
@@ -21,6 +30,32 @@ typedef struct posix_instance_s {
 static void trigger_event_on_gamepad(uni_hid_device_t* d);
 static posix_instance_t* get_posix_instance(uni_hid_device_t* d);
 struct uni_platform* uni_platform_custom_create(void);
+
+static ds5_adaptive_trigger_effect_t next_trigger_adaptive_effect(int* trigger_effect_index) {
+    ds5_adaptive_trigger_effect_t ret;
+
+    switch (*trigger_effect_index) {
+        case TRIGGER_EFFECT_VIBRATION:
+            ret = ds5_new_adaptive_trigger_effect_vibration(3, 8, 15);
+            break;
+        case TRIGGER_EFFECT_WEAPON:
+            ret = ds5_new_adaptive_trigger_effect_weapon(5, 7, 6);
+            break;
+        case TRIGGER_EFFECT_FEEDBACK:
+            ret = ds5_new_adaptive_trigger_effect_feedback(2, 8);
+            break;
+        case TRIGGER_EFFECT_OFF:
+        default:
+            ret = ds5_new_adaptive_trigger_effect_off();
+            break;
+    }
+
+    (*trigger_effect_index)++;
+    if ((*trigger_effect_index) > TRIGGER_EFFECT_COUNT)
+        (*trigger_effect_index) = 0;
+
+    return ret;
+}
 
 //
 // Platform Overrides
@@ -94,6 +129,9 @@ static void posix_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl)
     static uint8_t leds = 0;
     static uint8_t enabled = true;
     static uni_controller_t prev = {0};
+    static ds5_adaptive_trigger_effect_t trigger_effect;
+    static int trigger_effect_index_left = 0, trigger_effect_index_right = 0;
+    static bool trigger_left_in_progress = false, trigger_right_in_progress = false;
     uni_gamepad_t* gp;
 
     if (memcmp(&prev, ctl, sizeof(*ctl)) == 0) {
@@ -107,29 +145,70 @@ static void posix_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl)
     switch (ctl->klass) {
         case UNI_CONTROLLER_CLASS_GAMEPAD:
             gp = &ctl->gamepad;
-#if 0
-            if ((gp->buttons & BUTTON_A))
-                xboxone_play_quad_rumble(d, 0, 500, 0xff, 0, 0, 0);
-            if ((gp->buttons & BUTTON_B))
-                xboxone_play_quad_rumble(d, 0, 500, 0, 0xff, 0, 0);
-            if ((gp->buttons & BUTTON_X))
-                xboxone_play_quad_rumble(d, 0, 500, 0, 0, 0xff, 0);
-            if ((gp->buttons & BUTTON_Y))
-                xboxone_play_quad_rumble(d, 0, 500, 0, 0, 0, 0xff);
-#endif
 
-            // Debugging
+            // Testing special Xbox One features
+            if (d->controller_type == CONTROLLER_TYPE_XBoxOneController) {
+                if ((gp->buttons & BUTTON_TRIGGER_L) && !trigger_left_in_progress) {
+                    xboxone_play_quad_rumble(d, 0 /* delayed start ms */, 500 /* duration ms */,
+                                             0xff /* trigger left magnitude*/, 0 /* trigger right magnitude */,
+                                             0 /* weak motor magnitude */, 0 /* right motor magnitude */);
+                    trigger_left_in_progress = true;
+                }
+                if ((gp->buttons & BUTTON_TRIGGER_L) == 0) {
+                    trigger_left_in_progress = false;
+                }
+
+                if ((gp->buttons & BUTTON_TRIGGER_R) && !trigger_right_in_progress) {
+                    xboxone_play_quad_rumble(d, 0 /* delayed start ms */, 500 /* duration ms */,
+                                             0 /* trigger left magnitude */, 0xff /* trigger right magnitude */,
+                                             0 /* weak motor magnitude */, 0 /* right motor magnitude */);
+                    trigger_right_in_progress = true;
+                }
+                if ((gp->buttons & BUTTON_TRIGGER_R) == 0) {
+                    trigger_right_in_progress = false;
+                }
+            }
+
+            // Testing special DualSense features
+            if (d->controller_type == CONTROLLER_TYPE_PS5Controller) {
+                // toggle between FFBs for left trigger
+                if ((gp->buttons & BUTTON_TRIGGER_L) && !trigger_left_in_progress) {
+                    trigger_effect = next_trigger_adaptive_effect(&trigger_effect_index_left);
+                    ds5_set_adaptive_trigger_effect(d, UNI_ADAPTIVE_TRIGGER_TYPE_LEFT, &trigger_effect);
+                    trigger_left_in_progress = true;
+                }
+                if ((gp->buttons & BUTTON_TRIGGER_L) == 0) {
+                    trigger_left_in_progress = false;
+                }
+
+                // toggle between FFBs for right trigger
+                if ((gp->buttons & BUTTON_TRIGGER_R) && !trigger_right_in_progress) {
+                    trigger_effect = next_trigger_adaptive_effect(&trigger_effect_index_right);
+                    ds5_set_adaptive_trigger_effect(d, UNI_ADAPTIVE_TRIGGER_TYPE_RIGHT, &trigger_effect);
+                    trigger_right_in_progress = true;
+                }
+                if ((gp->buttons & BUTTON_TRIGGER_R) == 0) {
+                    trigger_right_in_progress = false;
+                }
+            }
+
             // Axis ry: control rumble
             if ((gp->buttons & BUTTON_A) && d->report_parser.play_dual_rumble != NULL) {
-                d->report_parser.play_dual_rumble(d, 1000, 250, 0, 255);
+                d->report_parser.play_dual_rumble(d, 200 /* delayed start ms */, 250 /* duration ms */,
+                                                  255 /* weak motor magnitude */, 0 /* strong motor magnitude */);
+            }
+
+            if ((gp->buttons & BUTTON_B) && d->report_parser.play_dual_rumble != NULL) {
+                d->report_parser.play_dual_rumble(d, 200 /* delayed start ms */, 250 /* duration ms */,
+                                                  0 /* weak motor magnitude */, 255 /* strong motor magnitude */);
             }
 
             // Buttons: Control LEDs On/Off
-            if ((gp->buttons & BUTTON_B) && d->report_parser.set_player_leds != NULL) {
+            if ((gp->buttons & BUTTON_X) && d->report_parser.set_player_leds != NULL) {
                 d->report_parser.set_player_leds(d, leds++ & 0x0f);
             }
             // Axis: control RGB color
-            if ((gp->buttons & BUTTON_X) && d->report_parser.set_lightbar_color != NULL) {
+            if ((gp->buttons & BUTTON_Y) && d->report_parser.set_lightbar_color != NULL) {
                 uint8_t r = (gp->axis_x * 256) / 512;
                 uint8_t g = (gp->axis_y * 256) / 512;
                 uint8_t b = (gp->axis_rx * 256) / 512;

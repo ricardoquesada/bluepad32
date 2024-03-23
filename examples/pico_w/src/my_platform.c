@@ -7,7 +7,6 @@
 #include <pico/cyw43_arch.h>
 #include <pico/time.h>
 #include <uni.h>
-#include "parser/uni_hid_parser_ds5.h"
 
 #include "sdkconfig.h"
 
@@ -15,15 +14,6 @@
 #ifndef CONFIG_BLUEPAD32_PLATFORM_CUSTOM
 #error "Pico W must use BLUEPAD32_PLATFORM_CUSTOM"
 #endif
-
-enum {
-    TRIGGER_EFFECT_VIBRATION,
-    TRIGGER_EFFECT_WEAPON,
-    TRIGGER_EFFECT_FEEDBACK,
-    TRIGGER_EFFECT_OFF,
-
-    TRIGGER_EFFECT_COUNT,
-};
 
 // Declarations
 static void trigger_event_on_gamepad(uni_hid_device_t* d);
@@ -92,29 +82,11 @@ static uni_error_t my_platform_on_device_ready(uni_hid_device_t* d) {
     return UNI_ERROR_SUCCESS;
 }
 
-ds5_adaptive_trigger_effect_t next_trigger_adaptive_effect(int trigger_effect_index) {
-    switch (trigger_effect_index) {
-        case TRIGGER_EFFECT_VIBRATION:
-            return ds5_new_adaptive_trigger_effect_vibration(3, 8, 15);
-        case TRIGGER_EFFECT_WEAPON:
-            return ds5_new_adaptive_trigger_effect_weapon(5, 7, 6);
-        case TRIGGER_EFFECT_FEEDBACK:
-            return ds5_new_adaptive_trigger_effect_feedback(2, 8);
-        case TRIGGER_EFFECT_OFF:
-        default:
-            return ds5_new_adaptive_trigger_effect_off();
-    }
-}
-
 static void my_platform_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl) {
     static uint8_t leds = 0;
     static uint8_t enabled = true;
     static uni_controller_t prev = {0};
     uni_gamepad_t* gp;
-    static ds5_adaptive_trigger_effect_t trigger_effect;
-    static int trigger_effect_index_left = 0, trigger_effect_index_right = 0;
-    static uint32_t trigger_effect_spam_prevention_timestamp;
-    static uint8_t trigger_effect_spam_prevention_timestamp_has_set = 0;
 
     if (memcmp(&prev, ctl, sizeof(*ctl)) == 0) {
         return;
@@ -131,49 +103,24 @@ static void my_platform_on_controller_data(uni_hid_device_t* d, uni_controller_t
             // Debugging
             // Axis ry: control rumble
             if ((gp->buttons & BUTTON_A) && d->report_parser.play_dual_rumble != NULL) {
-                d->report_parser.play_dual_rumble(d, 0 /* delayed start ms */, 150 /* duration ms */,
-                                                  128 /* weak magnitude */, 40 /* strong magnitude */);
+                d->report_parser.play_dual_rumble(d, 0 /* delayed start ms */, 250 /* duration ms */,
+                                                  128 /* weak magnitude */, 0 /* strong magnitude */);
+            }
+
+            if ((gp->buttons & BUTTON_B) && d->report_parser.play_dual_rumble != NULL) {
+                d->report_parser.play_dual_rumble(d, 0 /* delayed start ms */, 250 /* duration ms */,
+                                                  0 /* weak magnitude */, 128 /* strong magnitude */);
             }
             // Buttons: Control LEDs On/Off
-            if ((gp->buttons & BUTTON_B) && d->report_parser.set_player_leds != NULL) {
+            if ((gp->buttons & BUTTON_X) && d->report_parser.set_player_leds != NULL) {
                 d->report_parser.set_player_leds(d, leds++ & 0x0f);
             }
             // Axis: control RGB color
-            if ((gp->buttons & BUTTON_X) && d->report_parser.set_lightbar_color != NULL) {
+            if ((gp->buttons & BUTTON_Y) && d->report_parser.set_lightbar_color != NULL) {
                 uint8_t r = (gp->axis_x * 256) / 512;
                 uint8_t g = (gp->axis_y * 256) / 512;
                 uint8_t b = (gp->axis_rx * 256) / 512;
                 d->report_parser.set_lightbar_color(d, r, g, b);
-            }
-
-            // toggle between FFBs for left trigger
-            if ((gp->dpad & DPAD_LEFT) && d->controller_type == CONTROLLER_TYPE_PS5Controller) {
-                // prevent button spam
-                if (trigger_effect_spam_prevention_timestamp_has_set == 0 ||
-                    time_us_32() - trigger_effect_spam_prevention_timestamp >= 1000 * 1000) {
-                    trigger_effect_spam_prevention_timestamp = time_us_32();
-                    trigger_effect_spam_prevention_timestamp_has_set = 1;
-                    trigger_effect = next_trigger_adaptive_effect(trigger_effect_index_left);
-                    trigger_effect_index_left++;
-                    if (trigger_effect_index_left >= TRIGGER_EFFECT_COUNT)
-                        trigger_effect_index_left = 0;
-                    ds5_set_adaptive_trigger_effect(d, UNI_ADAPTIVE_TRIGGER_TYPE_LEFT, &trigger_effect);
-                }
-            }
-
-            // toggle between FFBs for right trigger
-            if ((gp->dpad & DPAD_RIGHT) && d->controller_type == CONTROLLER_TYPE_PS5Controller) {
-                // prevent button spam
-                if (trigger_effect_spam_prevention_timestamp_has_set == 0 ||
-                    time_us_32() - trigger_effect_spam_prevention_timestamp >= 1000 * 1000) {
-                    trigger_effect_spam_prevention_timestamp = time_us_32();
-                    trigger_effect_spam_prevention_timestamp_has_set = 1;
-                    trigger_effect = next_trigger_adaptive_effect(trigger_effect_index_right);
-                    trigger_effect_index_right++;
-                    if (trigger_effect_index_right > TRIGGER_EFFECT_COUNT)
-                        trigger_effect_index_right = 0;
-                    ds5_set_adaptive_trigger_effect(d, UNI_ADAPTIVE_TRIGGER_TYPE_RIGHT, &trigger_effect);
-                }
             }
 
             // Toggle Bluetooth connections
@@ -207,7 +154,6 @@ static void my_platform_on_controller_data(uni_hid_device_t* d, uni_controller_t
 }
 
 static const uni_property_t* my_platform_get_property(uni_property_idx_t idx) {
-    // Deprecated
     ARG_UNUSED(idx);
     return NULL;
 }
@@ -220,7 +166,7 @@ static void my_platform_on_oob_event(uni_platform_oob_event_t event, void* data)
             break;
 
         case UNI_PLATFORM_OOB_BLUETOOTH_ENABLED:
-            // When the "bt scanning" is on / off. Could by triggered by different events
+            // When the "bt scanning" is on / off. Could be triggered by different events
             // Useful to notify the user
             logi("my_platform_on_oob_event: Bluetooth enabled: %d\n", (bool)(data));
             break;

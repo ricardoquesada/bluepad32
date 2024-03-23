@@ -10,7 +10,6 @@
 
 #include "parser/uni_hid_parser.h"
 
-// From here: Unique to DualSense. Not part of the "hid_parser" interface
 typedef struct __attribute((packed)) {
     uint8_t effect;
     uint8_t data[10];
@@ -21,8 +20,24 @@ typedef enum {
     UNI_ADAPTIVE_TRIGGER_TYPE_RIGHT,
 } ds5_adaptive_trigger_type_t;
 
-// Warning: Adaptive trigger API is experimental. Might change in the future without further notice.
-// Switches adaptive trigger effect off
+// For DualSense gamepads
+void uni_hid_parser_ds5_setup(struct uni_hid_device_s* d);
+void uni_hid_parser_ds5_init_report(struct uni_hid_device_s* d);
+void uni_hid_parser_ds5_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len);
+void uni_hid_parser_ds5_parse_feature_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len);
+void uni_hid_parser_ds5_set_player_leds(struct uni_hid_device_s* d, uint8_t value);
+void uni_hid_parser_ds5_set_lightbar_color(struct uni_hid_device_s* d, uint8_t r, uint8_t g, uint8_t b);
+void uni_hid_parser_ds5_play_dual_rumble(struct uni_hid_device_s* d,
+                                         uint16_t start_delay_ms,
+                                         uint16_t duration_ms,
+                                         uint8_t weak_magnitude,
+                                         uint8_t strong_magnitude);
+void uni_hid_parser_ds5_device_dump(struct uni_hid_device_s* d);
+
+// Unique to DualSense. Not part of the "hid_parser" interface
+// Warning: Adaptive trigger API is experimental. It might change in the future without further notice.
+
+// Turns off adaptive trigger effect.
 ds5_adaptive_trigger_effect_t ds5_new_adaptive_trigger_effect_off(void);
 
 // Provides feedback when the user depresses the trigger equal to, or greater than, the start position.
@@ -49,20 +64,5 @@ ds5_adaptive_trigger_effect_t ds5_new_adaptive_trigger_effect_vibration(uint8_t 
 void ds5_set_adaptive_trigger_effect(struct uni_hid_device_s* d,
                                      ds5_adaptive_trigger_type_t trigger_type,
                                      const ds5_adaptive_trigger_effect_t* effect);
-// To here: Unique to DualSense. Not part of the "hid_parser" interface
-
-// For DualSense gamepads
-void uni_hid_parser_ds5_setup(struct uni_hid_device_s* d);
-void uni_hid_parser_ds5_init_report(struct uni_hid_device_s* d);
-void uni_hid_parser_ds5_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len);
-void uni_hid_parser_ds5_parse_feature_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len);
-void uni_hid_parser_ds5_set_player_leds(struct uni_hid_device_s* d, uint8_t value);
-void uni_hid_parser_ds5_set_lightbar_color(struct uni_hid_device_s* d, uint8_t r, uint8_t g, uint8_t b);
-void uni_hid_parser_ds5_play_dual_rumble(struct uni_hid_device_s* d,
-                                         uint16_t start_delay_ms,
-                                         uint16_t duration_ms,
-                                         uint8_t weak_magnitude,
-                                         uint8_t strong_magnitude);
-void uni_hid_parser_ds5_device_dump(struct uni_hid_device_s* d);
 
 #endif  // UNI_HID_PARSER_DS5_H

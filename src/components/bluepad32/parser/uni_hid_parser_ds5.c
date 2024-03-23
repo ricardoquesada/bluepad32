@@ -376,8 +376,11 @@ void ds5_set_adaptive_trigger_effect(struct uni_hid_device_s* d,
 
     if (type == UNI_ADAPTIVE_TRIGGER_TYPE_LEFT) {
         memcpy(out.left_trigger_ffb, effect, sizeof(*effect));
-    } else {
+    } else if (type == UNI_ADAPTIVE_TRIGGER_TYPE_RIGHT) {
         memcpy(out.right_trigger_ffb, effect, sizeof(*effect));
+    } else {
+        loge("DS5: Invalid trigger type: %d\n", type);
+        return;
     }
 
     // logi("Has set valid flag %d, also, %d, and, %d", out.valid_flag0, out.left_trigger_ffb, out.right_trigger_ffb);
