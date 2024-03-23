@@ -62,6 +62,11 @@ enum {
     XBOXONE_FF_TRIGGER_LEFT = BIT(3),
 };
 
+typedef enum {
+    XBOXONE_STATE_RUMBLE_DISABLED,
+    XBOXONE_STATE_RUMBLE_IN_PROGRESS,
+} xboxone_state_rumble_t;
+
 struct xboxone_ff_report {
     // Report related
     uint8_t transaction_type;  // type of transaction
@@ -81,10 +86,18 @@ struct xboxone_ff_report {
 // xboxone_instance_t represents data used by the Xbox driver instance.
 typedef struct xboxone_instance_s {
     enum xboxone_firmware version;
+    // Cannot use the Xbox duration field because 8BitDo controllers keep rumbling forever.
+    // So we use a timer to cancel the rumbling after "duration".
+    // https://gitlab.com/ricardoquesada/unijoysticle2/-/issues/10
+    // https://github.com/ricardoquesada/bluepad32/issues/85
+    btstack_timer_source_t rumble_timer_duration;
+    xboxone_state_rumble_t rumble_state;
+
 } xboxone_instance_t;
 _Static_assert(sizeof(xboxone_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "Xbox one instance too big");
 
 static xboxone_instance_t* get_xboxone_instance(uni_hid_device_t* d);
+static void xboxone_set_rumble_off(btstack_timer_source_t* ts);
 static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
                                       hid_globals_t* globals,
                                       uint16_t usage_page,
@@ -466,33 +479,56 @@ void uni_hid_parser_xboxone_play_dual_rumble(struct uni_hid_device_s* d,
                                              uint16_t duration_ms,
                                              uint8_t weak_magnitude,
                                              uint8_t strong_magnitude) {
-    uint8_t status;
+    xboxone_play_quad_rumble(d, start_delay_ms, duration_ms, 0 /* left trigger */, 0 /* right trigger */,
+                             weak_magnitude, strong_magnitude);
+}
+
+void xboxone_play_quad_rumble(struct uni_hid_device_s* d,
+                              uint16_t start_delay_ms,
+                              uint16_t duration_ms,
+                              uint8_t left_trigger,
+                              uint8_t right_trigger,
+                              uint8_t weak_magnitude,
+                              uint8_t strong_magnitude) {
+    uint8_t status = ERROR_CODE_SUCCESS;
 
     if (d == NULL) {
         loge("Xbox: Invalid device\n");
         return;
     }
 
-    if ((weak_magnitude == 0 && strong_magnitude == 0) || duration_ms == 0)
+    if ((weak_magnitude == 0 && strong_magnitude == 0 && left_trigger == 0 && right_trigger == 0) || duration_ms == 0)
         return;
 
     xboxone_instance_t* ins = get_xboxone_instance(d);
+    switch (ins->rumble_state) {
+        case XBOXONE_STATE_RUMBLE_IN_PROGRESS:
+            btstack_run_loop_remove_timer(&ins->rumble_timer_duration);
+            break;
+        default:
+            // Do nothing
+            break;
+    }
+
+    uint8_t mask = 0;
+    mask |= (left_trigger != 0) ? XBOXONE_FF_TRIGGER_LEFT : 0;
+    mask |= (right_trigger != 0) ? XBOXONE_FF_TRIGGER_RIGHT : 0;
+    mask |= (weak_magnitude != 0) ? XBOXONE_FF_WEAK : 0;
+    mask |= (strong_magnitude != 0) ? XBOXONE_FF_STRONG : 0;
+
+    // Magnitude is 0..100 so scale the 8-bit input here
 
     struct xboxone_ff_report ff = {
         .transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT,
         .report_id = XBOX_RUMBLE_REPORT_ID,
-        .enable_actuators = XBOXONE_FF_STRONG | XBOXONE_FF_WEAK,
-        .magnitude_left_trigger = 0,
-        .magnitude_right_trigger = 0,
-        // Don't enable magnitude_left/magnitude_right actuators.
-        // They keep vibrating forever on some 8BitDo controllers
-        // https://gitlab.com/ricardoquesada/unijoysticle2/-/issues/10
-        // Magnitude is 0..100 so scale the 8-bit input here
+        .enable_actuators = mask,
+        .magnitude_left_trigger = ((uint16_t)(left_trigger * 100)) / UINT8_MAX,
+        .magnitude_right_trigger = ((uint16_t)(right_trigger * 100)) / UINT8_MAX,
         .magnitude_strong = ((uint16_t)(strong_magnitude * 100)) / UINT8_MAX,
         .magnitude_weak = ((uint16_t)(weak_magnitude * 100)) / UINT8_MAX,
-        .duration_10ms = duration_ms / 10,
+        .duration_10ms = 0xff,  // forever
         .start_delay_10ms = start_delay_ms / 10,
-        .loop_count = 0,
+        .loop_count = 0xff,  // forever
     };
 
     if (ins->version == XBOXONE_FIRMWARE_V5) {
@@ -504,6 +540,15 @@ void uni_hid_parser_xboxone_play_dual_rumble(struct uni_hid_device_s* d,
             loge("Xbox: Failed to send rumble report, error=%#x\n", status);
     } else {
         uni_hid_device_send_intr_report(d, (uint8_t*)&ff, sizeof(ff));
+    }
+
+    if (status == ERROR_CODE_SUCCESS) {
+        // Set timer to turn off rumble
+        ins->rumble_timer_duration.process = &xboxone_set_rumble_off;
+        ins->rumble_timer_duration.context = d;
+        ins->rumble_state = XBOXONE_STATE_RUMBLE_IN_PROGRESS;
+        btstack_run_loop_set_timer(&ins->rumble_timer_duration, duration_ms);
+        btstack_run_loop_add_timer(&ins->rumble_timer_duration);
     }
 }
 
@@ -523,4 +568,38 @@ void uni_hid_parser_xboxone_device_dump(uni_hid_device_t* d) {
 //
 xboxone_instance_t* get_xboxone_instance(uni_hid_device_t* d) {
     return (xboxone_instance_t*)&d->parser_data[0];
+}
+
+static void xboxone_set_rumble_off(btstack_timer_source_t* ts) {
+    uint8_t status;
+    uni_hid_device_t* d = ts->context;
+    xboxone_instance_t* ins = get_xboxone_instance(d);
+
+    // No need to protect it with a mutex since it runs in the same main thread
+    assert(ins->rumble_state != XBOXONE_STATE_RUMBLE_DISABLED);
+    ins->rumble_state = XBOXONE_STATE_RUMBLE_DISABLED;
+
+    struct xboxone_ff_report ff = {
+        .transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT,
+        .report_id = XBOX_RUMBLE_REPORT_ID,
+        .enable_actuators = XBOXONE_FF_TRIGGER_LEFT | XBOXONE_FF_TRIGGER_RIGHT | XBOXONE_FF_WEAK | XBOXONE_FF_STRONG,
+        .magnitude_left_trigger = 0,
+        .magnitude_right_trigger = 0,
+        .magnitude_strong = 0,
+        .magnitude_weak = 0,
+        .duration_10ms = 0,
+        .start_delay_10ms = 0,
+        .loop_count = 0,
+    };
+
+    if (ins->version == XBOXONE_FIRMWARE_V5) {
+        status = hids_client_send_write_report(d->hids_cid, XBOX_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
+                                               &ff.enable_actuators,  // skip the first type bytes,
+                                               sizeof(ff) - 2         // subtract the 2 bytes from total
+        );
+        if (status != ERROR_CODE_SUCCESS)
+            loge("Xbox: Failed to turn off rumble, error=%#x\n", status);
+    } else {
+        uni_hid_device_send_intr_report(d, (uint8_t*)&ff, sizeof(ff));
+    }
 }

@@ -243,9 +243,9 @@ Classic Controller can be used.
 
 Supported "extra features":
 
-| Rumble           |
-|------------------|
-| :material-check: |
+| Rumble           | Trigger Rumble   |
+|------------------|------------------|
+| :material-check: | :material-check: |
 
 - This is the "2 button" model
 - Must be the *model 1708* (released in 2016) and not earlier. *Model 1797* should work.
@@ -265,9 +265,9 @@ Supported "extra features":
 
 Supported "extra features":
 
-| Rumble           |
-|------------------|
-| :material-check: |
+| Rumble           | Trigger Rumble   |
+|------------------|------------------|
+| :material-check: | :material-check: |
 
 - This is the "3 button" model
 - Should be *model 1914*. Other "3 button" models should work as well.

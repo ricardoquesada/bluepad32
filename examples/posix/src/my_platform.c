@@ -107,6 +107,16 @@ static void posix_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl)
     switch (ctl->klass) {
         case UNI_CONTROLLER_CLASS_GAMEPAD:
             gp = &ctl->gamepad;
+#if 0
+            if ((gp->buttons & BUTTON_A))
+                xboxone_play_quad_rumble(d, 0, 500, 0xff, 0, 0, 0);
+            if ((gp->buttons & BUTTON_B))
+                xboxone_play_quad_rumble(d, 0, 500, 0, 0xff, 0, 0);
+            if ((gp->buttons & BUTTON_X))
+                xboxone_play_quad_rumble(d, 0, 500, 0, 0, 0xff, 0);
+            if ((gp->buttons & BUTTON_Y))
+                xboxone_play_quad_rumble(d, 0, 500, 0, 0, 0, 0xff);
+#endif
 
             // Debugging
             // Axis ry: control rumble

@@ -10,6 +10,7 @@
 
 #include "parser/uni_hid_parser.h"
 
+// From here: Unique to DualSense. Not part of the "hid_parser" interface
 typedef struct __attribute((packed)) {
     uint8_t effect;
     uint8_t data[10];
@@ -48,6 +49,7 @@ ds5_adaptive_trigger_effect_t ds5_new_adaptive_trigger_effect_vibration(uint8_t 
 void ds5_set_adaptive_trigger_effect(struct uni_hid_device_s* d,
                                      ds5_adaptive_trigger_type_t trigger_type,
                                      const ds5_adaptive_trigger_effect_t* effect);
+// To here: Unique to DualSense. Not part of the "hid_parser" interface
 
 // For DualSense gamepads
 void uni_hid_parser_ds5_setup(struct uni_hid_device_s* d);
