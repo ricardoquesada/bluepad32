@@ -37,7 +37,7 @@ static const uint16_t SWITCH_ONLINE_SNES_CONTROLLER_PID = 0x2017;
 // static const uint16_t SWITCH_ONLINE_N64_CONTROLLER_PID = 0x2019;
 // static const uint16_t SWITCH_ONLINE_SEGA_CONTROLLER_PID = 0x201e;
 
-#define SWITCH_FACTORY_STICK_CAL_DATA_SIZE 18
+#define SWITCH_FACTORY_STICK_CAL_DATA_SIZE (9 + 9)  // includes both left and right calibrations
 static const uint16_t SWITCH_FACTORY_STICK_CAL_DATA_ADDR = 0x603d;
 #define SWITCH_USER_STICK_CAL_DATA_SIZE 22
 static const uint16_t SWITCH_USER_STICK_CAL_DATA_ADDR = 0x8010;
@@ -117,9 +117,9 @@ typedef enum {
 
 // Calibration values for a stick.
 typedef struct switch_cal_stick_s {
-    int16_t min;
-    int16_t center;
-    int16_t max;
+    int32_t min;
+    int32_t center;
+    int32_t max;
 } switch_cal_stick_t;
 
 // Calibration values for a IMU.
@@ -329,7 +329,7 @@ static void process_reply_set_report_mode(struct uni_hid_device_s* d, const stru
 static void process_reply_spi_flash_read(struct uni_hid_device_s* d, const struct switch_report_21_s* r, int len);
 static void process_reply_set_player_leds(struct uni_hid_device_s* d, const struct switch_report_21_s* r, int len);
 static void process_reply_enable_imu(struct uni_hid_device_s* d, const struct switch_report_21_s* r, int len);
-static int32_t calibrate_axis(int16_t v, switch_cal_stick_t cal);
+static int32_t calibrate_axis(int32_t v, switch_cal_stick_t cal);
 static void set_led(uni_hid_device_t* d, uint8_t leds);
 static void switch_set_rumble_on(btstack_timer_source_t* ts);
 static void switch_set_rumble_off(btstack_timer_source_t* ts);
@@ -338,6 +338,7 @@ static void switch_play_dual_rumble_now(struct uni_hid_device_s* d,
                                         uint8_t weak_magnitude,
                                         uint8_t strong_magnitude);
 static void switch_setup_timeout_callback(btstack_timer_source_t* ts);
+static void parse_stick_calibration(switch_cal_stick_t* x, switch_cal_stick_t* y, const uint8_t* data, bool is_left);
 
 void uni_hid_parser_switch_setup(struct uni_hid_device_s* d) {
     switch_instance_t* ins = get_switch_instance(d);
@@ -494,50 +495,63 @@ static void process_reply_read_spi_dump(struct uni_hid_device_s* d, const uint8_
 #endif  // ENABLE_SPI_FLASH_DUMP
 }
 
+static void parse_stick_calibration(switch_cal_stick_t* x, switch_cal_stick_t* y, const uint8_t* data, bool is_left) {
+    int32_t cal_x_max;
+    int32_t cal_y_max;
+    int32_t cal_x_min;
+    int32_t cal_y_min;
+
+    // Guaranteed that data has at lest 9 elements
+    // left and right sticks have different parsing order
+
+    if (is_left) {
+        // max
+        cal_x_max = data[0] | ((data[1] & 0x0f) << 8);  // bits: 0-11
+        cal_y_max = (data[1] >> 4) | (data[2] << 4);    // bits: 12-23
+        // center
+        x->center = data[3] | ((data[4] & 0x0f) << 8);  // bits: 24-35
+        y->center = (data[4] >> 4) | (data[5] << 4);    // bits: 36-47
+        // min
+        cal_x_min = data[6] | ((data[7] & 0x0f) << 8);  // bits: 48-59
+        cal_y_min = (data[7] >> 4) | (data[8] << 4);    // bits: 60-71
+    } else {
+        // Right stick
+        // center
+        x->center = data[0] | ((data[1] & 0x0f) << 8);  // bits: 0-11
+        y->center = (data[1] >> 4) | (data[2] << 4);    // bits: 12-23
+        // min
+        cal_x_min = data[3] | ((data[4] & 0x0f) << 8);  // bits: 24-35
+        cal_y_min = (data[4] >> 4) | (data[5] << 4);    // bits: 36-47
+        // max
+        cal_x_max = data[6] | ((data[7] & 0x0f) << 8);  // bits: 48-59
+        cal_y_max = (data[7] >> 4) | (data[8] << 4);    // bits: 60-71
+    }
+
+    x->min = x->center - cal_x_min;
+    x->max = x->center + cal_x_max;
+    y->min = y->center - cal_y_min;
+    y->max = y->center + cal_y_max;
+}
+
 static void process_reply_read_spi_factory_stick_calibration(struct uni_hid_device_s* d, const uint8_t* data, int len) {
     switch_instance_t* ins = get_switch_instance(d);
 
-    if (len < SWITCH_FACTORY_STICK_CAL_DATA_SIZE + 5) {
+    if (len < SWITCH_FACTORY_STICK_CAL_DATA_SIZE) {
         loge("Switch: invalid spi factory stick calibration len; got %d, wanted %d\n", len,
-             SWITCH_FACTORY_STICK_CAL_DATA_SIZE + 5);
+             SWITCH_FACTORY_STICK_CAL_DATA_SIZE);
         return;
     }
 
-    // Left stick
-    // max
-    int16_t cal_x_max = data[5] | ((data[6] & 0x0f) << 8);
-    int16_t cal_y_max = (data[6] >> 4) | (data[7] << 4);
-    // center
-    ins->cal_x.center = data[8] | ((data[9] & 0x0f) << 8);
-    ins->cal_y.center = (data[9] >> 4) | (data[10] << 4);
-    // min
-    int16_t cal_x_min = data[11] | ((data[12] & 0x0f) << 8);
-    int16_t cal_y_min = (data[12] >> 4) | (data[13] << 4);
-    ins->cal_x.min = ins->cal_x.center - cal_x_min;
-    ins->cal_x.max = ins->cal_x.center + cal_x_max;
-    ins->cal_y.min = ins->cal_y.center - cal_y_min;
-    ins->cal_y.max = ins->cal_y.center + cal_y_max;
+    parse_stick_calibration(&ins->cal_x, &ins->cal_y, data, true);
+    parse_stick_calibration(&ins->cal_rx, &ins->cal_y, &data[9], false);
 
-    // Right stick (has different order than Left stick)
-    // center
-    ins->cal_rx.center = data[14] | ((data[15] & 0x0f) << 8);
-    ins->cal_ry.center = (data[15] >> 4) | (data[16] << 4);
-    // min
-    int16_t cal_rx_min = data[17] | ((data[18] & 0x0f) << 8);
-    int16_t cal_ry_min = (data[18] >> 4) | (data[19] << 4);
-    // max
-    int16_t cal_rx_max = data[20] | ((data[21] & 0x0f) << 8);
-    int16_t cal_ry_max = (data[21] >> 4) | (data[22] << 4);
-    ins->cal_rx.min = ins->cal_rx.center - cal_rx_min;
-    ins->cal_rx.max = ins->cal_rx.center + cal_rx_max;
-    ins->cal_ry.min = ins->cal_ry.center - cal_ry_min;
-    ins->cal_ry.max = ins->cal_ry.center + cal_ry_max;
-
-    logi("Switch: Stick calibration info: x=%d,%d,%d, y=%d,%d,%d, rx=%d,%d,%d, ry=%d,%d,%d\n", ins->cal_x.min,
-         ins->cal_x.center, ins->cal_x.max,                     // x
-         ins->cal_y.min, ins->cal_y.center, ins->cal_y.max,     // y
-         ins->cal_rx.min, ins->cal_rx.center, ins->cal_rx.max,  // rx
-         ins->cal_ry.min, ins->cal_ry.center, ins->cal_ry.max   // ry
+    logi("Switch: Left stick calibration info: x=%d,%d,%d, y=%d,%d,%d\n",  //
+         ins->cal_x.min, ins->cal_x.center, ins->cal_x.max,                // x
+         ins->cal_y.min, ins->cal_y.center, ins->cal_y.max                 // y
+    );
+    logi("Switch: Right stick calibration info: x=%d,%d,%d, y=%d,%d,%d\n",  //
+         ins->cal_rx.min, ins->cal_rx.center, ins->cal_rx.max,              // rx
+         ins->cal_ry.min, ins->cal_ry.center, ins->cal_ry.max               // ry
     );
 }
 
@@ -627,13 +641,13 @@ static void process_reply_spi_flash_read(struct uni_hid_device_s* d, const struc
 
     switch (ins->state) {
         case STATE_READ_FACTORY_STICK_CALIBRATION:
-            process_reply_read_spi_factory_stick_calibration(d, r->data, mem_len);
+            process_reply_read_spi_factory_stick_calibration(d, &r->data[5], mem_len);
             break;
         case STATE_READ_USER_STICK_CALIBRATION:
-            process_reply_read_spi_user_stick_calibration(d, r->data, mem_len);
+            process_reply_read_spi_user_stick_calibration(d, &r->data[5], mem_len);
             break;
         case STATE_READ_FACTORY_IMU_CALIBRATION:
-            process_reply_read_spi_factory_imu_calibration(d, r->data, mem_len);
+            process_reply_read_spi_factory_imu_calibration(d, &r->data[5], mem_len);
             break;
         case STATE_DUMP_FLASH:
             process_reply_read_spi_dump(d, r->data, mem_len);
@@ -816,15 +830,15 @@ static void parse_report_30_pro_controller(uni_hid_device_t* d, const struct swi
         ctl->gamepad.buttons |= (r->buttons.buttons_misc & 0b00001000) ? BUTTON_THUMB_L : 0;  // Thumb L
 
         // Stick left
-        int16_t lx = r->buttons.stick_left[0] | ((r->buttons.stick_left[1] & 0x0f) << 8);
+        int32_t lx = r->buttons.stick_left[0] | ((r->buttons.stick_left[1] & 0x0f) << 8);
         ctl->gamepad.axis_x = calibrate_axis(lx, ins->cal_x);
-        int16_t ly = (r->buttons.stick_left[1] >> 4) | (r->buttons.stick_left[2] << 4);
+        int32_t ly = (r->buttons.stick_left[1] >> 4) | (r->buttons.stick_left[2] << 4);
         ctl->gamepad.axis_y = -calibrate_axis(ly, ins->cal_y);
 
         // Stick right
-        int16_t rx = r->buttons.stick_right[0] | ((r->buttons.stick_right[1] & 0x0f) << 8);
+        int32_t rx = r->buttons.stick_right[0] | ((r->buttons.stick_right[1] & 0x0f) << 8);
         ctl->gamepad.axis_rx = calibrate_axis(rx, ins->cal_rx);
-        int16_t ry = (r->buttons.stick_right[1] >> 4) | (r->buttons.stick_right[2] << 4);
+        int32_t ry = (r->buttons.stick_right[1] >> 4) | (r->buttons.stick_right[2] << 4);
         ctl->gamepad.axis_ry = -calibrate_axis(ry, ins->cal_ry);
         logd("uncalibrated values: x=%d,y=%d,rx=%d,ry=%d\n", lx, ly, rx, ry);
     }
@@ -837,9 +851,9 @@ static void parse_report_30_joycon_left(uni_hid_device_t* d, const struct switch
     switch_instance_t* ins = get_switch_instance(d);
 
     // Axis (left and only stick)
-    int16_t lx = r->buttons.stick_left[0] | ((r->buttons.stick_left[1] & 0x0f) << 8);
+    int32_t lx = r->buttons.stick_left[0] | ((r->buttons.stick_left[1] & 0x0f) << 8);
     ctl->gamepad.axis_y = -calibrate_axis(lx, ins->cal_x);
-    int16_t ly = (r->buttons.stick_left[1] >> 4) | (r->buttons.stick_left[2] << 4);
+    int32_t ly = (r->buttons.stick_left[1] >> 4) | (r->buttons.stick_left[2] << 4);
     ctl->gamepad.axis_x = -calibrate_axis(ly, ins->cal_y);
 
     // Buttons
@@ -866,9 +880,9 @@ static void parse_report_30_joycon_right(uni_hid_device_t* d, const struct switc
     switch_instance_t* ins = get_switch_instance(d);
 
     // Axis (left and only stick)
-    int16_t rx = r->buttons.stick_right[0] | ((r->buttons.stick_right[1] & 0x0f) << 8);
+    int32_t rx = r->buttons.stick_right[0] | ((r->buttons.stick_right[1] & 0x0f) << 8);
     ctl->gamepad.axis_y = calibrate_axis(rx, ins->cal_rx);
-    int16_t ry = (r->buttons.stick_right[1] >> 4) | (r->buttons.stick_right[2] << 4);
+    int32_t ry = (r->buttons.stick_right[1] >> 4) | (r->buttons.stick_right[2] << 4);
     ctl->gamepad.axis_x = calibrate_axis(ry, ins->cal_ry);
 
     // Buttons
@@ -980,7 +994,9 @@ static void fsm_read_factory_stick_calibration(struct uni_hid_device_s* d) {
     struct switch_subcmd_request* req = (struct switch_subcmd_request*)&out[0];
     req->report_id = 0x01;  // 0x01 for sub commands
     req->subcmd_id = SUBCMD_SPI_FLASH_READ;
+
     // Address to read from: stick calibration
+    // Read both left and right: 9 + 9
     req->data[0] = SWITCH_FACTORY_STICK_CAL_DATA_ADDR & 0xff;
     req->data[1] = (SWITCH_FACTORY_STICK_CAL_DATA_ADDR >> 8) & 0xff;
     req->data[2] = (SWITCH_FACTORY_STICK_CAL_DATA_ADDR >> 16) & 0xff;
@@ -1223,7 +1239,7 @@ static void send_subcmd(uni_hid_device_t* d, struct switch_subcmd_request* r, in
     uni_hid_device_send_intr_report(d, (const uint8_t*)r, len);
 }
 
-static int32_t calibrate_axis(int16_t v, switch_cal_stick_t cal) {
+static int32_t calibrate_axis(int32_t v, switch_cal_stick_t cal) {
     int32_t ret;
     if (v > cal.center) {
         ret = (v - cal.center) * AXIS_NORMALIZE_RANGE / 2;
