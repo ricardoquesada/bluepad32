@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [4.1-rc1] - 2024-??
 ### New
 
+### Changed
+
+- Example: Move DualSense trigger adaptive effect from Pico to Posix example.
+- Example: Add Xbox Trigger rumble in Posix example.
+
 ### Fixed
 - Xbox: 8BitDo controllers don't rumble forever. Fixes [Github Issue #85][github_issue_85]
+- Xbox: Using internal timer for delayed start, making it easier to cancel previous rumble command.
+- Switch: IMU and Stick calibration work as expected.
 
 [github_issue_85]: https://github.com/ricardoquesada/bluepad32/issues/85
 

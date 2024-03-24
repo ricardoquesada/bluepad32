@@ -37,8 +37,9 @@ static const uint16_t SWITCH_ONLINE_SNES_CONTROLLER_PID = 0x2017;
 // static const uint16_t SWITCH_ONLINE_N64_CONTROLLER_PID = 0x2019;
 // static const uint16_t SWITCH_ONLINE_SEGA_CONTROLLER_PID = 0x201e;
 
-#define SWITCH_FACTORY_STICK_CAL_DATA_SIZE (9 + 9)  // includes both left and right calibrations
-static const uint16_t SWITCH_FACTORY_STICK_CAL_DATA_ADDR = 0x603d;
+#define SWITCH_FACTORY_STICK_CAL_DATA_SIZE 9
+static const uint16_t SWITCH_FACTORY_STICK_CAL_DATA_ADDR_LEFT = 0x603d;
+static const uint16_t SWITCH_FACTORY_STICK_CAL_DATA_ADDR_RIGHT = 0x6046;
 #define SWITCH_USER_STICK_CAL_DATA_SIZE 22
 static const uint16_t SWITCH_USER_STICK_CAL_DATA_ADDR = 0x8010;
 
@@ -495,64 +496,45 @@ static void process_reply_read_spi_dump(struct uni_hid_device_s* d, const uint8_
 #endif  // ENABLE_SPI_FLASH_DUMP
 }
 
-static void parse_stick_calibration(switch_cal_stick_t* x, switch_cal_stick_t* y, const uint8_t* data, bool is_left) {
-    int32_t cal_x_max;
-    int32_t cal_y_max;
-    int32_t cal_x_min;
-    int32_t cal_y_min;
-
-    // Guaranteed that data has at lest 9 elements
-    // left and right sticks have different parsing order
-
-    if (is_left) {
-        // max
-        cal_x_max = data[0] | ((data[1] & 0x0f) << 8);  // bits: 0-11
-        cal_y_max = (data[1] >> 4) | (data[2] << 4);    // bits: 12-23
-        // center
-        x->center = data[3] | ((data[4] & 0x0f) << 8);  // bits: 24-35
-        y->center = (data[4] >> 4) | (data[5] << 4);    // bits: 36-47
-        // min
-        cal_x_min = data[6] | ((data[7] & 0x0f) << 8);  // bits: 48-59
-        cal_y_min = (data[7] >> 4) | (data[8] << 4);    // bits: 60-71
-    } else {
-        // Right stick
-        // center
-        x->center = data[0] | ((data[1] & 0x0f) << 8);  // bits: 0-11
-        y->center = (data[1] >> 4) | (data[2] << 4);    // bits: 12-23
-        // min
-        cal_x_min = data[3] | ((data[4] & 0x0f) << 8);  // bits: 24-35
-        cal_y_min = (data[4] >> 4) | (data[5] << 4);    // bits: 36-47
-        // max
-        cal_x_max = data[6] | ((data[7] & 0x0f) << 8);  // bits: 48-59
-        cal_y_max = (data[7] >> 4) | (data[8] << 4);    // bits: 60-71
-    }
-
-    x->min = x->center - cal_x_min;
-    x->max = x->center + cal_x_max;
-    y->min = y->center - cal_y_min;
-    y->max = y->center + cal_y_max;
-}
-
 static void process_reply_read_spi_factory_stick_calibration(struct uni_hid_device_s* d, const uint8_t* data, int len) {
     switch_instance_t* ins = get_switch_instance(d);
+    bool is_left;
 
-    if (len < SWITCH_FACTORY_STICK_CAL_DATA_SIZE) {
-        loge("Switch: invalid spi factory stick calibration len; got %d, wanted %d\n", len,
-             SWITCH_FACTORY_STICK_CAL_DATA_SIZE);
-        return;
+    if (ins->controller_type == SWITCH_CONTROLLER_TYPE_PRO) {
+        // Sanity check
+        if (len != SWITCH_FACTORY_STICK_CAL_DATA_SIZE * 2) {
+            loge("Switch: invalid spi factory stick calibration len; got %d, wanted %d\n", len,
+                 SWITCH_FACTORY_STICK_CAL_DATA_SIZE * 2);
+            return;
+        }
+
+        parse_stick_calibration(&ins->cal_x, &ins->cal_y, data, true);
+        parse_stick_calibration(&ins->cal_rx, &ins->cal_y, &data[9], false);
+    } else {
+        if (len != SWITCH_FACTORY_STICK_CAL_DATA_SIZE) {
+            // Sanity check
+            loge("Switch: invalid spi factory stick calibration len; got %d, wanted %d\n", len,
+                 SWITCH_FACTORY_STICK_CAL_DATA_SIZE);
+            return;
+        }
+        is_left = ins->controller_type == SWITCH_CONTROLLER_TYPE_JCL;
+        parse_stick_calibration(&ins->cal_x, &ins->cal_y, data, is_left);
     }
 
-    parse_stick_calibration(&ins->cal_x, &ins->cal_y, data, true);
-    parse_stick_calibration(&ins->cal_rx, &ins->cal_y, &data[9], false);
-
-    logi("Switch: Left stick calibration info: x=%d,%d,%d, y=%d,%d,%d\n",  //
-         ins->cal_x.min, ins->cal_x.center, ins->cal_x.max,                // x
-         ins->cal_y.min, ins->cal_y.center, ins->cal_y.max                 // y
-    );
-    logi("Switch: Right stick calibration info: x=%d,%d,%d, y=%d,%d,%d\n",  //
-         ins->cal_rx.min, ins->cal_rx.center, ins->cal_rx.max,              // rx
-         ins->cal_ry.min, ins->cal_ry.center, ins->cal_ry.max               // ry
-    );
+    if (ins->controller_type == SWITCH_CONTROLLER_TYPE_PRO || ins->controller_type == SWITCH_CONTROLLER_TYPE_JCL)
+        logi("Switch: Left stick calibration info: x=%d,%d,%d, y=%d,%d,%d\n",  //
+             ins->cal_x.min, ins->cal_x.center,
+             ins->cal_x.max,  // x
+             ins->cal_y.min, ins->cal_y.center,
+             ins->cal_y.max  // y
+        );
+    if (ins->controller_type == SWITCH_CONTROLLER_TYPE_PRO || ins->controller_type == SWITCH_CONTROLLER_TYPE_JCR)
+        logi("Switch: Right stick calibration info: x=%d,%d,%d, y=%d,%d,%d\n",  //
+             ins->cal_rx.min, ins->cal_rx.center,
+             ins->cal_rx.max,  // rx
+             ins->cal_ry.min, ins->cal_ry.center,
+             ins->cal_ry.max  // ry
+        );
 }
 
 static void process_reply_read_spi_user_stick_calibration(struct uni_hid_device_s* d, const uint8_t* data, int len) {
@@ -727,6 +709,44 @@ static void process_input_subcmd_reply(struct uni_hid_device_s* d, const uint8_t
     process_fsm(d);
 }
 
+static void parse_stick_calibration(switch_cal_stick_t* x, switch_cal_stick_t* y, const uint8_t* data, bool is_left) {
+    int32_t cal_x_max;
+    int32_t cal_y_max;
+    int32_t cal_x_min;
+    int32_t cal_y_min;
+
+    // Guaranteed that data has at lest 9 elements
+    // left and right sticks have different parsing order
+
+    if (is_left) {
+        // max
+        cal_x_max = data[0] | ((data[1] & 0x0f) << 8);  // bits: 0-11
+        cal_y_max = (data[1] >> 4) | (data[2] << 4);    // bits: 12-23
+        // center
+        x->center = data[3] | ((data[4] & 0x0f) << 8);  // bits: 24-35
+        y->center = (data[4] >> 4) | (data[5] << 4);    // bits: 36-47
+        // min
+        cal_x_min = data[6] | ((data[7] & 0x0f) << 8);  // bits: 48-59
+        cal_y_min = (data[7] >> 4) | (data[8] << 4);    // bits: 60-71
+    } else {
+        // Right stick
+        // center
+        x->center = data[0] | ((data[1] & 0x0f) << 8);  // bits: 0-11
+        y->center = (data[1] >> 4) | (data[2] << 4);    // bits: 12-23
+        // min
+        cal_x_min = data[3] | ((data[4] & 0x0f) << 8);  // bits: 24-35
+        cal_y_min = (data[4] >> 4) | (data[5] << 4);    // bits: 36-47
+        // max
+        cal_x_max = data[6] | ((data[7] & 0x0f) << 8);  // bits: 48-59
+        cal_y_max = (data[7] >> 4) | (data[8] << 4);    // bits: 60-71
+    }
+
+    x->min = x->center - cal_x_min;
+    x->max = x->center + cal_x_max;
+    y->min = y->center - cal_y_min;
+    y->max = y->center + cal_y_max;
+}
+
 static void parse_imu(uni_hid_device_t* d, const struct switch_imu_data_s* r) {
     switch_instance_t* ins = get_switch_instance(d);
     uni_controller_t* ctl = &d->controller;
@@ -845,12 +865,11 @@ static void parse_report_30_pro_controller(uni_hid_device_t* d, const struct swi
 }
 
 static void parse_report_30_joycon_left(uni_hid_device_t* d, const struct switch_report_30_s* r) {
-    // JoyCons are treated as standalone controllers. So the buttons/axis are
-    // "rotated".
+    // JoyCons are treated as standalone controllers. So the buttons/axis are "rotated".
     uni_controller_t* ctl = &d->controller;
     switch_instance_t* ins = get_switch_instance(d);
 
-    // Axis (left and only stick)
+    // Axis (left only stick)
     int32_t lx = r->buttons.stick_left[0] | ((r->buttons.stick_left[1] & 0x0f) << 8);
     ctl->gamepad.axis_y = -calibrate_axis(lx, ins->cal_x);
     int32_t ly = (r->buttons.stick_left[1] >> 4) | (r->buttons.stick_left[2] << 4);
@@ -874,12 +893,11 @@ static void parse_report_30_joycon_left(uni_hid_device_t* d, const struct switch
 }
 
 static void parse_report_30_joycon_right(uni_hid_device_t* d, const struct switch_report_30_s* r) {
-    // JoyCons are treated as standalone controllers. So the buttons/axis are
-    // "rotated".
+    // JoyCons are treated as standalone controllers. So the buttons/axis are "rotated".
     uni_controller_t* ctl = &d->controller;
     switch_instance_t* ins = get_switch_instance(d);
 
-    // Axis (left and only stick)
+    // Axis (right only stick)
     int32_t rx = r->buttons.stick_right[0] | ((r->buttons.stick_right[1] & 0x0f) << 8);
     ctl->gamepad.axis_y = calibrate_axis(rx, ins->cal_rx);
     int32_t ry = (r->buttons.stick_right[1] >> 4) | (r->buttons.stick_right[2] << 4);
@@ -990,6 +1008,16 @@ static void fsm_read_factory_stick_calibration(struct uni_hid_device_s* d) {
     switch_instance_t* ins = get_switch_instance(d);
     ins->state = STATE_READ_FACTORY_STICK_CALIBRATION;
 
+    // Either my math was bad, or requesting more bytes for the left controller returns invalid calibration.
+    // So for Pro we request both left and right cal data.
+    // But for the JoyCons just the cal data that they need.
+    uint32_t spi_addr = (ins->controller_type == SWITCH_CONTROLLER_TYPE_JCR) ? SWITCH_FACTORY_STICK_CAL_DATA_ADDR_RIGHT
+                                                                             : SWITCH_FACTORY_STICK_CAL_DATA_ADDR_LEFT;
+    uint8_t bytes_to_read = SWITCH_FACTORY_STICK_CAL_DATA_SIZE;
+    // Double, since it requests both left and right
+    if (ins->controller_type == SWITCH_CONTROLLER_TYPE_PRO)
+        bytes_to_read *= 2;
+
     uint8_t out[sizeof(struct switch_subcmd_request) + 5] = {0};
     struct switch_subcmd_request* req = (struct switch_subcmd_request*)&out[0];
     req->report_id = 0x01;  // 0x01 for sub commands
@@ -997,11 +1025,12 @@ static void fsm_read_factory_stick_calibration(struct uni_hid_device_s* d) {
 
     // Address to read from: stick calibration
     // Read both left and right: 9 + 9
-    req->data[0] = SWITCH_FACTORY_STICK_CAL_DATA_ADDR & 0xff;
-    req->data[1] = (SWITCH_FACTORY_STICK_CAL_DATA_ADDR >> 8) & 0xff;
-    req->data[2] = (SWITCH_FACTORY_STICK_CAL_DATA_ADDR >> 16) & 0xff;
-    req->data[3] = (SWITCH_FACTORY_STICK_CAL_DATA_ADDR >> 24) & 0xff;
-    req->data[4] = SWITCH_FACTORY_STICK_CAL_DATA_SIZE;
+    if (ins->controller_type == SWITCH_CONTROLLER_TYPE_JCL || ins->controller_type)
+        req->data[0] = spi_addr & 0xff;
+    req->data[1] = (spi_addr >> 8) & 0xff;
+    req->data[2] = (spi_addr >> 16) & 0xff;
+    req->data[3] = (spi_addr >> 24) & 0xff;
+    req->data[4] = bytes_to_read;
     send_subcmd(d, req, sizeof(out));
 }
 
