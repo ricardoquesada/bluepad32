@@ -40,7 +40,7 @@ static const uint16_t SWITCH_ONLINE_SNES_CONTROLLER_PID = 0x2017;
 #define SWITCH_FACTORY_STICK_CAL_DATA_SIZE 9
 static const uint16_t SWITCH_FACTORY_STICK_CAL_DATA_ADDR_LEFT = 0x603d;
 static const uint16_t SWITCH_FACTORY_STICK_CAL_DATA_ADDR_RIGHT = 0x6046;
-#define SWITCH_USER_STICK_CAL_DATA_SIZE 22
+#define SWITCH_USER_STICK_CAL_DATA_SIZE 2
 static const uint16_t SWITCH_USER_STICK_CAL_DATA_ADDR = 0x8010;
 
 // Constants taken from Linux kernel / Nintendo Rev.Eng doc
@@ -438,7 +438,8 @@ static void process_fsm(struct uni_hid_device_s* d) {
             break;
         case STATE_READ_FACTORY_STICK_CALIBRATION:
             logd("STATE_READ_FACTORY_STICK_CALIBRATION\n");
-            fsm_read_user_stick_calibration(d);
+            // fsm_read_user_stick_calibration(d);
+            fsm_read_factory_imu_calibration(d);
             break;
         case STATE_READ_USER_STICK_CALIBRATION:
             logd("STATE_READ_USER_STICK_CALIBRATION\n");
@@ -522,14 +523,14 @@ static void process_reply_read_spi_factory_stick_calibration(struct uni_hid_devi
     }
 
     if (ins->controller_type == SWITCH_CONTROLLER_TYPE_PRO || ins->controller_type == SWITCH_CONTROLLER_TYPE_JCL)
-        logi("Switch: Left stick calibration info: x=%d,%d,%d, y=%d,%d,%d\n",  //
+        logi("Switch: Left stick calibration: x=%d,%d,%d, y=%d,%d,%d\n",  //
              ins->cal_x.min, ins->cal_x.center,
              ins->cal_x.max,  // x
              ins->cal_y.min, ins->cal_y.center,
              ins->cal_y.max  // y
         );
     if (ins->controller_type == SWITCH_CONTROLLER_TYPE_PRO || ins->controller_type == SWITCH_CONTROLLER_TYPE_JCR)
-        logi("Switch: Right stick calibration info: x=%d,%d,%d, y=%d,%d,%d\n",  //
+        logi("Switch: Right stick calibration: x=%d,%d,%d, y=%d,%d,%d\n",  //
              ins->cal_rx.min, ins->cal_rx.center,
              ins->cal_rx.max,  // rx
              ins->cal_ry.min, ins->cal_ry.center,
@@ -616,8 +617,15 @@ static void process_reply_set_report_mode(struct uni_hid_device_s* d, const stru
 
 // Reply to SUBCMD_SPI_FLASH_READ
 static void process_reply_spi_flash_read(struct uni_hid_device_s* d, const struct switch_report_21_s* r, int len) {
+    // +5 because it includes the address and size of the payload
+    if (len < sizeof(*r) + 5) {
+        loge("Switch: Invalid SPI flash read length, expected >= %d, got: %d\n", sizeof(*r) + 5, len);
+        return;
+    }
     int mem_len = r->data[4];
     uint32_t addr = r->data[0] | r->data[1] << 8 | r->data[2] << 16 | r->data[3] << 24;
+
+    logd("Switch: Reading from %#x, mem len=%d, struct size=%d, report size=%d\n", addr, mem_len, sizeof(*r), len);
 
     switch_instance_t* ins = get_switch_instance(d);
 
@@ -1024,9 +1032,7 @@ static void fsm_read_factory_stick_calibration(struct uni_hid_device_s* d) {
     req->subcmd_id = SUBCMD_SPI_FLASH_READ;
 
     // Address to read from: stick calibration
-    // Read both left and right: 9 + 9
-    if (ins->controller_type == SWITCH_CONTROLLER_TYPE_JCL || ins->controller_type)
-        req->data[0] = spi_addr & 0xff;
+    req->data[0] = spi_addr & 0xff;
     req->data[1] = (spi_addr >> 8) & 0xff;
     req->data[2] = (spi_addr >> 16) & 0xff;
     req->data[3] = (spi_addr >> 24) & 0xff;
