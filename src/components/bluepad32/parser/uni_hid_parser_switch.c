@@ -438,8 +438,7 @@ static void process_fsm(struct uni_hid_device_s* d) {
             break;
         case STATE_READ_FACTORY_STICK_CALIBRATION:
             logd("STATE_READ_FACTORY_STICK_CALIBRATION\n");
-            // fsm_read_user_stick_calibration(d);
-            fsm_read_factory_imu_calibration(d);
+            fsm_read_user_stick_calibration(d);
             break;
         case STATE_READ_USER_STICK_CALIBRATION:
             logd("STATE_READ_USER_STICK_CALIBRATION\n");
@@ -552,7 +551,7 @@ static void process_reply_read_spi_user_stick_calibration(struct uni_hid_device_
 static void process_reply_read_spi_factory_imu_calibration(struct uni_hid_device_s* d, const uint8_t* data, int len) {
     switch_instance_t* ins = get_switch_instance(d);
 
-    if (len < SWITCH_FACTORY_IMU_CAL_DATA_SIZE) {
+    if (len != SWITCH_FACTORY_IMU_CAL_DATA_SIZE) {
         loge("Switch: invalid spi factory imu calibration len; got %d, wanted %d\n", len,
              SWITCH_FACTORY_IMU_CAL_DATA_SIZE);
         return;
@@ -560,10 +559,12 @@ static void process_reply_read_spi_factory_imu_calibration(struct uni_hid_device
 
     for (int i = 0; i < 3; i++) {
         int j = i * 2;
-        ins->cal_accel.offset[i] = *((int16_t*)&data[j]);
-        ins->cal_accel.scale[i] = *((int16_t*)&data[j + 6]);
-        ins->cal_accel.offset[i] = *((int16_t*)&data[j + 12]);
-        ins->cal_accel.scale[i] = *((int16_t*)&data[j + 18]);
+        // Treat them as non-aligned, might crash on RP2040.
+        // See: https://github.com/ricardoquesada/bluepad32/issues/86
+        ins->cal_accel.offset[i] = data[j + 0] | (data[j + 1] << 8);
+        ins->cal_accel.scale[i] = data[j + 6] | data[j + 7] << 8;
+        ins->cal_gyro.offset[i] = data[j + 12] | data[j + 13] << 8;
+        ins->cal_gyro.scale[i] = data[j + 18] | data[j + 19] << 8;
     }
 
     for (int i = 0; i < 3; i++) {
