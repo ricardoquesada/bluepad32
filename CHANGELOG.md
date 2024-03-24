@@ -16,8 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Xbox: 8BitDo controllers don't rumble forever. Fixes [Github Issue #85][github_issue_85]
 - Xbox: Using internal timer for delayed start, making it easier to cancel previous rumble command.
 - Switch: IMU and Stick calibration work as expected.
+- Switch: Fix crash while parsing IMU calibration data on RP2040. Fixes [Github Issue #86][github_issue_86]
 
 [github_issue_85]: https://github.com/ricardoquesada/bluepad32/issues/85
+[github_issue_86]: https://github.com/ricardoquesada/bluepad32/issues/86
 
 
 ## [4.1-rc0] - 2024-03-20
