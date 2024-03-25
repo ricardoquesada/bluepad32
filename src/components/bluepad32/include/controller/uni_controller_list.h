@@ -632,6 +632,7 @@ static const uni_controller_description_t arrControllers[] = {
         { MAKE_CONTROLLER_ID(0x2dc8, 0x2830), k_eControllerType_8BitdoController, NULL},  // 8BitDo SFC30
         { MAKE_CONTROLLER_ID(0x2dc8, 0x2840), k_eControllerType_8BitdoController, NULL},  // 8BitDo SNES30
         { MAKE_CONTROLLER_ID(0x2dc8, 0x3230), k_eControllerType_8BitdoController, NULL},  // 8BitDo Zero 2
+        { MAKE_CONTROLLER_ID(0x2dc8, 0x6006), k_eControllerType_8BitdoController, NULL},  // 8BitDo Pro 2
         { MAKE_CONTROLLER_ID(0x2dc8, 0x6100), k_eControllerType_8BitdoController, NULL},  // 8BitDo SF30 Pro
         { MAKE_CONTROLLER_ID(0x2dc8, 0x6101), k_eControllerType_8BitdoController, NULL},  // 8BitDo SN30 Pro
 
