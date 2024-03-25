@@ -17,7 +17,7 @@ The list of **tested** keyboards is this one:
 * Purchase link: [8BitDo store][8bitdo_keyboard_link]
 * Technical info: BLE, up to 16 simultaneous keys.
 
-[8bitdo_keyboard_photo]: https://lh3.googleusercontent.com/pw/ADCreHdkkpmH7M3NIo00JwCfMdVEN3EsBLx7Gy5HfGJoqHKsMn_35_8uIW1fkvQinagIlwNbOf68IFCK4KlVykVpYGFfywLrdcT_sU114VLKDxdGoCPAbXQCg6VizyPahEaioY2uuOAbEO9s1nMls-NZB-0Pvg
+[8bitdo_keyboard_photo]: https://lh3.googleusercontent.com/pw/ADCreHdkkpmH7M3NIo00JwCfMdVEN3EsBLx7Gy5HfGJoqHKsMn_35_8uIW1fkvQinagIlwNbOf68IFCK4KlVykVpYGFfywLrdcT_sU114VLKDxdGoCPAbXQCg6VizyPahEaioY2uuOAbEO9s1nMls-NZB-0Pvg=-no
 
 [8bitdo_keyboard_link]: https://www.8bitdo.com/retro-mechanical-keyboard/
 
@@ -29,7 +29,7 @@ The list of **tested** keyboards is this one:
 * Purchase link: [eBay][magic_keyboard_a1644_link]
 * Technical info: BR/EDR, up to four simultaneous keys
 
-[magic_keyboard_a1644_photo]: https://lh3.googleusercontent.com/pw/ADCreHfu_Mpr9vo72AFaAhpBgJ8VkLXDvoiJuGs9ZeEJAcNsW6vJTY3OD0HYsMEyHB43ZIHO_39q1xkpnee59qp2LCaB9yiZuXGlTERjH3NRFbwYJ1oFv_JJo47xUF6hKY9ImClyXCB0xmnbG-jdtH80WcWK4Q
+[magic_keyboard_a1644_photo]: https://lh3.googleusercontent.com/pw/ADCreHfu_Mpr9vo72AFaAhpBgJ8VkLXDvoiJuGs9ZeEJAcNsW6vJTY3OD0HYsMEyHB43ZIHO_39q1xkpnee59qp2LCaB9yiZuXGlTERjH3NRFbwYJ1oFv_JJo47xUF6hKY9ImClyXCB0xmnbG-jdtH80WcWK4Q=-no
 
 [magic_keyboard_a1644_link]: https://www.ebay.com/sch/i.html?_nkw=apple+magic+keyboard+a1644
 
@@ -42,7 +42,7 @@ The list of **tested** keyboards is this one:
 * Technical info: BLE, up to 10 simultaneous keys
 * Model: Microsoft Designer Desktop
 
-[microsoft_designer_photo]: https://lh3.googleusercontent.com/pw/ADCreHd6sI3xeSxU4JFZ0wGpGVqUlPfhcwNHIZNRuTCNJEEaQm0r5qAAJl9hoA4nk0Pq_A7YP_24jF0UPT9SuH3YGD4HOOqA5Pq-Fu7fIDVbVOsD1EVERif272rngfH8XKyVSX7t2V3npU3A0yUUnL-rGGZBhA
+[microsoft_designer_photo]: https://lh3.googleusercontent.com/pw/ADCreHd6sI3xeSxU4JFZ0wGpGVqUlPfhcwNHIZNRuTCNJEEaQm0r5qAAJl9hoA4nk0Pq_A7YP_24jF0UPT9SuH3YGD4HOOqA5Pq-Fu7fIDVbVOsD1EVERif272rngfH8XKyVSX7t2V3npU3A0yUUnL-rGGZBhA=-no
 
 [microsoft_designer_link]: https://www.microsoft.com/en/accessories/products/keyboards/designer-bluetooth-desktop
 
@@ -56,7 +56,7 @@ The list of **tested** keyboards is this one:
 * Model: 2.4G Air mouse with Touchpad keyboard i8 English French Spanish Russian Backlit Mini Wireless Keyboard for PC
   Android TV Box
 
-[aliexpress_kb_1_photo]: https://lh3.googleusercontent.com/pw/ADCreHcXVB7qwKG-A_FxCeM5ix2EGrPSmIuhK0dLwcGU8a4_My_ZCf1tdgALO9UvtNjVcSN934YnyS_pf90YXTxpoylQ4LpZ82uNxchzyVwONS_8gHKrTHFnwK8eo3I7p2iwILX1xNY99hYKZ1kDxTL_ttI-aQ
+[aliexpress_kb_1_photo]: https://lh3.googleusercontent.com/pw/ADCreHcXVB7qwKG-A_FxCeM5ix2EGrPSmIuhK0dLwcGU8a4_My_ZCf1tdgALO9UvtNjVcSN934YnyS_pf90YXTxpoylQ4LpZ82uNxchzyVwONS_8gHKrTHFnwK8eo3I7p2iwILX1xNY99hYKZ1kDxTL_ttI-aQ=-no
 
 [aliexpress_kb_1_link]: https://www.aliexpress.us/item/3256805614460629.html?spm=a2g0o.order_list.order_list_main.5.622d1802klrMWF&gatewayAdapt=glo2usa
 

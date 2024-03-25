@@ -6,7 +6,7 @@
 
 Bluepad32 is a library that acts as a "host" Bluetooth controller for HID devices.
 
-In other words, it allows gamepads, keyboards and mice to connect to your project.
+In other words, it allows you to control a robot using a DualSense controller.
 
 ## Features
 

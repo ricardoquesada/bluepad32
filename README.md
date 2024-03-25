@@ -104,11 +104,11 @@ subset.
 
 See: [Supported gamepads][gamepads], [supported mice][mice] and [supported keyboards][keyboards]
 
-[gamepads]: https://github.com/ricardoquesada/bluepad32/blob/master/docs/supported_gamepads.md
+[gamepads]: https://bluepad32.readthedocs.io/en/latest/supported_gamepads/
 
-[mice]: https://github.com/ricardoquesada/bluepad32/blob/master/docs/supported_mice.md
+[mice]: https://bluepad32.readthedocs.io/en/latest/supported_mice/
 
-[keyboards]: https://github.com/ricardoquesada/bluepad32/blob/master/docs/supported_keyboards.md
+[keyboards]: https://bluepad32.readthedocs.io/en/latest/supported_keyboards/
 
 ## Pre-compiled binaries
 

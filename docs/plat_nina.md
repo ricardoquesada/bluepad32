@@ -4,7 +4,8 @@
 
     **Deprecated**. Will be mantained until August 2024.
     Depends on 'SPI Flash Legacy' which was removed in ESP-IDF v5.0.
-    Besides, it has limited functionality. Use [Arduino][plat_arduino] instead.
+
+    Whenever possible use [Arduino + ESP32 platform][plat_arduino] instead, which has improved features.
 
 ## What is NINA-W10
 

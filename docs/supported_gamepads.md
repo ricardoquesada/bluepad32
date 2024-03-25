@@ -411,7 +411,7 @@ Supported "extra features":
 
 [atari_joystick_link]: https://atari.com/products/classic-joystick
 
-[atari_joystick_photo]: https://lh3.googleusercontent.com/pw/ADCreHeBQRnL5M6Yu_GDtgtJCrTNqZPZp7u2RUuwi347V83ZWYE1L3bFAyR79CqpIpA0aI40xl2u4OhdR8NchCwIcvEdGpz4Qu-8cn2cHo1nKWO5ZyyN_QJgysYl9l0N_OkRw_xSIM0OjdtxaAskStxCbBqvFA=w252-h256-s-no-gm?authuser=0
+[atari_joystick_photo]: https://lh3.googleusercontent.com/pw/ADCreHeBQRnL5M6Yu_GDtgtJCrTNqZPZp7u2RUuwi347V83ZWYE1L3bFAyR79CqpIpA0aI40xl2u4OhdR8NchCwIcvEdGpz4Qu-8cn2cHo1nKWO5ZyyN_QJgysYl9l0N_OkRw_xSIM0OjdtxaAskStxCbBqvFA=-no
 
 ## iCade Family
 

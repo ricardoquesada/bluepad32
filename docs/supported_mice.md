@@ -39,7 +39,7 @@ The list of **tested** mice is this one:
 * Purchase link: [eBay][magic_trackpad_a1339_link]
 * Bugs: Right/middle click not working [issue #17][gitlab_issue_17]
 
-[magic_trackpad_a1339_photo]: https://lh3.googleusercontent.com/pw/AM-JKLV-N1Imj77WsdXc-wPtlwxYubS6BAb_X5ipI-gpk2XagClmdcbGyvPddp5F9zy6bsH9Q0ICrEvrd6PdF7EzmsfejmbI7WAaeMBQqI69UIYId5Ehvw4vDAC8CAHsaFpz4veUsgs2_jnjyix2wTdA7PjgAA=-no?
+[magic_trackpad_a1339_photo]: https://lh3.googleusercontent.com/pw/AM-JKLV-N1Imj77WsdXc-wPtlwxYubS6BAb_X5ipI-gpk2XagClmdcbGyvPddp5F9zy6bsH9Q0ICrEvrd6PdF7EzmsfejmbI7WAaeMBQqI69UIYId5Ehvw4vDAC8CAHsaFpz4veUsgs2_jnjyix2wTdA7PjgAA=-no
 
 [magic_trackpad_a1339_link]: https://www.ebay.com/sch/i.html?_nkw=apple+magic+trackpad+a1339
 
