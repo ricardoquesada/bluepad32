@@ -34,7 +34,7 @@ Controller A should only control robot A, controller B should only control robot
 
 There are two ways to do it:
 
-- Programmatically using the `uni_bt_allolist` API
+- Programmatically using the `uni_bt_allowlist` API
 - Manually from the USB console
 
 ### Using `uni_bt_allowlist` API
