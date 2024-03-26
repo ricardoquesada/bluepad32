@@ -78,17 +78,40 @@ void setup() {
 }
 ```
 
-### Using the USB console commands
+### Using allowlist commands form the USB console
 
 !!! Note
 
     The USB console is ONLY avaialble in the [Arduino ESP-IDF Template][arduino_esp_idf_template] project,
     in the [ESP-IDF raw API][esp_idf_raw], and in [Unijoysticle][unijoysticle].
 
-Values are stored in Non-Volatile-Storage (NVS).
-This means that if you reset the ESP32, the allowlist entries, and whether it is enabled will persist the reset.
+To access the USB Console, use your favorite serial terminal a do:
+
+```
+# Port might change
+# If you prefer minicom, just do 'minicom -D /dev/ttyUSB0'
+tio /dev/ttyUSB0
+```
+
+And once you are in the console type `help`
+
+```
+bp32> help
+```
+
+The allowlist commands are:
+
+- `allowlist_list`: List allowlist addresses
+- `allowlist_add <bt addr`: Add address to the allowlist
+- `allowlist_remove <bt addr`: Remove address from the allowlist
+- `allowlist_enable <0 | 1 >`: Whether allowlist should be enforced
+
+See video for further details:
 
 [![asciicast](https://asciinema.org/a/649043.svg)](https://asciinema.org/a/649043)
+
+Values are stored in Non-Volatile-Storage (NVS).
+This means that if you reset the ESP32, the allowlist entries, and whether it is enabled will persist the reset.
 
 [arduino_esp_idf_template]: https://bluepad32.readthedocs.io/en/latest/plat_arduino/#option-b-use-esp-idf-template-project
 [esp_idf_raw]: https://github.com/ricardoquesada/bluepad32/tree/main/examples/esp32
