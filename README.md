@@ -8,6 +8,9 @@ A Bluetooth controller "host" for the ESP32, ESP32-S3, ESP32-C3, Raspberry Pi Pi
 
 Add Bluetooth gamepad, mouse and keyboard support to your projects easily.
 
+In other words, it allows you to control a robot using a DualSense controller.
+
+
 ## Where to start
 
 Choose your target platform:
