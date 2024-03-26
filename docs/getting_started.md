@@ -2,13 +2,13 @@
 
 Bluepad32 supports different IDEs, and different microcontrollers. These are the options:
 
-| IDE / MCU          | ESP32 family     | NINA co-processor | Airlift co-processor | Pico W           |
-|--------------------|------------------|-------------------|----------------------|------------------|
-| Arduino IDE        | :material-check: | :material-check:  |                      |                  |
-| Arduino Core       | :material-check: |                   |                      |                  |
-| CircuitPython      |                  |                   | :material-check:     |                  |
-| ESP-IDF (raw API)  | :material-check: |                   |                      |                  |
-| Pico SDK (raw API) |                  |                   |                      | :material-check: |
+| IDE / MCU               | ESP32 family     | NINA co-processor | Airlift co-processor | Pico W           |
+|-------------------------|------------------|-------------------|----------------------|------------------|
+| Arduino IDE             | :material-check: | :material-check:  |                      |                  |
+| ESP-IDF + Arduino Core  | :material-check: |                   |                      |                  |
+| CircuitPython           |                  |                   | :material-check:     |                  |
+| ESP-IDF (raw API)       | :material-check: |                   |                      |                  |
+| Pico SDK (raw API)      |                  |                   |                      | :material-check: |
 
 Choose the right one depending on your knowledge, devkit board and requirements:
 
