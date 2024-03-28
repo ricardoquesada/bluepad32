@@ -49,6 +49,8 @@ theme:
   font: false
   icon:
     repo: fontawesome/brands/github
+  logo: images/bluepad32_logo_ok_no_text_320.png
+  favicon: images/logo.png
 
 extra:
   analytics:
@@ -82,3 +84,4 @@ markdown_extensions:
 plugins:
   - include-markdown
   - search
+

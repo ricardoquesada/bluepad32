@@ -1,12 +1,19 @@
 # Bluepad32 documentation
 
-![logo][bluepad32_logo]
-
-[bluepad32_logo]: images/bluepad32-logo.png
+<figure markdown="span">
+  ![logo][bp32_logo]{ width="300" }
+</figure>
 
 Bluepad32 is a library that acts as a "host" Bluetooth controller for HID devices.
 
 In other words, it allows you to control a robot using a DualSense controller.
+
+
+![intro][bluepad32_intro]
+
+[bp32_logo]: images/bluepad32_logo_ok_280.png
+[bluepad32_intro]: images/bluepad32-logo.png
+
 
 ## Features
 
