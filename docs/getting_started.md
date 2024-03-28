@@ -1,5 +1,7 @@
 # Choose target platform
 
+<img src="https://github.com/ricardoquesada/bluepad32/blob/main/docs/images/bluepad32-logo.png?raw=true" alt="drawing" width="400"/>
+
 Bluepad32 supports different IDEs, and different microcontrollers. These are the options:
 
 | IDE / MCU               | ESP32 family     | NINA co-processor | Airlift co-processor | Pico W           |

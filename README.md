@@ -10,7 +10,7 @@ Add Bluetooth gamepad, mouse and keyboard support to your projects easily.
 
 In other words, it allows you to control a robot using a DualSense controller.
 
-<img src="https://github.com/ricardoquesada/bluepad32/blob/main/docs/images/bluepad32-logo.png?raw=true" alt="drawing" width="800"/>
+<img src="https://github.com/ricardoquesada/bluepad32/blob/main/docs/images/bluepad32-logo.png?raw=true" alt="drawing" width="400"/>
 
 
 ## Where to start
