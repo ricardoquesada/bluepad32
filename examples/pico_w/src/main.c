@@ -1,5 +1,5 @@
 // Example file - Public Domain
-// Need help? https://tinyurl.com/bluepad32-help
+// Need help? http://bit.ly/bluepad32-help
 
 #include <btstack_run_loop.h>
 #include <pico/cyw43_arch.h>

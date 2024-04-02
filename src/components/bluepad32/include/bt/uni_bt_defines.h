@@ -31,6 +31,7 @@
 // Taken from Bluetooth Appearance Values:
 // https://specificationrefs.bluetooth.com/assigned-values/Appearance%20Values.pdf
 // clang-format off
+#define UNI_BT_HID_APPEARANCE_GENERIC       0x3c0
 #define UNI_BT_HID_APPEARANCE_KEYBOARD      0x3c1
 #define UNI_BT_HID_APPEARANCE_MOUSE         0x3c2
 #define UNI_BT_HID_APPEARANCE_JOYSTICK      0x3c3

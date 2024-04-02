@@ -312,10 +312,22 @@ static int getprop(int argc, char** argv) {
         arg_print_errors(stderr, getprop_args.end, argv[0]);
 
         // Don't treat it as error, report the current value
-        uni_property_list_all();
+        uni_property_dump_all();
         return 0;
     }
-    // TODO: parse property name
+
+    if (!getprop_args.prop->sval[0])
+        return -1;
+
+    for (int i = 0; i < UNI_PROPERTY_IDX_COUNT; i++) {
+        const uni_property_t* p = uni_property_get_property_by_name(getprop_args.prop->sval[0]);
+        if (!p)
+            continue;
+        if (strcmp(p->name, getprop_args.prop->sval[0]) == 0) {
+            uni_property_dump_property(p);
+            break;
+        }
+    }
     return 0;
 }
 

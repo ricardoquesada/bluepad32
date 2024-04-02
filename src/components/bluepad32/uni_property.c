@@ -54,6 +54,8 @@ static const uni_property_t properties[] = {
 };
 _Static_assert(ARRAY_SIZE(properties) == UNI_PROPERTY_IDX_LAST, "Invalid properties size");
 
+static const uni_property_t* get_property(uni_property_idx_t idx);
+
 // Helpers
 static const uni_property_t* get_property(uni_property_idx_t idx) {
     if (idx >= UNI_PROPERTY_IDX_LAST) {
@@ -77,38 +79,60 @@ void uni_property_init_debug(void) {
     }
 }
 
-void uni_property_list_all(void) {
+const uni_property_t* uni_property_get_property_by_name(const char* name) {
+    if (!name)
+        return NULL;
+
+    // TODO: parse property name
+    for (int i = 0; i < UNI_PROPERTY_IDX_COUNT; i++) {
+        const uni_property_t* p = get_property(i);
+        if (!p || !p->name)
+            continue;
+        if (strcmp(p->name, name) == 0)
+            return p;
+    }
+    return NULL;
+}
+
+void uni_property_dump_property(const uni_property_t* p) {
+    if (!p)
+        return;
+
+    uni_property_value_t val = uni_property_get_with_property(p);
+    switch (p->type) {
+        case UNI_PROPERTY_TYPE_BOOL:
+            logi("%s = %s\n", p->name, val.boolean ? "true" : "false");
+            break;
+        case UNI_PROPERTY_TYPE_U8:
+            logi("%s = %d\n", p->name, val.u8);
+            break;
+        case UNI_PROPERTY_TYPE_U32:
+            logi("%s = %u (%#x)\n", p->name, val.u32, val.u32);
+            break;
+        case UNI_PROPERTY_TYPE_FLOAT:
+            logi("%s = %f\n", p->name, val.f32);
+            break;
+            break;
+        case UNI_PROPERTY_TYPE_STRING:
+            if (val.str)
+                logi("%s = '%s'\n", p->name, val.str);
+            else
+                logi("%s = <empty>\n", p->name);
+            break;
+        default:
+            loge("%s = Unsupported property type %d\n", p->name, p->type);
+            break;
+    }
+}
+
+void uni_property_dump_all(void) {
     logi("properties:\n");
     for (int i = 0; i < UNI_PROPERTY_IDX_COUNT; i++) {
         const uni_property_t* p = get_property(i);
         if (!p)
             // Means the property is not implemented, safe to break here.
             break;
-        uni_property_value_t val = uni_property_get_with_property(p);
-        switch (p->type) {
-            case UNI_PROPERTY_TYPE_BOOL:
-                logi("%s = %s\n", p->name, val.boolean ? "true" : "false");
-                break;
-            case UNI_PROPERTY_TYPE_U8:
-                logi("%s = %d\n", p->name, val.u8);
-                break;
-            case UNI_PROPERTY_TYPE_U32:
-                logi("%s = %u (%#x)\n", p->name, val.u32, val.u32);
-                break;
-            case UNI_PROPERTY_TYPE_FLOAT:
-                logi("%s = %f\n", p->name, val.f32);
-                break;
-                break;
-            case UNI_PROPERTY_TYPE_STRING:
-                if (val.str)
-                    logi("%s = '%s'\n", p->name, val.str);
-                else
-                    logi("%s = <empty>\n", p->name);
-                break;
-            default:
-                loge("%s = Unsupported property type %d\n", p->name, p->type);
-                break;
-        }
+        uni_property_dump_property(p);
     }
 }
 
@@ -131,3 +155,4 @@ uni_property_value_t uni_property_get(uni_property_idx_t idx) {
     }
     return uni_property_get_with_property(p);
 }
+

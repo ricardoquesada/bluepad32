@@ -742,19 +742,22 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
     ARG_UNUSED(size);
 
     gap_event_advertising_report_get_address(packet, addr);
+    if (uni_hid_device_get_instance_for_address(addr)) {
+        // Ignore, address already found
+        return;
+    }
+
     adv_event_get_data(packet, &appearance, name);
 
     if (appearance != UNI_BT_HID_APPEARANCE_GAMEPAD && appearance != UNI_BT_HID_APPEARANCE_JOYSTICK &&
         appearance != UNI_BT_HID_APPEARANCE_MOUSE && appearance != UNI_BT_HID_APPEARANCE_KEYBOARD) {
         // Don't log it. There too many devices advertising themselves.
+        if (appearance != 0 || strlen(name) != 0)
+            logd("Not a HID controller, appearance: %#x, name =%s\n", appearance, name);
         return;
     }
 
     addr_type = gap_event_advertising_report_get_address_type(packet);
-    if (uni_hid_device_get_instance_for_address(addr)) {
-        // Ignore, address already found
-        return;
-    }
 
     logi("Found, connect to device with %s address %s ...\n", addr_type == 0 ? "public" : "random",
          bd_addr_to_str(addr));
