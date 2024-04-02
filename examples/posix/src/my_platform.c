@@ -102,7 +102,7 @@ static void posix_on_init_complete(void) {
     else
         uni_bt_list_keys_unsafe();
 
-    uni_property_list_all();
+    uni_property_dump_all();
 
     // Start scanning
     uni_bt_enable_new_connections_unsafe(true);
