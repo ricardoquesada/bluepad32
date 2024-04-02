@@ -5,12 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [4.0.1] - 2024-04-??
+### New
+- [Bluepad32 logo][bluepad32_logo]: Official logo for Bluepad32
+
+[bluepad32_logo]: https://github.com/ricardoquesada/bluepad32/blob/5af12059f4b93ed70c704f8736b7e437269a23ad/docs/images/bluepad32_logo_ok_280.png?raw=true
+
 ### Changed
-- `uni_property_list_all()` renamed to `uni_property_dump_all()`
+- `uni_property_dump_all()` deprecates `uni_property_list_all()`
  
 ### Fixed
-- Xbox/Stadia: Improvements in rumble. And improvement in [Github Issue #85][github_issue_85]
-- Property: `getprop <property_name>` works as expected
+- Xbox/Stadia: Improvements in rumble. A re-fix of [Github Issue #85][github_issue_85]
+- Console: `getprop <property_name>` works as expected
 - Property: Correctly dump string properties in ESP32
 
 ## [4.0] - 2024-03-24

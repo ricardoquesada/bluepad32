@@ -2,7 +2,9 @@
 
 [![discord](https://img.shields.io/discord/775177861665521725.svg)](https://discord.gg/r5aMn6Cw5q)
 
-<img src="https://github.com/ricardoquesada/bluepad32/blob/develop/docs/images/bluepad32_logo_ok_280.png?raw=true" alt="drawing" width="192"/>
+<p align="center">
+<img src="https://github.com/ricardoquesada/bluepad32/blob/develop/docs/images/bluepad32_logo_ok_280.png?raw=true" alt="drawing" width="216"/>
+</p>
 
 A Bluetooth controller "host" for the ESP32, ESP32-S3, ESP32-C3, Raspberry Pi Pico W and Posix (Linux, macOS).
 
@@ -10,7 +12,7 @@ Add Bluetooth gamepad, mouse and keyboard support to your projects easily.
 
 In other words, it allows you to control a robot using a DualSense controller.
 
-<img src="https://github.com/ricardoquesada/bluepad32/blob/main/docs/images/bluepad32-logo.png?raw=true" alt="drawing" width="400"/>
+<img src="https://github.com/ricardoquesada/bluepad32/blob/main/docs/images/bluepad32-logo.png?raw=true" alt="drawing" width="720"/>
 
 
 ## Where to start
