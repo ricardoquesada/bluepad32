@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.1] - 2024-04-??
+### Changed
+- `uni_property_list_all()` renamed to `uni_property_dump_all()`
+ 
+### Fixed
+- Xbox/Stadia: Improvements in rumble. And improvement in [Github Issue #85][github_issue_85]
+- Property: `getprop <property_name>` works as expected
+- Property: Correctly dump string properties in ESP32
+
 ## [4.0] - 2024-03-24
 ### Changed
 

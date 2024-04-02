@@ -64,7 +64,7 @@ static void my_platform_on_init_complete(void) {
 
     //    uni_bt_service_set_enabled(true);
 
-    uni_property_list_all();
+    uni_property_dump_all();
 }
 
 static void my_platform_on_device_connected(uni_hid_device_t* d) {

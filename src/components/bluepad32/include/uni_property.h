@@ -84,6 +84,9 @@ typedef struct {
 void uni_property_set(uni_property_idx_t idx, uni_property_value_t value);
 uni_property_value_t uni_property_get(uni_property_idx_t idx);
 void uni_property_dump_all(void);
+__attribute__((deprecated("Use `uni_property_dump_all` instead"))) inline void uni_property_list_all(void) {
+    uni_property_dump_all();
+}
 void uni_property_dump_property(const uni_property_t* p);
 void uni_property_init_debug(void);
 const uni_property_t* uni_property_get_property_by_name(const char* name);

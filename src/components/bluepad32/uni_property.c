@@ -155,4 +155,3 @@ uni_property_value_t uni_property_get(uni_property_idx_t idx) {
     }
     return uni_property_get_with_property(p);
 }
-
