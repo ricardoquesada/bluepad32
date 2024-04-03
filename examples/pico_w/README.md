@@ -43,5 +43,5 @@ Use this guide if you are not sure how to do it:
 - Example code: licensed under Public Domain.
 - Bluepad32: licensed under Apache 2.
 - BTstack:
-  - Commercial license already paid by Raspberry Pi foundation, but only when used in a Pico W.
+  - Commercial license is already paid by the Raspberry Pi foundation, but only when used in a Pico W.
   - <https://github.com/raspberrypi/pico-sdk/blob/master/src/rp2_common/pico_btstack/LICENSE.RP>
