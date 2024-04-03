@@ -14,22 +14,32 @@
 
 You need to install Pico SDK. The instructions are different for Linux/macOS and Windows.
 
-#### 1.1 Pico SDK for Linux / macOS
+=== "Pico SDK for Linux / macOS"
 
-Install Pico SDK: https://github.com/raspberrypi/pico-sdk
+    Clone Pico SDK from Github: <https://github.com/raspberrypi/pico-sdk>
 
-And set `PICO_SDK_PATH` to the correct path:
+    ```sh
+    # Optionally create a destination folder
+    mkdir ~/pico && cd ~/pico
 
-```
-# set PICO_SDK_PATH to the correct path
-export PICO_SDK_PATH=$HOME/pico-sdk/
-```
+    # Clone it from Github
+    git clone https://github.com/raspberrypi/pico-sdk.git --branch master
+    cd pico-sdk
+    git submodule update --init
+    ```
 
-### 1.2 or Pico SDK for Windows
+    And set `PICO_SDK_PATH` to the correct path:
 
-Follow these instructions
+    ```
+    # set PICO_SDK_PATH to the correct path
+    export PICO_SDK_PATH=$HOME/pico/pico-sdk/
+    ```
 
-* <https://www.raspberrypi.com/news/raspberry-pi-pico-windows-installer/>
+=== "Pico SDK for Windows"
+
+    Follow these instructions
+
+    * <https://www.raspberrypi.com/news/raspberry-pi-pico-windows-installer/>
 
 ### 2. Clone Bluepad32 GitHub repo
 
@@ -42,6 +52,7 @@ Follow these instructions
 Go to example folder:
 
    ```sh
+   # ${BLUEPAD32} represents the folder where Bluepad32 Github repo was cloned
    cd ${BLUEPAD32}/examples/pico_w
    ```
 
@@ -52,12 +63,16 @@ Customize `src/my_platform.c` file to your needs:
 
 ### 4. Build it
 
+Build the `.uf2` file by doing:
+
 ```sh
 mkdir build
 cd build
 cmake ..
 make -j
 ```
+
+### 5. Flash it
 
 Copy `build/bluepad32_picow_example_app.uf2` to Pico W.
 

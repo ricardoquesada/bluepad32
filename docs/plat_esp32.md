@@ -45,6 +45,7 @@ It works with ESP-IDF v4.4 and v5.x.
 Go to example folder:
 
    ```sh
+   # ${BLUEPAD32} represents the folder where Bluepad32 Github repo was cloned
    cd ${BLUEPAD32}/examples/esp32
    ```
 
