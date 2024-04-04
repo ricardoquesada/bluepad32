@@ -465,7 +465,7 @@ void uni_hid_parser_ds5_parse_feature_report(uni_hid_device_t* d, const uint8_t*
             ins->use_vibration2 = (d->product_id == DS5_EDGE_PID || ins->update_version >= DS5_FEATURE_VERSION(2, 21));
 
             uni_hid_parser_ds5_device_dump(d);
-            logi("DS5: Firmware build date: %s, %s\n", date_z, time_z);
+            logi("\tDS5: Firmware build date: %s, %s\n", date_z, time_z);
 
             ds5_request_calibration_report(d);
             break;
@@ -725,7 +725,7 @@ void uni_hid_parser_ds5_play_dual_rumble(struct uni_hid_device_s* d,
 
 void uni_hid_parser_ds5_device_dump(uni_hid_device_t* d) {
     ds5_instance_t* ins = get_ds5_instance(d);
-    logi("DS5: FW version: %#x, HW version: %#x, update version: %#x, use vibration2: %d\n", ins->fw_version,
+    logi("\tDS5: FW version: %#x, HW version: %#x, update version: %#x, use vibration2: %d\n", ins->fw_version,
          ins->hw_version, ins->update_version, ins->use_vibration2);
 }
 

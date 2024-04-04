@@ -1686,8 +1686,9 @@ static void try_swap_ports(uni_hid_device_t* d) {
     //  - swapping between physical+virtual
     //  - two gamepads while both are pressing the "system" or "select" button at the same time.
     uni_platform_unijoysticle_instance_t* d2_ins = uni_platform_unijoysticle_get_instance(d2);
-    if (d2->controller_type == UNI_CONTROLLER_CLASS_GAMEPAD &&  // Is it a gamepad ?
-        d2_ins->seat != GAMEPAD_SEAT_NONE &&                    // ... and does it have a seat ?
+
+    if (d2->controller.klass == UNI_CONTROLLER_CLASS_GAMEPAD &&  // Is it a gamepad ?
+        d2_ins->seat != GAMEPAD_SEAT_NONE &&                     // ... and does it have a seat ?
         ((d2->controller.gamepad.misc_buttons & (MISC_BUTTON_SYSTEM | MISC_BUTTON_SELECT)) ==
          0)  // ...without pressing "swap" ?
     ) {

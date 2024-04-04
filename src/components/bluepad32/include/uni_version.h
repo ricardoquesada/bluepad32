@@ -5,7 +5,7 @@
 #ifndef UNI_VERSION_H
 #define UNI_VERSION_H
 
-#define UNI_VERSION "4.0.1"
+#define UNI_VERSION "4.0.2"
 
 extern const char* uni_version;
 

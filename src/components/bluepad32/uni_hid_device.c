@@ -559,7 +559,8 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
     uni_controller_type_t type = uni_guess_controller_type(d->vendor_id, d->product_id);
 
     // If it fails, try to guess it from COD
-    if (type == CONTROLLER_TYPE_Unknown) {
+    if (type == CONTROLLER_TYPE_Unknown || type == CONTROLLER_TYPE_UnknownNonSteamController ||
+        type == CONTROLLER_TYPE_UnknownSteamController) {
         logi("Device (vendor_id=0x%04x, product_id=0x%04x) not found in DB.\n", d->vendor_id, d->product_id);
         if (uni_hid_device_is_mouse(d)) {
             type = CONTROLLER_TYPE_GenericMouse;

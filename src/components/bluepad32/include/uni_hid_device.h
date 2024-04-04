@@ -11,6 +11,7 @@
 
 #include "bt/uni_bt_conn.h"
 #include "controller/uni_controller.h"
+#include "controller/uni_controller_type.h"
 #include "parser/uni_hid_parser.h"
 #include "uni_circular_buffer.h"
 
@@ -60,7 +61,7 @@ struct uni_hid_device_s {
     // TODO: Create a union of gamepad/mouse/keyboard structs
     // At the moment "mouse" reuses gamepad struct, but it is a hack.
     // Gamepad
-    uint16_t controller_type;                     // type of controller. E.g: DualShock4, Switch, etc.
+    uni_controller_type_t controller_type;        // type of controller. E.g: DualShock4, Switch, etc.
     uni_controller_subtype_t controller_subtype;  // sub-type of controller attached, used for Wii mostly
     uni_controller_t controller;                  // Data
 

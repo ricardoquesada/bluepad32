@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.2] - 2024-04-03
+### Fixed
+- Unijoysticle: Fix how to swap ports from gamepad
+- Device: correctly identify mouse/keyboards
+- DualSense: dump info tabbed.
+
 ## [4.0.1] - 2024-04-02
 ### New
 - [Bluepad32 logo][bluepad32_logo]: Official logo for Bluepad32

@@ -580,6 +580,9 @@ static void xboxone_play_quad_rumble_now(struct uni_hid_device_s* d,
     mask |= (weak_magnitude != 0) ? XBOXONE_FF_WEAK : 0;
     mask |= (strong_magnitude != 0) ? XBOXONE_FF_STRONG : 0;
 
+    logd("xbox rumble: duration=%d, left=%d, right=%d, weak=%d, strong=%d, mask=%#x\n", duration_ms, left_trigger,
+         right_trigger, weak_magnitude, strong_magnitude, mask);
+
     // Magnitude is 0..100 so scale the 8-bit input here
 
     struct xboxone_ff_report ff = {
