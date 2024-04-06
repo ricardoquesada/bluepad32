@@ -910,9 +910,9 @@ static void ds5_parse_mouse(uni_hid_device_t* d, const uint8_t* report, uint16_t
         // Touchpad is divided in 0.75 (left) + 0.25 (right)
         // Touchpad range: 1920 x 1080
         if (x < 1440)
-            ctl->mouse.buttons |= MOUSE_BUTTON_LEFT;
+            ctl->mouse.buttons |= UNI_MOUSE_BUTTON_LEFT;
         else
-            ctl->mouse.buttons |= MOUSE_BUTTON_RIGHT;
+            ctl->mouse.buttons |= UNI_MOUSE_BUTTON_RIGHT;
         // TODO: Support middle button.
     }
 

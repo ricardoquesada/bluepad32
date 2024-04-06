@@ -183,35 +183,35 @@ void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
             switch (usage) {
                 case 0x01:  // Left click
                     if (value)
-                        ctl->mouse.buttons |= MOUSE_BUTTON_LEFT;
+                        ctl->mouse.buttons |= UNI_MOUSE_BUTTON_LEFT;
                     break;
                 case 0x02:  // Right click
                     if (value)
-                        ctl->mouse.buttons |= MOUSE_BUTTON_RIGHT;
+                        ctl->mouse.buttons |= UNI_MOUSE_BUTTON_RIGHT;
                     break;
                 case 0x03:  // Middle click
                     if (value)
-                        ctl->mouse.buttons |= MOUSE_BUTTON_MIDDLE;
+                        ctl->mouse.buttons |= UNI_MOUSE_BUTTON_MIDDLE;
                     break;
                 case 0x04:  // Back button
                     if (value)
-                        ctl->mouse.buttons |= MOUSE_BUTTON_AUX_0;
+                        ctl->mouse.buttons |= UNI_MOUSE_BUTTON_AUX_0;
                     break;
                 case 0x05:  // Forward button
                     if (value)
-                        ctl->mouse.buttons |= MOUSE_BUTTON_AUX_1;
+                        ctl->mouse.buttons |= UNI_MOUSE_BUTTON_AUX_1;
                     break;
                 case 0x06:  // Logitech M535 Tilt Wheel Left
                     if (value)
-                        ctl->mouse.buttons |= MOUSE_BUTTON_AUX_2;
+                        ctl->mouse.buttons |= UNI_MOUSE_BUTTON_AUX_2;
                     break;
                 case 0x07:  // Logitech M535 Tilt Wheel Right
                     if (value)
-                        ctl->mouse.buttons |= MOUSE_BUTTON_AUX_3;
+                        ctl->mouse.buttons |= UNI_MOUSE_BUTTON_AUX_3;
                     break;
                 case 0x08:  // Logitech M535 (???)
                     if (value)
-                        ctl->mouse.buttons |= MOUSE_BUTTON_AUX_4;
+                        ctl->mouse.buttons |= UNI_MOUSE_BUTTON_AUX_4;
                     break;
                 case 0x09:  // Logitech M-RCL124
                 case 0x0a:

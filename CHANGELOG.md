@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [4.0.3] - 2024-???
+### Changed
+- Mouse constants: `MOUSE_BUTTON_*` renamed to `UNI_MOUSE_BUTTONS_*`. Avoids conflicts with other libraries.
+
 ### Fixed
 - Pico W: Example uses BTstack from Bluepad32 branch. Updated and with custom patches.
 
@@ -22,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - `uni_property_dump_all()` deprecates `uni_property_list_all()`
- 
+
 ### Fixed
 - Xbox/Stadia: Improvements in rumble. A re-fix of [Github Issue #85][github_issue_85]
 - Console: `getprop <property_name>` works as expected
