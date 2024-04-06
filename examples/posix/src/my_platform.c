@@ -228,7 +228,15 @@ static void posix_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl)
             }
             break;
         case UNI_CONTROLLER_CLASS_MOUSE:
-            uni_hid_parser_mouse_device_dump(d);
+            // TODO: Do something
+            break;
+        case UNI_CONTROLLER_CLASS_KEYBOARD:
+            // TODO: Do something
+            if (d->controller.keyboard.modifiers & UNI_KEYBOARD_MODIFIER_LEFT_ALT)
+                uni_hid_parser_keyboard_set_leds(d, 0xff);
+            break;
+        case UNI_CONTROLLER_CLASS_BALANCE_BOARD:
+            // TODO: Do something
             break;
         default:
             break;

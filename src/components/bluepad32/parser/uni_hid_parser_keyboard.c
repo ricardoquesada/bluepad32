@@ -244,6 +244,28 @@ void uni_hid_parser_keyboard_device_dump(struct uni_hid_device_s* d) {
     logi("\tuni_hid_parser_keyboard_device_dump: implement me: \n");
 }
 
+void uni_hid_parser_keyboard_set_leds(struct uni_hid_device_s* d, uint8_t led_bitmask) {
+    uint8_t status;
+    gap_connection_type_t type;
+
+    if (!d) {
+        loge("Keyboard: Invalid device\n");
+        return;
+    }
+
+    type = gap_get_connection_type(d->conn.handle);
+
+    if (type == GAP_CONNECTION_LE) {
+        // TODO: Which is the report Id ? Is it always 1 ?
+        status = hids_client_send_write_report(d->hids_cid, 1, HID_REPORT_TYPE_OUTPUT, &led_bitmask, 1);
+        // TODO: If error, it should retry
+        if (status != ERROR_CODE_SUCCESS)
+            logi("Keyboard: Failed to send LED report, error=%#x\n", status);
+    } else {
+        logi("Keyboard: Set LED report not implemented for BR/EDR yet\n");
+    }
+}
+
 // Helpers
 static keyboard_instance_t* get_keyboard_instance(uni_hid_device_t* d) {
     return (keyboard_instance_t*)&d->parser_data[0];

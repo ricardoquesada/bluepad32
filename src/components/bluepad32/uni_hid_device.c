@@ -268,7 +268,7 @@ void uni_hid_device_request_inquire(void) {
 
 void uni_hid_device_on_connected(uni_hid_device_t* d, bool connected) {
     if (d == NULL) {
-        log_error("ERROR: Invalid device\n");
+        loge("ERROR: Invalid device\n");
         return;
     }
 
@@ -285,7 +285,7 @@ void uni_hid_device_on_connected(uni_hid_device_t* d, bool connected) {
 
 void uni_hid_device_set_cod(uni_hid_device_t* d, uint32_t cod) {
     if (d == NULL) {
-        log_error("ERROR: Invalid device\n");
+        loge("ERROR: Invalid device\n");
         return;
     }
 
@@ -322,7 +322,7 @@ bool uni_hid_device_is_cod_supported(uint32_t cod) {
 
 void uni_hid_device_set_incoming(uni_hid_device_t* d, bool incoming) {
     if (d == NULL) {
-        log_error("ERROR: Invalid device\n");
+        loge("ERROR: Invalid device\n");
         return;
     }
 
@@ -335,11 +335,11 @@ bool uni_hid_device_is_incoming(uni_hid_device_t* d) {
 
 void uni_hid_device_set_name(uni_hid_device_t* d, const char* name) {
     if (d == NULL) {
-        log_error("ERROR: Invalid device\n");
+        loge("ERROR: Invalid device\n");
         return;
     }
     if (name == NULL) {
-        log_error("Invalid name");
+        loge("Invalid name");
         return;
     }
 
@@ -351,7 +351,7 @@ void uni_hid_device_set_name(uni_hid_device_t* d, const char* name) {
 
 bool uni_hid_device_has_name(uni_hid_device_t* d) {
     if (d == NULL) {
-        log_error("ERROR: Invalid device\n");
+        loge("ERROR: Invalid device\n");
         return false;
     }
 
@@ -360,7 +360,7 @@ bool uni_hid_device_has_name(uni_hid_device_t* d) {
 
 void uni_hid_device_set_hid_descriptor(uni_hid_device_t* d, const uint8_t* descriptor, int len) {
     if (d == NULL) {
-        log_error("ERROR: Invalid device\n");
+        loge("ERROR: Invalid device\n");
         return;
     }
 
@@ -368,11 +368,13 @@ void uni_hid_device_set_hid_descriptor(uni_hid_device_t* d, const uint8_t* descr
     memcpy(d->hid_descriptor, descriptor, len);
     d->hid_descriptor_len = min;
     d->flags |= FLAGS_HAS_HID_DESCRIPTOR;
+
+    //    printf_hexdump(descriptor, len);
 }
 
 bool uni_hid_device_has_hid_descriptor(uni_hid_device_t* d) {
     if (d == NULL) {
-        log_error("ERROR: Invalid device\n");
+        loge("ERROR: Invalid device\n");
         return false;
     }
 
@@ -732,7 +734,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
 
 bool uni_hid_device_has_controller_type(uni_hid_device_t* d) {
     if (d == NULL) {
-        log_error("ERROR: Invalid device\n");
+        loge("ERROR: Invalid device\n");
         return false;
     }
 
