@@ -22,7 +22,7 @@
 
 #define XBOX_RUMBLE_REPORT_ID 0x03
 
-#define BLE_RETRY_MS 25
+#define BLE_RETRY_MS 50
 
 static const uint16_t XBOX_WIRELESS_VID = 0x045e;  // Microsoft
 static const uint16_t XBOX_WIRELESS_PID = 0x02e0;  // Xbox One (Bluetooth)
@@ -605,7 +605,7 @@ static void xboxone_play_quad_rumble_now(struct uni_hid_device_s* d,
                                                &ff.enable_actuators,  // skip the first type bytes,
                                                sizeof(ff) - 2         // subtract the 2 bytes from total
         );
-        if (status != ERROR_CODE_SUCCESS) {
+        if (status == ERROR_CODE_COMMAND_DISALLOWED) {
             logi("Xbox: Failed to send rumble report, error=%#x, retrying...\n", status);
             ins->rumble_timer_delayed_start.process = &on_xboxone_set_rumble_on;
             ins->rumble_timer_delayed_start.context = d;
@@ -613,6 +613,10 @@ static void xboxone_play_quad_rumble_now(struct uni_hid_device_s* d,
 
             btstack_run_loop_set_timer(&ins->rumble_timer_delayed_start, BLE_RETRY_MS);
             btstack_run_loop_add_timer(&ins->rumble_timer_delayed_start);
+            return;
+        } else if (status != ERROR_CODE_SUCCESS) {
+            // Don't retry, log the error and return
+            logi("Xbox: Failed to send rumble report, error=%#x\n", status);
             return;
         }
     } else {
@@ -663,7 +667,7 @@ static void on_xboxone_set_rumble_off(btstack_timer_source_t* ts) {
                                                &ff.enable_actuators,  // skip the first type bytes,
                                                sizeof(ff) - 2         // subtract the 2 bytes from total
         );
-        if (status != ERROR_CODE_SUCCESS) {
+        if (status == ERROR_CODE_COMMAND_DISALLOWED) {
             logi("Xbox: Failed to turn off rumble, error=%#x, retrying...\n", status);
             ins->rumble_timer_duration.process = &on_xboxone_set_rumble_off;
             ins->rumble_timer_duration.context = d;
@@ -672,7 +676,11 @@ static void on_xboxone_set_rumble_off(btstack_timer_source_t* ts) {
             btstack_run_loop_set_timer(&ins->rumble_timer_duration, BLE_RETRY_MS);
             btstack_run_loop_add_timer(&ins->rumble_timer_duration);
             return;
+        } else if (status != ERROR_CODE_SUCCESS) {
+            // Do nothing, log the error
+            logi("Xbox: Failed to turn off rumble, error=%#x\n", status);
         }
+        // else, SUCCESS
     } else {
         uni_hid_device_send_intr_report(d, (uint8_t*)&ff, sizeof(ff));
     }

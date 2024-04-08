@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `uni_hid_parser_keyboard_set_leds(struct uni_hid_device_s* d, uint8_t led_bitmask)`
 
 ### Changed
-- Mouse constants: `MOUSE_BUTTON_*` renamed to `UNI_MOUSE_BUTTONS_*`. Avoids conflicts with other libraries.
+- Mouse constants: `MOUSE_BUTTON_*` renamed to `UNI_MOUSE_BUTTONS_*`. Avoid conflicts with other libraries, like TinyUSB.
+- Stadia/Xbox: retry rumble switch from 25ms to 50ms. And don't retry on errors other than `ERROR_CODE_COMMAND_DISALLOWED`
 
 ### Fixed
 - Pico W: Example uses BTstack from Bluepad32 branch. Updated and with custom patches.
@@ -51,7 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [github_issue_86]: https://github.com/ricardoquesada/bluepad32/issues/86
 
 
-## [4.1-rc0] - 2024-03-20
+## [4.0-rc0] - 2024-03-20
 ### New
 - New Rumble API: `play_dual_rumble(start_delayed_ms, duration_ms, weak_magnitude, strong_magnitude)`. Fixes [Github Issue #83][github_issue_83]
   - The old `set_rumble(magnitude, duration)` was removed from Bluepad32 "raw"

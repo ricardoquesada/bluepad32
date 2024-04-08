@@ -99,8 +99,8 @@ static void my_platform_on_controller_data(uni_hid_device_t* d, uni_controller_t
             // Debugging
             // Axis ry: control rumble
             if ((gp->buttons & BUTTON_A) && d->report_parser.play_dual_rumble != NULL) {
-                d->report_parser.play_dual_rumble(d, 0 /* delayed start ms */, 50 /* duration ms */,
-                                                  128 /* weak magnitude */, 40 /* strong magnitude */);
+                d->report_parser.play_dual_rumble(d, 0 /* delayed start ms */, 250 /* duration ms */,
+                                                  255 /* weak magnitude */, 0 /* strong magnitude */);
             }
             // Buttons: Control LEDs On/Off
             if ((gp->buttons & BUTTON_B) && d->report_parser.set_player_leds != NULL) {

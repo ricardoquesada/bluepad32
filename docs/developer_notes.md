@@ -21,7 +21,7 @@
   git tag -a release_v2.4.0
   ```
 
-* push changes both to gitlab and github:
+* push changes both to Gitlab and GitHub:
 
   ```sh
   git push gitlab
@@ -36,10 +36,10 @@
   cd tools/fw
   ./build.py --set-version 2.4.0 all
   ```
-  
-* And generate the release both in gitlab and github, and upload the already generated binaries
 
-## Analizing a core dump
+* And generate the release both in gitlab and GitHub, and upload the already generated binaries
+
+## Analyzing a core dump
 
 Since v2.4.0, core dumps are stored in flash. And they can be retrieved using:
 
@@ -68,6 +68,49 @@ Let it run... stop it... and open the logs using:
 
 ```sh
 wireshark /tmp/hci_dump.pklg
+```
+
+## Using OpenOCD with Pico W
+
+Detailed instructions here: <https://www.raspberrypi.com/documentation/microcontrollers/debug-probe.html>
+
+### Program Pico W
+
+```sh
+sudo openocd -f interface/cmsis-dap.cfg -f target/rp2040.cfg -c "adapter speed 5000" -c "program bluepad32_picow_example_app.elf verify reset exit"
+```
+
+### Debug Pico W
+
+Have 4 terminals
+
+In terminal 1:
+
+```shell
+sudo openocd -f interface/cmsis-dap.cfg -f target/rp2040.cfg -c "adapter speed 5000"
+```
+
+In terminal 2:
+
+```sh
+arm-none-eabi-gdb bluepad32_picow_example_app.elf
+(gdb) target remote localhost:3333
+(gdb) cont
+```
+
+In terminal 3:
+
+```sh
+arm-none-eabi-gdb bluepad32_picow_example_app.elf
+(gdb) target remote localhost:3334
+(gdb) monitor reset init
+(gdb) cont
+```
+
+In terminal 4:
+
+```sh
+tio /dev/ttyACM0
 ```
 
 ## Creating a template project from scratch
@@ -127,37 +170,41 @@ And then do:
 
 1. `idf.py menuconfig`
 2. And set these Arduino options from `Arduino Configuration`:
-  * "Autostart Arduino setup and loop on boot" must be OFF
-  * "Core on which Arduino's setup() and loop() are running" must be "Core 1"
+
+* "Autostart Arduino setup and loop on boot" must be OFF
+* "Core on which Arduino's setup() and loop() are running" must be "Core 1"
     * Same for the remaining "Core" options
-  * "Loop thread stack size": depends on what you do. 8192 is a good default value.
-  * "Include only specific Arduino libraries" must ON
+* "Loop thread stack size": depends on what you do. 8192 is a good default value.
+* "Include only specific Arduino libraries" must ON
     * "Enable BLE" must be OFF
     * "Enable BluetoothSerial" must be OFF
 
-    ![sdk-config](https://lh3.googleusercontent.com/pw/AM-JKLUC4p0Yf5fwxsmzBTqmisp09ElowiFvD06VZfVFeTe6qZZ7pavXZ3sOZ1qKe5wWvwCrnhZrvgOerIgb4XJcrX_fGQETiL2QObmE1u8KFn8wtRoO-vrLSJCRbQVgkC8_pnbyUQM4onrK6GXaaEf-Fuf4iQ=-no)
+  ![sdk-config](https://lh3.googleusercontent.com/pw/AM-JKLUC4p0Yf5fwxsmzBTqmisp09ElowiFvD06VZfVFeTe6qZZ7pavXZ3sOZ1qKe5wWvwCrnhZrvgOerIgb4XJcrX_fGQETiL2QObmE1u8KFn8wtRoO-vrLSJCRbQVgkC8_pnbyUQM4onrK6GXaaEf-Fuf4iQ=-no)
 
 3. Set these Bluetooth options:
-  * "Component Config" -> "Bluetooth" -> "Bluetooth Controller"
+
+* "Component Config" -> "Bluetooth" -> "Bluetooth Controller"
     * "Bluetooth Controller Mode": Bluetooth Dual Mode
     * "BLE Max Connections": 3
     * "BR/EDR ACL Max Connections": 7
     * "BR/EDR Sync (SCO/eSCO) Max Connections": 3
-  * "Component Config" -> "Bluetooth" -> "Bluetooth Host"
+* "Component Config" -> "Bluetooth" -> "Bluetooth Host"
     * "Controller only"
 
-    ![sdkconfig-bluetooth](https://lh3.googleusercontent.com/pw/AM-JKLVOfishwCTAmGZN2owF0TNiTNVOlCR0DZf7PqUZprM0ujp_iM1e-tYMqDbhZKSe5zvJD4K4PCZJ-SuqO4IGnamgQL79vanzfvpItspvztGlsl0t_FlEkDYmif6q0WgbS6XCH7qrS0iM5LtqNxDySAWJhg=-no)
+  ![sdkconfig-bluetooth](https://lh3.googleusercontent.com/pw/AM-JKLVOfishwCTAmGZN2owF0TNiTNVOlCR0DZf7PqUZprM0ujp_iM1e-tYMqDbhZKSe5zvJD4K4PCZJ-SuqO4IGnamgQL79vanzfvpItspvztGlsl0t_FlEkDYmif6q0WgbS6XCH7qrS0iM5LtqNxDySAWJhg=-no)
 
-    ![sdkconfig-bluetooth2](https://lh3.googleusercontent.com/pw/AM-JKLUqEgrT5sF48hKUkmMsP2-9QzV6-JgyYyKwBfZA7GxjwOtQrDqYXvRE3R5tL7SQsAqRurXCiFqHoPU3k9noCtB-k_ZzJ4F_vqKqb9HVJXpI0ZkR5nJv8SzJ959LEmjjX9QaUteHpoJvbdHsiU-0TPoF8w=-no)
+  ![sdkconfig-bluetooth2](https://lh3.googleusercontent.com/pw/AM-JKLUqEgrT5sF48hKUkmMsP2-9QzV6-JgyYyKwBfZA7GxjwOtQrDqYXvRE3R5tL7SQsAqRurXCiFqHoPU3k9noCtB-k_ZzJ4F_vqKqb9HVJXpI0ZkR5nJv8SzJ959LEmjjX9QaUteHpoJvbdHsiU-0TPoF8w=-no)
 
 4. Set these ESP32 options:
-  * "Component Config" -> "ESP32-specific"
+
+* "Component Config" -> "ESP32-specific"
     * "Main XTAL frequency": Autodetect
 
-    ![sdkconfig-esp32](https://lh3.googleusercontent.com/pw/AM-JKLVvcfEonqhFDIWH98KajzMGSADBgaNoCI2QjGHaVFLPeRRAQMcIlXFwRmhvDSmNo6kIX_TGtKRr3V6EerW4ngPEiWbBtJYQPSOe2fixKC-rb16m3hhAVirbH7VnVmFwE1EXvRZk3MnNj7Yu2ydFn9f5Gg=-no)
+  ![sdkconfig-esp32](https://lh3.googleusercontent.com/pw/AM-JKLVvcfEonqhFDIWH98KajzMGSADBgaNoCI2QjGHaVFLPeRRAQMcIlXFwRmhvDSmNo6kIX_TGtKRr3V6EerW4ngPEiWbBtJYQPSOe2fixKC-rb16m3hhAVirbH7VnVmFwE1EXvRZk3MnNj7Yu2ydFn9f5Gg=-no)
 
 5. Set Serial flasher config:
-  * "Serial flasher cofnig"
+
+* "Serial flasher cofnig"
     * "Flash size": 4MB (or choose the right for your module)
 
 ### Copy Bluepad32-Arduino API files

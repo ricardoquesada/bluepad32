@@ -13,7 +13,7 @@
 
 #define STADIA_RUMBLE_REPORT_ID 0x05
 
-#define BLE_RETRY_MS 25
+#define BLE_RETRY_MS 50
 
 struct stadia_ff_report {
     uint16_t strong_magnitude;  // Left: 2100 RPM
@@ -119,7 +119,7 @@ static void stadia_play_dual_rumble_now(struct uni_hid_device_s* d,
 
     status = hids_client_send_write_report(d->hids_cid, STADIA_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
                                            (const uint8_t*)&ff, sizeof(ff));
-    if (status != ERROR_CODE_SUCCESS) {
+    if (status == ERROR_CODE_COMMAND_DISALLOWED) {
         logi("Stadia: Failed to send rumble report, error=%#x, retrying...\n", status);
         ins->rumble_timer_delayed_start.process = &on_stadia_set_rumble_on;
         ins->rumble_timer_delayed_start.context = d;
@@ -127,6 +127,10 @@ static void stadia_play_dual_rumble_now(struct uni_hid_device_s* d,
 
         btstack_run_loop_set_timer(&ins->rumble_timer_delayed_start, BLE_RETRY_MS);
         btstack_run_loop_add_timer(&ins->rumble_timer_delayed_start);
+        return;
+    } else if (status != ERROR_CODE_SUCCESS) {
+        // Don't retry, just log the error and return
+        logi("Stadia: Failed to send rumble report, error=%#x\n", status);
         return;
     }
 
@@ -165,7 +169,7 @@ static void on_stadia_set_rumble_off(btstack_timer_source_t* ts) {
 
     status = hids_client_send_write_report(d->hids_cid, STADIA_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
                                            (const uint8_t*)&ff, sizeof(ff));
-    if (status != ERROR_CODE_SUCCESS) {
+    if (status == ERROR_CODE_COMMAND_DISALLOWED) {
         logi("Stadia: Failed to turn off rumble, error=%#x, retrying...\n", status);
         ins->rumble_timer_duration.process = &on_stadia_set_rumble_off;
         ins->rumble_timer_duration.context = d;
@@ -173,5 +177,9 @@ static void on_stadia_set_rumble_off(btstack_timer_source_t* ts) {
 
         btstack_run_loop_set_timer(&ins->rumble_timer_duration, BLE_RETRY_MS);
         btstack_run_loop_add_timer(&ins->rumble_timer_duration);
+    } else if (status != ERROR_CODE_SUCCESS) {
+        // Do nothing, just log the error
+        logi("Stadia: Failed to turn off rumble, error=%#x\n", status);
     }
+    // else, SUCCESS
 }
