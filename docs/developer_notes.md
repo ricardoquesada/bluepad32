@@ -18,7 +18,7 @@
 * generate a new tag
 
   ```sh
-  git tag -a release_v2.4.0
+  git tag -a 4.0
   ```
 
 * push changes both to Gitlab and GitHub:
@@ -34,10 +34,10 @@
 
   ```sh
   cd tools/fw
-  ./build.py --set-version 2.4.0 all
+  ./build.py --set-version v2.4.0 all
   ```
 
-* And generate the release both in gitlab and GitHub, and upload the already generated binaries
+* And generate the release both in Gitlab and GitHub, and upload the already generated binaries
 
 ## Analyzing a core dump
 
@@ -56,12 +56,14 @@ espcoredump.py info_corefile --core /tmp/core.bin --core-format raw build/bluepa
 
 ## Analyzing Bluetooth packets
 
-Use the "pc_debug" platform:
+Use the "posix" platform:
 
 ```sh
-cd tools/pc_debug
-make
-sudo ./bluepad32
+cd example/posix
+mkdir build && cd build
+cmake ..
+make -j
+sudo ./bluepad32_posix_example_app
 ```
 
 Let it run... stop it... and open the logs using:
@@ -74,6 +76,14 @@ wireshark /tmp/hci_dump.pklg
 
 Detailed instructions here: <https://www.raspberrypi.com/documentation/microcontrollers/debug-probe.html>
 
+Recompile by using UART as output. In the `CMakeLists.txt` do this:
+```cmake
+# Disable USB output
+pico_enable_stdio_usb(bluepad32_picow_example_app 0)
+# Enable UART output
+pico_enable_stdio_uart(bluepad32_picow_example_app 1)
+```
+
 ### Program Pico W
 
 ```sh
@@ -82,11 +92,11 @@ sudo openocd -f interface/cmsis-dap.cfg -f target/rp2040.cfg -c "adapter speed 5
 
 ### Debug Pico W
 
-Have 4 terminals
+Have four terminals.
 
 In terminal 1:
 
-```shell
+```sh
 sudo openocd -f interface/cmsis-dap.cfg -f target/rp2040.cfg -c "adapter speed 5000"
 ```
 
