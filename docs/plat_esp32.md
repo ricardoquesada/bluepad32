@@ -31,15 +31,17 @@ It works with ESP-IDF v4.4 and v5.x.
    git clone --recursive https://github.com/ricardoquesada/bluepad32.git
    ```
 
-### 3. Patch and integrate BTstack into ESP32
+### 3. Patch BTstack and integrate it as a local component
 
 Patch it:
+
    ```sh
    cd ${BLUEPAD32_SRC}/external/btstack
    git apply ../patches/*.patch
    ```
 
 Integrate it:
+
    ```sh
    cd ${BLUEPAD32}/external/btstack/port/esp32
    # This will install BTstack as a component inside Bluepad32 source code (recommended).
