@@ -510,7 +510,8 @@ void uni_hid_device_dump_device(uni_hid_device_t* d) {
 
     logi("\tbtaddr: %s\n", bd_addr_to_str(d->conn.btaddr));
     logi("\tbt: handle=%d (%s), hids_cid=%d, ctrl_cid=0x%04x, intr_cid=0x%04x, cod=0x%08x, flags=0x%08x, incoming=%d\n",
-         d->conn.handle, conn_type, d->hids_cid, d->conn.control_cid, d->conn.interrupt_cid, d->cod, d->flags, d->conn.incoming);
+         d->conn.handle, conn_type, d->hids_cid, d->conn.control_cid, d->conn.interrupt_cid, d->cod, d->flags,
+         d->conn.incoming);
     logi("\tmodel: vid=0x%04x, pid=0x%04x, model='%s', name='%s'\n", d->vendor_id, d->product_id,
          uni_gamepad_get_model_name(d->controller_type), d->name);
     logi("\tbattery: %d / 255, type=%s\n", d->controller.battery,
