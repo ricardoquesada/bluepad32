@@ -47,7 +47,14 @@ You need to install Pico SDK. The instructions are different for Linux/macOS and
    git clone --recursive https://github.com/ricardoquesada/bluepad32.git
    ```
 
-### 3. Modify example
+### 3. Patch BTstack
+
+   ```sh
+   cd ${BLUEPAD32_SRC}/external/btstack
+   git apply ../patches/*.patch
+   ```
+
+### 4. Modify example
 
 Go to example folder:
 
@@ -61,7 +68,7 @@ Customize `src/my_platform.c` file to your needs:
 - [my_platform.c](https://github.com/ricardoquesada/bluepad32/blob/main/examples/pico_w/src/my_platform.c)
 
 
-### 4. Build it
+### 5. Build it
 
 Build the `.uf2` file by doing:
 
@@ -72,7 +79,7 @@ cmake ..
 make -j
 ```
 
-### 5. Flash it
+### 6. Flash it
 
 Copy `build/bluepad32_picow_example_app.uf2` to Pico W.
 
