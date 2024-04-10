@@ -9,7 +9,7 @@ To flash Bluepad32 in NINA, there are two options
 
 ### Download arduino-fwuploader
 
-Download latest binary from here: https://github.com/arduino/arduino-fwuploader/releases
+Download the latest binary from here: https://github.com/arduino/arduino-fwuploader/releases
 
 ### Select correct board name
 
@@ -93,5 +93,5 @@ $ esptool.py --port ${ESPPORT} --baud 115200 --before no_reset write_flash 0x000
 - [Bluepad32 for NINA documentation][bluepad32-nina]
 - [Nina-W10 firmware][nina-fw]
 
-[bluepad32-nina]: https://gitlab.com/ricardoquesada/bluepad32/blob/master/docs/plat_nina.md
+[bluepad32-nina]: https://bluepad32.readthedocs.io/en/latest/plat_nina/
 [nina-fw]: https://github.com/arduino/nina-fw

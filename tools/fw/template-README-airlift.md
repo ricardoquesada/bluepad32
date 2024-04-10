@@ -38,6 +38,6 @@ $ esptool.py --port ${ESPPORT} --baud 115200 --before no_reset write_flash 0x000
 - [Upgrade External ESP32 AirLift firmware][adafruit-esp32]
 - [Nina-W10 firmware][nina-fw]
 
-[bluepad32-airlift]: https://gitlab.com/ricardoquesada/bluepad32/blob/master/docs/plat_airlift.md
+[bluepad32-airlift]: https://bluepad32.readthedocs.io/en/latest/plat_airlift/
 [adafruit-esp32]: https://learn.adafruit.com/adafruit-airlift-breakout/upgrade-external-esp32-airlift-firmware
 [nina-fw]: https://github.com/adafruit/nina-fw

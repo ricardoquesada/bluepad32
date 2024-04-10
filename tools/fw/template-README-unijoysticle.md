@@ -4,7 +4,7 @@
 
 If you only want to flash the latest firmware version without downloading the toolchain + sources you should do:
 
-Download latest precompiled firmware from here:
+Download the latest precompiled firmware from here:
 
 - https://github.com/ricardoquesada/bluepad32/releases
 
