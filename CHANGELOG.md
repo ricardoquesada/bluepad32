@@ -12,9 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Mouse constants: `MOUSE_BUTTON_*` renamed to `UNI_MOUSE_BUTTONS_*`. Avoid conflicts with other libraries, like TinyUSB.
 - Stadia/Xbox: retry rumble switch from 25ms to 50ms. And don't retry on errors other than `ERROR_CODE_COMMAND_DISALLOWED`
+- BTstack: updated to latest `develop` branch. Hash: b74edc46d02bbb5d44d58cfddd05aa74f9735e5e
 
 ### Fixed
 - Pico W: Example uses BTstack from Bluepad32 branch. Updated and with custom patches.
+- NINA: Works, there was a regression in v4.0-beta2. Fixes [Github issue #90][github_issue_90]
+
+[github_issue_90]: https://github.com/ricardoquesada/bluepad32/issues/90
 
 ## [4.0.2] - 2024-04-03
 ### Fixed

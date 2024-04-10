@@ -1008,6 +1008,12 @@ static void nina_init(int argc, const char** argv) {
 }
 
 static void nina_on_init_complete(void) {
+    // Needed for NINA, without it RP2040 Nano, and possibly others, don't work.
+    // https://github.com/arduino/nina-fw/blob/master/main/sketch.ino.cpp#L78
+    // See: https://github.com/ricardoquesada/bluepad32/issues/90
+    PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[1], PIN_FUNC_GPIO);
+    PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[3], PIN_FUNC_GPIO);
+
     controller_mutex = xSemaphoreCreateMutex();
     assert(controller_mutex != NULL);
 
