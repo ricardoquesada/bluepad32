@@ -140,31 +140,6 @@ So, in your code you should do something like the following:
 ```c++
 // Arduino Sketch
 
-void loop() {
-    bool dataUpdated = BP32.update();
-    if (dataUpdated) {
-        processControllers();
-
-        // Update the last time you received data
-        lastUpdate = millis();
-    } else {
-        if ((millis() - lastUpdate) > 5000) {
-            // If no data received in more than 5000 milliseconds, do something
-            stopCar();
-        }
-    }
-
-    vTaskDelay(1);
-}
-```
-
-If you have multiple controllers connected, and you want to check for just one controller,
-then you can do something like the following:
-
-```c++
-// Arduino Sketch
-
-// Function called from 'loop()`.
 void processControllers() {
     for (auto myController : myControllers) {
         if (myController && myController->isConnected()) {
@@ -183,6 +158,16 @@ void processControllers() {
         }
     }
 }
+
+void loop() {
+    bool dataUpdated = BP32.update();
+    if (dataUpdated) {
+        processControllers();
+    }
+
+    vTaskDelay(1);
+}
+
 ```
 
 Check [GitHub Bug #42][github_issue_42] for more details.
@@ -220,6 +205,24 @@ I decided to use BTstack. It turned out to be a good decision:
 - It supports Posix systems: Beneficial when adding support for a new controller.
 
 [btstack]: https://github.com/bluekitchen/btstack
+
+## Which IDE should I use ?
+
+TL;DR: The one that makes you more productive.
+
+Just use the one that makes you more productive. Sometimes it is the one that you are more familiar with.
+
+Some options are:
+
+* [Arduino IDE][arduino_ide]: good if you are already familiar with Arduino ecosystem.
+* [Visual Studio Code][vscode]: good as a generic code editor. Requires to install different plugins to have a good C / C++ experience.
+* [CLion][clion]: good for advanced C / C++ users.
+
+For me, the best one by far, is [CLion][clion]. But your mileage may vary.
+
+[arduino_ide]: https://www.arduino.cc/en/software
+[vscode]: https://code.visualstudio.com/
+[clion]: https://www.jetbrains.com/clion/
 
 ## When was Bluepad32 created?
 
