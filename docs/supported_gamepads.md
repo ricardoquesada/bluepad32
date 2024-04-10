@@ -375,11 +375,19 @@ Supported "extra features":
 
 Supported "extra features":
 
-| Rumble      | Player LEDs | Gyro / Accelerometer |
-|-------------|-------------|----------------------|
-| Some models | Some models | Some models          |
+| Model        | Rumble           | Player LEDs      | Gyro / Accelerometer |
+|--------------|------------------|------------------|----------------------|
+| Ultimate     |                  | :material-check: | :material-check:     |
+| SN30 Pro     | :material-check: | :material-check: |                      |
+| Pro 2        | :material-check: | :material-check: |                      |
+| Lite         |                  | :material-check: |                      |
+| M30          |                  | :material-check: |                      |
+| Arcade Stick |                  |                  |                      |
+| Zero 2       |                  |                  |                      |
+| NES30        |                  |                  |                      |
 
-- Tested with: [8BitDo SN30 Pro][8bitdo_sn30_pro], [8BitDo Arcade Stick][8bitdo_arcade_stick],
+- Tested
+  with: [8BitDo SN30 Pro][8bitdo_sn30_pro], [8BitDo Pro 2][8bitdo_pro_2] [8BitDo Arcade Stick][8bitdo_arcade_stick],
   [8BitDo Lite][8bitdo_lite], [8BitDo NES30][8bitdo_nes30], [8BitDo M30][8bitdo_m30],
   [8BitDo Zero 2][8bitdo_zero2], [8BitDo Ultimate Controller][8bitdo_ultimate]
 - All 8BitDo modes are supported: *Switch*, *Android*, *Windows* and *macOS*.
@@ -400,6 +408,8 @@ Supported "extra features":
 [8bitdo_zero2]: https://www.8bitdo.com/zero2/
 
 [8bitdo_ultimate]: https://www.8bitdo.com/ultimate-bluetooth-controller/
+
+[8bitdo_pro_2]: https://www.8bitdo.com/pro2/
 
 ## Atari VCS Joystick
 
