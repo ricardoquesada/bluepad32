@@ -114,7 +114,9 @@ Values are stored in Non-Volatile-Storage (NVS).
 This means that if you reset the ESP32, the allowlist entries, and whether it is enabled will persist the reset.
 
 [arduino_esp_idf_template]: https://bluepad32.readthedocs.io/en/latest/plat_arduino/#option-b-use-esp-idf-template-project
+
 [esp_idf_raw]: https://github.com/ricardoquesada/bluepad32/tree/main/examples/esp32
+
 [unijoysticle]: https://bluepad32.readthedocs.io/en/latest/plat_unijoysticle/
 
 
@@ -170,9 +172,53 @@ void loop() {
 
 ```
 
-Check [GitHub Bug #42][github_issue_42] for more details.
+Check [GitHub Issue #42][github_issue_42] for more details.
 
 [github_issue_42]: https://github.com/ricardoquesada/bluepad32/issues/42
+
+## Could you add support for my unsupported controller?
+
+TL;DR: We'll do our best.
+
+First of all, double-check that the controller is not already supported:
+
+* [Supported gamepads][supported_gamepads] :material-gamepad-variant:
+* [Supported mice][supported_mice] :material-mouse:
+* [Supported keyboards][supported_keyboards] :material-keyboard:
+
+If it is not there, and you want us to support it, contact us (Send us a Private Message in
+[Discord][discord_server] :simple-discord:, or [file a feature request][github_bug] :simple-github:).
+
+The way it works is:
+
+* You send us a link to the controller that is not supported, like the Amazon or AliExpress link.
+* You send us via [PayPal][paypal] :simple-paypal:, [Ko-fi][kofi] :simple-kofi:, [Venmo][venmo] :simple-venmo:, or even
+  an Amazon gift card, the cost of the gamepad + shipping to the US.
+* We purchase it, and we will do our best to support it.
+  But we don't guarantee anything.
+  So many things can go wrong, especially with low-cost clones where many features are not implemented.
+
+[discord_server]: https://discord.gg/r5aMn6Cw5q
+
+[github_bug]: https://github.com/ricardoquesada/bluepad32/issues
+
+[kofi]: https://ko-fi.com/ricardoquesada
+
+[paypal]: https://www.paypal.com/paypalme/RicardoQuesada
+
+[supported_gamepads]: ../supported_gamepads/
+
+[supported_gamepads]: ../supported_gamepads/
+
+[supported_keyboards]: ../supported_keyboards/
+
+[supported_keyboards]: ../supported_keyboards/
+
+[supported_mice]: ../supported_mice/
+
+[supported_mice]: ../supported_mice/
+
+[venmo]: https://account.venmo.com/u/Ricardo-Quesada
 
 ## Why does the internal Bluepad32 API use `uni` as prefix?
 
@@ -215,13 +261,16 @@ Just use the one that makes you more productive. Sometimes it is the one that yo
 Some options are:
 
 * [Arduino IDE][arduino_ide]: good if you are already familiar with Arduino ecosystem.
-* [Visual Studio Code][vscode]: good as a generic code editor. Requires to install different plugins to have a good C / C++ experience.
+* [Visual Studio Code][vscode]: good as a generic code editor. Requires to install different plugins to have a good C /
+  C++ experience.
 * [CLion][clion]: good for advanced C / C++ users.
 
 For me, the best one by far, is [CLion][clion]. But your mileage may vary.
 
 [arduino_ide]: https://www.arduino.cc/en/software
+
 [vscode]: https://code.visualstudio.com/
+
 [clion]: https://www.jetbrains.com/clion/
 
 ## When was Bluepad32 created?
