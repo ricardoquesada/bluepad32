@@ -381,6 +381,7 @@ Supported "extra features":
 | SN30 Pro     | :material-check: | :material-check: |                      |
 | Pro 2        | :material-check: | :material-check: |                      |
 | Lite         |                  | :material-check: |                      |
+| Lite 2       |                  | :material-check: | :material-check:     |
 | M30          |                  | :material-check: |                      |
 | Arcade Stick |                  |                  |                      |
 | Zero 2       |                  |                  |                      |
