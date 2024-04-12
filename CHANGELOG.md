@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.??.??] - 2024-??-??
+### Fixed
+- Nintendo: Accept reports with more data than requested. Fixes [Github Issue #94][github_issue_94]
+
+[github_issue_94]: https://github.com/ricardoquesada/bluepad32/issues/94
+
 ## [4.0.3] - 2024-04-09
 ### New
 - Keyboard: Add method to change LEDs:
@@ -16,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Pico W: Example uses BTstack from Bluepad32 branch. Updated and with custom patches.
-- NINA: Works, there was a regression in v4.0-beta2. Fixes [Github issue #90][github_issue_90]
+- NINA: Works, there was a regression in v4.0-beta2. Fixes [Github Issue #90][github_issue_90]
 
 [github_issue_90]: https://github.com/ricardoquesada/bluepad32/issues/90
 
