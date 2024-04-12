@@ -501,20 +501,26 @@ static void process_reply_read_spi_factory_stick_calibration(struct uni_hid_devi
     bool is_left;
 
     if (ins->controller_type == SWITCH_CONTROLLER_TYPE_PRO) {
-        // Sanity check
-        if (len != SWITCH_FACTORY_STICK_CAL_DATA_SIZE * 2) {
-            loge("Switch: invalid spi factory stick calibration len; got %d, wanted %d\n", len,
+        // If data is longer than expected, we treat it as Ok.
+        // Clones might report longer length.
+        // See: https://github.com/ricardoquesada/bluepad32/issues/94
+        if (len < SWITCH_FACTORY_STICK_CAL_DATA_SIZE * 2) {
+            loge("Switch: invalid spi factory stick calibration len; got %d, wanted >= %d\n", len,
                  SWITCH_FACTORY_STICK_CAL_DATA_SIZE * 2);
+            printf_hexdump(data, len);
             return;
         }
 
         parse_stick_calibration(&ins->cal_x, &ins->cal_y, data, true);
         parse_stick_calibration(&ins->cal_rx, &ins->cal_y, &data[9], false);
     } else {
-        if (len != SWITCH_FACTORY_STICK_CAL_DATA_SIZE) {
-            // Sanity check
-            loge("Switch: invalid spi factory stick calibration len; got %d, wanted %d\n", len,
+        if (len < SWITCH_FACTORY_STICK_CAL_DATA_SIZE) {
+            // If data is longer than expected, we treat it as Ok.
+            // Clones might report longer length.
+            // See: https://github.com/ricardoquesada/bluepad32/issues/94
+            loge("Switch: invalid spi factory stick calibration len; got %d, wanted >= %d\n", len,
                  SWITCH_FACTORY_STICK_CAL_DATA_SIZE);
+            printf_hexdump(data, len);
             return;
         }
         is_left = ins->controller_type == SWITCH_CONTROLLER_TYPE_JCL;
