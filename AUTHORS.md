@@ -56,6 +56,8 @@ Main author and maintainer: [Ricardo Quesada](http://retro.moe)
 - Joshua Clay [*]
 - Microbmen (Retro6502)
 - Zacks [*]
+- Marc Neuhaus
+- DennisKunz
 
 [*]: Multiple times or generous donations
 
