@@ -88,9 +88,10 @@ static void my_platform_on_controller_data(uni_hid_device_t* d, uni_controller_t
     static uni_controller_t prev = {0};
     uni_gamepad_t* gp;
 
-    if (memcmp(&prev, ctl, sizeof(*ctl)) == 0) {
-        return;
-    }
+    // Used to prevent spamming the log, but should be removed in production.
+    //    if (memcmp(&prev, ctl, sizeof(*ctl)) == 0) {
+    //        return;
+    //    }
     prev = *ctl;
     // Print device Id before dumping gamepad.
     logi("(%p) id=%d ", d, uni_hid_device_get_idx_for_instance(d));

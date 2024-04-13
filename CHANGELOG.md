@@ -6,8 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.??.??] - 2024-??-??
 ### Fixed
+- Pico W: Allow multiple BLE connections. Fixes [Github Issue #91][github_issue_91]
 - Nintendo: Accept reports with more data than requested. Fixes [Github Issue #94][github_issue_94]
 
+[github_issue_91]: https://github.com/ricardoquesada/bluepad32/issues/91
 [github_issue_94]: https://github.com/ricardoquesada/bluepad32/issues/94
 
 ## [4.0.3] - 2024-04-09
