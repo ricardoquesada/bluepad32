@@ -606,7 +606,7 @@ static void xboxone_play_quad_rumble_now(struct uni_hid_device_s* d,
                                                sizeof(ff) - 2         // subtract the 2 bytes from total
         );
         if (status == ERROR_CODE_COMMAND_DISALLOWED) {
-            logi("Xbox: Failed to send rumble report, error=%#x, retrying...\n", status);
+            logd("Xbox: Failed to send rumble report, error=%#x, retrying...\n", status);
             ins->rumble_timer_delayed_start.process = &on_xboxone_set_rumble_on;
             ins->rumble_timer_delayed_start.context = d;
             ins->rumble_state = XBOXONE_STATE_RUMBLE_DELAYED;
@@ -668,7 +668,7 @@ static void on_xboxone_set_rumble_off(btstack_timer_source_t* ts) {
                                                sizeof(ff) - 2         // subtract the 2 bytes from total
         );
         if (status == ERROR_CODE_COMMAND_DISALLOWED) {
-            logi("Xbox: Failed to turn off rumble, error=%#x, retrying...\n", status);
+            logd("Xbox: Failed to turn off rumble, error=%#x, retrying...\n", status);
             ins->rumble_timer_duration.process = &on_xboxone_set_rumble_off;
             ins->rumble_timer_duration.context = d;
             ins->rumble_state = XBOXONE_STATE_RUMBLE_IN_PROGRESS;
