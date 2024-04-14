@@ -9,6 +9,7 @@
 # Distribution files, used internally and build files
 dist/
 build/
+cmake-build-*/
 tools/fw/bluepad32-*
 
 # Xcode
