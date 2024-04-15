@@ -70,6 +70,11 @@ typedef enum {
     XBOXONE_STATE_RUMBLE_IN_PROGRESS,
 } xboxone_state_rumble_t;
 
+typedef enum {
+    XBOXONE_RETRY_CMD_RUMBLE_ON,
+    XBOXONE_RETRY_CMD_RUMBLE_OFF,
+} xboxone_retry_cmd_t;
+
 struct xboxone_ff_report {
     // Report related
     uint8_t transaction_type;  // type of transaction
@@ -117,6 +122,7 @@ static void xboxone_play_quad_rumble_now(struct uni_hid_device_s* d,
                                          uint8_t trigger_right,
                                          uint8_t weak_magnitude,
                                          uint8_t strong_magnitude);
+static void xboxone_retry_cmd(uni_hid_device_t* d, xboxone_retry_cmd_t cmd);
 static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
                                       hid_globals_t* globals,
                                       uint16_t usage_page,
@@ -514,9 +520,6 @@ void xboxone_play_quad_rumble(struct uni_hid_device_s* d,
         return;
     }
 
-    if ((weak_magnitude == 0 && strong_magnitude == 0 && left_trigger == 0 && right_trigger == 0) || duration_ms == 0)
-        return;
-
     xboxone_instance_t* ins = get_xboxone_instance(d);
     switch (ins->rumble_state) {
         case XBOXONE_STATE_RUMBLE_DELAYED:
@@ -566,6 +569,28 @@ xboxone_instance_t* get_xboxone_instance(uni_hid_device_t* d) {
     return (xboxone_instance_t*)&d->parser_data[0];
 }
 
+static void xboxone_retry_cmd(uni_hid_device_t* d, xboxone_retry_cmd_t cmd) {
+    xboxone_instance_t* ins = get_xboxone_instance(d);
+    ins->rumble_timer_delayed_start.context = d;
+
+    switch (cmd) {
+        case XBOXONE_RETRY_CMD_RUMBLE_ON:
+            ins->rumble_timer_delayed_start.process = &on_xboxone_set_rumble_on;
+            ins->rumble_state = XBOXONE_STATE_RUMBLE_DELAYED;
+            btstack_run_loop_set_timer(&ins->rumble_timer_delayed_start, BLE_RETRY_MS);
+            btstack_run_loop_add_timer(&ins->rumble_timer_delayed_start);
+            break;
+        case XBOXONE_RETRY_CMD_RUMBLE_OFF:
+            ins->rumble_timer_duration.process = &on_xboxone_set_rumble_off;
+            ins->rumble_state = XBOXONE_STATE_RUMBLE_IN_PROGRESS;
+            btstack_run_loop_set_timer(&ins->rumble_timer_duration, BLE_RETRY_MS);
+            btstack_run_loop_add_timer(&ins->rumble_timer_duration);
+            break;
+        default:
+            break;
+    }
+}
+
 static void xboxone_play_quad_rumble_now(struct uni_hid_device_s* d,
                                          uint16_t duration_ms,
                                          uint8_t left_trigger,
@@ -574,6 +599,7 @@ static void xboxone_play_quad_rumble_now(struct uni_hid_device_s* d,
                                          uint8_t strong_magnitude) {
     uint8_t status;
     uint8_t mask = 0;
+    bool has_duration = duration_ms != 0;
 
     mask |= (left_trigger != 0) ? XBOXONE_FF_TRIGGER_LEFT : 0;
     mask |= (right_trigger != 0) ? XBOXONE_FF_TRIGGER_RIGHT : 0;
@@ -593,9 +619,10 @@ static void xboxone_play_quad_rumble_now(struct uni_hid_device_s* d,
         .magnitude_right_trigger = ((uint16_t)(right_trigger * 100)) / UINT8_MAX,
         .magnitude_strong = ((uint16_t)(strong_magnitude * 100)) / UINT8_MAX,
         .magnitude_weak = ((uint16_t)(weak_magnitude * 100)) / UINT8_MAX,
-        .duration_10ms = 0xff,  // forever, timer will turn it off
+        .duration_10ms = has_duration ? 0xff : 0,  // forever, timer will turn it off
         .start_delay_10ms = 0,
-        .loop_count = 4,  // timer will turn it off, but in case it fails, limit it to no more than 5 iterations
+        .loop_count = has_duration ? 25 : 0,  // timer will turn it off, but in case it fails, limit it to no more than
+                                              // the max 65535 ms accepted for duration: 255 * 10ms * 26 = 66300ms
     };
 
     xboxone_instance_t* ins = get_xboxone_instance(d);
@@ -607,12 +634,7 @@ static void xboxone_play_quad_rumble_now(struct uni_hid_device_s* d,
         );
         if (status == ERROR_CODE_COMMAND_DISALLOWED) {
             logd("Xbox: Failed to send rumble report, error=%#x, retrying...\n", status);
-            ins->rumble_timer_delayed_start.process = &on_xboxone_set_rumble_on;
-            ins->rumble_timer_delayed_start.context = d;
-            ins->rumble_state = XBOXONE_STATE_RUMBLE_DELAYED;
-
-            btstack_run_loop_set_timer(&ins->rumble_timer_delayed_start, BLE_RETRY_MS);
-            btstack_run_loop_add_timer(&ins->rumble_timer_delayed_start);
+            xboxone_retry_cmd(d, has_duration ? XBOXONE_RETRY_CMD_RUMBLE_ON : XBOXONE_RETRY_CMD_RUMBLE_OFF);
             return;
         } else if (status != ERROR_CODE_SUCCESS) {
             // Don't retry, log the error and return
@@ -624,12 +646,14 @@ static void xboxone_play_quad_rumble_now(struct uni_hid_device_s* d,
     }
 
     // Set timer to turn off rumble
-    ins->rumble_timer_duration.process = &on_xboxone_set_rumble_off;
-    ins->rumble_timer_duration.context = d;
-    ins->rumble_state = XBOXONE_STATE_RUMBLE_IN_PROGRESS;
+    if (has_duration) {
+        ins->rumble_timer_duration.process = &on_xboxone_set_rumble_off;
+        ins->rumble_timer_duration.context = d;
+        ins->rumble_state = XBOXONE_STATE_RUMBLE_IN_PROGRESS;
 
-    btstack_run_loop_set_timer(&ins->rumble_timer_duration, duration_ms);
-    btstack_run_loop_add_timer(&ins->rumble_timer_duration);
+        btstack_run_loop_set_timer(&ins->rumble_timer_duration, duration_ms);
+        btstack_run_loop_add_timer(&ins->rumble_timer_duration);
+    }
 }
 
 static void on_xboxone_set_rumble_on(btstack_timer_source_t* ts) {
@@ -669,12 +693,7 @@ static void on_xboxone_set_rumble_off(btstack_timer_source_t* ts) {
         );
         if (status == ERROR_CODE_COMMAND_DISALLOWED) {
             logd("Xbox: Failed to turn off rumble, error=%#x, retrying...\n", status);
-            ins->rumble_timer_duration.process = &on_xboxone_set_rumble_off;
-            ins->rumble_timer_duration.context = d;
-            ins->rumble_state = XBOXONE_STATE_RUMBLE_IN_PROGRESS;
-
-            btstack_run_loop_set_timer(&ins->rumble_timer_duration, BLE_RETRY_MS);
-            btstack_run_loop_add_timer(&ins->rumble_timer_duration);
+            xboxone_retry_cmd(d, XBOXONE_RETRY_CMD_RUMBLE_OFF);
             return;
         } else if (status != ERROR_CODE_SUCCESS) {
             // Do nothing, log the error

@@ -1,6 +1,8 @@
 # Bluepad32 authors
 
-Main author and maintainer: [Ricardo Quesada](http://retro.moe)
+## Main author and maintainer
+
+- [Ricardo Quesada](http://retro.moe)
 
 ## Code contributors
 
@@ -37,6 +39,8 @@ Main author and maintainer: [Ricardo Quesada](http://retro.moe)
     - Improvements to Pico W support
 - Recep Selim Ağırman:
     - DualSense Adaptive trigger support
+- Michal Dvořák:
+    - Add "native" mode in Wii driver
 
 ## People who contributed with ideas and/or testing
 
