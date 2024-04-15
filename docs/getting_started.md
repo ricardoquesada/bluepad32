@@ -49,7 +49,7 @@ Choose the right one depending on your knowledge, devkit board and requirements:
 | Arduino Core                        | [Template project][esp-idf-bluepad32-arduino]                     | [Doc][plat_arduino]       | [Lego Robot][esp32_example] ([video][esp32_video]), [gbaHD Shield][esp32_example2] (a GameBoy consolizer) | :material-check: | Very easy to debug, console, Arduino libraries, ESP-IDF, PlatformIO |
 | Arduino IDE + NINA coprocessor      | [Arduino Library][bp32-arduino]                                   | [Doc][plat_nina]          | [Philips CD-i meets Bluetooth][nina_example]                                                              | :material-close: | Difficult to debug, familiar IDE, Arduino libraries, **deprecated** |
 | CircuitPython + AirLift coprocessor | [CircuitPython Library][bp32-circuitpython]                       | [Doc][plat_airlift]       | [Quico console][airlift_example], Controlling 4 servos ([video][airlift_video])                           | :material-close: | Difficult to debug, easy to program, CircuitPython libraries        |
-| Pico W                              | [Pico W example][pico-w-example]                                  | [Doc][plat_picow_picosdk] | [Pico Switch][pico_switch]                                                                                | :material-check: | Very easy to debug, for advanced developers, Pico SDK               |
+| Pico W                              | [Pico W example][pico-w-example]                                  | [Doc][plat_picow_picosdk] | [Pico Switch][pico_switch], [PicoNtrol][pico_ntrol]                                                       | :material-check: | Very easy to debug, for advanced developers, Pico SDK               |
 | ESP-IDF                             | [ESP32 example][esp32-example]                                    | [Doc][plat_esp32_espidf]  |                                                                                                           | :material-check: | Very easy to debug, for advanced developers, ESP-IDF, PlatformIO    |
 | Posix (Linux, macOS)                | [Posix example][posix-example]                                    | [Doc][plat_custom]        |                                                                                                           | :material-check: | Very easy to debug, useful for quick development                    | 
 
@@ -96,6 +96,8 @@ Choose the right one depending on your knowledge, devkit board and requirements:
 [nina_example]: https://eyskens.me/cd-i-meets-bluetooth/
 
 [pico-w-example]: https://github.com/ricardoquesada/bluepad32/tree/main/examples/pico_w
+
+[pico_ntrol]: https://github.com/ShadeReogen/PicoNtrol
 
 [pico_switch]: https://github.com/juan518munoz/PicoSwitch-WirelessGamepadAdapter
 
