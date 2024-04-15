@@ -33,12 +33,6 @@ static const uint32_t WII_DUMP_ROM_DATA_ADDR_END = 0x1700;
 
 #define DRM_KEE_BATTERY_MASK GENMASK(6, 4)
 
-enum wii_flags {
-    WII_FLAGS_NONE = 0,
-    WII_FLAGS_VERTICAL = BIT(0),
-    WII_FLAGS_ACCEL = BIT(1),
-};
-
 // Taken from Linux kernel: hid-wiimote.h
 enum wiiproto_reqs {
     WIIPROTO_REQ_NULL = 0x0,
@@ -178,6 +172,7 @@ static void process_req_status(uni_hid_device_t* d, const uint8_t* report, uint1
 static void process_req_data(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
 static void process_req_return(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
 static void process_drm_k(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
+static void process_drm_k_native(uni_controller_t* ctl, const uint8_t* data);
 static void process_drm_k_vertical(uni_controller_t* ctl, const uint8_t* data);
 static void process_drm_k_horizontal(uni_controller_t* ctl, const uint8_t* data);
 static void process_drm_ka(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
@@ -221,6 +216,12 @@ static const char* wii_exttype_names[] = {
     "Balance Board"        // WII_EXT_BALANCE_BOARD
 };
 
+static wii_flags_t forced_flags = WII_FLAGS_NONE;
+
+void wii_force_flags(wii_flags_t flags) {
+    forced_flags = flags;
+}
+
 // process_ functions
 
 // Defined here: http://wiibrew.org/wiki/Wiimote#0x20:_Status
@@ -261,7 +262,10 @@ static void process_req_status(uni_hid_device_t* d, const uint8_t* report, uint1
             ins->ext_type = WII_EXT_NONE;
         }
 
-        if (report[2] & 0x08) {
+        if (forced_flags != WII_FLAGS_NONE) {
+            // Use preset flags
+            ins->flags = forced_flags;
+        } else if (report[2] & 0x08) {
             // Wii Remote only: Enter "accel mode" if "A" is pressed.
             ins->flags |= WII_FLAGS_ACCEL;
         } else if (report[1] & 0x10) {
@@ -520,6 +524,8 @@ static void process_drm_k(uni_hid_device_t* d, const uint8_t* report, uint16_t l
 
     if (ins->flags & WII_FLAGS_VERTICAL) {
         process_drm_k_vertical(ctl, data);
+    } else if (ins->flags & WII_FLAGS_NATIVE) {
+        process_drm_k_native(ctl, data);
     } else {
         process_drm_k_horizontal(ctl, data);
     }
@@ -555,6 +561,20 @@ static void process_drm_k_vertical(uni_controller_t* ctl, const uint8_t* data) {
     // buttons
     ctl->gamepad.buttons |= (data[1] & 0x04) ? BUTTON_A : 0;  // Shoulder button
     ctl->gamepad.buttons |= (data[1] & 0x08) ? BUTTON_B : 0;  // Big button "A"
+    ctl->gamepad.buttons |= (data[1] & 0x02) ? BUTTON_X : 0;  // Button "1"
+    ctl->gamepad.buttons |= (data[1] & 0x01) ? BUTTON_Y : 0;  // Button "2"
+}
+
+static void process_drm_k_native(uni_controller_t* ctl, const uint8_t* data) {
+    // dpad
+    ctl->gamepad.dpad |= (data[0] & 0x01) ? DPAD_LEFT : 0;
+    ctl->gamepad.dpad |= (data[0] & 0x02) ? DPAD_RIGHT : 0;
+    ctl->gamepad.dpad |= (data[0] & 0x04) ? DPAD_DOWN : 0;
+    ctl->gamepad.dpad |= (data[0] & 0x08) ? DPAD_UP : 0;
+
+    // buttons
+    ctl->gamepad.buttons |= (data[1] & 0x08) ? BUTTON_A : 0;  // Big button "A"
+    ctl->gamepad.buttons |= (data[1] & 0x04) ? BUTTON_B : 0;  // Shoulder button
     ctl->gamepad.buttons |= (data[1] & 0x02) ? BUTTON_X : 0;  // Button "1"
     ctl->gamepad.buttons |= (data[1] & 0x01) ? BUTTON_Y : 0;  // Button "2"
 }
@@ -635,6 +655,12 @@ static void process_drm_ke(uni_hid_device_t* d, const uint8_t* report, uint16_t 
         ctl->gamepad.axis_ry = n.sy * factor;
         ctl->gamepad.buttons |= n.bc ? BUTTON_B : 0;
         ctl->gamepad.buttons |= n.bz ? BUTTON_SHOULDER_R : 0;  // Autofire
+    } else if (ins->flags == WII_FLAGS_NATIVE) {
+        // Treat Nunchuk as "left" joypad.
+        ctl->gamepad.axis_x = n.sx * factor;
+        ctl->gamepad.axis_y = n.sy * factor;
+        ctl->gamepad.buttons |= n.bc ? BUTTON_SHOULDER_L : 0;
+        ctl->gamepad.buttons |= n.bz ? BUTTON_TRIGGER_L : 0;
     } else {
         // Treat Nunchuk as "left" joypad.
         ctl->gamepad.axis_x = n.sx * factor;
@@ -653,13 +679,18 @@ static void process_drm_ke(uni_hid_device_t* d, const uint8_t* report, uint16_t 
     ctl->gamepad.dpad |= (report[1] & 0x04) ? DPAD_DOWN : 0;
     ctl->gamepad.dpad |= (report[1] & 0x08) ? DPAD_UP : 0;
 
-    ctl->gamepad.buttons |= (report[2] & 0x04) ? BUTTON_A : 0;  // Shoulder button
-    if (ins->flags == WII_FLAGS_VERTICAL) {
+    if (ins->flags == WII_FLAGS_NATIVE) {
+        ctl->gamepad.buttons |= (report[2] & 0x08) ? BUTTON_A : 0;  // Big button "A"
+        ctl->gamepad.buttons |= (report[2] & 0x04) ? BUTTON_B : 0;  // Shoulder button
+    } else if (ins->flags == WII_FLAGS_VERTICAL) {
+        ctl->gamepad.buttons |= (report[2] & 0x04) ? BUTTON_A : 0;           // Shoulder button
         ctl->gamepad.buttons |= (report[2] & 0x08) ? BUTTON_SHOULDER_L : 0;  // Big button "A"
     } else {
         // If "vertical" not enabled, update Button B as well
+        ctl->gamepad.buttons |= (report[2] & 0x04) ? BUTTON_A : 0;  // Shoulder button
         ctl->gamepad.buttons |= (report[2] & 0x08) ? BUTTON_B : 0;  // Big button "A"
     }
+
     ctl->gamepad.buttons |= (report[2] & 0x02) ? BUTTON_X : 0;  // Button "1"
     ctl->gamepad.buttons |= (report[2] & 0x01) ? BUTTON_Y : 0;  // Button "2"
 
@@ -1073,6 +1104,8 @@ static void wii_fsm_assign_device(uni_hid_device_t* d) {
                     logi("Wii: requesting Core buttons + E (Nunchuk)\n");
                     if (ins->flags == WII_FLAGS_VERTICAL) {
                         d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_NCHK2JOYS;
+                    } else if (ins->flags == WII_FLAGS_NATIVE) {
+                        d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_NCHKNATIVE;
                     } else {
                         d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_NCHK;
                     }
@@ -1096,6 +1129,8 @@ static void wii_fsm_assign_device(uni_hid_device_t* d) {
                     logi("Wii: requesting Core buttons\n");
                     if (ins->flags & WII_FLAGS_VERTICAL) {
                         d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_VERT;
+                    } else if (ins->flags & WII_FLAGS_NATIVE) {
+                        d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_NATIVE;
                     } else {
                         d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_HORIZ;
                     }
