@@ -208,9 +208,10 @@ static void ds4_send_output_report(uni_hid_device_t* d, ds4_output_report_t* out
 static void ds4_request_calibration_report(uni_hid_device_t* d);
 static void ds4_request_firmware_version_report(uni_hid_device_t* d);
 static void ds4_send_enable_lightbar_report(uni_hid_device_t* d);
-static void ds4_set_rumble_on(btstack_timer_source_t* ts);
-static void ds4_set_rumble_off(btstack_timer_source_t* ts);
-static void ds4_play_dual_rumble_now(struct uni_hid_device_s* d,
+static void on_ds4_set_rumble_on(btstack_timer_source_t* ts);
+static void on_ds4_set_rumble_off(btstack_timer_source_t* ts);
+static void ds4_stop_rumble_now(uni_hid_device_t* d);
+static void ds4_play_dual_rumble_now(uni_hid_device_t* d,
                                      uint16_t duration_ms,
                                      uint8_t weak_magnitude,
                                      uint8_t strong_magnitude);
@@ -546,9 +547,6 @@ void uni_hid_parser_ds4_play_dual_rumble(struct uni_hid_device_s* d,
         return;
     }
 
-    if ((weak_magnitude == 0 && strong_magnitude == 0) || duration_ms == 0)
-        return;
-
     ds4_instance_t* ins = get_ds4_instance(d);
     switch (ins->rumble_state) {
         case DS4_STATE_RUMBLE_DELAYED:
@@ -566,7 +564,7 @@ void uni_hid_parser_ds4_play_dual_rumble(struct uni_hid_device_s* d,
         ds4_play_dual_rumble_now(d, duration_ms, weak_magnitude, strong_magnitude);
     } else {
         // Set timer to have a delayed start
-        ins->rumble_timer_delayed_start.process = &ds4_set_rumble_on;
+        ins->rumble_timer_delayed_start.process = &on_ds4_set_rumble_on;
         ins->rumble_timer_delayed_start.context = d;
         ins->rumble_state = DS4_STATE_RUMBLE_DELAYED;
         ins->rumble_duration_ms = duration_ms;
@@ -599,11 +597,37 @@ static void ds4_send_output_report(uni_hid_device_t* d, ds4_output_report_t* out
     uni_hid_device_send_intr_report(d, (uint8_t*)out, sizeof(*out));
 }
 
-static void ds4_play_dual_rumble_now(struct uni_hid_device_s* d,
+static void ds4_stop_rumble_now(uni_hid_device_t* d) {
+    ds4_instance_t* ins = get_ds4_instance(d);
+    // No need to protect it with a mutex since it runs in the same main thread
+    assert(ins->rumble_state == DS4_STATE_RUMBLE_IN_PROGRESS);
+    ins->rumble_state = DS4_STATE_RUMBLE_DISABLED;
+
+    // Сache the previous rumble value
+    ins->prev_rumble_weak_magnitude = 0;
+    ins->prev_rumble_strong_magnitude = 0;
+
+    ds4_output_report_t out = {
+        .flags = DS4_FF_FLAG_BLINK_COLOR_RUMBLE,  // blink + LED + motor
+        // Prev LED color values to keep the LED color from turning off
+        .led_red = ins->prev_color_red,
+        .led_green = ins->prev_color_green,
+        .led_blue = ins->prev_color_blue,
+    };
+    ds4_send_output_report(d, &out);
+}
+
+static void ds4_play_dual_rumble_now(uni_hid_device_t* d,
                                      uint16_t duration_ms,
                                      uint8_t weak_magnitude,
                                      uint8_t strong_magnitude) {
     ds4_instance_t* ins = get_ds4_instance(d);
+
+    if (duration_ms == 0) {
+        if (ins->rumble_state != DS4_STATE_RUMBLE_DISABLED)
+            ds4_stop_rumble_now(d);
+        return;
+    }
 
     // Сache the previous rumble value
     ins->prev_rumble_weak_magnitude = weak_magnitude;
@@ -622,39 +646,23 @@ static void ds4_play_dual_rumble_now(struct uni_hid_device_s* d,
     ds4_send_output_report(d, &out);
 
     // Set timer to turn off rumble
-    ins->rumble_timer_duration.process = &ds4_set_rumble_off;
+    ins->rumble_timer_duration.process = &on_ds4_set_rumble_off;
     ins->rumble_timer_duration.context = d;
     ins->rumble_state = DS4_STATE_RUMBLE_IN_PROGRESS;
     btstack_run_loop_set_timer(&ins->rumble_timer_duration, duration_ms);
     btstack_run_loop_add_timer(&ins->rumble_timer_duration);
 }
 
-static void ds4_set_rumble_on(btstack_timer_source_t* ts) {
+static void on_ds4_set_rumble_on(btstack_timer_source_t* ts) {
     uni_hid_device_t* d = ts->context;
     ds4_instance_t* ins = get_ds4_instance(d);
 
     ds4_play_dual_rumble_now(d, ins->rumble_duration_ms, ins->rumble_weak_magnitude, ins->rumble_strong_magnitude);
 }
 
-static void ds4_set_rumble_off(btstack_timer_source_t* ts) {
+static void on_ds4_set_rumble_off(btstack_timer_source_t* ts) {
     uni_hid_device_t* d = ts->context;
-    ds4_instance_t* ins = get_ds4_instance(d);
-    // No need to protect it with a mutex since it runs in the same main thread
-    assert(ins->rumble_state == DS4_STATE_RUMBLE_IN_PROGRESS);
-    ins->rumble_state = DS4_STATE_RUMBLE_DISABLED;
-
-    // Сache the previous rumble value
-    ins->prev_rumble_weak_magnitude = 0;
-    ins->prev_rumble_strong_magnitude = 0;
-
-    ds4_output_report_t out = {
-        .flags = DS4_FF_FLAG_BLINK_COLOR_RUMBLE,  // blink + LED + motor
-        // Prev LED color values to keep the LED color from turning off
-        .led_red = ins->prev_color_red,
-        .led_green = ins->prev_color_green,
-        .led_blue = ins->prev_color_blue,
-    };
-    ds4_send_output_report(d, &out);
+    ds4_stop_rumble_now(d);
 }
 
 static void ds4_request_calibration_report(uni_hid_device_t* d) {
