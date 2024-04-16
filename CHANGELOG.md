@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [4.??.??] - 2024-??-??
+### Changed:
+- Rumble stops when duration is 0. Before when duration was 0, the rumble command was ignored.
+
 ### Fixed
 - Pico W: Allow multiple BLE connections. Fixes [Github Issue #91][github_issue_91]
 - Nintendo: Accept reports with more data than requested. Fixes [Github Issue #94][github_issue_94]
