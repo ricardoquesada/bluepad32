@@ -272,9 +272,6 @@ void uni_hid_parser_ds3_play_dual_rumble(struct uni_hid_device_s* d,
         return;
     }
 
-    if ((weak_magnitude == 0 && strong_magnitude == 0) || duration_ms == 0)
-        return;
-
     ds3_instance_t* ins = get_ds3_instance(d);
     if (ins->rumble_state == DS3_STATE_RUMBLE_DELAYED)
         btstack_run_loop_remove_timer(&ins->rumble_timer_delayed_start);

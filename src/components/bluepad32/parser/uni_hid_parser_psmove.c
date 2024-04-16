@@ -124,9 +124,9 @@ typedef struct __attribute((packed)) {
 
 static psmove_instance_t* get_psmove_instance(uni_hid_device_t* d);
 static void psmove_send_output_report(uni_hid_device_t* d, psmove_output_report_t* out);
-static void psmove_set_rumble_on(btstack_timer_source_t* ts);
-static void psmove_set_rumble_off(btstack_timer_source_t* ts);
-static void psmove_play_dual_rumble_now(struct uni_hid_device_s* d, uint16_t duration_ms, uint8_t magnitude);
+static void on_psmove_set_rumble_on(btstack_timer_source_t* ts);
+static void on_psmove_set_rumble_off(btstack_timer_source_t* ts);
+static void psmove_play_dual_rumble_now(uni_hid_device_t* d, uint16_t duration_ms, uint8_t magnitude);
 
 void uni_hid_parser_psmove_init_report(uni_hid_device_t* d) {
     uni_controller_t* ctl = &d->controller;
@@ -209,9 +209,6 @@ void uni_hid_parser_psmove_play_dual_rumble(struct uni_hid_device_s* d,
         return;
     }
 
-    if ((weak_magnitude == 0 && strong_magnitude == 0) || duration_ms == 0)
-        return;
-
     uint8_t magnitude = btstack_max(weak_magnitude, strong_magnitude);
 
     psmove_instance_t* ins = get_psmove_instance(d);
@@ -231,7 +228,7 @@ void uni_hid_parser_psmove_play_dual_rumble(struct uni_hid_device_s* d,
         psmove_play_dual_rumble_now(d, duration_ms, magnitude);
     } else {
         // Set timer to have a delayed start
-        ins->rumble_timer_delayed_start.process = &psmove_set_rumble_on;
+        ins->rumble_timer_delayed_start.process = &on_psmove_set_rumble_on;
         ins->rumble_timer_delayed_start.context = d;
         ins->rumble_state = PSMOVE_STATE_RUMBLE_DELAYED;
         ins->rumble_duration_ms = duration_ms;
@@ -287,8 +284,35 @@ static psmove_instance_t* get_psmove_instance(uni_hid_device_t* d) {
     return (psmove_instance_t*)&d->parser_data[0];
 }
 
-static void psmove_play_dual_rumble_now(struct uni_hid_device_s* d, uint16_t duration_ms, uint8_t magnitude) {
+static void psmove_stop_rumble_now(uni_hid_device_t* d) {
     psmove_instance_t* ins = get_psmove_instance(d);
+
+    // No need to protect it with a mutex since it runs in the same main thread
+    assert(ins->rumble_state == PSMOVE_STATE_RUMBLE_IN_PROGRESS);
+    ins->rumble_state = PSMOVE_STATE_RUMBLE_DISABLED;
+    ins->rumble_magnitude = 0;
+
+    psmove_output_report_t out = {
+        .report_id = 0x06,
+        // Don't overwrite LED RGB
+        .led_rgb[0] = ins->led_rgb[0],
+        .led_rgb[1] = ins->led_rgb[1],
+        .led_rgb[2] = ins->led_rgb[2],
+        .rumble = 0,
+    };
+
+    psmove_send_output_report(d, &out);
+}
+
+static void psmove_play_dual_rumble_now(uni_hid_device_t* d, uint16_t duration_ms, uint8_t magnitude) {
+    psmove_instance_t* ins = get_psmove_instance(d);
+
+    if (duration_ms == 0) {
+        if (ins->rumble_state == PSMOVE_STATE_RUMBLE_IN_PROGRESS)
+            psmove_stop_rumble_now(d);
+        return;
+    }
+
     psmove_output_report_t out = {
         .report_id = 0x06,
         // Don't overwrite LED RGB
@@ -304,39 +328,23 @@ static void psmove_play_dual_rumble_now(struct uni_hid_device_s* d, uint16_t dur
     psmove_send_output_report(d, &out);
 
     // Set timer to turn off rumble
-    ins->rumble_timer_duration.process = &psmove_set_rumble_off;
+    ins->rumble_timer_duration.process = &on_psmove_set_rumble_off;
     ins->rumble_timer_duration.context = d;
     ins->rumble_state = PSMOVE_STATE_RUMBLE_IN_PROGRESS;
     btstack_run_loop_set_timer(&ins->rumble_timer_duration, duration_ms);
     btstack_run_loop_add_timer(&ins->rumble_timer_duration);
 }
 
-static void psmove_set_rumble_on(btstack_timer_source_t* ts) {
+static void on_psmove_set_rumble_on(btstack_timer_source_t* ts) {
     uni_hid_device_t* d = ts->context;
     psmove_instance_t* ins = get_psmove_instance(d);
 
     psmove_play_dual_rumble_now(d, ins->rumble_duration_ms, ins->rumble_magnitude);
 }
 
-static void psmove_set_rumble_off(btstack_timer_source_t* ts) {
+static void on_psmove_set_rumble_off(btstack_timer_source_t* ts) {
     uni_hid_device_t* d = ts->context;
-    psmove_instance_t* ins = get_psmove_instance(d);
-
-    // No need to protect it with a mutex since it runs in the same main thread
-    assert(ins->rumble_state != PSMOVE_STATE_RUMBLE_DISABLED);
-    ins->rumble_state = PSMOVE_STATE_RUMBLE_DISABLED;
-    ins->rumble_magnitude = 0;
-
-    psmove_output_report_t out = {
-        .report_id = 0x06,
-        // Don't overwrite LED RGB
-        .led_rgb[0] = ins->led_rgb[0],
-        .led_rgb[1] = ins->led_rgb[1],
-        .led_rgb[2] = ins->led_rgb[2],
-        .rumble = 0,
-    };
-
-    psmove_send_output_report(d, &out);
+    psmove_stop_rumble_now(d);
 }
 
 static void psmove_send_output_report(uni_hid_device_t* d, psmove_output_report_t* out) {
