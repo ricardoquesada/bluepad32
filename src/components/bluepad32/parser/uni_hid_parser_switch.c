@@ -332,9 +332,10 @@ static void process_reply_set_player_leds(struct uni_hid_device_s* d, const stru
 static void process_reply_enable_imu(struct uni_hid_device_s* d, const struct switch_report_21_s* r, int len);
 static int32_t calibrate_axis(int32_t v, switch_cal_stick_t cal);
 static void set_led(uni_hid_device_t* d, uint8_t leds);
-static void switch_set_rumble_on(btstack_timer_source_t* ts);
-static void switch_set_rumble_off(btstack_timer_source_t* ts);
-static void switch_play_dual_rumble_now(struct uni_hid_device_s* d,
+static void on_switch_set_rumble_on(btstack_timer_source_t* ts);
+static void on_switch_set_rumble_off(btstack_timer_source_t* ts);
+static void switch_stop_rumble_now(uni_hid_device_t* d);
+static void switch_play_dual_rumble_now(uni_hid_device_t* d,
                                         uint16_t duration_ms,
                                         uint8_t weak_magnitude,
                                         uint8_t strong_magnitude);
@@ -1184,9 +1185,6 @@ void uni_hid_parser_switch_play_dual_rumble(struct uni_hid_device_s* d,
         return;
     }
 
-    if ((weak_magnitude == 0 && strong_magnitude == 0) || duration_ms == 0)
-        return;
-
     switch_instance_t* ins = get_switch_instance(d);
     switch (ins->rumble_state) {
         case SWITCH_STATE_RUMBLE_DELAYED:
@@ -1204,7 +1202,7 @@ void uni_hid_parser_switch_play_dual_rumble(struct uni_hid_device_s* d,
         switch_play_dual_rumble_now(d, duration_ms, weak_magnitude, strong_magnitude);
     } else {
         // Set timer to have a delayed start
-        ins->rumble_timer_delayed_start.process = &switch_set_rumble_on;
+        ins->rumble_timer_delayed_start.process = &on_switch_set_rumble_on;
         ins->rumble_timer_delayed_start.context = d;
         ins->rumble_state = SWITCH_STATE_RUMBLE_DELAYED;
         ins->rumble_duration_ms = duration_ms;
@@ -1296,38 +1294,7 @@ static int32_t calibrate_axis(int32_t v, switch_cal_stick_t cal) {
     return ret;
 }
 
-static void switch_play_dual_rumble_now(struct uni_hid_device_s* d,
-                                        uint16_t duration_ms,
-                                        uint8_t weak_magnitude,
-                                        uint8_t strong_magnitude) {
-    struct switch_subcmd_request req = {
-        .report_id = OUTPUT_RUMBLE_ONLY,
-    };
-    switch_encode_rumble(req.rumble_left, weak_magnitude << 2, weak_magnitude, 500);
-    switch_encode_rumble(req.rumble_right, strong_magnitude << 2, strong_magnitude, 500);
-
-    // Rumble request don't include the last byte of "switch_subcmd_request": subcmd_id
-    send_subcmd(d, &req, sizeof(req) - 1);
-
-    switch_instance_t* ins = get_switch_instance(d);
-
-    // Set timer to turn off rumble
-    ins->rumble_timer_duration.process = &switch_set_rumble_off;
-    ins->rumble_timer_duration.context = d;
-    ins->rumble_state = SWITCH_STATE_RUMBLE_IN_PROGRESS;
-    btstack_run_loop_set_timer(&ins->rumble_timer_duration, duration_ms);
-    btstack_run_loop_add_timer(&ins->rumble_timer_duration);
-}
-
-static void switch_set_rumble_on(btstack_timer_source_t* ts) {
-    uni_hid_device_t* d = ts->context;
-    switch_instance_t* ins = get_switch_instance(d);
-
-    switch_play_dual_rumble_now(d, ins->rumble_duration_ms, ins->rumble_weak_magnitude, ins->rumble_strong_magnitude);
-}
-
-static void switch_set_rumble_off(btstack_timer_source_t* ts) {
-    uni_hid_device_t* d = btstack_run_loop_get_timer_context(ts);
+static void switch_stop_rumble_now(uni_hid_device_t* d) {
     switch_instance_t* ins = get_switch_instance(d);
 
     // No need to protect it with a mutex since it runs in the same main thread
@@ -1343,6 +1310,47 @@ static void switch_set_rumble_off(btstack_timer_source_t* ts) {
 
     // Rumble request don't include the last byte of "switch_subcmd_request": subcmd_id
     send_subcmd(d, (struct switch_subcmd_request*)&req, sizeof(req) - 1);
+}
+
+static void switch_play_dual_rumble_now(uni_hid_device_t* d,
+                                        uint16_t duration_ms,
+                                        uint8_t weak_magnitude,
+                                        uint8_t strong_magnitude) {
+    switch_instance_t* ins = get_switch_instance(d);
+
+    if (duration_ms == 0) {
+        if (ins->rumble_state != SWITCH_STATE_RUMBLE_DISABLED)
+            switch_stop_rumble_now(d);
+        return;
+    }
+
+    struct switch_subcmd_request req = {
+        .report_id = OUTPUT_RUMBLE_ONLY,
+    };
+    switch_encode_rumble(req.rumble_left, weak_magnitude << 2, weak_magnitude, 500);
+    switch_encode_rumble(req.rumble_right, strong_magnitude << 2, strong_magnitude, 500);
+
+    // Rumble request don't include the last byte of "switch_subcmd_request": subcmd_id
+    send_subcmd(d, &req, sizeof(req) - 1);
+
+    // Set timer to turn off rumble
+    ins->rumble_timer_duration.process = &on_switch_set_rumble_off;
+    ins->rumble_timer_duration.context = d;
+    ins->rumble_state = SWITCH_STATE_RUMBLE_IN_PROGRESS;
+    btstack_run_loop_set_timer(&ins->rumble_timer_duration, duration_ms);
+    btstack_run_loop_add_timer(&ins->rumble_timer_duration);
+}
+
+static void on_switch_set_rumble_on(btstack_timer_source_t* ts) {
+    uni_hid_device_t* d = ts->context;
+    switch_instance_t* ins = get_switch_instance(d);
+
+    switch_play_dual_rumble_now(d, ins->rumble_duration_ms, ins->rumble_weak_magnitude, ins->rumble_strong_magnitude);
+}
+
+static void on_switch_set_rumble_off(btstack_timer_source_t* ts) {
+    uni_hid_device_t* d = btstack_run_loop_get_timer_context(ts);
+    switch_stop_rumble_now(d);
 }
 
 void switch_setup_timeout_callback(btstack_timer_source_t* ts) {
