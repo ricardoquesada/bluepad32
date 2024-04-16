@@ -194,13 +194,13 @@ static void posix_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl)
 
             // Axis ry: control rumble
             if ((gp->buttons & BUTTON_A) && d->report_parser.play_dual_rumble != NULL) {
-                d->report_parser.play_dual_rumble(d, 0 /* delayed start ms */, 65535 /* duration ms */,
+                d->report_parser.play_dual_rumble(d, 0 /* delayed start ms */, 500 /* duration ms */,
                                                   255 /* weak motor magnitude */, 0 /* strong motor magnitude */);
             }
 
             if ((gp->buttons & BUTTON_B) && d->report_parser.play_dual_rumble != NULL) {
-                d->report_parser.play_dual_rumble(d, 0 /* delayed start ms */, 0 /* duration ms */,
-                                                  0 /* weak motor magnitude */, 0 /* strong motor magnitude */);
+                d->report_parser.play_dual_rumble(d, 0 /* delayed start ms */, 500 /* duration ms */,
+                                                  0 /* weak motor magnitude */, 255 /* strong motor magnitude */);
             }
 
             // Buttons: Control LEDs On/Off

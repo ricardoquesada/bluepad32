@@ -47,6 +47,7 @@ typedef enum ds3_fsm {
 typedef enum {
     DS3_STATE_RUMBLE_DISABLED,
     DS3_STATE_RUMBLE_DELAYED,
+    DS3_STATE_RUMBLE_IN_PROGRESS,
 } ds3_state_rumble_t;
 
 // ds3_instance_t represents data used by the DS3 driver instance.
@@ -55,6 +56,7 @@ typedef struct ds3_instance_s {
     uint8_t player_leds;  // bitmap of LEDs
     bool clone_controller;
 
+    btstack_timer_source_t rumble_timer_duration;
     btstack_timer_source_t rumble_timer_delayed_start;
     ds3_state_rumble_t rumble_state;
 
@@ -136,6 +138,8 @@ static ds3_instance_t* get_ds3_instance(uni_hid_device_t* d);
 static void ds3_update_led(uni_hid_device_t* d, uint8_t player_leds);
 static void ds3_send_output_report(uni_hid_device_t* d, ds3_output_report_t* out);
 static void on_ds3_set_rumble_on(btstack_timer_source_t* ts);
+static void on_ds3_set_rumble_off(btstack_timer_source_t* ts);
+static void ds3_stop_rumble_now(uni_hid_device_t* d);
 static void ds3_play_dual_rumble_now(uni_hid_device_t* d,
                                      uint16_t duration_ms,
                                      uint8_t weak_magnitude,
@@ -273,8 +277,17 @@ void uni_hid_parser_ds3_play_dual_rumble(struct uni_hid_device_s* d,
     }
 
     ds3_instance_t* ins = get_ds3_instance(d);
-    if (ins->rumble_state == DS3_STATE_RUMBLE_DELAYED)
-        btstack_run_loop_remove_timer(&ins->rumble_timer_delayed_start);
+    switch (ins->rumble_state) {
+        case DS3_STATE_RUMBLE_DELAYED:
+            btstack_run_loop_remove_timer(&ins->rumble_timer_delayed_start);
+            break;
+        case DS3_STATE_RUMBLE_IN_PROGRESS:
+            btstack_run_loop_remove_timer(&ins->rumble_timer_duration);
+            break;
+        default:
+            // Do nothing
+            break;
+    }
 
     if (start_delay_ms == 0) {
         ds3_play_dual_rumble_now(d, duration_ms, weak_magnitude, strong_magnitude);
@@ -350,20 +363,41 @@ static void ds3_update_led(uni_hid_device_t* d, uint8_t player_leds) {
     ds3_send_output_report(d, &out);
 }
 
+static void ds3_stop_rumble_now(uni_hid_device_t* d) {
+    ds3_instance_t* ins = get_ds3_instance(d);
+
+    // No need to protect it with a mutex since it runs in the same main thread
+    assert(ins->rumble_state == DS3_STATE_RUMBLE_IN_PROGRESS);
+    ins->rumble_state = DS3_STATE_RUMBLE_DISABLED;
+
+    ds3_output_report_t out = {0};
+
+    // Don't overwrite Player LEDs
+    // LED cmd. LED1==2, LED2==4, etc...
+    out.player_leds = ins->player_leds << 1;
+
+    ds3_send_output_report(d, &out);
+}
+
 static void ds3_play_dual_rumble_now(uni_hid_device_t* d,
                                      uint16_t duration_ms,
                                      uint8_t weak_magnitude,
                                      uint8_t strong_magnitude) {
     ds3_instance_t* ins = get_ds3_instance(d);
 
+    if (duration_ms == 0) {
+        if (ins->rumble_state == DS3_STATE_RUMBLE_IN_PROGRESS)
+            ds3_stop_rumble_now(d);
+        return;
+    }
+
     ds3_output_report_t out = {0};
-    // Convert from milliseconds to old "duration".
-    // TODO: Tried to let it rumble forever with 0xff and then turn it off
-    // with a timer, but didn't work. Needs further research, in the meantime
-    // this seems to work Ok.
-    out.motor_right_duration = (duration_ms >> 2) & 0xff;
+
+    // Spec says that 0xff is "forever", but depends on the devices.
+    // Clones might work different.
+    out.motor_right_duration = 0xff;
     out.motor_right_enabled = (weak_magnitude != 0);  // 0 or 1 only
-    out.motor_left_duration = (duration_ms >> 2) & 0xff;
+    out.motor_left_duration = 0xff;
     out.motor_left_force = strong_magnitude;
 
     // Don't overwrite Player LEDs
@@ -372,7 +406,17 @@ static void ds3_play_dual_rumble_now(uni_hid_device_t* d,
 
     ds3_send_output_report(d, &out);
 
-    ins->rumble_state = DS3_STATE_RUMBLE_DISABLED;
+    // Set timer to turn off rumble
+    ins->rumble_timer_duration.process = &on_ds3_set_rumble_off;
+    ins->rumble_timer_duration.context = d;
+    ins->rumble_state = DS3_STATE_RUMBLE_IN_PROGRESS;
+    btstack_run_loop_set_timer(&ins->rumble_timer_duration, duration_ms);
+    btstack_run_loop_add_timer(&ins->rumble_timer_duration);
+}
+
+static void on_ds3_set_rumble_off(btstack_timer_source_t* ts) {
+    uni_hid_device_t* d = ts->context;
+    ds3_stop_rumble_now(d);
 }
 
 static void on_ds3_set_rumble_on(btstack_timer_source_t* ts) {
