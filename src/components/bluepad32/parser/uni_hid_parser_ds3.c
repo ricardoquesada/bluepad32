@@ -135,8 +135,8 @@ typedef struct __attribute((packed)) {
 static ds3_instance_t* get_ds3_instance(uni_hid_device_t* d);
 static void ds3_update_led(uni_hid_device_t* d, uint8_t player_leds);
 static void ds3_send_output_report(uni_hid_device_t* d, ds3_output_report_t* out);
-static void ds3_set_rumble_on(btstack_timer_source_t* ts);
-static void ds3_play_dual_rumble_now(struct uni_hid_device_s* d,
+static void on_ds3_set_rumble_on(btstack_timer_source_t* ts);
+static void ds3_play_dual_rumble_now(uni_hid_device_t* d,
                                      uint16_t duration_ms,
                                      uint8_t weak_magnitude,
                                      uint8_t strong_magnitude);
@@ -283,7 +283,7 @@ void uni_hid_parser_ds3_play_dual_rumble(struct uni_hid_device_s* d,
         ds3_play_dual_rumble_now(d, duration_ms, weak_magnitude, strong_magnitude);
     } else {
         // Set timer to have a delayed start
-        ins->rumble_timer_delayed_start.process = &ds3_set_rumble_on;
+        ins->rumble_timer_delayed_start.process = &on_ds3_set_rumble_on;
         ins->rumble_timer_delayed_start.context = d;
         ins->rumble_state = DS3_STATE_RUMBLE_DELAYED;
         ins->rumble_duration_ms = duration_ms;
@@ -353,7 +353,7 @@ static void ds3_update_led(uni_hid_device_t* d, uint8_t player_leds) {
     ds3_send_output_report(d, &out);
 }
 
-static void ds3_play_dual_rumble_now(struct uni_hid_device_s* d,
+static void ds3_play_dual_rumble_now(uni_hid_device_t* d,
                                      uint16_t duration_ms,
                                      uint8_t weak_magnitude,
                                      uint8_t strong_magnitude) {
@@ -378,7 +378,7 @@ static void ds3_play_dual_rumble_now(struct uni_hid_device_s* d,
     ins->rumble_state = DS3_STATE_RUMBLE_DISABLED;
 }
 
-static void ds3_set_rumble_on(btstack_timer_source_t* ts) {
+static void on_ds3_set_rumble_on(btstack_timer_source_t* ts) {
     uni_hid_device_t* d = ts->context;
     ds3_instance_t* ins = get_ds3_instance(d);
 
