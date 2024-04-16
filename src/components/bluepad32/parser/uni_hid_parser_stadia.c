@@ -42,7 +42,8 @@ _Static_assert(sizeof(stadia_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "Stadia i
 static stadia_instance_t* get_stadia_instance(uni_hid_device_t* d);
 static void on_stadia_set_rumble_on(btstack_timer_source_t* ts);
 static void on_stadia_set_rumble_off(btstack_timer_source_t* ts);
-static void stadia_play_dual_rumble_now(struct uni_hid_device_s* d,
+static void stadia_stop_rumble_now(uni_hid_device_t* d);
+static void stadia_play_dual_rumble_now(uni_hid_device_t* d,
                                         uint16_t duration_ms,
                                         uint8_t weak_magnitude,
                                         uint8_t strong_magnitude);
@@ -68,9 +69,6 @@ void uni_hid_parser_stadia_play_dual_rumble(struct uni_hid_device_s* d,
         loge("Stadia: Invalid device\n");
         return;
     }
-
-    if ((weak_magnitude == 0 && strong_magnitude == 0) || duration_ms == 0)
-        return;
 
     stadia_instance_t* ins = get_stadia_instance(d);
     switch (ins->rumble_state) {
@@ -104,11 +102,46 @@ void uni_hid_parser_stadia_play_dual_rumble(struct uni_hid_device_s* d,
 //
 // Helpers
 //
-static void stadia_play_dual_rumble_now(struct uni_hid_device_s* d,
+static void stadia_stop_rumble_now(uni_hid_device_t* d) {
+    uint8_t status;
+    stadia_instance_t* ins = get_stadia_instance(d);
+
+    // No need to protect it with a mutex since it runs in the same main thread
+    assert(ins->rumble_state != STATE_RUMBLE_DISABLED);
+    ins->rumble_state = STATE_RUMBLE_DISABLED;
+
+    const struct stadia_ff_report ff = {
+        .strong_magnitude = 0,
+        .weak_magnitude = 0,
+    };
+
+    status = hids_client_send_write_report(d->hids_cid, STADIA_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
+                                           (const uint8_t*)&ff, sizeof(ff));
+    if (status == ERROR_CODE_COMMAND_DISALLOWED) {
+        logd("Stadia: Failed to turn off rumble, error=%#x, retrying...\n", status);
+        ins->rumble_timer_duration.process = &on_stadia_set_rumble_off;
+        ins->rumble_timer_duration.context = d;
+        ins->rumble_state = STATE_RUMBLE_IN_PROGRESS;
+
+        btstack_run_loop_set_timer(&ins->rumble_timer_duration, BLE_RETRY_MS);
+        btstack_run_loop_add_timer(&ins->rumble_timer_duration);
+    } else if (status != ERROR_CODE_SUCCESS) {
+        // Do nothing, just log the error
+        logi("Stadia: Failed to turn off rumble, error=%#x\n", status);
+    }
+    // else, SUCCESS
+}
+
+static void stadia_play_dual_rumble_now(uni_hid_device_t* d,
                                         uint16_t duration_ms,
                                         uint8_t weak_magnitude,
                                         uint8_t strong_magnitude) {
     uint8_t status;
+
+    if (duration_ms == 0) {
+        stadia_stop_rumble_now(d);
+        return;
+    }
 
     stadia_instance_t* ins = get_stadia_instance(d);
 
@@ -154,32 +187,6 @@ static void on_stadia_set_rumble_on(btstack_timer_source_t* ts) {
 }
 
 static void on_stadia_set_rumble_off(btstack_timer_source_t* ts) {
-    uint8_t status;
     uni_hid_device_t* d = ts->context;
-    stadia_instance_t* ins = get_stadia_instance(d);
-
-    // No need to protect it with a mutex since it runs in the same main thread
-    assert(ins->rumble_state != STATE_RUMBLE_DISABLED);
-    ins->rumble_state = STATE_RUMBLE_DISABLED;
-
-    const struct stadia_ff_report ff = {
-        .strong_magnitude = 0,
-        .weak_magnitude = 0,
-    };
-
-    status = hids_client_send_write_report(d->hids_cid, STADIA_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
-                                           (const uint8_t*)&ff, sizeof(ff));
-    if (status == ERROR_CODE_COMMAND_DISALLOWED) {
-        logd("Stadia: Failed to turn off rumble, error=%#x, retrying...\n", status);
-        ins->rumble_timer_duration.process = &on_stadia_set_rumble_off;
-        ins->rumble_timer_duration.context = d;
-        ins->rumble_state = STATE_RUMBLE_IN_PROGRESS;
-
-        btstack_run_loop_set_timer(&ins->rumble_timer_duration, BLE_RETRY_MS);
-        btstack_run_loop_add_timer(&ins->rumble_timer_duration);
-    } else if (status != ERROR_CODE_SUCCESS) {
-        // Do nothing, just log the error
-        logi("Stadia: Failed to turn off rumble, error=%#x\n", status);
-    }
-    // else, SUCCESS
+    stadia_stop_rumble_now(d);
 }
