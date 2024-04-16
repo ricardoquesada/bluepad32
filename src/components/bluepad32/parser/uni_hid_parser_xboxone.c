@@ -116,7 +116,8 @@ _Static_assert(sizeof(xboxone_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "Xbox on
 static xboxone_instance_t* get_xboxone_instance(uni_hid_device_t* d);
 static void on_xboxone_set_rumble_on(btstack_timer_source_t* ts);
 static void on_xboxone_set_rumble_off(btstack_timer_source_t* ts);
-static void xboxone_play_quad_rumble_now(struct uni_hid_device_s* d,
+static void xboxone_stop_rumble_now(uni_hid_device_t* d);
+static void xboxone_play_quad_rumble_now(uni_hid_device_t* d,
                                          uint16_t duration_ms,
                                          uint8_t trigger_left,
                                          uint8_t trigger_right,
@@ -591,82 +592,8 @@ static void xboxone_retry_cmd(uni_hid_device_t* d, xboxone_retry_cmd_t cmd) {
     }
 }
 
-static void xboxone_play_quad_rumble_now(struct uni_hid_device_s* d,
-                                         uint16_t duration_ms,
-                                         uint8_t left_trigger,
-                                         uint8_t right_trigger,
-                                         uint8_t weak_magnitude,
-                                         uint8_t strong_magnitude) {
+static void xboxone_stop_rumble_now(uni_hid_device_t* d) {
     uint8_t status;
-    uint8_t mask = 0;
-    bool has_duration = duration_ms != 0;
-
-    mask |= (left_trigger != 0) ? XBOXONE_FF_TRIGGER_LEFT : 0;
-    mask |= (right_trigger != 0) ? XBOXONE_FF_TRIGGER_RIGHT : 0;
-    mask |= (weak_magnitude != 0) ? XBOXONE_FF_WEAK : 0;
-    mask |= (strong_magnitude != 0) ? XBOXONE_FF_STRONG : 0;
-
-    logd("xbox rumble: duration=%d, left=%d, right=%d, weak=%d, strong=%d, mask=%#x\n", duration_ms, left_trigger,
-         right_trigger, weak_magnitude, strong_magnitude, mask);
-
-    // Magnitude is 0..100 so scale the 8-bit input here
-
-    struct xboxone_ff_report ff = {
-        .transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT,
-        .report_id = XBOX_RUMBLE_REPORT_ID,
-        .enable_actuators = mask,
-        .magnitude_left_trigger = ((uint16_t)(left_trigger * 100)) / UINT8_MAX,
-        .magnitude_right_trigger = ((uint16_t)(right_trigger * 100)) / UINT8_MAX,
-        .magnitude_strong = ((uint16_t)(strong_magnitude * 100)) / UINT8_MAX,
-        .magnitude_weak = ((uint16_t)(weak_magnitude * 100)) / UINT8_MAX,
-        .duration_10ms = has_duration ? 0xff : 0,  // forever, timer will turn it off
-        .start_delay_10ms = 0,
-        .loop_count = has_duration ? 25 : 0,  // timer will turn it off, but in case it fails, limit it to no more than
-                                              // the max 65535 ms accepted for duration: 255 * 10ms * 26 = 66300ms
-    };
-
-    xboxone_instance_t* ins = get_xboxone_instance(d);
-
-    if (ins->version == XBOXONE_FIRMWARE_V5) {
-        status = hids_client_send_write_report(d->hids_cid, XBOX_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
-                                               &ff.enable_actuators,  // skip the first type bytes,
-                                               sizeof(ff) - 2         // subtract the 2 bytes from total
-        );
-        if (status == ERROR_CODE_COMMAND_DISALLOWED) {
-            logd("Xbox: Failed to send rumble report, error=%#x, retrying...\n", status);
-            xboxone_retry_cmd(d, has_duration ? XBOXONE_RETRY_CMD_RUMBLE_ON : XBOXONE_RETRY_CMD_RUMBLE_OFF);
-            return;
-        } else if (status != ERROR_CODE_SUCCESS) {
-            // Don't retry, log the error and return
-            logi("Xbox: Failed to send rumble report, error=%#x\n", status);
-            return;
-        }
-    } else {
-        uni_hid_device_send_intr_report(d, (uint8_t*)&ff, sizeof(ff));
-    }
-
-    // Set timer to turn off rumble
-    if (has_duration) {
-        ins->rumble_timer_duration.process = &on_xboxone_set_rumble_off;
-        ins->rumble_timer_duration.context = d;
-        ins->rumble_state = XBOXONE_STATE_RUMBLE_IN_PROGRESS;
-
-        btstack_run_loop_set_timer(&ins->rumble_timer_duration, duration_ms);
-        btstack_run_loop_add_timer(&ins->rumble_timer_duration);
-    }
-}
-
-static void on_xboxone_set_rumble_on(btstack_timer_source_t* ts) {
-    uni_hid_device_t* d = ts->context;
-    xboxone_instance_t* ins = get_xboxone_instance(d);
-
-    xboxone_play_quad_rumble_now(d, ins->rumble_duration_ms, ins->rumble_trigger_left, ins->rumble_trigger_right,
-                                 ins->rumble_weak_magnitude, ins->rumble_strong_magnitude);
-}
-
-static void on_xboxone_set_rumble_off(btstack_timer_source_t* ts) {
-    uint8_t status;
-    uni_hid_device_t* d = ts->context;
     xboxone_instance_t* ins = get_xboxone_instance(d);
 
     // No need to protect it with a mutex since it runs in the same main thread
@@ -703,4 +630,84 @@ static void on_xboxone_set_rumble_off(btstack_timer_source_t* ts) {
     } else {
         uni_hid_device_send_intr_report(d, (uint8_t*)&ff, sizeof(ff));
     }
+}
+
+static void xboxone_play_quad_rumble_now(uni_hid_device_t* d,
+                                         uint16_t duration_ms,
+                                         uint8_t left_trigger,
+                                         uint8_t right_trigger,
+                                         uint8_t weak_magnitude,
+                                         uint8_t strong_magnitude) {
+    uint8_t status;
+    uint8_t mask = 0;
+
+    if (duration_ms == 0) {
+        xboxone_stop_rumble_now(d);
+        return;
+    }
+
+    mask |= (left_trigger != 0) ? XBOXONE_FF_TRIGGER_LEFT : 0;
+    mask |= (right_trigger != 0) ? XBOXONE_FF_TRIGGER_RIGHT : 0;
+    mask |= (weak_magnitude != 0) ? XBOXONE_FF_WEAK : 0;
+    mask |= (strong_magnitude != 0) ? XBOXONE_FF_STRONG : 0;
+
+    logd("xbox rumble: duration=%d, left=%d, right=%d, weak=%d, strong=%d, mask=%#x\n", duration_ms, left_trigger,
+         right_trigger, weak_magnitude, strong_magnitude, mask);
+
+    // Magnitude is 0..100 so scale the 8-bit input here
+
+    struct xboxone_ff_report ff = {
+        .transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT,
+        .report_id = XBOX_RUMBLE_REPORT_ID,
+        .enable_actuators = mask,
+        .magnitude_left_trigger = ((uint16_t)(left_trigger * 100)) / UINT8_MAX,
+        .magnitude_right_trigger = ((uint16_t)(right_trigger * 100)) / UINT8_MAX,
+        .magnitude_strong = ((uint16_t)(strong_magnitude * 100)) / UINT8_MAX,
+        .magnitude_weak = ((uint16_t)(weak_magnitude * 100)) / UINT8_MAX,
+        .duration_10ms = 0xff,  // forever, timer will turn it off
+        .start_delay_10ms = 0,
+        .loop_count = 25,  // timer will turn it off, but in case it fails, limit it to no more than
+                           // the max 65535 ms accepted for duration: 255 * 10ms * 26 = 66300ms
+    };
+
+    xboxone_instance_t* ins = get_xboxone_instance(d);
+
+    if (ins->version == XBOXONE_FIRMWARE_V5) {
+        status = hids_client_send_write_report(d->hids_cid, XBOX_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
+                                               &ff.enable_actuators,  // skip the first two bytes,
+                                               sizeof(ff) - 2         // subtract the two bytes from total
+        );
+        if (status == ERROR_CODE_COMMAND_DISALLOWED) {
+            logd("Xbox: Failed to send rumble report, error=%#x, retrying...\n", status);
+            xboxone_retry_cmd(d, XBOXONE_RETRY_CMD_RUMBLE_ON);
+            return;
+        } else if (status != ERROR_CODE_SUCCESS) {
+            // Don't retry, log the error and return
+            logi("Xbox: Failed to send rumble report, error=%#x\n", status);
+            return;
+        }
+    } else {
+        uni_hid_device_send_intr_report(d, (uint8_t*)&ff, sizeof(ff));
+    }
+
+    // Set timer to turn off rumble
+    ins->rumble_timer_duration.process = &on_xboxone_set_rumble_off;
+    ins->rumble_timer_duration.context = d;
+    ins->rumble_state = XBOXONE_STATE_RUMBLE_IN_PROGRESS;
+
+    btstack_run_loop_set_timer(&ins->rumble_timer_duration, duration_ms);
+    btstack_run_loop_add_timer(&ins->rumble_timer_duration);
+}
+
+static void on_xboxone_set_rumble_on(btstack_timer_source_t* ts) {
+    uni_hid_device_t* d = ts->context;
+    xboxone_instance_t* ins = get_xboxone_instance(d);
+
+    xboxone_play_quad_rumble_now(d, ins->rumble_duration_ms, ins->rumble_trigger_left, ins->rumble_trigger_right,
+                                 ins->rumble_weak_magnitude, ins->rumble_strong_magnitude);
+}
+
+static void on_xboxone_set_rumble_off(btstack_timer_source_t* ts) {
+    uni_hid_device_t* d = ts->context;
+    xboxone_stop_rumble_now(d);
 }
