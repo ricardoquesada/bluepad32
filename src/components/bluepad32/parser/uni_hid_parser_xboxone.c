@@ -641,8 +641,11 @@ static void xboxone_play_quad_rumble_now(uni_hid_device_t* d,
     uint8_t status;
     uint8_t mask = 0;
 
+    xboxone_instance_t* ins = get_xboxone_instance(d);
+
     if (duration_ms == 0) {
-        xboxone_stop_rumble_now(d);
+        if (ins->rumble_state != XBOXONE_STATE_RUMBLE_DISABLED)
+            xboxone_stop_rumble_now(d);
         return;
     }
 
@@ -669,8 +672,6 @@ static void xboxone_play_quad_rumble_now(uni_hid_device_t* d,
         .loop_count = 25,  // timer will turn it off, but in case it fails, limit it to no more than
                            // the max 65535 ms accepted for duration: 255 * 10ms * 26 = 66300ms
     };
-
-    xboxone_instance_t* ins = get_xboxone_instance(d);
 
     if (ins->version == XBOXONE_FIRMWARE_V5) {
         status = hids_client_send_write_report(d->hids_cid, XBOX_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,

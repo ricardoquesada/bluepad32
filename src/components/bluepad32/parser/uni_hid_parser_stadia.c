@@ -138,12 +138,13 @@ static void stadia_play_dual_rumble_now(uni_hid_device_t* d,
                                         uint8_t strong_magnitude) {
     uint8_t status;
 
+    stadia_instance_t* ins = get_stadia_instance(d);
+
     if (duration_ms == 0) {
-        stadia_stop_rumble_now(d);
+        if (ins->rumble_state != STATE_RUMBLE_DISABLED)
+            stadia_stop_rumble_now(d);
         return;
     }
-
-    stadia_instance_t* ins = get_stadia_instance(d);
 
     const struct stadia_ff_report ff = {
         .strong_magnitude = strong_magnitude << 8,

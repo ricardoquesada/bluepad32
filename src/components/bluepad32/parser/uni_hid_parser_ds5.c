@@ -233,9 +233,10 @@ static void ds5_send_enable_lightbar_report(uni_hid_device_t* d);
 static void ds5_request_pairing_info_report(uni_hid_device_t* d);
 static void ds5_request_firmware_version_report(uni_hid_device_t* d);
 static void ds5_request_calibration_report(uni_hid_device_t* d);
-static void ds5_set_rumble_on(btstack_timer_source_t* ts);
-static void ds5_set_rumble_off(btstack_timer_source_t* ts);
-static void ds5_play_dual_rumble_now(struct uni_hid_device_s* d,
+static void on_ds5_set_rumble_on(btstack_timer_source_t* ts);
+static void on_ds5_set_rumble_off(btstack_timer_source_t* ts);
+static void ds5_stop_rumble_now(uni_hid_device_t* d);
+static void ds5_play_dual_rumble_now(uni_hid_device_t* d,
                                      uint16_t duration_ms,
                                      uint8_t weak_magnitude,
                                      uint8_t strong_magnitude);
@@ -691,9 +692,6 @@ void uni_hid_parser_ds5_play_dual_rumble(struct uni_hid_device_s* d,
         return;
     }
 
-    if ((weak_magnitude == 0 && strong_magnitude == 0) || duration_ms == 0)
-        return;
-
     ds5_instance_t* ins = get_ds5_instance(d);
     switch (ins->rumble_state) {
         case DS5_STATE_RUMBLE_DELAYED:
@@ -711,7 +709,7 @@ void uni_hid_parser_ds5_play_dual_rumble(struct uni_hid_device_s* d,
         ds5_play_dual_rumble_now(d, duration_ms, weak_magnitude, strong_magnitude);
     } else {
         // Set timer to have a delayed start
-        ins->rumble_timer_delayed_start.process = &ds5_set_rumble_on;
+        ins->rumble_timer_delayed_start.process = &on_ds5_set_rumble_on;
         ins->rumble_timer_delayed_start.context = d;
         ins->rumble_state = DS5_STATE_RUMBLE_DELAYED;
         ins->rumble_duration_ms = duration_ms;
@@ -754,11 +752,36 @@ static void ds5_send_output_report(uni_hid_device_t* d, ds5_output_report_t* out
     uni_hid_device_send_intr_report(d, (uint8_t*)out, sizeof(*out));
 }
 
-static void ds5_play_dual_rumble_now(struct uni_hid_device_s* d,
+static void ds5_stop_rumble_now(uni_hid_device_t* d) {
+    ds5_instance_t* ins = get_ds5_instance(d);
+
+    // No need to protect it with a mutex since it runs in the same main thread
+    assert(ins->rumble_state != DS5_STATE_RUMBLE_DISABLED);
+    ins->rumble_state = DS5_STATE_RUMBLE_DISABLED;
+
+    ds5_output_report_t out = {
+        .valid_flag0 = DS5_FLAG0_HAPTICS_SELECT,
+    };
+
+    if (ins->use_vibration2)
+        out.valid_flag2 |= DS5_FLAG2_COMPATIBLE_VIBRATION2;
+    else
+        out.valid_flag0 |= DS5_FLAG0_COMPATIBLE_VIBRATION;
+
+    ds5_send_output_report(d, &out);
+}
+
+static void ds5_play_dual_rumble_now(uni_hid_device_t* d,
                                      uint16_t duration_ms,
                                      uint8_t weak_magnitude,
                                      uint8_t strong_magnitude) {
     ds5_instance_t* ins = get_ds5_instance(d);
+
+    if (duration_ms == 0) {
+        if (ins->rumble_state != DS5_STATE_RUMBLE_DISABLED)
+            ds5_stop_rumble_now(d);
+        return;
+    }
 
     ds5_output_report_t out = {
         .valid_flag0 = DS5_FLAG0_HAPTICS_SELECT,
@@ -776,38 +799,23 @@ static void ds5_play_dual_rumble_now(struct uni_hid_device_s* d,
     ds5_send_output_report(d, &out);
 
     // Set timer to turn off rumble
-    ins->rumble_timer_duration.process = &ds5_set_rumble_off;
+    ins->rumble_timer_duration.process = &on_ds5_set_rumble_off;
     ins->rumble_timer_duration.context = d;
     ins->rumble_state = DS5_STATE_RUMBLE_IN_PROGRESS;
     btstack_run_loop_set_timer(&ins->rumble_timer_duration, duration_ms);
     btstack_run_loop_add_timer(&ins->rumble_timer_duration);
 }
 
-static void ds5_set_rumble_on(btstack_timer_source_t* ts) {
+static void on_ds5_set_rumble_on(btstack_timer_source_t* ts) {
     uni_hid_device_t* d = ts->context;
     ds5_instance_t* ins = get_ds5_instance(d);
 
     ds5_play_dual_rumble_now(d, ins->rumble_duration_ms, ins->rumble_weak_magnitude, ins->rumble_strong_magnitude);
 }
 
-static void ds5_set_rumble_off(btstack_timer_source_t* ts) {
+static void on_ds5_set_rumble_off(btstack_timer_source_t* ts) {
     uni_hid_device_t* d = ts->context;
-    ds5_instance_t* ins = get_ds5_instance(d);
-
-    // No need to protect it with a mutex since it runs in the same main thread
-    assert(ins->rumble_state != DS5_STATE_RUMBLE_DISABLED);
-    ins->rumble_state = DS5_STATE_RUMBLE_DISABLED;
-
-    ds5_output_report_t out = {
-        .valid_flag0 = DS5_FLAG0_HAPTICS_SELECT,
-    };
-
-    if (ins->use_vibration2)
-        out.valid_flag2 |= DS5_FLAG2_COMPATIBLE_VIBRATION2;
-    else
-        out.valid_flag0 |= DS5_FLAG0_COMPATIBLE_VIBRATION;
-
-    ds5_send_output_report(d, &out);
+    ds5_stop_rumble_now(d);
 }
 
 static void ds5_request_calibration_report(uni_hid_device_t* d) {
