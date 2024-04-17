@@ -332,6 +332,11 @@ static void hids_client_packet_handler(uint8_t packet_type, uint16_t channel, ui
                 logi("Reports enabled\n");
             }
             break;
+        case GATTSERVICE_SUBEVENT_HID_REPORT_WRITTEN:
+            // Called when a client a hid report was written.
+            // E.g.: "set rumble" was sent to the gamepad.
+            // TODO: Inform the device that it is ready to write another hid report?
+            break;
         default:
             logi("Unsupported gatt client event: 0x%02x\n", hci_event_gattservice_meta_get_subevent_code(packet));
             break;
