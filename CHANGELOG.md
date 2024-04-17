@@ -5,8 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [4.??.??] - 2024-??-??
+### New:
+- Wii: `uni_hid_parser_wii_set_mode(struct uni_hid_device_s* d, wii_mode_t mode)`,
+  to change the mode between vertical or horizontal.
+
 ### Changed:
 - Rumble stops when duration is 0. Before when duration was 0, the rumble command was ignored.
+- Wii + Nunchuk:
+  - Nunchuk is reported as the "right" axis using buttons X and Y
+  - Wii Mode is reported as "left" using buttons A, B, Shoulder L & R, and misc buttons
+  - If a Nunchuk is attached, vertical mode is used.
+  - Nunchuk + horizontal mode removed (it was broken, and it is not useful)
 
 ### Fixed
 - Pico W: Allow multiple BLE connections. Fixes [Github Issue #91][github_issue_91]

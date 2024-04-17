@@ -2600,7 +2600,7 @@ static void mightymiggy_on_gamepad_data(uni_hid_device_t* d, uni_gamepad_t* gp) 
                 cinfo->buttonWord &= ~BTN_Y;
             }
             break;
-        case CONTROLLER_SUBTYPE_WIIMOTE_HORIZ:
+        case CONTROLLER_SUBTYPE_WIIMOTE_HORIZONTAL:
             /* The way the Wii driver maps buttons to the Virtual Gamepad when
              * using a Wiimote in sideways mode does not work out too well with
              * how we map them to the DB-9 port, so let's make a special case.

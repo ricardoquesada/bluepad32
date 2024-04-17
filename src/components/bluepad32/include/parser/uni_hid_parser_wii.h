@@ -10,16 +10,11 @@
 #include "parser/uni_hid_parser.h"
 #include "uni_common.h"
 
-enum wii_flags {
-    WII_FLAGS_NONE = 0,
-    WII_FLAGS_VERTICAL = BIT(0),
-    WII_FLAGS_ACCEL = BIT(1),
-    WII_FLAGS_HORIZONTAL = BIT(2),
-    WII_FLAGS_NATIVE = BIT(3),
-};
-typedef enum wii_flags wii_flags_t;
-
-void wii_force_flags(wii_flags_t flags);
+typedef enum wii_flags {
+    WII_MODE_HORIZONTAL = 0,
+    WII_MODE_VERTICAL = 1,
+    WII_MODE_ACCEL = 2,
+} wii_mode_t;
 
 void uni_hid_parser_wii_setup(struct uni_hid_device_s* d);
 void uni_hid_parser_wii_init_report(struct uni_hid_device_s* d);
@@ -31,5 +26,8 @@ void uni_hid_parser_wii_play_dual_rumble(struct uni_hid_device_s* d,
                                          uint8_t weak_magnitude,
                                          uint8_t strong_magnitude);
 void uni_hid_parser_wii_device_dump(struct uni_hid_device_s* d);
+
+// Unique to Wii. Not part of the "hid_parser" interface
+void uni_hid_parser_wii_set_mode(struct uni_hid_device_s* d, wii_mode_t mode);
 
 #endif  // UNI_HID_PARSER_WII_H

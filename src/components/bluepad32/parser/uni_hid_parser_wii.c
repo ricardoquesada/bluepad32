@@ -90,7 +90,7 @@ enum wii_fsm {
     WII_FSM_DEV_UNK,                  // Device unknown
     WII_FSM_EXT_UNK,                  // Extension unknown
     WII_FSM_EXT_DID_INIT,             // Extension initialized
-    WII_FSM_EXT_DID_NO_ENCRYPTION,    // Extension no encription
+    WII_FSM_EXT_DID_NO_ENCRYPTION,    // Extension no encryption
     WII_FSM_EXT_DID_READ_REGISTER,    // Extension read register
     WII_FSM_BALANCE_BOARD_READ_CALIBRATION,
     WII_FSM_BALANCE_BOARD_READ_CALIBRATION2,
@@ -98,7 +98,7 @@ enum wii_fsm {
     WII_FSM_BALANCE_BOARD_DID_READ_CALIBRATION2,
     WII_FSM_DEV_GUESSED,   // Device type guessed
     WII_FSM_DEV_ASSIGNED,  // Device type assigned
-    WII_FSM_LED_UPDATED,   // After device was assigned, update LEDs.
+    WII_FSM_LED_UPDATED,   // After a device was assigned, update LEDs.
                            // Gamepad ready to be used
 };
 
@@ -147,7 +147,7 @@ typedef struct balance_board_calibration_s {
 typedef struct wii_instance_s {
     uint8_t state;
     uint8_t register_address;
-    uint8_t flags; /* accel, vertical, rumble, etc.. */
+    wii_mode_t mode; /* horizontal, accel, vertical, rumble, etc.. */
     enum wii_devtype dev_type;
     enum wii_exttype ext_type;
     uni_gamepad_seat_t gamepad_seat;
@@ -166,13 +166,12 @@ typedef struct wii_instance_s {
     int debug_fd;         // File descriptor where dump is saved
     uint32_t debug_addr;  // Current dump address
 } wii_instance_t;
-_Static_assert(sizeof(wii_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "Wii intance too big");
+_Static_assert(sizeof(wii_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "Wii instance too big");
 
 static void process_req_status(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
 static void process_req_data(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
 static void process_req_return(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
 static void process_drm_k(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
-static void process_drm_k_native(uni_controller_t* ctl, const uint8_t* data);
 static void process_drm_k_vertical(uni_controller_t* ctl, const uint8_t* data);
 static void process_drm_k_horizontal(uni_controller_t* ctl, const uint8_t* data);
 static void process_drm_ka(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
@@ -210,24 +209,18 @@ static const char* wii_devtype_names[] = {
 static const char* wii_exttype_names[] = {
     "N/A",                 // WII_EXT_NONE
     "Unknown",             // WII_EXT_UNK
-    "Nunchuck",            // WII_EXT_NUNCHUK
+    "Nunchuk",             // WII_EXT_NUNCHUK
     "Classic Controller",  // WII_EXT_CLASSIC_CONTROLLER
     "Pro Controller",      // WII_EXT_U_PRO_CONTROLLER
     "Balance Board"        // WII_EXT_BALANCE_BOARD
 };
-
-static wii_flags_t forced_flags = WII_FLAGS_NONE;
-
-void wii_force_flags(wii_flags_t flags) {
-    forced_flags = flags;
-}
 
 // process_ functions
 
 // Defined here: http://wiibrew.org/wiki/Wiimote#0x20:_Status
 static void process_req_status(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
     if (len < 7) {
-        loge("Wii: Unexpected report lenght; got %d, want >= 7\n", len);
+        loge("Wii: Unexpected report length; got %d, want >= 7\n", len);
         return;
     }
     wii_instance_t* ins = get_wii_instance(d);
@@ -262,15 +255,12 @@ static void process_req_status(uni_hid_device_t* d, const uint8_t* report, uint1
             ins->ext_type = WII_EXT_NONE;
         }
 
-        if (forced_flags != WII_FLAGS_NONE) {
-            // Use preset flags
-            ins->flags = forced_flags;
-        } else if (report[2] & 0x08) {
+        if (report[2] & 0x08) {
             // Wii Remote only: Enter "accel mode" if "A" is pressed.
-            ins->flags |= WII_FLAGS_ACCEL;
+            ins->mode = WII_MODE_ACCEL;
         } else if (report[1] & 0x10) {
             // Wii Remote only: Enter "vertical mode" if "+" is pressed.
-            ins->flags |= WII_FLAGS_VERTICAL;
+            ins->mode = WII_MODE_VERTICAL;
         }
 
         wii_process_fsm(d);
@@ -314,6 +304,8 @@ static void process_req_data_read_register(uni_hid_device_t* d, const uint8_t* r
             if (report[10] == 0x00 && report[11] == 0x00) {
                 // Nunchuck: 00 00 a4 20 00 00
                 ins->ext_type = WII_EXT_NUNCHUK;
+                // If a Nunchuck is attached, WiiMode is treated as vertical mode
+                ins->mode = WII_MODE_VERTICAL;
             } else if (report[10] == 0x04 && report[11] == 0x02) {
                 // Balance Board: 00 00 a4 20 04 02
                 ins->ext_type = WII_EXT_BALANCE_BOARD;
@@ -451,7 +443,7 @@ static void process_req_data(uni_hid_device_t* d, const uint8_t* report, uint16_
     printf_hexdump(report, len);
 
     if (len < 22) {
-        loge("Wii: invalid req_data lenght: got %d, want >= 22\n", len);
+        loge("Wii: invalid req_data length: got %d, want >= 22\n", len);
         printf_hexdump(report, len);
         return;
     }
@@ -490,13 +482,11 @@ static void process_req_return(uni_hid_device_t* d, const uint8_t* report, uint1
                 loge("Failed to read registers from 0xa6... mmmm\n");
                 ins->state = WII_FSM_SETUP;
             } else {
-                // If it failed to read registers with 0xa4, then try with 0xa6
+                // If it failed to read registers with 0xa4, then try with 0xa6.
                 // If 0xa6 works Ok, it is safe to assume it is a Wii Remote MP, but
-                // for the sake of finishing the "read extension" (might be useful
-                // in the future), we continue with it.
-                logi(
-                    "Probably a Remote MP device. Switching to 0xa60000 address "
-                    "for registers.\n");
+                // for the sake of finishing the "read extension" (might be useful in the future),
+                // we continue with it.
+                logi("Probably a Remote MP device. Switching to 0xa60000 address for registers.\n");
                 ins->state = WII_FSM_DEV_UNK;
                 ins->register_address = 0xa6;  // Register address used for Wii Remote MP.
             }
@@ -522,12 +512,15 @@ static void process_drm_k(uni_hid_device_t* d, const uint8_t* report, uint16_t l
     const uint8_t* data = &report[1];
     wii_instance_t* ins = get_wii_instance(d);
 
-    if (ins->flags & WII_FLAGS_VERTICAL) {
-        process_drm_k_vertical(ctl, data);
-    } else if (ins->flags & WII_FLAGS_NATIVE) {
-        process_drm_k_native(ctl, data);
-    } else {
-        process_drm_k_horizontal(ctl, data);
+    switch (ins->mode) {
+        case WII_MODE_HORIZONTAL:
+            process_drm_k_horizontal(ctl, data);
+            break;
+        case WII_MODE_VERTICAL:
+            process_drm_k_vertical(ctl, data);
+            break;
+        default:
+            break;
     }
     // Process misc buttons
     ctl->gamepad.misc_buttons |= (data[1] & 0x80) ? MISC_BUTTON_SYSTEM : 0;  // Button "home"
@@ -561,20 +554,6 @@ static void process_drm_k_vertical(uni_controller_t* ctl, const uint8_t* data) {
     // buttons
     ctl->gamepad.buttons |= (data[1] & 0x04) ? BUTTON_A : 0;  // Shoulder button
     ctl->gamepad.buttons |= (data[1] & 0x08) ? BUTTON_B : 0;  // Big button "A"
-    ctl->gamepad.buttons |= (data[1] & 0x02) ? BUTTON_X : 0;  // Button "1"
-    ctl->gamepad.buttons |= (data[1] & 0x01) ? BUTTON_Y : 0;  // Button "2"
-}
-
-static void process_drm_k_native(uni_controller_t* ctl, const uint8_t* data) {
-    // dpad
-    ctl->gamepad.dpad |= (data[0] & 0x01) ? DPAD_LEFT : 0;
-    ctl->gamepad.dpad |= (data[0] & 0x02) ? DPAD_RIGHT : 0;
-    ctl->gamepad.dpad |= (data[0] & 0x04) ? DPAD_DOWN : 0;
-    ctl->gamepad.dpad |= (data[0] & 0x08) ? DPAD_UP : 0;
-
-    // buttons
-    ctl->gamepad.buttons |= (data[1] & 0x08) ? BUTTON_A : 0;  // Big button "A"
-    ctl->gamepad.buttons |= (data[1] & 0x04) ? BUTTON_B : 0;  // Shoulder button
     ctl->gamepad.buttons |= (data[1] & 0x02) ? BUTTON_X : 0;  // Button "1"
     ctl->gamepad.buttons |= (data[1] & 0x01) ? BUTTON_Y : 0;  // Button "2"
 }
@@ -641,36 +620,25 @@ static void process_drm_ke(uni_hid_device_t* d, const uint8_t* report, uint16_t 
         return;
     }
 
+    if (ins->mode != WII_MODE_VERTICAL) {
+        loge("Wii: When Nunchuk is attached, only vertical mode is supported. Found: %d\n", ins->mode);
+        return;
+    }
+
     //
-    // Process Nunchuk
+    // Process Nunchuk: Right axis, buttons X and Y
     //
     nunchuk_t n = process_nunchuk(&report[3], len - 3);
     uni_controller_t* ctl = &d->controller;
     const int factor = (AXIS_NORMALIZE_RANGE / 2) / 128;
-    // When VERTICAL mode is enabled, Nunchuk behaves as "right" joystick,
-    // and the Wii remote behaves as the "left" joystick.
-    if (ins->flags == WII_FLAGS_VERTICAL) {
-        // Treat Nunchuk as "right" joypad.
-        ctl->gamepad.axis_rx = n.sx * factor;
-        ctl->gamepad.axis_ry = n.sy * factor;
-        ctl->gamepad.buttons |= n.bc ? BUTTON_B : 0;
-        ctl->gamepad.buttons |= n.bz ? BUTTON_SHOULDER_R : 0;  // Autofire
-    } else if (ins->flags == WII_FLAGS_NATIVE) {
-        // Treat Nunchuk as "left" joypad.
-        ctl->gamepad.axis_x = n.sx * factor;
-        ctl->gamepad.axis_y = n.sy * factor;
-        ctl->gamepad.buttons |= n.bc ? BUTTON_SHOULDER_L : 0;
-        ctl->gamepad.buttons |= n.bz ? BUTTON_TRIGGER_L : 0;
-    } else {
-        // Treat Nunchuk as "left" joypad.
-        ctl->gamepad.axis_x = n.sx * factor;
-        ctl->gamepad.axis_y = n.sy * factor;
-        ctl->gamepad.buttons |= n.bc ? BUTTON_A : 0;
-        ctl->gamepad.buttons |= n.bz ? BUTTON_B : 0;
-    }
+
+    ctl->gamepad.axis_rx = n.sx * factor;
+    ctl->gamepad.axis_ry = n.sy * factor;
+    ctl->gamepad.buttons |= n.bc ? BUTTON_X : 0;
+    ctl->gamepad.buttons |= n.bz ? BUTTON_Y : 0;
 
     //
-    // Process Wii remote
+    // Process Wii remote: DPAD, buttons A, B, Shoulder L & R, and misc.
     //
 
     // dpad
@@ -679,20 +647,11 @@ static void process_drm_ke(uni_hid_device_t* d, const uint8_t* report, uint16_t 
     ctl->gamepad.dpad |= (report[1] & 0x04) ? DPAD_DOWN : 0;
     ctl->gamepad.dpad |= (report[1] & 0x08) ? DPAD_UP : 0;
 
-    if (ins->flags == WII_FLAGS_NATIVE) {
-        ctl->gamepad.buttons |= (report[2] & 0x08) ? BUTTON_A : 0;  // Big button "A"
-        ctl->gamepad.buttons |= (report[2] & 0x04) ? BUTTON_B : 0;  // Shoulder button
-    } else if (ins->flags == WII_FLAGS_VERTICAL) {
-        ctl->gamepad.buttons |= (report[2] & 0x04) ? BUTTON_A : 0;           // Shoulder button
-        ctl->gamepad.buttons |= (report[2] & 0x08) ? BUTTON_SHOULDER_L : 0;  // Big button "A"
-    } else {
-        // If "vertical" not enabled, update Button B as well
-        ctl->gamepad.buttons |= (report[2] & 0x04) ? BUTTON_A : 0;  // Shoulder button
-        ctl->gamepad.buttons |= (report[2] & 0x08) ? BUTTON_B : 0;  // Big button "A"
-    }
+    ctl->gamepad.buttons |= (report[2] & 0x04) ? BUTTON_A : 0;  // Shoulder button
+    ctl->gamepad.buttons |= (report[2] & 0x08) ? BUTTON_B : 0;  // Big button "A"
 
-    ctl->gamepad.buttons |= (report[2] & 0x02) ? BUTTON_X : 0;  // Button "1"
-    ctl->gamepad.buttons |= (report[2] & 0x01) ? BUTTON_Y : 0;  // Button "2"
+    ctl->gamepad.buttons |= (report[2] & 0x02) ? BUTTON_SHOULDER_L : 0;  // Button "1"
+    ctl->gamepad.buttons |= (report[2] & 0x01) ? BUTTON_SHOULDER_R : 0;  // Button "2"
 
     ctl->gamepad.misc_buttons |= (report[2] & 0x80) ? MISC_BUTTON_SYSTEM : 0;  // Button "home"
     ctl->gamepad.misc_buttons |= (report[2] & 0x10) ? MISC_BUTTON_SELECT : 0;  // Button "-"
@@ -719,7 +678,7 @@ static nunchuk_t process_nunchuk(const uint8_t* e, uint16_t len) {
         return n;
     }
     n.sx = e[0] - 0x80;
-    // Invert polarity to match Unijoysticle virtual gamepad.
+    // Invert polarity to match virtual gamepad.
     n.sy = -(e[1] - 0x80);
     n.ax = (e[2] << 2) | ((e[5] & 0b00001100) >> 2);
     n.ay = (e[3] << 2) | ((e[5] & 0b00110000) >> 4);
@@ -921,7 +880,7 @@ static void process_drm_kee(uni_hid_device_t* d, const uint8_t* report, uint16_t
 // http://wiibrew.org/wiki/Wiimote#0x3d:_21_Extension_Bytes
 static void process_drm_e(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
     if (len < 22) {
-        loge("Wii: unexpected report lenght: got %d, want >= 22", len);
+        loge("Wii: unexpected report length: got %d, want >= 22", len);
         return;
     }
     wii_instance_t* ins = get_wii_instance(d);
@@ -1093,22 +1052,16 @@ static void wii_fsm_assign_device(uni_hid_device_t* d) {
             uint8_t reportType = 0xff;
             if (ins->ext_type == WII_EXT_NUNCHUK) {
                 // Request Nunchuk data
-                if (ins->flags & WII_FLAGS_ACCEL) {
+                if (ins->mode == WII_MODE_ACCEL) {
                     // Request Core buttons + Accel + extension (nunchuk)
                     reportType = WIIPROTO_REQ_DRM_KAE;
                     logi("Wii: requesting Core buttons + Accelerometer + E (Nunchuk)\n");
-                    d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_NCHKACCEL;
+                    d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_NUNCHUK_ACCEL;
                 } else {
                     // Request Core buttons + extension (nunchuk)
                     reportType = WIIPROTO_REQ_DRM_KE;
                     logi("Wii: requesting Core buttons + E (Nunchuk)\n");
-                    if (ins->flags == WII_FLAGS_VERTICAL) {
-                        d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_NCHK2JOYS;
-                    } else if (ins->flags == WII_FLAGS_NATIVE) {
-                        d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_NCHKNATIVE;
-                    } else {
-                        d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_NCHK;
-                    }
+                    d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_NUNCHUK;
                 }
             } else if (ins->ext_type == WII_EXT_CLASSIC_CONTROLLER) {
                 logi("Wii: requesting E (Classic Controller)\n");
@@ -1119,7 +1072,7 @@ static void wii_fsm_assign_device(uni_hid_device_t* d) {
                 d->controller_subtype = CONTROLLER_SUBTYPE_WII_BALANCE_BOARD;
                 reportType = WIIPROTO_REQ_DRM_KEE;
             } else {
-                if (ins->flags & WII_FLAGS_ACCEL) {
+                if (ins->mode == WII_MODE_ACCEL) {
                     // Request Core buttons + accel
                     reportType = WIIPROTO_REQ_DRM_KA;
                     logi("Wii: requesting Core buttons + Accelerometer\n");
@@ -1127,12 +1080,10 @@ static void wii_fsm_assign_device(uni_hid_device_t* d) {
                 } else {
                     reportType = WIIPROTO_REQ_DRM_K;
                     logi("Wii: requesting Core buttons\n");
-                    if (ins->flags & WII_FLAGS_VERTICAL) {
-                        d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_VERT;
-                    } else if (ins->flags & WII_FLAGS_NATIVE) {
-                        d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_NATIVE;
+                    if (ins->mode == WII_MODE_VERTICAL) {
+                        d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_VERTICAL;
                     } else {
-                        d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_HORIZ;
+                        d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_HORIZONTAL;
                     }
                 }
             }
@@ -1245,6 +1196,7 @@ void uni_hid_parser_wii_setup(uni_hid_device_t* d) {
 
     memset(ins, 0, sizeof(*ins));
 
+    ins->mode = WII_MODE_HORIZONTAL;
     ins->state = WII_FSM_SETUP;
 
     // Start with 0xa40000 (all Wii devices, except for the Wii Remote Plus)
@@ -1313,7 +1265,7 @@ void uni_hid_parser_wii_set_player_leds(uni_hid_device_t* d, uint8_t leds) {
     }
 
     wii_instance_t* ins = get_wii_instance(d);
-    // Always update gamepad_seat regarless of the state
+    // Always update gamepad_seat regardless of the state
     ins->gamepad_seat = leds;
 
     if (ins->state < WII_FSM_LED_UPDATED)
@@ -1366,6 +1318,29 @@ void uni_hid_parser_wii_play_dual_rumble(struct uni_hid_device_s* d,
     }
 }
 
+void uni_hid_parser_wii_set_mode(uni_hid_device_t* d, wii_mode_t mode) {
+    wii_instance_t* ins = get_wii_instance(d);
+
+    ins->mode = mode;
+    switch (ins->mode) {
+        case WII_MODE_HORIZONTAL:
+            d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_HORIZONTAL;
+            break;
+        case WII_MODE_VERTICAL:
+            d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_VERTICAL;
+            break;
+        case WII_MODE_ACCEL:
+            // TODO: request Accel report. As it is, it doesn't work.
+            if (ins->ext_type == WII_EXT_NONE)
+                d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_ACCEL;
+            else if (ins->ext_type == WII_EXT_NUNCHUK)
+                d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_NUNCHUK_ACCEL;
+            break;
+        default:
+            break;
+    }
+}
+
 //
 // Helpers
 //
@@ -1383,11 +1358,11 @@ static void wii_set_led(uni_hid_device_t* d, uni_gamepad_seat_t seat) {
     uint8_t led = seat << 4;
 
     // If vertical mode is on, enable LED 4.
-    if (ins->flags & WII_FLAGS_VERTICAL) {
+    if (ins->mode == WII_MODE_VERTICAL) {
         led |= 0x80;
     }
     // If accelerometer enabled, enable LED 3.
-    if (ins->flags & WII_FLAGS_ACCEL) {
+    if (ins->mode == WII_MODE_ACCEL) {
         led |= 0x40;
     }
 

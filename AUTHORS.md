@@ -40,7 +40,7 @@
 - Recep Selim Ağırman:
     - DualSense Adaptive trigger support
 - Michal Dvořák:
-    - Add "native" mode in Wii driver
+    - Nunchuk values can be read independently of Wii Mote
 
 ## People who contributed with ideas and/or testing
 
