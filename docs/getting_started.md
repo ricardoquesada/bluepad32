@@ -50,7 +50,7 @@ Choose the right one depending on your knowledge, devkit board and requirements:
 | Arduino IDE + NINA coprocessor      | [Arduino Library][bp32-arduino]                                   | [Doc][plat_nina]          | [Philips CD-i meets Bluetooth][nina_example]                                                              | :material-close: | Difficult to debug, familiar IDE, Arduino libraries, **deprecated** |
 | CircuitPython + AirLift coprocessor | [CircuitPython Library][bp32-circuitpython]                       | [Doc][plat_airlift]       | [Quico console][airlift_example], Controlling 4 servos ([video][airlift_video])                           | :material-close: | Difficult to debug, easy to program, CircuitPython libraries        |
 | Pico W                              | [Pico W example][pico-w-example]                                  | [Doc][plat_picow_picosdk] | [Pico Switch][pico_switch], [PicoNtrol][pico_ntrol]                                                       | :material-check: | Very easy to debug, for advanced developers, Pico SDK               |
-| ESP-IDF                             | [ESP32 example][esp32-example]                                    | [Doc][plat_esp32_espidf]  |                                                                                                           | :material-check: | Very easy to debug, for advanced developers, ESP-IDF, PlatformIO    |
+| ESP-IDF                             | [ESP32 example][esp32-example]                                    | [Doc][plat_esp32_espidf]  | [OGX-Wireless-Lite][ogx_wireless_lite]                                                                    | :material-check: | Very easy to debug, for advanced developers, ESP-IDF, PlatformIO    |
 | Posix (Linux, macOS)                | [Posix example][posix-example]                                    | [Doc][plat_custom]        |                                                                                                           | :material-check: | Very easy to debug, useful for quick development                    | 
 
 [airlift_example]: https://gitlab.com/ricardoquesada/quico
@@ -94,6 +94,8 @@ Choose the right one depending on your knowledge, devkit board and requirements:
 [nano_rp2040]: https://store-usa.arduino.cc/products/arduino-nano-rp2040-connect-with-headers
 
 [nina_example]: https://eyskens.me/cd-i-meets-bluetooth/
+
+[ogx_wireless_lite]: https://github.com/wiredopposite/OGX-Wireless-Lite
 
 [pico-w-example]: https://github.com/ricardoquesada/bluepad32/tree/main/examples/pico_w
 
