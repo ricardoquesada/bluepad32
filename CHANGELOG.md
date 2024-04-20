@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [4.??.??] - 2024-??-??
+## [4.0.4] - 2024-04-20
 ### New:
 - Wii: `uni_hid_parser_wii_set_mode(struct uni_hid_device_s* d, wii_mode_t mode)`,
   to change the mode between vertical or horizontal.
