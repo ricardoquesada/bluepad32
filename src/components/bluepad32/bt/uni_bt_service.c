@@ -149,30 +149,33 @@ static int att_write_callback(hci_con_handle_t con_handle,
                               uint16_t buffer_size) {
     ARG_UNUSED(transaction_mode);
 
+    logd("att_write_callback: con handle=%#x, att_handle=%#x, offset=%d\n", con_handle, att_handle, offset);
+    //    printf_hexdump(buffer, buffer_size);
+
     client_connection_t* ctx;
 
     switch (att_handle) {
         case ATT_CHARACTERISTIC_4627C4A4_AC03_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
             // Whether to enable BLE connections
             if (buffer_size != 1 || offset != 0)
-                return 0;
+                return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             bool enabled = buffer[0];
             uni_bt_le_set_enabled(enabled);
-            return 1;
+            return ATT_ERROR_SUCCESS;
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC04_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
             // Scan for new connections
             if (buffer_size != 1 || offset != 0)
-                return 0;
+                return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             bool enabled = buffer[0];
             uni_bt_enable_new_connections_unsafe(enabled);
-            return 1;
+            break;
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_CLIENT_CONFIGURATION_HANDLE: {
             // Notify connected devices
             ctx = connection_for_conn_handle(con_handle);
             if (!ctx)
-                break;
+                return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             ctx->notification_enabled =
                 little_endian_read_16(buffer, 0) == GATT_CLIENT_CHARACTERISTICS_CONFIGURATION_NOTIFICATION;
             ctx->value_handle = ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE;
@@ -186,70 +189,70 @@ static int att_write_callback(hci_con_handle_t con_handle,
         case ATT_CHARACTERISTIC_4627C4A4_AC07_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
             // Mappings: Nintendo or Xbox: A,B,X,Y vs B,A,Y,X
             if (buffer_size != 1 || offset != 0)
-                return 0;
+                return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             uint8_t type = buffer[0];
             if (type >= UNI_GAMEPAD_MAPPINGS_TYPE_COUNT)
                 return 0;
             uni_gamepad_set_mappings_type(type);
-            return 1;
+            break;
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC08_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
             // Whether to enable Allowlist in connections
             if (buffer_size != 1 || offset != 0)
-                return 0;
+                return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             bool enabled = buffer[0];
             uni_bt_allowlist_set_enabled(enabled);
-            return 1;
+            break;
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC09_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
             // TODO
             // List of addresses in the allowlist.
-            return 0;
+            break;
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC0A_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
             // Whether to enable Virtual Devices
             if (buffer_size != 1 || offset != 0)
-                return 0;
+                return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             bool enabled = buffer[0];
             uni_virtual_device_set_enabled(enabled);
-            return 1;
+            break;
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC0B_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
             // Disconnect a device
             if (buffer_size != 1 || offset != 0)
-                return 0;
+                return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             int idx = buffer[0];
             if (idx < 0 || idx >= CONFIG_BLUEPAD32_MAX_DEVICES)
-                return 0;
+                return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             uni_hid_device_t* d = uni_hid_device_get_instance_for_idx(idx);
             uni_hid_device_disconnect(d);
-            return 1;
+            break;
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC0C_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
             // Delete stored Bluetooth bond keys
             if (buffer_size != 1 || offset != 0)
-                return 0;
+                return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             bool delete = buffer[0];
             if (!delete)
-                return 0;
+                return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             uni_bt_del_keys_unsafe();
-            return 1;
+            break;
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC0D_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
             // Reset device
             if (buffer_size != 1 || offset != 0)
-                return 0;
+                return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             bool reset = buffer[0];
             if (!reset)
-                return 0;
+                return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             uni_system_reboot();
-            return 1;
+            break;
         }
         default:
             logi("BLE Service: Unsupported write to 0x%04x, len %u\n", att_handle, buffer_size);
-            break;
+            return ATT_ERROR_ATTRIBUTE_NOT_FOUND;
     }
-    return 0;
+    return ATT_ERROR_SUCCESS;
 }
 
 static uint16_t att_read_callback(hci_con_handle_t conn_handle,
