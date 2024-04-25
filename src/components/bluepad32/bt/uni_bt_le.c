@@ -381,10 +381,10 @@ static void device_information_packet_handler(uint8_t packet_type, uint16_t chan
             con_handle = gattservice_subevent_device_information_done_get_con_handle(packet);
             switch (status) {
                 case ERROR_CODE_SUCCESS:
-                    loge("Device Information service found\n");
+                    logi("Device Information service found\n");
                     device = uni_hid_device_get_instance_for_connection_handle(con_handle);
                     if (!device) {
-                        loge("Device not found!\n");
+                        loge("Invalid device for in GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_DONE");
                         break;
                     }
 
