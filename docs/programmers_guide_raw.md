@@ -5,7 +5,7 @@ WIP
 Valid when using Pico-SDK / ESP-IDF directly. E.g.: If your project is based in any of these examples, you are
 using the "Raw API": [ESP32 example][esp32_example], [Pico W example][picow_example]
 
-## Multi-threading
+## (Not) Multithreading
 
 TL;DR: Only call Bluepad32 and BTstack APIs from the BTstack thread.
 
@@ -30,7 +30,7 @@ The rest.
 - Bluepad32 is NOT multithreaded.
 - BTstack (Bluetooth stack used by Bluepad32) is NOT multithreaded.
 
-If you call any Bluepad32 or BTstack function from a different core or different task other than the BTstack thread,
+If you call any Bluepad32 or BTstack function from a different core or different task other than the BTstack thread (task),
 your program:
 
 - might crash at random places (very likely)
@@ -49,7 +49,7 @@ From [BTstack documentation][btstack_multithreading]
 
 ### Example
 
-Let's say that you want to enable rumble from a function that is NOT running on the BTstack thread.
+Let's say that you want to enable rumble from a function that is NOT running on the BTstack thread (task).
 
 ```c
 static btstack_context_callback_registration_t callback_registration;
@@ -57,16 +57,16 @@ static btstack_context_callback_registration_t callback_registration;
 // Safe to call any Bluepad32 / BTstack from this callback function
 static void on_enable_rumble(void* context) {
     uni_hid_device_t* d;
-    int idx= (int)context;
+    int idx = (int)context;
 
-    d = uni_hid_device_get_instance_for_idx(i);
+    d = uni_hid_device_get_instance_for_idx(idx);
 
     // Safety checks in case the gamepad got disconnected while the callback was scheduled
     if (!d) return;
     if (!uni_bt_conn_is_connected(&d->conn)) return;
 
     if (d->report_parser.play_dual_rumble != NULL)
-        d->report_parser.play_dual_rumble(d, 0, 0, 0x80, 0x40);
+        d->report_parser.play_dual_rumble(d, 0, 0, 0x80, 0x80);
 }
 
 // My Task is a FreeRTOS task, meaning that it is not running on the BTstack thread (task)
