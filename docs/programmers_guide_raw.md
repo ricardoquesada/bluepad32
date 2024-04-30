@@ -1,8 +1,6 @@
-# Programmers Guide
+# Programmer's Guide: Raw API
 
 WIP
-
-## Raw API
 
 Valid for Pico-SDK / ESP-IDF
 
@@ -16,7 +14,3 @@ From [BTstack documentation][btstack_multithreading]
 > The called function should check if there are any pending BTstack tasks and execute them.
 
 [btstack_multithreading]: https://github.com/bluekitchen/btstack/blob/master/port/esp32/README.md#multi-threading
-
-## Arduino
-
-## CircuitPython

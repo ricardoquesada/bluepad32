@@ -27,12 +27,15 @@ nav:
     - 'Arduino + ESP32 board': plat_arduino.md
     - 'Arduino + NINA-W10 board': plat_nina.md
     - 'CircuitPython + AirLift board': plat_airlift.md
-    - 'ESP32 + ESP-IDF (raw API)': plat_esp32.md
+    - 'ESP32 + ESP-IDF (API)': plat_esp32.md
     - 'Pico W + Pico SDK (raw API)': plat_picow.md
     - 'Unijoysticle board': plat_unijoysticle.md
     - 'MightyMiggy board': plat_mightymiggy.md
-  - Developer:
-    - 'Programmers Guide': programmers_guide.md
+  - "Programmer's Guide":
+    - 'Raw: ESP-IDF / Pico-SDK API': programmers_guide_raw.md
+    - 'Arduino API': programmers_guide_arduino.md
+    - 'CircuitPython API': programmers_guide_circuitpython.md
+  - Developer Notes:
     - 'Flashing firmware': firmware_setup.md
     - adding_new_platform.md
     - 'Architecture': architecture.md
