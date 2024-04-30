@@ -32,6 +32,7 @@ nav:
     - 'Unijoysticle board': plat_unijoysticle.md
     - 'MightyMiggy board': plat_mightymiggy.md
   - Developer:
+    - 'Programmers Guide': programmers_guide.md
     - 'Flashing firmware': firmware_setup.md
     - adding_new_platform.md
     - 'Architecture': architecture.md

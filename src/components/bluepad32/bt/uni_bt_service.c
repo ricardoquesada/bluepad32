@@ -401,6 +401,9 @@ static void att_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* p
             memset(ctx, 0, sizeof(*ctx));
             ctx->connection_handle = HCI_CON_HANDLE_INVALID;
             break;
+        case HCI_EVENT_DISCONNECTION_COMPLETE:
+            // Do something?
+            break;
         case HCI_EVENT_LE_META:
             switch (hci_event_le_meta_get_subevent_code(packet)) {
                 case HCI_SUBEVENT_LE_CONNECTION_COMPLETE:
