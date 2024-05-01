@@ -26,19 +26,20 @@ The Bluepad32 and BTstack *callbacks* run in the BTstack thread. E.g.:
 - BTstack callbacks like the packet handlers, e.g: `l2cap_packet_handler()`
 
 It is safe to call any Bluepad32 API (usually with `uni_` prefix),
-or any BTstack API (usually with `bstack_` prefix) from any of above-mentioned callbacks.
+or any BTstack API (usually with `bstack_` prefix) from any of the above-mentioned callbacks.
 
-### What's safe to call from anywhere:
+### What's safe to call from anywhere
 
-- Bluepad32's functions that have the `_safe` suffix like `uni_bt_enable_new_connections_safe()`
 - BTstack's `btstack_run_loop_execute_on_main_thread()`
+- Bluepad32's functions that have the `_safe` suffix like `uni_bt_enable_new_connections_safe()`
+- A handful of Bluepad32 functions that are not related to BTstack. TODO: document them.
 
-### What's NOT safe to call from anywhere:
+### What's NOT safe to call from anywhere
 
 The rest.
 
-Don't call any Bluepad32 or BTstack function,
-unless the ones mentioned above, if your code is running on a different task.
+If your code is **NOT** running in the BTstack thread don't call any Bluepad32 / BTstack function,
+except the ones mentioned above.
 
 ### Details
 
@@ -46,8 +47,7 @@ unless the ones mentioned above, if your code is running on a different task.
 - BTstack (Bluetooth stack used by Bluepad32) is NOT multithreaded.
 
 If you call any Bluepad32 or BTstack function from a different core or different task other than the BTstack thread (
-task),
-your program:
+task), your program:
 
 - might crash at random places (very likely)
 - might not do what you want
