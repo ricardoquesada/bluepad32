@@ -2,19 +2,31 @@
 
 WIP
 
-Valid when using Pico-SDK / ESP-IDF directly. E.g.: If your project is based in any of these examples, you are
-using the "Raw API": [ESP32 example][esp32_example], [Pico W example][picow_example]
+Valid when using Pico-SDK / ESP-IDF directly. E.g.: If your project is based on any of these examples, then you are
+using the "Raw API":
 
-## (Not) Multithreading
+- [ESP32 example][esp32_example] (uses "Raw API")
+- [Pico W example][picow_example] (uses "Raw API")
+- [Posix example][posix_example] (uses "Raw API")
 
-TL;DR: Only call Bluepad32 and BTstack APIs from the BTstack thread.
+## Multithreading
 
-### What's safe to call from Bluepad32 / BTstack callbacks
+!!! note "TL;DR"
 
-By callbacks we refer to:
+    Bluepad32 / BTstack are **NOT** multithreaded.
+    Only call Bluepad32 and BTstack APIs from the BTstack thread.
+
+### What's safe to call from BTstack thread
+
+The BTstack thread (or BTstack task) is where BTstack and Bluepad32 run.
+
+The Bluepad32 and BTstack *callbacks* run in the BTstack thread. E.g.:
 
 - Bluepad32 platform callbacks like: `platform.on_controller_data()` or `platform.on_device_connected()`
 - BTstack callbacks like the packet handlers, e.g: `l2cap_packet_handler()`
+
+It is safe to call any Bluepad32 API (usually with `uni_` prefix),
+or any BTstack API (usually with `bstack_` prefix) from any of above-mentioned callbacks.
 
 ### What's safe to call from anywhere:
 
@@ -25,12 +37,16 @@ By callbacks we refer to:
 
 The rest.
 
+Don't call any Bluepad32 or BTstack function,
+unless the ones mentioned above, if your code is running on a different task.
+
 ### Details
 
 - Bluepad32 is NOT multithreaded.
 - BTstack (Bluetooth stack used by Bluepad32) is NOT multithreaded.
 
-If you call any Bluepad32 or BTstack function from a different core or different task other than the BTstack thread (task),
+If you call any Bluepad32 or BTstack function from a different core or different task other than the BTstack thread (
+task),
 your program:
 
 - might crash at random places (very likely)
@@ -42,10 +58,10 @@ From [BTstack documentation][btstack_multithreading]
 > BTstack is not thread-safe, but you're using a multi-threading OS.
 > Any function that is called from BTstack, e.g., packet handlers, can directly call into BTstack without issues.
 > For other situations, you need to provide some general 'do BTstack tasks' function and trigger BTstack to execute
-> it on its own thread. To call a function from the BTstack thread, you can use `btstack_run_loop_execute_on_main_thread()`
+> it on its own thread. To call a function from the BTstack thread, you can
+> use `btstack_run_loop_execute_on_main_thread()`
 > allows to directly schedule a function callback, i.e. 'do BTstack tasks' function, from the BTstack thread.
 > The called function should check if there are any pending BTstack tasks and execute them.
-
 
 ### Example
 
@@ -81,12 +97,19 @@ void my_task() {
     }
 }
 ```
+
 [btstack_multithreading]: https://github.com/bluekitchen/btstack/blob/master/port/esp32/README.md#multi-threading
+
 [esp32_example]: https://github.com/ricardoquesada/bluepad32/tree/main/examples/esp32
+
 [picow_example]: https://github.com/ricardoquesada/bluepad32/tree/main/examples/pico_w
+
+[posix_example]: https://github.com/ricardoquesada/bluepad32/tree/main/examples/posix
 
 ## BTstack / Bluepad32 callbacks
 
-TL;DR: Don't call `printf()` / `logi()` from these callbacks unless strictly necessary
+!!! note "TL;DR"
 
-Return as fast as you can from BTstack / Bluepad32 callbacks. Otherwise you might trigger the watchdog.
+    Don't call `printf()` / `logi()` or any other "expensive" function from the BTstack thread.
+
+Return as fast as you can from BTstack / Bluepad32 callbacks. Otherwise, you might trigger the watchdog.

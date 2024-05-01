@@ -2,14 +2,16 @@
 
 ## What are the supported boards?
 
-TL;DR: [Pico W][pico_w] and [ESP32-family][esp32_family]
+???+ note "TL;DR"
+
+    Answer: [Pico W][pico_w] and [ESP32-family][esp32_family]
 
 The Pico W and the ESP32 processors that have Bluetooth (E.g.: ESP32, ESP32-S3, ESP32-C3) are supported.
 
 For ESP32, Bluepad32 can run in:
 
 - the main processor, like in the [Espressif ESP32-DevKitC][espressif_esp32_devkitc]
-- or in co-processor modules, like [Adafruit AirLift][airlift] modules, or [Arduino NINA-W102 based][nina_module]
+- or in coprocessor modules, like [Adafruit AirLift][airlift] modules, or [Arduino NINA-W102 based][nina_module]
   boards.
 
 If you want to know whether a certain ESP32-based board is supported, it is safe to assume
@@ -27,7 +29,9 @@ that if the board is supported by regular Arduino, then it is supported by Bluep
 
 ## How to pair just one controller to one particular board?
 
-TL;DR: Use BT allowlist.
+???+ note "TL;DR"
+
+    Answer: Use BT allowlist.
 
 Scenario: You want to control eight robots, each with one controller.
 Controller A should only control robot A, controller B should only control robot B, and so on.
@@ -124,7 +128,9 @@ This means that if you reset the ESP32, the allowlist entries, and whether it is
 
 ## How to detect when a gamepad is out of range?
 
-TL;DR: Add a "if don't receive data in 5 seconds, disconnect"
+???+ note "TL;DR"
+
+    Answer: Add a "if don't receive data in 5 seconds, disconnect"
 
 Let's assume that you are controlling a car with the gamepad.
 If the car goes too far away, it won't receive gamepad data because Bluetooth was not designed a long-range protocol."
@@ -178,7 +184,9 @@ Check [GitHub Issue #42][github_issue_42] for more details.
 
 ## Could you add support for my unsupported controller?
 
-TL;DR: We'll do our best.
+???+ note "TL;DR"
+
+    Answer: We'll do our best.
 
 First of all, double-check that the controller is not already supported:
 
@@ -222,7 +230,9 @@ The way it works is:
 
 ## Why does the internal Bluepad32 API use `uni` as prefix?
 
-TL;DR: Legacy
+???+ note "TL;DR"
+
+    Answer: Legacy
 
 The [Unijoysticle2][unijoysticle2] project included both the hardware and the firmware.
 In November 2020 I decided to port the Unijoysticle firmware to Adafruit AirLift module.
@@ -235,7 +245,9 @@ backward compatibility.
 
 ## Why is BTstack being used as the Bluetooth stack?
 
-TL;DR: There were no alternatives back in 2019
+???+ note "TL;DR"
+
+    Answer: There were no alternatives back in 2019
 
 When I started Bluepad32 back in January 2019, there was no Bluetooth Classic (BR/EDR) implementation available for
 ESP32.
@@ -252,11 +264,13 @@ I decided to use BTstack. It turned out to be a good decision:
 
 [btstack]: https://github.com/bluekitchen/btstack
 
-## Which IDE should I use ?
+## Which IDE should I use?
 
-TL;DR: The one that makes you more productive.
+???+ note "TL;DR"
 
-Just use the one that makes you more productive. Sometimes it is the one that you are more familiar with.
+    Answer: The one that makes you more productive.
+
+Use the one that makes you more productive. Sometimes it is the one that you are more familiar with.
 
 Some options are:
 
@@ -265,7 +279,7 @@ Some options are:
   C++ experience.
 * [CLion][clion]: good for advanced C / C++ users.
 
-For me, the best one by far, is [CLion][clion]. But your mileage may vary.
+For me, the best one by far is [CLion][clion]. But your mileage may vary.
 
 [arduino_ide]: https://www.arduino.cc/en/software
 
@@ -275,7 +289,9 @@ For me, the best one by far, is [CLion][clion]. But your mileage may vary.
 
 ## When was Bluepad32 created?
 
-TL;DR: 2019, although the original project started in 2016, and it was renamed to Bluepad32 in 2020.
+???+ note "TL;DR"
+
+    Answer: 2019, although the original project started in 2016, and it was renamed to Bluepad32 in 2020.
 
 - Started [Unijoysticle][unijoysticle] project (WiFi gamepad for Commodore 64): [2016-03-28][uni1_first_commit]
 - Decided to support Bluetooth in late 2018, the first commit was: [2019-01-02][fw_first_commit]
@@ -305,4 +321,3 @@ timeline
 [fw_first_release]: https://github.com/ricardoquesada/unijoysticle2/releases/tag/release_firmware_v0.1.0
 
 [fw_as_bluepad32]: https://retro.moe/2020/11/24/bluepad32-gamepad-support-for-esp32/
-
