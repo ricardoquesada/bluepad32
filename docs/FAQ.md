@@ -82,7 +82,7 @@ void setup() {
 }
 ```
 
-### Using allowlist commands form the USB console
+### Using allowlist commands from the USB console
 
 !!! Note
 
