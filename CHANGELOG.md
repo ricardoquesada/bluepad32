@@ -4,12 +4,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.0] - 2024-??-??
+### New
+- Platform: new callback: `on_device_discovered(bdaddr, name, cod, rssi)`
+  - Platforms can override this function and determine whether Bluepad32 should connect to the discovered device.
+- BLE: Populates RSSI field.
+
+### Fixed
+- Service: Returns correct error code when writing values.
+
 ## [4.0.4] - 2024-04-20
-### New:
+### New
 - Wii: `uni_hid_parser_wii_set_mode(struct uni_hid_device_s* d, wii_mode_t mode)`,
   to change the mode between vertical or horizontal.
 
-### Changed:
+### Changed
 - Rumble stops when duration is 0. Before when duration was 0, the rumble command was ignored.
 - Wii + Nunchuk:
   - Nunchuk is reported as the "right" axis using buttons X and Y

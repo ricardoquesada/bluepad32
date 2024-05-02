@@ -67,6 +67,15 @@ static void my_platform_on_init_complete(void) {
     uni_property_dump_all();
 }
 
+static uni_error_t my_platform_on_device_discovered(bd_addr_t addr, const char* name, uint16_t cod, uint8_t rssi) {
+    // You can filter discovered devices here. Return any value different from UNI_ERROR_SUCCESS;
+    // @param addr: the Bluetooth address
+    // @param name: could be NULL, could be zero-length, or might contain the name.
+    // @param cod: Class of Device. See "uni_bt_defines.h" for possible values.
+    // @param rssi: Received Signal Strength Indicator (RSSI) measured in dBms. The higher (255) the better.
+    return UNI_ERROR_SUCCESS;
+}
+
 static void my_platform_on_device_connected(uni_hid_device_t* d) {
     logi("my_platform: device connected: %p\n", d);
 }
@@ -213,6 +222,7 @@ struct uni_platform* get_my_platform(void) {
         .name = "My Platform",
         .init = my_platform_init,
         .on_init_complete = my_platform_on_init_complete,
+        .on_device_discovered = my_platform_on_device_discovered,
         .on_device_connected = my_platform_on_device_connected,
         .on_device_disconnected = my_platform_on_device_disconnected,
         .on_device_ready = my_platform_on_device_ready,

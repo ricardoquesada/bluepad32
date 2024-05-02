@@ -9,6 +9,7 @@
 
 #include "sdkconfig.h"
 
+#include "bt/uni_bt_allowlist.h"
 #include "bt/uni_bt_bredr.h"
 #include "bt/uni_bt_defines.h"
 #include "bt/uni_bt_le.h"
@@ -302,9 +303,6 @@ bool uni_hid_device_is_cod_supported(uint32_t cod) {
     // Peripherals: joysticks, mice, gamepads and keyboard are accepted.
     if ((cod & UNI_BT_COD_MAJOR_MASK) == UNI_BT_COD_MAJOR_PERIPHERAL) {
         // Device is a peripheral: keyboard, mouse, joystick, gamepad, etc.
-        // We only care about joysticks, gamepads & mice. But some gamepads,
-        // specially cheap ones are advertised as keyboards.
-        // FIXME: Which gamepads are advertised as keyboard?
         return (minor_cod & (UNI_BT_COD_MINOR_MICE | UNI_BT_COD_MINOR_KEYBOARD | UNI_BT_COD_MINOR_GAMEPAD |
                              UNI_BT_COD_MINOR_JOYSTICK)) != 0;
     }
@@ -318,6 +316,30 @@ bool uni_hid_device_is_cod_supported(uint32_t cod) {
         return (cod == 0x400408);
     }
     return false;
+}
+
+bool uni_hid_device_on_device_discovered(bd_addr_t addr, const char* name, uint16_t cod, uint8_t rssi) {
+    if (!uni_bt_allowlist_is_allowed_addr(addr)) {
+        loge("Ignoring device, not in allow-list: %s\n", bd_addr_to_str(addr));
+        return false;
+    }
+
+    // As returned by BTStack, the bigger the RSSI number, the better, being 255 the closest possible (?).
+    if (rssi < (255 - 100)) {
+        logi("Device %s too far away, try moving it closer to Bluepad32 device\n", bd_addr_to_str(addr));
+        return false;
+    }
+
+    if (!uni_hid_device_is_cod_supported(cod)) {
+        logd("Unsupported Class of Device: %#x\n", cod);
+        return false;
+    }
+
+    // Finally, give the platform the choice to connect to it
+    if (uni_get_platform()->on_device_discovered)
+        return uni_get_platform()->on_device_discovered(addr, name, cod, rssi) == UNI_ERROR_SUCCESS;
+
+    return true;
 }
 
 void uni_hid_device_set_incoming(uni_hid_device_t* d, bool incoming) {
@@ -509,9 +531,11 @@ void uni_hid_device_dump_device(uni_hid_device_t* d) {
     }
 
     logi("\tbtaddr: %s\n", bd_addr_to_str(d->conn.btaddr));
-    logi("\tbt: handle=%d (%s), hids_cid=%d, ctrl_cid=0x%04x, intr_cid=0x%04x, cod=0x%08x, flags=0x%08x, incoming=%d\n",
-         d->conn.handle, conn_type, d->hids_cid, d->conn.control_cid, d->conn.interrupt_cid, d->cod, d->flags,
-         d->conn.incoming);
+    logi(
+        "\tbt: handle=%d (%s), hids_cid=%d, ctrl_cid=0x%04x, intr_cid=0x%04x, cod=0x%08x, flags=0x%08x, "
+        "incoming=%d\n",
+        d->conn.handle, conn_type, d->hids_cid, d->conn.control_cid, d->conn.interrupt_cid, d->cod, d->flags,
+        d->conn.incoming);
     logi("\tmodel: vid=0x%04x, pid=0x%04x, model='%s', name='%s'\n", d->vendor_id, d->product_id,
          uni_gamepad_get_model_name(d->controller_type), d->name);
     logi("\tbattery: %d / 255, type=%s\n", d->controller.battery,

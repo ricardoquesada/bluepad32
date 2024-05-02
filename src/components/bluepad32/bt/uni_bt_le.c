@@ -62,7 +62,6 @@
 
 #include "sdkconfig.h"
 
-#include "bt/uni_bt_allowlist.h"
 #include "bt/uni_bt_conn.h"
 #include "bt/uni_bt_defines.h"
 #include "parser/uni_hid_parser.h"
@@ -739,6 +738,8 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
     bd_addr_t addr;
     bd_addr_type_t addr_type;
     uint16_t appearance;
+    uint16_t cod;
+    uint8_t rssi;
     char name[64];
 
     appearance = 0;
@@ -762,16 +763,34 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
         return;
     }
 
-    addr_type = gap_event_advertising_report_get_address_type(packet);
-
-    logi("Found, connect to device with %s address %s ...\n", addr_type == 0 ? "public" : "random",
-         bd_addr_to_str(addr));
-
-    // Allowlist is only valid for "public" addresses. Doesn't make sense with random ones.
-    if (addr_type == 0 && !uni_bt_allowlist_is_allowed_addr(addr)) {
-        logi("Ignoring device, not in allow-list: %s\n", bd_addr_to_str(addr));
-        return;
+    switch (appearance) {
+        case UNI_BT_HID_APPEARANCE_MOUSE:
+            cod = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE;
+            break;
+        case UNI_BT_HID_APPEARANCE_JOYSTICK:
+            cod = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_JOYSTICK;
+            break;
+        case UNI_BT_HID_APPEARANCE_GAMEPAD:
+            cod = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_GAMEPAD;
+            break;
+        case UNI_BT_HID_APPEARANCE_KEYBOARD:
+            cod = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_KEYBOARD;
+            break;
+        default:
+            cod = 0;
+            break;
     }
+
+    addr_type = gap_event_advertising_report_get_address_type(packet);
+    rssi = gap_event_advertising_report_get_rssi(packet);
+
+    logi("Device found: %s (%s)", bd_addr_to_str(addr), addr_type == 0 ? "public" : "random");
+    logi(", appearance %#x / COD %#x", appearance, cod);
+    logi(", rssi %u dBm", rssi);
+    logi(", name '%s'\n", name);
+
+    if (!uni_hid_device_on_device_discovered(addr, name, cod, rssi))
+        return;
 
     uni_hid_device_t* d = uni_hid_device_create(addr);
     if (!d) {
@@ -780,30 +799,11 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
     }
 
     // FIXME: Using CODs to make it compatible with legacy BR/EDR code.
-    switch (appearance) {
-        case UNI_BT_HID_APPEARANCE_MOUSE:
-            uni_hid_device_set_cod(d, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE);
-            logi("Device '%s' identified as Mouse\n", name);
-            break;
-        case UNI_BT_HID_APPEARANCE_JOYSTICK:
-            uni_hid_device_set_cod(d, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_JOYSTICK);
-            logi("Device '%s' identified as Joystick\n", name);
-            break;
-        case UNI_BT_HID_APPEARANCE_GAMEPAD:
-            uni_hid_device_set_cod(d, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_GAMEPAD);
-            logi("Device '%s' identified as Gamepad\n", name);
-            break;
-        case UNI_BT_HID_APPEARANCE_KEYBOARD:
-            uni_hid_device_set_cod(d, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_KEYBOARD);
-            logi("Device '%s' identified as Keyboard\n", name);
-            break;
-        default:
-            loge("Unsupported appearance: %#x\n", appearance);
-            break;
-    }
+    uni_hid_device_set_cod(d, cod);
+    uni_hid_device_set_name(d, name);
     uni_bt_conn_set_protocol(&d->conn, UNI_BT_CONN_PROTOCOL_BLE);
     uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_DISCOVERED);
-    uni_hid_device_set_name(d, name);
+    d->conn.rssi = rssi;
 
     hog_connect(addr, addr_type);
 }

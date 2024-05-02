@@ -37,6 +37,15 @@ struct uni_platform {
     // on_init_complete is called when initialization finishes
     void (*on_init_complete)(void);
 
+    // A new device has been discovered while scanning.
+    // To tell Bluepad32 that connection should be established, return UNI_ERROR_SUCCESS.
+    // @param addr: the Bluetooth address
+    // @param name: could be NULL, could be zero-length, or might contain the name.
+    // @param cod: Class of Device. See "uni_bt_defines.h" for possible values.
+    // @param rssi: Received Signal Strength Indicator (RSSI) measured in dBms. The higher (255) the better.
+    // @return UNI_ERROR_SUCCESS if Bluepad32 should try to connect to it. Otherwise Bluepad32 will ignore it.
+    uni_error_t (*on_device_discovered)(bd_addr_t addr, const char* name, uint16_t cod, uint8_t rssi);
+
     // When a device (controller) connects. But probably it is not ready to use.
     // HID and/or other things might not have been parsed/init yet.
     void (*on_device_connected)(uni_hid_device_t* d);
@@ -45,7 +54,7 @@ struct uni_platform {
     void (*on_device_disconnected)(uni_hid_device_t* d);
 
     // When a device (controller) is ready to be used.
-    // Platform can accpe/reject the connection.
+    // Platform can accept/reject the connection.
     // To accept it return UNI_ERROR_SUCCESS.
     uni_error_t (*on_device_ready)(uni_hid_device_t* d);
 

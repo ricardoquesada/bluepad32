@@ -15,6 +15,7 @@
 #include "bt/uni_bt_allowlist.h"
 #include "bt/uni_bt_defines.h"
 #include "bt/uni_bt_sdp.h"
+#include "platform/uni_platform.h"
 #include "uni_common.h"
 #include "uni_config.h"
 #include "uni_log.h"
@@ -529,6 +530,7 @@ void uni_bt_bredr_on_gap_inquiry_result(uint16_t channel, const uint8_t* packet,
     char name_buffer[HID_MAX_NAME_LEN + 1] = {0};
     int name_len = 0;
     uint8_t rssi = 255;
+    bool supported;
 
     ARG_UNUSED(channel);
     ARG_UNUSED(size);
@@ -554,16 +556,8 @@ void uni_bt_bredr_on_gap_inquiry_result(uint16_t channel, const uint8_t* packet,
     }
     logi("\n");
 
-    if (!uni_bt_allowlist_is_allowed_addr(addr)) {
-        loge("Ignoring device, not in allow-list: %s\n", bd_addr_to_str(addr));
-        return;
-    }
-
-    // As returned by BTStack, the bigger the RSSI number, the better, being 255 the closest possible (?).
-    if (rssi < (255 - 100))
-        logi("Device %s too far away, try moving it closer to Bluepad32 device\n", bd_addr_to_str(addr));
-
-    if (uni_hid_device_is_cod_supported(cod)) {
+    supported = uni_hid_device_on_device_discovered(addr, name_buffer, cod, rssi);
+    if (supported) {
         d = uni_hid_device_get_instance_for_address(addr);
         if (d) {
             if (d->conn.state == UNI_BT_CONN_STATE_DEVICE_READY) {
