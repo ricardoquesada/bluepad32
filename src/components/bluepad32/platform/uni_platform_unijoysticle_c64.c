@@ -9,6 +9,7 @@
 #include "platform/uni_platform_unijoysticle_c64.h"
 
 #include <stdbool.h>
+#include <sys/cdefs.h>
 
 #include <argtable3/argtable3.h>
 #include <esp_console.h>
@@ -40,7 +41,7 @@ enum {
 static int get_c64_pot_mode_from_nvs(void);
 
 // GPIO Interrupt handlers
-static void sync_irq_event_task(void* arg);
+_Noreturn static void sync_irq_event_task(void* arg);
 
 static volatile bool pot_x_leads = true;  // if false, y leads
 static volatile uint16_t pot_x_delay_us = uS_MAX;
@@ -129,7 +130,7 @@ static void enable_rumble_callback(void* context) {
     }
 }
 
-static void sync_irq_event_task(void* arg) {
+_Noreturn static void sync_irq_event_task(void* arg) {
     // timeout of 100s
     const TickType_t xTicksToWait = pdMS_TO_TICKS(100000);
     while (1) {
