@@ -55,13 +55,25 @@
 - Christian Ruecker
 - Sol Huebner [*]
 - Kelly Keeton
-- Phase Dock (<https://phasedock.com/>) [*]
+- [Phase Dock](https://phasedock.com/) [*]
 - James Solderitsch [*]
 - Joshua Clay [*]
 - Microbmen (Retro6502)
 - Zacks [*]
 - Marc Neuhaus
 - DennisKunz
+- Frank Mecklenburg: Donated [GameSir T3s controller][gamesir_t3s_controller]
+- Marko Viher: Donated [Tik Tok Ring Remote controller][tiktok_controller]
+- Marco Gabrecht: Donated [DATA FROG PS4][datafrog_ps4_controller] and [DATA FROG Switch][datafrog_switch_controller]
+  controllers
 
 [*]: Multiple times or generous donations
+
+[tiktok_controller]: https://www.aliexpress.us/item/3256805596713243.html
+
+[datafrog_ps4_controller]: https://www.aliexpress.us/item/3256806233659084.html
+
+[datafrog_switch_controller]: https://www.aliexpress.us/item/3256805448827549.html
+
+[gamesir_t3s_controller]: https://www.amazon.com/gp/product/B0B5Z3S54J
 
