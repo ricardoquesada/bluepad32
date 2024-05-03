@@ -18,6 +18,7 @@ extern "C" {
 #include "bt/uni_bt_allowlist.h"
 #include "bt/uni_bt_bredr.h"
 #include "bt/uni_bt_conn.h"
+#include "bt/uni_bt_defines.h"
 #include "bt/uni_bt_hci_cmd.h"
 #include "bt/uni_bt_le.h"
 #include "bt/uni_bt_sdp.h"

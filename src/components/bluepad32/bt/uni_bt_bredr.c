@@ -556,7 +556,7 @@ void uni_bt_bredr_on_gap_inquiry_result(uint16_t channel, const uint8_t* packet,
     }
     logi("\n");
 
-    supported = uni_hid_device_on_device_discovered(addr, name_buffer, cod, rssi);
+    supported = uni_hid_device_on_device_discovered(addr, name_buffer, cod, rssi) == UNI_ERROR_SUCCESS;
     if (supported) {
         d = uni_hid_device_get_instance_for_address(addr);
         if (d) {

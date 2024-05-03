@@ -14,6 +14,7 @@
 #include "controller/uni_controller_type.h"
 #include "parser/uni_hid_parser.h"
 #include "uni_circular_buffer.h"
+#include "uni_error.h"
 
 #define HID_MAX_NAME_LEN 240
 #define HID_MAX_DESCRIPTOR_LEN 512
@@ -140,13 +141,12 @@ void uni_hid_device_set_cod(uni_hid_device_t* d, uint32_t cod);
 bool uni_hid_device_is_cod_supported(uint32_t cod);
 
 // A new device has been discovered while scanning.
-// To tell Bluepad32 that connection should be established, return true;
 // @param addr: the Bluetooth address
 // @param name: could be NULL, could be zero-length, or might contain the name.
 // @param cod: Class of Device. See "uni_bt_defines.h" for possible values.
 // @param rssi: Received Signal Strength Indicator (RSSI) measured in dBms. The higher (255) the better.
-// @returns true if the device is accepted and a connection should be established.
-bool uni_hid_device_on_device_discovered(bd_addr_t addr, const char* name, uint16_t cod, uint8_t rssi);
+// @returns UNI_ERROR_SUCCESS if a connection to the device should be established.
+uni_error_t uni_hid_device_on_device_discovered(bd_addr_t addr, const char* name, uint16_t cod, uint8_t rssi);
 
 void uni_hid_device_set_hid_descriptor(uni_hid_device_t* d, const uint8_t* descriptor, int len);
 bool uni_hid_device_has_hid_descriptor(uni_hid_device_t* d);
