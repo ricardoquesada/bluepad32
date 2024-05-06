@@ -457,21 +457,29 @@ Supported "extra features":
 
 [fire_tv_remote]: https://lh3.googleusercontent.com/qnSdv7NM5et0vDhMQsRp7oMniqcjYxGKN9QJY0_gRWT6NXFrdWBf94JKNvP77abBZoykaSQOJBtXUnGW-Z1yF-MWn3q3t2Nt_TUVVV7a2HsPFjRc_DIuLh8tPiQNsEZSWDsb0z6Ys3k=-no
 
-## Generic HID controllers
+## Misc controllers
 
-![Generic][generic_gamepad]
+Collection of misc controllers. Only the emulation modes that are known to be working are enumerated.
 
-In general, any Bluetooth Classic (not BLE) controller that supports HID is supported, or should be easy to support it.
+| Model                                   | Protocol | Emulation        | Rumble           | Lightbar         | Player LEDs      | Gyro / Accelerometer |
+|-----------------------------------------|----------|------------------|------------------|------------------|------------------|----------------------|
+| [DATA FROG PS4][datafrog_ps4]           | BR/EDR   | DualShock 4      | :material-check: | :material-check: |                  | :material-check:     |
+| [DATA FROG Switch][datafrog_switch]     | BR/EDR   | Switch           | :material-check: |                  | :material-check: | :material-check:     |
+|                                         | BR/EDR   | Xbox             | :material-check: |                  |                  | :material-check:     |
+| [Gamesir T3s][gamesir_t3s]              | BR/EDR   | Switch           | :material-check: |                  |                  |                      |
+| [HS-SW510][hs_sw510]                    | BR/EDR   | Switch           | :material-check: |                  | :material-check: |                      |
+|                                         | BR/EDR   | Android          |                  |                  |                  |                      |
+| [Terios T3 / ShanWan BM-769][terios_t3] | BLE      | Android (iPhone) |                  |                  |                  |                      |
 
-BLE controllers are supported, but this is an experimental feature as of Bluepad32 v3.6
+[datafrog_ps4]: https://www.aliexpress.us/item/3256806233659084.html
 
-There many *generic* Bluetooth controllers that sometimes are offered as gifts in conferences. Usually these *generic*
-Bluetooth controllers have different connection modes. Use the HID one.
+[datafrog_switch]: https://www.aliexpress.us/item/3256805448827549.html
 
-- Select Button + X + Right trigger to enter into Gamepad mode
-- Select Button + X + Left trigger to enter in iCade mode.
+[gamesir_t3s]: https://www.gamesir.hk/products/gamesir-t3s-multi-platform-game-controller
 
-[generic_gamepad]: https://lh3.googleusercontent.com/JG0sQGQ4lmFIITl_nincUDdPi-mlYPol-RSQrnoxsYZf1_cc16A4WMod_ttuLJoIQigvcZ_ZF6NiA7p54bBQP-Eu52b28mbjfVCwsMjuu_LCQB9Lj0k9e5UkW_PkRM12IB0HrW8ah0k=-no
+[hs_sw510]: https://new.tvc-mall.com/details/hs-sw510-wireless-controller-for-nintendo-switch-bluetooth-multi-platform-gamepad-joystick-with-turbo-function-black-white-sku681600362b.html
+
+[terios_t3]: https://www.aliexpress.us/item/2251832602044731.html
 
 ## Bluetooth gamepads and their protocol
 

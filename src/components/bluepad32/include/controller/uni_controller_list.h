@@ -624,7 +624,7 @@ static const uni_controller_description_t arrControllers[] = {
         { MAKE_CONTROLLER_ID(0x18d1, 0x9400), k_eControllerType_AndroidController, NULL},  // Stadia BLE mode
 
         // Smart TV remotes
-        { MAKE_CONTROLLER_ID(0x1949, 0x0401), k_eControllerType_SmartTVRemoteController, NULL},  // Amazon Fire TV remote Controlelr 1st gen
+        { MAKE_CONTROLLER_ID(0x1949, 0x0401), k_eControllerType_SmartTVRemoteController, NULL},  // Amazon Fire TV remote Controller 1st gen
 
         // 8BitDo controllers
         { MAKE_CONTROLLER_ID(0x2820, 0x0009), k_eControllerType_8BitdoController, NULL},  // 8BitDo NES30 Gamepro
@@ -656,6 +656,11 @@ static const uni_controller_description_t arrControllers[] = {
 
         // Atari Modern VCS Controllers
         { MAKE_CONTROLLER_ID( 0x3250, 0x1001 ), k_eControllerType_AtariJoystick, NULL },      // Atari Wireless Classic Joystick
+
+        // Note on: MAKE_CONTROLLER_ID( 0x1949, 0x0402 ). Reported by:
+        // - Gamesir T3s in Android mode, says it is an Xbox 360 Controller for Windows
+        // - Amazon Fire 1st gen
+        // - Generic controller in Android mode
 
         // Bluepad32 addons to here.
 };

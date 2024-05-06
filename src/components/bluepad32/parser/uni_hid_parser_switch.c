@@ -416,21 +416,14 @@ static void process_fsm(struct uni_hid_device_s* d) {
     switch_instance_t* ins = get_switch_instance(d);
     logd("Switch: fsm next state = %d\n", ins->state + 1);
 
-    // Disable previous timer, except for the first state which has no timer
-    if (ins->state != STATE_SETUP)
-        btstack_run_loop_remove_timer(&ins->setup_timer);
-
-    // But re-schedule it for the next step
-    if (ins->state != STATE_READY) {
-        btstack_run_loop_set_timer_context(&ins->setup_timer, d);
-        btstack_run_loop_set_timer_handler(&ins->setup_timer, &switch_setup_timeout_callback);
-        btstack_run_loop_set_timer(&ins->setup_timer, SWITCH_SETUP_TIMEOUT_MS);
-        btstack_run_loop_add_timer(&ins->setup_timer);
-    }
-
     switch (ins->state) {
         case STATE_SETUP:
             logd("STATE_SETUP\n");
+            btstack_run_loop_set_timer_context(&ins->setup_timer, d);
+            btstack_run_loop_set_timer_handler(&ins->setup_timer, &switch_setup_timeout_callback);
+            btstack_run_loop_set_timer(&ins->setup_timer, SWITCH_SETUP_TIMEOUT_MS);
+            btstack_run_loop_add_timer(&ins->setup_timer);
+
             fsm_request_device_info(d);
             break;
         case STATE_REQ_DEV_INFO:
@@ -467,6 +460,7 @@ static void process_fsm(struct uni_hid_device_s* d) {
             break;
         case STATE_READY:
             logd("STATE_READY\n");
+            btstack_run_loop_remove_timer(&ins->setup_timer);
             break;
         default:
             loge("Switch: unexpected state: 0x%02x\n", ins->mode);

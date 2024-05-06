@@ -75,5 +75,5 @@
 
 [datafrog_switch_controller]: https://www.aliexpress.us/item/3256805448827549.html
 
-[gamesir_t3s_controller]: https://www.amazon.com/gp/product/B0B5Z3S54J
+[gamesir_t3s_controller]: https://www.gamesir.hk/products/gamesir-t3s-multi-platform-game-controller
 
