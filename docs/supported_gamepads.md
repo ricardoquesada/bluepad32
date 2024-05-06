@@ -459,17 +459,20 @@ Supported "extra features":
 
 ## Misc controllers
 
-Collection of misc controllers. Only the emulation modes that are known to be working are enumerated.
+Collection of misc controllers.
 
-| Model                                   | Protocol | Emulation        | Rumble           | Lightbar         | Player LEDs      | Gyro / Accelerometer |
-|-----------------------------------------|----------|------------------|------------------|------------------|------------------|----------------------|
-| [DATA FROG PS4][datafrog_ps4]           | BR/EDR   | DualShock 4      | :material-check: | :material-check: |                  | :material-check:     |
-| [DATA FROG Switch][datafrog_switch]     | BR/EDR   | Switch           | :material-check: |                  | :material-check: | :material-check:     |
-|                                         | BR/EDR   | Xbox             | :material-check: |                  |                  | :material-check:     |
-| [Gamesir T3s][gamesir_t3s]              | BR/EDR   | Switch           | :material-check: |                  |                  |                      |
-| [HS-SW510][hs_sw510]                    | BR/EDR   | Switch           | :material-check: |                  | :material-check: |                      |
-|                                         | BR/EDR   | Android          |                  |                  |                  |                      |
-| [Terios T3 / ShanWan BM-769][terios_t3] | BLE      | Android (iPhone) |                  |                  |                  |                      |
+- Only the emulation modes that are known to be working are enumerated.
+- If more than one emulation mode is supported, it is listed right below, using an empty "Model" name.
+
+| Model                                     | Emulation        | Protocol | Rumble           | Lightbar         | Player LEDs      | Gyro / Accelerometer |
+|-------------------------------------------|------------------|----------|------------------|------------------|------------------|----------------------|
+| [DATA FROG P02 (PS4)][datafrog_ps4]       | DualShock 4      | BR/EDR   | :material-check: | :material-check: |                  | :material-check:     |
+| [DATA FROG S80 (Switch)][datafrog_switch] | Switch           | BR/EDR   | :material-check: |                  | :material-check: | :material-check:     |
+|                                           | Xbox             | BR/EDR   | :material-check: |                  |                  | :material-check:     |
+| [Gamesir T3s][gamesir_t3s]                | Switch           | BR/EDR   | :material-check: |                  |                  |                      |
+| [HS-SW510][hs_sw510]                      | Switch           | BR/EDR   | :material-check: |                  | :material-check: |                      |
+|                                           | Android          | BR/EDR   |                  |                  |                  |                      |
+| [Terios T3 / ShanWan BM-769][terios_t3]   | Android (iPhone) | BLE      |                  |                  |                  |                      |
 
 [datafrog_ps4]: https://www.aliexpress.us/item/3256806233659084.html
 
