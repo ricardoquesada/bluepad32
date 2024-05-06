@@ -250,14 +250,19 @@ Supported "extra features":
 - This is the "2 button" model
 - Must be the *model 1708* (released in 2016) and not earlier. *Model 1797* should work.
 - Supports Xbox Controller firmware: v3.1 (BR/EDR), v4.8 (BR/EDR), v5.15 or newer (BLE)
+    - Instructions to [update Xbox firmware][xbox_instructions_update], to [revert Xbox firmware][xbox_instructions_revert]
 - Pair instructions: Same as model "1914", see below.
 - Protocol:
-    - BLE: Since firmware v5
-    - BR/EDR: Before firmware v5
+    - BLE: Since Xbox firmware v5
+    - BR/EDR: Before Xbox firmware v5
 
 [xbox_1708_ebay]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw=xbox+wireless+controller+1708&_sacat=0
 
 [xbox_1708]: https://lh3.googleusercontent.com/YmONc-MhVZhnE8HVRgzH7FKSpT_29MLeIF70U5AfrcBuCtuNJ2Ln5xkmSpNqO0myrFpnDLbFvR2TRTRu0xcqvP3cLNaq1BBpruEAn-Z7vBbwzNtaXx7eQaLLF7aa8tt2Wa0IcYxeD08=-no
+
+[xbox_instructions_update]: https://support.xbox.com/en-US/help/hardware-network/controller/update-xbox-wireless-controller
+
+[xbox_instructions_revert]: https://support.xbox.com/en-US/help/hardware-network/accessories/controller-firmware-reversion
 
 ## Xbox Wireless (model 1914, 3 buttons)
 
@@ -272,6 +277,7 @@ Supported "extra features":
 - This is the "3 button" model
 - Should be *model 1914*. Other "3 button" models should work as well.
 - Supports Xbox Controller firmware: v5.15 or newer
+    - Instructions to: [update Xbox firmware][xbox_instructions_update], to [revert Xbox firmware][xbox_instructions_revert]
 - Pair instructions:
     - Turn on your controller by pressing the Xbox button.
     - Press the controller’s Pair button for 3 seconds and release.
@@ -461,7 +467,7 @@ Supported "extra features":
 
 Collection of misc controllers.
 
-- Only the emulation modes that are known to be working are enumerated.
+- Only the emulation modes that are known to work are listed.
 - If more than one emulation mode is supported, it is listed right below, using an empty "Model" name.
 
 | Model                                     | Emulation        | Protocol | Rumble           | Lightbar         | Player LEDs      | Gyro / Accelerometer |
@@ -498,32 +504,34 @@ Worth noting is that BR/EDR is only supported on ESP32 and Pico W, but **NOT** i
 
 Non-comprehensive list of supported Bluetooth gamepads their protocols:
 
-| Gamepad                 | BR/EDR            | BLE                 |
-|-------------------------|-------------------|---------------------|
-| DualSense (PS5)         | :material-check:  |                     |
-| DualShock 4 (PS4)       | :material-check:  |                     |
-| DualShock 3 (PS3)       | :material-check:  |                     |
-| Nintendo Switch Pro     | :material-check:  |                     |
-| Nintendo Switch JoyCons | :material-check:  |                     |
-| Nintendo Wii U Pro      | :material-check:  |                     |
-| Nintendo Wii Remote     | :material-check:  |                     |
-| Nintendo Balance Board  | :material-check:  |                     |
-| Xbox Wireless           | :material-check:* | :material-check:*   |
-| Xbox Adaptive           |                   | :material-check:*   |
-| Steam                   |                   | :material-check:**  |
-| Stadia                  |                   | :material-check:*** |
-| Android                 |                   |                     |
-| 8BitDo                  | :material-check:  |                     |
-| Atari                   | :material-check:  |                     |
-| iCade                   | :material-check:  |                     |
-| Nimbus                  | :material-check:  |                     |
-| OUYA 1st gen            | :material-check:  |                     |
+| Gamepad                 | BR/EDR               | BLE                  |
+|-------------------------|----------------------|----------------------|
+| DualSense (PS5)         | :material-check:     |                      |
+| DualShock 4 (PS4)       | :material-check:     |                      |
+| DualShock 3 (PS3)       | :material-check:     |                      |
+| Nintendo Switch Pro     | :material-check:     |                      |
+| Nintendo Switch JoyCons | :material-check:     |                      |
+| Nintendo Wii U Pro      | :material-check:     |                      |
+| Nintendo Wii Remote     | :material-check:     |                      |
+| Nintendo Balance Board  | :material-check:     |                      |
+| Xbox Wireless           | :material-check:*    | :material-check:*    |
+| Xbox Adaptive           |                      | :material-check:*    |
+| Steam                   |                      | :material-check:**   |
+| Stadia                  |                      | :material-check:***  |
+| Android                 | :material-check:**** | :material-check:**** |
+| 8BitDo                  | :material-check:     |                      |
+| Atari                   | :material-check:     |                      |
+| iCade                   | :material-check:     |                      |
+| Nimbus                  | :material-check:     |                      |
+| OUYA 1st gen            | :material-check:     |                      |
 
 *: Xbox Controller Firmware v3.x and v4.x use BR/EDR. Firmware v5.x and later use BLE.
 
 **: Requires [Steam Controller Bluetooth firmware update][steam_instructions]
 
 ***: Requires [Stadia Bluetooth firmware update][stadia_instructions]
+
+****: Some Android controllers use BR/EDR, some use BLE.
 
 [1]: https://lh3.googleusercontent.com/sfRd1qSHaxe4he4lt63Xjsr_ejmrthB00bPpIj4CwuUOyzKy3otIrdsPqhy_Y0U78Ibcw5bssuUOgKxNsvhvq6AQGlmigtj2tWA67HQHEaDU4tEmq850Z47rwRW9EzAhFGi6XrgUhUI=-no
 
