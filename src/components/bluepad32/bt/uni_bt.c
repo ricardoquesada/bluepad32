@@ -169,9 +169,9 @@ static void on_hci_disconnection_complete(uint16_t channel, const uint8_t* packe
         d = NULL;
 
         if (IS_ENABLED(UNI_ENABLE_BLE) && type == GAP_CONNECTION_LE)
-            uni_bt_le_on_hci_diconnection_complete(channel, packet, size);
+            uni_bt_le_on_hci_disconnection_complete(channel, packet, size);
         else if (IS_ENABLED(UNI_ENABLE_BREDR) && type == GAP_CONNECTION_ACL)
-            uni_bt_bredr_on_hci_diconnection_complete(channel, packet, size);
+            uni_bt_bredr_on_hci_disconnection_complete(channel, packet, size);
         else
             loge("on_hci_disconnection_complete: Unknown GAP connection type: %d\n", type);
     }

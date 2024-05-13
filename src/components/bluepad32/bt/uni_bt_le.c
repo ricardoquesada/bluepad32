@@ -808,7 +808,7 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
     hog_connect(addr, addr_type);
 }
 
-void uni_bt_le_on_hci_diconnection_complete(uint16_t channel, const uint8_t* packet, uint16_t size) {
+void uni_bt_le_on_hci_disconnection_complete(uint16_t channel, const uint8_t* packet, uint16_t size) {
     ARG_UNUSED(channel);
     ARG_UNUSED(packet);
     ARG_UNUSED(size);

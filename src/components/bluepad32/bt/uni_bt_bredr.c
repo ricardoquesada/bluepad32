@@ -655,7 +655,7 @@ void uni_bt_bredr_on_hci_connection_complete(uint16_t channel, const uint8_t* pa
 #endif
 }
 
-void uni_bt_bredr_on_hci_diconnection_complete(uint16_t channel, const uint8_t* packet, uint16_t size) {
+void uni_bt_bredr_on_hci_disconnection_complete(uint16_t channel, const uint8_t* packet, uint16_t size) {
     ARG_UNUSED(channel);
     ARG_UNUSED(packet);
     ARG_UNUSED(size);
