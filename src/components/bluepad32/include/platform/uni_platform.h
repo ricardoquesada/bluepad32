@@ -76,6 +76,9 @@ struct uni_platform {
 
     // Register console commands. Optional
     void (*register_console_cmds)(void);
+
+    // Create a hook to run code on the bluetooth core safely.
+    void (*safe_platform_hook)(void);
 };
 
 void uni_platform_init(int argc, const char** argv);

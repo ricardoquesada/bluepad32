@@ -41,6 +41,8 @@ void uni_bt_enable_new_connections_unsafe(bool enabled);
 bool uni_bt_enable_new_connections_is_enabled(void);
 // Enables the BLE service
 void uni_bt_enable_service_safe(bool enabled);
+// Calls the custom platform hook
+void uni_run_platform_hook_safe(void);
 
 // Disconnects a device
 void uni_bt_disconnect_device_safe(int device_idx);

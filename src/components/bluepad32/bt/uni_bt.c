@@ -93,6 +93,7 @@ enum {
     CMD_DISCONNECT_DEVICE,
     CMD_BLE_SERVICE_ENABLE,
     CMD_BLE_SERVICE_DISABLE,
+    CMD_BT_SAFE_HOOK,
 };
 
 static void bluetooth_del_keys(void) {
@@ -184,6 +185,10 @@ static void cmd_callback(void* context) {
     uint16_t args = (ctx >> 16) & 0xffff;
 
     switch (cmd) {
+        case CMD_BT_SAFE_HOOK:
+            if(uni_get_platform()->safe_platform_hook != NULL)
+                uni_get_platform()->safe_platform_hook();
+            break;
         case CMD_BT_DEL_KEYS:
             bluetooth_del_keys();
             break;
@@ -275,6 +280,13 @@ void uni_bt_enable_service_safe(bool enabled) {
     cmd_callback_registration.callback = &cmd_callback;
     cmd_callback_registration.context =
         (void*)(enabled ? (intptr_t)CMD_BLE_SERVICE_ENABLE : (intptr_t)CMD_BLE_SERVICE_DISABLE);
+    btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
+}
+
+void uni_run_platform_hook_safe(void)
+{
+    cmd_callback_registration.callback = &cmd_callback;
+    cmd_callback_registration.context = (void*)CMD_BT_SAFE_HOOK;
     btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
 }
 
@@ -482,6 +494,8 @@ void uni_bt_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
             loge("unhandled packet type: 0x%02x\n", packet_type);
             break;
     }
+
+
 }
 
 // Properties
