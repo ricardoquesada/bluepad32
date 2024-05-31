@@ -280,6 +280,12 @@ extern "C" {
 #define HID_USAGE_RECORD                        0xb2
 #define HID_USAGE_FAST_FORWARD                  0xb3
 #define HID_USAGE_REWIND                        0xb4
+#define HID_USAGE_SCAN_NEXT_TRACK               0xb5
+#define HID_USAGE_SCAN_PREVIOUS_TRACK           0xb6
+#define HID_USAGE_STOP                          0xb7
+#define HID_USAGE_EJECT                         0xb8
+#define HID_USAGE_RANDOM_PLAY                   0xb9
+#define HID_USAGE_STOP_EJECT                    0xcc
 #define HID_USAGE_PLAY_PAUSE                    0xcd
 #define HID_USAGE_MUTE                          0xe2
 #define HID_USAGE_VOLUME_UP                     0xe9

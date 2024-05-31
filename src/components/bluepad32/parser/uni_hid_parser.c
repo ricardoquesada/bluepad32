@@ -16,6 +16,8 @@ void uni_hid_parse_input_report(struct uni_hid_device_s* d, const uint8_t* repor
 
     uni_report_parser_t* rp = &d->report_parser;
 
+    //    printf_hexdump(report, report_len);
+
     // Certain devices like iCade might not set "init_report".
     if (rp->init_report)
         rp->init_report(d);

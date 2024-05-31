@@ -166,6 +166,8 @@ void uni_hid_parser_keyboard_parse_usage(uni_hid_device_t* d,
         // fall-though, don't return
     }
 
+    logd("usage page=%#x, usage=%#x, value=%d\n", usage_page, usage, value);
+
     int idx = ins->pressed_key_index;
     switch (usage_page) {
         case HID_USAGE_PAGE_KEYBOARD_KEYPAD:
@@ -195,12 +197,14 @@ void uni_hid_parser_keyboard_parse_usage(uni_hid_device_t* d,
         case HID_USAGE_PAGE_CONSUMER:
             if (!value)
                 break;
-            // Used to support TikTok Ring Controller. See:
+            // To support TikTok Ring Controller and "5-button keyboard". See:
             // https://github.com/ricardoquesada/bluepad32/issues/68
+            // https://github.com/ricardoquesada/bluepad32/issues/104
             switch (usage) {
                 case 0:
                     // Undefined, used by 8BitDo Retro Keyboard
                     break;
+                // Used by "TikTog Ring Controller"
                 case HID_USAGE_POWER:
                     d->controller.keyboard.pressed_keys[idx++] = HID_USAGE_KB_POWER;
                     ins->pressed_key_index = idx;
@@ -223,6 +227,19 @@ void uni_hid_parser_keyboard_parse_usage(uni_hid_device_t* d,
                     break;
                 case HID_USAGE_AC_SCROLL_DOWN:
                     d->controller.keyboard.pressed_keys[idx++] = HID_USAGE_KB_PAGE_DOWN;
+                    ins->pressed_key_index = idx;
+                    break;
+                // Used by "5-button keyboard"
+                case HID_USAGE_SCAN_NEXT_TRACK:
+                    d->controller.keyboard.pressed_keys[idx++] = HID_USAGE_KB_RIGHT_ARROW;
+                    ins->pressed_key_index = idx;
+                    break;
+                case HID_USAGE_SCAN_PREVIOUS_TRACK:
+                    d->controller.keyboard.pressed_keys[idx++] = HID_USAGE_KB_LEFT_ARROW;
+                    ins->pressed_key_index = idx;
+                    break;
+                case HID_USAGE_PLAY_PAUSE:
+                    d->controller.keyboard.pressed_keys[idx++] = HID_USAGE_KB_PAUSE;
                     ins->pressed_key_index = idx;
                     break;
                 default:
