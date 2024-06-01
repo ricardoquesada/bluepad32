@@ -112,4 +112,24 @@ void my_task() {
 
     Don't call `printf()` / `logi()` or any other "expensive" function from the BTstack thread.
 
-Return as fast as you can from BTstack / Bluepad32 callbacks. Otherwise, you might trigger the watchdog.
+Do not execute expensive functions from any of the BTstack / Bluepad32 callbacks. They run on the BTstack thread,
+and you should return as fast as possible from those functions.
+
+Best practices:
+
+1. Don't call `printf()` / `logi()` that frequent from those calls.
+   Ok to have them for debug purposes, but remove them once you know your code works Ok.
+2. Return as fast as possible. Don't do "expensive" operations there.
+3. If you need to do an expensive operation, offload it to a different thread. See the next section.
+
+### Offloading expensive operation to a different thread
+
+There are different communication channels to connect two threads. In this example I'll show it using a queue.
+
+
+
+```c
+// This is 
+
+```
+    
