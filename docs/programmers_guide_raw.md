@@ -122,14 +122,29 @@ Best practices:
 2. Return as fast as possible. Don't do "expensive" operations there.
 3. If you need to do an expensive operation, offload it to a different thread. See the next section.
 
-### Offloading expensive operation to a different thread
+### Offloading expensive operation to a different task
 
-There are different communication channels to connect two threads. In this example I'll show it using a queue.
+There are different communication channels to connect two tasks. A simple and effective way to do it is by using a queue.
 
-
-
-```c
-// This is 
-
+```mermaid
+sequenceDiagram
+  autonumber
+  BP32 Task->>Queue: queue_add(&queue, &data);
+  Queue->>Other Task: queue_remove(&queue, &data);
 ```
-    
+
+Documentation:
+
+* [Pico SDK Queue]
+* [FreeRTOS Queue management], for ESP-IDF.
+
+Examples:
+
+* For Pico SDK: [multicore_runner_queue.c]
+* For ESP-IDF: [twai_network_example_master_main.c]
+
+
+[multicore_runner_queue.c]: https://github.com/raspberrypi/pico-examples/blob/master/multicore/multicore_runner_queue/multicore_runner_queue.c
+[twai_network_example_master_main.c]: https://github.com/espressif/esp-idf/blob/master/examples/peripherals/twai/twai_network/twai_network_master/main/twai_network_example_master_main.c
+[Pico SDK Queue]: https://www.raspberrypi.com/documentation/pico-sdk/group__queue.html
+[FreeRTOS Queue management]: https://www.freertos.org/a00018.html
