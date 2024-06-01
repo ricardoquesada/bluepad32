@@ -129,8 +129,8 @@ There are different communication channels to connect two tasks. A simple and ef
 ```mermaid
 sequenceDiagram
   autonumber
-  BP32 Task->>Queue: queue_add(&queue, &data);
-  Queue->>Other Task: queue_remove(&queue, &data);
+  BP32 Task->>Queue: queue_add(data);
+  Queue->>Other Task: queue_remove(data);
 ```
 
 Documentation:
