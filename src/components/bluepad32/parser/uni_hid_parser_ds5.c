@@ -34,7 +34,7 @@
 
 #define DS5_FEATURE_VERSION(major, minor) ((major & 0xff) << 8 | (minor & 0xff))
 
-// Edge has different features and non-edge
+// Edge has different features than non-edge
 #define DS5_PID 0x0ce6
 #define DS5_EDGE_PID 0x0df2
 
