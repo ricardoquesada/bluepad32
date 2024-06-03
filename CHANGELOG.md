@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [4.1.0] - 2024-06-01
+## [4.1.0] - 2024-06-03
 ### New
 - Platform: new callback: `on_device_discovered(bdaddr, name, cod, rssi)`
   - Platforms can override this function to determine whether Bluepad32 should connect to the discovered device.
@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for 5-key multimedia keyboard. Fixes [Github Issue #104][github_issue_104]
 
 [github_issue_104]: https://github.com/ricardoquesada/bluepad32/issues/104
+
+### Changed
+- BTstack: Updated to v1.6.1
 
 ### Fixed
 - Service: Returns correct error code when writing values.
