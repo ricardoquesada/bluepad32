@@ -60,12 +60,24 @@ The list of **tested** keyboards is this one:
 
 [aliexpress_kb_1_link]: https://www.aliexpress.us/item/3256805614460629.html?spm=a2g0o.order_list.order_list_main.5.622d1802klrMWF&gatewayAdapt=glo2usa
 
+## Misc Controllers
+
+These "misc" controllers are reported as keyboards, although they might not look like one:
+
+* [Tik Tok Remote Controller][tiktok_remote_controller]: See [Github Issue #68][github_issue_68] for mappings
+* [Handlebar Media Controller][handlebar_media_controller]: See [Github Issue #104][github_issue_104] for mappings
+
+[tiktok_remote_controller]: https://www.aliexpress.us/item/3256805596713243.html
+[handlebar_media_controller]: https://www.aliexpress.us/item/3256804080291439.html
+[github_issue_68]: https://github.com/ricardoquesada/bluepad32/issues/68
+[github_issue_104]: https://github.com/ricardoquesada/bluepad32/issues/104
+
 ## Other supported
 
-In theory any Bluetooth keyboard should work.
+In theory, any Bluetooth keyboard should work.
 
-Most modern keyboards are BLE only, and BLE mice are supported,
-although BLE is beta as of Bluepad32 v3.10.
+Most modern keyboards are BLE only, and BLE keyboards are supported,
+although BLE is beta as of Bluepad32 v4.1.
 
 Regarding non-BLE keyboards, some might work, some might not. See:
 
