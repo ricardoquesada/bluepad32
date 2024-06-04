@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Platform: new callback: `on_device_discovered(bdaddr, name, cod, rssi)`
   - Platforms can override this function to determine whether Bluepad32 should connect to the discovered device.
 - BLE: Populates RSSI field.
-- Support for 5-key multimedia keyboard. Fixes [Github Issue #104][github_issue_104]
+- Support for 5-key handlebar multimedia keyboard. Fixes [Github Issue #104][github_issue_104]
 
 [github_issue_104]: https://github.com/ricardoquesada/bluepad32/issues/104
 
