@@ -38,5 +38,12 @@ CONFIG_BLUEPAD32_MAX_DEVICES=4
 CONFIG_BLUEPAD32_PLATFORM_CUSTOM=y
 
 #
+# BTstack options
+# Needs to be disabled for ESP32-C6
+# See: https://github.com/bluekitchen/btstack/issues/599
+#
+CONFIG_BTSTACK_AUDIO=n
+
+#
 # Add here other options
 #
