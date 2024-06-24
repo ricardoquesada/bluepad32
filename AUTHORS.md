@@ -66,6 +66,8 @@
 - Marko Viher: Donated [Tik Tok Ring Remote controller][tiktok_controller]
 - Marco Gabrecht: Donated [DATA FROG PS4][datafrog_ps4_controller] and [DATA FROG Switch][datafrog_switch_controller]
   controllers
+- Trevor Rudolph: Donated [Wii uDraw Tablet][wii_udraw_tablet]
+
 
 [*]: Multiple times or generous donations
 
@@ -76,4 +78,6 @@
 [datafrog_switch_controller]: https://www.aliexpress.us/item/3256805448827549.html
 
 [gamesir_t3s_controller]: https://www.gamesir.hk/products/gamesir-t3s-multi-platform-game-controller
+
+[wii_udraw_tablet]: https://en.wikipedia.org/wiki/UDraw_GameTablet
 
