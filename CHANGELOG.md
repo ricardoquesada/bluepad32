@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.??.??] - 2024-??-??
+
+### New
+- Wii: Add support for Wii uDraw Tablet. Fixes [Github Issue #105][github_issue_105]
+- Wii: Add `uni_hid_parser_wii_request_report_type(struct uni_hid_device_s* d, wii_report_type_t r);`
+  - Allows user to change the Wii report type
+
+[github_issue_105]: https://github.com/ricardoquesada/bluepad32/issues/105
+
 ## [4.1.0] - 2024-06-03
 ### New
 - Platform: new callback: `on_device_discovered(bdaddr, name, cod, rssi)`
