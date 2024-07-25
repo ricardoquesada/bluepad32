@@ -470,21 +470,26 @@ Collection of misc controllers.
 - Only the emulation modes that are known to work are listed.
 - If more than one emulation mode is supported, it is listed right below, using an empty "Model" name.
 
-| Model                                     | Emulation        | Protocol | Rumble           | Lightbar         | Player LEDs      | Gyro / Accelerometer |
-|-------------------------------------------|------------------|----------|------------------|------------------|------------------|----------------------|
-| [DATA FROG P02 (PS4)][datafrog_ps4]       | DualShock 4      | BR/EDR   | :material-check: | :material-check: |                  | :material-check:     |
-| [DATA FROG S80 (Switch)][datafrog_switch] | Switch           | BR/EDR   | :material-check: |                  | :material-check: | :material-check:     |
-|                                           | Xbox             | BR/EDR   | :material-check: |                  |                  | :material-check:     |
-| [Gamesir T3s][gamesir_t3s]                | Switch           | BR/EDR   | :material-check: |                  |                  |                      |
-| [HS-SW510][hs_sw510]                      | Switch           | BR/EDR   | :material-check: |                  | :material-check: |                      |
-|                                           | Android          | BR/EDR   |                  |                  |                  |                      |
-| [Terios T3 / ShanWan BM-769][terios_t3]   | Android (iPhone) | BLE      |                  |                  |                  |                      |
+| Model                                     | Emulation        | Protocol | Rumble           | Lightbar         | Player LEDs      | Gyro / Accelerometer | Notes                                      |
+|-------------------------------------------|------------------|----------|------------------|------------------|------------------|----------------------|--------------------------------------------|
+| [DATA FROG P02 (PS4)][datafrog_ps4]       | DualShock 4      | BR/EDR   | :material-check: | :material-check: |                  | :material-check:     |                                            |
+| [DATA FROG S80 (Switch)][datafrog_switch] | Switch           | BR/EDR   | :material-check: |                  | :material-check: | :material-check:     |                                            |
+|                                           | Xbox             | BR/EDR   | :material-check: |                  |                  | :material-check:     |                                            |
+| [Gamesir T3s][gamesir_t3s]                | Switch           | BR/EDR   | :material-check: |                  |                  |                      |                                            |
+| [Gamesir Nova Lite][gamesir_nova_lite]    | Switch / Android | BR/EDR   |                  |                  |                  |                      | [Tested by community][nova_lite_community] |
+| [HS-SW510][hs_sw510]                      | Switch           | BR/EDR   | :material-check: |                  | :material-check: |                      |                                            |
+|                                           | Android          | BR/EDR   |                  |                  |                  |                      |                                            |
+| [Terios T3 / ShanWan BM-769][terios_t3]   | Android (iPhone) | BLE      |                  |                  |                  |                      |                                            |
 
 [datafrog_ps4]: https://www.aliexpress.us/item/3256806233659084.html
 
 [datafrog_switch]: https://www.aliexpress.us/item/3256805448827549.html
 
 [gamesir_t3s]: https://www.gamesir.hk/products/gamesir-t3s-multi-platform-game-controller
+
+[gamesir_nova_lite]: https://www.gamesir.hk/products/gamesir-nova-lite
+
+[nova_lite_community]: https://discord.com/channels/775177861665521725/1265729139584012371
 
 [hs_sw510]: https://new.tvc-mall.com/details/hs-sw510-wireless-controller-for-nintendo-switch-bluetooth-multi-platform-gamepad-joystick-with-turbo-function-black-white-sku681600362b.html
 
