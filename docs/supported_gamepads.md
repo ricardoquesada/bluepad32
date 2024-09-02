@@ -309,15 +309,14 @@ Supported "extra features":
 
 ![Android][android_gamepad]
 
-- Tested with: [ASUS][15], [Moga Pro 2][16], [Amazon Fire TV gamepads][17], [SteelSeries Status Duo][stratus_duo]
+- Tested with: [ASUS][15], [Moga Pro 2][16], [Amazon Fire TV gamepads][17], [SteelSeries Status Duo][stratus_duo], [DIY ESP32 gamepad][diy_esp32_gamepad]
 - Protocol: Depends on the gamepad. Most use BR/EDR. Only a few use BLE.
-- DIY gamepad using BLE with [ESP32-BLE-Gamepad](https://github.com/lemmingDev/ESP32-BLE-Gamepad)
-  - ESP32 as Bluepad32 host with ESP32-C3 gamepad
-  - ESP32-C3 as Bluepad32 host with ESP32 gamepad
 
 [android_gamepad]: https://lh3.googleusercontent.com/S3H1pEGYGT5aVTwF3ySWHF7vqbonDYR0UxOLJBxFe5At6Q4AP_4TQUCaNOiEXD22U4H3C0lVP1E3m26H3QM4rIbgp1wysbQoSt1NpD61snlWES5N5zGUgx20c2sfFCKZL4w_Gl66Y1s=-no
 
 [stratus_duo]: https://steelseries.com/gaming-controllers/stratus-duo
+
+[diy_esp32_gamepad]: https://github.com/lemmingDev/ESP32-BLE-Gamepad
 
 ## Steam Controller
 

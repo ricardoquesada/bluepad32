@@ -34,13 +34,15 @@
 - Scoop:
     - Author of BluepadBLEService for Arduino
 - lohengrin:
-    - created original Pico W support
+    - Created original Pico W support
 - juan518munoz:
     - Improvements to Pico W support
 - Recep Selim Ağırman:
     - DualSense Adaptive trigger support
 - Michal Dvořák:
     - Nunchuk values can be read independently of Wii Mote
+- C.Lee Taylor
+    - Updated Supported Gamepads doc.
 
 ## People who contributed with ideas and/or testing
 

@@ -1,5 +1,59 @@
 # FAQ
 
+## Why can't I connect my DualShock or Switch controller to my ESP32-S3 or ESP32-C3 ?
+
+???+ note "TL;DR"
+
+    Answer: ESP32-S3 and ESP32-C3 don't support "Bluetooth Classic" protocol.
+
+The only ESP32 chip that supports "Bluetooth Classic" (AKA BR/EDR) is the original ESP32.
+ESP32-S3, ESP32-C3, ESP32-C6 and ESP32-H2 don't support it.
+
+Controllers like Switch, Wii, DualSense, DualShock, etc. only talk "BR/EDR" (as opposed to BLE).
+You will need a chip that talks BR/EDR, like the original ESP32 or Pico-W to use DualShock, Switch, etc.
+
+Matrix of supported controllers / chips (might be outdated, [see here for up-to-date list][supported_gamepads])
+
+| Chip     | BR/EDR           | BLE              |
+|----------|------------------|------------------|
+| ESP32    | :material-check: | :material-check: |
+| ESP32-S3 |                  | :material-check: |
+| ESP32-C3 |                  | :material-check: |
+| ESP32-C6 |                  | :material-check: |
+| ESP32-H2 |                  | :material-check: |
+| Pico W   | :material-check: | :material-check: |
+
+Non-comprehensive list of supported Bluetooth gamepads their protocols:
+
+| Gamepad                 | BR/EDR               | BLE                  |
+|-------------------------|----------------------|----------------------|
+| DualSense (PS5)         | :material-check:     |                      |
+| DualShock 4 (PS4)       | :material-check:     |                      |
+| DualShock 3 (PS3)       | :material-check:     |                      |
+| Nintendo Switch Pro     | :material-check:     |                      |
+| Nintendo Switch JoyCons | :material-check:     |                      |
+| Nintendo Wii U Pro      | :material-check:     |                      |
+| Nintendo Wii Remote     | :material-check:     |                      |
+| Nintendo Balance Board  | :material-check:     |                      |
+| Xbox Wireless           | :material-check:*    | :material-check:*    |
+| Xbox Adaptive           |                      | :material-check:*    |
+| Steam                   |                      | :material-check:**   |
+| Stadia                  |                      | :material-check:***  |
+| Android                 | :material-check:**** | :material-check:**** |
+| 8BitDo                  | :material-check:     |                      |
+| Atari                   | :material-check:     |                      |
+| iCade                   | :material-check:     |                      |
+| Nimbus                  | :material-check:     |                      |
+| OUYA 1st gen            | :material-check:     |                      |
+
+*: Xbox Controller Firmware v3.x and v4.x use BR/EDR. Firmware v5.x and later use BLE.
+
+**: Requires [Steam Controller Bluetooth firmware update][steam_instructions]
+
+***: Requires [Stadia Bluetooth firmware update][stadia_instructions]
+
+****: Some Android controllers use BR/EDR, some use BLE.
+
 ## What are the supported boards?
 
 ???+ note "TL;DR"
