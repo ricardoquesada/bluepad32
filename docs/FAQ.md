@@ -54,6 +54,10 @@ Non-comprehensive list of supported Bluetooth gamepads their protocols:
 
 ****: Some Android controllers use BR/EDR, some use BLE.
 
+[steam_instructions]: https://help.steampowered.com/en/faqs/view/1796-5FC3-88B3-C85F
+
+[stadia_instructions]: https://stadia.google.com/controller/index_en_US.html
+
 ## What are the supported boards?
 
 ???+ note "TL;DR"

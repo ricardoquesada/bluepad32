@@ -69,6 +69,7 @@
 - Marco Gabrecht: Donated [DATA FROG PS4][datafrog_ps4_controller] and [DATA FROG Switch][datafrog_switch_controller]
   controllers
 - Trevor Rudolph: Donated [Wii uDraw Tablet][wii_udraw_tablet]
+- Martin Pfingstl
 
 
 [*]: Multiple times or generous donations
