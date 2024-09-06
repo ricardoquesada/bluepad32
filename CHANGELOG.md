@@ -4,12 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [4.??.??] - 2024-??-??
+## [4.1.x] - 2024-??-??
 
 ### New
 - Wii: Add support for Wii uDraw Tablet. Fixes [Github Issue #105][github_issue_105]
 - Wii: Add `uni_hid_parser_wii_request_report_type(struct uni_hid_device_s* d, wii_report_type_t r);`
   - Allows user to change the Wii report type
+
+## Changed
+- BTstack: Using develop branch 30cf4543ab40181b6af587c081176b6787f3be77
+- Documentation: Updated FAQ and Arduino docs.
 
 [github_issue_105]: https://github.com/ricardoquesada/bluepad32/issues/105
 
