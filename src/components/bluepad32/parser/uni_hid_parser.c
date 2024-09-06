@@ -40,12 +40,12 @@ void uni_hid_parse_input_report(struct uni_hid_device_s* d, const uint8_t* repor
 
             // Save globals, since they are destroyed by btstack_hid_parser_get_field()
             // see: https://github.com/bluekitchen/btstack/issues/187
-            globals.logical_minimum = parser.global_logical_minimum;
-            globals.logical_maximum = parser.global_logical_maximum;
-            globals.report_count = parser.global_report_count;
-            globals.report_id = parser.global_report_id;
-            globals.report_size = parser.global_report_size;
-            globals.usage_page = parser.global_usage_page;
+            globals.logical_minimum = parser.usage_iterator.global_logical_minimum;
+            globals.logical_maximum = parser.usage_iterator.global_logical_maximum;
+            globals.report_count = parser.usage_iterator.global_report_count;
+            globals.report_id = parser.usage_iterator.global_report_id;
+            globals.report_size = parser.usage_iterator.global_report_size;
+            globals.usage_page = parser.usage_iterator.global_usage_page;
 
             btstack_hid_parser_get_field(&parser, &usage_page, &usage, &value);
 
