@@ -11,7 +11,8 @@
 // Pico W, original ESP32 and Posix all support both BR/EDR and BLE
 #define UNI_ENABLE_BREDR 1
 #define UNI_ENABLE_BLE 1
-#elif defined(CONFIG_IDF_TARGET_ESP32S3) || defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6) || defined(CONFIG_IDF_TARGET_ESP32H2)
+#elif defined(CONFIG_IDF_TARGET_ESP32S3) || defined(CONFIG_IDF_TARGET_ESP32C3) || \
+    defined(CONFIG_IDF_TARGET_ESP32C6) || defined(CONFIG_IDF_TARGET_ESP32H2)
 // ESP32-S3 / C3 / C6
 #define UNI_ENABLE_BLE 1
 #else
