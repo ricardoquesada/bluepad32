@@ -4,9 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [4.1.x] - 2024-??-??
+## [4.2.0] - 2024-??-??
 
 ### New
+- ESP32: ESP32-C6 and ESP32-H2 supported
 - Wii: Add support for Wii uDraw Tablet. Fixes [Github Issue #105][github_issue_105]
 - Wii: Add `uni_hid_parser_wii_request_report_type(struct uni_hid_device_s* d, wii_report_type_t r);`
   - Allows user to change the Wii report type

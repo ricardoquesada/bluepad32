@@ -11,7 +11,7 @@ Supports the different ESP32 chips:
 
 1. Install ESP-IDF
 
-    Install the ESP32 toolchain. Use version **4.4** or **5.1**. Might work on newer / older
+    Install the ESP32 toolchain. Use version **5.1**. Might work on newer / older
     ones, but not tested.
 
     * <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/>
@@ -28,7 +28,7 @@ Supports the different ESP32 chips:
 3. Compile Bluepad32
 
     ```sh
-    # Possible options: esp32, esp32-s3 or esp32-c3
+    # Possible options: esp32, esp32-s3, esp32-c3, esp32-c6 or esp32-h2
     idf.py set-target esp32
     ```
 
