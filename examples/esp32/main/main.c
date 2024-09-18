@@ -6,6 +6,8 @@
 #include <btstack_port_esp32.h>
 #include <btstack_run_loop.h>
 #include <btstack_stdio_esp32.h>
+#include <hci_dump.h>
+#include <hci_dump_embedded_stdout.h>
 #include <uni.h>
 
 #include "sdkconfig.h"
@@ -19,7 +21,8 @@
 struct uni_platform* get_my_platform(void);
 
 int app_main(void) {
-    // hci_dump_open(NULL, HCI_DUMP_STDOUT);
+    // If you enable HCI Dump better to disable "Bluepad32 USB Console" from "idf.py menuconfig".
+    // hci_dump_init(hci_dump_embedded_stdout_get_instance());
 
     // Don't use BTstack buffered UART. It conflicts with the console.
 #ifdef CONFIG_ESP_CONSOLE_UART
