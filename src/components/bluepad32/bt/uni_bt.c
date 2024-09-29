@@ -66,6 +66,7 @@
 #include "bt/uni_bt_le.h"
 #include "bt/uni_bt_service.h"
 #include "bt/uni_bt_setup.h"
+#include "bt/uni_bt_allowlist.h"
 #include "platform/uni_platform.h"
 #include "uni_common.h"
 #include "uni_config.h"
@@ -93,6 +94,8 @@ enum {
     CMD_DISCONNECT_DEVICE,
     CMD_BLE_SERVICE_ENABLE,
     CMD_BLE_SERVICE_DISABLE,
+    CMD_PAIR_ENABLE,
+    CMD_PAIR_DISABLE,
 };
 
 static void bluetooth_del_keys(void) {
@@ -138,6 +141,12 @@ static void enable_new_connections(bool enabled) {
     }
 
     uni_get_platform()->on_oob_event(UNI_PLATFORM_OOB_BLUETOOTH_ENABLED, (void*)enabled);
+}
+
+static void enable_pairing(bool enabled) {
+    if(uni_bt_allowlist_is_enabled() != !enabled) {
+        uni_bt_allowlist_set_enabled_soft(!enabled);
+    }
 }
 
 static void on_hci_disconnection_complete(uint16_t channel, const uint8_t* packet, uint16_t size) {
@@ -214,6 +223,12 @@ static void cmd_callback(void* context) {
         case CMD_BLE_SERVICE_DISABLE:
             uni_bt_service_set_enabled(false);
             break;
+        case CMD_PAIR_ENABLE:
+            enable_pairing(true);
+            break;
+        case CMD_PAIR_DISABLE:
+            enable_pairing(false);
+            break;
         default:
             loge("Unknown command: %#x\n", cmd);
             break;
@@ -252,6 +267,16 @@ void uni_bt_enable_new_connections_safe(bool enabled) {
 
 void uni_bt_enable_new_connections_unsafe(bool enabled) {
     enable_new_connections(enabled);
+}
+
+void uni_bt_enable_pairing_safe(bool enabled) {
+    cmd_callback_registration.callback = &cmd_callback;
+    cmd_callback_registration.context = (void*)(enabled ? (intptr_t)CMD_PAIR_ENABLE : (intptr_t)CMD_PAIR_DISABLE);
+    btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
+}
+
+void uni_bt_enable_pairing_unsafe(bool enabled) {
+    enable_pairing(enabled);
 }
 
 bool uni_bt_enable_new_connections_is_enabled(void) {

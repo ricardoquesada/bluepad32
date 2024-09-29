@@ -61,7 +61,7 @@ static void update_allowlist_from_property(void) {
             loge("Failed to parse allowlist: '%s' ('%s')\n", &val.str[offset], val.str);
             return;
         }
-        uni_bt_allowlist_add_addr(addr);
+        uni_bt_allowlist_add_addr(addr, false);
         // Each address takes 18 bytes:
         // 00:11:22:33:44:55,
         offset += 6 * 2 + 5 + 1;
@@ -88,18 +88,31 @@ bool uni_bt_allowlist_is_allowed_addr(bd_addr_t addr) {
     return is_address_in_allowlist(addr);
 }
 
-bool uni_bt_allowlist_add_addr(bd_addr_t addr) {
+bool uni_bt_allowlist_add_addr(bd_addr_t addr, bool force) {
     // Don't add duplicate entries
     if (is_address_in_allowlist(addr))
         return false;
 
-    for (size_t i = 0; i < ARRAY_SIZE(addr_allow_list); i++) {
+    size_t i;
+
+    for (i = 0; i < ARRAY_SIZE(addr_allow_list); i++) {
         if (bd_addr_cmp(addr_allow_list[i], zero_addr) == 0) {
             bd_addr_copy(addr_allow_list[i], addr);
             update_allowlist_to_property();
             return true;
         }
     }
+
+    // no space in the allowlist, if force is active we replace
+    // the oldest entry
+    if(force && (ARRAY_SIZE(addr_allow_list) != 0)) {
+        for (i = 1; i < ARRAY_SIZE(addr_allow_list); i++) {
+            bd_addr_copy(addr_allow_list[i-1], addr_allow_list[i]);
+        }
+        bd_addr_copy(addr_allow_list[i-1], addr);
+        return true;
+    }
+
     return false;
 }
 
@@ -148,6 +161,12 @@ void uni_bt_allowlist_set_enabled(bool enabled) {
 
         val.u8 = enforced;
         uni_property_set(UNI_PROPERTY_IDX_ALLOWLIST_ENABLED, val);
+    }
+}
+
+void uni_bt_allowlist_set_enabled_soft(bool enabled) {
+    if (enabled != enforced) {
+        enforced = enabled;
     }
 }
 

@@ -252,7 +252,7 @@ static int allowlist_add_addr(int argc, char** argv) {
     }
 
     sscanf_bd_addr(allowlist_addr_args.addr->sval[0], addr);
-    uni_bt_allowlist_add_addr(addr);
+    uni_bt_allowlist_add_addr(addr, false);
     return 0;
 }
 

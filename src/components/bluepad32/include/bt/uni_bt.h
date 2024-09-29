@@ -33,12 +33,19 @@ void uni_bt_del_keys_unsafe(void);
 void uni_bt_dump_devices_safe(void);
 // Whether to enable new Bluetooth connections.
 // When enabled, the device scans for new connections, and it will try to auto-connect to supported devices.
-// When disabled, only devices that have paired before can connect.
+// When disabled, the device stops scanning for new connections and only devices that have paired before can connect.
 void uni_bt_enable_new_connections_safe(bool enabled);
 // Must be called from BTthread
 void uni_bt_enable_new_connections_unsafe(bool enabled);
 // Returns whether new connections are accepted.
 bool uni_bt_enable_new_connections_is_enabled(void);
+// Whether to enable new Bluetooth connections from unknown devices.
+// When enabled, the device accepts pairing requests by unknown devices.
+// When disabled, only devices that have paired before can connect.
+void uni_bt_enable_pairing_safe(bool enabled);
+// Must be called from BTthread
+void uni_bt_enable_pairing_unsafe(bool enabled);
+
 // Enables the BLE service
 void uni_bt_enable_service_safe(bool enabled);
 
