@@ -34,6 +34,9 @@ There are two ways to setup a Bluepad32 Arduino project for ESP32 chips:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/EEViXFoSzww?si=DsOQGOOwuKC2qOtz" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
+<iframe width="560" height="315" src="https://www.youtube.com/embed/Laa93Wj7f-I?si=gRxO5sAWl0cAE8vn" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+
 These 4 steps are needed:
 
 1. Add ESP32 and Bluepad32 board packages to Board Manager
