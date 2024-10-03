@@ -167,7 +167,7 @@ static int gap_periodic_inquiry(int argc, char** argv) {
 }
 
 static int incoming_connections_enable(int argc, char** argv) {
-    int enabled;
+    bool enabled;
 
     int nerrors = arg_parse(argc, argv, (void**)&incoming_connections_enable_args);
     if (nerrors != 0) {
@@ -176,7 +176,10 @@ static int incoming_connections_enable(int argc, char** argv) {
     }
 
     enabled = incoming_connections_enable_args.enabled->ival[0];
-    uni_bt_enable_new_connections_safe(!!enabled);
+    if (enabled)
+        uni_bt_start_scanning_and_autoconnect_safe();
+    else
+        uni_bt_stop_scanning_safe();
     return 0;
 }
 

@@ -168,7 +168,10 @@ static int att_write_callback(hci_con_handle_t con_handle,
             if (buffer_size != 1 || offset != 0)
                 return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             bool enabled = buffer[0];
-            uni_bt_enable_new_connections_unsafe(enabled);
+            if (enabled)
+                uni_bt_start_scanning_and_autoconnect_unsafe();
+            else
+                uni_bt_stop_scanning_unsafe();
             break;
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_CLIENT_CONFIGURATION_HANDLE: {
@@ -279,7 +282,7 @@ static uint16_t att_read_callback(hci_con_handle_t conn_handle,
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC04_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
             // Scan for new connections
-            const uint8_t scanning = uni_bt_enable_new_connections_is_enabled();
+            const uint8_t scanning = uni_bt_is_scanning();
             return att_read_callback_handle_blob(&scanning, (uint16_t)1, offset, buffer, buffer_size);
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC05_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:

@@ -105,7 +105,7 @@ static void posix_on_init_complete(void) {
     uni_property_dump_all();
 
     // Start scanning
-    uni_bt_enable_new_connections_unsafe(true);
+    uni_bt_start_scanning_and_autoconnect_unsafe();
 }
 
 static uni_error_t posix_on_device_discovered(bd_addr_t addr, const char* name, uint16_t cod, uint8_t rssi) {
@@ -233,13 +233,13 @@ static void posix_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl)
 
             // Toggle Bluetooth connections
             if ((gp->buttons & BUTTON_SHOULDER_L) && enabled) {
-                logi("*** Disabling Bluetooth connections\n");
-                uni_bt_enable_new_connections_safe(false);
+                logi("*** Stop scanning\n");
+                uni_bt_stop_scanning_safe();
                 enabled = false;
             }
             if ((gp->buttons & BUTTON_SHOULDER_R) && !enabled) {
-                logi("*** Enabling Bluetooth connections\n");
-                uni_bt_enable_new_connections_safe(true);
+                logi("*** Start scanning\n");
+                uni_bt_start_scanning_and_autoconnect_safe();
                 enabled = true;
             }
             break;

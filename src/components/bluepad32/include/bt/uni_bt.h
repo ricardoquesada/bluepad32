@@ -34,11 +34,24 @@ void uni_bt_dump_devices_safe(void);
 // Whether to enable new Bluetooth connections.
 // When enabled, the device scans for new connections, and it will try to auto-connect to supported devices.
 // When disabled, only devices that have paired before can connect.
-void uni_bt_enable_new_connections_safe(bool enabled);
+void uni_bt_enable_new_connections_safe(bool enabled) __attribute__((deprecated));
+void uni_bt_start_scanning_and_autoconnect_safe(void);
+void uni_bt_stop_scanning_safe(void);
 // Must be called from BTthread
-void uni_bt_enable_new_connections_unsafe(bool enabled);
+void uni_bt_enable_new_connections_unsafe(bool enabled) __attribute__((deprecated));
+void uni_bt_start_scanning_and_autoconnect_unsafe(void);
+void uni_bt_stop_scanning_unsafe(void);
 // Returns whether new connections are accepted.
-bool uni_bt_enable_new_connections_is_enabled(void);
+bool uni_bt_enable_new_connections_is_enabled(void) __attribute__((deprecated()));
+bool uni_bt_is_scanning();
+// Allow or disallow incoming connections.
+// Bonded devices are able to connect even when scanning is disabled.
+// This function is used to prevent any kind of incoming connections.
+// If you want to disable any kind of BT connection make sure to:
+// - stop scanning
+// - disallow incoming connections
+void uni_bt_allow_incoming_connections(bool allow);
+bool uni_bt_incoming_connections_is_allowed(void);
 // Enables the BLE service
 void uni_bt_enable_service_safe(bool enabled);
 

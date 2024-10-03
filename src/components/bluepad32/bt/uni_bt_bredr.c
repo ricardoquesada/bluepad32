@@ -343,6 +343,12 @@ void uni_bt_bredr_on_l2cap_incoming_connection(uint16_t channel, const uint8_t* 
         "channel=0x%04x, addr=%s\n",
         psm, local_cid, remote_cid, handle, channel, bd_addr_to_str(event_addr));
 
+    if (!uni_bt_incoming_connections_is_allowed()) {
+        loge("Declining incoming connection: Incoming connections not allowed: %s\n", bd_addr_to_str(event_addr));
+        l2cap_decline_connection(channel);
+        return;
+    }
+
     if (!uni_bt_allowlist_is_allowed_addr(event_addr)) {
         loge("Declining incoming connection: Device not in allow-list: %s\n", bd_addr_to_str(event_addr));
         l2cap_decline_connection(channel);

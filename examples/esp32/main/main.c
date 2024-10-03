@@ -1,5 +1,5 @@
 // Example file - Public Domain
-// Need help? https://tinyurl.com/bluepad32-help
+// Need help? http://bit.ly/bluepad32-help
 
 #include <stdlib.h>
 
@@ -33,8 +33,6 @@ int app_main(void) {
 
     // Configure BTstack for ESP32 VHCI Controller
     btstack_init();
-
-    // hci_dump_init(hci_dump_embedded_stdout_get_instance());
 
     // Must be called before uni_init()
     uni_platform_set_custom(get_my_platform());

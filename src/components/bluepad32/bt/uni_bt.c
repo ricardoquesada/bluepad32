@@ -80,6 +80,7 @@ bd_addr_t uni_local_bd_addr;
 static btstack_context_callback_registration_t cmd_callback_registration;
 
 static bool bt_scanning_enabled;
+static bool bt_allow_incoming_connections = true;
 
 static void start_scan(void);
 static void stop_scan(void);
@@ -87,8 +88,8 @@ static void stop_scan(void);
 enum {
     CMD_BT_DEL_KEYS,
     CMD_BT_LIST_KEYS,
-    CMD_BT_ENABLE,
-    CMD_BT_DISABLE,
+    CMD_BT_START_SCANNING,
+    CMD_BT_STOP_SCANNING,
     CMD_DUMP_DEVICES,
     CMD_DISCONNECT_DEVICE,
     CMD_BLE_SERVICE_ENABLE,
@@ -127,7 +128,7 @@ static void stop_scan(void) {
         uni_bt_le_scan_stop();
 }
 
-static void enable_new_connections(bool enabled) {
+static void start_scanning(bool enabled) {
     if (bt_scanning_enabled != enabled) {
         bt_scanning_enabled = enabled;
 
@@ -190,11 +191,11 @@ static void cmd_callback(void* context) {
         case CMD_BT_LIST_KEYS:
             bluetooth_list_keys();
             break;
-        case CMD_BT_ENABLE:
-            enable_new_connections(true);
+        case CMD_BT_START_SCANNING:
+            start_scanning(true);
             break;
-        case CMD_BT_DISABLE:
-            enable_new_connections(false);
+        case CMD_BT_STOP_SCANNING:
+            start_scanning(false);
             break;
         case CMD_DUMP_DEVICES:
             uni_hid_device_dump_all();
@@ -245,20 +246,56 @@ void uni_bt_list_keys_unsafe(void) {
 }
 
 void uni_bt_enable_new_connections_safe(bool enabled) {
+    if (enabled)
+        uni_bt_start_scanning_and_autoconnect_safe();
+    else
+        uni_bt_stop_scanning_safe();
+}
+
+void uni_bt_start_scanning_and_autoconnect_safe() {
     cmd_callback_registration.callback = &cmd_callback;
-    cmd_callback_registration.context = (void*)(enabled ? (intptr_t)CMD_BT_ENABLE : (intptr_t)CMD_BT_DISABLE);
+    cmd_callback_registration.context = (void*)CMD_BT_START_SCANNING;
+    btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
+}
+
+void uni_bt_stop_scanning_safe() {
+    cmd_callback_registration.callback = &cmd_callback;
+    cmd_callback_registration.context = (void*)CMD_BT_STOP_SCANNING;
     btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);
 }
 
 void uni_bt_enable_new_connections_unsafe(bool enabled) {
-    enable_new_connections(enabled);
+    if (enabled)
+        uni_bt_start_scanning_and_autoconnect_unsafe();
+    else
+        uni_bt_stop_scanning_unsafe();
+}
+
+void uni_bt_start_scanning_and_autoconnect_unsafe(void) {
+    start_scanning(true);
+}
+
+void uni_bt_stop_scanning_unsafe(void) {
+    start_scanning(false);
 }
 
 bool uni_bt_enable_new_connections_is_enabled(void) {
+    return uni_bt_is_scanning();
+}
+
+bool uni_bt_is_scanning(void) {
     return bt_scanning_enabled;
 }
 
-void uni_bt_dump_devices_safe(void) {
+void uni_bt_allow_incoming_connections(bool allow) {
+    bt_allow_incoming_connections = allow;
+}
+
+bool uni_bt_incoming_connections_is_allowed(void) {
+    return bt_allow_incoming_connections;
+}
+
+void uni_bt_dump_devices_safe() {
     cmd_callback_registration.callback = &cmd_callback;
     cmd_callback_registration.context = (void*)CMD_DUMP_DEVICES;
     btstack_run_loop_execute_on_main_thread(&cmd_callback_registration);

@@ -50,8 +50,8 @@ static void my_platform_on_init_complete(void) {
 
     // Safe to call "unsafe" functions since they are called from BT thread
 
-    // Start scanning
-    uni_bt_enable_new_connections_unsafe(true);
+    // Start scanning and autoconnect to supported controllers.
+    uni_bt_start_scanning_and_autoconnect_unsafe();
 
     // Based on runtime condition, you can delete or list the stored BT keys.
     if (1)
