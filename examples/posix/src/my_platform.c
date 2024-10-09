@@ -242,6 +242,14 @@ static void posix_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl)
                 uni_bt_start_scanning_and_autoconnect_safe();
                 enabled = true;
             }
+
+            if (gp->buttons & BUTTON_THUMB_L) {
+                logi("Incoming connections allowed\n");
+                uni_bt_allow_incoming_connections(true);
+            } else if (gp->buttons & BUTTON_THUMB_R) {
+                logi("Incoming connections disallowed\n");
+                uni_bt_allow_incoming_connections(false);
+            }
             break;
         case UNI_CONTROLLER_CLASS_MOUSE:
             // TODO: Do something
