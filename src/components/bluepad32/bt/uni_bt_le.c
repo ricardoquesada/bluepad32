@@ -640,7 +640,7 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
                     logi("Pairing failed, reason = %u\n", sm_event_pairing_complete_get_reason(packet));
                     break;
                 default:
-                    loge("Unkown paring status: %#x\n", status);
+                    loge("Unknown paring status: %#x\n", status);
                     break;
             }
 
