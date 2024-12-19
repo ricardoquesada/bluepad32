@@ -26,7 +26,8 @@ set(CMAKE_CXX_STANDARD 17)
 # initialize the Raspberry Pi Pico SDK
 pico_sdk_init()
 
-# Add missing files here
+# Add missing files here. See:
+# https://github.com/bluekitchen/btstack/issues/649
 set(BTSTACK_MISSING_SOURCES
     ${BTSTACK_ROOT}/src/hci_event_builder.c
 )
