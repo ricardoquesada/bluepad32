@@ -26,9 +26,15 @@ set(CMAKE_CXX_STANDARD 17)
 # initialize the Raspberry Pi Pico SDK
 pico_sdk_init()
 
+# Add missing files here
+set(BTSTACK_MISSING_SOURCES
+    ${BTSTACK_ROOT}/src/hci_event_builder.c
+)
+
 add_executable(bluepad32_picow_example_app
     src/main.c
     src/my_platform.c
+    ${BTSTACK_MISSING_SOURCES}
 )
 
 target_include_directories(bluepad32_picow_example_app PRIVATE
