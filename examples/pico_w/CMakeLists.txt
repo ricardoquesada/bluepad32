@@ -28,6 +28,7 @@ pico_sdk_init()
 
 # Add missing files here. See:
 # https://github.com/bluekitchen/btstack/issues/649
+# https://github.com/raspberrypi/pico-sdk/issues/2142
 set(BTSTACK_MISSING_SOURCES
     ${BTSTACK_ROOT}/src/hci_event_builder.c
 )
