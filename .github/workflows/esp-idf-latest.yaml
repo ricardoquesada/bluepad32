@@ -39,7 +39,9 @@ jobs:
         esp_idf_version: release-v5.3
         target: esp32
         path: 'examples/esp32'
-        command: 'idf.py build'
+        command: |
+          rm sdkconfig
+          idf.py build
 
     - name: Example ESP32-S3 build
       uses: espressif/esp-idf-ci-action@main
@@ -47,7 +49,9 @@ jobs:
         esp_idf_version: release-v5.3
         target: esp32-s3
         path: 'examples/esp32'
-        command: 'idf.py build'
+        command: |
+          rm sdkconfig
+          idf.py build
 
     - name: Example ESP32-C3 build
       uses: espressif/esp-idf-ci-action@main
@@ -55,7 +59,9 @@ jobs:
         esp_idf_version: release-v5.3
         target: esp32-c3
         path: 'examples/esp32'
-        command: 'idf.py build'
+        command: |
+          rm sdkconfig
+          idf.py build
 
     - name: Example ESP32-C6 build
       uses: espressif/esp-idf-ci-action@main
@@ -63,5 +69,18 @@ jobs:
         esp_idf_version: release-v5.3
         target: esp32-c6
         path: 'examples/esp32'
-        command: 'idf.py build'
+        command: |
+          rm sdkconfig
+          idf.py build
+
+    - name: Example ESP32-H2 build
+      uses: espressif/esp-idf-ci-action@main
+      with:
+        esp_idf_version: release-v5.3
+        target: esp32-h2
+        path: 'examples/esp32'
+        command: |
+          rm sdkconfig
+          idf.py build
+
 
