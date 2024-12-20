@@ -4,6 +4,8 @@
 
 You need to install Pico SDK. The instructions are different for Linux/macOS and Windows.
 
+Recommended: Use Pico SDK 2.1 or newer.
+
 ### Pico SDK for Linux / macOS
 
 Install Pico SDK: https://github.com/raspberrypi/pico-sdk
@@ -32,6 +34,14 @@ cmake ..
 make -j
 ```
 
+If `PICO_BOARD` is not specified,  it will use `pico_w`. To compile it for Pico 2 W, do:
+
+```sh
+# From the recently crated "build" folder
+cmake -DPICO_BOARD=pico2_w ..
+make -j
+```
+
 Copy `build/bluepad32_picow_example_app.uf2` to Pico W.
 
 Use this guide if you are not sure how to do it:
@@ -43,5 +53,5 @@ Use this guide if you are not sure how to do it:
 - Example code: licensed under Public Domain.
 - Bluepad32: licensed under Apache 2.
 - BTstack:
-  - Commercial license is already paid by the Raspberry Pi foundation, but only when used in a Pico W.
+  - Commercial license is already paid by the Raspberry Pi foundation, but only when used in a Pico W or Pico 2 W.
   - <https://github.com/raspberrypi/pico-sdk/blob/master/src/rp2_common/pico_btstack/LICENSE.RP>
