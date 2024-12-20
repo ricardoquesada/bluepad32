@@ -23,7 +23,7 @@ TL;DR:
 - [Linux / macOS users](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/get-started/linux-macos-setup.html)
 
 
-It works with ESP-IDF v4.4 and v5.x, but v5.3 or newer is recommended.
+It works with ESP-IDF v4.4, but v5.3 or newer is recommended.
 
 ### 2. Clone Bluepad32 GitHub repo
 

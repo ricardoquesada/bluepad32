@@ -29,7 +29,7 @@ Choose the right one depending on your knowledge, devkit board and requirements:
 
 === "ESP-IDF"
 
-    * Works with ESP32 microcontrollers: ESP32, ESP32-S3, ESP32-C3.
+    * Works with ESP32 microcontrollers: ESP32, ESP32-S3, ESP32-C3, ESP32-C6, ESP32-H2
     * Works both with ESP-IDF v4.4 and v5.X
     * Uses the ESP-IDF SDK
     * Can be used with PlatformIO
@@ -37,7 +37,7 @@ Choose the right one depending on your knowledge, devkit board and requirements:
 
 === "Pico SDK"
 
-    * Works with Pico W microcontroller.
+    * Works with Pico W and Pico 2 W microcontrollers.
     * Uses the Pico SDK.
     * Detailed info here: [Bluepad32 for Pico W + Pico SDK][plat_picow_picosdk]
 

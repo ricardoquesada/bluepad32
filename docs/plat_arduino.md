@@ -151,7 +151,7 @@ Install ESP-IDF toolchain by following these instructions:
 [esp_idf_win]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/windows-setup.html
 [esp_idf_linux]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/linux-macos-setup.html
 
-### Compile tempalte project and flash it
+### Compile template project and flash it
 
 To compile it and flash it, do:
 
