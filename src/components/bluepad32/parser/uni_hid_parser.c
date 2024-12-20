@@ -5,6 +5,7 @@
 #include "parser/uni_hid_parser.h"
 
 #include "hid_usage.h"
+#include "uni_btstack_version_compat.h"
 #include "uni_hid_device.h"
 #include "uni_log.h"
 #include "uni_version.h"

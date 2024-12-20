@@ -9,6 +9,7 @@
 #include "bt/uni_bt_allowlist.h"
 #include "bt/uni_bt_setup.h"
 #include "platform/uni_platform.h"
+#include "uni_btstack_version_compat.h"
 #include "uni_config.h"
 #include "uni_console.h"
 #include "uni_hid_device.h"
@@ -17,7 +18,10 @@
 #include "uni_version.h"
 #include "uni_virtual_device.h"
 
-int uni_init(int argc, const char** argv) {
+// Move it uni_common.
+#define UNI_CONCAT (str1, str2) str1 str2
+
+int uni_init(int argc, const char **argv) {
     // Disable stdout buffering
     setbuf(stdout, NULL);
 
