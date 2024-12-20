@@ -250,7 +250,8 @@ Supported "extra features":
 - This is the "2 button" model
 - Must be the *model 1708* (released in 2016) and not earlier. *Model 1797* should work.
 - Supports Xbox Controller firmware: v3.1 (BR/EDR), v4.8 (BR/EDR), v5.15 or newer (BLE)
-    - Instructions to [update Xbox firmware][xbox_instructions_update], to [revert Xbox firmware][xbox_instructions_revert]
+    - Instructions to [update Xbox firmware][xbox_instructions_update],
+      to [revert Xbox firmware][xbox_instructions_revert]
 - Pair instructions: Same as model "1914", see below.
 - Protocol:
     - BLE: Since Xbox firmware v5
@@ -277,7 +278,8 @@ Supported "extra features":
 - This is the "3 button" model
 - Should be *model 1914*. Other "3 button" models should work as well.
 - Supports Xbox Controller firmware: v5.15 or newer
-    - Instructions to: [update Xbox firmware][xbox_instructions_update], to [revert Xbox firmware][xbox_instructions_revert]
+    - Instructions to: [update Xbox firmware][xbox_instructions_update],
+      to [revert Xbox firmware][xbox_instructions_revert]
 - Pair instructions:
     - Turn on your controller by pressing the Xbox button.
     - Press the controller’s Pair button for 3 seconds and release.
@@ -309,7 +311,8 @@ Supported "extra features":
 
 ![Android][android_gamepad]
 
-- Tested with: [ASUS][15], [Moga Pro 2][16], [Amazon Fire TV gamepads][17], [SteelSeries Status Duo][stratus_duo], [DIY ESP32 gamepad][diy_esp32_gamepad]
+- Tested
+  with: [ASUS][15], [Moga Pro 2][16], [Amazon Fire TV gamepads][17], [SteelSeries Status Duo][stratus_duo], [DIY ESP32 gamepad][diy_esp32_gamepad]
 - Protocol: Depends on the gamepad. Most use BR/EDR. Only a few use BLE.
 
 [android_gamepad]: https://lh3.googleusercontent.com/S3H1pEGYGT5aVTwF3ySWHF7vqbonDYR0UxOLJBxFe5At6Q4AP_4TQUCaNOiEXD22U4H3C0lVP1E3m26H3QM4rIbgp1wysbQoSt1NpD61snlWES5N5zGUgx20c2sfFCKZL4w_Gl66Y1s=-no
@@ -500,14 +503,18 @@ Collection of misc controllers.
 ## Bluetooth gamepads and their protocol
 
 Most gamepads, as of 2024, use BR/EDR (AKA Bluetooth Classic). Only a few use BLE.
-Worth noting is that BR/EDR is only supported on ESP32 and Pico W, but **NOT** in ESP32-S3 / ESP32-C3.
+Worth noting is that BR/EDR is only supported on ESP32, Pico W and Pico 2 W, but **NOT** in ESP32-S3 / ESP32-C3 /
+ESP32-C6 / ESP32-H2.
 
 | Chip     | BR/EDR           | BLE              |
 |----------|------------------|------------------|
 | ESP32    | :material-check: | :material-check: |
 | ESP32-S3 |                  | :material-check: |
 | ESP32-C3 |                  | :material-check: |
+| ESP32-C6 |                  | :material-check: |
+| ESP32-H2 |                  | :material-check: |
 | Pico W   | :material-check: | :material-check: |
+| Pico 2 W | :material-check: | :material-check: |
 
 Non-comprehensive list of supported Bluetooth gamepads their protocols:
 

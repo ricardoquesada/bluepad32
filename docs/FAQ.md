@@ -22,6 +22,7 @@ Matrix of supported controllers / chips (might be outdated, [see here for up-to-
 | ESP32-C6 |                  | :material-check: |
 | ESP32-H2 |                  | :material-check: |
 | Pico W   | :material-check: | :material-check: |
+| Pico 2 W | :material-check: | :material-check: |
 
 Non-comprehensive list of supported Bluetooth gamepads their protocols:
 
@@ -64,7 +65,7 @@ Non-comprehensive list of supported Bluetooth gamepads their protocols:
 
     Answer: [Pico W][pico_w] and [ESP32-family][esp32_family]
 
-The Pico W and the ESP32 processors that have Bluetooth (E.g.: ESP32, ESP32-S3, ESP32-C3) are supported.
+The Pico W and ESP32 family of processors. But only the ones that support Bluetooth.
 
 For ESP32, Bluepad32 can run in:
 
