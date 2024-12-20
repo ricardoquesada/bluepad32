@@ -204,7 +204,7 @@ static void adv_event_get_data(const uint8_t* packet, uint16_t* appearance, char
     get_advertisement_data(ad_data, ad_len, appearance, name);
 }
 
-static void parse_report(uint8_t* packet, uint16_t size) {
+static void parse_report(const uint8_t* packet, uint16_t size) {
     uint16_t service_index;
     uint16_t hids_cid;
     uni_hid_device_t* device;
@@ -235,6 +235,9 @@ static void parse_report(uint8_t* packet, uint16_t size) {
     }
     report_data = gattservice_subevent_hid_report_get_report(packet);
     report_len = gattservice_subevent_hid_report_get_report_len(packet);
+
+    printf_hexdump(report_data, report_len);
+    printf_hexdump(packet, size);
 
     uni_hid_parse_input_report(device, report_data, report_len);
     uni_hid_device_process_controller(device);
