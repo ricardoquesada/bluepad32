@@ -21,7 +21,7 @@
 // Move it uni_common.
 #define UNI_CONCAT (str1, str2) str1 str2
 
-int uni_init(int argc, const char **argv) {
+int uni_init(int argc, const char** argv) {
     // Disable stdout buffering
     setbuf(stdout, NULL);
 
