@@ -28,8 +28,8 @@ build-ubuntu-linux-clang:
   script:
     - cd examples/posix && mkdir build && cd build && cmake .. && CC=clang make -j
 
-build-esp-idf-5.1:
-  image: espressif/idf:release-v5.1
+build-esp-idf-5.3:
+  image: espressif/idf:release-v5.3
   variables:
     GIT_SUBMODULE_STRATEGY: normal
   stage: build

@@ -1,4 +1,4 @@
-name: Build with ESP-IDF v5.2
+name: Build with ESP-IDF v5.3
 
 on:
   push:
@@ -28,40 +28,40 @@ jobs:
     - name: Unijoysticle build
       uses: espressif/esp-idf-ci-action@main
       with:
-        esp_idf_version: release-v5.2
+        esp_idf_version: release-v5.3
         target: esp32
         path: 'src'
         command: 'idf.py -B build_plat_unijoysticle -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.plat_unijoysticle" build'
 
-    - name: AirLift build
+    - name: Example ESP32 build
       uses: espressif/esp-idf-ci-action@main
       with:
-        esp_idf_version: release-v5.2
+        esp_idf_version: release-v5.3
         target: esp32
-        path: 'src'
-        command: 'idf.py -B build_plat_airlift -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.plat_airlift" build'
+        path: 'examples/esp32'
+        command: 'idf.py build'
 
-    - name: NINA build
+    - name: Example ESP32-S3 build
       uses: espressif/esp-idf-ci-action@main
       with:
-        esp_idf_version: release-v5.2
-        target: esp32
-        path: 'src'
-        command: 'idf.py -B build_plat_nina -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.plat_nina" build'
+        esp_idf_version: release-v5.3
+        target: esp32-s3
+        path: 'examples/esp32'
+        command: 'idf.py build'
 
-    - name: MightyMiggy build
+    - name: Example ESP32-C3 build
       uses: espressif/esp-idf-ci-action@main
       with:
-        esp_idf_version: release-v5.2
-        target: esp32
-        path: 'src'
-        command: 'idf.py -B build_plat_mightymiggy -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.plat_mightymiggy" build'
+        esp_idf_version: release-v5.3
+        target: esp32-c3
+        path: 'examples/esp32'
+        command: 'idf.py build'
 
-    - name: Example build
+    - name: Example ESP32-C6 build
       uses: espressif/esp-idf-ci-action@main
       with:
-        esp_idf_version: release-v5.2
-        target: esp32
+        esp_idf_version: release-v5.3
+        target: esp32-c6
         path: 'examples/esp32'
         command: 'idf.py build'
 
