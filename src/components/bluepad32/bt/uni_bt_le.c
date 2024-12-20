@@ -75,7 +75,7 @@ static bool is_scanning;
 static bool ble_enabled;
 
 // Temporal space for SDP in BLE
-static uint8_t hid_descriptor_storage[512];
+static uint8_t hid_descriptor_storage[HID_MAX_DESCRIPTOR_LEN * CONFIG_BLUEPAD32_MAX_DEVICES];
 static btstack_packet_callback_registration_t sm_event_callback_registration;
 
 /**
@@ -235,9 +235,6 @@ static void parse_report(const uint8_t* packet, uint16_t size) {
     }
     report_data = gattservice_subevent_hid_report_get_report(packet);
     report_len = gattservice_subevent_hid_report_get_report_len(packet);
-
-    // printf_hexdump(report_data, report_len);
-    // printf_hexdump(packet, size);
 
     uni_hid_parse_input_report(device, report_data, report_len);
     uni_hid_device_process_controller(device);
@@ -657,7 +654,7 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
             break;
 
         default:
-            loge("Unkown SM packet type: %#x\n", type);
+            loge("Unknown SM packet type: %#x\n", type);
             break;
     }
 }
