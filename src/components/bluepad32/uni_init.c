@@ -26,6 +26,7 @@ int uni_init(int argc, const char** argv) {
 
     // Honoring BTstack license
     loge("BTstack: Copyright (C) 2017 BlueKitchen GmbH.\n");
+    loge("Version: v" BTSTACK_VERSION_STRING "\n");
 
     uni_property_init();
     uni_platform_init(argc, argv);
