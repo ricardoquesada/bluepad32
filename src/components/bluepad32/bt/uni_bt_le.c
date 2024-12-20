@@ -236,8 +236,8 @@ static void parse_report(const uint8_t* packet, uint16_t size) {
     report_data = gattservice_subevent_hid_report_get_report(packet);
     report_len = gattservice_subevent_hid_report_get_report_len(packet);
 
-    printf_hexdump(report_data, report_len);
-    printf_hexdump(packet, size);
+    // printf_hexdump(report_data, report_len);
+    // printf_hexdump(packet, size);
 
     uni_hid_parse_input_report(device, report_data, report_len);
     uni_hid_device_process_controller(device);
