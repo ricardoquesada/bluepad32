@@ -40,7 +40,7 @@ jobs:
         target: esp32
         path: 'examples/esp32'
         command: |
-          rm sdkconfig
+          idf.py fullclean
           idf.py build
 
     - name: Example ESP32-S3 build
@@ -50,7 +50,7 @@ jobs:
         target: esp32-s3
         path: 'examples/esp32'
         command: |
-          rm sdkconfig
+          idf.py fullclean
           idf.py build
 
     - name: Example ESP32-C3 build
@@ -60,7 +60,7 @@ jobs:
         target: esp32-c3
         path: 'examples/esp32'
         command: |
-          rm sdkconfig
+          idf.py fullclean
           idf.py build
 
     - name: Example ESP32-C6 build
@@ -70,7 +70,7 @@ jobs:
         target: esp32-c6
         path: 'examples/esp32'
         command: |
-          rm sdkconfig
+          idf.py fullclean
           idf.py build
 
     - name: Example ESP32-H2 build
@@ -80,7 +80,7 @@ jobs:
         target: esp32-h2
         path: 'examples/esp32'
         command: |
-          rm sdkconfig
+          idf.py fullclean
           idf.py build
 
 
