@@ -6,7 +6,8 @@
 <img src="https://github.com/ricardoquesada/bluepad32/blob/develop/docs/images/bluepad32_logo_ok_280.png?raw=true" alt="drawing" width="216"/>
 </p>
 
-A Bluetooth controller "host" for the ESP32, ESP32-S3, ESP32-C3, ESP32-C6, ESP32-H2, Raspberry Pi Pico W and Posix (Linux, macOS).
+A Bluetooth controller "host" for the ESP32, ESP32-S3, ESP32-C3, ESP32-C6, ESP32-H2, Raspberry Pi Pico W, Pico 2 W, and
+Posix (Linux, macOS).
 
 Add Bluetooth gamepad, mouse and keyboard support to your projects easily.
 
@@ -79,7 +80,7 @@ Choose your target platform:
 ## Features
 
 * Supports most, if not all, modern Bluetooth gamepads, mice and keyboards (see below)
-* Supports ESP32 and Pico W
+* Supports ESP32 and Pico W families
 * Supported APIs: ESP-IDF, Pico-SDK, Arduino and CircuitPython
 * Fast (very low latency)
 * Small footprint
@@ -111,8 +112,8 @@ Choose your target platform:
 * Keyboards
 * And more
 
-NOTE: Original **ESP32** and **Pico W** support all listed controllers. **ESP32-S3**, **ESP32-C3**, **ESP32-C6** and
-**ESP32-H2** only support a subset.
+NOTE: Original **ESP32**, **Pico W** and **Pico 2 W** support all listed controllers. **ESP32-S3**, **ESP32-C3**,
+**ESP32-C6** and **ESP32-H2** only support a subset.
 
 See: [Supported gamepads][gamepads], [supported mice][mice] and [supported keyboards][keyboards]
 
@@ -133,7 +134,7 @@ Download pre-compiled binaries for Unijoysticle, Nina, AirLift, MightyMiggy:
 See the examples folder which includes examples for:
 
 * [Bluepad32 for ESP32][esp32-example] (ESP32, ESP32-S3, ESP32-C3, ESP32-C6 and ESP32-H2)
-* [Bluepad32 for Pico W][pico-w-example]
+* [Bluepad32 for Pico W][pico-w-example] (Pico W and Pico 2 W)
 * [Bluepad32 for Posix (Linux, macOS)][posix-example]
 
 Arduino examples are in:
