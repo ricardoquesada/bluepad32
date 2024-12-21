@@ -143,12 +143,12 @@ static void my_platform_on_controller_data(uni_hid_device_t* d, uni_controller_t
             // Toggle Bluetooth connections
             if ((gp->buttons & BUTTON_SHOULDER_L) && enabled) {
                 logi("*** Disabling Bluetooth connections\n");
-                uni_bt_enable_new_connections_safe(false);
+                uni_bt_stop_scanning_safe();
                 enabled = false;
             }
             if ((gp->buttons & BUTTON_SHOULDER_R) && !enabled) {
                 logi("*** Enabling Bluetooth connections\n");
-                uni_bt_enable_new_connections_safe(true);
+                uni_bt_start_scanning_and_autoconnect_safe();
                 enabled = true;
             }
             break;

@@ -11,10 +11,18 @@ endif()
 set(BLUEPAD32_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 
 # To use BTstack from Pico SDK do
-#set(BTSTACK_ROOT ${PICO_SDK_PATH}/lib/btstack)
-# To use it from Bluepad32 (up-to-date, with custom patches for controllers):
-set(BTSTACK_ROOT ${BLUEPAD32_ROOT}/external/btstack)
-set(PICO_BTSTACK_PATH ${BTSTACK_ROOT})
+set(BTSTACK_ROOT ${PICO_SDK_PATH}/lib/btstack)
+
+# If you want to use latest BTstack (included in Bluepad32 repo),
+# uncomment the following lines, and comment the one above this one.
+#set(BTSTACK_ROOT ${BLUEPAD32_ROOT}/external/btstack)
+# Add missing files here. See:
+# https://github.com/bluekitchen/btstack/issues/649
+# https://github.com/raspberrypi/pico-sdk/issues/2142
+#set(BTSTACK_MISSING_SOURCES
+#    ${BTSTACK_ROOT}/src/hci_event_builder.c
+#)
+#set(PICO_BTSTACK_PATH ${BTSTACK_ROOT})
 
 # initialize the SDK based on PICO_SDK_PATH
 # note: this must happen before project()
@@ -27,12 +35,6 @@ set(CMAKE_CXX_STANDARD 17)
 # initialize the Raspberry Pi Pico SDK
 pico_sdk_init()
 
-# Add missing files here. See:
-# https://github.com/bluekitchen/btstack/issues/649
-# https://github.com/raspberrypi/pico-sdk/issues/2142
-set(BTSTACK_MISSING_SOURCES
-    ${BTSTACK_ROOT}/src/hci_event_builder.c
-)
 
 add_executable(bluepad32_picow_example_app
     src/main.c
@@ -51,6 +53,8 @@ include_directories(bluepad32_picow_example_app src)
 # Needed when using BTstack from our branch
 include_directories(${BTSTACK_ROOT}/3rd-party/bluedroid/encoder/include)
 include_directories(${BTSTACK_ROOT}/3rd-party/bluedroid/decoder/include)
+# Need for certain IDEs, like CLion. Otherwise it won't find btstack
+include_directories(${BTSTACK_ROOT}/src)
 
 target_link_libraries(bluepad32_picow_example_app PUBLIC
     pico_stdlib
