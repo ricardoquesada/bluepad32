@@ -63,7 +63,6 @@ jobs:
         esp_idf_version: release-v5.3
         target: esp32-c6
         path: 'examples/esp32'
-        command: |
         command: "idf.py set-target esp32c6 && idf.py build"
 
     - name: Example ESP32-H2 build
