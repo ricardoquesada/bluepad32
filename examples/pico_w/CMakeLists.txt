@@ -14,15 +14,17 @@ set(BLUEPAD32_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 set(BTSTACK_ROOT ${PICO_SDK_PATH}/lib/btstack)
 
 # If you want to use latest BTstack (included in Bluepad32 repo),
-# uncomment the following lines, and comment the one above this one.
+# uncomment the following lines:
+# -- uncomment from here:
 #set(BTSTACK_ROOT ${BLUEPAD32_ROOT}/external/btstack)
+#set(PICO_BTSTACK_PATH ${BTSTACK_ROOT})
 # Add missing files here. See:
 # https://github.com/bluekitchen/btstack/issues/649
 # https://github.com/raspberrypi/pico-sdk/issues/2142
 #set(BTSTACK_MISSING_SOURCES
 #    ${BTSTACK_ROOT}/src/hci_event_builder.c
 #)
-#set(PICO_BTSTACK_PATH ${BTSTACK_ROOT})
+# -- uncomment until here
 
 # initialize the SDK based on PICO_SDK_PATH
 # note: this must happen before project()
