@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Changed
 - BTstack: Using v1.6.2
 - Documentation: Updated FAQ and Arduino docs.
+- BLE: Connection should be a bit more reliable. No longer depends on having encryption enabled.
 
 [github_issue_105]: https://github.com/ricardoquesada/bluepad32/issues/105
 
