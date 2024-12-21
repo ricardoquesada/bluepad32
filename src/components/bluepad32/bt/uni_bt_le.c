@@ -388,10 +388,11 @@ static void device_information_packet_handler(uint8_t packet_type, uint16_t chan
                     }
 
                     // Continue - query primary services.
-                    logi("Search for HID service.\n");
+                    logi("Search for HID service, con_handle: %#x\n", con_handle);
                     status = hids_client_connect(con_handle, hids_client_packet_handler, HID_PROTOCOL_MODE_REPORT,
                                                  &hids_cid);
                     if (status == ERROR_CODE_COMMAND_DISALLOWED) {
+                        logi("HID client connection failed with COMMAND_DISALLOWED, ignoring \n");
                         // Means that a HIDS client connection is already present.
                         // We forgot to delete it.
                         // hids_client_disconnect(con_handle);
@@ -540,6 +541,7 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
     uint8_t status;
     uint8_t type;
     hci_con_handle_t con_handle;
+    bool request_device_information_query;
 
     ARG_UNUSED(channel);
     ARG_UNUSED(size);
@@ -548,6 +550,8 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
         loge("sm_packet_handler: unsupported packet type: %#x\n", packet_type);
         return;
     }
+
+    request_device_information_query = false;
 
     type = hci_event_packet_get_type(packet);
     switch (type) {
@@ -593,6 +597,7 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
             switch (sm_event_reencryption_complete_get_status(packet)) {
                 case ERROR_CODE_SUCCESS:
                     logi("Re-encryption complete, success\n");
+                    request_device_information_query = true;
                     break;
                 case ERROR_CODE_CONNECTION_TIMEOUT:
                     logi("Re-encryption failed, timeout\n");
@@ -618,8 +623,8 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
         case SM_EVENT_PAIRING_COMPLETE:
             sm_event_pairing_complete_get_address(packet, addr);
             device = uni_hid_device_get_instance_for_address(addr);
+            con_handle = sm_event_pairing_complete_get_handle(packet);
             if (!device) {
-                con_handle = sm_event_pairing_complete_get_handle(packet);
                 loge("SM_EVENT_PAIRING_COMPLETE: Invalid device for addr %s\n", bd_addr_to_str(addr));
                 hog_disconnect(con_handle);
                 break;
@@ -629,6 +634,7 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
             switch (status) {
                 case ERROR_CODE_SUCCESS:
                     logi("Pairing complete, success\n");
+                    request_device_information_query = true;
                     break;
                 case ERROR_CODE_CONNECTION_TIMEOUT:
                     logi("Pairing failed, timeout\n");
@@ -644,9 +650,6 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
                     break;
             }
 
-            if (status == ERROR_CODE_SUCCESS)
-                return;
-
             // TODO: Double check
             // Do not disconnect. Sometimes it appears as "failure" although
             // the connection as Ok (???)
@@ -656,6 +659,14 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
         default:
             loge("Unknown SM packet type: %#x\n", type);
             break;
+    }
+
+    if (request_device_information_query) {
+        logi("Requesting device information\n");
+        status = device_information_service_client_query(con_handle, device_information_packet_handler);
+        if (status != ERROR_CODE_SUCCESS) {
+            loge("Failed to set device information client: %#x\n", status);
+        }
     }
 }
 
@@ -700,7 +711,6 @@ void uni_bt_le_on_hci_event_le_meta(const uint8_t* packet, uint16_t size) {
 void uni_bt_le_on_hci_event_encryption_change(const uint8_t* packet, uint16_t size) {
     uni_hid_device_t* device;
     hci_con_handle_t con_handle;
-    uint8_t status;
 
     ARG_UNUSED(size);
 
@@ -725,12 +735,6 @@ void uni_bt_le_on_hci_event_encryption_change(const uint8_t* packet, uint16_t si
     if (hci_event_encryption_change_get_encryption_enabled(packet) == 0) {
         logi("Encryption failed -> abort\n");
         hog_disconnect(con_handle);
-        return;
-    }
-
-    status = device_information_service_client_query(con_handle, device_information_packet_handler);
-    if (status != ERROR_CODE_SUCCESS) {
-        loge("Failed to set device information client: %#x\n", status);
     }
 }
 
