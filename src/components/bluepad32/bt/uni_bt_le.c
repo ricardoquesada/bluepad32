@@ -45,8 +45,11 @@
  *  uni_bt_le_on_gap_event_advertising_report()
  *      -> hog_connect()
  *  sm_packet_handler()
+ *  wait for SM_EVENT_REENCRYPTION_COMPLETE or SM_EVENT_PAIRING_COMPLETE
  *  device_information_packet_handler()
+ *  wait for GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_DONE
  *  hids_client_packet_handler()
+ *  wait for GATTSERVICE_SUBEVENT_HID_SERVICE_CONNECTED
  *  uni_hid_device_set_ready()
  */
 

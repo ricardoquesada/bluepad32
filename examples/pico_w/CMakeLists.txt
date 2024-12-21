@@ -48,6 +48,13 @@ target_include_directories(bluepad32_picow_example_app PRIVATE
     src
     ${BLUEPAD32_ROOT}/src/components/bluepad32/include)
 
+# Useful for debugging
+#target_compile_definitions(bluepad32_picow_example_app INTERFACE
+#        PICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=3000
+#        WANT_HCI_DUMP=1 # This enables btstack debug
+#        ENABLE_SEGGER_RTT=1
+#)
+
 # Needed for btstack_config.h / sdkconfig.h
 # so that libbluepad32 can include them
 include_directories(bluepad32_picow_example_app src)
