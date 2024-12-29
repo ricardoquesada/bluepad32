@@ -17,7 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Changed
 - BTstack: Using v1.6.2
 - Documentation: Updated FAQ and Arduino docs.
+- Pico W: Updated `btstack_config.h`. Disables malloc, enables some BTstack features, and some minor changes
+- Pico W: Updated instructions to use Pico Debug probe
+- Pico W: Updated CMakeLists.txt with option to dump HCI packets.
 - BLE: Connection should be a bit more reliable. No longer depends on having encryption enabled.
+- Core: packet handlers have the `uni_` prefix. Useful to avoid collision when putting breakpoints.
 
 [github_issue_105]: https://github.com/ricardoquesada/bluepad32/issues/105
 
