@@ -37,7 +37,7 @@ static fn_t setup_fns[] = {
     &setup_set_event_filter,
 };
 static setup_state_t setup_state = SETUP_STATE_BTSTACK_IN_PROGRESS;
-static btstack_packet_callback_registration_t hci_event_callback_registration;
+static btstack_packet_callback_registration_t uni_hci_event_callback_registration;
 
 // SDP
 // #define MAX_ATTRIBUTE_VALUE_SIZE 300
@@ -144,8 +144,8 @@ int uni_bt_setup(void) {
     logi("BLE support: %s\n", ble_enabled ? "enabled" : "disabled");
 
     // register for HCI events
-    hci_event_callback_registration.callback = &uni_bt_packet_handler;
-    hci_add_event_handler(&hci_event_callback_registration);
+    uni_hci_event_callback_registration.callback = &uni_bt_packet_handler;
+    hci_add_event_handler(&uni_hci_event_callback_registration);
 
     if (IS_ENABLED(UNI_ENABLE_BREDR) && bredr_enabled)
         uni_bt_bredr_setup();

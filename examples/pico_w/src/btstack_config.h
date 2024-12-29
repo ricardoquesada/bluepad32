@@ -1,14 +1,37 @@
 #ifndef _PICO_BTSTACK_BTSTACK_CONFIG_H
 #define _PICO_BTSTACK_BTSTACK_CONFIG_H
 
+// Copy & paste from, with some custom changes:
+// https://github.com/raspberrypi/pico-examples/blob/master/pico_w/bt/config/btstack_config.h
+
 // BTstack features that can be enabled
-#define ENABLE_LE_PERIPHERAL
-#define ENABLE_LE_CENTRAL
-#define ENABLE_L2CAP_LE_CREDIT_BASED_FLOW_CONTROL_MODE
 #define ENABLE_LOG_INFO
 #define ENABLE_LOG_ERROR
 #define ENABLE_PRINTF_HEXDUMP
 #define ENABLE_SCO_OVER_HCI
+
+#ifdef ENABLE_BLE
+#define ENABLE_GATT_CLIENT_PAIRING
+#define ENABLE_L2CAP_LE_CREDIT_BASED_FLOW_CONTROL_MODE
+#define ENABLE_LE_CENTRAL
+#define ENABLE_LE_DATA_LENGTH_EXTENSION
+#define ENABLE_LE_PERIPHERAL
+#define ENABLE_LE_PRIVACY_ADDRESS_RESOLUTION
+#define ENABLE_LE_SECURE_CONNECTIONS
+#else
+#error "BP32: ENABLE_BLE should be defined"
+#endif
+
+#ifdef ENABLE_CLASSIC
+#define ENABLE_L2CAP_ENHANCED_RETRANSMISSION_MODE
+#define ENABLE_GOEP_L2CAP
+#else
+#error "BP32: ENABLE_CLASSIC should be defined"
+#endif
+
+#if defined(ENABLE_CLASSIC) && defined(ENABLE_BLE)
+#define ENABLE_CROSS_TRANSPORT_KEY_DERIVATION
+#endif
 
 // BTstack configuration. buffers, sizes, ...
 #define HCI_OUTGOING_PRE_BUFFER_SIZE 4
@@ -51,8 +74,7 @@
 #define NVM_NUM_LINK_KEYS 16
 
 // We don't give btstack a malloc, so use a fixed-size ATT DB.
-// #define MAX_ATT_DB_SIZE 512
-#define HAVE_MALLOC
+#define MAX_ATT_DB_SIZE 512
 
 // BTstack HAL configuration
 #define HAVE_EMBEDDED_TIME_MS
@@ -68,11 +90,7 @@
 
 #define HAVE_BTSTACK_STDIN
 
-// To get the audio demos working even with HCI dump at 115200, this truncates long ACL packetws
+// To get the audio demos working even with HCI dump at 115200, this truncates long ACL packets
 // #define HCI_DUMP_STDOUT_MAX_SIZE_ACL 100
 
-#ifdef ENABLE_CLASSIC
-#define ENABLE_L2CAP_ENHANCED_RETRANSMISSION_MODE
-#endif
-
-#endif  // MICROPY_INCLUDED_EXTMOD_BTSTACK_BTSTACK_CONFIG_H
+#endif  // _PICO_BTSTACK_BTSTACK_CONFIG_H

@@ -44,11 +44,11 @@
  * Execution order:
  *  uni_bt_le_on_gap_event_advertising_report()
  *      -> hog_connect()
- *  sm_packet_handler()
+ *  uni_sm_packet_handler()
  *  wait for SM_EVENT_REENCRYPTION_COMPLETE or SM_EVENT_PAIRING_COMPLETE
- *  device_information_packet_handler()
+ *  uni_device_information_packet_handler()
  *  wait for GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_DONE
- *  hids_client_packet_handler()
+ *  uni_hids_client_packet_handler()
  *  wait for GATTSERVICE_SUBEVENT_HID_SERVICE_CONNECTED
  *  uni_hid_device_set_ready()
  */
@@ -243,7 +243,7 @@ static void parse_report(const uint8_t* packet, uint16_t size) {
     uni_hid_device_process_controller(device);
 }
 
-static void hids_client_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
+static void uni_hids_client_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     uint8_t status;
     uint16_t hids_cid;
     uni_hid_device_t* device;
@@ -257,14 +257,14 @@ static void hids_client_packet_handler(uint8_t packet_type, uint16_t channel, ui
 #if 0
     // FIXME: Bug in BTStack??? This comparison fails because packet_type is HCI_EVENT_GATTSERVICE_META
     if (packet_type != HCI_EVENT_PACKET) {
-        loge("hids_client_packet_handler: unsupported packet type: %#x\n", packet_type);
+        loge("uni_hids_client_packet_handler: unsupported packet type: %#x\n", packet_type);
         return;
     }
 #endif
 
     event_type = hci_event_packet_get_type(packet);
     if (event_type != HCI_EVENT_GATTSERVICE_META) {
-        loge("hids_client_packet_handler: unsupported event type: %#x\n", event_type);
+        loge("uni_hids_client_packet_handler: unsupported event type: %#x\n", event_type);
         return;
     }
 
@@ -345,7 +345,10 @@ static void hids_client_packet_handler(uint8_t packet_type, uint16_t channel, ui
     }
 }
 
-static void device_information_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
+static void uni_device_information_packet_handler(uint8_t packet_type,
+                                                  uint16_t channel,
+                                                  uint8_t* packet,
+                                                  uint16_t size) {
     uint8_t code;
     uint8_t status;
     uint8_t att_status;
@@ -358,13 +361,13 @@ static void device_information_packet_handler(uint8_t packet_type, uint16_t chan
     UNUSED(size);
 
     if (packet_type != HCI_EVENT_PACKET) {
-        loge("device_information_packet_handler: unsupported packet type: %#x\n", packet_type);
+        loge("uni_device_information_packet_handler: unsupported packet type: %#x\n", packet_type);
         return;
     }
 
     event_type = hci_event_packet_get_type(packet);
     if (event_type != HCI_EVENT_GATTSERVICE_META) {
-        loge("device_information_packet_handler: unsupported event type: %#x\n", event_type);
+        loge("uni_device_information_packet_handler: unsupported event type: %#x\n", event_type);
         return;
     }
 
@@ -392,7 +395,7 @@ static void device_information_packet_handler(uint8_t packet_type, uint16_t chan
 
                     // Continue - query primary services.
                     logi("Search for HID service, con_handle: %#x\n", con_handle);
-                    status = hids_client_connect(con_handle, hids_client_packet_handler, HID_PROTOCOL_MODE_REPORT,
+                    status = hids_client_connect(con_handle, uni_hids_client_packet_handler, HID_PROTOCOL_MODE_REPORT,
                                                  &hids_cid);
                     if (status == ERROR_CODE_COMMAND_DISALLOWED) {
                         logi("HID client connection failed with COMMAND_DISALLOWED, ignoring \n");
@@ -538,7 +541,7 @@ static void device_information_packet_handler(uint8_t packet_type, uint16_t chan
  * pairing. It also receives events generated during Identity Resolving see
  * Listing SMPacketHandler.
  */
-static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
+static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     bd_addr_t addr;
     uni_hid_device_t* device;
     uint8_t status;
@@ -550,7 +553,7 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
     ARG_UNUSED(size);
 
     if (packet_type != HCI_EVENT_PACKET) {
-        loge("sm_packet_handler: unsupported packet type: %#x\n", packet_type);
+        loge("uni_sm_packet_handler: unsupported packet type: %#x\n", packet_type);
         return;
     }
 
@@ -666,7 +669,7 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
 
     if (request_device_information_query) {
         logi("Requesting device information\n");
-        status = device_information_service_client_query(con_handle, device_information_packet_handler);
+        status = device_information_service_client_query(con_handle, uni_device_information_packet_handler);
         if (status != ERROR_CODE_SUCCESS) {
             loge("Failed to set device information client: %#x\n", status);
         }
@@ -870,7 +873,7 @@ void uni_bt_le_delete_bonded_keys(void) {
 
 void uni_bt_le_setup(void) {
     // register for events from Security Manager
-    sm_event_callback_registration.callback = &sm_packet_handler;
+    sm_event_callback_registration.callback = &uni_sm_packet_handler;
     sm_add_event_handler(&sm_event_callback_registration);
 
     // Setup LE device db
