@@ -50,3 +50,7 @@ ui_*.h
 
 # Vagrant stuff
 .vagrant
+
+# ESP32 related
+sdkconfig
+dependencies.lock
