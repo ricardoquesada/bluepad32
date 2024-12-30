@@ -53,4 +53,5 @@ ui_*.h
 
 # ESP32 related
 sdkconfig
+sdkconfig.old
 dependencies.lock
