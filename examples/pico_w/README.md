@@ -34,7 +34,7 @@ cmake ..
 make -j
 ```
 
-If `PICO_BOARD` is not specified,  it will use `pico_w`. To compile it for Pico 2 W, do:
+If `PICO_BOARD` is not specified, it will use `pico_w`. To compile it for Pico 2 W, do:
 
 ```shell
 # From the recently crated "build" folder
@@ -88,7 +88,7 @@ sudo openocd -f interface/cmsis-dap.cfg -f target/rp2040.cfg -c "adapter speed 5
 
 ```shell
 arm-none-eabi-gdb bluepad32_picow_example_app.elf
-> target remote localhost:3333
+> target remote :3333
 > monitor reset init
 > continue
 ```
