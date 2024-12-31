@@ -33,20 +33,20 @@ endif()
 # note: this must happen before project()
 include(btstack_import.cmake)
 
-add_executable(bluepad32_posix_example_app
+add_executable(${PROJECT_NAME}
 		src/main.c
 		src/my_platform.c
 )
 
-target_include_directories(bluepad32_posix_example_app PRIVATE
+target_include_directories(${PROJECT_NAME} PRIVATE
     src
     ${BLUEPAD32_ROOT}/src/components/bluepad32/include)
 
 # Needed for btstack_config.h / sdkconfig.h
 # so that libbluepad32 can include them
-include_directories(bluepad32_posix_example_app src)
+include_directories(${PROJECT_NAME} src)
 
-target_link_libraries(bluepad32_posix_example_app
+target_link_libraries(${PROJECT_NAME}
     bluepad32
     btstack
     m

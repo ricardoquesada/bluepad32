@@ -23,6 +23,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - BLE: Connection should be a bit more reliable. No longer depends on having encryption enabled.
 - Core: packet handlers have the `uni_` prefix. Useful to avoid collision when putting breakpoints.
 
+## Fixed
+
+- Switch driver:
+  - Increased timeout
+  - Fixed typo on pro joystick calibration
+  - Made sure right joycon calibration is mapped to right location
+  - Implemented a user calibration check and updated stick cal if true
+- Examples: Cleanup CMakeLists.txt
+
 [github_issue_105]: https://github.com/ricardoquesada/bluepad32/issues/105
 
 ## [4.1.0] - 2024-06-03

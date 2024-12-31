@@ -43,6 +43,9 @@
     - Nunchuk values can be read independently of Wii Mote
 - C.Lee Taylor
     - Updated Supported Gamepads doc.
+- Michael Campbell
+    - Switch driver improvements
+
 
 ## People who contributed with ideas and/or testing
 
