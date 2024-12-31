@@ -38,18 +38,18 @@ set(CMAKE_CXX_STANDARD 17)
 pico_sdk_init()
 
 
-add_executable(bluepad32_picow_example_app
+add_executable(${PROJECT_NAME}
     src/main.c
     src/my_platform.c
     ${BTSTACK_MISSING_SOURCES}
 )
 
-target_include_directories(bluepad32_picow_example_app PRIVATE
+target_include_directories(${PROJECT_NAME} PRIVATE
     src
     ${BLUEPAD32_ROOT}/src/components/bluepad32/include)
 
 # Useful for debugging
-#target_compile_definitions(bluepad32_picow_example_app PRIVATE
+#target_compile_definitions(${PROJECT_NAME} PRIVATE
 #        PICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=3000
 #        WANT_HCI_DUMP=1 # This enables btstack debug
 #        ENABLE_SEGGER_RTT=1
@@ -57,7 +57,7 @@ target_include_directories(bluepad32_picow_example_app PRIVATE
 
 # Needed for btstack_config.h / sdkconfig.h
 # so that libbluepad32 can include them
-include_directories(bluepad32_picow_example_app src)
+include_directories(${PROJECT_NAME} src)
 
 # Needed when using BTstack from our branch
 include_directories(${BTSTACK_ROOT}/3rd-party/bluedroid/encoder/include)
@@ -65,7 +65,7 @@ include_directories(${BTSTACK_ROOT}/3rd-party/bluedroid/decoder/include)
 # Need for certain IDEs, like CLion. Otherwise it won't find btstack
 include_directories(${BTSTACK_ROOT}/src)
 
-target_link_libraries(bluepad32_picow_example_app PUBLIC
+target_link_libraries(${PROJECT_NAME} PUBLIC
     pico_stdlib
     pico_cyw43_arch_none
     pico_btstack_classic
@@ -75,8 +75,8 @@ target_link_libraries(bluepad32_picow_example_app PUBLIC
 
 add_subdirectory(${BLUEPAD32_ROOT}/src/components/bluepad32 libbluepad32)
 
-pico_enable_stdio_usb(bluepad32_picow_example_app 1)
-pico_enable_stdio_uart(bluepad32_picow_example_app 0)
+pico_enable_stdio_usb(${PROJECT_NAME} 1)
+pico_enable_stdio_uart(${PROJECT_NAME} 0)
 
 # create map/bin/hex/uf2 file in addition to ELF.
-pico_add_extra_outputs(bluepad32_picow_example_app)
+pico_add_extra_outputs(${PROJECT_NAME})
