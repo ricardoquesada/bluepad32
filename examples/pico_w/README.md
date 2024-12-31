@@ -81,7 +81,7 @@ sudo openocd -f interface/cmsis-dap.cfg -f target/rp2040.cfg -c "adapter speed 5
 
 ```shell
 # Open OpenOCD
-sudo openocd -f interface/cmsis-dap.cfg -f target/rp2040.cfg -c "adapter speed 5000"
+sudo openocd -f interface/cmsis-dap.cfg -f target/rp2040.cfg -c "adapter speed 5000" -s "${PICO_SDK_PATH}/src/rp2040/hardware_regs/RP2040.svd"
 ```
 
 ### Terminal 2
