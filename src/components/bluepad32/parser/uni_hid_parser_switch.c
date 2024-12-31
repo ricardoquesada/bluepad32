@@ -40,8 +40,11 @@ static const uint16_t SWITCH_ONLINE_SNES_CONTROLLER_PID = 0x2017;
 #define SWITCH_FACTORY_STICK_CAL_DATA_SIZE 9
 static const uint16_t SWITCH_FACTORY_STICK_CAL_DATA_ADDR_LEFT = 0x603d;
 static const uint16_t SWITCH_FACTORY_STICK_CAL_DATA_ADDR_RIGHT = 0x6046;
-#define SWITCH_USER_STICK_CAL_DATA_SIZE 2
-static const uint16_t SWITCH_USER_STICK_CAL_DATA_ADDR = 0x8010;
+#define SWITCH_USER_STICK_CAL_DATA_SIZE 11
+#define SWITCH_USER_STICK_CAL_CHECK_0		 0xB2
+#define SWITCH_USER_STICK_CAL_CHECK_1		 0xA1
+static const uint16_t SWITCH_USER_STICK_CAL_DATA_ADDR_LEFT = 0x8010;
+static const uint16_t SWITCH_USER_STICK_CAL_DATA_ADDR_RIGHT = 0x801B;
 
 // Constants taken from Linux kernel / Nintendo Rev.Eng doc
 static const int16_t DEFAULT_ACCEL_OFFSET = 0;
@@ -54,7 +57,7 @@ static const int16_t DEFAULT_GYRO_SCALE = 13371;
 static const uint16_t SWITCH_FACTORY_IMU_CAL_DATA_ADDR = 0x6020;
 
 #define SWITCH_DUMP_ROM_DATA_SIZE 24  // Max size is 24
-#define SWITCH_SETUP_TIMEOUT_MS 600
+#define SWITCH_SETUP_TIMEOUT_MS 800
 #if ENABLE_SPI_FLASH_DUMP
 static const uint32_t SWITCH_DUMP_ROM_DATA_ADDR_START = 0x20000;
 static const uint32_t SWITCH_DUMP_ROM_DATA_ADDR_END = 0x30000;
@@ -507,7 +510,7 @@ static void process_reply_read_spi_factory_stick_calibration(struct uni_hid_devi
         }
 
         parse_stick_calibration(&ins->cal_x, &ins->cal_y, data, true);
-        parse_stick_calibration(&ins->cal_rx, &ins->cal_y, &data[9], false);
+        parse_stick_calibration(&ins->cal_rx, &ins->cal_ry, &data[9], false);
     } else {
         if (len < SWITCH_FACTORY_STICK_CAL_DATA_SIZE) {
             // If data is longer than expected, we treat it as Ok.
@@ -519,7 +522,11 @@ static void process_reply_read_spi_factory_stick_calibration(struct uni_hid_devi
             return;
         }
         is_left = ins->controller_type == SWITCH_CONTROLLER_TYPE_JCL;
-        parse_stick_calibration(&ins->cal_x, &ins->cal_y, data, is_left);
+        if (is_left){
+            parse_stick_calibration(&ins->cal_x, &ins->cal_y, data, is_left);
+        } else {
+            parse_stick_calibration(&ins->cal_rx, &ins->cal_ry, data, is_left);
+        }
     }
 
     if (ins->controller_type == SWITCH_CONTROLLER_TYPE_PRO || ins->controller_type == SWITCH_CONTROLLER_TYPE_JCL)
@@ -539,14 +546,69 @@ static void process_reply_read_spi_factory_stick_calibration(struct uni_hid_devi
 }
 
 static void process_reply_read_spi_user_stick_calibration(struct uni_hid_device_s* d, const uint8_t* data, int len) {
-    ARG_UNUSED(d);
-    ARG_UNUSED(data);
-    ARG_UNUSED(len);
+    switch_instance_t* ins = get_switch_instance(d);
+    bool is_left;
+    bool process_left = false;
+    bool process_right = false;
+    uint8_t data_pointer = 2;
+    logi("Switch: Got magic bits 0x%02x 0x%02x\n", data[0], data[1]);
+    if (ins->controller_type == SWITCH_CONTROLLER_TYPE_PRO) {
+        // If data is longer than expected, we treat it as Ok.
+        // Clones might report longer length.
+        // See: https://github.com/ricardoquesada/bluepad32/issues/94
+        if (len < SWITCH_FACTORY_STICK_CAL_DATA_SIZE * 2) {
+            loge("Switch: invalid spi factory stick calibration len; got %d, wanted >= %d\n", len,
+                 SWITCH_FACTORY_STICK_CAL_DATA_SIZE * 2);
+            printf_hexdump(data, len);
+            return;
+        }
+        if (data[0] == SWITCH_USER_STICK_CAL_CHECK_0 && data[1] ==SWITCH_USER_STICK_CAL_CHECK_1){
+            process_left = true;
+        }
+        if (data[11] == SWITCH_USER_STICK_CAL_CHECK_0 && data[12] ==SWITCH_USER_STICK_CAL_CHECK_1){
+            data_pointer = 13;
+            process_right = true;
+        }
+    } else {
+        if (len < SWITCH_FACTORY_STICK_CAL_DATA_SIZE) {
+            // If data is longer than expected, we treat it as Ok.
+            // Clones might report longer length.
+            // See: https://github.com/ricardoquesada/bluepad32/issues/94
+            loge("Switch: invalid spi factory stick calibration len; got %d, wanted >= %d\n", len,
+                 SWITCH_FACTORY_STICK_CAL_DATA_SIZE);
+            printf_hexdump(data, len);
+            return;
+        }
+         if (data[0] == SWITCH_USER_STICK_CAL_CHECK_0 && data[1] ==SWITCH_USER_STICK_CAL_CHECK_1){
+            is_left = ins->controller_type == SWITCH_CONTROLLER_TYPE_JCL;
+            process_left = is_left;
+            process_right = !is_left;
+        }
+    }
 
-    // FIXME: Implement me
+    if (process_left){
+        logi("Switch: Using left user calibration\n");
+        parse_stick_calibration(&ins->cal_x, &ins->cal_y, &data[2], true);
+    }
+    if (process_right){
+        logi("Switch: Using right user calibration\n");
+        parse_stick_calibration(&ins->cal_rx, &ins->cal_ry, &data[data_pointer], false);
+    }
 
-    logd("process_reply_read_spi_user_stick_calibration\n");
-    // printf_hexdump(data, len);
+    if (ins->controller_type == SWITCH_CONTROLLER_TYPE_PRO || ins->controller_type == SWITCH_CONTROLLER_TYPE_JCL)
+        logi("Switch: Left stick calibration: x=%d,%d,%d, y=%d,%d,%d\n",  //
+             ins->cal_x.min, ins->cal_x.center,
+             ins->cal_x.max,  // x
+             ins->cal_y.min, ins->cal_y.center,
+             ins->cal_y.max  // y
+        );
+    if (ins->controller_type == SWITCH_CONTROLLER_TYPE_PRO || ins->controller_type == SWITCH_CONTROLLER_TYPE_JCR)
+        logi("Switch: Right stick calibration: x=%d,%d,%d, y=%d,%d,%d\n",  //
+             ins->cal_rx.min, ins->cal_rx.center,
+             ins->cal_rx.max,  // rx
+             ins->cal_ry.min, ins->cal_ry.center,
+             ins->cal_ry.max  // ry
+        );
 }
 
 static void process_reply_read_spi_factory_imu_calibration(struct uni_hid_device_s* d, const uint8_t* data, int len) {
@@ -1046,16 +1108,27 @@ static void fsm_read_user_stick_calibration(struct uni_hid_device_s* d) {
     switch_instance_t* ins = get_switch_instance(d);
     ins->state = STATE_READ_USER_STICK_CALIBRATION;
 
+    // Either my math was bad, or requesting more bytes for the left controller returns invalid calibration.
+    // So for Pro we request both left and right cal data.
+    // But for the JoyCons just the cal data that they need.
+    uint32_t spi_addr = (ins->controller_type == SWITCH_CONTROLLER_TYPE_JCR) ? SWITCH_USER_STICK_CAL_DATA_ADDR_RIGHT
+                                                                             : SWITCH_USER_STICK_CAL_DATA_ADDR_LEFT;
+    uint8_t bytes_to_read = SWITCH_USER_STICK_CAL_DATA_SIZE;
+    // Double, since it requests both left and right
+    if (ins->controller_type == SWITCH_CONTROLLER_TYPE_PRO)
+        bytes_to_read *= 2;
+
     uint8_t out[sizeof(struct switch_subcmd_request) + 5] = {0};
     struct switch_subcmd_request* req = (struct switch_subcmd_request*)&out[0];
     req->report_id = 0x01;  // 0x01 for sub commands
     req->subcmd_id = SUBCMD_SPI_FLASH_READ;
+
     // Address to read from: stick calibration
-    req->data[0] = SWITCH_USER_STICK_CAL_DATA_ADDR & 0xff;
-    req->data[1] = (SWITCH_USER_STICK_CAL_DATA_ADDR >> 8) & 0xff;
-    req->data[2] = (SWITCH_USER_STICK_CAL_DATA_ADDR >> 16) & 0xff;
-    req->data[3] = (SWITCH_USER_STICK_CAL_DATA_ADDR >> 24) & 0xff;
-    req->data[4] = SWITCH_USER_STICK_CAL_DATA_SIZE;
+    req->data[0] = spi_addr & 0xff;
+    req->data[1] = (spi_addr >> 8) & 0xff;
+    req->data[2] = (spi_addr >> 16) & 0xff;
+    req->data[3] = (spi_addr >> 24) & 0xff;
+    req->data[4] = bytes_to_read;
     send_subcmd(d, req, sizeof(out));
 }
 
