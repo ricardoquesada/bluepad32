@@ -546,7 +546,7 @@ static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
     uni_hid_device_t* device;
     uint8_t status;
     uint8_t type;
-    hci_con_handle_t con_handle = -1;
+    hci_con_handle_t con_handle = UNI_BT_CONN_HANDLE_INVALID;
     bool request_device_information_query = false;
 
     ARG_UNUSED(channel);
@@ -666,7 +666,7 @@ static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
     }
 
     if (request_device_information_query) {
-        if (con_handle == -1) {
+        if (con_handle == UNI_BT_CONN_HANDLE_INVALID) {
             // Should not happen.
             loge("Error: Invalid conn_handle: %d\n", con_handle);
             return;
