@@ -546,8 +546,8 @@ static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
     uni_hid_device_t* device;
     uint8_t status;
     uint8_t type;
-    hci_con_handle_t con_handle;
-    bool request_device_information_query;
+    hci_con_handle_t con_handle = -1;
+    bool request_device_information_query = false;
 
     ARG_UNUSED(channel);
     ARG_UNUSED(size);
@@ -556,8 +556,6 @@ static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
         loge("uni_sm_packet_handler: unsupported packet type: %#x\n", packet_type);
         return;
     }
-
-    request_device_information_query = false;
 
     type = hci_event_packet_get_type(packet);
     switch (type) {
@@ -668,6 +666,11 @@ static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
     }
 
     if (request_device_information_query) {
+        if (con_handle == -1) {
+            // Should not happen.
+            loge("Error: Invalid conn_handle: %d\n", con_handle);
+            return;
+        }
         logi("Requesting device information\n");
         status = device_information_service_client_query(con_handle, uni_device_information_packet_handler);
         if (status != ERROR_CODE_SUCCESS) {

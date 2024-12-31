@@ -39,11 +39,11 @@ uint8_t uni_circular_buffer_get(uni_circular_buffer_t* b, int16_t* cid, void** d
     return UNI_CIRCULAR_BUFFER_ERROR_OK;
 }
 
-uint8_t uni_circular_buffer_is_empty(uni_circular_buffer_t* b) {
+uint8_t uni_circular_buffer_is_empty(const uni_circular_buffer_t* b) {
     return (b->head_idx == b->tail_idx);
 }
 
-uint8_t uni_circular_buffer_is_full(uni_circular_buffer_t* b) {
+uint8_t uni_circular_buffer_is_full(const uni_circular_buffer_t* b) {
     return (b->tail_idx + 1 == b->head_idx) || (b->head_idx == 0 && b->tail_idx == UNI_CIRCULAR_BUFFER_SIZE - 1);
 }
 

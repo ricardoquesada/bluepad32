@@ -149,26 +149,26 @@ bool uni_hid_device_is_cod_supported(uint32_t cod);
 uni_error_t uni_hid_device_on_device_discovered(bd_addr_t addr, const char* name, uint16_t cod, uint8_t rssi);
 
 void uni_hid_device_set_hid_descriptor(uni_hid_device_t* d, const uint8_t* descriptor, int len);
-bool uni_hid_device_has_hid_descriptor(uni_hid_device_t* d);
+bool uni_hid_device_has_hid_descriptor(const uni_hid_device_t* d);
 
 void uni_hid_device_set_incoming(uni_hid_device_t* d, bool incoming);
-bool uni_hid_device_is_incoming(uni_hid_device_t* d);
+bool uni_hid_device_is_incoming(const uni_hid_device_t* d);
 
 void uni_hid_device_set_name(uni_hid_device_t* d, const char* name);
-bool uni_hid_device_has_name(uni_hid_device_t* d);
+bool uni_hid_device_has_name(const uni_hid_device_t* d);
 
 void uni_hid_device_set_product_id(uni_hid_device_t* d, uint16_t product_id);
-uint16_t uni_hid_device_get_product_id(uni_hid_device_t* d);
+uint16_t uni_hid_device_get_product_id(const uni_hid_device_t* d);
 
 void uni_hid_device_set_vendor_id(uni_hid_device_t* d, uint16_t vendor_id);
-uint16_t uni_hid_device_get_vendor_id(uni_hid_device_t* d);
+uint16_t uni_hid_device_get_vendor_id(const uni_hid_device_t* d);
 
 void uni_hid_device_dump_device(uni_hid_device_t* d);
 void uni_hid_device_dump_all(void);
 
 bool uni_hid_device_guess_controller_type_from_name(uni_hid_device_t* d, const char* name);
 void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d);
-bool uni_hid_device_has_controller_type(uni_hid_device_t* d);
+bool uni_hid_device_has_controller_type(const uni_hid_device_t* d);
 
 void uni_hid_device_process_controller(uni_hid_device_t* d);
 
@@ -179,12 +179,12 @@ void uni_hid_device_send_intr_report(uni_hid_device_t* d, const uint8_t* report,
 void uni_hid_device_send_ctrl_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
 void uni_hid_device_send_queued_reports(uni_hid_device_t* d);
 
-bool uni_hid_device_does_require_hid_descriptor(uni_hid_device_t* d);
+bool uni_hid_device_does_require_hid_descriptor(const uni_hid_device_t* d);
 
-bool uni_hid_device_is_gamepad(uni_hid_device_t* d);
-bool uni_hid_device_is_mouse(uni_hid_device_t* d);
-bool uni_hid_device_is_keyboard(uni_hid_device_t* d);
+bool uni_hid_device_is_gamepad(const uni_hid_device_t* d);
+bool uni_hid_device_is_mouse(const uni_hid_device_t* d);
+bool uni_hid_device_is_keyboard(const uni_hid_device_t* d);
 
-bool uni_hid_device_is_virtual_device(uni_hid_device_t* d);
+bool uni_hid_device_is_virtual_device(const uni_hid_device_t* d);
 
 #endif  // UNI_HID_DEVICE_H

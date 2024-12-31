@@ -102,7 +102,7 @@ static void parse_thumbstick(struct uni_hid_device_s* d, const uint8_t* data);
 static void parse_right_pad(struct uni_hid_device_s* d, const uint8_t* data);
 
 // TODO: Make it easier for "parsers" to write/read/get notified from characteristics
-static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
+static void uni_steam_handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     uint8_t att_status;
 
     ARG_UNUSED(channel);
@@ -129,7 +129,7 @@ static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint
                     }
                     // service query complete, look for characteristic report
                     query_state = STATE_QUERY_CHARACTERISTIC_REPORT;
-                    gatt_client_discover_characteristics_for_service_by_uuid128(handle_gatt_client_event,
+                    gatt_client_discover_characteristics_for_service_by_uuid128(uni_steam_handle_gatt_client_event,
                                                                                 connection_handle, &le_steam_service,
                                                                                 le_steam_characteristic_report_uuid);
                     break;
@@ -147,7 +147,7 @@ static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint
                         // gap_disconnect(connection_handle);
                         break;
                     }
-                    gatt_client_write_value_of_characteristic(handle_gatt_client_event, connection_handle,
+                    gatt_client_write_value_of_characteristic(uni_steam_handle_gatt_client_event, connection_handle,
                                                               le_steam_characteristic_report.value_handle,
                                                               sizeof(cmd_clear_mappings), cmd_clear_mappings);
                     query_state = STATE_QUERY_CLEAR_MAPPINGS;
@@ -169,7 +169,7 @@ static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint
                         // gap_disconnect(connection_handle);
                         break;
                     }
-                    gatt_client_write_value_of_characteristic(handle_gatt_client_event, connection_handle,
+                    gatt_client_write_value_of_characteristic(uni_steam_handle_gatt_client_event, connection_handle,
                                                               le_steam_characteristic_report.value_handle,
                                                               sizeof(cmd_disable_lizard), cmd_disable_lizard);
                     query_state = STATE_QUERY_DISABLE_LIZARD;
@@ -207,7 +207,8 @@ void uni_hid_parser_steam_setup(struct uni_hid_device_s* d) {
     device = d;
     connection_handle = d->conn.handle;
     query_state = STATE_QUERY_SERVICE;
-    gatt_client_discover_primary_services_by_uuid128(handle_gatt_client_event, d->conn.handle, le_steam_service_uuid);
+    gatt_client_discover_primary_services_by_uuid128(uni_steam_handle_gatt_client_event, d->conn.handle,
+                                                     le_steam_service_uuid);
 
     // Set the type of controller class once.
     uni_controller_t* ctl = &d->controller;

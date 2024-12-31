@@ -206,6 +206,7 @@ void uni_bt_bredr_process_fsm(uni_hid_device_t* d) {
     // logi("uni_bt_process_fsm: %p = 0x%02x\n", d, d->state);
     if (d == NULL) {
         loge("uni_bt_process_fsm: Invalid device\n");
+        return;
     }
     // Two possible flows:
     // - Incoming (initiated by gamepad)

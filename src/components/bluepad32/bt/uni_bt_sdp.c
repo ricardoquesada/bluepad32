@@ -81,7 +81,7 @@ static void sdp_query_timeout(btstack_timer_source_t* ts);
 static uint8_t device_id_sdp_service_buffer[100];
 
 // HID results: HID descriptor, PSM interrupt, PSM control, etc.
-static void handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
+static void uni_handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     ARG_UNUSED(packet_type);
     ARG_UNUSED(channel);
     ARG_UNUSED(size);
@@ -92,7 +92,7 @@ static void handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel, u
     uint8_t* element;
 
     if (sdp_device == NULL) {
-        loge("ERROR: handle_sdp_hid_query_result. SDP device = NULL\n");
+        loge("ERROR: uni_handle_sdp_hid_query_result. SDP device = NULL\n");
         return;
     }
 
@@ -141,7 +141,7 @@ static void handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel, u
 }
 
 // Device ID results: Vendor ID, Product ID, Version, etc...
-static void handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
+static void uni_handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     ARG_UNUSED(packet_type);
     ARG_UNUSED(channel);
     ARG_UNUSED(size);
@@ -149,7 +149,7 @@ static void handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, u
     uint16_t id16;
 
     if (sdp_device == NULL) {
-        loge("ERROR: handle_sdp_pid_query_result. SDP device = NULL\n");
+        loge("ERROR: uni_handle_sdp_pid_query_result. SDP device = NULL\n");
         return;
     }
 
@@ -192,7 +192,7 @@ static void handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, u
             break;
         default:
             // TODO: xxx
-            logd("TODO: handle_sdp_pid_query_result. switch->default triggered\n");
+            logd("TODO: uni_handle_sdp_pid_query_result. switch->default triggered\n");
             break;
     }
 }
@@ -248,8 +248,8 @@ void uni_bt_sdp_query_start_vid_pid(uni_hid_device_t* d) {
     logi("Starting SDP VID/PID query for %s\n", bd_addr_to_str(d->conn.btaddr));
 
     uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_SDP_VENDOR_REQUESTED);
-    uint8_t status =
-        sdp_client_query_uuid16(&handle_sdp_pid_query_result, d->conn.btaddr, BLUETOOTH_SERVICE_CLASS_PNP_INFORMATION);
+    uint8_t status = sdp_client_query_uuid16(&uni_handle_sdp_pid_query_result, d->conn.btaddr,
+                                             BLUETOOTH_SERVICE_CLASS_PNP_INFORMATION);
     if (status != 0) {
         loge("Failed to perform SDP VID/PID query\n");
         uni_hid_device_disconnect(d);
@@ -275,7 +275,7 @@ void uni_bt_sdp_query_start_hid_descriptor(uni_hid_device_t* d) {
     }
 
     uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_REQUESTED);
-    uint8_t status = sdp_client_query_uuid16(&handle_sdp_hid_query_result, d->conn.btaddr,
+    uint8_t status = sdp_client_query_uuid16(&uni_handle_sdp_hid_query_result, d->conn.btaddr,
                                              BLUETOOTH_SERVICE_CLASS_HUMAN_INTERFACE_DEVICE_SERVICE);
     if (status != 0) {
         loge("Failed to perform SDP query for %s. Removing it...\n", bd_addr_to_str(d->conn.btaddr));

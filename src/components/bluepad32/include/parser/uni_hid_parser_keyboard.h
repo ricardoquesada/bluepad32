@@ -14,7 +14,7 @@ void uni_hid_parser_keyboard_setup(struct uni_hid_device_s* d);
 void uni_hid_parser_keyboard_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len);
 void uni_hid_parser_keyboard_init_report(struct uni_hid_device_s* d);
 void uni_hid_parser_keyboard_parse_usage(struct uni_hid_device_s* d,
-                                         hid_globals_t* globals,
+                                         const hid_globals_t* globals,
                                          uint16_t usage_page,
                                          uint16_t usage,
                                          int32_t value);

@@ -12,7 +12,7 @@
 // Android devices
 void uni_hid_parser_android_init_report(struct uni_hid_device_s* d);
 void uni_hid_parser_android_parse_usage(struct uni_hid_device_s* d,
-                                        hid_globals_t* globals,
+                                        const hid_globals_t* globals,
                                         uint16_t usage_page,
                                         uint16_t usage,
                                         int32_t value);

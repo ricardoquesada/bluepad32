@@ -41,8 +41,8 @@ static const uint16_t SWITCH_ONLINE_SNES_CONTROLLER_PID = 0x2017;
 static const uint16_t SWITCH_FACTORY_STICK_CAL_DATA_ADDR_LEFT = 0x603d;
 static const uint16_t SWITCH_FACTORY_STICK_CAL_DATA_ADDR_RIGHT = 0x6046;
 #define SWITCH_USER_STICK_CAL_DATA_SIZE 11
-#define SWITCH_USER_STICK_CAL_CHECK_0		 0xB2
-#define SWITCH_USER_STICK_CAL_CHECK_1		 0xA1
+#define SWITCH_USER_STICK_CAL_CHECK_0 0xB2
+#define SWITCH_USER_STICK_CAL_CHECK_1 0xA1
 static const uint16_t SWITCH_USER_STICK_CAL_DATA_ADDR_LEFT = 0x8010;
 static const uint16_t SWITCH_USER_STICK_CAL_DATA_ADDR_RIGHT = 0x801B;
 
@@ -522,7 +522,7 @@ static void process_reply_read_spi_factory_stick_calibration(struct uni_hid_devi
             return;
         }
         is_left = ins->controller_type == SWITCH_CONTROLLER_TYPE_JCL;
-        if (is_left){
+        if (is_left) {
             parse_stick_calibration(&ins->cal_x, &ins->cal_y, data, is_left);
         } else {
             parse_stick_calibration(&ins->cal_rx, &ins->cal_ry, data, is_left);
@@ -562,10 +562,10 @@ static void process_reply_read_spi_user_stick_calibration(struct uni_hid_device_
             printf_hexdump(data, len);
             return;
         }
-        if (data[0] == SWITCH_USER_STICK_CAL_CHECK_0 && data[1] ==SWITCH_USER_STICK_CAL_CHECK_1){
+        if (data[0] == SWITCH_USER_STICK_CAL_CHECK_0 && data[1] == SWITCH_USER_STICK_CAL_CHECK_1) {
             process_left = true;
         }
-        if (data[11] == SWITCH_USER_STICK_CAL_CHECK_0 && data[12] ==SWITCH_USER_STICK_CAL_CHECK_1){
+        if (data[11] == SWITCH_USER_STICK_CAL_CHECK_0 && data[12] == SWITCH_USER_STICK_CAL_CHECK_1) {
             data_pointer = 13;
             process_right = true;
         }
@@ -579,18 +579,18 @@ static void process_reply_read_spi_user_stick_calibration(struct uni_hid_device_
             printf_hexdump(data, len);
             return;
         }
-         if (data[0] == SWITCH_USER_STICK_CAL_CHECK_0 && data[1] ==SWITCH_USER_STICK_CAL_CHECK_1){
+        if (data[0] == SWITCH_USER_STICK_CAL_CHECK_0 && data[1] == SWITCH_USER_STICK_CAL_CHECK_1) {
             is_left = ins->controller_type == SWITCH_CONTROLLER_TYPE_JCL;
             process_left = is_left;
             process_right = !is_left;
         }
     }
 
-    if (process_left){
+    if (process_left) {
         logi("Switch: Using left user calibration\n");
         parse_stick_calibration(&ins->cal_x, &ins->cal_y, &data[2], true);
     }
-    if (process_right){
+    if (process_right) {
         logi("Switch: Using right user calibration\n");
         parse_stick_calibration(&ins->cal_rx, &ins->cal_ry, &data[data_pointer], false);
     }

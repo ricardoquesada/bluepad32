@@ -25,7 +25,7 @@ typedef struct hid_globals_s hid_globals_t;
 typedef void (*report_setup_fn_t)(struct uni_hid_device_s* d);
 typedef void (*report_init_report_fn_t)(struct uni_hid_device_s* d);
 typedef void (*report_parse_usage_fn_t)(struct uni_hid_device_s* d,
-                                        hid_globals_t* globals,
+                                        const hid_globals_t* globals,
                                         uint16_t usage_page,
                                         uint16_t usage,
                                         int32_t value);
@@ -73,9 +73,9 @@ typedef struct {
 } uni_report_parser_t;
 
 void uni_hid_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t report_len);
-int32_t uni_hid_parser_process_axis(hid_globals_t* globals, uint32_t value);
-int32_t uni_hid_parser_process_pedal(hid_globals_t* globals, uint32_t value);
-uint8_t uni_hid_parser_process_hat(hid_globals_t* globals, uint32_t value);
+int32_t uni_hid_parser_process_axis(const hid_globals_t* globals, uint32_t value);
+int32_t uni_hid_parser_process_pedal(const hid_globals_t* globals, uint32_t value);
+uint8_t uni_hid_parser_process_hat(const hid_globals_t* globals, uint32_t value);
 void uni_hid_parser_process_dpad(uint16_t usage, uint32_t value, uint8_t* dpad);
 uint8_t uni_hid_parser_hat_to_dpad(uint8_t hat);
 

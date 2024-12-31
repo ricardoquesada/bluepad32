@@ -351,7 +351,7 @@ void uni_hid_device_set_incoming(uni_hid_device_t* d, bool incoming) {
     d->conn.incoming = incoming;
 }
 
-bool uni_hid_device_is_incoming(uni_hid_device_t* d) {
+bool uni_hid_device_is_incoming(const uni_hid_device_t* d) {
     return d->conn.incoming;
 }
 
@@ -371,7 +371,7 @@ void uni_hid_device_set_name(uni_hid_device_t* d, const char* name) {
     d->flags |= FLAGS_HAS_NAME;
 }
 
-bool uni_hid_device_has_name(uni_hid_device_t* d) {
+bool uni_hid_device_has_name(const uni_hid_device_t* d) {
     if (d == NULL) {
         loge("ERROR: Invalid device\n");
         return false;
@@ -394,7 +394,7 @@ void uni_hid_device_set_hid_descriptor(uni_hid_device_t* d, const uint8_t* descr
     //    printf_hexdump(descriptor, len);
 }
 
-bool uni_hid_device_has_hid_descriptor(uni_hid_device_t* d) {
+bool uni_hid_device_has_hid_descriptor(const uni_hid_device_t* d) {
     if (d == NULL) {
         loge("ERROR: Invalid device\n");
         return false;
@@ -408,7 +408,7 @@ void uni_hid_device_set_product_id(uni_hid_device_t* d, uint16_t product_id) {
     d->flags |= FLAGS_HAS_PRODUCT_ID;
 }
 
-uint16_t uni_hid_device_get_product_id(uni_hid_device_t* d) {
+uint16_t uni_hid_device_get_product_id(const uni_hid_device_t* d) {
     return d->product_id;
 }
 
@@ -421,7 +421,7 @@ void uni_hid_device_set_vendor_id(uni_hid_device_t* d, uint16_t vendor_id) {
     d->flags |= FLAGS_HAS_VENDOR_ID;
 }
 
-uint16_t uni_hid_device_get_vendor_id(uni_hid_device_t* d) {
+uint16_t uni_hid_device_get_vendor_id(const uni_hid_device_t* d) {
     return d->vendor_id;
 }
 
@@ -757,7 +757,7 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
     d->flags |= FLAGS_HAS_CONTROLLER_TYPE;
 }
 
-bool uni_hid_device_has_controller_type(uni_hid_device_t* d) {
+bool uni_hid_device_has_controller_type(const uni_hid_device_t* d) {
     if (d == NULL) {
         loge("ERROR: Invalid device\n");
         return false;
@@ -862,7 +862,7 @@ void uni_hid_device_send_queued_reports(uni_hid_device_t* d) {
     uni_hid_device_send_report(d, cid, data, data_len);
 }
 
-bool uni_hid_device_does_require_hid_descriptor(uni_hid_device_t* d) {
+bool uni_hid_device_does_require_hid_descriptor(const uni_hid_device_t* d) {
     if (d == NULL) {
         loge("uni_hid_device_does_require_hid_descriptor: failed, device is NULL\n");
         return false;
@@ -873,7 +873,7 @@ bool uni_hid_device_does_require_hid_descriptor(uni_hid_device_t* d) {
     return (d->report_parser.parse_usage != NULL);
 }
 
-bool uni_hid_device_is_mouse(uni_hid_device_t* d) {
+bool uni_hid_device_is_mouse(const uni_hid_device_t* d) {
     if (d == NULL) {
         loge("uni_hid_device_is_mouse: failed, device is NULL\n");
         return false;
@@ -883,7 +883,7 @@ bool uni_hid_device_is_mouse(uni_hid_device_t* d) {
     return (d->cod & mouse_cod) == mouse_cod;
 }
 
-bool uni_hid_device_is_keyboard(uni_hid_device_t* d) {
+bool uni_hid_device_is_keyboard(const uni_hid_device_t* d) {
     if (d == NULL) {
         loge("uni_hid_device_is_keyboard: failed, device is NULL\n");
         return false;
@@ -892,7 +892,7 @@ bool uni_hid_device_is_keyboard(uni_hid_device_t* d) {
     return (d->cod & keyboard_cod) == keyboard_cod;
 }
 
-bool uni_hid_device_is_gamepad(uni_hid_device_t* d) {
+bool uni_hid_device_is_gamepad(const uni_hid_device_t* d) {
     if (d == NULL) {
         loge("uni_hid_device_is_gamepad: failed, device is NULL\n");
         return false;
@@ -902,7 +902,7 @@ bool uni_hid_device_is_gamepad(uni_hid_device_t* d) {
     return (d->cod & UNI_BT_COD_MAJOR_PERIPHERAL) && (d->cod & gamepad_cod);
 }
 
-bool uni_hid_device_is_virtual_device(uni_hid_device_t* d) {
+bool uni_hid_device_is_virtual_device(const uni_hid_device_t* d) {
     // Safe to assume that when parent is not NULL, it means it is a virtual device.
     return d->parent != NULL;
 }

@@ -75,7 +75,7 @@ void uni_hid_parse_input_report(struct uni_hid_device_s* d, const uint8_t* repor
 
 // Converts a possible value between (0, x) to (-x/2, x/2), and normalizes it
 // between -512 and 511.
-int32_t uni_hid_parser_process_axis(hid_globals_t* globals, uint32_t value) {
+int32_t uni_hid_parser_process_axis(const hid_globals_t* globals, uint32_t value) {
     int32_t max = globals->logical_maximum;
     int32_t min = globals->logical_minimum;
 
@@ -100,7 +100,7 @@ int32_t uni_hid_parser_process_axis(hid_globals_t* globals, uint32_t value) {
 }
 
 // Converts a possible value between (0, x) to (0, 1023)
-int32_t uni_hid_parser_process_pedal(hid_globals_t* globals, uint32_t value) {
+int32_t uni_hid_parser_process_pedal(const hid_globals_t* globals, uint32_t value) {
     int32_t max = globals->logical_maximum;
     int32_t min = globals->logical_minimum;
 
@@ -118,7 +118,7 @@ int32_t uni_hid_parser_process_pedal(hid_globals_t* globals, uint32_t value) {
     return normalized;
 }
 
-uint8_t uni_hid_parser_process_hat(hid_globals_t* globals, uint32_t value) {
+uint8_t uni_hid_parser_process_hat(const hid_globals_t* globals, uint32_t value) {
     int32_t v = (int32_t)value;
     // Assumes if value is outside valid range, then it is a "null value"
     if (v < globals->logical_minimum || v > globals->logical_maximum)

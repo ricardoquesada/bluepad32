@@ -125,12 +125,12 @@ static void xboxone_play_quad_rumble_now(uni_hid_device_t* d,
                                          uint8_t strong_magnitude);
 static void xboxone_retry_cmd(uni_hid_device_t* d, xboxone_retry_cmd_t cmd);
 static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
-                                      hid_globals_t* globals,
+                                      const hid_globals_t* globals,
                                       uint16_t usage_page,
                                       uint16_t usage,
                                       int32_t value);
 static void parse_usage_firmware_v4_v5(uni_hid_device_t* d,
-                                       hid_globals_t* globals,
+                                       const hid_globals_t* globals,
                                        uint16_t usage_page,
                                        uint16_t usage,
                                        int32_t value);
@@ -180,7 +180,7 @@ void uni_hid_parser_xboxone_init_report(uni_hid_device_t* d) {
 }
 
 void uni_hid_parser_xboxone_parse_usage(uni_hid_device_t* d,
-                                        hid_globals_t* globals,
+                                        const hid_globals_t* globals,
                                         uint16_t usage_page,
                                         uint16_t usage,
                                         int32_t value) {
@@ -194,7 +194,7 @@ void uni_hid_parser_xboxone_parse_usage(uni_hid_device_t* d,
 }
 
 static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
-                                      hid_globals_t* globals,
+                                      const hid_globals_t* globals,
                                       uint16_t usage_page,
                                       uint16_t usage,
                                       int32_t value) {
@@ -331,7 +331,7 @@ static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
 
 // v4.8 / 5.x are almost identical to the Android mappings.
 static void parse_usage_firmware_v4_v5(uni_hid_device_t* d,
-                                       hid_globals_t* globals,
+                                       const hid_globals_t* globals,
                                        uint16_t usage_page,
                                        uint16_t usage,
                                        int32_t value) {
