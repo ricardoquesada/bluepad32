@@ -4,7 +4,7 @@ stages:
 build-debian-linux-gcc:
   image: gcc
   variables:
-    GIT_SUBMODULE_STRATEGY: normal
+    GIT_SUBMODULE_STRATEGY: recursive
   stage: build
   before_script:
     - export DEBIAN_FRONTEND=noninteractive
@@ -17,7 +17,7 @@ build-debian-linux-gcc:
 build-debian-linux-clang:
   image: gcc
   variables:
-    GIT_SUBMODULE_STRATEGY: normal
+    GIT_SUBMODULE_STRATEGY: recursive
   stage: build
   before_script:
     - export DEBIAN_FRONTEND=noninteractive
@@ -31,7 +31,7 @@ build-debian-linux-clang:
 build-esp-idf-5.3:
   image: espressif/idf:release-v5.3
   variables:
-    GIT_SUBMODULE_STRATEGY: normal
+    GIT_SUBMODULE_STRATEGY: recursive
   stage: build
   script:
     - cd examples/esp32
