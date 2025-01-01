@@ -24,7 +24,7 @@ build-debian-linux-clang:
     - apt update
     - apt -y install tzdata
     - apt -y install clang
-    - apt -y install make pkg-config libusb-1.0-0-dev
+    - apt -y install make cmake pkg-config libusb-1.0-0-dev
   script:
     - cd examples/posix && mkdir build && cd build && cmake .. && CC=clang make -j
 
@@ -33,6 +33,13 @@ build-esp-idf-5.3:
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
   stage: build
+   before_script:
+    - pushd .
+    - cd external/btstack
+    - git apply ../patches/*.patch
+    - cd port/esp32
+    - IDF_PATH=../../../../src/ ./integrate_btstack.py
+    - popd
   script:
     - cd examples/esp32
     - idf.py build
