@@ -33,7 +33,7 @@ build-esp-idf-5.3:
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
   stage: build
-   before_script:
+  before_script:
     - pushd .
     - cd external/btstack
     - git apply ../patches/*.patch
