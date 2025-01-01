@@ -204,7 +204,6 @@ static void cmd_callback(void* context) {
             uni_hid_device_dump_all();
             break;
         case CMD_DISCONNECT_DEVICE:
-            uni_hid_device_dump_all();
             d = uni_hid_device_get_instance_for_idx(args);
             if (!d) {
                 loge("cmd_callback: Invalid device index: %d\n", args);
@@ -214,7 +213,6 @@ static void cmd_callback(void* context) {
             uni_hid_device_delete(d);
             break;
         case CMD_BLE_SERVICE_ENABLE:
-            uni_hid_device_dump_all();
             uni_bt_service_set_enabled(true);
             break;
         case CMD_BLE_SERVICE_DISABLE:
