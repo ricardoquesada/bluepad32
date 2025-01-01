@@ -192,7 +192,6 @@ static void cmd_callback(void* context) {
             bluetooth_del_keys();
             break;
         case CMD_BT_LIST_KEYS:
-            start_scanning(true);
             bluetooth_list_keys();
             break;
         case CMD_BT_START_SCANNING:
