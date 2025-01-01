@@ -188,7 +188,7 @@ uni_hid_device_t* uni_hid_device_get_instance_for_idx(int idx) {
 }
 
 int uni_hid_device_get_idx_for_instance(const uni_hid_device_t* d) {
-    int idx = d - &g_devices[0];
+    long idx = d - &g_devices[0];
 
     if (idx < 0 || idx >= CONFIG_BLUEPAD32_MAX_DEVICES)
         return -1;

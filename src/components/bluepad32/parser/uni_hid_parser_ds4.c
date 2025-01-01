@@ -509,7 +509,6 @@ void uni_hid_parser_ds4_parse_input_report(uni_hid_device_t* d, const uint8_t* r
     } else {
         loge("DS4: Unexpected report type and len: report id=0x%02x, len=%d\n", report[0], len);
     }
-    return;
 }
 
 // uni_hid_parser_ds4_parse_usage() was removed since "stream" mode is the only

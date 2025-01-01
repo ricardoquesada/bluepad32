@@ -45,7 +45,7 @@ static void update_allowlist_from_property(void) {
     uni_property_value_t val;
     bd_addr_t addr;
     int offset;
-    int len;
+    size_t len;
 
     // Whether it is enabled.
     val = uni_property_get(UNI_PROPERTY_IDX_ALLOWLIST_LIST);

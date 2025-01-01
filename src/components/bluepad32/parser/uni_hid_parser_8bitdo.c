@@ -76,7 +76,7 @@ void uni_hid_parser_8bitdo_parse_usage(uni_hid_device_t* d,
                 default:
                     logi("8BitDo: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
                     break;
-            };
+            }
             break;
         case HID_USAGE_PAGE_BUTTON: {
             switch (usage) {
