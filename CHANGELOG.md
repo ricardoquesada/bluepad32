@@ -22,9 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pico W: Updated CMakeLists.txt with option to dump HCI packets.
 - BLE: Connection should be a bit more reliable. No longer depends on having encryption enabled.
 - Core: packet handlers have the `uni_` prefix. Useful to avoid collision when putting breakpoints.
+- Controllers DB: Updated from latest SDL
 
 ## Fixed
-
 - Switch driver:
   - Increased timeout
   - Fixed typo on pro joystick calibration
