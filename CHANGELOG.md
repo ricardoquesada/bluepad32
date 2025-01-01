@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - BLE: Connection should be a bit more reliable. No longer depends on having encryption enabled.
 - Core: packet handlers have the `uni_` prefix. Useful to avoid collision when putting breakpoints.
 - Controllers DB: Updated from latest SDL
+8 ESP32 Console: "incoming_connections_enable" sets/gets whether inconming connections are allowed.
+* ESP32 Console: "scan_and_autoconnect" is a new command that behaves like the old "incoming_connections_enable".
 
 ## Fixed
 - Switch driver:
@@ -31,8 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Made sure right joycon calibration is mapped to right location
   - Implemented a user calibration check and updated stick cal if true
 - Examples: Cleanup CMakeLists.txt
+- Allow multiple "safe" commands per loop. Fixes [Github Issue #130][github_issue_130]
 
 [github_issue_105]: https://github.com/ricardoquesada/bluepad32/issues/105
+[github_issue_130]: https://github.com/ricardoquesada/bluepad32/issues/130
 
 ## [4.1.0] - 2024-06-03
 ### New
