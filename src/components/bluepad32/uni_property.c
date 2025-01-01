@@ -112,7 +112,6 @@ void uni_property_dump_property(const uni_property_t* p) {
         case UNI_PROPERTY_TYPE_FLOAT:
             logi("%s = %f\n", p->name, val.f32);
             break;
-            break;
         case UNI_PROPERTY_TYPE_STRING:
             if (val.str)
                 logi("%s = '%s'\n", p->name, val.str);

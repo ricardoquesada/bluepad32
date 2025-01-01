@@ -30,8 +30,8 @@ void uni_hid_parser_xboxone_device_dump(struct uni_hid_device_s* d);
 void xboxone_play_quad_rumble(struct uni_hid_device_s* d,
                               uint16_t start_delay_ms,
                               uint16_t duration_ms,
-                              uint8_t left_trigger,
-                              uint8_t right_trigger,
+                              uint8_t trigger_left,
+                              uint8_t trigger_right,
                               uint8_t weak_magnitude,
                               uint8_t strong_magnitude);
 
