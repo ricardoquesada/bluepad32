@@ -3,3 +3,4 @@ repos:
     rev: v19.1.5
     hooks:
     -   id: clang-format
+        exclude: '^src/components/btstack|^src/components/cmd_nvs*|^src/components/cmd_system*'
