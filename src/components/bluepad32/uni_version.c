@@ -4,4 +4,4 @@
 
 #include "uni_version.h"
 
-const char* uni_version = UNI_VERSION;
+const char* uni_version = UNI_VERSION_STRING;

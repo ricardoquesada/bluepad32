@@ -6,7 +6,7 @@
 #define UNI_VERSION_H
 
 // String version
-#define UNI_VERSION "4.2.0"
+#define UNI_VERSION_STRING "4.2.0"
 
 // Number version, in case a 3rd party needs to check it
 #define UNI_VERSION_MAJOR 4
