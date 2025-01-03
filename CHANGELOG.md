@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [4.2.0] - 2025-01-03
 
 ### New
-- ESP32: ESP32-C6 and ESP32-H2 supported. 
+- ESP32: ESP32-C6 and ESP32-H2 supported.
   - They depend on BTstack 1.6.2 (pre-bundled with Bluepad32 v4.2.0)
 - Pico W: Pico 2 W supported.
   - Requires [Pico SDK 2.1][pico_sdk_2_1] or newer.
@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Changed
 - BTstack: Using v1.6.2
+  - v1.6.1 is still supported by Bluepad32.
+  - BTstack v1.6.2 changed some API used by Bluepad32. Bluepad32 adapts the API-calls at compile-time.
 - Documentation: Updated FAQ and Arduino docs.
 - Pico W: Updated `btstack_config.h`. Disables malloc, enables some BTstack features, and some minor changes
   - See the new [btstack_config.h][pico_w_btstack_config_h]
@@ -35,7 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Only a few new entries added.
 - ESP32 Console: `incoming_connections_enable` sets/gets whether incoming connections are allowed.
 - ESP32 Console: `scan_and_autoconnect` is a new command that behaves like the old `incoming_connections_enable`.
-- PlatformIO: `platformio.txt` file updated in ["examples/esp32"][examples_esp32]
+- PlatformIO: `platformio.ini` file updated in ["examples/esp32"][examples_esp32]
   (and ["Arduino template"][bp32_template_project] project as well)
   - See [PlatformIO issue 1225][github_pio_issue_1225] to learn what's going on between PlatformIO and Espressif.
   - You might need to uninstall PlatformIO first. E.g: `rm -rf ~/.platformio`
