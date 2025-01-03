@@ -11,8 +11,8 @@ Supports the different ESP32 chips:
 
 1. Install ESP-IDF
 
-    Install the ESP32 toolchain. Use version **5.1**. Might work on newer / older
-    ones, but not tested.
+   Install the ESP32 toolchain. Use version **5.3**. Might work on newer / older
+   ones, but not tested.
 
     * <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/>
 
@@ -32,7 +32,7 @@ Supports the different ESP32 chips:
     idf.py set-target esp32
     ```
 
-    And compile it:
+   And compile it:
 
     ```sh
     idf.py build
@@ -44,11 +44,51 @@ Supports the different ESP32 chips:
     idf.py flash monitor
     ```
 
+## Debugging
+
+In case you need to debug an ESP32-S3 (or ESP32-C3) using JTAG, follow these steps: (or
+read [ESP32 JTAG Debugging][esp32-gdb]).
+
+*Note: If you have a standard ESP32, you can do it with an [ESP-PROG][esp-prog] module.*
+
+TL;DR: Open 3 terminals, and do:
+
+### Terminal 1
+
+```shell
+# Open OpenOCD
+# Valid for ESP32-S3. Change it to "esp32c3-builtin.cfg" for ESP32-C3
+sudo openocd -f board/esp32s3-builtin.cfg  -c "adapter speed 5000"
+```
+
+### Terminal 2
+
+```shell
+xtensa-esp32s3-elf-gdb bluepad32_esp32_example_app.elf
+> target remote :3333
+> monitor reset init
+> continue
+```
+
+### Terminal 3
+
+```shell
+# macOS
+tio /dev/tty.usbmodem21202
+
+# Linux
+tio /dev/ttyACM0
+```
+
+[esp32-gdb]: https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-guides/jtag-debugging/index.html
+
+[esp-prog]: https://docs.espressif.com/projects/esp-iot-solution/en/latest/hw-reference/ESP-Prog_guide.html
+
 ## License
 
 - Example code: licensed under Public Domain.
 - Bluepad32: licensed under Apache 2.
 - BTstack:
-  - Free to use for open source projects.
-  - Paid for commercial projects.
-  - <https://github.com/bluekitchen/btstack/blob/master/LICENSE>
+    - Free to use for open source projects.
+    - Paid for commercial projects.
+    - <https://github.com/bluekitchen/btstack/blob/master/LICENSE>
