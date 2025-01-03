@@ -159,9 +159,9 @@ typedef struct __attribute__((packed)) {
 // Globals
 //
 #ifdef CONFIG_BLUEPAD32_PLATFORM_AIRLIFT
-static const char FIRMWARE_VERSION[] = "Bluepad32 for AirLift v" UNI_VERSION;
+static const char FIRMWARE_VERSION[] = "Bluepad32 for AirLift v" UNI_VERSION_STRING;
 #elif defined(CONFIG_BLUEPAD32_PLATFORM_NINA)
-static const char FIRMWARE_VERSION[] = "Bluepad32 for NINA v" UNI_VERSION;
+static const char FIRMWARE_VERSION[] = "Bluepad32 for NINA v" UNI_VERSION_STRING;
 #else
 // FIXME: This file should not be compiled when NINA/AirLift is not used.
 static const char FIRMWARE_VERSION[] = "";

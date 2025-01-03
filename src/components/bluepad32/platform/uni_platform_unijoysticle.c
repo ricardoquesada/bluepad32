@@ -1393,7 +1393,7 @@ static void version(void) {
     }
 
     logi("\nFirmware info:\n");
-    logi("\tBluepad32 Version: v%s (%s)\n", UNI_VERSION, app_desc->version);
+    logi("\tBluepad32 Version: v%s (%s)\n", UNI_VERSION_STRING, app_desc->version);
     logi("\tCompile Time: %s %s\n", app_desc->date, app_desc->time);
 
     logi("\n");

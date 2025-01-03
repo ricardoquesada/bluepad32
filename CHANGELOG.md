@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - If you want to use it with BTstack 1.6.2 you might need to apply [this patch][github_pico_sdk_pr_2157]
   - By default, ["examples/pico_w"][examples_pico_w] was modified to use BTstack 1.6.1.
 - ESP-IDF: v5.3 and v5.4 supported
-  - Needed for Arduino Core v3.1. See [template project][bp32_template_project]
+  - Needed for Arduino Core v3.1. See [Arduino template project][bp32_template_project]
 - Wii: Add support for Wii uDraw Tablet. Fixes [Github Issue #105][github_issue_105]
 - Wii: Add `uni_hid_parser_wii_request_report_type(struct uni_hid_device_s* d, wii_report_type_t r);`
   - Allows user to change the Wii report type
@@ -35,8 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Only a few new entries added.
 - ESP32 Console: `incoming_connections_enable` sets/gets whether incoming connections are allowed.
 - ESP32 Console: `scan_and_autoconnect` is a new command that behaves like the old `incoming_connections_enable`.
-- PlatformIO: `platformio.txt` file updated in ["examples/esp32"][examples_esp32] (and "template" project as well)
+- PlatformIO: `platformio.txt` file updated in ["examples/esp32"][examples_esp32]
+  (and ["Arduino template"][bp32_template_project] project as well)
   - See [PlatformIO issue 1225][github_pio_issue_1225] to learn what's going on between PlatformIO and Espressif.
+  - You might need to uninstall PlatformIO first. E.g: `rm -rf ~/.platformio`
 
 ## Fixed
 - Switch driver:
