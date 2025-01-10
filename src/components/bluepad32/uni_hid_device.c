@@ -963,8 +963,6 @@ static void process_misc_button_home(uni_hid_device_t* d) {
 
     // Update "wait" flag.
     d->misc_button_wait_release |= MISC_BUTTON_START;
-
-    uni_hid_device_dump_all();
 }
 
 static void device_connection_timeout(btstack_timer_source_t* ts) {
