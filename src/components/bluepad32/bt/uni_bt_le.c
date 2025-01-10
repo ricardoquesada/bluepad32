@@ -334,11 +334,13 @@ static void uni_hids_client_packet_handler(uint8_t packet_type, uint16_t channel
                 logi("Reports enabled\n");
             }
             break;
+#if 0  // Does not compile on Pico SDK 1.5.1. Enable it only if needed.
         case GATTSERVICE_SUBEVENT_HID_REPORT_WRITTEN:
             // Called when a client a hid report was written.
             // E.g.: "set rumble" was sent to the gamepad.
             // TODO: Inform the device that it is ready to write another hid report?
             break;
+#endif
         default:
             logi("Unsupported gatt client event: 0x%02x\n", hci_event_gattservice_meta_get_subevent_code(packet));
             break;
