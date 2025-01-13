@@ -73,6 +73,7 @@
   controllers
 - Trevor Rudolph: Donated [Wii uDraw Tablet][wii_udraw_tablet]
 - Martin Pfingstl
+- Lieven Merckx
 
 
 [*]: Multiple times or generous donations
