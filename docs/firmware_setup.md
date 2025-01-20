@@ -44,7 +44,7 @@ set ESPPORT=COM??  # You can find a list of COM devices in Device Manager.
                    # Identify the correct COM port by watching to see which one appears when connecting
                    # the device you intend to update.
 
-python -m esptool --port ${ESPPORT} --baud 115200 --before default_reset --after hard_reset write_flash 0x0000 bluepad32-unijoysticle-full.bin
+python -m esptool --chip esp32 --port ${ESPPORT} --baud 115200 --before default_reset --after hard_reset write_flash 0x0000 bluepad32-unijoysticle-full.bin
 ```
 
 On Linux, the flash operation may fail with a permissions error if you're not running as root. If you'd like to be able
