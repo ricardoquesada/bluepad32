@@ -1,0 +1,2 @@
+# Increase main task stack size for ESP32C6 build (eg: idf.py set-target esp32c6).
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=4096
