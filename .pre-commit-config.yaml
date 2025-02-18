@@ -1,6 +1,6 @@
 repos:
 -   repo: https://github.com/pre-commit/mirrors-clang-format
-    rev: v19.1.5
+    rev: v19.1.7
     hooks:
     -   id: clang-format
         exclude: '^src/components/btstack|^src/components/cmd_nvs*|^src/components/cmd_system*'
