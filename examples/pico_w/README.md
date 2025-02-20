@@ -4,7 +4,7 @@
 
 You need to install Pico SDK. The instructions are different for Linux/macOS and Windows.
 
-Recommended: Use Pico SDK 2.1 or newer.
+Recommended: Use Pico SDK 2.1.1 or newer.
 
 ### Pico SDK for Linux / macOS
 

@@ -4,8 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [4.2.0] - 2025-01-03
+## [4.2.1] - 2025-??-??
+## Changed
+- Pico W: Recommends Pico SDK 2.1.1 or newer which fixed nasty bug triggered by Bluepad32. See:
+  [Pico SDK #2157][picosdk#2157] and [Pico SDK #2165][picosdk#2165]
 
+[picosdk#2157]: https://github.com/raspberrypi/pico-sdk/pull/2157
+[picosdk#2165]: https://github.com/raspberrypi/pico-sdk/pull/2165
+
+## [4.2.0] - 2025-01-03
 ### New
 - ESP32: ESP32-C6 and ESP32-H2 supported.
   - They depend on BTstack 1.6.2 (pre-bundled with Bluepad32 v4.2.0)

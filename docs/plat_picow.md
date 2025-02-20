@@ -18,7 +18,7 @@ You need to install Pico SDK. The instructions are different for Linux/macOS and
 
 === "Pico SDK for Linux / macOS"
 
-Recommended: Use Pico SDK v2.1.0 or newer.
+Recommended: Use Pico SDK v2.1.1 or newer.
 
     Clone Pico SDK from Github: <https://github.com/raspberrypi/pico-sdk>
 
