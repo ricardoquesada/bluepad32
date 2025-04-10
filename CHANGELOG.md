@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Changed
 - Pico W: Recommends Pico SDK 2.1.1 or newer which fixed nasty bug triggered by Bluepad32. See:
   [Pico SDK #2157][picosdk#2157] and [Pico SDK #2165][picosdk#2165]
+- BTstack: Updated to 1.6.2 tag (latest master branch)
 
 [picosdk#2157]: https://github.com/raspberrypi/pico-sdk/pull/2157
 [picosdk#2165]: https://github.com/raspberrypi/pico-sdk/pull/2165
