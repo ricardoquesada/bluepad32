@@ -25,8 +25,6 @@ set(BTSTACK_ROOT ${PICO_SDK_PATH}/lib/btstack)
 #    ${BTSTACK_ROOT}/src/hci_event_builder.c
 #)
 # -- uncomment until here
-# And you need to apply this patch in Pico SDK
-# https://github.com/raspberrypi/pico-sdk/pull/2157
 
 # initialize the SDK based on PICO_SDK_PATH
 # note: this must happen before project()
