@@ -10,6 +10,8 @@
 
 #include "uni_log.h"
 
+#define PROPERTY_STRING_MAX_LEN 128
+
 static const btstack_tlv_t* tlv_impl;
 static btstack_tlv_flash_bank_t* tlv_context;
 
@@ -51,6 +53,14 @@ void uni_property_set_with_property(const uni_property_t* p, uni_property_value_
             data = (uint8_t*)&value.f32;
             size = sizeof(value.f32);
             break;
+        case UNI_PROPERTY_TYPE_STRING:
+            data = (uint8_t*)value.str;
+            size = (int)strlen(value.str) + 1;
+            if (size > PROPERTY_STRING_MAX_LEN) {
+                loge("uni_property_set_with_property: string too long (%zu)\n", size);
+                return;
+            }
+            break;
         default:
             loge("uni_property_set_with_property: unsupported type %d\n", p->type);
             return;
@@ -65,6 +75,7 @@ uni_property_value_t uni_property_get_with_property(const uni_property_t* p) {
     uni_property_value_t value;
     int size;
     int read;
+    static char str_ret[PROPERTY_STRING_MAX_LEN];
 
     if (!p) {
         loge("Invalid get property\n");
@@ -73,8 +84,15 @@ uni_property_value_t uni_property_get_with_property(const uni_property_t* p) {
     }
 
     if (p->type == UNI_PROPERTY_TYPE_STRING) {
-        loge("No TLV for %s, returning default value '%s'\n", p->name, p->default_value.str);
-        return p->default_value;
+        memset(str_ret, 0, PROPERTY_STRING_MAX_LEN);
+        read = tlv_impl->get_tag(tlv_context, pico_get_tag_for_index(p->idx), str_ret, PROPERTY_STRING_MAX_LEN - 1);
+        if (read == 0) {
+            logd("Property %s (idx=%d, tag=%#x) not found in DB, returning default\n", p->name, p->idx,
+                 pico_get_tag_for_index(p->idx));
+            return p->default_value;
+        }
+        value.str = str_ret;
+        return value;
     }
 
     switch (p->type) {
