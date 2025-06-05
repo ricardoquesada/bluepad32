@@ -45,6 +45,8 @@
     - Updated Supported Gamepads doc.
 - Michael Campbell
     - Switch driver improvements
+- Colin Luoma:
+    - Allowlist works Ok on Pico W by adding "string" support to properties.
 
 
 ## People who contributed with ideas and/or testing

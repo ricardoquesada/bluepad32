@@ -10,8 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [Pico SDK #2157][picosdk#2157] and [Pico SDK #2165][picosdk#2165]
 - BTstack: Updated to 1.6.2 tag (latest master branch)
 
+## Fixed
+- Pico W: Able to store string properties, meaning that allowlist works as expected [Github Issue #160][github_issue_160]
+
 [picosdk#2157]: https://github.com/raspberrypi/pico-sdk/pull/2157
 [picosdk#2165]: https://github.com/raspberrypi/pico-sdk/pull/2165
+[github_issue_160]: https://github.com/ricardoquesada/bluepad32/issues/160
 
 ## [4.2.0] - 2025-01-03
 ### New
