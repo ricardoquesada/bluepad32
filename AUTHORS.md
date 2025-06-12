@@ -47,6 +47,8 @@
     - Switch driver improvements
 - Colin Luoma:
     - Allowlist works Ok on Pico W by adding "string" support to properties.
+- Lauri Sovinen:
+    - Add dependencie in esp32 builder
 
 
 ## People who contributed with ideas and/or testing
