@@ -16,16 +16,7 @@ Supports the different ESP32 chips:
 
     * <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/>
 
-2. Integrate BTstack into ESP32
-
-   ```sh
-   cd ${BLUEPAD32}/external/btstack/port/esp32
-   # This will install BTstack as a component inside Bluepad32 source code (recommended).
-   # Remove "IDF_PATH=../../../../src" if you want it installed in the ESP-IDF folder
-   IDF_PATH=../../../../src ./integrate_btstack.py
-   ```
-
-3. Compile Bluepad32
+2. Compile Bluepad32
 
     ```sh
     # Possible options: esp32, esp32-s3, esp32-c3, esp32-c6 or esp32-h2
@@ -38,7 +29,7 @@ Supports the different ESP32 chips:
     idf.py build
     ```
 
-4. Flash it
+3. Flash it
 
     ```sh
     idf.py flash monitor
