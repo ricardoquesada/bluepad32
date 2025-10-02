@@ -253,14 +253,17 @@ void uni_hid_parser_steam_parse_input_report(struct uni_hid_device_s* d, const u
     idx = 4;
     if (report_flags & STEAM_CONTROLLER_FLAG_BUTTONS) {
         parse_buttons(d, &report[idx]);
+        idx += 3;
     }
 
     if (report_flags & STEAM_CONTROLLER_FLAG_TRIGGERS) {
         parse_triggers(d, &report[idx]);
+        idx += 2;
     }
 
     if (report_flags & STEAM_CONTROLLER_FLAG_THUMBSTICK) {
         parse_thumbstick(d, &report[idx]);
+        idx += 4;
     }
 
     if (report_flags & STEAM_CONTROLLER_FLAG_LEFT_PAD) {
