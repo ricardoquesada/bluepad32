@@ -414,7 +414,32 @@ static void uni_device_information_packet_handler(uint8_t packet_type,
                     device->hids_cid = hids_cid;
                     break;
                 default:
-                    logi("Device Information service client connection failed, error=%#x.\n", status);
+#if UNI_HID_DEVICE_ALLOW_NO_DIS
+                    logi("Device Information service client connection failed, error=%#x. Continuing to HID.\n",
+                         status);
+                    device = uni_hid_device_get_instance_for_connection_handle(con_handle);
+                    if (!device) {
+                        loge("Invalid device for in GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_DONE");
+                        break;
+                    }
+                    status = hids_client_connect(con_handle, uni_hids_client_packet_handler, HID_PROTOCOL_MODE_REPORT,
+                                                 &hids_cid);
+                    if (status == ERROR_CODE_SUCCESS) {
+                        logi("Using hids_cid=%d\n", hids_cid);
+                        device->hids_cid = hids_cid;
+                        break;
+                    }
+
+                    if (status == ERROR_CODE_COMMAND_DISALLOWED) {
+                        logi("HID client connection already established, ignoring\n");
+                        break;
+                    }
+
+                    // Real failure
+                    logi("HID client connection failed, status=%#x\n", status);
+#else
+                    logi("Device Information Service client connection failed, error=%#x. Disconnecting.\n", status);
+#endif
                     hog_disconnect(con_handle);
                     break;
             }

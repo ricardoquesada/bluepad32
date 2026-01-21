@@ -26,6 +26,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+#include "uni_hid_device.h"
 #include "controller/uni_controller_list.h"
 #include "sdkconfig.h"
 #include "uni_common.h"

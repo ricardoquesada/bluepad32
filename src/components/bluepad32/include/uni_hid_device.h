@@ -39,6 +39,14 @@
 #define HID_DEVICE_MAX_PLATFORM_DATA 256  ///< Max size for platform-specific data.
 
 /**
+ * @brief Allow HID devices that don't expose the Device Information Service (DIS, 0x180A).
+ *
+ * Set to 1 to accept devices without DIS and continue to HID.
+ * Set to 0 to reject devices without DIS.
+ */
+#define UNI_HID_DEVICE_ALLOW_NO_DIS 1
+
+/**
  * @brief HID_DEVICE_CONNECTION_TIMEOUT_MS includes the time from when the device is created until it is ready.
  */
 #define HID_DEVICE_CONNECTION_TIMEOUT_MS 20000
