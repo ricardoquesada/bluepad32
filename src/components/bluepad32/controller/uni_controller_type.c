@@ -26,10 +26,10 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-#include "controller/uni_controller_list.h"
 #include "sdkconfig.h"
 #include "uni_common.h"
 #include "uni_hid_device.h"
+#include "controller/uni_controller_list.h" // Import list after UNI_HID_DEVICE_ALLOW_NO_DIS
 #include "uni_log.h"
 
 uni_controller_type_t uni_guess_controller_type(uint16_t vid, uint16_t pid) {
