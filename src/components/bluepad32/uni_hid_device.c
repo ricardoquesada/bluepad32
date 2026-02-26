@@ -928,6 +928,13 @@ bool uni_hid_device_does_require_hid_descriptor(const uni_hid_device_t* d) {
         return false;
     }
 
+    // Some controllers (e.g. Xbox variants matched by name) may already provide
+    // a synthetic/known HID descriptor before SDP HID query starts. In that
+    // case, skip the extra SDP HID-descriptor query to avoid getting stuck.
+    if (uni_hid_device_has_hid_descriptor(d)) {
+        return false;
+    }
+
     // If the parser has a "parse_usage" functions, it is safe to assume that a HID descriptor
     // is needed. "Parse_usage" cannot work without a HID descriptor.
     return (d->report_parser.parse_usage != NULL);
