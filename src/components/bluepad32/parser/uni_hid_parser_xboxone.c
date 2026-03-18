@@ -552,6 +552,35 @@ void xboxone_play_quad_rumble(struct uni_hid_device_s* d,
     }
 }
 
+void uni_hid_parser_xboxone_ble_keepalive(uni_hid_device_t* d) {
+    if (d == NULL || d->controller_type != CONTROLLER_TYPE_XBoxOneController)
+        return;
+    if (d->conn.protocol != UNI_BT_CONN_PROTOCOL_BLE || d->hids_cid == 0)
+        return;
+    xboxone_instance_t* ins = get_xboxone_instance(d);
+    if (ins->version != XBOXONE_FIRMWARE_V5)
+        return;
+
+    struct xboxone_ff_report ff = {
+        .transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT,
+        .report_id = XBOX_RUMBLE_REPORT_ID,
+        .enable_actuators = 0,
+        .magnitude_left_trigger = 0,
+        .magnitude_right_trigger = 0,
+        .magnitude_strong = 0,
+        .magnitude_weak = 0,
+        .duration_10ms = 0,
+        .start_delay_10ms = 0,
+        .loop_count = 0,
+    };
+
+    uint8_t status = hids_client_send_write_report(d->hids_cid, XBOX_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
+                                                   &ff.enable_actuators, sizeof(ff) - 2);
+    if (status != ERROR_CODE_SUCCESS && status != ERROR_CODE_COMMAND_DISALLOWED) {
+        logd("Xbox BLE keepalive write status=%#x\n", status);
+    }
+}
+
 void uni_hid_parser_xboxone_device_dump(uni_hid_device_t* d) {
     static const char* versions[] = {
         "v3.1",

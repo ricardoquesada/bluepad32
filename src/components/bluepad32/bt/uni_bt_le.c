@@ -748,9 +748,24 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
     ARG_UNUSED(size);
 
     gap_event_advertising_report_get_address(packet, addr);
-    if (uni_hid_device_get_instance_for_address(addr)) {
-        // Ignore, address already found
-        return;
+    {
+        uni_hid_device_t* ex = uni_hid_device_get_instance_for_address(addr);
+        if (ex) {
+            if (uni_bt_conn_is_connected(&ex->conn))
+                return;
+            if (uni_bt_conn_get_state(&ex->conn) != UNI_BT_CONN_STATE_DEVICE_READY)
+                return;
+            /* Xbox Series (BLE): after disconnect, slot can linger until HCI teardown; new ads were
+             * ignored so reconnect never completed a fresh HID session (no inputs). */
+            if (ex->conn.protocol == UNI_BT_CONN_PROTOCOL_BLE &&
+                ex->controller_type == CONTROLLER_TYPE_XBoxOneController) {
+                logi("BLE Xbox: drop stale slot %s for reconnect\n", bd_addr_to_str(addr));
+                uni_hid_device_disconnect(ex);
+                uni_hid_device_delete(ex);
+            } else {
+                return;
+            }
+        }
     }
 
     adv_event_get_data(packet, &appearance, name);
