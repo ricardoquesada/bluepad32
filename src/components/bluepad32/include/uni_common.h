@@ -213,6 +213,8 @@ extern "C" {
  * Taken FreeBSD code.
  */
 static inline intmax_t mult_frac(intmax_t x, intmax_t multiplier, intmax_t divisor) {
+    if (divisor == 0)
+        return 0;
     intmax_t q = (x / divisor);
     intmax_t r = (x % divisor);
     return (q * multiplier) + ((r * multiplier) / divisor);
