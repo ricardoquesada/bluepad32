@@ -168,6 +168,8 @@ typedef struct switch_instance_s {
     // Debug only
     int debug_fd;         // File descriptor where dump is saved
     uint32_t debug_addr;  // Current dump address
+
+    uint8_t timeout_count; // Failsafe for clones
 } switch_instance_t;
 _Static_assert(sizeof(switch_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "Switch instance too big");
 
@@ -1423,7 +1425,17 @@ static void on_switch_set_rumble_off(btstack_timer_source_t* ts) {
 void switch_setup_timeout_callback(btstack_timer_source_t* ts) {
     uni_hid_device_t* d = btstack_run_loop_get_timer_context(ts);
     switch_instance_t* ins = get_switch_instance(d);
-    logi("Switch: setup timer timeout, failed state: 0x%02x\n", ins->state);
+    
+    ins->timeout_count++;
+    if (ins->timeout_count >= 3) {
+        logi("Switch: setup timer timeout limit reached (clone?), forcing READY state\n");
+        ins->state = STATE_READY;
+        btstack_run_loop_remove_timer(&ins->setup_timer);
+        uni_hid_device_set_ready_complete(d);
+        return;
+    }
+    
+    logi("Switch: setup timer timeout, failed state: 0x%02x (count: %d)\n", ins->state, ins->timeout_count);
     process_fsm(d);
 }
 

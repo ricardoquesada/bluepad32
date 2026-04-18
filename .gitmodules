@@ -1,3 +1,4 @@
 [submodule "external/btstack"]
 	path = external/btstack
-	url = https://github.com/bluekitchen/btstack.git
+	url = https://github.com/guimaraf/btstack.git
+	branch = fix-switch-pro
