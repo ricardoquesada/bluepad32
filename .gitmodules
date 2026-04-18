@@ -1,4 +1,4 @@
 [submodule "external/btstack"]
 	path = external/btstack
 	url = https://github.com/guimaraf/btstack.git
-	branch = patched-v1.6.1
+	branch = fix-switch-pro
