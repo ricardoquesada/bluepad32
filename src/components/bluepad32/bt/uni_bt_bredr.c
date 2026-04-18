@@ -518,7 +518,7 @@ void uni_bt_bredr_on_l2cap_channel_opened(uint16_t channel, const uint8_t* packe
         // Practice showed that if the connection fails, just disconnect/remove
         // so that the connection can start again.
         if (status == L2CAP_CONNECTION_RESPONSE_RESULT_REFUSED_SECURITY) {
-            logi("Probably GAP-security-related issues. Set GAP security to 2\n");
+            logi("Probably incoming security mismatch. Dropping key and retrying cleanly\n");
         }
         logi("Removing key for device: %s.\n", bd_addr_to_str(address));
         gap_drop_link_key_for_bd_addr(device->conn.btaddr);
@@ -714,7 +714,6 @@ void uni_bt_bredr_on_hci_connection_request(uint16_t channel, const uint8_t* pac
     }
     uni_hid_device_set_cod(d, cod);
     uni_hid_device_set_incoming(d, true);
-    remember_switch_candidate_device(d);
     logi("on_hci_connection_request from: address = %s, cod=0x%04x\n", bd_addr_to_str(event_addr), cod);
 }
 

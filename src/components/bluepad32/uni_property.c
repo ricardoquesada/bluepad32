@@ -27,7 +27,7 @@ static const uni_property_t properties[] = {
     },
     {UNI_PROPERTY_IDX_GAP_INQ_LEN, UNI_PROPERTY_NAME_GAP_INQ_LEN, UNI_PROPERTY_TYPE_U8,
      .default_value.u8 = UNI_BT_INQUIRY_LENGTH},
-    // It seems that with gap_security_level(0) all controllers work except Nintendo Switch Pro controller.
+    // Keep Level 2 as the default baseline. Switch-specific incoming exceptions are handled elsewhere.
     {UNI_PROPERTY_IDX_GAP_LEVEL, UNI_PROPERTY_NAME_GAP_LEVEL, UNI_PROPERTY_TYPE_U8,
 #ifdef CONFIG_BLUEPAD32_GAP_SECURITY
      .default_value.u8 = 2
