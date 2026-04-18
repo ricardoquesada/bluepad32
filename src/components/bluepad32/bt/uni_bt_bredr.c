@@ -15,6 +15,7 @@
 #include "bt/uni_bt_allowlist.h"
 #include "bt/uni_bt_defines.h"
 #include "bt/uni_bt_sdp.h"
+#include "parser/uni_hid_parser_switch.h"
 #include "platform/uni_platform.h"
 #include "uni_common.h"
 #include "uni_config.h"
@@ -29,6 +30,97 @@
 _Static_assert(INQUIRY_REMOTE_NAME_TIMEOUT_MS < HID_DEVICE_CONNECTION_TIMEOUT_MS, "Timeout too big");
 
 static bool bt_bredr_enabled = true;
+
+typedef struct {
+    bool in_use;
+    bd_addr_t addr;
+} switch_candidate_entry_t;
+
+static switch_candidate_entry_t switch_candidates[CONFIG_BLUEPAD32_MAX_DEVICES];
+
+static bool is_switch_candidate_device(uni_hid_device_t* d) {
+    if (d == NULL) {
+        return false;
+    }
+
+    switch (d->controller_type) {
+        case CONTROLLER_TYPE_SwitchProController:
+        case CONTROLLER_TYPE_SwitchJoyConLeft:
+        case CONTROLLER_TYPE_SwitchJoyConRight:
+        case CONTROLLER_TYPE_SwitchJoyConPair:
+        case CONTROLLER_TYPE_SwitchInputOnlyController:
+        case CONTROLLER_TYPE_XInputSwitchController:
+            return true;
+        default:
+            break;
+    }
+
+    if (uni_hid_device_has_name(d) && uni_hid_parser_switch_does_name_match(d, d->name)) {
+        if (!uni_hid_device_has_controller_type(d)) {
+            uni_hid_device_guess_controller_type_from_pid_vid(d);
+        }
+        return true;
+    }
+
+    return false;
+}
+
+static void remember_switch_candidate_addr(const bd_addr_t addr) {
+    int free_slot = -1;
+
+    for (int i = 0; i < ARRAY_SIZE(switch_candidates); i++) {
+        if (switch_candidates[i].in_use && bd_addr_cmp(switch_candidates[i].addr, addr) == 0) {
+            return;
+        }
+        if (!switch_candidates[i].in_use && free_slot < 0) {
+            free_slot = i;
+        }
+    }
+
+    if (free_slot < 0) {
+        free_slot = 0;
+    }
+
+    switch_candidates[free_slot].in_use = true;
+    bd_addr_copy(switch_candidates[free_slot].addr, addr);
+}
+
+static bool is_switch_candidate_addr(const bd_addr_t addr) {
+    for (int i = 0; i < ARRAY_SIZE(switch_candidates); i++) {
+        if (switch_candidates[i].in_use && bd_addr_cmp(switch_candidates[i].addr, addr) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void remember_switch_candidate_device(uni_hid_device_t* d) {
+    if (is_switch_candidate_device(d)) {
+        remember_switch_candidate_addr(d->conn.btaddr);
+    }
+}
+
+bool l2cap_classic_incoming_can_use_relaxed_security(const bd_addr_t address,
+                                                      uint16_t psm,
+                                                      gap_security_level_t required_level) {
+    ARG_UNUSED(required_level);
+
+    if (psm != PSM_HID_CONTROL && psm != PSM_HID_INTERRUPT) {
+        return false;
+    }
+
+    if (is_switch_candidate_addr(address)) {
+        return true;
+    }
+
+    uni_hid_device_t* d = uni_hid_device_get_instance_for_address(address);
+    if (!is_switch_candidate_device(d)) {
+        return false;
+    }
+
+    remember_switch_candidate_addr(address);
+    return true;
+}
 
 static void l2cap_create_control_connection(uni_hid_device_t* d) {
     uint8_t status;
@@ -573,6 +665,11 @@ void uni_bt_bredr_on_gap_inquiry_result(uint16_t channel, const uint8_t* packet,
                 return;
             }
             logi("Device already added, waiting (current state=0x%02x)...\n", d->conn.state);
+            if (name_len > 0 && !uni_hid_device_has_name(d)) {
+                uni_hid_device_set_name(d, name_buffer);
+                uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED);
+                remember_switch_candidate_device(d);
+            }
         } else {
             // Device not found, create one.
             d = uni_hid_device_create(addr);
@@ -589,6 +686,7 @@ void uni_bt_bredr_on_gap_inquiry_result(uint16_t channel, const uint8_t* packet,
             if (name_len > 0 && !uni_hid_device_has_name(d)) {
                 uni_hid_device_set_name(d, name_buffer);
                 uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED);
+                remember_switch_candidate_device(d);
             }
         }
         uni_bt_bredr_process_fsm(d);
@@ -616,6 +714,7 @@ void uni_bt_bredr_on_hci_connection_request(uint16_t channel, const uint8_t* pac
     }
     uni_hid_device_set_cod(d, cod);
     uni_hid_device_set_incoming(d, true);
+    remember_switch_candidate_device(d);
     logi("on_hci_connection_request from: address = %s, cod=0x%04x\n", bd_addr_to_str(event_addr), cod);
 }
 
@@ -740,6 +839,7 @@ void uni_bt_bredr_on_hci_remote_name_request_complete(uint16_t channel, const ui
         }
         logi("Name: '%s'\n", name);
         uni_hid_device_set_name(d, name);
+        remember_switch_candidate_device(d);
         // It could happen that the device is already connected, but the NAME_REQUEST
         // has just finished. So, do not update the state:
         // See: https://gitlab.com/ricardoquesada/bluepad32/-/issues/21
