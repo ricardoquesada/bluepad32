@@ -325,6 +325,7 @@ bool uni_hid_parser_ds3_does_name_match(struct uni_hid_device_s* d, const char* 
     // - "PLAYSTATION(R)3 Controller"
     // - "PLAYSTATION(R)3Conteroller-PANHAI"
     // - "PLAYSTATION(R)3Controller-ghic"
+    // - "Sony PLAYSTATION(R)3 Controller"  (clones)
     // - "Navigation Controller"
     uint16_t product_id = DUALSHOCK3_PID;
     if (strcmp("Navigation Controller", name) == 0) {
@@ -335,6 +336,9 @@ bool uni_hid_parser_ds3_does_name_match(struct uni_hid_device_s* d, const char* 
             ds3_instance_t* ins = get_ds3_instance(d);
             ins->clone_controller = true;
         }
+    } else if (strncmp("Sony PLAYSTATION(R)3", name, 20) == 0) {
+        ds3_instance_t* ins = get_ds3_instance(d);
+        ins->clone_controller = true;
     } else {
         return false;
     }
