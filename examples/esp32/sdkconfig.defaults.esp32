@@ -1,0 +1,18 @@
+#
+# ESP32-only options
+# These Kconfig symbols are only defined when IDF_TARGET=esp32. Putting them in
+# the shared sdkconfig.defaults causes "unknown kconfig symbol" warnings on
+# every other target.
+#
+CONFIG_XTAL_FREQ_AUTO=y
+
+# Enable Dualmode (BLE and BR/EDR)
+CONFIG_BTDM_CTRL_MODE_BTDM=y
+#CONFIG_BTDM_CTRL_MODE_BR_EDR_ONLY=y
+# Should be, at least, one more than CONFIG_BLUEPAD32_MAX_DEVICES
+# See: https://gitlab.com/ricardoquesada/bluepad32/-/issues/11
+CONFIG_BTDM_CTRL_BR_EDR_MAX_ACL_CONN=5
+CONFIG_BTDM_CTRL_BLE_MAX_CONN=5
+CONFIG_BTDM_CTRL_BR_EDR_MAX_SYNC_CONN=0
+CONFIG_BTDM_CTRL_AUTO_LATENCY=y
+CONFIG_BTDM_CTRL_MODEM_SLEEP=n
