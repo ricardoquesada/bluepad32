@@ -108,9 +108,11 @@ static void hog_disconnect(hci_con_handle_t con_handle) {
 
     device = uni_hid_device_get_instance_for_connection_handle(con_handle);
     if (device) {
-        status = hids_client_disconnect(device->hids_cid);
-        if (status != ERROR_CODE_SUCCESS) {
-            loge("Failed to disconnect HIDS client for hids_cid=%d, status=%d\n", device->hids_cid, status);
+        if (device->hids_cid != 0 && device->hids_cid != 0xffff) {
+            status = hids_client_disconnect(device->hids_cid);
+            if (status != ERROR_CODE_SUCCESS) {
+                loge("Failed to disconnect HIDS client for hids_cid=%d, status=%d\n", device->hids_cid, status);
+            }
         }
         // gap_delete_bonding(0, device->conn.btaddr);
     }
@@ -761,9 +763,17 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
     ARG_UNUSED(size);
 
     gap_event_advertising_report_get_address(packet, addr);
-    if (uni_hid_device_get_instance_for_address(addr)) {
-        // Ignore, address already found
-        return;
+    uni_hid_device_t* existing = uni_hid_device_get_instance_for_address(addr);
+    if (existing) {
+        if (existing->conn.connected && existing->conn.state == UNI_BT_CONN_STATE_DEVICE_READY) {
+            logi("BLE advertisement from connected device %s; replacing stale connection\n", bd_addr_to_str(addr));
+            uni_hid_device_disconnect(existing);
+            uni_hid_device_delete(existing);
+        } else {
+            // Ignore duplicate advertisements while the first connection
+            // attempt is still in progress.
+            return;
+        }
     }
 
     adv_event_get_data(packet, &appearance, name);
@@ -927,6 +937,8 @@ void uni_bt_le_setup(void) {
 void uni_bt_le_scan_start(void) {
     if (!ble_enabled)
         return;
+    if (is_scanning)
+        return;
 
     gap_start_scan();
     logi("BLE scan -> 1\n");
@@ -935,6 +947,8 @@ void uni_bt_le_scan_start(void) {
 
 void uni_bt_le_scan_stop(void) {
     if (!ble_enabled)
+        return;
+    if (!is_scanning)
         return;
 
     gap_stop_scan();
