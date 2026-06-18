@@ -38,6 +38,7 @@ extern "C" {
 #include "parser/uni_hid_parser_ds4.h"
 #include "parser/uni_hid_parser_ds3.h"
 #include "parser/uni_hid_parser_switch.h"
+#include "parser/uni_hid_parser_switch2.h"
 #include "parser/uni_hid_parser_stadia.h"
 #include "parser/uni_hid_parser_psmove.h"
 #include "parser/uni_hid_parser_xboxone.h"

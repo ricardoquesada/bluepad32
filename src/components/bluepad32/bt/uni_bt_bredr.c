@@ -19,6 +19,7 @@
 #include "uni_common.h"
 #include "uni_config.h"
 #include "uni_log.h"
+#include "parser/uni_hid_parser_switch.h"
 
 // These are the only two supported platforms with BR/EDR support.
 #if !(defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_TARGET_POSIX) || defined(CONFIG_TARGET_PICO_W))
@@ -521,7 +522,8 @@ void uni_bt_bredr_on_l2cap_data_packet(uint16_t channel, const uint8_t* packet, 
 
     // Skip the first byte, which is always 0xa1
     uni_hid_parse_input_report(d, &packet[1], size - 1);
-    uni_hid_device_process_controller(d);
+    if (!uni_hid_parser_switch_input_processed_in_parser(d))
+        uni_hid_device_process_controller(d);
 }
 
 void uni_bt_bredr_on_gap_inquiry_result(uint16_t channel, const uint8_t* packet, uint16_t size) {
@@ -596,11 +598,19 @@ void uni_bt_bredr_on_hci_connection_request(uint16_t channel, const uint8_t* pac
     ARG_UNUSED(channel);
     ARG_UNUSED(size);
 
+    if (hci_event_connection_request_get_link_type(packet) != 1) {
+        return;
+    }
+
     hci_event_connection_request_get_bd_addr(packet, event_addr);
     cod = hci_event_connection_request_get_class_of_device(packet);
 
     d = uni_hid_device_get_instance_for_address(event_addr);
     if (d == NULL) {
+        if (uni_hid_device_on_device_discovered(event_addr, "", (uint16_t)cod, 255) != UNI_ERROR_SUCCESS) {
+            logi("BR: ignore connection request %s COD 0x%06x\n", bd_addr_to_str(event_addr), (unsigned)cod);
+            return;
+        }
         d = uni_hid_device_create(event_addr);
         if (d == NULL) {
             logi("Cannot create new device... no more slots available\n");

@@ -64,6 +64,7 @@
 
 #include "bt/uni_bt_conn.h"
 #include "bt/uni_bt_defines.h"
+#include "parser/uni_hid_parser_switch2.h"
 #include "parser/uni_hid_parser.h"
 #include "uni_common.h"
 #include "uni_config.h"
@@ -528,12 +529,37 @@ static void device_information_packet_handler(uint8_t packet_type, uint16_t chan
     }
 }
 
-/* HCI packet handler
- *
- * text The SM packet handler receives Security Manager Events required for
- * pairing. It also receives events generated during Identity Resolving see
- * Listing SMPacketHandler.
- */
+static const char* sm_reason_name(uint8_t reason) {
+    switch (reason) {
+        case SM_REASON_PASSKEY_ENTRY_FAILED:
+            return "PASSKEY_ENTRY_FAILED";
+        case SM_REASON_OOB_NOT_AVAILABLE:
+            return "OOB_NOT_AVAILABLE";
+        case SM_REASON_AUTHENTHICATION_REQUIREMENTS:
+            return "AUTH_REQUIREMENTS_MISMATCH";
+        case SM_REASON_CONFIRM_VALUE_FAILED:
+            return "CONFIRM_VALUE_FAILED";
+        case SM_REASON_PAIRING_NOT_SUPPORTED:
+            return "PAIRING_NOT_SUPPORTED";
+        case SM_REASON_ENCRYPTION_KEY_SIZE:
+            return "ENCRYPTION_KEY_SIZE";
+        case SM_REASON_COMMAND_NOT_SUPPORTED:
+            return "COMMAND_NOT_SUPPORTED";
+        case SM_REASON_UNSPECIFIED_REASON:
+            return "UNSPECIFIED";
+        case SM_REASON_REPEATED_ATTEMPTS:
+            return "REPEATED_ATTEMPTS";
+        case SM_REASON_INVALID_PARAMETERS:
+            return "INVALID_PARAMETERS";
+        case SM_REASON_DHKEY_CHECK_FAILED:
+            return "DHKEY_CHECK_FAILED";
+        case SM_REASON_NUMERIC_COMPARISON_FAILED:
+            return "NUMERIC_COMPARISON_FAILED";
+        default:
+            return "UNKNOWN";
+    }
+}
+
 static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     bd_addr_t addr;
     uni_hid_device_t* device;
@@ -636,9 +662,15 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
                 case ERROR_CODE_REMOTE_USER_TERMINATED_CONNECTION:
                     logi("Pairing failed, disconnected\n");
                     break;
-                case ERROR_CODE_AUTHENTICATION_FAILURE:
-                    logi("Pairing failed, reason = %u\n", sm_event_pairing_complete_get_reason(packet));
+                case ERROR_CODE_AUTHENTICATION_FAILURE: {
+                    uint8_t reason = sm_event_pairing_complete_get_reason(packet);
+                    logi("Pairing failed, reason = %u (%s)\n", reason, sm_reason_name(reason));
+                    if (uni_hid_parser_switch2_is_ble_device(device)) {
+                        logi("Switch2: BLE SMP failed — disconnecting (hold SYNC to retry)\n");
+                        hog_disconnect(device->conn.handle);
+                    }
                     break;
+                }
                 default:
                     loge("Unkown paring status: %#x\n", status);
                     break;
@@ -678,9 +710,27 @@ void uni_bt_le_on_hci_event_le_meta(const uint8_t* packet, uint16_t size) {
                 break;
             }
             con_handle = hci_subevent_le_connection_complete_get_connection_handle(packet);
-            logi("Using con_handle: %#x\n", con_handle);
-
             uni_hid_device_set_connection_handle(device, con_handle);
+            if (device->product_id == UNI_SW2_PRO_PID || device->product_id == UNI_SW2_JOYCON_L_PID ||
+                device->product_id == UNI_SW2_JOYCON_R_PID) {
+                if (uni_hid_parser_switch2_needs_pair(device)) {
+                    bd_addr_type_t peer_type =
+                        (bd_addr_type_t)hci_subevent_le_connection_complete_get_peer_address_type(packet);
+                    gap_delete_bonding(peer_type, event_addr);
+                    logi("Switch2: cleared bond before connect (SYNC pair, addr_type=%u)\n", peer_type);
+                }
+                if (uni_hid_parser_switch2_needs_pair(device) || !gap_bonded(con_handle)) {
+                    logi("Switch2: LE connected addr=%s handle=0x%04x -> GATT\n", bd_addr_to_str(event_addr),
+                         con_handle);
+                    uni_hid_parser_switch2_on_le_connected(device);
+                } else {
+                    logi("Switch2: LE connected addr=%s handle=0x%04x -> encryption (bonded reconnect)\n",
+                         bd_addr_to_str(event_addr), con_handle);
+                    sm_request_pairing(con_handle);
+                }
+                break;
+            }
+            logi("Using con_handle: %#x\n", con_handle);
             sm_request_pairing(con_handle);
 
             // Resume scanning
@@ -721,6 +771,17 @@ void uni_bt_le_on_hci_event_encryption_change(const uint8_t* packet, uint16_t si
         // Abort on non BLE connections
         return;
 
+    if (uni_hid_parser_switch2_is_ble_device(device)) {
+        if (hci_event_encryption_change_get_encryption_enabled(packet) == 0) {
+            logi("Switch2: encryption failed -> abort\n");
+            hog_disconnect(con_handle);
+            return;
+        }
+        logi("Switch2: encryption OK handle=0x%04x -> GATT setup\n", con_handle);
+        uni_hid_parser_switch2_on_encrypted(device);
+        return;
+    }
+
     logi("Connection encrypted: %u\n", hci_event_encryption_change_get_encryption_enabled(packet));
     if (hci_event_encryption_change_get_encryption_enabled(packet) == 0) {
         logi("Encryption failed -> abort\n");
@@ -746,6 +807,9 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
     name[0] = 0;
 
     ARG_UNUSED(size);
+
+    if (uni_bt_le_switch2_handle_advertisement(packet, size))
+        return;
 
     gap_event_advertising_report_get_address(packet, addr);
     {
@@ -897,7 +961,13 @@ void uni_bt_le_setup(void) {
     // - Xbox 2 buttons: flaky, fails to connect or connects
     // sm_set_authentication_requirements(0);
 
+#if defined(OGXM_BLUEPAD32_PICO_W)
+    // Switch 2 SMP: AuthReq=0 (no bonding, no MITM). Legacy+bonding causes reason 4
+    // (CONFIRM_VALUE_FAILED). Xbox BLE also pairs more reliably without bonding.
+    sm_set_authentication_requirements(0);
+#else
     sm_set_authentication_requirements(SM_AUTHREQ_BONDING);
+#endif
 
     // Secure connection + NO bonding in ESP32:
     // - Stadia: Ok

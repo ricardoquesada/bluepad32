@@ -134,6 +134,9 @@ void uni_hid_device_request_inquire(void);
 
 void uni_hid_device_on_connected(uni_hid_device_t* d, bool connected);
 void uni_hid_device_connect(uni_hid_device_t* d);
+
+/** Restart the connect-to-ready watchdog (e.g. long GATT setup). */
+void uni_hid_device_kick_connection_timeout(uni_hid_device_t* d);
 void uni_hid_device_disconnect(uni_hid_device_t* d);
 void uni_hid_device_delete(uni_hid_device_t* d);
 

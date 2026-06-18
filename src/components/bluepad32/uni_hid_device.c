@@ -32,6 +32,7 @@
 #include "parser/uni_hid_parser_stadia.h"
 #include "parser/uni_hid_parser_steam.h"
 #include "parser/uni_hid_parser_switch.h"
+#include "parser/uni_hid_parser_switch2.h"
 #include "parser/uni_hid_parser_wii.h"
 #include "parser/uni_hid_parser_xboxone.h"
 #include "platform/uni_platform.h"
@@ -447,6 +448,9 @@ void uni_hid_device_disconnect(uni_hid_device_t* d) {
         return;
     }
 
+    uni_hid_parser_switch2_teardown(d);
+    uni_hid_parser_switch_teardown(d);
+
     // Disconnect child first
     if (d->child)
         uni_hid_device_disconnect(d->child);
@@ -718,6 +722,16 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             d->report_parser.device_dump = uni_hid_parser_switch_device_dump;
             logi("Device detected as Nintendo Switch Pro controller: 0x%02x\n", type);
             break;
+        case CONTROLLER_TYPE_Switch2ProController:
+        case CONTROLLER_TYPE_Switch2JoyConRight:
+        case CONTROLLER_TYPE_Switch2JoyConLeft:
+            d->report_parser.setup = uni_hid_parser_switch2_setup;
+            d->report_parser.init_report = uni_hid_parser_switch2_init_report;
+            d->report_parser.parse_input_report = uni_hid_parser_switch2_parse_input_report;
+            d->report_parser.set_player_leds = uni_hid_parser_switch2_set_player_leds;
+            d->report_parser.play_dual_rumble = uni_hid_parser_switch2_play_dual_rumble;
+            logi("Device detected as Nintendo Switch 2 controller: 0x%02x\n", type);
+            break;
         case CONTROLLER_TYPE_SteamController:
             d->report_parser.setup = uni_hid_parser_steam_setup;
             d->report_parser.init_report = uni_hid_parser_steam_init_report;
@@ -931,7 +945,10 @@ static void process_misc_button_system(uni_hid_device_t* d) {
     // We artificially add a delay.
     bool requires_delay = (d->controller_type == CONTROLLER_TYPE_SwitchProController ||
                            d->controller_type == CONTROLLER_TYPE_SwitchJoyConLeft ||
-                           d->controller_type == CONTROLLER_TYPE_SwitchJoyConRight);
+                           d->controller_type == CONTROLLER_TYPE_SwitchJoyConRight ||
+                           d->controller_type == CONTROLLER_TYPE_Switch2ProController ||
+                           d->controller_type == CONTROLLER_TYPE_Switch2JoyConLeft ||
+                           d->controller_type == CONTROLLER_TYPE_Switch2JoyConRight);
 
     if (requires_delay && (d->misc_button_wait_delay & MISC_BUTTON_SYSTEM))
         return;
@@ -987,4 +1004,13 @@ static void start_connection_timeout(uni_hid_device_t* d) {
     btstack_run_loop_set_timer_handler(&d->connection_timer, &device_connection_timeout);
     btstack_run_loop_set_timer(&d->connection_timer, HID_DEVICE_CONNECTION_TIMEOUT_MS);
     btstack_run_loop_add_timer(&d->connection_timer);
+}
+
+void uni_hid_device_kick_connection_timeout(uni_hid_device_t* d) {
+    if (d == NULL)
+        return;
+    if (uni_bt_conn_get_state(&d->conn) == UNI_BT_CONN_STATE_DEVICE_READY)
+        return;
+    btstack_run_loop_remove_timer(&d->connection_timer);
+    start_connection_timeout(d);
 }
