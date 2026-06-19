@@ -65,6 +65,7 @@
 #include "bt/uni_bt_conn.h"
 #include "bt/uni_bt_defines.h"
 #include "parser/uni_hid_parser_switch2.h"
+#include "parser/uni_hid_parser_xboxone.h"
 #include "parser/uni_hid_parser.h"
 #include "uni_common.h"
 #include "uni_config.h"
@@ -98,6 +99,35 @@ static void resume_scanning_hint(void) {
         logi("BLE scan -> 1\n");
     }
 }
+
+static bool ogxm_device_is_switch2(const uni_hid_device_t* device) {
+    return device->product_id == UNI_SW2_PRO_PID || device->product_id == UNI_SW2_JOYCON_L_PID ||
+           device->product_id == UNI_SW2_JOYCON_R_PID;
+}
+
+#if defined(OGXM_BLUEPAD32_PICO_W)
+/** Switch 2 requires AuthReq=0; Xbox/DS5 HIDS need bonding or SMP never completes. */
+static void ogxm_sm_request_pairing(uni_hid_device_t* device, hci_con_handle_t con_handle, bd_addr_type_t peer_type,
+                                    const bd_addr_t addr) {
+    if (ogxm_device_is_switch2(device)) {
+        sm_set_authentication_requirements(0);
+    } else {
+        sm_set_authentication_requirements(SM_AUTHREQ_BONDING);
+        gap_delete_bonding(peer_type, addr);
+        logi("BLE: SMP bonding for %s (cleared stale keys)\n", bd_addr_to_str(addr));
+    }
+    sm_request_pairing(con_handle);
+}
+#else
+static void ogxm_sm_request_pairing(uni_hid_device_t* device, hci_con_handle_t con_handle, bd_addr_type_t peer_type,
+                                    const bd_addr_t addr) {
+    ARG_UNUSED(device);
+    ARG_UNUSED(peer_type);
+    ARG_UNUSED(addr);
+    sm_set_authentication_requirements(SM_AUTHREQ_BONDING);
+    sm_request_pairing(con_handle);
+}
+#endif
 
 static void hog_disconnect(hci_con_handle_t con_handle) {
     // MUST not call uni_hid_device_disconnect(), called from it.
@@ -234,8 +264,12 @@ static void parse_report(uint8_t* packet, uint16_t size) {
 
         uni_hid_device_set_hid_descriptor(device, descriptor_data, descriptor_len);
     }
+
     report_data = gattservice_subevent_hid_report_get_report(packet);
     report_len = gattservice_subevent_hid_report_get_report_len(packet);
+
+    if (uni_hid_parser_xboxone_is_ble_hids(device) && report_len > 0)
+        uni_hid_parser_xboxone_ble_on_input(device);
 
     uni_hid_parse_input_report(device, report_data, report_len);
     uni_hid_device_process_controller(device);
@@ -283,19 +317,23 @@ static void hids_client_packet_handler(uint8_t packet_type, uint16_t channel, ui
                         loge("Hids Cid: Could not find valid device for hids_cid=%d\n", hids_cid);
                         break;
                     }
-#if 0
-                    status = hids_client_enable_notifications(hids_cid);
-                    if (status != ERROR_CODE_SUCCESS)
-                        logi("Failed to enable client notifications for hids_cid=%d, status=%#x\n", hids_cid, status);
-                    else
-                        logi("Client notifications enabled for for hids_cid=%d\n", hids_cid);
-#endif
-
                     uni_hid_device_guess_controller_type_from_pid_vid(device);
+
+                    {
+                        const uint8_t* dd =
+                            hids_client_descriptor_storage_get_descriptor_data(hids_cid, 0);
+                        uint16_t dl = hids_client_descriptor_storage_get_descriptor_len(hids_cid, 0);
+                        if (dd && dl > 0)
+                            uni_hid_device_set_hid_descriptor(device, dd, dl);
+                    }
+
                     uni_hid_device_connect(device);
                     uni_hid_device_set_ready(device);
 
-                    resume_scanning_hint();
+                    if (uni_hid_parser_xboxone_is_ble_hids(device))
+                        uni_hid_parser_xboxone_ble_on_hid_connected(device);
+                    else
+                        resume_scanning_hint();
                     break;
                 default:
                     loge("HID service client connection failed, err 0x%02x.\n", status);
@@ -628,15 +666,24 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
                     logi("Re-encryption failed, disconnected\n");
                     hog_disconnect(con_handle);
                     break;
-                case ERROR_CODE_PIN_OR_KEY_MISSING:
+                case ERROR_CODE_PIN_OR_KEY_MISSING: {
+                    bd_addr_type_t addr_type;
                     logi("Re-encryption failed, bonding information missing\n\n");
                     logi("Assuming remote lost bonding information\n");
-                    logi("Deleting local bonding information and start new pairing...\n");
                     sm_event_reencryption_complete_get_address(packet, addr);
-                    type = sm_event_reencryption_started_get_addr_type(packet);
-                    gap_delete_bonding(type, addr);
-                    sm_request_pairing(sm_event_reencryption_complete_get_handle(packet));
+                    addr_type = (bd_addr_type_t)sm_event_reencryption_complete_get_addr_type(packet);
+                    gap_delete_bonding(addr_type, addr);
+                    device = uni_hid_device_get_instance_for_connection_handle(con_handle);
+                    if (device && ogxm_device_is_switch2(device)) {
+                        logi("Switch2: retry SMP after bond clear\n");
+                        sm_set_authentication_requirements(0);
+                        sm_request_pairing(con_handle);
+                    } else {
+                        logi("Bond mismatch — disconnect for clean re-pair\n");
+                        hog_disconnect(con_handle);
+                    }
                     break;
+                }
                 default:
                     break;
             }
@@ -645,9 +692,7 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
             sm_event_pairing_complete_get_address(packet, addr);
             device = uni_hid_device_get_instance_for_address(addr);
             if (!device) {
-                con_handle = sm_event_pairing_complete_get_handle(packet);
-                loge("SM_EVENT_PAIRING_COMPLETE: Invalid device for addr %s\n", bd_addr_to_str(addr));
-                hog_disconnect(con_handle);
+                loge("SM_EVENT_PAIRING_COMPLETE: no device for addr %s (already deleted)\n", bd_addr_to_str(addr));
                 break;
             }
 
@@ -657,6 +702,10 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
                     logi("Pairing complete, success\n");
                     break;
                 case ERROR_CODE_CONNECTION_TIMEOUT:
+                    if (uni_bt_conn_get_state(&device->conn) == UNI_BT_CONN_STATE_DEVICE_READY) {
+                        logi("Pairing timeout ignored (link already active)\n");
+                        break;
+                    }
                     logi("Pairing failed, timeout\n");
                     break;
                 case ERROR_CODE_REMOTE_USER_TERMINATED_CONNECTION:
@@ -726,12 +775,17 @@ void uni_bt_le_on_hci_event_le_meta(const uint8_t* packet, uint16_t size) {
                 } else {
                     logi("Switch2: LE connected addr=%s handle=0x%04x -> encryption (bonded reconnect)\n",
                          bd_addr_to_str(event_addr), con_handle);
-                    sm_request_pairing(con_handle);
+                    ogxm_sm_request_pairing(device, con_handle,
+                                            (bd_addr_type_t)hci_subevent_le_connection_complete_get_peer_address_type(
+                                                packet),
+                                            event_addr);
                 }
                 break;
             }
             logi("Using con_handle: %#x\n", con_handle);
-            sm_request_pairing(con_handle);
+            ogxm_sm_request_pairing(device, con_handle,
+                                    (bd_addr_type_t)hci_subevent_le_connection_complete_get_peer_address_type(packet),
+                                    event_addr);
 
             // Resume scanning
             // gap_start_scan();

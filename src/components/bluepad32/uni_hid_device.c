@@ -448,6 +448,9 @@ void uni_hid_device_disconnect(uni_hid_device_t* d) {
         return;
     }
 
+    if (d->vendor_id == 0x045e && d->hids_cid != 0)
+        uni_hid_parser_xboxone_ble_teardown(d);
+
     uni_hid_parser_switch2_teardown(d);
     uni_hid_parser_switch_teardown(d);
 

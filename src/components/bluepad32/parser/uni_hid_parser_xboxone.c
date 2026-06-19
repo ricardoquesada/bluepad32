@@ -10,10 +10,49 @@
 
 #include "parser/uni_hid_parser_xboxone.h"
 
+#include <ble/gatt-service/hids_client.h>
+#include <btstack.h>
+#include <gap.h>
+
 #include "controller/uni_controller.h"
 #include "hid_usage.h"
+#include "sdkconfig.h"
 #include "uni_hid_device.h"
 #include "uni_log.h"
+
+#define XBOX_BLE_INPUT_REPORT_ID 0x01
+#define XBOX_BLE_POLL_MS 100
+#define XBOX_BLE_POLL_MAX 150
+
+static uint8_t s_xbox_ble_poll_active[CONFIG_BLUEPAD32_MAX_DEVICES];
+static uint16_t s_xbox_ble_poll_attempts[CONFIG_BLUEPAD32_MAX_DEVICES];
+static btstack_timer_source_t s_xbox_ble_poll_timers[CONFIG_BLUEPAD32_MAX_DEVICES];
+
+static void xbox_ble_poll_callback(btstack_timer_source_t* ts) {
+    uni_hid_device_t* d = (uni_hid_device_t*)ts->context;
+    int idx = uni_hid_device_get_idx_for_instance(d);
+    uint8_t status;
+
+    if (idx < 0 || !s_xbox_ble_poll_active[idx])
+        return;
+
+    if (++s_xbox_ble_poll_attempts[idx] > XBOX_BLE_POLL_MAX) {
+        logi("Xbox BLE: input poll stopped (no report after %u tries)\n", (unsigned)XBOX_BLE_POLL_MAX);
+        uni_hid_parser_xboxone_ble_teardown(d);
+        return;
+    }
+
+    if ((s_xbox_ble_poll_attempts[idx] & 1u) != 0u) {
+        status = hids_client_send_get_report(d->hids_cid, XBOX_BLE_INPUT_REPORT_ID, HID_REPORT_TYPE_INPUT);
+        if (status != ERROR_CODE_SUCCESS && status != ERROR_CODE_COMMAND_DISALLOWED)
+            logd("Xbox BLE: GET report status=%#x\n", status);
+    } else {
+        uni_hid_parser_xboxone_ble_keepalive(d);
+    }
+
+    btstack_run_loop_set_timer(ts, XBOX_BLE_POLL_MS);
+    btstack_run_loop_add_timer(ts);
+}
 
 // Xbox doesn't report trigger buttons. Instead, it reports throttle/brake.
 // This threshold represents the minimum value of throttle/brake to "report"
@@ -552,13 +591,61 @@ void xboxone_play_quad_rumble(struct uni_hid_device_s* d,
     }
 }
 
-void uni_hid_parser_xboxone_ble_keepalive(uni_hid_device_t* d) {
-    if (d == NULL || d->controller_type != CONTROLLER_TYPE_XBoxOneController)
+bool uni_hid_parser_xboxone_is_ble_hids(const uni_hid_device_t* d) {
+    if (d == NULL || d->hids_cid == 0)
+        return false;
+    if (d->conn.protocol != UNI_BT_CONN_PROTOCOL_BLE)
+        return false;
+    return d->vendor_id == XBOX_WIRELESS_VID;
+}
+
+void uni_hid_parser_xboxone_ble_on_hid_connected(uni_hid_device_t* d) {
+    int idx = uni_hid_device_get_idx_for_instance(d);
+    uint8_t status;
+
+    if (idx < 0 || !uni_hid_parser_xboxone_is_ble_hids(d))
         return;
-    if (d->conn.protocol != UNI_BT_CONN_PROTOCOL_BLE || d->hids_cid == 0)
+
+    gap_request_connection_parameter_update(d->conn.handle, 7, 9, 0, 600);
+
+    status = hids_client_send_exit_suspend(d->hids_cid, 0);
+    if (status != ERROR_CODE_SUCCESS && status != ERROR_CODE_COMMAND_DISALLOWED)
+        logd("Xbox BLE: exit suspend status=%#x\n", status);
+
+    uni_hid_parser_xboxone_ble_keepalive(d);
+
+    s_xbox_ble_poll_active[idx] = 1;
+    s_xbox_ble_poll_attempts[idx] = 0;
+    s_xbox_ble_poll_timers[idx].process = xbox_ble_poll_callback;
+    s_xbox_ble_poll_timers[idx].context = d;
+    btstack_run_loop_set_timer(&s_xbox_ble_poll_timers[idx], XBOX_BLE_POLL_MS);
+    btstack_run_loop_add_timer(&s_xbox_ble_poll_timers[idx]);
+    logi("Xbox BLE: polling input (GET report + keepalive)\n");
+}
+
+void uni_hid_parser_xboxone_ble_on_input(uni_hid_device_t* d) {
+    int idx = uni_hid_device_get_idx_for_instance(d);
+    if (idx < 0 || !s_xbox_ble_poll_active[idx])
+        return;
+    logi("Xbox BLE: first input report — poll stopped\n");
+    uni_hid_parser_xboxone_ble_teardown(d);
+}
+
+void uni_hid_parser_xboxone_ble_teardown(uni_hid_device_t* d) {
+    int idx = uni_hid_device_get_idx_for_instance(d);
+    if (idx < 0)
+        return;
+    s_xbox_ble_poll_active[idx] = 0;
+    s_xbox_ble_poll_attempts[idx] = 0;
+    btstack_run_loop_remove_timer(&s_xbox_ble_poll_timers[idx]);
+}
+
+void uni_hid_parser_xboxone_ble_keepalive(uni_hid_device_t* d) {
+    if (d == NULL || !uni_hid_parser_xboxone_is_ble_hids(d))
         return;
     xboxone_instance_t* ins = get_xboxone_instance(d);
-    if (ins->version != XBOXONE_FIRMWARE_V5)
+    if (ins->version != XBOXONE_FIRMWARE_V5 &&
+        gap_get_connection_type(d->conn.handle) != GAP_CONNECTION_LE)
         return;
 
     struct xboxone_ff_report ff = {
