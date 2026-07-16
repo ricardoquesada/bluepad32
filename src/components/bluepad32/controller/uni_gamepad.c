@@ -22,6 +22,7 @@ static struct {
     {CONTROLLER_TYPE_UnknownSteamController, "Unknown Steam"},
     {CONTROLLER_TYPE_SteamController, "Steam"},
     {CONTROLLER_TYPE_SteamControllerV2, "Steam V2"},
+    {CONTROLLER_TYPE_SteamControllerTriton, "Steam Controller 2026"},
 
     {CONTROLLER_TYPE_XBox360Controller, "XBox 360"},
     {CONTROLLER_TYPE_XBoxOneController, "XBox One"},
@@ -86,6 +87,9 @@ const uni_gamepad_mappings_t GAMEPAD_DEFAULT_MAPPINGS = {
     .misc_button_start = UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_START,
     .misc_button_system = UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_SYSTEM,
     .misc_button_capture = UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_CAPTURE,
+    .misc_button_sl = UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_SL,
+    .misc_button_sr = UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_SR,
+    .misc_button_chat = UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_CHAT,
 };
 
 const int AXIS_NORMALIZE_RANGE = 1024;  // 10-bit resolution (1024)
@@ -186,6 +190,12 @@ uni_gamepad_t uni_gamepad_remap(const uni_gamepad_t* gp) {
         new_gp.misc_buttons |= BIT(map.misc_button_start);
     if (gp->misc_buttons & MISC_BUTTON_CAPTURE)
         new_gp.misc_buttons |= BIT(map.misc_button_capture);
+    if (gp->misc_buttons & MISC_BUTTON_SL)
+        new_gp.misc_buttons |= BIT(map.misc_button_sl);
+    if (gp->misc_buttons & MISC_BUTTON_SR)
+        new_gp.misc_buttons |= BIT(map.misc_button_sr);
+    if (gp->misc_buttons & MISC_BUTTON_CHAT)
+        new_gp.misc_buttons |= BIT(map.misc_button_chat);
 
     new_gp.axis_x = get_mappings_value_for_axis(map.axis_x, gp);
     if (map.axis_x_inverted)
@@ -222,15 +232,28 @@ uni_gamepad_mappings_type_t uni_gamepad_get_mappings_type(void) {
 void uni_gamepad_dump(const uni_gamepad_t* gp) {
     // Don't add "\n"
     logi(
-        "dpad=0x%02x, x=%4d, y=%4d, rx=%4d, ry=%4d, brake=%4d, throttle=%4d, buttons=0x%04x, misc=0x%02x, "
-        "gyro=%7d,%7d,%7d accel=%7d,%7d,%7d",
+        "dpad=0x%02x, x=%4d, y=%4d, rx=%4d, ry=%4d, brake=%4d, throttle=%4d, buttons=0x%04x, misc=0x%02x",
         gp->dpad,                                          // dpad
         gp->axis_x, gp->axis_y, gp->axis_rx, gp->axis_ry,  // axis
         gp->brake, gp->throttle,                           // brake/gas
-        gp->buttons, gp->misc_buttons,                     // buttons
-        gp->gyro[0], gp->gyro[1], gp->gyro[2],             // gyro
-        gp->accel[0], gp->accel[1], gp->accel[2]           // accel
+        gp->buttons, gp->misc_buttons                      // buttons
     );
+    if (gp->misc_buttons & MISC_BUTTON_SYSTEM)
+        logi(" [SYS]");
+    if (gp->misc_buttons & MISC_BUTTON_SELECT)
+        logi(" [SEL]");
+    if (gp->misc_buttons & MISC_BUTTON_START)
+        logi(" [START]");
+    if (gp->misc_buttons & MISC_BUTTON_CAPTURE)
+        logi(" [CAP]");
+    if (gp->misc_buttons & MISC_BUTTON_SL)
+        logi(" [SL]");
+    if (gp->misc_buttons & MISC_BUTTON_SR)
+        logi(" [SR]");
+    if (gp->misc_buttons & MISC_BUTTON_CHAT)
+        logi(" [CHAT]");
+    logi(" gyro=%7d,%7d,%7d accel=%7d,%7d,%7d", gp->gyro[0], gp->gyro[1], gp->gyro[2], gp->accel[0], gp->accel[1],
+         gp->accel[2]);
 }
 
 const char* uni_gamepad_get_model_name(int type) {

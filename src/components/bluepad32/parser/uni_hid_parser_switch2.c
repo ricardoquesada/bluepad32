@@ -855,15 +855,8 @@ static void sw2_advance_after_command(uni_hid_device_t* d) {
             break;
 
         case SW2_STATE_READ_CALIBRATION:
-            // SW2 init burst already sends feature init (0x0c/0x02). TommyWabg skips motion enable on SW2.
-            if (ins->needs_pair) {
-                sw2_start_pairing(d);
-            } else {
-                sw2_subscribe_input(d);
-            }
-            break;
-
-        case SW2_STATE_ENABLE_FEATURES:
+            /* Motion is already enabled in init burst (0x0c/0x04 with 0x2f). A second
+             * feature-enable here disconnects Switch 2 Pro / Joy-Con. */
             if (ins->needs_pair) {
                 sw2_start_pairing(d);
             } else {
@@ -1040,6 +1033,9 @@ static void sw2_gatt_handler(uint8_t packet_type, uint16_t channel, uint8_t* pac
                             ins->waiting_encryption = true;
                             logi("Switch2: CCCD needs encryption (att=0x%02x, state=%s) -> SMP\n", att_status,
                                  sw2_state_name(ins->state));
+                            /* Switch 2 requires AuthReq=0 (Just Works, no bonding). Bonding/SC
+                             * causes CONFIRM_VALUE_FAILED / AUTH_REQUIREMENTS_MISMATCH. */
+                            sm_set_authentication_requirements(0);
                             sm_request_pairing(d->conn.handle);
                             break;
                         }
@@ -1352,6 +1348,10 @@ static void sw2_apply_pro2_raw_buttons(uni_gamepad_t* gp, uint8_t br, uint8_t bm
     gp->buttons |= (bm & (1u << 4)) ? BUTTON_SHOULDER_L : 0;
 
     gp->misc_buttons |= (bl & (1u << 0)) ? MISC_BUTTON_SYSTEM : 0;
+    /* Switch 2 Pro USB capture: GL bit3, GR bit2, Chat bit4 (were intentionally unmapped). */
+    gp->misc_buttons |= (bl & (1u << 3)) ? MISC_BUTTON_SL : 0;    // GL → SL
+    gp->misc_buttons |= (bl & (1u << 2)) ? MISC_BUTTON_SR : 0;    // GR → SR
+    gp->misc_buttons |= (bl & (1u << 4)) ? MISC_BUTTON_CHAT : 0;  // Chat / C
 
     if (zl_on)
         gp->brake = 1023;
@@ -1409,6 +1409,11 @@ static void sw2_apply_composed_buttons(uni_gamepad_t* gp, uint32_t buttons) {
     gp->misc_buttons |= (buttons & (0x100000u | 0x1000u)) ? MISC_BUTTON_SYSTEM : 0;  // Home → PS
     gp->misc_buttons |= (buttons & (0x200000u | 0x2000u)) ? MISC_BUTTON_CAPTURE : 0;
 
+    /* Chat / C (bit 14). Joy-Con rail SL/SR (bits 5/4). Pro grip GL/GR (bits 25/24). */
+    gp->misc_buttons |= (buttons & 0x4000u) ? MISC_BUTTON_CHAT : 0;
+    gp->misc_buttons |= (buttons & (0x20u | 0x2000000u)) ? MISC_BUTTON_SL : 0;  // R_SL | GL
+    gp->misc_buttons |= (buttons & (0x10u | 0x1000000u)) ? MISC_BUTTON_SR : 0;  // R_SR | GR
+
     if (buttons & 0x800000)
         gp->brake = 1023;
     if (buttons & 0x80)
@@ -1447,6 +1452,12 @@ static uint32_t sw2_compose_buttons_from_raw(const uint8_t b1, const uint8_t b2,
         buttons |= 0x00001000u;
     if (b3 & 0x02)
         buttons |= 0x00002000u;
+    if (b3 & 0x04)
+        buttons |= 0x01000000u;  // GR → SR
+    if (b3 & 0x08)
+        buttons |= 0x02000000u;  // GL → SL
+    if (b3 & 0x10)
+        buttons |= 0x00004000u;  // Chat / C
     return buttons;
 }
 
@@ -1518,7 +1529,8 @@ static void sw2_parse_full_report(uni_gamepad_t* gp, sw2_instance_t* ins, const 
         else
             sw2_apply_sticks(gp, ins, report, (uint8_t)(base + 10), (uint8_t)(base + 13));
     }
-    if (!sw2_is_joycon_pid(pid) && len >= (uint16_t)(base + 60)) {
+    /* IMU @48 for Pro 2 and Joy-Con 2 (same 63-byte composed layout). */
+    if (len >= (uint16_t)(base + 60)) {
         gp->accel[0] = sw2_decode_s16(&report[base + 48]);
         gp->accel[1] = sw2_decode_s16(&report[base + 50]);
         gp->accel[2] = sw2_decode_s16(&report[base + 52]);

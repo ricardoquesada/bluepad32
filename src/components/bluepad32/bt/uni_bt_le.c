@@ -50,6 +50,7 @@
  *  uni_hid_device_set_ready()
  */
 
+#include "bt/uni_bt.h"
 #include "bt/uni_bt_le.h"
 
 #include <bluetooth_data_types.h>
@@ -59,6 +60,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "sdkconfig.h"
 
@@ -75,6 +77,8 @@
 
 static bool is_scanning;
 static bool ble_enabled;
+/** One-shot retry when SC+Bonding gets AUTH_REQUIREMENTS_MISMATCH. */
+static uint8_t s_ble_auth_mismatch_retry;
 
 // Temporal space for SDP in BLE
 static uint8_t hid_descriptor_storage[512];
@@ -105,29 +109,34 @@ static bool ogxm_device_is_switch2(const uni_hid_device_t* device) {
            device->product_id == UNI_SW2_JOYCON_R_PID;
 }
 
-#if defined(OGXM_BLUEPAD32_PICO_W)
-/** Switch 2 requires AuthReq=0; Xbox/DS5 HIDS need bonding or SMP never completes. */
+/** Xbox BLE name is known from advertising before VID/PID. */
+static bool ogxm_device_is_xbox_ble(const uni_hid_device_t* device) {
+    if (device == NULL)
+        return false;
+    if (device->vendor_id == 0x045e)
+        return true;
+    return device->name[0] != '\0' && strncmp(device->name, "Xbox Wireless Controller", 24) == 0;
+}
+
+/**
+ * Switch 2 and Xbox BLE: AuthReq=0 (no bonding). Switch 2 SYNC fails with
+ * CONFIRM_VALUE_FAILED if bonding/SC is requested; Xbox bonded re-encryption
+ * breaks reconnect. Clear any host bond and Just-Works pair.
+ * Other BLE pads (DualSense, Steam Controller 2026, …): Bonding + LE Secure
+ * Connections. Triton rejects legacy-only SMP with AUTH_REQUIREMENTS_MISMATCH.
+ */
 static void ogxm_sm_request_pairing(uni_hid_device_t* device, hci_con_handle_t con_handle, bd_addr_type_t peer_type,
                                     const bd_addr_t addr) {
-    if (ogxm_device_is_switch2(device)) {
-        sm_set_authentication_requirements(0);
-    } else {
-        sm_set_authentication_requirements(SM_AUTHREQ_BONDING);
+    if (ogxm_device_is_switch2(device) || ogxm_device_is_xbox_ble(device)) {
         gap_delete_bonding(peer_type, addr);
-        logi("BLE: SMP bonding for %s (cleared stale keys)\n", bd_addr_to_str(addr));
+        sm_set_authentication_requirements(0);
+        logi("BLE: Just Works pair (no bond) for %s\n", bd_addr_to_str(addr));
+    } else {
+        sm_set_authentication_requirements(SM_AUTHREQ_SECURE_CONNECTION | SM_AUTHREQ_BONDING);
+        logi("BLE: SC+Bonding pair for %s\n", bd_addr_to_str(addr));
     }
     sm_request_pairing(con_handle);
 }
-#else
-static void ogxm_sm_request_pairing(uni_hid_device_t* device, hci_con_handle_t con_handle, bd_addr_type_t peer_type,
-                                    const bd_addr_t addr) {
-    ARG_UNUSED(device);
-    ARG_UNUSED(peer_type);
-    ARG_UNUSED(addr);
-    sm_set_authentication_requirements(SM_AUTHREQ_BONDING);
-    sm_request_pairing(con_handle);
-}
-#endif
 
 static void hog_disconnect(hci_con_handle_t con_handle) {
     // MUST not call uni_hid_device_disconnect(), called from it.
@@ -136,9 +145,12 @@ static void hog_disconnect(hci_con_handle_t con_handle) {
 
     device = uni_hid_device_get_instance_for_connection_handle(con_handle);
     if (device) {
-        status = hids_client_disconnect(device->hids_cid);
-        if (status != ERROR_CODE_SUCCESS) {
-            loge("Failed to disconnect HIDS client for hids_cid=%d, status=%d\n", device->hids_cid, status);
+        if (device->hids_cid != 0 && device->hids_cid != 0xffff) {
+            status = hids_client_disconnect(device->hids_cid);
+            if (status != ERROR_CODE_SUCCESS && status != ERROR_CODE_UNKNOWN_CONNECTION_IDENTIFIER) {
+                loge("Failed to disconnect HIDS client for hids_cid=%d, status=%d\n", device->hids_cid, status);
+            }
+            device->hids_cid = 0xffff;
         }
         // gap_delete_bonding(0, device->conn.btaddr);
     }
@@ -648,9 +660,20 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
                  bd_addr_to_str(addr));
             break;
         case SM_EVENT_REENCRYPTION_STARTED:
-            sm_event_reencryption_complete_get_address(packet, addr);
+            sm_event_reencryption_started_get_address(packet, addr);
             logi("Bonding information exists for addr type %u, identity addr %s -> start re-encryption\n",
                  sm_event_reencryption_started_get_addr_type(packet), bd_addr_to_str(addr));
+            /* Xbox: do not re-encrypt — that path is not first-connect. Force Just Works. */
+            con_handle = sm_event_reencryption_started_get_handle(packet);
+            device = uni_hid_device_get_instance_for_connection_handle(con_handle);
+            if (device && ogxm_device_is_xbox_ble(device)) {
+                bd_addr_type_t addr_type =
+                    (bd_addr_type_t)sm_event_reencryption_started_get_addr_type(packet);
+                logi("Xbox BLE: abort re-encryption, Just Works pair\n");
+                gap_delete_bonding(addr_type, addr);
+                sm_set_authentication_requirements(0);
+                sm_request_pairing(con_handle);
+            }
             break;
         case SM_EVENT_REENCRYPTION_COMPLETE:
             con_handle = sm_event_reencryption_complete_get_handle(packet);
@@ -678,8 +701,16 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
                         logi("Switch2: retry SMP after bond clear\n");
                         sm_set_authentication_requirements(0);
                         sm_request_pairing(con_handle);
+                    } else if (device && ogxm_device_is_xbox_ble(device)) {
+                        logi("Xbox BLE: Just Works pair after bond mismatch\n");
+                        sm_set_authentication_requirements(0);
+                        sm_request_pairing(con_handle);
+                    } else if (device) {
+                        logi("Bond mismatch — retry SMP after bond clear\n");
+                        sm_set_authentication_requirements(SM_AUTHREQ_SECURE_CONNECTION | SM_AUTHREQ_BONDING);
+                        sm_request_pairing(con_handle);
                     } else {
-                        logi("Bond mismatch — disconnect for clean re-pair\n");
+                        logi("Bond mismatch — disconnect (no device)\n");
                         hog_disconnect(con_handle);
                     }
                     break;
@@ -700,6 +731,7 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
             switch (status) {
                 case ERROR_CODE_SUCCESS:
                     logi("Pairing complete, success\n");
+                    s_ble_auth_mismatch_retry = 0;
                     break;
                 case ERROR_CODE_CONNECTION_TIMEOUT:
                     if (uni_bt_conn_get_state(&device->conn) == UNI_BT_CONN_STATE_DEVICE_READY) {
@@ -717,6 +749,26 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
                     if (uni_hid_parser_switch2_is_ble_device(device)) {
                         logi("Switch2: BLE SMP failed — disconnecting (hold SYNC to retry)\n");
                         hog_disconnect(device->conn.handle);
+                        break;
+                    }
+                    /* Some pads reject SC+Bonding; retry Just Works once. */
+                    if (reason == SM_REASON_AUTHENTHICATION_REQUIREMENTS &&
+                        device->conn.handle != HCI_CON_HANDLE_INVALID &&
+                        device->conn.handle != UNI_BT_CONN_HANDLE_INVALID &&
+                        !ogxm_device_is_xbox_ble(device)) {
+                        if (s_ble_auth_mismatch_retry == 0) {
+                            s_ble_auth_mismatch_retry = 1;
+                            bd_addr_type_t peer_type =
+                                (bd_addr_type_t)sm_event_pairing_complete_get_addr_type(packet);
+                            logi("BLE: AUTH_REQUIREMENTS_MISMATCH — retry Just Works (no bond)\n");
+                            gap_delete_bonding(peer_type, addr);
+                            sm_set_authentication_requirements(0);
+                            sm_request_pairing(device->conn.handle);
+                        } else {
+                            s_ble_auth_mismatch_retry = 0;
+                            logi("BLE: AUTH_REQUIREMENTS_MISMATCH — giving up\n");
+                            hog_disconnect(device->conn.handle);
+                        }
                     }
                     break;
                 }

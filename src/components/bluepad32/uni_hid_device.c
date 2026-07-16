@@ -31,6 +31,7 @@
 #include "parser/uni_hid_parser_smarttvremote.h"
 #include "parser/uni_hid_parser_stadia.h"
 #include "parser/uni_hid_parser_steam.h"
+#include "parser/uni_hid_parser_steam_triton.h"
 #include "parser/uni_hid_parser_switch.h"
 #include "parser/uni_hid_parser_switch2.h"
 #include "parser/uni_hid_parser_wii.h"
@@ -40,6 +41,8 @@
 #include "uni_config.h"
 #include "uni_log.h"
 #include "uni_virtual_device.h"
+
+#include <ble/gatt-service/hids_client.h>
 
 enum {
     // TODO: Why do they start at bit 8 and not bit 0 (???).
@@ -442,6 +445,7 @@ void uni_hid_device_connect(uni_hid_device_t* d) {
 
 void uni_hid_device_disconnect(uni_hid_device_t* d) {
     gap_connection_type_t type;
+    bool was_ble;
 
     if (d == NULL) {
         loge("uni_hid_device_disconnect: invalid hid device: NULL\n");
@@ -453,6 +457,7 @@ void uni_hid_device_disconnect(uni_hid_device_t* d) {
 
     uni_hid_parser_switch2_teardown(d);
     uni_hid_parser_switch_teardown(d);
+    uni_hid_parser_steam_triton_teardown(d);
 
     // Disconnect child first
     if (d->child)
@@ -468,16 +473,32 @@ void uni_hid_device_disconnect(uni_hid_device_t* d) {
         logi("Disconnecting device: %s\n", bd_addr_to_str(d->conn.btaddr));
 
     connected = d->conn.connected;
+    was_ble = (d->conn.protocol == UNI_BT_CONN_PROTOCOL_BLE);
 
     // Cleanup
     if (!uni_hid_device_is_virtual_device(d)) {
         type = gap_get_connection_type(d->conn.handle);
+        if (type == GAP_CONNECTION_LE)
+            was_ble = true;
         if (IS_ENABLED(UNI_ENABLE_BLE) && type == GAP_CONNECTION_LE)
             uni_bt_le_disconnect(d);
         else if (IS_ENABLED(UNI_ENABLE_BREDR) && type == GAP_CONNECTION_ACL)
             uni_bt_bredr_disconnect(d);
-        else
+        else if (!was_ble)
             loge("uni_hid_device_disconnect: Unknown GAP connection type: %d\n", type);
+
+        /* Link may already be gone; free HIDS so reconnect matches first connect. */
+        if (IS_ENABLED(UNI_ENABLE_BLE) && was_ble) {
+            if (d->hids_cid != 0 && d->hids_cid != 0xffff) {
+                (void)hids_client_disconnect(d->hids_cid);
+                d->hids_cid = 0xffff;
+            }
+            /* Xbox uses Just Works (no bond); drop host keys so we never re-encrypt. */
+            if (d->vendor_id == 0x045e) {
+                gap_delete_bonding(BD_ADDR_TYPE_LE_PUBLIC, d->conn.btaddr);
+                gap_delete_bonding(BD_ADDR_TYPE_LE_RANDOM, d->conn.btaddr);
+            }
+        }
     }
 
     // Close possible open connections
@@ -740,6 +761,13 @@ void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
             d->report_parser.init_report = uni_hid_parser_steam_init_report;
             d->report_parser.parse_input_report = uni_hid_parser_steam_parse_input_report;
             logi("Device detected as Steam: 0x%02x\n", type);
+            break;
+        case CONTROLLER_TYPE_SteamControllerTriton:
+            d->report_parser.setup = uni_hid_parser_steam_triton_setup;
+            d->report_parser.init_report = uni_hid_parser_steam_triton_init_report;
+            d->report_parser.parse_input_report = uni_hid_parser_steam_triton_parse_input_report;
+            d->report_parser.play_dual_rumble = uni_hid_parser_steam_triton_play_dual_rumble;
+            logi("Device detected as Steam Controller 2026 (Triton): 0x%02x\n", type);
             break;
         case CONTROLLER_TYPE_AtariJoystick:
             d->report_parser.setup = uni_hid_parser_atari_setup;
