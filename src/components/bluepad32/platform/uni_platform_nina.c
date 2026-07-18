@@ -159,9 +159,9 @@ typedef struct __attribute__((packed)) {
 // Globals
 //
 #ifdef CONFIG_BLUEPAD32_PLATFORM_AIRLIFT
-static const char FIRMWARE_VERSION[] = "Bluepad32 for AirLift v" UNI_VERSION;
+static const char FIRMWARE_VERSION[] = "Bluepad32 for AirLift v" UNI_VERSION_STRING;
 #elif defined(CONFIG_BLUEPAD32_PLATFORM_NINA)
-static const char FIRMWARE_VERSION[] = "Bluepad32 for NINA v" UNI_VERSION;
+static const char FIRMWARE_VERSION[] = "Bluepad32 for NINA v" UNI_VERSION_STRING;
 #else
 // FIXME: This file should not be compiled when NINA/AirLift is not used.
 static const char FIRMWARE_VERSION[] = "";
@@ -442,9 +442,12 @@ static int request_get_gamepad_properties(const uint8_t command[], uint8_t respo
 }
 
 // Command 0x07
-static int request_enable_bluetooth_connections(const uint8_t command[], uint8_t response[]) {
+static int request_start_scanning(const uint8_t command[], uint8_t response[]) {
     bool enabled = command[4];
-    uni_bt_enable_new_connections_safe(enabled);
+    if (enabled)
+        uni_bt_start_scanning_and_autoconnect_safe();
+    else
+        uni_bt_stop_scanning_safe();
 
     response[2] = 1;  // total params
     response[3] = 1;  // param len
@@ -687,15 +690,15 @@ const command_handler_t command_handlers[] = {
     // These 16 entries are NULL in NINA. Perhaps they are reserved for future
     // use? Seems to be safe to use them for Bluepad32 commands.
     request_protocol_version,
-    request_gamepads_data,                 // data
-    request_set_gamepad_player_leds,       // the 4 LEDs that is available in many gamepads.
-    request_set_gamepad_color_led,         // available on DS4, DualSense
-    request_set_gamepad_rumble,            // available on DS4, Xbox, Switch, etc.
-    request_forget_bluetooth_keys,         // forget stored Bluetooth keys
-    request_get_gamepad_properties,        // get gamepad properties like BTAddr, VID/PID, etc.
-    request_enable_bluetooth_connections,  // Enable/Disable bluetooth connection
-    request_disconnect_gamepad,            // Disconnect gamepad
-    request_controllers_data,              // Gamepad, Mouse, Balance. Deprecates request_gamepads_data
+    request_gamepads_data,            // data
+    request_set_gamepad_player_leds,  // the 4 LEDs that is available in many gamepads.
+    request_set_gamepad_color_led,    // available on DS4, DualSense
+    request_set_gamepad_rumble,       // available on DS4, Xbox, Switch, etc.
+    request_forget_bluetooth_keys,    // forget stored Bluetooth keys
+    request_get_gamepad_properties,   // get gamepad properties like BTAddr, VID/PID, etc.
+    request_start_scanning,           // Enable/Disable bluetooth connection
+    request_disconnect_gamepad,       // Disconnect gamepad
+    request_controllers_data,         // Gamepad, Mouse, Balance. Deprecates request_gamepads_data
     NULL,
     NULL,
     NULL,
@@ -1024,7 +1027,7 @@ static void nina_on_init_complete(void) {
     // To not interfere with Bluetooth that runs in CPU0, SPI code should run in CPU1
     xTaskCreatePinnedToCore(spi_main_loop, "spi_main_loop", 8192, NULL, 1, NULL, 1);
 
-    uni_bt_enable_new_connections_safe(true);
+    uni_bt_start_scanning_and_autoconnect_safe();
 }
 
 static void nina_on_device_connected(uni_hid_device_t* d) {

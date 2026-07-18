@@ -29,6 +29,7 @@
 #include "controller/uni_controller_list.h"
 #include "sdkconfig.h"
 #include "uni_common.h"
+#include "uni_hid_device.h"
 #include "uni_log.h"
 
 uni_controller_type_t uni_guess_controller_type(uint16_t vid, uint16_t pid) {

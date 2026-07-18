@@ -54,6 +54,11 @@ static struct {
 static struct {
     struct arg_int* enabled;
     struct arg_end* end;
+} scan_and_autoconnect_args;
+
+static struct {
+    struct arg_int* enabled;
+    struct arg_end* end;
 } ble_enable_args;
 
 static struct {
@@ -167,16 +172,35 @@ static int gap_periodic_inquiry(int argc, char** argv) {
 }
 
 static int incoming_connections_enable(int argc, char** argv) {
-    int enabled;
-
     int nerrors = arg_parse(argc, argv, (void**)&incoming_connections_enable_args);
     if (nerrors != 0) {
         arg_print_errors(stderr, incoming_connections_enable_args.end, argv[0]);
+
+        // Don't treat as error, just print current value.
+        logi("Incoming connections: %s\n", uni_bt_incoming_connections_is_allowed() ? "Enabled" : "Disabled");
         return 0;
     }
 
-    enabled = incoming_connections_enable_args.enabled->ival[0];
-    uni_bt_enable_new_connections_safe(!!enabled);
+    bool enabled = incoming_connections_enable_args.enabled->ival[0];
+    uni_bt_allow_incoming_connections(enabled);
+    return 0;
+}
+
+static int scan_and_autoconnect(int argc, char** argv) {
+    int nerrors = arg_parse(argc, argv, (void**)&scan_and_autoconnect_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, scan_and_autoconnect_args.end, argv[0]);
+
+        // Don't treat as error, just print current value.
+        logi("Scan and autoconnect: %s\n", uni_bt_is_scanning() ? "Enabled" : "Disabled");
+        return 0;
+    }
+
+    bool enabled = scan_and_autoconnect_args.enabled->ival[0];
+    if (enabled)
+        uni_bt_start_scanning_and_autoconnect_safe();
+    else
+        uni_bt_stop_scanning_safe();
     return 0;
 }
 
@@ -349,6 +373,10 @@ static void register_bluepad32() {
         arg_int1(NULL, NULL, "<0 | 1>", "Whether to allow Bluetooth incoming connections");
     incoming_connections_enable_args.end = arg_end(2);
 
+    scan_and_autoconnect_args.enabled =
+        arg_int1(NULL, NULL, "<0 | 1>", "Whether to start scanning. It will try to autoconnect");
+    scan_and_autoconnect_args.end = arg_end(2);
+
     ble_enable_args.enabled = arg_int1(NULL, NULL, "<0 | 1>", "Whether to enable Bluetooth Low Energy (BLE)");
     ble_enable_args.end = arg_end(2);
 
@@ -412,6 +440,14 @@ static void register_bluepad32() {
         .hint = NULL,
         .func = &incoming_connections_enable,
         .argtable = &incoming_connections_enable_args,
+    };
+
+    const esp_console_cmd_t cmd_scan_and_autoconnect = {
+        .command = "scan_and_autoconnect",
+        .help = "Whether it should scan for new connections. It will try to autoconnect if one is found",
+        .hint = NULL,
+        .func = &scan_and_autoconnect,
+        .argtable = &scan_and_autoconnect_args,
     };
 
     const esp_console_cmd_t cmd_ble_enable = {
@@ -498,6 +534,8 @@ static void register_bluepad32() {
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_list_bluetooth_keys));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_del_bluetooth_keys));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_incoming_connections_enable));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_scan_and_autoconnect));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_ble_enable));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_ble_enable));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_allowlist_list));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_allowlist_add));

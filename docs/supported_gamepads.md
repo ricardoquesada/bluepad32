@@ -273,7 +273,8 @@ Supported "extra features":
 - This is the "2 button" model
 - Must be the *model 1708* (released in 2016) and not earlier. *Model 1797* should work.
 - Supports Xbox Controller firmware: v3.1 (BR/EDR), v4.8 (BR/EDR), v5.15 or newer (BLE)
-    - Instructions to [update Xbox firmware][xbox_instructions_update], to [revert Xbox firmware][xbox_instructions_revert]
+    - Instructions to [update Xbox firmware][xbox_instructions_update],
+      to [revert Xbox firmware][xbox_instructions_revert]
 - Pair instructions: Same as model "1914", see below.
 - Protocol:
     - BLE: Since Xbox firmware v5
@@ -300,7 +301,8 @@ Supported "extra features":
 - This is the "3 button" model
 - Should be *model 1914*. Other "3 button" models should work as well.
 - Supports Xbox Controller firmware: v5.15 or newer
-    - Instructions to: [update Xbox firmware][xbox_instructions_update], to [revert Xbox firmware][xbox_instructions_revert]
+    - Instructions to: [update Xbox firmware][xbox_instructions_update],
+      to [revert Xbox firmware][xbox_instructions_revert]
 - Pair instructions:
     - Turn on your controller by pressing the Xbox button.
     - Press the controller’s Pair button for 3 seconds and release.
@@ -332,12 +334,15 @@ Supported "extra features":
 
 ![Android][android_gamepad]
 
-- Tested with: [ASUS][15], [Moga Pro 2][16], [Amazon Fire TV gamepads][17], [SteelSeries Status Duo][stratus_duo]
+- Tested
+  with: [ASUS][15], [Moga Pro 2][16], [Amazon Fire TV gamepads][17], [SteelSeries Status Duo][stratus_duo], [DIY ESP32 gamepad][diy_esp32_gamepad]
 - Protocol: Depends on the gamepad. Most use BR/EDR. Only a few use BLE.
 
 [android_gamepad]: https://lh3.googleusercontent.com/S3H1pEGYGT5aVTwF3ySWHF7vqbonDYR0UxOLJBxFe5At6Q4AP_4TQUCaNOiEXD22U4H3C0lVP1E3m26H3QM4rIbgp1wysbQoSt1NpD61snlWES5N5zGUgx20c2sfFCKZL4w_Gl66Y1s=-no
 
 [stratus_duo]: https://steelseries.com/gaming-controllers/stratus-duo
+
+[diy_esp32_gamepad]: https://github.com/lemmingDev/ESP32-BLE-Gamepad
 
 ## Steam Controller
 
@@ -508,21 +513,26 @@ Collection of misc controllers.
 - Only the emulation modes that are known to work are listed.
 - If more than one emulation mode is supported, it is listed right below, using an empty "Model" name.
 
-| Model                                     | Emulation        | Protocol | Rumble           | Lightbar         | Player LEDs      | Gyro / Accelerometer |
-|-------------------------------------------|------------------|----------|------------------|------------------|------------------|----------------------|
-| [DATA FROG P02 (PS4)][datafrog_ps4]       | DualShock 4      | BR/EDR   | :material-check: | :material-check: |                  | :material-check:     |
-| [DATA FROG S80 (Switch)][datafrog_switch] | Switch           | BR/EDR   | :material-check: |                  | :material-check: | :material-check:     |
-|                                           | Xbox             | BR/EDR   | :material-check: |                  |                  | :material-check:     |
-| [Gamesir T3s][gamesir_t3s]                | Switch           | BR/EDR   | :material-check: |                  |                  |                      |
-| [HS-SW510][hs_sw510]                      | Switch           | BR/EDR   | :material-check: |                  | :material-check: |                      |
-|                                           | Android          | BR/EDR   |                  |                  |                  |                      |
-| [Terios T3 / ShanWan BM-769][terios_t3]   | Android (iPhone) | BLE      |                  |                  |                  |                      |
+| Model                                     | Emulation        | Protocol | Rumble           | Lightbar         | Player LEDs      | Gyro / Accelerometer | Notes                                      |
+|-------------------------------------------|------------------|----------|------------------|------------------|------------------|----------------------|--------------------------------------------|
+| [DATA FROG P02 (PS4)][datafrog_ps4]       | DualShock 4      | BR/EDR   | :material-check: | :material-check: |                  | :material-check:     |                                            |
+| [DATA FROG S80 (Switch)][datafrog_switch] | Switch           | BR/EDR   | :material-check: |                  | :material-check: | :material-check:     |                                            |
+|                                           | Xbox             | BR/EDR   | :material-check: |                  |                  | :material-check:     |                                            |
+| [Gamesir T3s][gamesir_t3s]                | Switch           | BR/EDR   | :material-check: |                  |                  |                      |                                            |
+| [Gamesir Nova Lite][gamesir_nova_lite]    | Switch / Android | BR/EDR   |                  |                  |                  |                      | [Tested by community][nova_lite_community] |
+| [HS-SW510][hs_sw510]                      | Switch           | BR/EDR   | :material-check: |                  | :material-check: |                      |                                            |
+|                                           | Android          | BR/EDR   |                  |                  |                  |                      |                                            |
+| [Terios T3 / ShanWan BM-769][terios_t3]   | Android (iPhone) | BLE      |                  |                  |                  |                      |                                            |
 
 [datafrog_ps4]: https://www.aliexpress.us/item/3256806233659084.html
 
 [datafrog_switch]: https://www.aliexpress.us/item/3256805448827549.html
 
 [gamesir_t3s]: https://www.gamesir.hk/products/gamesir-t3s-multi-platform-game-controller
+
+[gamesir_nova_lite]: https://www.gamesir.hk/products/gamesir-nova-lite
+
+[nova_lite_community]: https://discord.com/channels/775177861665521725/1265729139584012371
 
 [hs_sw510]: https://new.tvc-mall.com/details/hs-sw510-wireless-controller-for-nintendo-switch-bluetooth-multi-platform-gamepad-joystick-with-turbo-function-black-white-sku681600362b.html
 
@@ -531,14 +541,18 @@ Collection of misc controllers.
 ## Bluetooth gamepads and their protocol
 
 Most gamepads, as of 2024, use BR/EDR (AKA Bluetooth Classic). Only a few use BLE.
-Worth noting is that BR/EDR is only supported on ESP32 and Pico W, but **NOT** in ESP32-S3 / ESP32-C3.
+Worth noting is that BR/EDR is only supported on ESP32, Pico W and Pico 2 W, but **NOT** in ESP32-S3 / ESP32-C3 /
+ESP32-C6 / ESP32-H2.
 
 | Chip     | BR/EDR           | BLE              |
 |----------|------------------|------------------|
 | ESP32    | :material-check: | :material-check: |
 | ESP32-S3 |                  | :material-check: |
 | ESP32-C3 |                  | :material-check: |
+| ESP32-C6 |                  | :material-check: |
+| ESP32-H2 |                  | :material-check: |
 | Pico W   | :material-check: | :material-check: |
+| Pico 2 W | :material-check: | :material-check: |
 
 Non-comprehensive list of supported Bluetooth gamepads their protocols:
 

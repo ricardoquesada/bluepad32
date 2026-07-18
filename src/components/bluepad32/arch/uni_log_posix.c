@@ -4,6 +4,6 @@
 
 #include "uni_log.h"
 
-void uni_logv(const char* format, va_list args) {
-    vfprintf(stdout, format, args);
+void uni_logv(const char* fmt, va_list args) {
+    vfprintf(stdout, fmt, args);
 }

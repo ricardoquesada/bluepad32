@@ -128,6 +128,13 @@ The list of **tested** mice is this one:
 
 [bornd_c170b_photo]: https://lh3.googleusercontent.com/pw/AM-JKLWhgr0VyJ2LoErHi3U8dzedoILDyguhDJfYb86K3izqETUGyxtSfheRpxw-yD_dbbdYzoeHUT5oU_45XBjBBWFFWh-CENKZ0Xf29PIfiPMCFiz3lSaCFQET1-c6SqL2T8hECmvEmlweFmbXbEo5HmTYNw=-no
 
+## Steelseries Rival 3 Wireless
+
+* Protocol: BLE and BR/EDR 
+* Purchase link: Steelseries_rival_3_link
+
+[Steelseries_rival_3_link]: https://steelseries.com/gaming-mice/rival-3
+
 ## TECKNET 2600DPI
 
 [![TECKNET 2600DPI][tecknet_2600dpi_photo]][tecknet_2600dpi_link]

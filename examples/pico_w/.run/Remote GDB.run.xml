@@ -1,0 +1,10 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Remote GDB" type="com.jetbrains.cidr.embedded.customgdbserver.type" factoryName="com.jetbrains.cidr.embedded.customgdbserver.factory" PROGRAM_PARAMS="-f interface/cmsis-dap.cfg -f target/rp2040.cfg -c &quot;adapter speed 5000&quot;" REDIRECT_INPUT="false" ELEVATE="true" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" WORKING_DIR="file://$PROJECT_DIR$/cmake-build-debug" PASS_PARENT_ENVS_2="true" PROJECT_NAME="bluepad32_picow_example_app" TARGET_NAME="bluepad32_picow_example_app" CONFIG_NAME="Debug" version="1" RUN_TARGET_PROJECT_NAME="bluepad32_picow_example_app" RUN_TARGET_NAME="bluepad32_picow_example_app">
+    <custom-gdb-server version="1" gdb-connect="localhost:3333" executable="openocd" warmup-ms="0" download-type="UPDATED_ONLY" reset-cmd="monitor reset init" reset-type="BOTH_TIMES">
+      <debugger kind="GDB" isBundled="true" />
+    </custom-gdb-server>
+    <method v="2">
+      <option name="CLION.COMPOUND.BUILD" enabled="true" />
+    </method>
+  </configuration>
+</component>

@@ -146,11 +146,10 @@ endif()
 
 # Valid for ESP-IDF only
 if(IDF_TARGET)
-    set(requires "nvs_flash" "btstack" "app_update" "esp_timer")
+    set(requires "nvs_flash" "btstack" "app_update" "esp_timer" "driver")
 
     if("${IDF_VERSION_MAJOR}" GREATER_EQUAL 5)
-        # When using ESP-IDF v5+, use "normal" components
-        list(APPEND requires "cmd_nvs" "cmd_system")
+        list(APPEND requires "cmd_nvs" "cmd_system" "esp_driver_ledc" "esp_driver_spi")
     else()
         # Use legacy components when compiled using ESP-IDF v4.4
         list(APPEND requires "cmd_nvs_4.4" "cmd_system_4.4")

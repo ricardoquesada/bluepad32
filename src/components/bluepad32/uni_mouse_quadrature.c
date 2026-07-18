@@ -14,7 +14,7 @@
 #include <sys/cdefs.h>
 
 #include <driver/gpio.h>
-#include <driver/timer.h>
+#include <driver/gptimer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -32,15 +32,18 @@
 //
 //   Option B:
 //   80Mhz / 6400 = 12500Hz = tick every 80us
-#define TIMER_DIVIDER (80 * 80)
-#define TICKS_PER_80US (1)  // How many ticks are in 80us
+#define TIMER_RESOLUTION_HZ (12500)
+#define TICKS_PER_80US (1)  // How many ticks are in 80us, with 12500Hz resolution
 #define ONE_SECOND (12500)
 
-#define TASK_TIMER_STACK_SIZE (2048)
+#define TASK_TIMER_STACK_SIZE (4096)
 #define TASK_TIMER_PRIO (10)
 
-// Default scale factor for the mouse movement
-#define DETAULT_SCALE_FACTOR (1)
+// Quadrature phases
+#define QUADRATURE_PHASES 4
+
+// Helper to pack port and encoder indexes into a single argument for a task.
+#define PACK_TIMER_ARG(port, encoder) ((void*)(((port) << 16) | (encoder)))
 
 enum direction {
     PHASE_DIRECTION_NEG,
@@ -58,10 +61,6 @@ struct quadrature_state {
     // Current quadrature phase
     int phase;
 
-    // Which group timer/timer is being used
-    int timer_group;
-    timer_idx_t timer_idx;
-
     // GPIOs used
     struct uni_mouse_quadrature_encoder_gpios gpios;
 };
@@ -70,6 +69,7 @@ static struct quadrature_state s_quadratures[UNI_MOUSE_QUADRATURE_PORT_MAX][UNI_
 // Cache to prevent enabling/disabling timers that were already enabled/disabled
 static bool timer_started[UNI_MOUSE_QUADRATURE_PORT_MAX];
 
+static gptimer_handle_t s_gptimers[UNI_MOUSE_QUADRATURE_PORT_MAX][UNI_MOUSE_QUADRATURE_ENCODER_MAX];
 static TaskHandle_t s_timer_tasks[UNI_MOUSE_QUADRATURE_PORT_MAX][UNI_MOUSE_QUADRATURE_ENCODER_MAX];
 
 // "Scale factor" for mouse movement. To make the mouse move faster or slower.
@@ -78,46 +78,25 @@ static float s_scale_factor;
 
 static bool initialized;
 
-static void process_quadrature(struct quadrature_state* q) {
-    int a, b;
+// Quadrature phase outputs for GPIO A and B.
+// Index is the phase (0-3).
+static const int phase_to_a[] = {0, 1, 1, 0};
+static const int phase_to_b[] = {0, 0, 1, 1};
 
+static void process_quadrature(struct quadrature_state* q) {
     if (q->value <= 0) {
         return;
     }
     q->value--;
 
     if (q->dir == PHASE_DIRECTION_NEG) {
-        q->phase--;
-        if (q->phase < 0)
-            q->phase = 3;
+        q->phase = (q->phase - 1 + QUADRATURE_PHASES) % QUADRATURE_PHASES;
     } else /* PHASE_DIRECTION_POS */ {
-        q->phase++;
-        if (q->phase > 3)
-            q->phase = 0;
+        q->phase = (q->phase + 1) % QUADRATURE_PHASES;
     }
 
-    switch (q->phase) {
-        case 0:
-            a = 0;
-            b = 0;
-            break;
-        case 1:
-            a = 1;
-            b = 0;
-            break;
-        case 2:
-            a = 1;
-            b = 1;
-            break;
-        case 3:
-            a = 0;
-            b = 1;
-            break;
-        default:
-            loge("%s: invalid phase value: %d", __func__, q->phase);
-            a = b = 0;
-            break;
-    }
+    int a = phase_to_a[q->phase];
+    int b = phase_to_b[q->phase];
 
     int gpio_a = q->gpios.a;
     int gpio_b = q->gpios.b;
@@ -126,12 +105,11 @@ static void process_quadrature(struct quadrature_state* q) {
     logd("value: %d, quadrature phase: %d, a=%d, b=%d (%d,%d)\n", q->value, q->phase, a, b, gpio_a, gpio_b);
 }
 
-// Don't be confused, that is just one task.
-// Actually, this callback is called from 4 different tasks.
+// This function is the entry point for each of the timer tasks.
 static void timer_task(void* arg) {
-    uint32_t a = (uint32_t)arg;
-    uint16_t port_idx = (a >> 16);
-    uint16_t encoder_idx = (a & 0xffff);
+    uint32_t task_arg = (uint32_t)arg;
+    uint16_t port_idx = (task_arg >> 16);
+    uint16_t encoder_idx = (task_arg & 0xffff);
 
     while (true) {
         ulTaskNotifyTake(true, portMAX_DELAY);
@@ -139,14 +117,16 @@ static void timer_task(void* arg) {
     }
 }
 
-static bool timer_handler(void* arg) {
-    uint32_t a = (uint32_t)arg;
-    uint16_t port_idx = (a >> 16);
-    uint16_t encoder_idx = (a & 0xffff);
+static bool IRAM_ATTR timer_handler(gptimer_handle_t timer, const gptimer_alarm_event_data_t* edata, void* user_ctx) {
+    ARG_UNUSED(timer);
+    ARG_UNUSED(edata);
+    uint32_t task_arg = (uint32_t)user_ctx;
+    uint16_t port_idx = (task_arg >> 16);
+    uint16_t encoder_idx = (task_arg & 0xffff);
 
-    BaseType_t higher_priority_task_woken = false;
-    vTaskNotifyGiveFromISR(s_timer_tasks[port_idx][encoder_idx], &higher_priority_task_woken);
-    return higher_priority_task_woken;
+    BaseType_t high_task_awoken = pdFALSE;
+    vTaskNotifyGiveFromISR(s_timer_tasks[port_idx][encoder_idx], &high_task_awoken);
+    return (high_task_awoken == pdTRUE);
 }
 
 static void init_from_cpu_task() {
@@ -156,29 +136,35 @@ static void init_from_cpu_task() {
 
     // Create timers
     /* Select and initialize basic parameters of the timer */
-    timer_config_t config = {
-        .divider = TIMER_DIVIDER,
-        .counter_dir = TIMER_COUNT_DOWN,
-        .counter_en = TIMER_PAUSE,
-        .alarm_en = TIMER_ALARM_EN,
-        .auto_reload = TIMER_AUTORELOAD_EN,
+    gptimer_config_t timer_config = {
+        .clk_src = GPTIMER_CLK_SRC_DEFAULT,
+        .direction = GPTIMER_COUNT_DOWN,
+        .resolution_hz = TIMER_RESOLUTION_HZ,
+    };
+
+    gptimer_event_callbacks_t cbs = {
+        .on_alarm = timer_handler,
+    };
+
+    gptimer_alarm_config_t alarm_config = {
+        .alarm_count = ONE_SECOND * 60,
+        .flags.auto_reload_on_alarm = true,
     };
 
     for (int i = 0; i < UNI_MOUSE_QUADRATURE_PORT_MAX; i++) {
         for (int j = 0; j < UNI_MOUSE_QUADRATURE_ENCODER_MAX; j++) {
-            uint32_t arg = (i << 16) | j;
+            void* arg = PACK_TIMER_ARG(i, j);
             char name[32];
-            ESP_ERROR_CHECK(timer_init(s_quadratures[i][j].timer_group, s_quadratures[i][j].timer_idx, &config));
-            timer_set_counter_value(s_quadratures[i][j].timer_group, s_quadratures[i][j].timer_idx, ONE_SECOND * 60);
-            timer_isr_callback_add(s_quadratures[i][j].timer_group, s_quadratures[i][j].timer_idx, timer_handler,
-                                   (void*)arg, 0);
-            // Don't start timer automatically. They should be started on demand.
-            // timer_start(s_quadratures[i][j].timer_group, s_quadratures[i][j].timer_idx);
+            ESP_ERROR_CHECK(gptimer_new_timer(&timer_config, &s_gptimers[i][j]));
+            ESP_ERROR_CHECK(gptimer_register_event_callbacks(s_gptimers[i][j], &cbs, arg));
+            ESP_ERROR_CHECK(gptimer_enable(s_gptimers[i][j]));
+            ESP_ERROR_CHECK(gptimer_set_alarm_action(s_gptimers[i][j], &alarm_config));
+            ESP_ERROR_CHECK(gptimer_set_raw_count(s_gptimers[i][j], ONE_SECOND * 60));
 
             // Create timer tasks
             sprintf(name, "bp.quad.timer%d%c", i, (j == 0) ? 'H' : 'V');
-            xTaskCreatePinnedToCore(timer_task, name, TASK_TIMER_STACK_SIZE, (void*)arg, TASK_TIMER_PRIO,
-                                    &s_timer_tasks[i][j], xPortGetCoreID());
+            xTaskCreatePinnedToCore(timer_task, name, TASK_TIMER_STACK_SIZE, arg, TASK_TIMER_PRIO, &s_timer_tasks[i][j],
+                                    xPortGetCoreID());
         }
     }
 
@@ -187,7 +173,7 @@ static void init_from_cpu_task() {
 }
 
 static void process_update(struct quadrature_state* q, int32_t delta) {
-    uint64_t units;
+    uint64_t count_value;
     int32_t abs_delta = (delta < 0) ? -delta : delta;
 
     if (delta != 0) {
@@ -223,7 +209,7 @@ static void process_update(struct quadrature_state* q, int32_t delta) {
         // and we don't divide by 4 here.
         // Alternative: Do not divide the time, and use a constant "tick" time. But if we do so,
         // the movement will have "jank".
-        // Perhaps for small deltas we can have a predefined "unit time".
+        // Perhaps for small deltas we can have a predefined "count_value time".
         //
         // s_scale_factor is used as a divisor to honor the "scale" name:
         // smaller numbers make it slower, high number faster
@@ -232,12 +218,16 @@ static void process_update(struct quadrature_state* q, int32_t delta) {
         float units_f = max_ticks / (delta_f * s_scale_factor);
         if (units_f < TICKS_PER_80US)
             units_f = TICKS_PER_80US;
-        units = roundf(units_f);
+        count_value = roundf(units_f);
     } else {
         // If there is no update, set timer to update less frequently
-        units = ONE_SECOND * 60;
+        count_value = ONE_SECOND * 60;
     }
-    timer_set_counter_value(q->timer_group, q->timer_idx, units);
+    // Find which timer corresponds to this quadrature state
+    int port_idx = (q - &s_quadratures[0][0]) / UNI_MOUSE_QUADRATURE_ENCODER_MAX;
+    int encoder_idx = (q - &s_quadratures[0][0]) % UNI_MOUSE_QUADRATURE_ENCODER_MAX;
+
+    gptimer_set_raw_count(s_gptimers[port_idx][encoder_idx], count_value);
 }
 
 void uni_mouse_quadrature_init(int cpu_id) {
@@ -245,10 +235,6 @@ void uni_mouse_quadrature_init(int cpu_id) {
 
     for (int i = 0; i < UNI_MOUSE_QUADRATURE_PORT_MAX; i++) {
         timer_started[i] = false;
-        for (int j = 0; j < UNI_MOUSE_QUADRATURE_ENCODER_MAX; j++) {
-            s_quadratures[i][j].timer_group = TIMER_GROUP_0 + i;
-            s_quadratures[i][j].timer_idx = TIMER_0 + j;
-        }
     }
 
     // Default value that can be overridden from the console
@@ -276,8 +262,8 @@ void uni_mouse_quadrature_deinit(void) {
     // Stop the timers
     for (int i = 0; i < UNI_MOUSE_QUADRATURE_PORT_MAX; i++) {
         for (int j = 0; j < UNI_MOUSE_QUADRATURE_ENCODER_MAX; j++) {
-            timer_deinit(s_quadratures[i][j].timer_group, s_quadratures[i][j].timer_idx);
-            // Delete the tasks
+            gptimer_del_timer(s_gptimers[i][j]);
+            s_gptimers[i][j] = NULL;
             vTaskDelete(s_timer_tasks[i][j]);
             s_timer_tasks[i][j] = NULL;
         }
@@ -301,7 +287,7 @@ void uni_mouse_quadrature_start(int port_idx) {
         return;
 
     for (int j = 0; j < UNI_MOUSE_QUADRATURE_ENCODER_MAX; j++)
-        timer_start(s_quadratures[port_idx][j].timer_group, s_quadratures[port_idx][j].timer_idx);
+        gptimer_start(s_gptimers[port_idx][j]);
 
     timer_started[port_idx] = true;
 }
@@ -321,7 +307,7 @@ void uni_mouse_quadrature_pause(int port_idx) {
         return;
 
     for (int j = 0; j < UNI_MOUSE_QUADRATURE_ENCODER_MAX; j++)
-        timer_pause(s_quadratures[port_idx][j].timer_group, s_quadratures[port_idx][j].timer_idx);
+        gptimer_stop(s_gptimers[port_idx][j]);
 
     timer_started[port_idx] = false;
 }

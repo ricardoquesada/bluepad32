@@ -31,9 +31,10 @@ static void update_allowlist_to_property(void) {
         if (bd_addr_cmp(addr_allow_list[i], zero_addr) == 0)
             continue;
         char* tmp_str = bd_addr_to_str(addr_allow_list[i]);
-        strcat(str, tmp_str);
-        // Append delimeter between addresses
-        strcat(str, ",");
+        // Append address and comma safely.
+        // It consumes 18 bytes. 128 bytes is enough for ~7 addresses.
+        size_t offset = strlen(str);
+        snprintf(str + offset, sizeof(str) - offset, "%s,", tmp_str);
     }
 
     val.str = str;
@@ -45,7 +46,7 @@ static void update_allowlist_from_property(void) {
     uni_property_value_t val;
     bd_addr_t addr;
     int offset;
-    int len;
+    size_t len;
 
     // Whether it is enabled.
     val = uni_property_get(UNI_PROPERTY_IDX_ALLOWLIST_LIST);

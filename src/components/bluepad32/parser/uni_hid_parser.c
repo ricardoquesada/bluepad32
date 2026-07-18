@@ -5,11 +5,20 @@
 #include "parser/uni_hid_parser.h"
 
 #include "hid_usage.h"
+#include "uni_btstack_version_compat.h"
 #include "uni_hid_device.h"
 #include "uni_log.h"
+#include "uni_version.h"
 
 // HID Usage Tables:
 // https://www.usb.org/sites/default/files/documents/hut1_12v2.pdf
+
+// Minimum version is 1.6.1
+#if BTSTACK_VERSION_MAJOR > 1 || BTSTACK_VERSION_MINOR > 6 || BTSTACK_VERSION_PATCH > 1
+#define USE_NEW_PARSER_API 1
+#else
+#define USE_NEW_PARSER_API 0
+#endif
 
 void uni_hid_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t report_len) {
     btstack_hid_parser_t parser;
@@ -40,12 +49,21 @@ void uni_hid_parse_input_report(struct uni_hid_device_s* d, const uint8_t* repor
 
             // Save globals, since they are destroyed by btstack_hid_parser_get_field()
             // see: https://github.com/bluekitchen/btstack/issues/187
+#if USE_NEW_PARSER_API
+            globals.logical_minimum = parser.usage_iterator.global_logical_minimum;
+            globals.logical_maximum = parser.usage_iterator.global_logical_maximum;
+            globals.report_count = parser.usage_iterator.global_report_count;
+            globals.report_id = parser.usage_iterator.global_report_id;
+            globals.report_size = parser.usage_iterator.global_report_size;
+            globals.usage_page = parser.usage_iterator.global_usage_page;
+#else
             globals.logical_minimum = parser.global_logical_minimum;
             globals.logical_maximum = parser.global_logical_maximum;
             globals.report_count = parser.global_report_count;
             globals.report_id = parser.global_report_id;
             globals.report_size = parser.global_report_size;
             globals.usage_page = parser.global_usage_page;
+#endif
 
             btstack_hid_parser_get_field(&parser, &usage_page, &usage, &value);
 
@@ -57,7 +75,7 @@ void uni_hid_parse_input_report(struct uni_hid_device_s* d, const uint8_t* repor
 
 // Converts a possible value between (0, x) to (-x/2, x/2), and normalizes it
 // between -512 and 511.
-int32_t uni_hid_parser_process_axis(hid_globals_t* globals, uint32_t value) {
+int32_t uni_hid_parser_process_axis(const hid_globals_t* globals, uint32_t value) {
     int32_t max = globals->logical_maximum;
     int32_t min = globals->logical_minimum;
 
@@ -82,7 +100,7 @@ int32_t uni_hid_parser_process_axis(hid_globals_t* globals, uint32_t value) {
 }
 
 // Converts a possible value between (0, x) to (0, 1023)
-int32_t uni_hid_parser_process_pedal(hid_globals_t* globals, uint32_t value) {
+int32_t uni_hid_parser_process_pedal(const hid_globals_t* globals, uint32_t value) {
     int32_t max = globals->logical_maximum;
     int32_t min = globals->logical_minimum;
 
@@ -100,7 +118,7 @@ int32_t uni_hid_parser_process_pedal(hid_globals_t* globals, uint32_t value) {
     return normalized;
 }
 
-uint8_t uni_hid_parser_process_hat(hid_globals_t* globals, uint32_t value) {
+uint8_t uni_hid_parser_process_hat(const hid_globals_t* globals, uint32_t value) {
     int32_t v = (int32_t)value;
     // Assumes if value is outside valid range, then it is a "null value"
     if (v < globals->logical_minimum || v > globals->logical_maximum)

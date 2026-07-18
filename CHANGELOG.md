@@ -4,6 +4,83 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.2.1] - 2025-??-??
+## Changed
+- Pico W: Recommends Pico SDK 2.1.1 or newer which fixed nasty bug triggered by Bluepad32. See:
+  [Pico SDK #2157][picosdk#2157] and [Pico SDK #2165][picosdk#2165]
+- BTstack: Updated to 1.7.0 tag (latest master branch)
+  - Updated build system to support new BTstack integration
+
+## Fixed
+- Pico W: Able to store string properties, meaning that allowlist works as expected [Github Issue #160][github_issue_160]
+- uni_hid_device: Fix possible overflow when parsing HID descriptor.
+
+[picosdk#2157]: https://github.com/raspberrypi/pico-sdk/pull/2157
+[picosdk#2165]: https://github.com/raspberrypi/pico-sdk/pull/2165
+[github_issue_160]: https://github.com/ricardoquesada/bluepad32/issues/160
+
+## [4.2.0] - 2025-01-03
+### New
+- ESP32: ESP32-C6 and ESP32-H2 supported.
+  - They depend on BTstack 1.6.2 (pre-bundled with Bluepad32 v4.2.0)
+- Pico W: Pico 2 W supported.
+  - Requires [Pico SDK 2.1][pico_sdk_2_1] or newer.
+  - If you want to use it with BTstack 1.6.2 you might need to apply [this patch][github_pico_sdk_pr_2157]
+  - By default, ["examples/pico_w"][examples_pico_w] was modified to use BTstack 1.6.1.
+- ESP-IDF: v5.3 and v5.4 supported
+  - Needed for Arduino Core v3.1. See [Arduino template project][bp32_template_project]
+- Wii: Add support for Wii uDraw Tablet. Fixes [Github Issue #105][github_issue_105]
+- Wii: Add `uni_hid_parser_wii_request_report_type(struct uni_hid_device_s* d, wii_report_type_t r);`
+  - Allows user to change the Wii report type
+
+## Changed
+- BTstack: Using v1.6.2
+  - v1.6.1 is still supported by Bluepad32.
+  - BTstack v1.6.2 changed some API used by Bluepad32. Bluepad32 adapts the API-calls at compile-time.
+- Documentation: Updated FAQ and Arduino docs.
+- Pico W: Updated `btstack_config.h`. Disables malloc, enables some BTstack features, and some minor changes
+  - See the new [btstack_config.h][pico_w_btstack_config_h]
+- Pico W: [Updated instructions][pico_w_instructions] to use Pico Debug probe
+- Pico W: Updated CMakeLists.txt with an option to dump HCI packets.
+- ESP32: [Updated instructions][esp32_instructions] to use JTAG debugger.
+- BLE: Connection is a bit more reliable. No longer depends on having encryption enabled.
+- Core: packet handlers have the `uni_` prefix. Useful to avoid collision when putting breakpoints.
+  - Example: Easier to put a breakpoint in `uni_hci_packet_handler` than in `hci_packet_handler`
+    since there are many of those.
+- Controllers DB: Updated from latest SDL
+  - Only a few new entries added.
+- ESP32 Console: `incoming_connections_enable` sets/gets whether incoming connections are allowed.
+- ESP32 Console: `scan_and_autoconnect` is a new command that behaves like the old `incoming_connections_enable`.
+- PlatformIO: `platformio.ini` file updated in ["examples/esp32"][examples_esp32]
+  (and ["Arduino template"][bp32_template_project] project as well)
+  - See [PlatformIO issue 1225][github_pio_issue_1225] to learn what's going on between PlatformIO and Espressif.
+  - You might need to uninstall PlatformIO first. E.g: `rm -rf ~/.platformio`
+
+## Fixed
+- Switch driver:
+  - Increased timeout
+  - Fixed pro joystick calibration
+  - Make sure the right joycon calibration is mapped to the right location
+  - Implemented a user calibration check and updated stick cal if true
+- Examples: Cleanup CMakeLists.txt
+- Allow multiple "safe" commands per loop.
+  - This was a nasty bug that was mostly manifested in Arduino users, when multiple commands like
+    `BP32.forget...()`, `BP32.enableService...()`, only the latest one was executed.
+  - Now it allows up to 8 calls per loop.
+  - Fixes [Github Issue #130][github_issue_130]
+
+[github_issue_105]: https://github.com/ricardoquesada/bluepad32/issues/105
+[github_issue_130]: https://github.com/ricardoquesada/bluepad32/issues/130
+[github_pico_sdk_pr_2157]: https://github.com/raspberrypi/pico-sdk/pull/2157
+[github_pio_issue_1225]: https://github.com/platformio/platform-espressif32/issues/1225
+[examples_pico_w]: https://github.com/ricardoquesada/bluepad32/tree/main/examples/pico_w
+[examples_esp32]: https://github.com/ricardoquesada/bluepad32/tree/main/examples/esp32
+[bp32_template_project]: https://github.com/ricardoquesada/esp-idf-arduino-bluepad32-template
+[pico_sdk_2_1]: https://github.com/raspberrypi/pico-sdk/releases/tag/2.1.0
+[pico_w_instructions]: https://github.com/ricardoquesada/bluepad32/blob/main/examples/pico_w/README.md
+[esp32_instructions]: https://github.com/ricardoquesada/bluepad32/blob/main/examples/esp32/README.md
+[pico_w_btstack_config_h]: https://github.com/ricardoquesada/bluepad32/blob/main/examples/pico_w/src/btstack_config.h
+
 ## [4.1.0] - 2024-06-03
 ### New
 - Platform: new callback: `on_device_discovered(bdaddr, name, cod, rssi)`

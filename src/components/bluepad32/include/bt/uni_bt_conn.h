@@ -64,12 +64,12 @@ typedef struct {
 
 void uni_bt_conn_init(uni_bt_conn_t* conn);
 void uni_bt_conn_set_state(uni_bt_conn_t* conn, uni_bt_conn_state_t state);
-uni_bt_conn_state_t uni_bt_conn_get_state(uni_bt_conn_t* conn);
+uni_bt_conn_state_t uni_bt_conn_get_state(const uni_bt_conn_t* conn);
 void uni_bt_conn_set_protocol(uni_bt_conn_t* conn, uni_bt_conn_protocol_t protocol);
-void uni_bt_conn_get_address(uni_bt_conn_t* conn, bd_addr_t out_addr);
-bool uni_bt_conn_is_incoming(uni_bt_conn_t* conn);
+void uni_bt_conn_get_address(const uni_bt_conn_t* conn, bd_addr_t out_addr);
+bool uni_bt_conn_is_incoming(const uni_bt_conn_t* conn);
 void uni_bt_conn_set_connected(uni_bt_conn_t* conn, bool connected);
-bool uni_bt_conn_is_connected(uni_bt_conn_t* conn);
+bool uni_bt_conn_is_connected(const uni_bt_conn_t* conn);
 void uni_bt_conn_disconnect(uni_bt_conn_t* conn);
 
 #endif  // UNI_BT_CONN_H

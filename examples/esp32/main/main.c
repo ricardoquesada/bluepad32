@@ -1,11 +1,13 @@
 // Example file - Public Domain
-// Need help? https://tinyurl.com/bluepad32-help
+// Need help? http://bit.ly/bluepad32-help
 
 #include <stdlib.h>
 
 #include <btstack_port_esp32.h>
 #include <btstack_run_loop.h>
 #include <btstack_stdio_esp32.h>
+#include <hci_dump.h>
+#include <hci_dump_embedded_stdout.h>
 #include <uni.h>
 
 #include "sdkconfig.h"
@@ -19,7 +21,8 @@
 struct uni_platform* get_my_platform(void);
 
 int app_main(void) {
-    // hci_dump_open(NULL, HCI_DUMP_STDOUT);
+    // If you enable HCI Dump better to disable "Bluepad32 USB Console" from "idf.py menuconfig".
+    // hci_dump_init(hci_dump_embedded_stdout_get_instance());
 
     // Don't use BTstack buffered UART. It conflicts with the console.
 #ifdef CONFIG_ESP_CONSOLE_UART
@@ -30,8 +33,6 @@ int app_main(void) {
 
     // Configure BTstack for ESP32 VHCI Controller
     btstack_init();
-
-    // hci_dump_init(hci_dump_embedded_stdout_get_instance());
 
     // Must be called before uni_init()
     uni_platform_set_custom(get_my_platform());

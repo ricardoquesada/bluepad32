@@ -2293,7 +2293,7 @@ static void mightymiggy_init(int argc, const char** argv) {
 
 static void mightymiggy_on_init_complete(void) {
     // Start Scanning
-    uni_bt_enable_new_connections_safe(true);
+    uni_bt_start_scanning_and_autoconnect_safe();
 
     // Hi-released, Low-pressed
     bool pushed = !gpio_get_level(GPIO_PUSH_BUTTON);

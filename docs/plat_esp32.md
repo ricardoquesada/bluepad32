@@ -6,7 +6,7 @@
 
 - ESP32
 - ESP32-S3
-- ESP32-C3 / ESP32-C6
+- ESP32-C3 / ESP32-C5 / ESP32-C6
 - ESP32-H2
 
 [esp32_socs]: https://www.espressif.com/en/products/socs
@@ -23,7 +23,7 @@ TL;DR:
 - [Linux / macOS users](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/get-started/linux-macos-setup.html)
 
 
-It works with ESP-IDF v4.4 and v5.x.
+ESP-IDF v5.5 or newer is recommended.
 
 ### 2. Clone Bluepad32 GitHub repo
 
@@ -31,22 +31,13 @@ It works with ESP-IDF v4.4 and v5.x.
    git clone --recursive https://github.com/ricardoquesada/bluepad32.git
    ```
 
-### 3. Patch BTstack and integrate it as a local component
+### 3. Patch BTstack
 
 Patch it:
 
    ```sh
    cd ${BLUEPAD32_SRC}/external/btstack
    git apply ../patches/*.patch
-   ```
-
-Integrate it:
-
-   ```sh
-   cd ${BLUEPAD32}/external/btstack/port/esp32
-   # This will install BTstack as a component inside Bluepad32 source code (recommended).
-   # Remove "IDF_PATH=../../../../src" if you want it installed in the ESP-IDF folder
-   IDF_PATH=../../../../src ./integrate_btstack.py
    ```
 
 ### 4. Modify example

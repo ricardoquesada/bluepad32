@@ -148,6 +148,9 @@ typedef enum {
 // It might not be true for newer models, like the Falcon.
 #define ATARIST_MOUSE_DELTA_MAX (28)
 
+// GPIOs 34-39 are input-only and lack internal pull-up/down resistors.
+#define GPIO_PULLUP_CAPABLE_MAX GPIO_NUM_34
+
 // --- Structs / Typedefs
 
 // This is the "state" of the push button, and changes in runtime.
@@ -172,6 +175,7 @@ static void process_gamepad(uni_hid_device_t* d, uni_gamepad_t* gp);
 static void process_balance_board(uni_hid_device_t* d, uni_balance_board_t* bb);
 static void process_keyboard(uni_hid_device_t* d, uni_keyboard_t* kb);
 static void joy_update_port(const uni_joystick_t* joy, const gpio_num_t* gpios);
+static int count_physical_connected_devices(void);
 static void init_quadrature_mouse(void);
 static int get_mouse_emulation_from_nvs(void);
 // Interrupt handlers
@@ -357,8 +361,8 @@ static void unijoysticle_init(int argc, const char** argv) {
         io_conf.mode = GPIO_MODE_INPUT;
         io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
         // GPIOs 34~39 don't have internal Pull-up resistors.
-        io_conf.pull_up_en =
-            (g_gpio_config->push_buttons[i].gpio < GPIO_NUM_34) ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
+        bool pullup_capable = g_gpio_config->push_buttons[i].gpio < GPIO_PULLUP_CAPABLE_MAX;
+        io_conf.pull_up_en = pullup_capable ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
         io_conf.pin_bit_mask = BIT64(g_gpio_config->push_buttons[i].gpio);
         ESP_ERROR_CHECK(gpio_config(&io_conf));
         // "i" must match EVENT_BUTTON_0, value, etc.
@@ -388,14 +392,12 @@ static void unijoysticle_on_init_complete(void) {
 
     // Safe to call "unsafe" functions since this is executed in BT thread
     // Start scanning
-    uni_bt_enable_new_connections_unsafe(true);
+    uni_bt_start_scanning_and_autoconnect_unsafe();
 
     // Maybe delete stored Bluetooth keys
-    // Button not supported on this board
-    bool delete_keys = false;
-    if ((g_gpio_config->push_buttons[UNI_PLATFORM_UNIJOYSTICLE_PUSH_BUTTON_0].gpio != -1) &&
-        !gpio_get_level(g_gpio_config->push_buttons[UNI_PLATFORM_UNIJOYSTICLE_PUSH_BUTTON_0].gpio))
-        delete_keys = true;
+    // Button 0 is pressed at boot, delete stored keys.
+    const gpio_num_t button_gpio = g_gpio_config->push_buttons[UNI_PLATFORM_UNIJOYSTICLE_PUSH_BUTTON_0].gpio;
+    const bool delete_keys = (button_gpio != -1) && !gpio_get_level(button_gpio);
 
     if (delete_keys)
         uni_bt_del_keys_unsafe();
@@ -413,9 +415,6 @@ static void unijoysticle_on_device_connected(uni_hid_device_t* d) {
 }
 
 static void unijoysticle_on_device_disconnected(uni_hid_device_t* d) {
-    int connected;
-    uni_hid_device_t* tmp_d;
-
     if (d == NULL) {
         loge("ERROR: unijoysticle_on_device_disconnected: Invalid NULL device\n");
         return;
@@ -433,15 +432,7 @@ static void unijoysticle_on_device_disconnected(uni_hid_device_t* d) {
         ins->gamepad_mode = UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL;
     }
 
-    // Only count "physical" devices
-    connected = 0;
-    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
-        tmp_d = uni_hid_device_get_instance_for_idx(i);
-        if (uni_bt_conn_is_connected(&tmp_d->conn) && !uni_hid_device_is_virtual_device(tmp_d))
-            connected++;
-    }
-
-    if (connected < 2)
+    if (count_physical_connected_devices() < 2)
         maybe_enable_bluetooth(true);
 
     maybe_enable_mouse_timers();
@@ -449,7 +440,6 @@ static void unijoysticle_on_device_disconnected(uni_hid_device_t* d) {
 
 static uni_error_t unijoysticle_on_device_ready(uni_hid_device_t* d) {
     int wanted_seat;
-    int connected;
     uni_hid_device_t* tmp_d;
     uni_hid_device_t* virtual_d = NULL;
 
@@ -517,14 +507,7 @@ static uni_error_t unijoysticle_on_device_ready(uni_hid_device_t* d) {
 
     set_gamepad_seat(d, wanted_seat);
 
-    connected = 0;
-    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
-        uni_hid_device_t* tmp_d = uni_hid_device_get_instance_for_idx(i);
-        if (uni_bt_conn_is_connected(&tmp_d->conn) && !uni_hid_device_is_virtual_device(tmp_d))
-            connected++;
-    }
-
-    if (connected == 2) {
+    if (count_physical_connected_devices() == 2) {
         maybe_enable_bluetooth(false);
     }
 
@@ -877,6 +860,17 @@ static void unijoysticle_register_cmds(void) {
 //
 // Helpers
 //
+
+static int count_physical_connected_devices(void) {
+    int count = 0;
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
+        uni_hid_device_t* d = uni_hid_device_get_instance_for_idx(i);
+        if (d != NULL && uni_bt_conn_is_connected(&d->conn) && !uni_hid_device_is_virtual_device(d)) {
+            count++;
+        }
+    }
+    return count;
+}
 
 static const char* get_uni_model_from_nvs(void) {
     uni_property_value_t value;
@@ -1393,7 +1387,7 @@ static void version(void) {
     }
 
     logi("\nFirmware info:\n");
-    logi("\tBluepad32 Version: v%s (%s)\n", UNI_VERSION, app_desc->version);
+    logi("\tBluepad32 Version: v%s (%s)\n", UNI_VERSION_STRING, app_desc->version);
     logi("\tCompile Time: %s %s\n", app_desc->date, app_desc->time);
 
     logi("\n");
@@ -1794,7 +1788,10 @@ static void maybe_enable_bluetooth(bool enabled) {
         return;
     // We are going to receive an "enable BT" event generated by us. Skip it.
     s_skip_next_enable_bluetooth_event = true;
-    uni_bt_enable_new_connections_safe(enabled);
+    if (enabled)
+        uni_bt_start_scanning_and_autoconnect_safe();
+    else
+        uni_bt_stop_scanning_safe();
 }
 
 //

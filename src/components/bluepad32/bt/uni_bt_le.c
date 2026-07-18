@@ -44,9 +44,12 @@
  * Execution order:
  *  uni_bt_le_on_gap_event_advertising_report()
  *      -> hog_connect()
- *  sm_packet_handler()
- *  device_information_packet_handler()
- *  hids_client_packet_handler()
+ *  uni_sm_packet_handler()
+ *  wait for SM_EVENT_REENCRYPTION_COMPLETE or SM_EVENT_PAIRING_COMPLETE
+ *  uni_device_information_packet_handler()
+ *  wait for GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_DONE
+ *  uni_hids_client_packet_handler()
+ *  wait for GATTSERVICE_SUBEVENT_HID_SERVICE_CONNECTED
  *  uni_hid_device_set_ready()
  */
 
@@ -81,7 +84,7 @@ static bool ble_enabled;
 static uint8_t s_ble_auth_mismatch_retry;
 
 // Temporal space for SDP in BLE
-static uint8_t hid_descriptor_storage[512];
+static uint8_t hid_descriptor_storage[HID_MAX_DESCRIPTOR_LEN * CONFIG_BLUEPAD32_MAX_DEVICES];
 static btstack_packet_callback_registration_t sm_event_callback_registration;
 
 /**
@@ -247,7 +250,7 @@ static void adv_event_get_data(const uint8_t* packet, uint16_t* appearance, char
     get_advertisement_data(ad_data, ad_len, appearance, name);
 }
 
-static void parse_report(uint8_t* packet, uint16_t size) {
+static void parse_report(const uint8_t* packet, uint16_t size) {
     uint16_t service_index;
     uint16_t hids_cid;
     uni_hid_device_t* device;
@@ -287,7 +290,7 @@ static void parse_report(uint8_t* packet, uint16_t size) {
     uni_hid_device_process_controller(device);
 }
 
-static void hids_client_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
+static void uni_hids_client_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     uint8_t status;
     uint16_t hids_cid;
     uni_hid_device_t* device;
@@ -301,14 +304,14 @@ static void hids_client_packet_handler(uint8_t packet_type, uint16_t channel, ui
 #if 0
     // FIXME: Bug in BTStack??? This comparison fails because packet_type is HCI_EVENT_GATTSERVICE_META
     if (packet_type != HCI_EVENT_PACKET) {
-        loge("hids_client_packet_handler: unsupported packet type: %#x\n", packet_type);
+        loge("uni_hids_client_packet_handler: unsupported packet type: %#x\n", packet_type);
         return;
     }
 #endif
 
     event_type = hci_event_packet_get_type(packet);
     if (event_type != HCI_EVENT_GATTSERVICE_META) {
-        loge("hids_client_packet_handler: unsupported event type: %#x\n", event_type);
+        loge("uni_hids_client_packet_handler: unsupported event type: %#x\n", event_type);
         return;
     }
 
@@ -382,18 +385,23 @@ static void hids_client_packet_handler(uint8_t packet_type, uint16_t channel, ui
                 logi("Reports enabled\n");
             }
             break;
+#if 0  // Does not compile on Pico SDK 1.5.1. Enable it only if needed.
         case GATTSERVICE_SUBEVENT_HID_REPORT_WRITTEN:
             // Called when a client a hid report was written.
             // E.g.: "set rumble" was sent to the gamepad.
             // TODO: Inform the device that it is ready to write another hid report?
             break;
+#endif
         default:
             logi("Unsupported gatt client event: 0x%02x\n", hci_event_gattservice_meta_get_subevent_code(packet));
             break;
     }
 }
 
-static void device_information_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
+static void uni_device_information_packet_handler(uint8_t packet_type,
+                                                  uint16_t channel,
+                                                  uint8_t* packet,
+                                                  uint16_t size) {
     uint8_t code;
     uint8_t status;
     uint8_t att_status;
@@ -406,13 +414,13 @@ static void device_information_packet_handler(uint8_t packet_type, uint16_t chan
     UNUSED(size);
 
     if (packet_type != HCI_EVENT_PACKET) {
-        loge("device_information_packet_handler: unsupported packet type: %#x\n", packet_type);
+        loge("uni_device_information_packet_handler: unsupported packet type: %#x\n", packet_type);
         return;
     }
 
     event_type = hci_event_packet_get_type(packet);
     if (event_type != HCI_EVENT_GATTSERVICE_META) {
-        loge("device_information_packet_handler: unsupported event type: %#x\n", event_type);
+        loge("uni_device_information_packet_handler: unsupported event type: %#x\n", event_type);
         return;
     }
 
@@ -439,10 +447,11 @@ static void device_information_packet_handler(uint8_t packet_type, uint16_t chan
                     }
 
                     // Continue - query primary services.
-                    logi("Search for HID service.\n");
-                    status = hids_client_connect(con_handle, hids_client_packet_handler, HID_PROTOCOL_MODE_REPORT,
+                    logi("Search for HID service, con_handle: %#x\n", con_handle);
+                    status = hids_client_connect(con_handle, uni_hids_client_packet_handler, HID_PROTOCOL_MODE_REPORT,
                                                  &hids_cid);
                     if (status == ERROR_CODE_COMMAND_DISALLOWED) {
+                        logi("HID client connection failed with COMMAND_DISALLOWED, ignoring \n");
                         // Means that a HIDS client connection is already present.
                         // We forgot to delete it.
                         // hids_client_disconnect(con_handle);
@@ -456,7 +465,32 @@ static void device_information_packet_handler(uint8_t packet_type, uint16_t chan
                     device->hids_cid = hids_cid;
                     break;
                 default:
-                    logi("Device Information service client connection failed, error=%#x.\n", status);
+#if UNI_HID_DEVICE_ALLOW_NO_DIS
+                    logi("Device Information service client connection failed, error=%#x. Continuing to HID.\n",
+                         status);
+                    device = uni_hid_device_get_instance_for_connection_handle(con_handle);
+                    if (!device) {
+                        loge("Invalid device for in GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_DONE");
+                        break;
+                    }
+                    status = hids_client_connect(con_handle, uni_hids_client_packet_handler, HID_PROTOCOL_MODE_REPORT,
+                                                 &hids_cid);
+                    if (status == ERROR_CODE_SUCCESS) {
+                        logi("Using hids_cid=%d\n", hids_cid);
+                        device->hids_cid = hids_cid;
+                        break;
+                    }
+
+                    if (status == ERROR_CODE_COMMAND_DISALLOWED) {
+                        logi("HID client connection already established, ignoring\n");
+                        break;
+                    }
+
+                    // Real failure
+                    logi("HID client connection failed, status=%#x\n", status);
+#else
+                    logi("Device Information Service client connection failed, error=%#x. Disconnecting.\n", status);
+#endif
                     hog_disconnect(con_handle);
                     break;
             }
@@ -615,13 +649,14 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
     uni_hid_device_t* device;
     uint8_t status;
     uint8_t type;
-    hci_con_handle_t con_handle;
+    hci_con_handle_t con_handle = UNI_BT_CONN_HANDLE_INVALID;
+    bool request_device_information_query = false;
 
     ARG_UNUSED(channel);
     ARG_UNUSED(size);
 
     if (packet_type != HCI_EVENT_PACKET) {
-        loge("sm_packet_handler: unsupported packet type: %#x\n", packet_type);
+        loge("uni_sm_packet_handler: unsupported packet type: %#x\n", packet_type);
         return;
     }
 
@@ -680,6 +715,7 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
             switch (sm_event_reencryption_complete_get_status(packet)) {
                 case ERROR_CODE_SUCCESS:
                     logi("Re-encryption complete, success\n");
+                    request_device_information_query = true;
                     break;
                 case ERROR_CODE_CONNECTION_TIMEOUT:
                     logi("Re-encryption failed, timeout\n");
@@ -722,6 +758,7 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
         case SM_EVENT_PAIRING_COMPLETE:
             sm_event_pairing_complete_get_address(packet, addr);
             device = uni_hid_device_get_instance_for_address(addr);
+            con_handle = sm_event_pairing_complete_get_handle(packet);
             if (!device) {
                 loge("SM_EVENT_PAIRING_COMPLETE: no device for addr %s (already deleted)\n", bd_addr_to_str(addr));
                 break;
@@ -773,12 +810,9 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
                     break;
                 }
                 default:
-                    loge("Unkown paring status: %#x\n", status);
+                    loge("Unknown paring status: %#x\n", status);
                     break;
             }
-
-            if (status == ERROR_CODE_SUCCESS)
-                return;
 
             // TODO: Double check
             // Do not disconnect. Sometimes it appears as "failure" although
@@ -787,8 +821,21 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
             break;
 
         default:
-            loge("Unkown SM packet type: %#x\n", type);
+            loge("Unknown SM packet type: %#x\n", type);
             break;
+    }
+
+    if (request_device_information_query) {
+        if (con_handle == UNI_BT_CONN_HANDLE_INVALID) {
+            // Should not happen.
+            loge("Error: Invalid conn_handle: %d\n", con_handle);
+            return;
+        }
+        logi("Requesting device information\n");
+        status = device_information_service_client_query(con_handle, uni_device_information_packet_handler);
+        if (status != ERROR_CODE_SUCCESS) {
+            loge("Failed to set device information client: %#x\n", status);
+        }
     }
 }
 
@@ -856,7 +903,6 @@ void uni_bt_le_on_hci_event_le_meta(const uint8_t* packet, uint16_t size) {
 void uni_bt_le_on_hci_event_encryption_change(const uint8_t* packet, uint16_t size) {
     uni_hid_device_t* device;
     hci_con_handle_t con_handle;
-    uint8_t status;
 
     ARG_UNUSED(size);
 
@@ -892,12 +938,6 @@ void uni_bt_le_on_hci_event_encryption_change(const uint8_t* packet, uint16_t si
     if (hci_event_encryption_change_get_encryption_enabled(packet) == 0) {
         logi("Encryption failed -> abort\n");
         hog_disconnect(con_handle);
-        return;
-    }
-
-    status = device_information_service_client_query(con_handle, device_information_packet_handler);
-    if (status != ERROR_CODE_SUCCESS) {
-        loge("Failed to set device information client: %#x\n", status);
     }
 }
 
@@ -1048,7 +1088,7 @@ void uni_bt_le_delete_bonded_keys(void) {
 
 void uni_bt_le_setup(void) {
     // register for events from Security Manager
-    sm_event_callback_registration.callback = &sm_packet_handler;
+    sm_event_callback_registration.callback = &uni_sm_packet_handler;
     sm_add_event_handler(&sm_event_callback_registration);
 
     // Setup LE device db

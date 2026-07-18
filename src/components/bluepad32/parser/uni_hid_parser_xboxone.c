@@ -164,12 +164,12 @@ static void xboxone_play_quad_rumble_now(uni_hid_device_t* d,
                                          uint8_t strong_magnitude);
 static void xboxone_retry_cmd(uni_hid_device_t* d, xboxone_retry_cmd_t cmd);
 static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
-                                      hid_globals_t* globals,
+                                      const hid_globals_t* globals,
                                       uint16_t usage_page,
                                       uint16_t usage,
                                       int32_t value);
 static void parse_usage_firmware_v4_v5(uni_hid_device_t* d,
-                                       hid_globals_t* globals,
+                                       const hid_globals_t* globals,
                                        uint16_t usage_page,
                                        uint16_t usage,
                                        int32_t value);
@@ -219,7 +219,7 @@ void uni_hid_parser_xboxone_init_report(uni_hid_device_t* d) {
 }
 
 void uni_hid_parser_xboxone_parse_usage(uni_hid_device_t* d,
-                                        hid_globals_t* globals,
+                                        const hid_globals_t* globals,
                                         uint16_t usage_page,
                                         uint16_t usage,
                                         int32_t value) {
@@ -233,7 +233,7 @@ void uni_hid_parser_xboxone_parse_usage(uni_hid_device_t* d,
 }
 
 static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
-                                      hid_globals_t* globals,
+                                      const hid_globals_t* globals,
                                       uint16_t usage_page,
                                       uint16_t usage,
                                       int32_t value) {
@@ -370,7 +370,7 @@ static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
 
 // v4.8 / 5.x are almost identical to the Android mappings.
 static void parse_usage_firmware_v4_v5(uni_hid_device_t* d,
-                                       hid_globals_t* globals,
+                                       const hid_globals_t* globals,
                                        uint16_t usage_page,
                                        uint16_t usage,
                                        int32_t value) {
@@ -551,8 +551,8 @@ void uni_hid_parser_xboxone_play_dual_rumble(struct uni_hid_device_s* d,
 void xboxone_play_quad_rumble(struct uni_hid_device_s* d,
                               uint16_t start_delay_ms,
                               uint16_t duration_ms,
-                              uint8_t left_trigger,
-                              uint8_t right_trigger,
+                              uint8_t trigger_left,
+                              uint8_t trigger_right,
                               uint8_t weak_magnitude,
                               uint8_t strong_magnitude) {
     if (d == NULL) {
@@ -574,15 +574,15 @@ void xboxone_play_quad_rumble(struct uni_hid_device_s* d,
     }
 
     if (start_delay_ms == 0) {
-        xboxone_play_quad_rumble_now(d, duration_ms, left_trigger, right_trigger, weak_magnitude, strong_magnitude);
+        xboxone_play_quad_rumble_now(d, duration_ms, trigger_left, trigger_right, weak_magnitude, strong_magnitude);
     } else {
         // Set timer to have a delayed start
         ins->rumble_timer_delayed_start.process = &on_xboxone_set_rumble_on;
         ins->rumble_timer_delayed_start.context = d;
         ins->rumble_state = XBOXONE_STATE_RUMBLE_DELAYED;
         ins->rumble_duration_ms = duration_ms;
-        ins->rumble_trigger_left = left_trigger;
-        ins->rumble_trigger_right = right_trigger;
+        ins->rumble_trigger_left = trigger_left;
+        ins->rumble_trigger_right = trigger_right;
         ins->rumble_strong_magnitude = strong_magnitude;
         ins->rumble_weak_magnitude = weak_magnitude;
 
@@ -750,8 +750,8 @@ static void xboxone_stop_rumble_now(uni_hid_device_t* d) {
 
 static void xboxone_play_quad_rumble_now(uni_hid_device_t* d,
                                          uint16_t duration_ms,
-                                         uint8_t left_trigger,
-                                         uint8_t right_trigger,
+                                         uint8_t trigger_left,
+                                         uint8_t trigger_right,
                                          uint8_t weak_magnitude,
                                          uint8_t strong_magnitude) {
     uint8_t status;
@@ -765,13 +765,13 @@ static void xboxone_play_quad_rumble_now(uni_hid_device_t* d,
         return;
     }
 
-    mask |= (left_trigger != 0) ? XBOXONE_FF_TRIGGER_LEFT : 0;
-    mask |= (right_trigger != 0) ? XBOXONE_FF_TRIGGER_RIGHT : 0;
+    mask |= (trigger_left != 0) ? XBOXONE_FF_TRIGGER_LEFT : 0;
+    mask |= (trigger_right != 0) ? XBOXONE_FF_TRIGGER_RIGHT : 0;
     mask |= (weak_magnitude != 0) ? XBOXONE_FF_WEAK : 0;
     mask |= (strong_magnitude != 0) ? XBOXONE_FF_STRONG : 0;
 
-    logd("xbox rumble: duration=%d, left=%d, right=%d, weak=%d, strong=%d, mask=%#x\n", duration_ms, left_trigger,
-         right_trigger, weak_magnitude, strong_magnitude, mask);
+    logd("xbox rumble: duration=%d, left=%d, right=%d, weak=%d, strong=%d, mask=%#x\n", duration_ms, trigger_left,
+         trigger_right, weak_magnitude, strong_magnitude, mask);
 
     // Magnitude is 0..100 so scale the 8-bit input here
 
@@ -779,8 +779,8 @@ static void xboxone_play_quad_rumble_now(uni_hid_device_t* d,
         .transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT,
         .report_id = XBOX_RUMBLE_REPORT_ID,
         .enable_actuators = mask,
-        .magnitude_left_trigger = ((uint16_t)(left_trigger * 100)) / UINT8_MAX,
-        .magnitude_right_trigger = ((uint16_t)(right_trigger * 100)) / UINT8_MAX,
+        .magnitude_left_trigger = ((uint16_t)(trigger_left * 100)) / UINT8_MAX,
+        .magnitude_right_trigger = ((uint16_t)(trigger_right * 100)) / UINT8_MAX,
         .magnitude_strong = ((uint16_t)(strong_magnitude * 100)) / UINT8_MAX,
         .magnitude_weak = ((uint16_t)(weak_magnitude * 100)) / UINT8_MAX,
         .duration_10ms = 0xff,  // forever, timer will turn it off

@@ -32,6 +32,11 @@ There are two ways to setup a Bluepad32 Arduino project for ESP32 chips:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/0jnY-XXiD8Q?si=YphWYgQf0a1YX_nq" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 
+<iframe width="560" height="315" src="https://www.youtube.com/embed/EEViXFoSzww?si=DsOQGOOwuKC2qOtz" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/Laa93Wj7f-I?si=gRxO5sAWl0cAE8vn" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+
 These 4 steps are needed:
 
 1. Add ESP32 and Bluepad32 board packages to Board Manager
@@ -49,7 +54,7 @@ These two boards must be added to Arduino IDE.
 * "Bluepad32 + ESP32"
   package: `https://raw.githubusercontent.com/ricardoquesada/esp32-arduino-lib-builder/master/bluepad32_files/package_esp32_bluepad32_index.json`
 
-If don't know how to add a board, then read [Add or Remove 3rd party boards in Board Manager][arduino_3rd_party_board]
+If you don't know how to add a board, then read [Add or Remove 3rd party boards in Board Manager][arduino_3rd_party_board]
 
 ### 2. Install ESP32 and Bluepad32 files
 
@@ -146,7 +151,7 @@ Install ESP-IDF toolchain by following these instructions:
 [esp_idf_win]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/windows-setup.html
 [esp_idf_linux]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/linux-macos-setup.html
 
-### Compile tempalte project and flash it
+### Compile template project and flash it
 
 To compile it and flash it, do:
 

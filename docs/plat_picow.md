@@ -1,11 +1,13 @@
-# Bluepad32 for Pico W using Pico SDK
+# Bluepad32 for Pico W and Pico 2 W using Pico SDK
 
 ## Supported boards
 
 - [Pico W][pico_w_board]
+- [Pico 2 W][pico_2w_board]
 - [Pico W clones][pico_w_clones]
 
-[pico_w_board]: https://www.raspberrypi.com/documentation/microcontrollers/raspberry-pi-pico.html
+[pico_w_board]: https://www.raspberrypi.com/documentation/microcontrollers/pico-series.html#picow-technical-specification
+[pico_2w_board]: https://www.raspberrypi.com/documentation/microcontrollers/pico-series.html#pico2w-technical-specification
 [pico_w_clones]: https://www.aliexpress.us/item/3256805949408500.html
 
 ## Installation
@@ -15,6 +17,8 @@
 You need to install Pico SDK. The instructions are different for Linux/macOS and Windows.
 
 === "Pico SDK for Linux / macOS"
+
+Recommended: Use Pico SDK v2.1.1 or newer.
 
     Clone Pico SDK from Github: <https://github.com/raspberrypi/pico-sdk>
 

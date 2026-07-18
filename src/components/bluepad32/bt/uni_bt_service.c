@@ -71,18 +71,18 @@ _Static_assert(sizeof(adv_data) <= 31, "adv_data too big");
 // clang-format on
 static const int adv_data_len = sizeof(adv_data);
 
-static void att_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
-static int att_write_callback(hci_con_handle_t con_handle,
-                              uint16_t att_handle,
-                              uint16_t transaction_mode,
-                              uint16_t offset,
-                              uint8_t* buffer,
-                              uint16_t buffer_size);
-static uint16_t att_read_callback(hci_con_handle_t conn_handle,
+static void uni_att_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
+static int uni_att_write_callback(hci_con_handle_t con_handle,
                                   uint16_t att_handle,
+                                  uint16_t transaction_mode,
                                   uint16_t offset,
                                   uint8_t* buffer,
                                   uint16_t buffer_size);
+static uint16_t uni_att_read_callback(hci_con_handle_t conn_handle,
+                                      uint16_t att_handle,
+                                      uint16_t offset,
+                                      uint8_t* buffer,
+                                      uint16_t buffer_size);
 static client_connection_t* connection_for_conn_handle(hci_con_handle_t conn_handle);
 static bool next_notify_device(void);
 static void notify_client(void);
@@ -141,15 +141,15 @@ static void maybe_notify_client(void) {
         att_server_request_can_send_now_event(ctx->connection_handle);
 }
 
-static int att_write_callback(hci_con_handle_t con_handle,
-                              uint16_t att_handle,
-                              uint16_t transaction_mode,
-                              uint16_t offset,
-                              uint8_t* buffer,
-                              uint16_t buffer_size) {
+static int uni_att_write_callback(hci_con_handle_t con_handle,
+                                  uint16_t att_handle,
+                                  uint16_t transaction_mode,
+                                  uint16_t offset,
+                                  uint8_t* buffer,
+                                  uint16_t buffer_size) {
     ARG_UNUSED(transaction_mode);
 
-    logd("att_write_callback: con handle=%#x, att_handle=%#x, offset=%d\n", con_handle, att_handle, offset);
+    logd("uni_att_write_callback: con handle=%#x, att_handle=%#x, offset=%d\n", con_handle, att_handle, offset);
     //    printf_hexdump(buffer, buffer_size);
 
     client_connection_t* ctx;
@@ -168,7 +168,10 @@ static int att_write_callback(hci_con_handle_t con_handle,
             if (buffer_size != 1 || offset != 0)
                 return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             bool enabled = buffer[0];
-            uni_bt_enable_new_connections_unsafe(enabled);
+            if (enabled)
+                uni_bt_start_scanning_and_autoconnect_unsafe();
+            else
+                uni_bt_stop_scanning_unsafe();
             break;
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_CLIENT_CONFIGURATION_HANDLE: {
@@ -255,11 +258,11 @@ static int att_write_callback(hci_con_handle_t con_handle,
     return ATT_ERROR_SUCCESS;
 }
 
-static uint16_t att_read_callback(hci_con_handle_t conn_handle,
-                                  uint16_t att_handle,
-                                  uint16_t offset,
-                                  uint8_t* buffer,
-                                  uint16_t buffer_size) {
+static uint16_t uni_att_read_callback(hci_con_handle_t conn_handle,
+                                      uint16_t att_handle,
+                                      uint16_t offset,
+                                      uint8_t* buffer,
+                                      uint16_t buffer_size) {
     ARG_UNUSED(conn_handle);
 
     switch (att_handle) {
@@ -279,7 +282,7 @@ static uint16_t att_read_callback(hci_con_handle_t conn_handle,
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC04_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
             // Scan for new connections
-            const uint8_t scanning = uni_bt_enable_new_connections_is_enabled();
+            const uint8_t scanning = uni_bt_is_scanning();
             return att_read_callback_handle_blob(&scanning, (uint16_t)1, offset, buffer, buffer_size);
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC05_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
@@ -363,7 +366,7 @@ static client_connection_t* connection_for_conn_handle(hci_con_handle_t conn_han
     return NULL;
 }
 
-static void att_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
+static void uni_att_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     ARG_UNUSED(channel);
     ARG_UNUSED(size);
 
@@ -433,15 +436,14 @@ void uni_bt_service_init(void) {
     logi("Starting Bluepad32 BLE service UUID: 4627C4A4-AC00-46B9-B688-AFC5C1BF7F63\n");
 
     // Setup ATT server.
-    att_server_init(profile_data, att_read_callback, att_write_callback);
+    att_server_init(profile_data, uni_att_read_callback, uni_att_write_callback);
 
     // setup advertisements
     uint16_t adv_int_min = 0x0030;
     uint16_t adv_int_max = 0x0030;
     uint8_t adv_type = 0;
-    bd_addr_t null_addr;
+    bd_addr_t null_addr = {0};
 
-    memset(null_addr, 0, 6);
     memset(compact_devices, 0, sizeof(compact_devices));
     memset(&client_connections, 0, sizeof(client_connections));
     for (int i = 0; i < MAX_NR_CLIENT_CONNECTIONS; i++)
@@ -450,7 +452,7 @@ void uni_bt_service_init(void) {
         compact_devices[i].idx = i;
 
     // register for ATT events
-    att_server_register_packet_handler(att_packet_handler);
+    att_server_register_packet_handler(uni_att_packet_handler);
 
     gap_advertisements_set_params(adv_int_min, adv_int_max, adv_type, 0, null_addr, 0x07, 0x00);
     gap_advertisements_set_data(adv_data_len, (uint8_t*)adv_data);

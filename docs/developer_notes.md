@@ -165,15 +165,6 @@ cp -r ${BLUEPAD32}/src/components/bluepad32 ${MYPROJECT}/components
 cp -r ${BLUEPAD32}/src/components/bluepad32_arduino ${MYPROJECT}/components
 ```
 
-BTStack component:
-
-```sh
-cd ${BLUEPAD32}/external/btstack/port/esp32
-# This will install BTstack as a component inside Bluepad32 source code (recommended).
-# Remove "IDF_PATH=${BLUEPAD32}/src/" if you want it installed in the ESP-IDF folder
-IDF_PATH=${BLUEPAD32}/src/ ./integrate_btstack.py
-```
-
 ### Update configuration
 
 And then do:

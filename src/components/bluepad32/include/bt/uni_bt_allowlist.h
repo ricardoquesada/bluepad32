@@ -21,7 +21,12 @@ extern "C" {
 // But no crashes should happen since no deletions/insertions are performed.
 //
 
-// Whether or not the address is allowed to connect.
+// IMPORTANT:
+// These functions modify NVS (non-volatile storage).
+// If you add an address to the allow list, it will persist reboots.
+// Similar if you enable or disable allow list.
+
+// Whether the address is allowed to connect.
 bool uni_bt_allowlist_is_allowed_addr(bd_addr_t addr);
 
 // Add a new address to the allow list.

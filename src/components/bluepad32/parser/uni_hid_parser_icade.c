@@ -85,7 +85,7 @@ void uni_hid_parser_icade_setup(uni_hid_device_t* d) {
 }
 
 void uni_hid_parser_icade_parse_usage(uni_hid_device_t* d,
-                                      hid_globals_t* globals,
+                                      const hid_globals_t* globals,
                                       uint16_t usage_page,
                                       uint16_t usage,
                                       int32_t value) {

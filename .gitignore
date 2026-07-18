@@ -9,6 +9,7 @@
 # Distribution files, used internally and build files
 dist/
 build/
+build_*/
 cmake-build-*/
 tools/fw/bluepad32-*
 
@@ -50,3 +51,16 @@ ui_*.h
 
 # Vagrant stuff
 .vagrant
+
+# ESP32 related
+sdkconfig
+sdkconfig.old
+dependencies.lock
+
+# From some IDEs
+src/.cache
+.cache
+
+# Unit test binaries
+tests/test_uni_hid_device
+tests/test_uni_hid_parser

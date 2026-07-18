@@ -40,8 +40,8 @@ static const uni_property_t properties[] = {
     {UNI_PROPERTY_IDX_GAP_MIN_PERIODIC_LEN, UNI_PROPERTY_NAME_GAP_MIN_PERIODIC_LEN, UNI_PROPERTY_TYPE_U8,
      .default_value.u8 = UNI_BT_MIN_PERIODIC_LENGTH},
     {UNI_PROPERTY_IDX_MOUSE_SCALE, UNI_PROPERTY_NAME_MOUSE_SCALE, UNI_PROPERTY_TYPE_FLOAT, .default_value.f32 = 1.0f},
-    {UNI_PROPERTY_IDX_VERSION, UNI_PROPERTY_NAME_VERSION, UNI_PROPERTY_TYPE_STRING, .default_value.str = UNI_VERSION,
-     .flags = UNI_PROPERTY_FLAG_READ_ONLY},
+    {UNI_PROPERTY_IDX_VERSION, UNI_PROPERTY_NAME_VERSION, UNI_PROPERTY_TYPE_STRING,
+     .default_value.str = UNI_VERSION_STRING, .flags = UNI_PROPERTY_FLAG_READ_ONLY},
     {UNI_PROPERTY_IDX_VIRTUAL_DEVICE_ENABLED, UNI_PROPERTY_NAME_VIRTUAL_DEVICE_ENABLED, UNI_PROPERTY_TYPE_BOOL,
 #ifdef CONFIG_BLUEPAD32_ENABLE_VIRTUAL_DEVICE_BY_DEFAULT
      .default_value.boolean = true
@@ -111,7 +111,6 @@ void uni_property_dump_property(const uni_property_t* p) {
             break;
         case UNI_PROPERTY_TYPE_FLOAT:
             logi("%s = %f\n", p->name, val.f32);
-            break;
             break;
         case UNI_PROPERTY_TYPE_STRING:
             if (val.str)

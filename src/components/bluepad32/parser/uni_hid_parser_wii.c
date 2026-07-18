@@ -7,6 +7,7 @@
 // https://github.com/dvdhrm/xwiimote/blob/master/doc/PROTOCOL
 
 #include <assert.h>
+#include <stdbool.h>
 
 #define ENABLE_EEPROM_DUMP 0
 
@@ -48,18 +49,6 @@ enum wiiproto_reqs {
     WIIPROTO_REQ_DATA = 0x21,
     WIIPROTO_REQ_RETURN = 0x22,
 
-    WIIPROTO_REQ_DRM_K = 0x30,
-    WIIPROTO_REQ_DRM_KA = 0x31,
-    WIIPROTO_REQ_DRM_KE = 0x32,
-    WIIPROTO_REQ_DRM_KAI = 0x33,
-    WIIPROTO_REQ_DRM_KEE = 0x34,
-    WIIPROTO_REQ_DRM_KAE = 0x35,
-    WIIPROTO_REQ_DRM_KIE = 0x36,
-    WIIPROTO_REQ_DRM_KAIE = 0x37,
-    WIIPROTO_REQ_DRM_E = 0x3d,
-    WIIPROTO_REQ_DRM_SKAI1 = 0x3e,
-    WIIPROTO_REQ_DRM_SKAI2 = 0x3f,
-
     WIIPROTO_REQ_MAX
 };
 
@@ -77,7 +66,8 @@ enum wii_exttype {
     WII_EXT_NUNCHUK,             // Nunchuk
     WII_EXT_CLASSIC_CONTROLLER,  // Classic Controller or Classic Controller Pro
     WII_EXT_U_PRO_CONTROLLER,    // Wii U Pro
-    WII_EXT_BALANCE_BOARD        // Balance Board
+    WII_EXT_BALANCE_BOARD,       // Balance Board
+    WII_EXT_UDRAW_TABLET,        // Wii uDraw Tablet
 };
 
 // Required steps to determine what kind of extensions are supported.
@@ -143,6 +133,14 @@ typedef struct balance_board_calibration_s {
     balance_board_t kg34;  // Calibration data at 34 kg
 } balance_board_calibration_t;
 
+typedef struct udraw_tablet_s {
+    uint16_t x;
+    uint16_t y;
+    uint16_t pressure;
+    bool button_lower;
+    bool button_upper;
+} udraw_tablet_t;
+
 // wii_instance_t represents data used by the Wii driver instance.
 typedef struct wii_instance_s {
     uint8_t state;
@@ -180,6 +178,7 @@ static void process_drm_kae(uni_hid_device_t* d, const uint8_t* report, uint16_t
 static void process_drm_kee(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
 static void process_drm_e(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
 static nunchuk_t process_nunchuk(const uint8_t* e, uint16_t len);
+static udraw_tablet_t process_udraw_tablet(const uint8_t* e, uint16_t len);
 static balance_board_t process_balance_board(uni_hid_device_t* d, const uint8_t* e, uint16_t len);
 
 static void wii_process_fsm(uni_hid_device_t* d);
@@ -212,7 +211,8 @@ static const char* wii_exttype_names[] = {
     "Nunchuk",             // WII_EXT_NUNCHUK
     "Classic Controller",  // WII_EXT_CLASSIC_CONTROLLER
     "Pro Controller",      // WII_EXT_U_PRO_CONTROLLER
-    "Balance Board"        // WII_EXT_BALANCE_BOARD
+    "Balance Board",       // WII_EXT_BALANCE_BOARD
+    "uDraw Tablet",        // WII_EXT_UDRAW_TABLET
 };
 
 // process_ functions
@@ -312,8 +312,13 @@ static void process_req_data_read_register(uni_hid_device_t* d, const uint8_t* r
             } else if (report[10] == 0x01 && report[11] == 0x01) {
                 // Classic / Classic Pro: 0? 00 a4 20 01 01
                 ins->ext_type = WII_EXT_CLASSIC_CONTROLLER;
+            } else if (report[10] == 0x01 && report[11] == 0x12) {
+                // Wii uDraw Tablet:  FF 00 A4 20 01 12
+                ins->ext_type = WII_EXT_UDRAW_TABLET;
+                // WiiMote is attached vertically to the uDraw Tablet
+                ins->mode = WII_MODE_VERTICAL;
             } else {
-                loge("Wii: Unknown extension\n");
+                loge("Wii: Unknown extension: %#x %#x\n", report[10], report[11]);
                 printf_hexdump(report, len);
             }
         }
@@ -439,9 +444,6 @@ static void process_req_data_dump_eeprom(uni_hid_device_t* d, const uint8_t* rep
 
 // Defined here: http://wiibrew.org/wiki/Wiimote#0x21:_Read_Memory_Data
 static void process_req_data(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
-    logi("**** process_req_data\n");
-    printf_hexdump(report, len);
-
     if (len < 22) {
         loge("Wii: invalid req_data length: got %d, want >= 22\n", len);
         printf_hexdump(report, len);
@@ -615,27 +617,56 @@ static void process_drm_ke(uni_hid_device_t* d, const uint8_t* report, uint16_t 
     }
 
     wii_instance_t* ins = get_wii_instance(d);
-    if (ins->ext_type != WII_EXT_NUNCHUK) {
-        loge("Wii: unexpected Wii extension: got %d, want: %d", ins->ext_type, WII_EXT_NUNCHUK);
+    if (ins->ext_type != WII_EXT_NUNCHUK && ins->ext_type != WII_EXT_UDRAW_TABLET) {
+        loge("Wii: unexpected Wii extension: got %d, want: %d or %d", ins->ext_type, WII_EXT_NUNCHUK,
+             WII_EXT_UDRAW_TABLET);
         return;
     }
+
+    uni_controller_t* ctl = &d->controller;
 
     if (ins->mode != WII_MODE_VERTICAL) {
-        loge("Wii: When Nunchuk is attached, only vertical mode is supported. Found: %d\n", ins->mode);
+        loge("Wii: When Nunchuk or uDraw Tablet is attached, only vertical mode is supported. Found: %d\n", ins->mode);
         return;
     }
 
-    //
-    // Process Nunchuk: Right axis, buttons X and Y
-    //
-    nunchuk_t n = process_nunchuk(&report[3], len - 3);
-    uni_controller_t* ctl = &d->controller;
-    const int factor = (AXIS_NORMALIZE_RANGE / 2) / 128;
+    if (ins->ext_type == WII_EXT_NUNCHUK) {
+        //
+        // Process Nunchuk: Right axis, buttons X and Y
+        //
+        nunchuk_t n = process_nunchuk(&report[3], len - 3);
+        const int factor = (AXIS_NORMALIZE_RANGE / 2) / 128;
 
-    ctl->gamepad.axis_rx = n.sx * factor;
-    ctl->gamepad.axis_ry = n.sy * factor;
-    ctl->gamepad.buttons |= n.bc ? BUTTON_X : 0;
-    ctl->gamepad.buttons |= n.bz ? BUTTON_Y : 0;
+        ctl->gamepad.axis_rx = n.sx * factor;
+        ctl->gamepad.axis_ry = n.sy * factor;
+        ctl->gamepad.buttons |= n.bc ? BUTTON_X : 0;
+        ctl->gamepad.buttons |= n.bz ? BUTTON_Y : 0;
+    } else if (ins->ext_type == WII_EXT_UDRAW_TABLET) {
+        // Better if uDraw reports its own "type", but for the moment
+        // it gets reported and the 2nd half of a gamepad.
+
+        udraw_tablet_t n = process_udraw_tablet(&report[3], len - 3);
+        logi("x = %d, y = %d, p = %d, a = %d, b=%d\n", n.x, n.y, n.pressure, n.button_lower, n.button_upper);
+        // Might vary from tablet to tablet (???)
+        // x: range from 90-1955. 4095 when not touching
+        // y: range from 80-1450. 4095 when not touching.
+        // pressure: 8-380
+        int32_t x = 0;
+        int32_t y = 0;
+        int32_t p = 0;
+
+        if (n.x < 2000)
+            x = ((n.x - 90) * AXIS_NORMALIZE_RANGE) / 1955 - AXIS_NORMALIZE_RANGE / 2;
+        if (n.y < 2000)
+            y = ((n.y - 80) * AXIS_NORMALIZE_RANGE) / 1450 - AXIS_NORMALIZE_RANGE / 2;
+        p = ((n.pressure - 8) * AXIS_NORMALIZE_RANGE) / 380;
+
+        ctl->gamepad.axis_rx = x;
+        ctl->gamepad.axis_ry = y;
+        ctl->gamepad.throttle = p;
+        ctl->gamepad.buttons |= n.button_upper ? BUTTON_X : 0;
+        ctl->gamepad.buttons |= n.button_lower ? BUTTON_Y : 0;
+    }
 
     //
     // Process Wii remote: DPAD, buttons A, B, Shoulder L & R, and misc.
@@ -690,6 +721,24 @@ static nunchuk_t process_nunchuk(const uint8_t* e, uint16_t len) {
     n.bz = !(e[5] & 0b00000001);
     return n;
 }
+
+static udraw_tablet_t process_udraw_tablet(const uint8_t* e, uint16_t len) {
+    // uDraw Tablet format here:
+    // https://www.wiibrew.org/wiki/Wiimote/Extension_Controllers/uDraw_GameTablet
+    udraw_tablet_t n = {0};
+    if (len < 6) {
+        loge("Wii: unexpected len; got %d, want >= 6\n", len);
+        return n;
+    }
+    n.x = e[0] + ((e[2] & 0x0f) << 8);
+    n.y = e[1] + ((e[2] & 0xf0) << 4);
+    n.pressure = e[3] + ((e[5] & 0x04) << 5);
+    // Buttons are active-low
+    n.button_upper = !(e[5] & 0x01);
+    n.button_lower = !(e[5] & 0x02);
+    return n;
+}
+
 static balance_board_t process_balance_board(uni_hid_device_t* d, const uint8_t* e, uint16_t len) {
     // Balance board format here:
     // http://wiibrew.org/wiki/Wii_Balance_Board
@@ -1049,36 +1098,40 @@ static void wii_fsm_assign_device(uni_hid_device_t* d) {
             } else {
                 logi("Unknown Wii device detected. Treating it as Wii Remote.\n");
             }
-            uint8_t reportType = 0xff;
+            uint8_t report_type = 0xff;
             if (ins->ext_type == WII_EXT_NUNCHUK) {
                 // Request Nunchuk data
                 if (ins->mode == WII_MODE_ACCEL) {
                     // Request Core buttons + Accel + extension (nunchuk)
-                    reportType = WIIPROTO_REQ_DRM_KAE;
+                    report_type = WII_REPORT_TYPE_KAE;
                     logi("Wii: requesting Core buttons + Accelerometer + E (Nunchuk)\n");
                     d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_NUNCHUK_ACCEL;
                 } else {
                     // Request Core buttons + extension (nunchuk)
-                    reportType = WIIPROTO_REQ_DRM_KE;
+                    report_type = WII_REPORT_TYPE_KE;
                     logi("Wii: requesting Core buttons + E (Nunchuk)\n");
                     d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_NUNCHUK;
                 }
             } else if (ins->ext_type == WII_EXT_CLASSIC_CONTROLLER) {
                 logi("Wii: requesting E (Classic Controller)\n");
                 d->controller_subtype = CONTROLLER_SUBTYPE_WII_CLASSIC;
-                reportType = WIIPROTO_REQ_DRM_E;
+                report_type = WII_REPORT_TYPE_E;
             } else if (ins->ext_type == WII_EXT_BALANCE_BOARD) {
                 logi("Wii: requesting Weight (Balance Board)\n");
                 d->controller_subtype = CONTROLLER_SUBTYPE_WII_BALANCE_BOARD;
-                reportType = WIIPROTO_REQ_DRM_KEE;
+                report_type = WII_REPORT_TYPE_KEE;
+            } else if (ins->ext_type == WII_EXT_UDRAW_TABLET) {
+                logi("Wii: requesting uDraw packets\n");
+                d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_UDRAW_TABLET;
+                report_type = WII_REPORT_TYPE_KE;
             } else {
                 if (ins->mode == WII_MODE_ACCEL) {
                     // Request Core buttons + accel
-                    reportType = WIIPROTO_REQ_DRM_KA;
+                    report_type = WII_REPORT_TYPE_KA;
                     logi("Wii: requesting Core buttons + Accelerometer\n");
                     d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_ACCEL;
                 } else {
-                    reportType = WIIPROTO_REQ_DRM_K;
+                    report_type = WII_REPORT_TYPE_K;
                     logi("Wii: requesting Core buttons\n");
                     if (ins->mode == WII_MODE_VERTICAL) {
                         d->controller_subtype = CONTROLLER_SUBTYPE_WIIMOTE_VERTICAL;
@@ -1087,16 +1140,14 @@ static void wii_fsm_assign_device(uni_hid_device_t* d) {
                     }
                 }
             }
-            uint8_t report[] = {0xa2, WIIPROTO_REQ_DRM, 0x00, reportType};
-            uni_hid_device_send_intr_report(d, report, sizeof(report));
+            uni_hid_parser_wii_request_report_type(d, report_type);
             break;
         }
         case WII_DEVTYPE_PRO_CONTROLLER: {
             logi("Wii U Pro controller detected.\n");
             d->controller_subtype = CONTROLLER_SUBTYPE_WIIUPRO;
-            // 0x34 WIIPROTO_REQ_DRM_KEE (present in Wii U Pro controller)
-            const uint8_t reportKee[] = {0xa2, WIIPROTO_REQ_DRM, 0x00, WIIPROTO_REQ_DRM_KEE};
-            uni_hid_device_send_intr_report(d, reportKee, sizeof(reportKee));
+            // 0x34 WII_REPORT_TYPE_KEE (present in Wii U Pro controller)
+            uni_hid_parser_wii_request_report_type(d, WII_REPORT_TYPE_KEE);
             break;
         }
         default:
@@ -1228,22 +1279,22 @@ void uni_hid_parser_wii_parse_input_report(uni_hid_device_t* d, const uint8_t* r
         case WIIPROTO_REQ_STATUS:
             process_req_status(d, report, len);
             break;
-        case WIIPROTO_REQ_DRM_K:
+        case WII_REPORT_TYPE_K:
             process_drm_k(d, report, len);
             break;
-        case WIIPROTO_REQ_DRM_KA:
+        case WII_REPORT_TYPE_KA:
             process_drm_ka(d, report, len);
             break;
-        case WIIPROTO_REQ_DRM_KE:
+        case WII_REPORT_TYPE_KE:
             process_drm_ke(d, report, len);
             break;
-        case WIIPROTO_REQ_DRM_KAE:
+        case WII_REPORT_TYPE_KAE:
             process_drm_kae(d, report, len);
             break;
-        case WIIPROTO_REQ_DRM_KEE:
+        case WII_REPORT_TYPE_KEE:
             process_drm_kee(d, report, len);
             break;
-        case WIIPROTO_REQ_DRM_E:
+        case WII_REPORT_TYPE_E:
             process_drm_e(d, report, len);
             break;
         case WIIPROTO_REQ_DATA:
@@ -1339,6 +1390,11 @@ void uni_hid_parser_wii_set_mode(uni_hid_device_t* d, wii_mode_t mode) {
         default:
             break;
     }
+}
+
+void uni_hid_parser_wii_request_report_type(struct uni_hid_device_s* d, wii_report_type_t report_type) {
+    uint8_t report[] = {0xa2, WIIPROTO_REQ_DRM, 0x00, report_type};
+    uni_hid_device_send_intr_report(d, report, sizeof(report));
 }
 
 //

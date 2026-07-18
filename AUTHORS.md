@@ -34,13 +34,23 @@
 - Scoop:
     - Author of BluepadBLEService for Arduino
 - lohengrin:
-    - created original Pico W support
+    - Created original Pico W support
 - juan518munoz:
     - Improvements to Pico W support
 - Recep Selim Ağırman:
     - DualSense Adaptive trigger support
 - Michal Dvořák:
     - Nunchuk values can be read independently of Wii Mote
+- C.Lee Taylor
+    - Updated Supported Gamepads doc.
+- Michael Campbell
+    - Switch driver improvements
+- Colin Luoma:
+    - Allowlist works Ok on Pico W by adding "string" support to properties.
+- Lauri Sovinen:
+    - Add dependencie in esp32 builder
+- Daniel
+    - Update supported mouse documentation
 
 ## People who contributed with ideas and/or testing
 
@@ -66,6 +76,11 @@
 - Marko Viher: Donated [Tik Tok Ring Remote controller][tiktok_controller]
 - Marco Gabrecht: Donated [DATA FROG PS4][datafrog_ps4_controller] and [DATA FROG Switch][datafrog_switch_controller]
   controllers
+- Trevor Rudolph: Donated [Wii uDraw Tablet][wii_udraw_tablet]
+- Martin Pfingstl
+- Lieven Merckx
+- gopro2027
+
 
 [*]: Multiple times or generous donations
 
@@ -76,4 +91,6 @@
 [datafrog_switch_controller]: https://www.aliexpress.us/item/3256805448827549.html
 
 [gamesir_t3s_controller]: https://www.gamesir.hk/products/gamesir-t3s-multi-platform-game-controller
+
+[wii_udraw_tablet]: https://en.wikipedia.org/wiki/UDraw_GameTablet
 

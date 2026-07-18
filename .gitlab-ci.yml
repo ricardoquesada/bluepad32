@@ -4,7 +4,7 @@ stages:
 build-debian-linux-gcc:
   image: gcc
   variables:
-    GIT_SUBMODULE_STRATEGY: normal
+    GIT_SUBMODULE_STRATEGY: recursive
   stage: build
   before_script:
     - export DEBIAN_FRONTEND=noninteractive
@@ -14,70 +14,30 @@ build-debian-linux-gcc:
   script:
     - cd examples/posix && mkdir build && cd build && cmake .. && CC=gcc make -j
 
-build-ubuntu-linux-clang:
-  image: espressif/idf
+build-debian-linux-clang:
+  image: gcc
   variables:
-    GIT_SUBMODULE_STRATEGY: normal
+    GIT_SUBMODULE_STRATEGY: recursive
   stage: build
   before_script:
     - export DEBIAN_FRONTEND=noninteractive
     - apt update
     - apt -y install tzdata
     - apt -y install clang
-    - apt -y install make pkg-config libusb-1.0-0-dev
+    - apt -y install make cmake pkg-config libusb-1.0-0-dev
   script:
     - cd examples/posix && mkdir build && cd build && cmake .. && CC=clang make -j
 
-build-esp-idf-5.1:
-  image: espressif/idf:release-v5.1
+build-esp-idf-5.5:
+  image: espressif/idf:release-v5.5
   variables:
-    GIT_SUBMODULE_STRATEGY: normal
+    GIT_SUBMODULE_STRATEGY: recursive
   stage: build
   before_script:
     - pushd .
     - cd external/btstack
     - git apply ../patches/*.patch
-    - cd port/esp32
-    - IDF_PATH=../../../../src/ ./integrate_btstack.py
     - popd
   script:
-    - pushd .
-    - cd tools/fw
-    - ./build.py all
-    - popd
-  after_script:
-    - pushd .
-    - cd tools/fw
-    - mkdir artifacts
-    - cp bluepad32*.tar.gz artifacts/
-    - popd
-  artifacts:
-    paths:
-      - tools/fw/artifacts
-
-build-esp-idf-4.4:
-  image: espressif/idf:release-v4.4
-  variables:
-    GIT_SUBMODULE_STRATEGY: normal
-  stage: build
-  before_script:
-    - pushd .
-    - cd external/btstack
-    - git apply ../patches/*.patch
-    - cd port/esp32
-    - IDF_PATH=../../../../src/ ./integrate_btstack.py
-    - popd
-  script:
-    - pushd .
-    - cd tools/fw
-    - ./build.py nina
-    - popd
-  after_script:
-    - pushd .
-    - cd tools/fw
-    - mkdir artifacts
-    - cp bluepad32*.tar.gz artifacts/
-    - popd
-  artifacts:
-    paths:
-      - tools/fw/artifacts
+    - cd examples/esp32
+    - idf.py build

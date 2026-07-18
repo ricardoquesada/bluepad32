@@ -4,5 +4,11 @@ cmake_minimum_required(VERSION 3.13)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
+set(BLUEPAD32_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
+set(ENV{BTSTACK_ROOT} ${BLUEPAD32_ROOT}/external/btstack)
+
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+include($ENV{BTSTACK_ROOT}/port/esp32/components/btstack/cmake/BTstack_project.cmake)
+
 project(bluepad32-app)
+

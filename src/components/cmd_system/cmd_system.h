@@ -19,10 +19,12 @@ void register_system(void);
 void register_system_common(void);
 
 // Register deep and light sleep functions
-void register_system_sleep(void);
+void register_system_deep_sleep(void);
+void register_system_light_sleep(void);
 
-// Execute "version" command
+// Bluepad32 changes from here
 void cmd_system_version(void);
+// Bluepad32 changes to here
 
 #ifdef __cplusplus
 }
