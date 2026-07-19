@@ -103,6 +103,10 @@ typedef struct {
 } steam_instance_t;
 _Static_assert(sizeof(steam_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "Steam instance too big");
 
+static steam_instance_t* get_steam_instance(uni_hid_device_t* d) {
+    return (steam_instance_t*)&d->parser_data[0];
+}
+
 static void parse_buttons(struct uni_hid_device_s* d, const uint8_t* data);
 static void parse_triggers(struct uni_hid_device_s* d, const uint8_t* data);
 static void parse_thumbstick(struct uni_hid_device_s* d, const uint8_t* data);
