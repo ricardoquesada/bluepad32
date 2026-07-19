@@ -34,7 +34,7 @@
 #include "uni_error.h"
 
 #define HID_MAX_NAME_LEN 240              ///< Max HID device name length.
-#define HID_MAX_DESCRIPTOR_LEN 512        ///< Max HID descriptor length.
+#define HID_MAX_DESCRIPTOR_LEN 1024       ///< Max HID descriptor length (Triton Report Map is large).
 #define HID_DEVICE_MAX_PARSER_DATA 256    ///< Max size for parser-specific data.
 #define HID_DEVICE_MAX_PLATFORM_DATA 256  ///< Max size for platform-specific data.
 

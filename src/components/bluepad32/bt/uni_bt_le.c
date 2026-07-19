@@ -67,9 +67,11 @@
 
 #include "sdkconfig.h"
 
+#include "bt/uni_bt_bredr.h"
 #include "bt/uni_bt_conn.h"
 #include "bt/uni_bt_defines.h"
 #include "parser/uni_hid_parser.h"
+#include "parser/uni_hid_parser_steam_triton.h"
 #include "parser/uni_hid_parser_switch2.h"
 #include "parser/uni_hid_parser_xboxone.h"
 #include "uni_common.h"
@@ -88,13 +90,37 @@ static uint8_t hid_descriptor_storage[HID_MAX_DESCRIPTOR_LEN * CONFIG_BLUEPAD32_
 static btstack_packet_callback_registration_t sm_event_callback_registration;
 
 /**
+ * CYW43 / shared-radio: BR inquiry + LE scan (and ads) during DIS/HIDS GATT
+ * stalls HOGP discovery (Steam Triton hangs after "Using hids_cid=…").
+ */
+static void hog_stop_radio_contention(void) {
+    gap_stop_scan();
+    logi("BLE scan -> 0\n");
+    if (IS_ENABLED(UNI_ENABLE_BREDR))
+        uni_bt_bredr_scan_stop();
+    gap_advertisements_enable(0);
+}
+
+static btstack_context_callback_registration_t s_triton_start_cb;
+
+static void triton_start_valve_gatt(void* context) {
+    uni_hid_device_t* device = (uni_hid_device_t*)context;
+    if (!device)
+        return;
+    hog_stop_radio_contention();
+    uni_hid_device_kick_connection_timeout(device);
+    logi("Steam Triton: skip HOGP — Valve GATT path, handle=%#x\n", device->conn.handle);
+    uni_hid_device_guess_controller_type_from_pid_vid(device);
+    uni_hid_device_connect(device);
+    uni_hid_device_set_ready(device);
+}
+
+/**
  * Connect to remote device but set timer for timeout
  */
 static void hog_connect(bd_addr_t addr, bd_addr_type_t addr_type) {
-    // Stop scan, otherwise it will be able to connect.
-    // Happens in ESP32, but not in libusb
-    gap_stop_scan();
-    logi("BLE scan -> 0\n");
+    // Stop scan/inquiry, otherwise HOGP GATT can stall on Pico W / ESP32.
+    hog_stop_radio_contention();
 
     gap_connect(addr, addr_type);
 }
@@ -449,6 +475,22 @@ static void uni_device_information_packet_handler(uint8_t packet_type,
                         break;
                     }
 
+                    /* Keep BR/LE quiet during GATT. */
+                    hog_stop_radio_contention();
+                    uni_hid_device_kick_connection_timeout(device);
+
+                    /*
+                     * Steam Triton (28de:1303): SDL uses Valve's proprietary GATT
+                     * service, not HOGP. hids_host_connect hangs on Pico W after DIS.
+                     * Defer off the DIS callback so GATT client is idle.
+                     */
+                    if (uni_hid_parser_steam_triton_is_device(device)) {
+                        s_triton_start_cb.callback = &triton_start_valve_gatt;
+                        s_triton_start_cb.context = device;
+                        btstack_run_loop_execute_on_main_thread(&s_triton_start_cb);
+                        break;
+                    }
+
                     // Continue - query primary services.
                     logi("Search for HID service, con_handle: %#x\n", con_handle);
                     status = hids_host_connect(con_handle, uni_hids_host_packet_handler, HID_PROTOCOL_MODE_REPORT,
@@ -476,6 +518,8 @@ static void uni_device_information_packet_handler(uint8_t packet_type,
                         loge("Invalid device for in GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_DONE");
                         break;
                     }
+                    hog_stop_radio_contention();
+                    uni_hid_device_kick_connection_timeout(device);
                     status = hids_host_connect(con_handle, uni_hids_host_packet_handler, HID_PROTOCOL_MODE_REPORT,
                                                &hids_cid);
                     if (status == ERROR_CODE_SUCCESS) {
@@ -890,6 +934,8 @@ void uni_bt_le_on_hci_event_le_meta(const uint8_t* packet, uint16_t size) {
                 break;
             }
             logi("Using con_handle: %#x\n", con_handle);
+            /* Pairing + DIS + HIDS need a quiet radio on CYW43. */
+            hog_stop_radio_contention();
             ogxm_sm_request_pairing(device, con_handle,
                                     (bd_addr_type_t)hci_subevent_le_connection_complete_get_peer_address_type(packet),
                                     event_addr);
