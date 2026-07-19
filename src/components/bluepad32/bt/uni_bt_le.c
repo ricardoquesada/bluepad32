@@ -771,6 +771,10 @@ static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
                 case ERROR_CODE_SUCCESS:
                     logi("Pairing complete, success\n");
                     s_ble_auth_mismatch_retry = 0;
+                    /* First-time pair (not re-encryption): continue to DIS → HIDS.
+                     * Without this, Steam Triton / DualSense / etc. sit encrypted
+                     * until HID_DEVICE_CONNECTION_TIMEOUT and get deleted. */
+                    request_device_information_query = true;
                     break;
                 case ERROR_CODE_CONNECTION_TIMEOUT:
                     if (uni_bt_conn_get_state(&device->conn) == UNI_BT_CONN_STATE_DEVICE_READY) {
@@ -832,6 +836,11 @@ static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
             return;
         }
         logi("Requesting device information\n");
+        {
+            uni_hid_device_t* d = uni_hid_device_get_instance_for_connection_handle(con_handle);
+            if (d)
+                uni_hid_device_kick_connection_timeout(d);
+        }
         status = device_information_service_client_query(con_handle, uni_device_information_packet_handler);
         if (status != ERROR_CODE_SUCCESS) {
             loge("Failed to set device information client: %#x\n", status);
