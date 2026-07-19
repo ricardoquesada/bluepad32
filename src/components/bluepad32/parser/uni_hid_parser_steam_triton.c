@@ -9,12 +9,12 @@
 
 #include <string.h>
 
+#include <ble/gatt-service/hids_host.h>
 #include <btstack.h>
 #include <btstack_run_loop.h>
-#include <ble/gatt-service/hids_client.h>
 
-#include "controller/uni_controller.h"
 #include "bt/uni_bt_conn.h"
+#include "controller/uni_controller.h"
 #include "uni_common.h"
 #include "uni_hid_device.h"
 #include "uni_log.h"
@@ -112,8 +112,8 @@ static void send_lizard_off(uni_hid_device_t* d) {
     payload[2] = SETTING_LIZARD_MODE;
     payload[3] = LIZARD_MODE_OFF;
     payload[4] = 0;
-    uint8_t st = hids_client_send_write_report(d->hids_cid, TRITON_FEATURE_REPORT_ID, HID_REPORT_TYPE_FEATURE,
-                                               payload, sizeof(payload));
+    uint8_t st = hids_host_send_write_report(d->hids_cid, TRITON_FEATURE_REPORT_ID, HID_REPORT_TYPE_FEATURE, payload,
+                                             sizeof(payload));
     if (st)
         logd("Steam Triton: lizard-off write status=%#x\n", st);
 }
@@ -134,8 +134,8 @@ static void send_rumble_now(uni_hid_device_t* d, uint8_t weak, uint8_t strong) {
     payload[6] = (uint8_t)(right & 0xff);
     payload[7] = (uint8_t)(right >> 8);
     payload[8] = 0; /* right gain */
-    uint8_t st = hids_client_send_write_report(d->hids_cid, ID_OUT_REPORT_HAPTIC_RUMBLE, HID_REPORT_TYPE_OUTPUT,
-                                               payload, sizeof(payload));
+    uint8_t st = hids_host_send_write_report(d->hids_cid, ID_OUT_REPORT_HAPTIC_RUMBLE, HID_REPORT_TYPE_OUTPUT, payload,
+                                             sizeof(payload));
     if (st)
         logd("Steam Triton: rumble write status=%#x\n", st);
 }
@@ -342,10 +342,10 @@ void uni_hid_parser_steam_triton_parse_input_report(uni_hid_device_t* d, const u
 }
 
 void uni_hid_parser_steam_triton_play_dual_rumble(uni_hid_device_t* d,
-                                                   uint16_t start_delay_ms,
-                                                   uint16_t duration_ms,
-                                                   uint8_t weak_magnitude,
-                                                   uint8_t strong_magnitude) {
+                                                  uint16_t start_delay_ms,
+                                                  uint16_t duration_ms,
+                                                  uint8_t weak_magnitude,
+                                                  uint8_t strong_magnitude) {
     ARG_UNUSED(start_delay_ms);
     if (!d)
         return;

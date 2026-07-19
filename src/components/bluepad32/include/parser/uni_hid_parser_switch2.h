@@ -38,8 +38,11 @@ void uni_hid_parser_switch2_teardown(struct uni_hid_device_s* d);
 void uni_hid_parser_switch2_init_report(struct uni_hid_device_s* d);
 void uni_hid_parser_switch2_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len);
 void uni_hid_parser_switch2_set_player_leds(struct uni_hid_device_s* d, uint8_t player);
-void uni_hid_parser_switch2_play_dual_rumble(struct uni_hid_device_s* d, uint16_t start_delay_ms, uint16_t duration_ms,
-                                             uint8_t weak_magnitude, uint8_t strong_magnitude);
+void uni_hid_parser_switch2_play_dual_rumble(struct uni_hid_device_s* d,
+                                             uint16_t start_delay_ms,
+                                             uint16_t duration_ms,
+                                             uint8_t weak_magnitude,
+                                             uint8_t strong_magnitude);
 
 /** Idle HD-rumble packet; must be sent often (~5 ms) or the link drops (HCI 0x08). */
 void uni_hid_parser_switch2_send_keepalive(struct uni_hid_device_s* d);

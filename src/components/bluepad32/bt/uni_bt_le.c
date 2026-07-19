@@ -48,13 +48,13 @@
  *  wait for SM_EVENT_REENCRYPTION_COMPLETE or SM_EVENT_PAIRING_COMPLETE
  *  uni_device_information_packet_handler()
  *  wait for GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_DONE
- *  uni_hids_client_packet_handler()
+ *  uni_hids_host_packet_handler()
  *  wait for GATTSERVICE_SUBEVENT_HID_SERVICE_CONNECTED
  *  uni_hid_device_set_ready()
  */
 
-#include "bt/uni_bt.h"
 #include "bt/uni_bt_le.h"
+#include "bt/uni_bt.h"
 
 #include <bluetooth_data_types.h>
 #include <btstack.h>
@@ -69,9 +69,9 @@
 
 #include "bt/uni_bt_conn.h"
 #include "bt/uni_bt_defines.h"
+#include "parser/uni_hid_parser.h"
 #include "parser/uni_hid_parser_switch2.h"
 #include "parser/uni_hid_parser_xboxone.h"
-#include "parser/uni_hid_parser.h"
 #include "uni_common.h"
 #include "uni_config.h"
 #include "uni_hid_device.h"
@@ -128,10 +128,14 @@ static bool ogxm_device_is_xbox_ble(const uni_hid_device_t* device) {
  * Other BLE pads (DualSense, Steam Controller 2026, …): Bonding + LE Secure
  * Connections. Triton rejects legacy-only SMP with AUTH_REQUIREMENTS_MISMATCH.
  */
-static void ogxm_sm_request_pairing(uni_hid_device_t* device, hci_con_handle_t con_handle, bd_addr_type_t peer_type,
+static void ogxm_sm_request_pairing(uni_hid_device_t* device,
+                                    hci_con_handle_t con_handle,
+                                    bd_addr_type_t peer_type,
                                     const bd_addr_t addr) {
     if (ogxm_device_is_switch2(device) || ogxm_device_is_xbox_ble(device)) {
-        gap_delete_bonding(peer_type, addr);
+        bd_addr_t delete_addr;
+        memcpy(delete_addr, addr, sizeof(bd_addr_t));
+        gap_delete_bonding(peer_type, delete_addr);
         sm_set_authentication_requirements(0);
         logi("BLE: Just Works pair (no bond) for %s\n", bd_addr_to_str(addr));
     } else {
@@ -149,7 +153,7 @@ static void hog_disconnect(hci_con_handle_t con_handle) {
     device = uni_hid_device_get_instance_for_connection_handle(con_handle);
     if (device) {
         if (device->hids_cid != 0 && device->hids_cid != 0xffff) {
-            status = hids_client_disconnect(device->hids_cid);
+            status = hids_host_disconnect(device->hids_cid);
             if (status != ERROR_CODE_SUCCESS && status != ERROR_CODE_UNKNOWN_CONNECTION_IDENTIFIER) {
                 loge("Failed to disconnect HIDS client for hids_cid=%d, status=%d\n", device->hids_cid, status);
             }
@@ -274,8 +278,8 @@ static void parse_report(const uint8_t* packet, uint16_t size) {
     // to set the correct parser.
     // But not clear how to get the "service_index" from setup
     if (device->hid_descriptor_len == 0) {
-        descriptor_data = hids_client_descriptor_storage_get_descriptor_data(hids_cid, service_index);
-        descriptor_len = hids_client_descriptor_storage_get_descriptor_len(hids_cid, service_index);
+        descriptor_data = hids_host_descriptor_storage_get_descriptor_data(hids_cid, service_index);
+        descriptor_len = hids_host_descriptor_storage_get_descriptor_len(hids_cid, service_index);
 
         uni_hid_device_set_hid_descriptor(device, descriptor_data, descriptor_len);
     }
@@ -290,7 +294,7 @@ static void parse_report(const uint8_t* packet, uint16_t size) {
     uni_hid_device_process_controller(device);
 }
 
-static void uni_hids_client_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
+static void uni_hids_host_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     uint8_t status;
     uint16_t hids_cid;
     uni_hid_device_t* device;
@@ -304,14 +308,14 @@ static void uni_hids_client_packet_handler(uint8_t packet_type, uint16_t channel
 #if 0
     // FIXME: Bug in BTStack??? This comparison fails because packet_type is HCI_EVENT_GATTSERVICE_META
     if (packet_type != HCI_EVENT_PACKET) {
-        loge("uni_hids_client_packet_handler: unsupported packet type: %#x\n", packet_type);
+        loge("uni_hids_host_packet_handler: unsupported packet type: %#x\n", packet_type);
         return;
     }
 #endif
 
     event_type = hci_event_packet_get_type(packet);
     if (event_type != HCI_EVENT_GATTSERVICE_META) {
-        loge("uni_hids_client_packet_handler: unsupported event type: %#x\n", event_type);
+        loge("uni_hids_host_packet_handler: unsupported event type: %#x\n", event_type);
         return;
     }
 
@@ -335,9 +339,8 @@ static void uni_hids_client_packet_handler(uint8_t packet_type, uint16_t channel
                     uni_hid_device_guess_controller_type_from_pid_vid(device);
 
                     {
-                        const uint8_t* dd =
-                            hids_client_descriptor_storage_get_descriptor_data(hids_cid, 0);
-                        uint16_t dl = hids_client_descriptor_storage_get_descriptor_len(hids_cid, 0);
+                        const uint8_t* dd = hids_host_descriptor_storage_get_descriptor_data(hids_cid, 0);
+                        uint16_t dl = hids_host_descriptor_storage_get_descriptor_len(hids_cid, 0);
                         if (dd && dl > 0)
                             uni_hid_device_set_hid_descriptor(device, dd, dl);
                     }
@@ -448,13 +451,13 @@ static void uni_device_information_packet_handler(uint8_t packet_type,
 
                     // Continue - query primary services.
                     logi("Search for HID service, con_handle: %#x\n", con_handle);
-                    status = hids_client_connect(con_handle, uni_hids_client_packet_handler, HID_PROTOCOL_MODE_REPORT,
-                                                 &hids_cid);
+                    status = hids_host_connect(con_handle, uni_hids_host_packet_handler, HID_PROTOCOL_MODE_REPORT,
+                                               &hids_cid);
                     if (status == ERROR_CODE_COMMAND_DISALLOWED) {
                         logi("HID client connection failed with COMMAND_DISALLOWED, ignoring \n");
                         // Means that a HIDS client connection is already present.
                         // We forgot to delete it.
-                        // hids_client_disconnect(con_handle);
+                        // hids_host_disconnect(con_handle);
                     }
                     if (status != ERROR_CODE_SUCCESS) {
                         logi("HID client connection failed, status=%#x\n", status);
@@ -473,8 +476,8 @@ static void uni_device_information_packet_handler(uint8_t packet_type,
                         loge("Invalid device for in GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_DONE");
                         break;
                     }
-                    status = hids_client_connect(con_handle, uni_hids_client_packet_handler, HID_PROTOCOL_MODE_REPORT,
-                                                 &hids_cid);
+                    status = hids_host_connect(con_handle, uni_hids_host_packet_handler, HID_PROTOCOL_MODE_REPORT,
+                                               &hids_cid);
                     if (status == ERROR_CODE_SUCCESS) {
                         logi("Using hids_cid=%d\n", hids_cid);
                         device->hids_cid = hids_cid;
@@ -644,7 +647,7 @@ static const char* sm_reason_name(uint8_t reason) {
     }
 }
 
-static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
+static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     bd_addr_t addr;
     uni_hid_device_t* device;
     uint8_t status;
@@ -702,8 +705,7 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
             con_handle = sm_event_reencryption_started_get_handle(packet);
             device = uni_hid_device_get_instance_for_connection_handle(con_handle);
             if (device && ogxm_device_is_xbox_ble(device)) {
-                bd_addr_type_t addr_type =
-                    (bd_addr_type_t)sm_event_reencryption_started_get_addr_type(packet);
+                bd_addr_type_t addr_type = (bd_addr_type_t)sm_event_reencryption_started_get_addr_type(packet);
                 logi("Xbox BLE: abort re-encryption, Just Works pair\n");
                 gap_delete_bonding(addr_type, addr);
                 sm_set_authentication_requirements(0);
@@ -791,12 +793,10 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* pa
                     /* Some pads reject SC+Bonding; retry Just Works once. */
                     if (reason == SM_REASON_AUTHENTHICATION_REQUIREMENTS &&
                         device->conn.handle != HCI_CON_HANDLE_INVALID &&
-                        device->conn.handle != UNI_BT_CONN_HANDLE_INVALID &&
-                        !ogxm_device_is_xbox_ble(device)) {
+                        device->conn.handle != UNI_BT_CONN_HANDLE_INVALID && !ogxm_device_is_xbox_ble(device)) {
                         if (s_ble_auth_mismatch_retry == 0) {
                             s_ble_auth_mismatch_retry = 1;
-                            bd_addr_type_t peer_type =
-                                (bd_addr_type_t)sm_event_pairing_complete_get_addr_type(packet);
+                            bd_addr_type_t peer_type = (bd_addr_type_t)sm_event_pairing_complete_get_addr_type(packet);
                             logi("BLE: AUTH_REQUIREMENTS_MISMATCH — retry Just Works (no bond)\n");
                             gap_delete_bonding(peer_type, addr);
                             sm_set_authentication_requirements(0);
@@ -874,10 +874,9 @@ void uni_bt_le_on_hci_event_le_meta(const uint8_t* packet, uint16_t size) {
                 } else {
                     logi("Switch2: LE connected addr=%s handle=0x%04x -> encryption (bonded reconnect)\n",
                          bd_addr_to_str(event_addr), con_handle);
-                    ogxm_sm_request_pairing(device, con_handle,
-                                            (bd_addr_type_t)hci_subevent_le_connection_complete_get_peer_address_type(
-                                                packet),
-                                            event_addr);
+                    ogxm_sm_request_pairing(
+                        device, con_handle,
+                        (bd_addr_type_t)hci_subevent_le_connection_complete_get_peer_address_type(packet), event_addr);
                 }
                 break;
             }
@@ -1134,7 +1133,7 @@ void uni_bt_le_setup(void) {
     // libusb works with mostly any configuration
 
     gatt_client_init();
-    hids_client_init(hid_descriptor_storage, sizeof(hid_descriptor_storage));
+    hids_host_init(hid_descriptor_storage, sizeof(hid_descriptor_storage));
     // FIXME: this is an empty function and PicoW toolchain is removing empty function (?)
     // scan_parameters_service_client_init();
     device_information_service_client_init();

@@ -42,7 +42,7 @@
 #include "uni_log.h"
 #include "uni_virtual_device.h"
 
-#include <ble/gatt-service/hids_client.h>
+#include <ble/gatt-service/hids_host.h>
 
 enum {
     // TODO: Why do they start at bit 8 and not bit 0 (???).
@@ -504,7 +504,7 @@ void uni_hid_device_disconnect(uni_hid_device_t* d) {
         /* Link may already be gone; free HIDS so reconnect matches first connect. */
         if (IS_ENABLED(UNI_ENABLE_BLE) && was_ble) {
             if (d->hids_cid != 0 && d->hids_cid != 0xffff) {
-                (void)hids_client_disconnect(d->hids_cid);
+                (void)hids_host_disconnect(d->hids_cid);
                 d->hids_cid = 0xffff;
             }
             /* Xbox uses Just Works (no bond); drop host keys so we never re-encrypt. */

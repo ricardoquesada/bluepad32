@@ -231,12 +231,11 @@ uni_gamepad_mappings_type_t uni_gamepad_get_mappings_type(void) {
 
 void uni_gamepad_dump(const uni_gamepad_t* gp) {
     // Don't add "\n"
-    logi(
-        "dpad=0x%02x, x=%4d, y=%4d, rx=%4d, ry=%4d, brake=%4d, throttle=%4d, buttons=0x%04x, misc=0x%02x",
-        gp->dpad,                                          // dpad
-        gp->axis_x, gp->axis_y, gp->axis_rx, gp->axis_ry,  // axis
-        gp->brake, gp->throttle,                           // brake/gas
-        gp->buttons, gp->misc_buttons                      // buttons
+    logi("dpad=0x%02x, x=%4d, y=%4d, rx=%4d, ry=%4d, brake=%4d, throttle=%4d, buttons=0x%04x, misc=0x%02x",
+         gp->dpad,                                          // dpad
+         gp->axis_x, gp->axis_y, gp->axis_rx, gp->axis_ry,  // axis
+         gp->brake, gp->throttle,                           // brake/gas
+         gp->buttons, gp->misc_buttons                      // buttons
     );
     if (gp->misc_buttons & MISC_BUTTON_SYSTEM)
         logi(" [SYS]");

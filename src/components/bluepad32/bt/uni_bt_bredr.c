@@ -15,11 +15,11 @@
 #include "bt/uni_bt_allowlist.h"
 #include "bt/uni_bt_defines.h"
 #include "bt/uni_bt_sdp.h"
+#include "parser/uni_hid_parser_switch.h"
 #include "platform/uni_platform.h"
 #include "uni_common.h"
 #include "uni_config.h"
 #include "uni_log.h"
-#include "parser/uni_hid_parser_switch.h"
 
 // These are the only two supported platforms with BR/EDR support.
 #if !(defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_TARGET_POSIX) || defined(CONFIG_TARGET_PICO_W))
@@ -602,6 +602,8 @@ void uni_bt_bredr_on_gap_inquiry_result(uint16_t channel, const uint8_t* packet,
 }
 
 void uni_bt_bredr_on_hci_connection_request(uint16_t channel, const uint8_t* packet, uint16_t size) {
+    bd_addr_t event_addr;
+
     ARG_UNUSED(channel);
     ARG_UNUSED(size);
 

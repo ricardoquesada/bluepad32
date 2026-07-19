@@ -10,7 +10,7 @@
 
 #include "parser/uni_hid_parser_xboxone.h"
 
-#include <ble/gatt-service/hids_client.h>
+#include <ble/gatt-service/hids_host.h>
 #include <btstack.h>
 #include <gap.h>
 
@@ -43,7 +43,7 @@ static void xbox_ble_poll_callback(btstack_timer_source_t* ts) {
     }
 
     if ((s_xbox_ble_poll_attempts[idx] & 1u) != 0u) {
-        status = hids_client_send_get_report(d->hids_cid, XBOX_BLE_INPUT_REPORT_ID, HID_REPORT_TYPE_INPUT);
+        status = hids_host_send_get_report(d->hids_cid, XBOX_BLE_INPUT_REPORT_ID, HID_REPORT_TYPE_INPUT);
         if (status != ERROR_CODE_SUCCESS && status != ERROR_CODE_COMMAND_DISALLOWED)
             logd("Xbox BLE: GET report status=%#x\n", status);
     } else {
@@ -608,7 +608,7 @@ void uni_hid_parser_xboxone_ble_on_hid_connected(uni_hid_device_t* d) {
 
     gap_request_connection_parameter_update(d->conn.handle, 7, 9, 0, 600);
 
-    status = hids_client_send_exit_suspend(d->hids_cid, 0);
+    status = hids_host_send_exit_suspend(d->hids_cid, 0);
     if (status != ERROR_CODE_SUCCESS && status != ERROR_CODE_COMMAND_DISALLOWED)
         logd("Xbox BLE: exit suspend status=%#x\n", status);
 
@@ -644,8 +644,7 @@ void uni_hid_parser_xboxone_ble_keepalive(uni_hid_device_t* d) {
     if (d == NULL || !uni_hid_parser_xboxone_is_ble_hids(d))
         return;
     xboxone_instance_t* ins = get_xboxone_instance(d);
-    if (ins->version != XBOXONE_FIRMWARE_V5 &&
-        gap_get_connection_type(d->conn.handle) != GAP_CONNECTION_LE)
+    if (ins->version != XBOXONE_FIRMWARE_V5 && gap_get_connection_type(d->conn.handle) != GAP_CONNECTION_LE)
         return;
 
     struct xboxone_ff_report ff = {
@@ -661,8 +660,8 @@ void uni_hid_parser_xboxone_ble_keepalive(uni_hid_device_t* d) {
         .loop_count = 0,
     };
 
-    uint8_t status = hids_client_send_write_report(d->hids_cid, XBOX_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
-                                                   &ff.enable_actuators, sizeof(ff) - 2);
+    uint8_t status = hids_host_send_write_report(d->hids_cid, XBOX_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
+                                                 &ff.enable_actuators, sizeof(ff) - 2);
     if (status != ERROR_CODE_SUCCESS && status != ERROR_CODE_COMMAND_DISALLOWED) {
         logd("Xbox BLE keepalive write status=%#x\n", status);
     }
@@ -730,9 +729,9 @@ static void xboxone_stop_rumble_now(uni_hid_device_t* d) {
     };
 
     if (ins->version == XBOXONE_FIRMWARE_V5) {
-        status = hids_client_send_write_report(d->hids_cid, XBOX_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
-                                               &ff.enable_actuators,  // skip the first type bytes,
-                                               sizeof(ff) - 2         // subtract the 2 bytes from total
+        status = hids_host_send_write_report(d->hids_cid, XBOX_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
+                                             &ff.enable_actuators,  // skip the first type bytes,
+                                             sizeof(ff) - 2         // subtract the 2 bytes from total
         );
         if (status == ERROR_CODE_COMMAND_DISALLOWED) {
             logd("Xbox: Failed to turn off rumble, error=%#x, retrying...\n", status);
@@ -790,9 +789,9 @@ static void xboxone_play_quad_rumble_now(uni_hid_device_t* d,
     };
 
     if (ins->version == XBOXONE_FIRMWARE_V5) {
-        status = hids_client_send_write_report(d->hids_cid, XBOX_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
-                                               &ff.enable_actuators,  // skip the first two bytes,
-                                               sizeof(ff) - 2         // subtract the two bytes from total
+        status = hids_host_send_write_report(d->hids_cid, XBOX_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
+                                             &ff.enable_actuators,  // skip the first two bytes,
+                                             sizeof(ff) - 2         // subtract the two bytes from total
         );
         if (status == ERROR_CODE_COMMAND_DISALLOWED) {
             logd("Xbox: Failed to send rumble report, error=%#x, retrying...\n", status);
