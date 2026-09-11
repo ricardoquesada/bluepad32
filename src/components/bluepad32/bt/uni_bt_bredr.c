@@ -76,7 +76,8 @@ void uni_bt_bredr_scan_stop(void) {
     uint8_t status;
 
     status = gap_inquiry_stop();
-    if (status)
+    /* 0x0c COMMAND_DISALLOWED = inquiry already idle — expected when HOGP quiets radio repeatedly. */
+    if (status && status != ERROR_CODE_COMMAND_DISALLOWED)
         loge("Error: cannot stop inquiry (0x%02x), please try again\n", status);
 
     logi("BR/EDR scan -> 0\n");

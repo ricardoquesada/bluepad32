@@ -38,6 +38,9 @@ void uni_hid_parser_xboxone_ble_on_hid_connected(struct uni_hid_device_s* d);
 void uni_hid_parser_xboxone_ble_on_input(struct uni_hid_device_s* d);
 void uni_hid_parser_xboxone_ble_teardown(struct uni_hid_device_s* d);
 
+/** Built-in Series/One BLE HID descriptor — used when Report Map long-read hangs on CYW43. */
+const uint8_t* uni_hid_parser_xboxone_ble_hid_descriptor(uint16_t* out_len);
+
 // Unique to Xbox. Not part of the "hid_parser" interface
 void xboxone_play_quad_rumble(struct uni_hid_device_s* d,
                               uint16_t start_delay_ms,

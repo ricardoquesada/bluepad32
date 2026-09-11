@@ -603,9 +603,34 @@ void uni_hid_device_dump_all(void) {
     }
 }
 
+/* OGX-Mini: GameSir G7 Pro Classic BT often times out on SDP; claim by name + dedicated parser.
+ * Weak stubs keep upstream Bluepad32 linkable when OGX sources are not in the build. */
+bool gamesir_g7pro_bt_does_name_match(uni_hid_device_t* d, const char* name);
+void gamesir_g7pro_bt_install_parser(uni_hid_device_t* d);
+
+__attribute__((weak)) bool gamesir_g7pro_bt_does_name_match(uni_hid_device_t* d, const char* name) {
+    ARG_UNUSED(d);
+    ARG_UNUSED(name);
+    return false;
+}
+
+__attribute__((weak)) void gamesir_g7pro_bt_install_parser(uni_hid_device_t* d) {
+    ARG_UNUSED(d);
+}
+
 bool uni_hid_device_guess_controller_type_from_name(uni_hid_device_t* d, const char* name) {
     if (!name)
         return false;
+
+    /* GameSir G7 Pro: skip SDP and Android/generic path — install Report 0x07 parser. */
+    if (gamesir_g7pro_bt_does_name_match(d, name)) {
+        d->controller_type = CONTROLLER_TYPE_AndroidController;
+        d->controller_subtype = CONTROLLER_SUBTYPE_NONE;
+        d->flags |= FLAGS_HAS_CONTROLLER_TYPE;
+        gamesir_g7pro_bt_install_parser(d);
+        logi("Device detected as GameSir G7 Pro (BT name match, SDP not needed)\n");
+        return true;
+    }
 
     // Try with the different matchers.
     // But don't include Xbox here yet, since we should try to get the HID descriptor first.

@@ -599,6 +599,12 @@ bool uni_hid_parser_xboxone_is_ble_hids(const uni_hid_device_t* d) {
     return d->vendor_id == XBOX_WIRELESS_VID;
 }
 
+const uint8_t* uni_hid_parser_xboxone_ble_hid_descriptor(uint16_t* out_len) {
+    if (out_len)
+        *out_len = (uint16_t)sizeof(xbox_hid_descriptor_4_8_fw);
+    return xbox_hid_descriptor_4_8_fw;
+}
+
 void uni_hid_parser_xboxone_ble_on_hid_connected(uni_hid_device_t* d) {
     int idx = uni_hid_device_get_idx_for_instance(d);
     uint8_t status;
