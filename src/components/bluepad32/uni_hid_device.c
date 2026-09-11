@@ -31,7 +31,9 @@
 #include "parser/uni_hid_parser_smarttvremote.h"
 #include "parser/uni_hid_parser_stadia.h"
 #include "parser/uni_hid_parser_steam.h"
+#include "parser/uni_hid_parser_steam_triton.h"
 #include "parser/uni_hid_parser_switch.h"
+#include "parser/uni_hid_parser_switch2.h"
 #include "parser/uni_hid_parser_wii.h"
 #include "parser/uni_hid_parser_xboxone.h"
 #include "platform/uni_platform.h"
@@ -39,6 +41,8 @@
 #include "uni_config.h"
 #include "uni_log.h"
 #include "uni_virtual_device.h"
+
+#include <ble/gatt-service/hids_host.h>
 
 enum {
     // TODO: Why do they start at bit 8 and not bit 0 (???).
@@ -455,11 +459,19 @@ void uni_hid_device_connect(uni_hid_device_t* d) {
 
 void uni_hid_device_disconnect(uni_hid_device_t* d) {
     gap_connection_type_t type;
+    bool was_ble;
 
     if (d == NULL) {
         loge("uni_hid_device_disconnect: invalid hid device: NULL\n");
         return;
     }
+
+    if (d->vendor_id == 0x045e && d->hids_cid != 0)
+        uni_hid_parser_xboxone_ble_teardown(d);
+
+    uni_hid_parser_switch2_teardown(d);
+    uni_hid_parser_switch_teardown(d);
+    uni_hid_parser_steam_triton_teardown(d);
 
     // Disconnect child first
     if (d->child)
@@ -475,16 +487,32 @@ void uni_hid_device_disconnect(uni_hid_device_t* d) {
         logi("Disconnecting device: %s\n", bd_addr_to_str(d->conn.btaddr));
 
     connected = d->conn.connected;
+    was_ble = (d->conn.protocol == UNI_BT_CONN_PROTOCOL_BLE);
 
     // Cleanup
     if (!uni_hid_device_is_virtual_device(d)) {
         type = gap_get_connection_type(d->conn.handle);
+        if (type == GAP_CONNECTION_LE)
+            was_ble = true;
         if (IS_ENABLED(UNI_ENABLE_BLE) && type == GAP_CONNECTION_LE)
             uni_bt_le_disconnect(d);
         else if (IS_ENABLED(UNI_ENABLE_BREDR) && type == GAP_CONNECTION_ACL)
             uni_bt_bredr_disconnect(d);
-        else
+        else if (!was_ble)
             loge("uni_hid_device_disconnect: Unknown GAP connection type: %d\n", type);
+
+        /* Link may already be gone; free HIDS so reconnect matches first connect. */
+        if (IS_ENABLED(UNI_ENABLE_BLE) && was_ble) {
+            if (d->hids_cid != 0 && d->hids_cid != 0xffff) {
+                (void)hids_host_disconnect(d->hids_cid);
+                d->hids_cid = 0xffff;
+            }
+            /* Xbox uses Just Works (no bond); drop host keys so we never re-encrypt. */
+            if (d->vendor_id == 0x045e) {
+                gap_delete_bonding(BD_ADDR_TYPE_LE_PUBLIC, d->conn.btaddr);
+                gap_delete_bonding(BD_ADDR_TYPE_LE_RANDOM, d->conn.btaddr);
+            }
+        }
     }
 
     // Close possible open connections
@@ -575,9 +603,34 @@ void uni_hid_device_dump_all(void) {
     }
 }
 
+/* OGX-Mini: GameSir G7 Pro Classic BT often times out on SDP; claim by name + dedicated parser.
+ * Weak stubs keep upstream Bluepad32 linkable when OGX sources are not in the build. */
+bool gamesir_g7pro_bt_does_name_match(uni_hid_device_t* d, const char* name);
+void gamesir_g7pro_bt_install_parser(uni_hid_device_t* d);
+
+__attribute__((weak)) bool gamesir_g7pro_bt_does_name_match(uni_hid_device_t* d, const char* name) {
+    ARG_UNUSED(d);
+    ARG_UNUSED(name);
+    return false;
+}
+
+__attribute__((weak)) void gamesir_g7pro_bt_install_parser(uni_hid_device_t* d) {
+    ARG_UNUSED(d);
+}
+
 bool uni_hid_device_guess_controller_type_from_name(uni_hid_device_t* d, const char* name) {
     if (!name)
         return false;
+
+    /* GameSir G7 Pro: skip SDP and Android/generic path — install Report 0x07 parser. */
+    if (gamesir_g7pro_bt_does_name_match(d, name)) {
+        d->controller_type = CONTROLLER_TYPE_AndroidController;
+        d->controller_subtype = CONTROLLER_SUBTYPE_NONE;
+        d->flags |= FLAGS_HAS_CONTROLLER_TYPE;
+        gamesir_g7pro_bt_install_parser(d);
+        logi("Device detected as GameSir G7 Pro (BT name match, SDP not needed)\n");
+        return true;
+    }
 
     // Try with the different matchers.
     // But don't include Xbox here yet, since we should try to get the HID descriptor first.
@@ -731,6 +784,16 @@ static void setup_report_parser(uni_hid_device_t* d) {
             };
             logi("Device detected as Nintendo Switch Pro controller: 0x%02x\n", type);
             break;
+        case CONTROLLER_TYPE_Switch2ProController:
+        case CONTROLLER_TYPE_Switch2JoyConRight:
+        case CONTROLLER_TYPE_Switch2JoyConLeft:
+            d->report_parser.setup = uni_hid_parser_switch2_setup;
+            d->report_parser.init_report = uni_hid_parser_switch2_init_report;
+            d->report_parser.parse_input_report = uni_hid_parser_switch2_parse_input_report;
+            d->report_parser.set_player_leds = uni_hid_parser_switch2_set_player_leds;
+            d->report_parser.play_dual_rumble = uni_hid_parser_switch2_play_dual_rumble;
+            logi("Device detected as Nintendo Switch 2 controller: 0x%02x\n", type);
+            break;
         case CONTROLLER_TYPE_SteamController:
             d->report_parser = (uni_report_parser_t){
                 .setup = uni_hid_parser_steam_setup,
@@ -738,6 +801,13 @@ static void setup_report_parser(uni_hid_device_t* d) {
                 .parse_input_report = uni_hid_parser_steam_parse_input_report,
             };
             logi("Device detected as Steam: 0x%02x\n", type);
+            break;
+        case CONTROLLER_TYPE_SteamControllerTriton:
+            d->report_parser.setup = uni_hid_parser_steam_triton_setup;
+            d->report_parser.init_report = uni_hid_parser_steam_triton_init_report;
+            d->report_parser.parse_input_report = uni_hid_parser_steam_triton_parse_input_report;
+            d->report_parser.play_dual_rumble = uni_hid_parser_steam_triton_play_dual_rumble;
+            logi("Device detected as Steam Controller 2026 (Triton): 0x%02x\n", type);
             break;
         case CONTROLLER_TYPE_AtariJoystick:
             d->report_parser = (uni_report_parser_t){
@@ -991,7 +1061,10 @@ static void process_misc_button_system(uni_hid_device_t* d) {
     // We artificially add a delay.
     bool requires_delay = (d->controller_type == CONTROLLER_TYPE_SwitchProController ||
                            d->controller_type == CONTROLLER_TYPE_SwitchJoyConLeft ||
-                           d->controller_type == CONTROLLER_TYPE_SwitchJoyConRight);
+                           d->controller_type == CONTROLLER_TYPE_SwitchJoyConRight ||
+                           d->controller_type == CONTROLLER_TYPE_Switch2ProController ||
+                           d->controller_type == CONTROLLER_TYPE_Switch2JoyConLeft ||
+                           d->controller_type == CONTROLLER_TYPE_Switch2JoyConRight);
 
     if (requires_delay && (d->misc_button_wait_delay & MISC_BUTTON_SYSTEM))
         return;
@@ -1045,4 +1118,13 @@ static void start_connection_timeout(uni_hid_device_t* d) {
     btstack_run_loop_set_timer_handler(&d->connection_timer, &device_connection_timeout);
     btstack_run_loop_set_timer(&d->connection_timer, HID_DEVICE_CONNECTION_TIMEOUT_MS);
     btstack_run_loop_add_timer(&d->connection_timer);
+}
+
+void uni_hid_device_kick_connection_timeout(uni_hid_device_t* d) {
+    if (d == NULL)
+        return;
+    if (uni_bt_conn_get_state(&d->conn) == UNI_BT_CONN_STATE_DEVICE_READY)
+        return;
+    btstack_run_loop_remove_timer(&d->connection_timer);
+    start_connection_timeout(d);
 }

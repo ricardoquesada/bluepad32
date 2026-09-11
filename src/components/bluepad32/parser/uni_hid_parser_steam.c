@@ -18,10 +18,16 @@
 
 // clang-format off
 #define STEAM_CONTROLLER_FLAG_BUTTONS       0x0010
-#define STEAM_CONTROLLER_FLAG_TRIGGERS 		0x0020
-#define STEAM_CONTROLLER_FLAG_THUMBSTICK  	0x0080
+#define STEAM_CONTROLLER_FLAG_TRIGGERS      0x0020
+#define STEAM_CONTROLLER_FLAG_BUTTONS_EXT   0x0040
+#define STEAM_CONTROLLER_FLAG_THUMBSTICK    0x0080
 #define STEAM_CONTROLLER_FLAG_LEFT_PAD      0x0100
 #define STEAM_CONTROLLER_FLAG_RIGHT_PAD     0x0200
+#define STEAM_CONTROLLER_FLAG_IMU_ACCEL     0x0400
+#define STEAM_CONTROLLER_FLAG_IMU_GYRO      0x0800
+#define STEAM_CONTROLLER_FLAG_IMU_QUAT      0x1000
+/* SETTING_GYRO_MODE_SEND_RAW_ACCEL | SETTING_GYRO_MODE_SEND_RAW_GYRO */
+#define STEAM_GYRO_MODE_RAW_IMU             0x0018
 // clang-format on
 
 typedef enum {
@@ -33,7 +39,7 @@ typedef enum {
     STATE_QUERY_END,
 } steam_query_state_t;
 
-// TODO: Can this be refactored to use `hids_client_send_write_report()`
+// TODO: Can this be refactored to use `hids_host_send_write_report()`
 
 // "100F6C32-1735-4313-B402-38567131E5F3"
 static uint8_t le_steam_service_uuid[16] = {0x10, 0x0f, 0x6c, 0x32, 0x17, 0x35, 0x43, 0x13,
@@ -82,7 +88,7 @@ static uint8_t cmd_clear_mappings[] = {
 static uint8_t cmd_disable_lizard[] = {
 	0xc0, STEAM_CMD_WRITE_REGISTER,    // Command
 	0x0f,                              // Command Len
-	STEAM_REG_GYRO_MODE,   0x00, 0x00, // Disable gyro/accel
+	STEAM_REG_GYRO_MODE,   (STEAM_GYRO_MODE_RAW_IMU & 0xff), (STEAM_GYRO_MODE_RAW_IMU >> 8),
 	STEAM_REG_LPAD_MODE,   0x07, 0x00, // Disable cursor
 	STEAM_REG_RPAD_MODE,   0x07, 0x00, // Disable mouse
 	STEAM_REG_RPAD_MARGIN, 0x00, 0x00, // No margin
@@ -97,13 +103,17 @@ typedef struct {
 } steam_instance_t;
 _Static_assert(sizeof(steam_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "Steam instance too big");
 
+static steam_instance_t* get_steam_instance(uni_hid_device_t* d) {
+    return (steam_instance_t*)&d->parser_data[0];
+}
+
 static void parse_buttons(struct uni_hid_device_s* d, const uint8_t* data);
 static void parse_triggers(struct uni_hid_device_s* d, const uint8_t* data);
 static void parse_thumbstick(struct uni_hid_device_s* d, const uint8_t* data);
 static void parse_right_pad(struct uni_hid_device_s* d, const uint8_t* data);
 
-static steam_instance_t* get_steam_instance(uni_hid_device_t* d) {
-    return (steam_instance_t*)&d->parser_data[0];
+static int16_t steam_read_i16(const uint8_t* p) {
+    return (int16_t)(p[0] | (p[1] << 8));
 }
 
 // TODO: Make it easier for "parsers" to write/read/get notified from characteristics
@@ -238,11 +248,9 @@ void uni_hid_parser_steam_init_report(uni_hid_device_t* d) {
 void uni_hid_parser_steam_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len) {
     int idx;
 
-    // Sanity checks
-    if (len != 20) {
-        logi("Steam: Inport report with unsupported length: %d\n", len);
+    /* BLE reports grow when IMU chunks are enabled (was fixed 20 without gyro). */
+    if (len < 4)
         return;
-    }
 
     // Report Id
     if (report[0] != 0x03)
@@ -260,30 +268,86 @@ void uni_hid_parser_steam_parse_input_report(struct uni_hid_device_s* d, const u
         return;
     }
 
-    // printf_hexdump(report, len);
+    uint16_t report_flags = (report[2] & 0xf0) | (report[3] << 8);
+    uni_controller_t* ctl = &d->controller;
+    ctl->gamepad.accel[0] = ctl->gamepad.accel[1] = ctl->gamepad.accel[2] = 0;
+    ctl->gamepad.gyro[0] = ctl->gamepad.gyro[1] = ctl->gamepad.gyro[2] = 0;
 
-    uint16_t report_flags = (report[2] & 0xf0) + (report[3] << 8);
-
+    /* Sequential optional chunks — same layout as SDL UpdateBLESteamControllerState. */
     idx = 4;
     if (report_flags & STEAM_CONTROLLER_FLAG_BUTTONS) {
+        if (idx + 3 > len)
+            return;
         parse_buttons(d, &report[idx]);
+        idx += 3;
     }
 
     if (report_flags & STEAM_CONTROLLER_FLAG_TRIGGERS) {
+        if (idx + 2 > len)
+            return;
         parse_triggers(d, &report[idx]);
+        idx += 2;
+    }
+
+    if (report_flags & STEAM_CONTROLLER_FLAG_BUTTONS_EXT) {
+        if (idx + 3 > len)
+            return;
+        idx += 3;
     }
 
     if (report_flags & STEAM_CONTROLLER_FLAG_THUMBSTICK) {
+        if (idx + 4 > len)
+            return;
         parse_thumbstick(d, &report[idx]);
+        idx += 4;
     }
 
     if (report_flags & STEAM_CONTROLLER_FLAG_LEFT_PAD) {
+        if (idx + 4 > len)
+            return;
         idx += 4;
     }
 
     if (report_flags & STEAM_CONTROLLER_FLAG_RIGHT_PAD) {
+        if (idx + 4 > len)
+            return;
         parse_right_pad(d, &report[idx]);
+        idx += 4;
     }
+
+    if (report_flags & STEAM_CONTROLLER_FLAG_IMU_ACCEL) {
+        if (idx + 6 > len)
+            return;
+        int16_t ax = steam_read_i16(&report[idx]);
+        int16_t ay = steam_read_i16(&report[idx + 2]);
+        int16_t az = steam_read_i16(&report[idx + 4]);
+        /* SDL sensor axis remap. */
+        ctl->gamepad.accel[0] = ax;
+        ctl->gamepad.accel[1] = az;
+        ctl->gamepad.accel[2] = -ay;
+        idx += 6;
+    }
+
+    if (report_flags & STEAM_CONTROLLER_FLAG_IMU_GYRO) {
+        if (idx + 6 > len)
+            return;
+        int16_t gx = steam_read_i16(&report[idx]);
+        int16_t gy = steam_read_i16(&report[idx + 2]);
+        int16_t gz = steam_read_i16(&report[idx + 4]);
+        ctl->gamepad.gyro[0] = gx;
+        ctl->gamepad.gyro[1] = gz;
+        ctl->gamepad.gyro[2] = -gy;
+        idx += 6;
+    }
+
+    if (report_flags & STEAM_CONTROLLER_FLAG_IMU_QUAT) {
+        if (idx + 8 > len)
+            return;
+        /* Quaternion unused by uni_gamepad. */
+        idx += 8;
+    }
+
+    ARG_UNUSED(idx);
 }
 
 static void parse_buttons(struct uni_hid_device_s* d, const uint8_t* data) {

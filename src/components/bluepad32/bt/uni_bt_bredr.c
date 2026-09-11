@@ -15,6 +15,7 @@
 #include "bt/uni_bt_allowlist.h"
 #include "bt/uni_bt_defines.h"
 #include "bt/uni_bt_sdp.h"
+#include "parser/uni_hid_parser_switch.h"
 #include "platform/uni_platform.h"
 #include "uni_common.h"
 #include "uni_config.h"
@@ -75,7 +76,8 @@ void uni_bt_bredr_scan_stop(void) {
     uint8_t status;
 
     status = gap_inquiry_stop();
-    if (status)
+    /* 0x0c COMMAND_DISALLOWED = inquiry already idle — expected when HOGP quiets radio repeatedly. */
+    if (status && status != ERROR_CODE_COMMAND_DISALLOWED)
         loge("Error: cannot stop inquiry (0x%02x), please try again\n", status);
 
     logi("BR/EDR scan -> 0\n");
@@ -530,7 +532,8 @@ void uni_bt_bredr_on_l2cap_data_packet(uint16_t channel, const uint8_t* packet, 
 
     // Skip the first byte, which is always 0xa1
     uni_hid_parse_input_report(d, &packet[1], size - 1);
-    uni_hid_device_process_controller(d);
+    if (!uni_hid_parser_switch_input_processed_in_parser(d))
+        uni_hid_device_process_controller(d);
 }
 
 void uni_bt_bredr_on_gap_inquiry_result(uint16_t channel, const uint8_t* packet, uint16_t size) {
@@ -600,15 +603,24 @@ void uni_bt_bredr_on_gap_inquiry_result(uint16_t channel, const uint8_t* packet,
 }
 
 void uni_bt_bredr_on_hci_connection_request(uint16_t channel, const uint8_t* packet, uint16_t size) {
+    bd_addr_t event_addr;
+
     ARG_UNUSED(channel);
     ARG_UNUSED(size);
 
-    bd_addr_t event_addr;
+    if (hci_event_connection_request_get_link_type(packet) != 1) {
+        return;
+    }
+
     hci_event_connection_request_get_bd_addr(packet, event_addr);
     uint32_t cod = hci_event_connection_request_get_class_of_device(packet);
 
     uni_hid_device_t* d = uni_hid_device_get_instance_for_address(event_addr);
     if (d == NULL) {
+        if (uni_hid_device_on_device_discovered(event_addr, "", (uint16_t)cod, 255) != UNI_ERROR_SUCCESS) {
+            logi("BR: ignore connection request %s COD 0x%06x\n", bd_addr_to_str(event_addr), (unsigned)cod);
+            return;
+        }
         d = uni_hid_device_create(event_addr);
         if (d == NULL) {
             logi("Cannot create new device... no more slots available\n");

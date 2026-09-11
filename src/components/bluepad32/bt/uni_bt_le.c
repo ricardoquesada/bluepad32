@@ -48,12 +48,13 @@
  *  wait for SM_EVENT_REENCRYPTION_COMPLETE or SM_EVENT_PAIRING_COMPLETE
  *  uni_device_information_packet_handler()
  *  wait for GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_DONE
- *  uni_hids_client_packet_handler()
+ *  uni_hids_host_packet_handler()
  *  wait for GATTSERVICE_SUBEVENT_HID_SERVICE_CONNECTED
  *  uni_hid_device_set_ready()
  */
 
 #include "bt/uni_bt_le.h"
+#include "bt/uni_bt.h"
 
 #include <bluetooth_data_types.h>
 #include <btstack.h>
@@ -62,12 +63,17 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "sdkconfig.h"
 
+#include "bt/uni_bt_bredr.h"
 #include "bt/uni_bt_conn.h"
 #include "bt/uni_bt_defines.h"
 #include "parser/uni_hid_parser.h"
+#include "parser/uni_hid_parser_steam_triton.h"
+#include "parser/uni_hid_parser_switch2.h"
+#include "parser/uni_hid_parser_xboxone.h"
 #include "uni_common.h"
 #include "uni_config.h"
 #include "uni_hid_device.h"
@@ -76,19 +82,75 @@
 
 static bool is_scanning;
 static bool ble_enabled;
+/** One-shot retry when SC+Bonding gets AUTH_REQUIREMENTS_MISMATCH. */
+static uint8_t s_ble_auth_mismatch_retry;
 
 // Temporal space for SDP in BLE
 static uint8_t hid_descriptor_storage[HID_MAX_DESCRIPTOR_LEN * CONFIG_BLUEPAD32_MAX_DEVICES];
 static btstack_packet_callback_registration_t sm_event_callback_registration;
 
 /**
+ * CYW43 / shared-radio: BR inquiry + LE scan (and ads) during DIS/HIDS GATT
+ * stalls HOGP discovery (Steam Triton hangs after "Using hids_cid=…").
+ */
+static void hog_stop_radio_contention(void) {
+    gap_stop_scan();
+    logi("BLE scan -> 0\n");
+    if (IS_ENABLED(UNI_ENABLE_BREDR))
+        uni_bt_bredr_scan_stop();
+    gap_advertisements_enable(0);
+}
+
+static btstack_context_callback_registration_t s_triton_start_cb;
+static btstack_context_callback_registration_t s_hogp_start_cb;
+/** Set when LE re-encryption succeeded for this connection (cleared on fresh pair). */
+static bool s_le_reencryption_succeeded = false;
+/** Avoid duplicate DIS queries (pairing-complete vs encryption-change race). */
+static hci_con_handle_t s_dis_query_handle = UNI_BT_CONN_HANDLE_INVALID;
+/** Xbox HOGP: wait for gatt_client_is_ready after DIS. */
+static btstack_timer_source_t s_hogp_ready_timer;
+static uni_hid_device_t* s_hogp_pending_device;
+static uint8_t s_hogp_ready_retries;
+
+static void triton_start_valve_gatt(void* context) {
+    uni_hid_device_t* device = (uni_hid_device_t*)context;
+    if (!device)
+        return;
+    hog_stop_radio_contention();
+    uni_hid_device_kick_connection_timeout(device);
+    logi("Steam Triton: skip HOGP — Valve GATT path, handle=%#x\n", device->conn.handle);
+    uni_hid_device_guess_controller_type_from_pid_vid(device);
+    uni_hid_device_connect(device);
+    uni_hid_device_set_ready(device);
+}
+
+/** Xbox BLE name is known from advertising before VID/PID. */
+static bool ogxm_device_is_xbox_ble(const uni_hid_device_t* device) {
+    if (device == NULL)
+        return false;
+    if (device->vendor_id == 0x045e)
+        return true;
+    if (device->name[0] != '\0' && strncmp(device->name, "Xbox Wireless Controller", 24) == 0)
+        return true;
+    /*
+     * SCUF Instinct (SG504) and some Xbox-compatible pads advertise empty name +
+     * gamepad COD (0x0508). Without this they take SC+Bonding + re-encryption,
+     * which this fork already marks as broken for Xbox HOGP.
+     * DualSense / Triton / Switch-family pads normally advertise a local name.
+     */
+    if (device->conn.protocol == UNI_BT_CONN_PROTOCOL_BLE && device->name[0] == '\0' &&
+        (device->cod & UNI_BT_COD_MAJOR_MASK) == UNI_BT_COD_MAJOR_PERIPHERAL &&
+        (device->cod & UNI_BT_COD_MINOR_GAMEPAD) != 0)
+        return true;
+    return false;
+}
+
+/**
  * Connect to remote device but set timer for timeout
  */
 static void hog_connect(bd_addr_t addr, bd_addr_type_t addr_type) {
-    // Stop scan, otherwise it will be able to connect.
-    // Happens in ESP32, but not in libusb
-    gap_stop_scan();
-    logi("BLE scan -> 0\n");
+    // Stop scan/inquiry, otherwise HOGP GATT can stall on Pico W / ESP32.
+    hog_stop_radio_contention();
 
     gap_connect(addr, addr_type);
 }
@@ -101,16 +163,55 @@ static void resume_scanning_hint(void) {
     }
 }
 
+static bool ogxm_device_is_switch2(const uni_hid_device_t* device) {
+    return device->product_id == UNI_SW2_PRO_PID || device->product_id == UNI_SW2_JOYCON_L_PID ||
+           device->product_id == UNI_SW2_JOYCON_R_PID;
+}
+
+/**
+ * Switch 2 and Xbox BLE: AuthReq=0 (no bonding). Switch 2 SYNC fails with
+ * CONFIRM_VALUE_FAILED if bonding/SC is requested; Xbox bonded re-encryption
+ * breaks reconnect. Clear any host bond and Just-Works pair.
+ * Other BLE pads (DualSense, Steam Controller 2026, …): Bonding + LE Secure
+ * Connections. Triton rejects legacy-only SMP with AUTH_REQUIREMENTS_MISMATCH.
+ */
+static void ogxm_sm_request_pairing(uni_hid_device_t* device,
+                                    hci_con_handle_t con_handle,
+                                    bd_addr_type_t peer_type,
+                                    const bd_addr_t addr) {
+    if (ogxm_device_is_switch2(device) || ogxm_device_is_xbox_ble(device)) {
+        bd_addr_t delete_addr;
+        memcpy(delete_addr, addr, sizeof(bd_addr_t));
+        gap_delete_bonding(peer_type, delete_addr);
+        sm_set_authentication_requirements(0);
+        logi("BLE: Just Works pair (no bond) for %s\n", bd_addr_to_str(addr));
+    } else {
+        sm_set_authentication_requirements(SM_AUTHREQ_SECURE_CONNECTION | SM_AUTHREQ_BONDING);
+        logi("BLE: SC+Bonding pair for %s\n", bd_addr_to_str(addr));
+    }
+    sm_request_pairing(con_handle);
+}
+
 static void hog_disconnect(hci_con_handle_t con_handle) {
     // MUST not call uni_hid_device_disconnect(), called from it.
     uint8_t status;
     uni_hid_device_t* device;
 
+    if (s_dis_query_handle == con_handle)
+        s_dis_query_handle = UNI_BT_CONN_HANDLE_INVALID;
+    if (s_hogp_pending_device && s_hogp_pending_device->conn.handle == con_handle) {
+        btstack_run_loop_remove_timer(&s_hogp_ready_timer);
+        s_hogp_pending_device = NULL;
+    }
+
     device = uni_hid_device_get_instance_for_connection_handle(con_handle);
     if (device) {
-        status = hids_client_disconnect(device->hids_cid);
-        if (status != ERROR_CODE_SUCCESS) {
-            loge("Failed to disconnect HIDS client for hids_cid=%d, status=%d\n", device->hids_cid, status);
+        if (device->hids_cid != 0 && device->hids_cid != 0xffff) {
+            status = hids_host_disconnect(device->hids_cid);
+            if (status != ERROR_CODE_SUCCESS && status != ERROR_CODE_UNKNOWN_CONNECTION_IDENTIFIER) {
+                loge("Failed to disconnect HIDS client for hids_cid=%d, status=%d\n", device->hids_cid, status);
+            }
+            device->hids_cid = 0xffff;
         }
         // gap_delete_bonding(0, device->conn.btaddr);
     }
@@ -231,19 +332,23 @@ static void parse_report(const uint8_t* packet, uint16_t size) {
     // to set the correct parser.
     // But not clear how to get the "service_index" from setup
     if (device->hid_descriptor_len == 0) {
-        descriptor_data = hids_client_descriptor_storage_get_descriptor_data(hids_cid, service_index);
-        descriptor_len = hids_client_descriptor_storage_get_descriptor_len(hids_cid, service_index);
+        descriptor_data = hids_host_descriptor_storage_get_descriptor_data(hids_cid, service_index);
+        descriptor_len = hids_host_descriptor_storage_get_descriptor_len(hids_cid, service_index);
 
         uni_hid_device_set_hid_descriptor(device, descriptor_data, descriptor_len);
     }
+
     report_data = gattservice_subevent_hid_report_get_report(packet);
     report_len = gattservice_subevent_hid_report_get_report_len(packet);
+
+    if (uni_hid_parser_xboxone_is_ble_hids(device) && report_len > 0)
+        uni_hid_parser_xboxone_ble_on_input(device);
 
     uni_hid_parse_input_report(device, report_data, report_len);
     uni_hid_device_process_controller(device);
 }
 
-static void uni_hids_client_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
+static void uni_hids_host_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     uint8_t status;
     uint16_t hids_cid;
     uni_hid_device_t* device;
@@ -257,14 +362,14 @@ static void uni_hids_client_packet_handler(uint8_t packet_type, uint16_t channel
 #if 0
     // FIXME: Bug in BTStack??? This comparison fails because packet_type is HCI_EVENT_GATTSERVICE_META
     if (packet_type != HCI_EVENT_PACKET) {
-        loge("uni_hids_client_packet_handler: unsupported packet type: %#x\n", packet_type);
+        loge("uni_hids_host_packet_handler: unsupported packet type: %#x\n", packet_type);
         return;
     }
 #endif
 
     event_type = hci_event_packet_get_type(packet);
     if (event_type != HCI_EVENT_GATTSERVICE_META) {
-        loge("uni_hids_client_packet_handler: unsupported event type: %#x\n", event_type);
+        loge("uni_hids_host_packet_handler: unsupported event type: %#x\n", event_type);
         return;
     }
 
@@ -285,19 +390,22 @@ static void uni_hids_client_packet_handler(uint8_t packet_type, uint16_t channel
                         loge("Hids Cid: Could not find valid device for hids_cid=%d\n", hids_cid);
                         break;
                     }
-#if 0
-                    status = hids_client_enable_notifications(hids_cid);
-                    if (status != ERROR_CODE_SUCCESS)
-                        logi("Failed to enable client notifications for hids_cid=%d, status=%#x\n", hids_cid, status);
-                    else
-                        logi("Client notifications enabled for for hids_cid=%d\n", hids_cid);
-#endif
-
                     uni_hid_device_guess_controller_type_from_pid_vid(device);
+
+                    {
+                        const uint8_t* dd = hids_host_descriptor_storage_get_descriptor_data(hids_cid, 0);
+                        uint16_t dl = hids_host_descriptor_storage_get_descriptor_len(hids_cid, 0);
+                        if (dd && dl > 0)
+                            uni_hid_device_set_hid_descriptor(device, dd, dl);
+                    }
+
                     uni_hid_device_connect(device);
                     uni_hid_device_set_ready(device);
 
-                    resume_scanning_hint();
+                    if (uni_hid_parser_xboxone_is_ble_hids(device))
+                        uni_hid_parser_xboxone_ble_on_hid_connected(device);
+                    else
+                        resume_scanning_hint();
                     break;
                 default:
                     loge("HID service client connection failed, err 0x%02x.\n", status);
@@ -347,6 +455,104 @@ static void uni_hids_client_packet_handler(uint8_t packet_type, uint16_t channel
     }
 }
 
+/**
+ * Start HOGP off the DIS callback (same deferral as Triton). Calling
+ * hids_host_connect from GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_DONE stalls
+ * on CYW43 / Pico W after "Using hids_cid=…" for Xbox Series / SCUF BLE.
+ *
+ * Xbox: also wait until gatt_client_is_ready, then seed a built-in descriptor so
+ * the Report Map long-read (known hang) is skipped.
+ */
+static void start_hogp_gatt_now(uni_hid_device_t* device) {
+    uint16_t hids_cid = 0;
+    uint8_t status;
+
+    if (!device)
+        return;
+    if (device->conn.handle == UNI_BT_CONN_HANDLE_INVALID) {
+        loge("HOGP start: invalid handle\n");
+        return;
+    }
+
+    hog_stop_radio_contention();
+    uni_hid_device_kick_connection_timeout(device);
+
+    if (ogxm_device_is_xbox_ble(device) || device->vendor_id == 0x045e) {
+        uint16_t desc_len = 0;
+        const uint8_t* desc = uni_hid_parser_xboxone_ble_hid_descriptor(&desc_len);
+        hids_host_set_seed_hid_descriptor(device->conn.handle, desc, desc_len);
+        logi("Xbox BLE: seeding HID descriptor (%u bytes), skip Report Map long-read\n", desc_len);
+    }
+
+    logi("Search for HID service, con_handle: %#x (gatt_ready=%d)\n", device->conn.handle,
+         gatt_client_is_ready(device->conn.handle));
+    status = hids_host_connect(device->conn.handle, uni_hids_host_packet_handler, HID_PROTOCOL_MODE_REPORT, &hids_cid);
+    if (status == ERROR_CODE_COMMAND_DISALLOWED) {
+        logi("HID client connection failed with COMMAND_DISALLOWED, ignoring \n");
+        return;
+    }
+    if (status != ERROR_CODE_SUCCESS) {
+        logi("HID client connection failed, status=%#x\n", status);
+        hog_disconnect(device->conn.handle);
+        return;
+    }
+    logi("Using hids_cid=%d\n", hids_cid);
+    device->hids_cid = hids_cid;
+}
+
+static void hogp_ready_timer_cb(btstack_timer_source_t* ts) {
+    uni_hid_device_t* device = s_hogp_pending_device;
+    ARG_UNUSED(ts);
+
+    if (!device || device->conn.handle == UNI_BT_CONN_HANDLE_INVALID) {
+        s_hogp_pending_device = NULL;
+        return;
+    }
+
+    if (!gatt_client_is_ready(device->conn.handle)) {
+        s_hogp_ready_retries++;
+        if (s_hogp_ready_retries < 25) {
+            logi("HOGP: GATT not ready — retry %u/25\n", s_hogp_ready_retries);
+            hog_stop_radio_contention();
+            btstack_run_loop_set_timer(&s_hogp_ready_timer, 200);
+            btstack_run_loop_add_timer(&s_hogp_ready_timer);
+            return;
+        }
+        loge("HOGP: GATT never ready — abort\n");
+        s_hogp_pending_device = NULL;
+        hog_disconnect(device->conn.handle);
+        return;
+    }
+
+    s_hogp_pending_device = NULL;
+    start_hogp_gatt_now(device);
+}
+
+static void start_hogp_gatt(void* context) {
+    uni_hid_device_t* device = (uni_hid_device_t*)context;
+
+    if (!device)
+        return;
+    if (device->conn.handle == UNI_BT_CONN_HANDLE_INVALID) {
+        loge("HOGP start: invalid handle\n");
+        return;
+    }
+
+    /* Xbox / SCUF: wait for GATT idle after DIS before starting HOGP. */
+    if ((ogxm_device_is_xbox_ble(device) || device->vendor_id == 0x045e) &&
+        !gatt_client_is_ready(device->conn.handle)) {
+        s_hogp_pending_device = device;
+        s_hogp_ready_retries = 0;
+        s_hogp_ready_timer.process = hogp_ready_timer_cb;
+        logi("HOGP: waiting for GATT ready before HID discovery\n");
+        btstack_run_loop_set_timer(&s_hogp_ready_timer, 200);
+        btstack_run_loop_add_timer(&s_hogp_ready_timer);
+        return;
+    }
+
+    start_hogp_gatt_now(device);
+}
+
 static void uni_device_information_packet_handler(uint8_t packet_type,
                                                   uint16_t channel,
                                                   uint8_t* packet,
@@ -357,7 +563,6 @@ static void uni_device_information_packet_handler(uint8_t packet_type,
     hci_con_handle_t con_handle;
     uni_hid_device_t* device;
     uint8_t event_type;
-    uint16_t hids_cid;
 
     UNUSED(channel);
     UNUSED(size);
@@ -389,29 +594,49 @@ static void uni_device_information_packet_handler(uint8_t packet_type,
             switch (status) {
                 case ERROR_CODE_SUCCESS:
                     logi("Device Information service found\n");
+                    if (s_dis_query_handle == con_handle)
+                        s_dis_query_handle = UNI_BT_CONN_HANDLE_INVALID;
                     device = uni_hid_device_get_instance_for_connection_handle(con_handle);
                     if (!device) {
                         loge("Invalid device for in GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_DONE");
                         break;
                     }
 
-                    // Continue - query primary services.
-                    logi("Search for HID service, con_handle: %#x\n", con_handle);
-                    status = hids_client_connect(con_handle, uni_hids_client_packet_handler, HID_PROTOCOL_MODE_REPORT,
-                                                 &hids_cid);
-                    if (status == ERROR_CODE_COMMAND_DISALLOWED) {
-                        logi("HID client connection failed with COMMAND_DISALLOWED, ignoring \n");
-                        // Means that a HIDS client connection is already present.
-                        // We forgot to delete it.
-                        // hids_client_disconnect(con_handle);
-                    }
-                    if (status != ERROR_CODE_SUCCESS) {
-                        logi("HID client connection failed, status=%#x\n", status);
+                    /* Keep BR/LE quiet during GATT. */
+                    hog_stop_radio_contention();
+                    uni_hid_device_kick_connection_timeout(device);
+
+                    /*
+                     * Xbox BLE that already re-encrypted with a host bond: tear down and
+                     * force a Just Works reconnect (bonded path stalls HOGP / kills input).
+                     */
+                    if (device->vendor_id == 0x045e && s_le_reencryption_succeeded) {
+                        bd_addr_t bond_addr;
+                        memcpy(bond_addr, device->conn.btaddr, sizeof(bd_addr_t));
+                        logi("Xbox BLE: bonded session after DIS — drop for Just Works reconnect\n");
+                        gap_delete_bonding(BD_ADDR_TYPE_LE_PUBLIC, bond_addr);
+                        gap_delete_bonding(BD_ADDR_TYPE_LE_RANDOM, bond_addr);
+                        s_le_reencryption_succeeded = false;
                         hog_disconnect(con_handle);
                         break;
                     }
-                    logi("Using hids_cid=%d\n", hids_cid);
-                    device->hids_cid = hids_cid;
+
+                    /*
+                     * Steam Triton (28de:1303): SDL uses Valve's proprietary GATT
+                     * service, not HOGP. hids_host_connect hangs on Pico W after DIS.
+                     * Defer off the DIS callback so GATT client is idle.
+                     */
+                    if (uni_hid_parser_steam_triton_is_device(device)) {
+                        s_triton_start_cb.callback = &triton_start_valve_gatt;
+                        s_triton_start_cb.context = device;
+                        btstack_run_loop_execute_on_main_thread(&s_triton_start_cb);
+                        break;
+                    }
+
+                    /* Defer HOGP like Triton — avoids CYW43 stall after hids_cid. */
+                    s_hogp_start_cb.callback = &start_hogp_gatt;
+                    s_hogp_start_cb.context = device;
+                    btstack_run_loop_execute_on_main_thread(&s_hogp_start_cb);
                     break;
                 default:
 #if UNI_HID_DEVICE_ALLOW_NO_DIS
@@ -422,26 +647,17 @@ static void uni_device_information_packet_handler(uint8_t packet_type,
                         loge("Invalid device for in GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_DONE");
                         break;
                     }
-                    status = hids_client_connect(con_handle, uni_hids_client_packet_handler, HID_PROTOCOL_MODE_REPORT,
-                                                 &hids_cid);
-                    if (status == ERROR_CODE_SUCCESS) {
-                        logi("Using hids_cid=%d\n", hids_cid);
-                        device->hids_cid = hids_cid;
-                        break;
-                    }
-
-                    if (status == ERROR_CODE_COMMAND_DISALLOWED) {
-                        logi("HID client connection already established, ignoring\n");
-                        break;
-                    }
-
-                    // Real failure
-                    logi("HID client connection failed, status=%#x\n", status);
+                    hog_stop_radio_contention();
+                    uni_hid_device_kick_connection_timeout(device);
+                    s_hogp_start_cb.callback = &start_hogp_gatt;
+                    s_hogp_start_cb.context = device;
+                    btstack_run_loop_execute_on_main_thread(&s_hogp_start_cb);
+                    break;
 #else
                     logi("Device Information Service client connection failed, error=%#x. Disconnecting.\n", status);
-#endif
                     hog_disconnect(con_handle);
                     break;
+#endif
             }
             break;
         case GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_MANUFACTURER_NAME:
@@ -562,12 +778,37 @@ static void uni_device_information_packet_handler(uint8_t packet_type,
     }
 }
 
-/* HCI packet handler
- *
- * text The SM packet handler receives Security Manager Events required for
- * pairing. It also receives events generated during Identity Resolving see
- * Listing SMPacketHandler.
- */
+static const char* sm_reason_name(uint8_t reason) {
+    switch (reason) {
+        case SM_REASON_PASSKEY_ENTRY_FAILED:
+            return "PASSKEY_ENTRY_FAILED";
+        case SM_REASON_OOB_NOT_AVAILABLE:
+            return "OOB_NOT_AVAILABLE";
+        case SM_REASON_AUTHENTHICATION_REQUIREMENTS:
+            return "AUTH_REQUIREMENTS_MISMATCH";
+        case SM_REASON_CONFIRM_VALUE_FAILED:
+            return "CONFIRM_VALUE_FAILED";
+        case SM_REASON_PAIRING_NOT_SUPPORTED:
+            return "PAIRING_NOT_SUPPORTED";
+        case SM_REASON_ENCRYPTION_KEY_SIZE:
+            return "ENCRYPTION_KEY_SIZE";
+        case SM_REASON_COMMAND_NOT_SUPPORTED:
+            return "COMMAND_NOT_SUPPORTED";
+        case SM_REASON_UNSPECIFIED_REASON:
+            return "UNSPECIFIED";
+        case SM_REASON_REPEATED_ATTEMPTS:
+            return "REPEATED_ATTEMPTS";
+        case SM_REASON_INVALID_PARAMETERS:
+            return "INVALID_PARAMETERS";
+        case SM_REASON_DHKEY_CHECK_FAILED:
+            return "DHKEY_CHECK_FAILED";
+        case SM_REASON_NUMERIC_COMPARISON_FAILED:
+            return "NUMERIC_COMPARISON_FAILED";
+        default:
+            return "UNKNOWN";
+    }
+}
+
 static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     bd_addr_t addr;
     uni_hid_device_t* device;
@@ -619,15 +860,40 @@ static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
                  bd_addr_to_str(addr));
             break;
         case SM_EVENT_REENCRYPTION_STARTED:
-            sm_event_reencryption_complete_get_address(packet, addr);
+            sm_event_reencryption_started_get_address(packet, addr);
             logi("Bonding information exists for addr type %u, identity addr %s -> start re-encryption\n",
                  sm_event_reencryption_started_get_addr_type(packet), bd_addr_to_str(addr));
+            /* Xbox: do not re-encrypt — that path is not first-connect. Force Just Works. */
+            con_handle = sm_event_reencryption_started_get_handle(packet);
+            device = uni_hid_device_get_instance_for_connection_handle(con_handle);
+            if (device && ogxm_device_is_xbox_ble(device)) {
+                bd_addr_type_t addr_type = (bd_addr_type_t)sm_event_reencryption_started_get_addr_type(packet);
+                logi("Xbox BLE: abort re-encryption, Just Works pair\n");
+                gap_delete_bonding(addr_type, addr);
+                sm_set_authentication_requirements(0);
+                sm_request_pairing(con_handle);
+            }
             break;
         case SM_EVENT_REENCRYPTION_COMPLETE:
             con_handle = sm_event_reencryption_complete_get_handle(packet);
             switch (sm_event_reencryption_complete_get_status(packet)) {
                 case ERROR_CODE_SUCCESS:
                     logi("Re-encryption complete, success\n");
+                    s_le_reencryption_succeeded = true;
+                    /* If Xbox-compatible (incl. empty-name SCUF), drop bonded path now. */
+                    device = uni_hid_device_get_instance_for_connection_handle(con_handle);
+                    if (device && ogxm_device_is_xbox_ble(device)) {
+                        bd_addr_t bond_addr;
+                        bd_addr_type_t addr_type =
+                            (bd_addr_type_t)sm_event_reencryption_complete_get_addr_type(packet);
+                        sm_event_reencryption_complete_get_address(packet, bond_addr);
+                        logi("Xbox BLE: re-encryption succeeded — drop bond, Just Works pair\n");
+                        gap_delete_bonding(addr_type, bond_addr);
+                        s_le_reencryption_succeeded = false;
+                        sm_set_authentication_requirements(0);
+                        sm_request_pairing(con_handle);
+                        break;
+                    }
                     request_device_information_query = true;
                     break;
                 case ERROR_CODE_CONNECTION_TIMEOUT:
@@ -638,15 +904,32 @@ static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
                     logi("Re-encryption failed, disconnected\n");
                     hog_disconnect(con_handle);
                     break;
-                case ERROR_CODE_PIN_OR_KEY_MISSING:
+                case ERROR_CODE_PIN_OR_KEY_MISSING: {
+                    bd_addr_type_t addr_type;
                     logi("Re-encryption failed, bonding information missing\n\n");
                     logi("Assuming remote lost bonding information\n");
-                    logi("Deleting local bonding information and start new pairing...\n");
                     sm_event_reencryption_complete_get_address(packet, addr);
-                    type = sm_event_reencryption_started_get_addr_type(packet);
-                    gap_delete_bonding(type, addr);
-                    sm_request_pairing(sm_event_reencryption_complete_get_handle(packet));
+                    addr_type = (bd_addr_type_t)sm_event_reencryption_complete_get_addr_type(packet);
+                    gap_delete_bonding(addr_type, addr);
+                    device = uni_hid_device_get_instance_for_connection_handle(con_handle);
+                    if (device && ogxm_device_is_switch2(device)) {
+                        logi("Switch2: retry SMP after bond clear\n");
+                        sm_set_authentication_requirements(0);
+                        sm_request_pairing(con_handle);
+                    } else if (device && ogxm_device_is_xbox_ble(device)) {
+                        logi("Xbox BLE: Just Works pair after bond mismatch\n");
+                        sm_set_authentication_requirements(0);
+                        sm_request_pairing(con_handle);
+                    } else if (device) {
+                        logi("Bond mismatch — retry SMP after bond clear\n");
+                        sm_set_authentication_requirements(SM_AUTHREQ_SECURE_CONNECTION | SM_AUTHREQ_BONDING);
+                        sm_request_pairing(con_handle);
+                    } else {
+                        logi("Bond mismatch — disconnect (no device)\n");
+                        hog_disconnect(con_handle);
+                    }
                     break;
+                }
                 default:
                     break;
             }
@@ -656,8 +939,7 @@ static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
             device = uni_hid_device_get_instance_for_address(addr);
             con_handle = sm_event_pairing_complete_get_handle(packet);
             if (!device) {
-                loge("SM_EVENT_PAIRING_COMPLETE: Invalid device for addr %s\n", bd_addr_to_str(addr));
-                hog_disconnect(con_handle);
+                loge("SM_EVENT_PAIRING_COMPLETE: no device for addr %s (already deleted)\n", bd_addr_to_str(addr));
                 break;
             }
 
@@ -665,17 +947,50 @@ static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
             switch (status) {
                 case ERROR_CODE_SUCCESS:
                     logi("Pairing complete, success\n");
+                    s_ble_auth_mismatch_retry = 0;
+                    s_le_reencryption_succeeded = false;
+                    /* First-time pair (not re-encryption): continue to DIS → HIDS.
+                     * Without this, Steam Triton / DualSense / etc. sit encrypted
+                     * until HID_DEVICE_CONNECTION_TIMEOUT and get deleted. */
                     request_device_information_query = true;
                     break;
                 case ERROR_CODE_CONNECTION_TIMEOUT:
+                    if (uni_bt_conn_get_state(&device->conn) == UNI_BT_CONN_STATE_DEVICE_READY) {
+                        logi("Pairing timeout ignored (link already active)\n");
+                        break;
+                    }
                     logi("Pairing failed, timeout\n");
                     break;
                 case ERROR_CODE_REMOTE_USER_TERMINATED_CONNECTION:
                     logi("Pairing failed, disconnected\n");
                     break;
-                case ERROR_CODE_AUTHENTICATION_FAILURE:
-                    logi("Pairing failed, reason = %u\n", sm_event_pairing_complete_get_reason(packet));
+                case ERROR_CODE_AUTHENTICATION_FAILURE: {
+                    uint8_t reason = sm_event_pairing_complete_get_reason(packet);
+                    logi("Pairing failed, reason = %u (%s)\n", reason, sm_reason_name(reason));
+                    if (uni_hid_parser_switch2_is_ble_device(device)) {
+                        logi("Switch2: BLE SMP failed — disconnecting (hold SYNC to retry)\n");
+                        hog_disconnect(device->conn.handle);
+                        break;
+                    }
+                    /* Some pads reject SC+Bonding; retry Just Works once. */
+                    if (reason == SM_REASON_AUTHENTHICATION_REQUIREMENTS &&
+                        device->conn.handle != HCI_CON_HANDLE_INVALID &&
+                        device->conn.handle != UNI_BT_CONN_HANDLE_INVALID && !ogxm_device_is_xbox_ble(device)) {
+                        if (s_ble_auth_mismatch_retry == 0) {
+                            s_ble_auth_mismatch_retry = 1;
+                            bd_addr_type_t peer_type = (bd_addr_type_t)sm_event_pairing_complete_get_addr_type(packet);
+                            logi("BLE: AUTH_REQUIREMENTS_MISMATCH — retry Just Works (no bond)\n");
+                            gap_delete_bonding(peer_type, addr);
+                            sm_set_authentication_requirements(0);
+                            sm_request_pairing(device->conn.handle);
+                        } else {
+                            s_ble_auth_mismatch_retry = 0;
+                            logi("BLE: AUTH_REQUIREMENTS_MISMATCH — giving up\n");
+                            hog_disconnect(device->conn.handle);
+                        }
+                    }
                     break;
+                }
                 default:
                     loge("Unknown paring status: %#x\n", status);
                     break;
@@ -698,10 +1013,22 @@ static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
             loge("Error: Invalid conn_handle: %d\n", con_handle);
             return;
         }
+        if (s_dis_query_handle == con_handle) {
+            logi("DIS already requested for handle %#x — skip duplicate\n", con_handle);
+            return;
+        }
         logi("Requesting device information\n");
+        {
+            uni_hid_device_t* d = uni_hid_device_get_instance_for_connection_handle(con_handle);
+            if (d)
+                uni_hid_device_kick_connection_timeout(d);
+        }
+        hog_stop_radio_contention();
         status = device_information_service_client_query(con_handle, uni_device_information_packet_handler);
         if (status != ERROR_CODE_SUCCESS) {
             loge("Failed to set device information client: %#x\n", status);
+        } else {
+            s_dis_query_handle = con_handle;
         }
     }
 }
@@ -725,10 +1052,34 @@ void uni_bt_le_on_hci_event_le_meta(const uint8_t* packet, uint16_t size) {
                 break;
             }
             con_handle = hci_subevent_le_connection_complete_get_connection_handle(packet);
-            logi("Using con_handle: %#x\n", con_handle);
-
             uni_hid_device_set_connection_handle(device, con_handle);
-            sm_request_pairing(con_handle);
+            if (device->product_id == UNI_SW2_PRO_PID || device->product_id == UNI_SW2_JOYCON_L_PID ||
+                device->product_id == UNI_SW2_JOYCON_R_PID) {
+                if (uni_hid_parser_switch2_needs_pair(device)) {
+                    bd_addr_type_t peer_type =
+                        (bd_addr_type_t)hci_subevent_le_connection_complete_get_peer_address_type(packet);
+                    gap_delete_bonding(peer_type, event_addr);
+                    logi("Switch2: cleared bond before connect (SYNC pair, addr_type=%u)\n", peer_type);
+                }
+                if (uni_hid_parser_switch2_needs_pair(device) || !gap_bonded(con_handle)) {
+                    logi("Switch2: LE connected addr=%s handle=0x%04x -> GATT\n", bd_addr_to_str(event_addr),
+                         con_handle);
+                    uni_hid_parser_switch2_on_le_connected(device);
+                } else {
+                    logi("Switch2: LE connected addr=%s handle=0x%04x -> encryption (bonded reconnect)\n",
+                         bd_addr_to_str(event_addr), con_handle);
+                    ogxm_sm_request_pairing(
+                        device, con_handle,
+                        (bd_addr_type_t)hci_subevent_le_connection_complete_get_peer_address_type(packet), event_addr);
+                }
+                break;
+            }
+            logi("Using con_handle: %#x\n", con_handle);
+            /* Pairing + DIS + HIDS need a quiet radio on CYW43. */
+            hog_stop_radio_contention();
+            ogxm_sm_request_pairing(device, con_handle,
+                                    (bd_addr_type_t)hci_subevent_le_connection_complete_get_peer_address_type(packet),
+                                    event_addr);
 
             // Resume scanning
             // gap_start_scan();
@@ -767,10 +1118,43 @@ void uni_bt_le_on_hci_event_encryption_change(const uint8_t* packet, uint16_t si
         // Abort on non BLE connections
         return;
 
+    if (uni_hid_parser_switch2_is_ble_device(device)) {
+        if (hci_event_encryption_change_get_encryption_enabled(packet) == 0) {
+            logi("Switch2: encryption failed -> abort\n");
+            hog_disconnect(con_handle);
+            return;
+        }
+        logi("Switch2: encryption OK handle=0x%04x -> GATT setup\n", con_handle);
+        uni_hid_parser_switch2_on_encrypted(device);
+        return;
+    }
+
     logi("Connection encrypted: %u\n", hci_event_encryption_change_get_encryption_enabled(packet));
     if (hci_event_encryption_change_get_encryption_enabled(packet) == 0) {
         logi("Encryption failed -> abort\n");
         hog_disconnect(con_handle);
+        return;
+    }
+
+    /*
+     * Some Xbox-compatible BLE pads (SCUF Instinct empty-name) encrypt after Just
+     * Works without ever emitting SM_EVENT_PAIRING_COMPLETE. Without that event
+     * DIS/HOGP never start and the pad sits encrypted with no input.
+     * Start DIS here when pairing-complete did not already kick it.
+     */
+    if (uni_bt_conn_get_state(&device->conn) != UNI_BT_CONN_STATE_DEVICE_READY &&
+        (device->hids_cid == 0 || device->hids_cid == 0xffff) &&
+        s_dis_query_handle != con_handle) {
+        uint8_t status;
+        logi("BLE: encrypted without PAIRING_COMPLETE — requesting DIS (handle %#x)\n", con_handle);
+        hog_stop_radio_contention();
+        uni_hid_device_kick_connection_timeout(device);
+        status = device_information_service_client_query(con_handle, uni_device_information_packet_handler);
+        if (status != ERROR_CODE_SUCCESS) {
+            loge("Failed to start DIS after encryption: %#x\n", status);
+        } else {
+            s_dis_query_handle = con_handle;
+        }
     }
 }
 
@@ -787,10 +1171,28 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
 
     ARG_UNUSED(size);
 
-    gap_event_advertising_report_get_address(packet, addr);
-    if (uni_hid_device_get_instance_for_address(addr)) {
-        // Ignore, address already found
+    if (uni_bt_le_switch2_handle_advertisement(packet, size))
         return;
+
+    gap_event_advertising_report_get_address(packet, addr);
+    {
+        uni_hid_device_t* ex = uni_hid_device_get_instance_for_address(addr);
+        if (ex) {
+            if (uni_bt_conn_is_connected(&ex->conn))
+                return;
+            if (uni_bt_conn_get_state(&ex->conn) != UNI_BT_CONN_STATE_DEVICE_READY)
+                return;
+            /* Xbox Series (BLE): after disconnect, slot can linger until HCI teardown; new ads were
+             * ignored so reconnect never completed a fresh HID session (no inputs). */
+            if (ex->conn.protocol == UNI_BT_CONN_PROTOCOL_BLE &&
+                ex->controller_type == CONTROLLER_TYPE_XBoxOneController) {
+                logi("BLE Xbox: drop stale slot %s for reconnect\n", bd_addr_to_str(addr));
+                uni_hid_device_disconnect(ex);
+                uni_hid_device_delete(ex);
+            } else {
+                return;
+            }
+        }
     }
 
     adv_event_get_data(packet, &appearance, name);
@@ -922,7 +1324,13 @@ void uni_bt_le_setup(void) {
     // - Xbox 2 buttons: flaky, fails to connect or connects
     // sm_set_authentication_requirements(0);
 
+#if defined(OGXM_BLUEPAD32_PICO_W)
+    // Switch 2 SMP: AuthReq=0 (no bonding, no MITM). Legacy+bonding causes reason 4
+    // (CONFIRM_VALUE_FAILED). Xbox BLE also pairs more reliably without bonding.
+    sm_set_authentication_requirements(0);
+#else
     sm_set_authentication_requirements(SM_AUTHREQ_BONDING);
+#endif
 
     // Secure connection + NO bonding in ESP32:
     // - Stadia: Ok
@@ -943,7 +1351,7 @@ void uni_bt_le_setup(void) {
     // libusb works with mostly any configuration
 
     gatt_client_init();
-    hids_client_init(hid_descriptor_storage, sizeof(hid_descriptor_storage));
+    hids_host_init(hid_descriptor_storage, sizeof(hid_descriptor_storage));
     // FIXME: this is an empty function and PicoW toolchain is removing empty function (?)
     // scan_parameters_service_client_init();
     device_information_service_client_init();

@@ -26,6 +26,21 @@ void uni_hid_parser_xboxone_play_dual_rumble(struct uni_hid_device_s* d,
                                              uint8_t strong_magnitude);
 void uni_hid_parser_xboxone_device_dump(struct uni_hid_device_s* d);
 
+/** BLE (Series / Xbox One w/ LE): periodic output write so the pad does not sleep the session (~1 min idle). */
+void uni_hid_parser_xboxone_ble_keepalive(struct uni_hid_device_s* d);
+
+/** Microsoft BLE gamepad on standard HIDS (not Switch 2 custom GATT). */
+bool uni_hid_parser_xboxone_is_ble_hids(const struct uni_hid_device_s* d);
+
+/** After HIDS connect: wake link, tune LE interval, poll input until first report. */
+void uni_hid_parser_xboxone_ble_on_hid_connected(struct uni_hid_device_s* d);
+/** Stop input polling once a report arrives (notify or GET). */
+void uni_hid_parser_xboxone_ble_on_input(struct uni_hid_device_s* d);
+void uni_hid_parser_xboxone_ble_teardown(struct uni_hid_device_s* d);
+
+/** Built-in Series/One BLE HID descriptor — used when Report Map long-read hangs on CYW43. */
+const uint8_t* uni_hid_parser_xboxone_ble_hid_descriptor(uint16_t* out_len);
+
 // Unique to Xbox. Not part of the "hid_parser" interface
 void xboxone_play_quad_rumble(struct uni_hid_device_s* d,
                               uint16_t start_delay_ms,

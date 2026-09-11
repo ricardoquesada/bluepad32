@@ -10,6 +10,12 @@
 
 #include <assert.h>
 
+#include "bt/uni_bt.h"
+#include "bt/uni_bt_bredr.h"
+#include "bt/uni_bt_le.h"
+#include "controller/uni_controller_type.h"
+#include "sdkconfig.h"
+
 #define ENABLE_SPI_FLASH_DUMP 0
 #define ENABLE_IMU_REPORT 1
 
@@ -119,6 +125,12 @@ typedef enum {
     SWITCH_STATE_RUMBLE_IN_PROGRESS,
 } switch_state_rumble_t;
 
+typedef enum {
+    SWITCH_PAIR_NONE = 0,
+    SWITCH_PAIR_PRIMARY,
+    SWITCH_PAIR_SECONDARY,
+} switch_pair_role_t;
+
 // Calibration values for a stick.
 typedef struct switch_cal_stick_s {
     int32_t min;
@@ -164,6 +176,11 @@ typedef struct switch_instance_s {
 
     int32_t imu_cal_accel_divisor[3];
     int32_t imu_cal_gyro_divisor[3];
+
+    // Joy-Con L+R pair merge (one player from two BT connections)
+    switch_pair_role_t pair_role;
+    int8_t pair_partner_idx;
+    int8_t pair_output_idx;
 
     // Debug only
     int debug_fd;         // File descriptor where dump is saved
@@ -306,13 +323,26 @@ static const struct switch_rumble_amp_data rumble_amps[] = {
     {0xc8, 0x0072, 1003}};
 #define TOTAL_RUMBLE_AMPS (sizeof(rumble_amps) / sizeof(rumble_amps[0]))
 
+static uni_gamepad_t sw1_joycon_half_gp[CONFIG_BLUEPAD32_MAX_DEVICES];
+
 static void parse_report_30(struct uni_hid_device_s* d, const uint8_t* report, int len);
 static void parse_report_30_joycon_left(uni_hid_device_t* d, const struct switch_report_30_s* r);
 static void parse_report_30_joycon_right(uni_hid_device_t* d, const struct switch_report_30_s* r);
+static void parse_report_30_joycon_left_paired(uni_hid_device_t* d, const struct switch_report_30_s* r);
+static void parse_report_30_joycon_right_paired(uni_hid_device_t* d, const struct switch_report_30_s* r);
+static bool switch_is_joycon_type(enum switch_controller_types type);
+static void switch_break_joycon_pair(uni_hid_device_t* d);
+static int switch_find_joycon_partner_idx(const uni_hid_device_t* d);
+static void switch_establish_joycon_pair(uni_hid_device_t* d, int partner_idx);
+static void switch_try_joycon_pair(uni_hid_device_t* d);
+static void switch_merge_joycon_pair(uni_gamepad_t* dst, const uni_gamepad_t* left_gp, const uni_gamepad_t* right_gp);
+static void switch_emit_paired_or_solo(uni_hid_device_t* d);
+static void switch_set_imu_enabled(uni_hid_device_t* d, bool enabled);
+static void switch_process_merged_or_solo(uni_hid_device_t* d);
+static void switch_maybe_process_joycon_input(uni_hid_device_t* d);
 static void parse_report_30_pro_controller(uni_hid_device_t* d, const struct switch_report_30_s* r);
 static void parse_report_3f(struct uni_hid_device_s* d, const uint8_t* report, int len);
 static void process_input_subcmd_reply(struct uni_hid_device_s* d, const uint8_t* report, int len);
-static switch_instance_t* get_switch_instance(uni_hid_device_t* d);
 static void send_subcmd(uni_hid_device_t* d, struct switch_subcmd_request* r, int len);
 static void process_fsm(struct uni_hid_device_s* d);
 static void fsm_dump_rom(struct uni_hid_device_s* d);
@@ -345,6 +375,206 @@ static void switch_play_dual_rumble_now(uni_hid_device_t* d,
 static void switch_setup_timeout_callback(btstack_timer_source_t* ts);
 static void parse_stick_calibration(switch_cal_stick_t* x, switch_cal_stick_t* y, const uint8_t* data, bool is_left);
 
+static switch_instance_t* get_switch_instance(uni_hid_device_t* d) {
+    return (switch_instance_t*)&d->parser_data[0];
+}
+
+static bool switch_is_joycon_type(enum switch_controller_types type) {
+    return type == SWITCH_CONTROLLER_TYPE_JCL || type == SWITCH_CONTROLLER_TYPE_JCR;
+}
+
+static void switch_break_joycon_pair(uni_hid_device_t* d) {
+    switch_instance_t* ins = get_switch_instance(d);
+    if (ins->pair_role == SWITCH_PAIR_NONE)
+        return;
+
+    const int partner_idx = ins->pair_partner_idx;
+    ins->pair_role = SWITCH_PAIR_NONE;
+    ins->pair_partner_idx = -1;
+    ins->pair_output_idx = -1;
+
+    if (partner_idx >= 0 && partner_idx < CONFIG_BLUEPAD32_MAX_DEVICES) {
+        uni_hid_device_t* partner = uni_hid_device_get_instance_for_idx(partner_idx);
+        if (partner) {
+            switch_instance_t* pins = get_switch_instance(partner);
+            pins->pair_role = SWITCH_PAIR_NONE;
+            pins->pair_partner_idx = -1;
+            pins->pair_output_idx = -1;
+        }
+    }
+}
+
+static int switch_find_joycon_partner_idx(const uni_hid_device_t* d) {
+    const switch_instance_t* ins = get_switch_instance((uni_hid_device_t*)d);
+    if (!switch_is_joycon_type(ins->controller_type))
+        return -1;
+
+    const enum switch_controller_types want =
+        (ins->controller_type == SWITCH_CONTROLLER_TYPE_JCL) ? SWITCH_CONTROLLER_TYPE_JCR : SWITCH_CONTROLLER_TYPE_JCL;
+    const int my_idx = uni_hid_device_get_idx_for_instance(d);
+
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
+        if (i == my_idx)
+            continue;
+        uni_hid_device_t* other = uni_hid_device_get_instance_for_idx(i);
+        if (!other || uni_bt_conn_get_state(&other->conn) != UNI_BT_CONN_STATE_DEVICE_READY)
+            continue;
+        if (other->controller_type != CONTROLLER_TYPE_SwitchJoyConLeft &&
+            other->controller_type != CONTROLLER_TYPE_SwitchJoyConRight)
+            continue;
+        const switch_instance_t* oins = get_switch_instance(other);
+        if (oins->controller_type != want || oins->state != STATE_READY)
+            continue;
+        if (oins->pair_role != SWITCH_PAIR_NONE)
+            continue;
+        return i;
+    }
+    return -1;
+}
+
+static void switch_establish_joycon_pair(uni_hid_device_t* d, int partner_idx) {
+    uni_hid_device_t* partner = uni_hid_device_get_instance_for_idx(partner_idx);
+    if (!partner)
+        return;
+
+    int left_idx;
+    int right_idx;
+    if (get_switch_instance(d)->controller_type == SWITCH_CONTROLLER_TYPE_JCL) {
+        left_idx = uni_hid_device_get_idx_for_instance(d);
+        right_idx = partner_idx;
+    } else {
+        left_idx = partner_idx;
+        right_idx = uni_hid_device_get_idx_for_instance(d);
+    }
+
+    uni_hid_device_t* left_d = uni_hid_device_get_instance_for_idx(left_idx);
+    uni_hid_device_t* right_d = uni_hid_device_get_instance_for_idx(right_idx);
+    if (!left_d || !right_d)
+        return;
+
+    switch_instance_t* lins = get_switch_instance(left_d);
+    switch_instance_t* rins = get_switch_instance(right_d);
+    const int8_t output_idx = (int8_t)((left_idx < right_idx) ? left_idx : right_idx);
+
+    lins->pair_role = SWITCH_PAIR_PRIMARY;
+    lins->pair_partner_idx = (int8_t)right_idx;
+    lins->pair_output_idx = output_idx;
+    rins->pair_role = SWITCH_PAIR_SECONDARY;
+    rins->pair_partner_idx = (int8_t)left_idx;
+    rins->pair_output_idx = output_idx;
+
+    const uint8_t leds = (uint8_t)(1u << (output_idx < 8 ? output_idx : 0));
+    set_led(left_d, leds);
+    set_led(right_d, leds);
+
+    switch_set_imu_enabled(left_d, false);
+    switch_set_imu_enabled(right_d, false);
+
+    logi("Switch: Joy-Con pair L@%d + R@%d -> player slot %d\n", left_idx, right_idx, output_idx);
+    uni_bt_bredr_scan_stop();
+}
+
+static void switch_resume_partner_scan(void) {
+    /* CYW43: BLE scan + Classic ACL blocks a second Joy-Con ACL — pause LE scan. */
+    uni_bt_le_scan_stop();
+    gap_connectable_control(1);
+    uni_bt_bredr_scan_start();
+}
+
+static void switch_try_joycon_pair(uni_hid_device_t* d) {
+    switch_instance_t* ins = get_switch_instance(d);
+    if (!switch_is_joycon_type(ins->controller_type))
+        return;
+
+    const int partner_idx = switch_find_joycon_partner_idx(d);
+    if (partner_idx >= 0) {
+        switch_establish_joycon_pair(d, partner_idx);
+        return;
+    }
+
+    uni_bt_enable_new_connections_unsafe(true);
+    switch_resume_partner_scan();
+    logi("Switch: Joy-Con solo — BR/EDR inquiry on for partner Joy-Con\n");
+}
+
+static void switch_merge_joycon_pair(uni_gamepad_t* dst, const uni_gamepad_t* left_gp, const uni_gamepad_t* right_gp) {
+    uni_gamepad_t merged = {0};
+
+    merged.axis_x = left_gp->axis_x;
+    merged.axis_y = left_gp->axis_y;
+    merged.axis_rx = right_gp->axis_rx;
+    merged.axis_ry = right_gp->axis_ry;
+    merged.brake = left_gp->brake;
+    merged.throttle = right_gp->throttle;
+    merged.buttons = left_gp->buttons | right_gp->buttons;
+    merged.misc_buttons = left_gp->misc_buttons | right_gp->misc_buttons;
+    merged.dpad = left_gp->dpad | right_gp->dpad;
+    for (int i = 0; i < 3; i++) {
+        merged.accel[i] = left_gp->accel[i];
+        merged.gyro[i] = left_gp->gyro[i];
+    }
+    *dst = merged;
+}
+
+static void switch_get_paired_left_right_idx(const uni_hid_device_t* d, int* left_idx, int* right_idx) {
+    const switch_instance_t* ins = get_switch_instance((uni_hid_device_t*)d);
+    const int my_idx = uni_hid_device_get_idx_for_instance(d);
+    if (ins->pair_role == SWITCH_PAIR_NONE || ins->pair_partner_idx < 0) {
+        *left_idx = my_idx;
+        *right_idx = my_idx;
+        return;
+    }
+    if (ins->controller_type == SWITCH_CONTROLLER_TYPE_JCL) {
+        *left_idx = my_idx;
+        *right_idx = ins->pair_partner_idx;
+    } else {
+        *left_idx = ins->pair_partner_idx;
+        *right_idx = my_idx;
+    }
+}
+
+static void switch_emit_paired_or_solo(uni_hid_device_t* d) {
+    switch_instance_t* ins = get_switch_instance(d);
+    const int idx = uni_hid_device_get_idx_for_instance(d);
+
+    if (idx >= 0 && idx < CONFIG_BLUEPAD32_MAX_DEVICES)
+        sw1_joycon_half_gp[idx] = d->controller.gamepad;
+
+    if (ins->pair_role == SWITCH_PAIR_NONE) {
+        d->controller.klass = UNI_CONTROLLER_CLASS_GAMEPAD;
+        uni_hid_device_process_controller(d);
+        return;
+    }
+
+    int left_idx;
+    int right_idx;
+    switch_get_paired_left_right_idx(d, &left_idx, &right_idx);
+    if (left_idx < 0 || right_idx < 0 || left_idx >= CONFIG_BLUEPAD32_MAX_DEVICES ||
+        right_idx >= CONFIG_BLUEPAD32_MAX_DEVICES)
+        return;
+
+    uni_hid_device_t* primary = uni_hid_device_get_instance_for_idx(
+        (ins->pair_role == SWITCH_PAIR_PRIMARY) ? idx : ins->pair_partner_idx);
+    if (!primary || get_switch_instance(primary)->state != STATE_READY)
+        return;
+
+    switch_merge_joycon_pair(&primary->controller.gamepad, &sw1_joycon_half_gp[left_idx],
+                             &sw1_joycon_half_gp[right_idx]);
+    primary->controller.klass = UNI_CONTROLLER_CLASS_GAMEPAD;
+    uni_hid_device_process_controller(primary);
+}
+
+static void switch_process_merged_or_solo(uni_hid_device_t* d) {
+    switch_emit_paired_or_solo(d);
+}
+
+static void switch_maybe_process_joycon_input(uni_hid_device_t* d) {
+    switch_instance_t* ins = get_switch_instance(d);
+    if (ins->state != STATE_READY || !switch_is_joycon_type(ins->controller_type))
+        return;
+    switch_emit_paired_or_solo(d);
+}
+
 void uni_hid_parser_switch_setup(struct uni_hid_device_s* d) {
     switch_instance_t* ins = get_switch_instance(d);
 
@@ -352,6 +582,9 @@ void uni_hid_parser_switch_setup(struct uni_hid_device_s* d) {
 
     ins->state = STATE_SETUP;
     ins->mode = SWITCH_MODE_NONE;
+    ins->pair_role = SWITCH_PAIR_NONE;
+    ins->pair_partner_idx = -1;
+    ins->pair_output_idx = -1;
     // In case the controller doesn't answer to SUBCMD_REQ_DEV_INFO command, set a default one.
     ins->controller_type = SWITCH_CONTROLLER_TYPE_PRO;
 
@@ -866,10 +1099,16 @@ static void parse_report_30(struct uni_hid_device_s* d, const uint8_t* report, i
 
     switch (ins->controller_type) {
         case SWITCH_CONTROLLER_TYPE_JCL:
-            parse_report_30_joycon_left(d, r);
+            if (ins->pair_role != SWITCH_PAIR_NONE)
+                parse_report_30_joycon_left_paired(d, r);
+            else
+                parse_report_30_joycon_left(d, r);
             break;
         case SWITCH_CONTROLLER_TYPE_JCR:
-            parse_report_30_joycon_right(d, r);
+            if (ins->pair_role != SWITCH_PAIR_NONE)
+                parse_report_30_joycon_right_paired(d, r);
+            else
+                parse_report_30_joycon_right(d, r);
             break;
         case SWITCH_CONTROLLER_TYPE_PRO:
         case SWITCH_CONTROLLER_TYPE_SNES:
@@ -885,8 +1124,10 @@ static void parse_report_30(struct uni_hid_device_s* d, const uint8_t* report, i
     // 3 gyro/accel frames are reported.
     // Different approaches: take the latest one, or average them.
     // We just take the latest one. If it is not accurate enough, we can average them.
-    if (ins->mode == SWITCH_MODE_IMU)
+    if (ins->mode == SWITCH_MODE_IMU && ins->pair_role == SWITCH_PAIR_NONE)
         parse_imu(d, &r->imu[2]);
+
+    switch_maybe_process_joycon_input(d);
 }
 
 // Shared both by Switch Pro Controller and Switch SNES.
@@ -934,6 +1175,48 @@ static void parse_report_30_pro_controller(uni_hid_device_t* d, const struct swi
         ctl->gamepad.axis_ry = -calibrate_axis(ry, ins->cal_ry);
         logd("uncalibrated values: x=%d,y=%d,rx=%d,ry=%d\n", lx, ly, rx, ry);
     }
+}
+
+static void parse_report_30_joycon_left_paired(uni_hid_device_t* d, const struct switch_report_30_s* r) {
+    uni_controller_t* ctl = &d->controller;
+    switch_instance_t* ins = get_switch_instance(d);
+
+    int32_t lx = r->buttons.stick_left[0] | ((r->buttons.stick_left[1] & 0x0f) << 8);
+    ctl->gamepad.axis_x = calibrate_axis(lx, ins->cal_x);
+    int32_t ly = (r->buttons.stick_left[1] >> 4) | (r->buttons.stick_left[2] << 4);
+    ctl->gamepad.axis_y = -calibrate_axis(ly, ins->cal_y);
+
+    ctl->gamepad.dpad |= (r->buttons.buttons_left & 0b00000001) ? DPAD_DOWN : 0;
+    ctl->gamepad.dpad |= (r->buttons.buttons_left & 0b00000010) ? DPAD_UP : 0;
+    ctl->gamepad.dpad |= (r->buttons.buttons_left & 0b00000100) ? DPAD_RIGHT : 0;
+    ctl->gamepad.dpad |= (r->buttons.buttons_left & 0b00001000) ? DPAD_LEFT : 0;
+    ctl->gamepad.buttons |= (r->buttons.buttons_left & 0b01000000) ? BUTTON_SHOULDER_L : 0;
+    ctl->gamepad.buttons |= (r->buttons.buttons_left & 0b10000000) ? BUTTON_TRIGGER_L : 0;
+    ctl->gamepad.buttons |= (r->buttons.buttons_misc & 0b00001000) ? BUTTON_THUMB_L : 0;
+
+    ctl->gamepad.misc_buttons |= (r->buttons.buttons_misc & 0b00000001) ? MISC_BUTTON_SELECT : 0;
+    ctl->gamepad.misc_buttons |= (r->buttons.buttons_misc & 0b00100000) ? MISC_BUTTON_CAPTURE : 0;
+}
+
+static void parse_report_30_joycon_right_paired(uni_hid_device_t* d, const struct switch_report_30_s* r) {
+    uni_controller_t* ctl = &d->controller;
+    switch_instance_t* ins = get_switch_instance(d);
+
+    ctl->gamepad.buttons |= (r->buttons.buttons_right & 0b00000001) ? BUTTON_X : 0;
+    ctl->gamepad.buttons |= (r->buttons.buttons_right & 0b00000010) ? BUTTON_Y : 0;
+    ctl->gamepad.buttons |= (r->buttons.buttons_right & 0b00000100) ? BUTTON_A : 0;
+    ctl->gamepad.buttons |= (r->buttons.buttons_right & 0b00001000) ? BUTTON_B : 0;
+    ctl->gamepad.buttons |= (r->buttons.buttons_right & 0b01000000) ? BUTTON_SHOULDER_R : 0;
+    ctl->gamepad.buttons |= (r->buttons.buttons_right & 0b10000000) ? BUTTON_TRIGGER_R : 0;
+    ctl->gamepad.buttons |= (r->buttons.buttons_misc & 0b00000100) ? BUTTON_THUMB_R : 0;
+
+    ctl->gamepad.misc_buttons |= (r->buttons.buttons_misc & 0b00000010) ? MISC_BUTTON_START : 0;
+    ctl->gamepad.misc_buttons |= (r->buttons.buttons_misc & 0b00010000) ? MISC_BUTTON_SYSTEM : 0;
+
+    int32_t rx = r->buttons.stick_right[0] | ((r->buttons.stick_right[1] & 0x0f) << 8);
+    ctl->gamepad.axis_rx = calibrate_axis(rx, ins->cal_rx);
+    int32_t ry = (r->buttons.stick_right[1] >> 4) | (r->buttons.stick_right[2] << 4);
+    ctl->gamepad.axis_ry = -calibrate_axis(ry, ins->cal_ry);
 }
 
 static void parse_report_30_joycon_left(uni_hid_device_t* d, const struct switch_report_30_s* r) {
@@ -1185,6 +1468,7 @@ static void fsm_ready(struct uni_hid_device_s* d) {
 
     ins->state = STATE_READY;
     logi("Switch: gamepad is ready!\n");
+    switch_try_joycon_pair(d);
     uni_hid_device_set_ready_complete(d);
 
     // So that it can end gracefully, disabling the timer
@@ -1315,10 +1599,6 @@ bool uni_hid_parser_switch_does_name_match(struct uni_hid_device_s* d, const cha
 //
 // Helpers
 //
-static switch_instance_t* get_switch_instance(uni_hid_device_t* d) {
-    return (switch_instance_t*)&d->parser_data[0];
-}
-
 static void set_led(uni_hid_device_t* d, uint8_t leds) {
     switch_instance_t* ins = get_switch_instance(d);
     ins->gamepad_seat = leds;
@@ -1344,6 +1624,22 @@ static void send_subcmd(uni_hid_device_t* d, struct switch_subcmd_request* r, in
         packet_num = 0;
     r->transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT;
     uni_hid_device_send_intr_report(d, (const uint8_t*)r, len);
+}
+
+static void switch_set_imu_enabled(uni_hid_device_t* d, bool enabled) {
+    switch_instance_t* ins = get_switch_instance(d);
+    const bool imu_on = (ins->mode == SWITCH_MODE_IMU);
+    if (imu_on == enabled)
+        return;
+
+    ins->mode = enabled ? SWITCH_MODE_IMU : SWITCH_MODE_NORMAL;
+
+    uint8_t out[sizeof(struct switch_subcmd_request) + 1] = {0};
+    struct switch_subcmd_request* req = (struct switch_subcmd_request*)&out[0];
+    req->report_id = 0x01;
+    req->subcmd_id = SUBCMD_ENABLE_IMU;
+    req->data[0] = enabled ? 1 : 0;
+    send_subcmd(d, req, sizeof(out));
 }
 
 static int32_t calibrate_axis(int32_t v, switch_cal_stick_t cal) {
@@ -1430,4 +1726,73 @@ void switch_setup_timeout_callback(btstack_timer_source_t* ts) {
 void uni_hid_parser_switch_device_dump(uni_hid_device_t* d) {
     switch_instance_t* ins = get_switch_instance(d);
     logi("\tSwitch: FW version %d.%d\n", ins->firmware_version_hi, ins->firmware_version_lo);
+}
+
+void uni_hid_parser_switch_teardown(uni_hid_device_t* d) {
+    if (!d)
+        return;
+    if (d->controller_type != CONTROLLER_TYPE_SwitchJoyConLeft &&
+        d->controller_type != CONTROLLER_TYPE_SwitchJoyConRight)
+        return;
+    switch_break_joycon_pair(d);
+    uni_bt_enable_new_connections_unsafe(true);
+    uni_hid_parser_switch_resume_partner_scan_if_needed();
+}
+
+bool uni_hid_parser_switch_input_processed_in_parser(const uni_hid_device_t* d) {
+    if (!d)
+        return false;
+    if (d->controller_type != CONTROLLER_TYPE_SwitchJoyConLeft &&
+        d->controller_type != CONTROLLER_TYPE_SwitchJoyConRight)
+        return false;
+    const switch_instance_t* ins = get_switch_instance((uni_hid_device_t*)d);
+    return ins->state == STATE_READY;
+}
+
+bool uni_hid_parser_switch_solo_needs_partner(const uni_hid_device_t* d) {
+    if (!d)
+        return false;
+    if (d->controller_type != CONTROLLER_TYPE_SwitchJoyConLeft &&
+        d->controller_type != CONTROLLER_TYPE_SwitchJoyConRight)
+        return false;
+    const switch_instance_t* ins = get_switch_instance((uni_hid_device_t*)d);
+    return ins->state == STATE_READY && ins->pair_role == SWITCH_PAIR_NONE;
+}
+
+bool uni_hid_parser_switch_any_awaiting_partner(void) {
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
+        uni_hid_device_t* d = uni_hid_device_get_instance_for_idx(i);
+        if (d && uni_hid_parser_switch_solo_needs_partner(d))
+            return true;
+    }
+    return false;
+}
+
+void uni_hid_parser_switch_resume_partner_scan_if_needed(void) {
+    if (uni_hid_parser_switch_any_awaiting_partner())
+        switch_resume_partner_scan();
+}
+
+bool uni_hid_parser_switch_is_joycon_pair_secondary(const uni_hid_device_t* d) {
+    if (!d)
+        return false;
+    return get_switch_instance((uni_hid_device_t*)d)->pair_role == SWITCH_PAIR_SECONDARY;
+}
+
+int uni_hid_parser_switch_get_gamepad_output_idx(const uni_hid_device_t* d) {
+    if (!d)
+        return -1;
+    const switch_instance_t* ins = get_switch_instance((uni_hid_device_t*)d);
+    if (ins->pair_output_idx >= 0)
+        return ins->pair_output_idx;
+    return uni_hid_device_get_idx_for_instance(d);
+}
+
+int uni_hid_parser_switch_get_pair_partner_idx(const uni_hid_device_t* d) {
+    if (!d)
+        return -1;
+    const switch_instance_t* ins = get_switch_instance((uni_hid_device_t*)d);
+    if (ins->pair_role == SWITCH_PAIR_NONE)
+        return -1;
+    return ins->pair_partner_idx;
 }

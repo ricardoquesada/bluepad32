@@ -570,6 +570,9 @@ static const uni_controller_description_t arrControllers[] = {
     // * ZhiXu Gamepad Wireless
     // * Sunwaytek Wireless Motion Controller for Nintendo Switch
 	{ MAKE_CONTROLLER_ID( 0x057e, 0x2009 ), k_eControllerType_SwitchProController, NULL },        // Nintendo Switch Pro Controller
+    { MAKE_CONTROLLER_ID( 0x057e, 0x2066 ), k_eControllerType_Switch2JoyConRight, NULL },       // Nintendo Switch 2 Joy-Con (R)
+    { MAKE_CONTROLLER_ID( 0x057e, 0x2067 ), k_eControllerType_Switch2JoyConLeft, NULL },        // Nintendo Switch 2 Joy-Con (L)
+    { MAKE_CONTROLLER_ID( 0x057e, 0x2069 ), k_eControllerType_Switch2ProController, NULL },    // Nintendo Switch 2 Pro Controller
     //{ MAKE_CONTROLLER_ID( 0x057e, 0x2017 ), k_eControllerType_SwitchProController, NULL },        // Nintendo Online SNES Controller
     //{ MAKE_CONTROLLER_ID( 0x057e, 0x2019 ), k_eControllerType_SwitchProController, NULL },        // Nintendo Online N64 Controller
     //{ MAKE_CONTROLLER_ID( 0x057e, 0x201e ), k_eControllerType_SwitchProController, NULL },        // Nintendo Online SEGA Genesis Controller
@@ -614,6 +617,10 @@ static const uni_controller_description_t arrControllers[] = {
 	{ MAKE_CONTROLLER_ID( 0x28de, 0x1201 ), k_eControllerType_SteamControllerV2, NULL },	// Valve wired Steam Controller (HEADCRAB)
 	{ MAKE_CONTROLLER_ID( 0x28de, 0x1202 ), k_eControllerType_SteamControllerV2, NULL },	// Valve Bluetooth Steam Controller (HEADCRAB)
 	{ MAKE_CONTROLLER_ID( 0x28de, 0x1205 ), k_eControllerType_SteamControllerNeptune, NULL },	// Valve Steam Deck Builtin Controller
+	{ MAKE_CONTROLLER_ID( 0x28de, 0x1302 ), k_eControllerType_SteamControllerTriton, NULL },	// Valve Steam Controller 2026 USB (Triton)
+	{ MAKE_CONTROLLER_ID( 0x28de, 0x1303 ), k_eControllerType_SteamControllerTriton, NULL },	// Valve Steam Controller 2026 BLE (Triton)
+	{ MAKE_CONTROLLER_ID( 0x28de, 0x1304 ), k_eControllerType_SteamControllerTriton, NULL },	// Valve Steam Controller 2026 puck dongle
+	{ MAKE_CONTROLLER_ID( 0x28de, 0x1305 ), k_eControllerType_SteamControllerTriton, NULL },	// Valve Steam Controller 2026 Nereid
 
         // Bluepad32 addons from here:
         // OUYA
@@ -632,15 +639,17 @@ static const uni_controller_description_t arrControllers[] = {
         // Smart TV remotes
         { MAKE_CONTROLLER_ID(0x1949, 0x0401), k_eControllerType_SmartTVRemoteController, NULL},  // Amazon Fire TV remote Controller 1st gen
 
-        // 8BitDo controllers
+        // 8BitDo controllers (Android / D-input Bluetooth modes — #86)
         { MAKE_CONTROLLER_ID(0x2820, 0x0009), k_eControllerType_8BitdoController, NULL},  // 8BitDo NES30 Gamepro
         { MAKE_CONTROLLER_ID(0x2dc8, 0x0651), k_eControllerType_8BitdoController, NULL},  // 8BitDo M30
         { MAKE_CONTROLLER_ID(0x2dc8, 0x2830), k_eControllerType_8BitdoController, NULL},  // 8BitDo SFC30
         { MAKE_CONTROLLER_ID(0x2dc8, 0x2840), k_eControllerType_8BitdoController, NULL},  // 8BitDo SNES30
         { MAKE_CONTROLLER_ID(0x2dc8, 0x3230), k_eControllerType_8BitdoController, NULL},  // 8BitDo Zero 2
+        { MAKE_CONTROLLER_ID(0x2dc8, 0x6003), k_eControllerType_8BitdoController, NULL},  // 8BitDo Pro 2 (Android)
         { MAKE_CONTROLLER_ID(0x2dc8, 0x6006), k_eControllerType_8BitdoController, NULL},  // 8BitDo Pro 2
         { MAKE_CONTROLLER_ID(0x2dc8, 0x6100), k_eControllerType_8BitdoController, NULL},  // 8BitDo SF30 Pro
         { MAKE_CONTROLLER_ID(0x2dc8, 0x6101), k_eControllerType_8BitdoController, NULL},  // 8BitDo SN30 Pro
+        { MAKE_CONTROLLER_ID(0x2dc8, 0x6103), k_eControllerType_8BitdoController, NULL},  // 8BitDo Pro 2 / SN30 Pro+
 
         // Generic gamepad
         { MAKE_CONTROLLER_ID(0x0a5c, 0x4502), k_eControllerType_GenericController, NULL},  // White-label mini gamepad received as gift in conference

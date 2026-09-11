@@ -20,6 +20,11 @@
 #include "uni_log.h"
 #include "uni_utils.h"
 
+#if defined(OGXM_BLUEPAD32_PICO_W)
+#include "bt/uni_bt_bredr.h"
+#include <gap.h>
+#endif
+
 #define DS4_FEATURE_REPORT_FIRMWARE_VERSION 0xa3
 #define DS4_FEATURE_REPORT_FIRMWARE_VERSION_SIZE 49
 #define DS4_FEATURE_REPORT_CALIBRATION 0x02
@@ -232,6 +237,18 @@ void uni_hid_parser_ds4_setup(struct uni_hid_device_s* d) {
         ins->accel_calib_data[i].sens_denom = INT16_MAX;
     }
 
+#if defined(OGXM_BLUEPAD32_PICO_W)
+    /* CYW43: BLE advertising (OGX phone app) + Classic ACL on one radio → DS4 drops after blue LED.
+     * Stop ads before any DS4 HID traffic; resume when last Classic pad disconnects (Bluepad32). */
+    gap_advertisements_enable(0);
+    /* Stop periodic inquiry before HID setup (same radio contention). */
+    uni_bt_bredr_scan_stop();
+    ds4_send_enable_lightbar_report(d);
+    ds4_request_calibration_report(d);
+    if (!uni_hid_device_set_ready_complete(d))
+        return;
+    return;
+#else
     // Send in order:
     // - enable lightbar: enables light and enables report 0x11 on most devices
     // - calibration report: enables report 0x11 on other reports
@@ -240,26 +257,17 @@ void uni_hid_parser_ds4_setup(struct uni_hid_device_s* d) {
     if (!uni_hid_device_set_ready_complete(d))
         return;
 
-    // Don't add any timer. If calibration report is not supported,
-    // it is safe to assume that the fw_request won't be supported as well.
-
-    // Only after the connection was accepted, we should create the virtual device.
     uni_hid_device_t* child = uni_hid_device_create_virtual(d);
     if (!child) {
         loge("DS4: Failed to create virtual device\n");
         return;
     }
-
-    // You are a mouse
     uni_hid_device_set_cod(child, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE);
-
-    // And set it as connected + ready.
     uni_hid_device_connect(child);
     if (!uni_hid_device_set_ready_complete(child)) {
-        // Could happen that the platform rejects the virtual device.
-        // E.g: Mouse not supported. If that's the case, break the link
         d->child = NULL;
     }
+#endif
 }
 
 void uni_hid_parser_ds4_init_report(uni_hid_device_t* d) {
