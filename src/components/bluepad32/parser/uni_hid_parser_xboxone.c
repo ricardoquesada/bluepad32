@@ -355,6 +355,10 @@ static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
                     break;
                 case HID_USAGE_AC_BACK:
                     break;
+				case HID_USAGE_AC_HOME:
+					if (value)
+						ctl->gamepad.misc_buttons |= MISC_BUTTON_SYSTEM;
+					break;
                 default:
                     logi("Xbox: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
                     break;
@@ -520,6 +524,10 @@ static void parse_usage_firmware_v4_v5(uni_hid_device_t* d,
                     if (value)
                         ctl->gamepad.misc_buttons |= MISC_BUTTON_SELECT;
                     break;
+				case HID_USAGE_AC_HOME:
+					if (value)
+						ctl->gamepad.misc_buttons |= MISC_BUTTON_SYSTEM;
+					break;
                 case HID_USAGE_ASSIGN_SELECTION:
                 case HID_USAGE_ORDER_MOVIE:
                 case HID_USAGE_MEDIA_SELECT_SECURITY:
