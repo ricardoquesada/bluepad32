@@ -42,12 +42,11 @@ static void xbox_ble_poll_callback(btstack_timer_source_t* ts) {
         return;
     }
 
-    if ((s_xbox_ble_poll_attempts[idx] & 1u) != 0u) {
-        status = hids_host_send_get_report(d->hids_cid, XBOX_BLE_INPUT_REPORT_ID, HID_REPORT_TYPE_INPUT);
-        if (status != ERROR_CODE_SUCCESS && status != ERROR_CODE_COMMAND_DISALLOWED)
-            logd("Xbox BLE: GET report status=%#x\n", status);
-    } else {
-        uni_hid_parser_xboxone_ble_keepalive(d);
+    status = hids_host_send_get_report(d->hids_cid, XBOX_BLE_INPUT_REPORT_ID, HID_REPORT_TYPE_INPUT);
+    if (status != ERROR_CODE_SUCCESS) {
+        /* 0x0c = COMMAND_DISALLOWED — HIDS client busy / stuck (often bad Control Point queue). */
+        if ((s_xbox_ble_poll_attempts[idx] <= 5u) || (s_xbox_ble_poll_attempts[idx] % 25u) == 0u)
+            logi("Xbox BLE: GET report try %u status=%#x\n", (unsigned)s_xbox_ble_poll_attempts[idx], status);
     }
 
     btstack_run_loop_set_timer(ts, XBOX_BLE_POLL_MS);
@@ -612,13 +611,8 @@ void uni_hid_parser_xboxone_ble_on_hid_connected(uni_hid_device_t* d) {
     if (idx < 0 || !uni_hid_parser_xboxone_is_ble_hids(d))
         return;
 
-    gap_request_connection_parameter_update(d->conn.handle, 7, 9, 0, 600);
-
     status = hids_host_send_exit_suspend(d->hids_cid, 0);
-    if (status != ERROR_CODE_SUCCESS && status != ERROR_CODE_COMMAND_DISALLOWED)
-        logd("Xbox BLE: exit suspend status=%#x\n", status);
-
-    uni_hid_parser_xboxone_ble_keepalive(d);
+    logi("Xbox BLE: exit suspend status=%#x\n", status);
 
     s_xbox_ble_poll_active[idx] = 1;
     s_xbox_ble_poll_attempts[idx] = 0;
@@ -626,15 +620,17 @@ void uni_hid_parser_xboxone_ble_on_hid_connected(uni_hid_device_t* d) {
     s_xbox_ble_poll_timers[idx].context = d;
     btstack_run_loop_set_timer(&s_xbox_ble_poll_timers[idx], XBOX_BLE_POLL_MS);
     btstack_run_loop_add_timer(&s_xbox_ble_poll_timers[idx]);
-    logi("Xbox BLE: polling input (GET report + keepalive)\n");
+    logi("Xbox BLE: polling input (GET only; keepalive after first report)\n");
 }
 
 void uni_hid_parser_xboxone_ble_on_input(uni_hid_device_t* d) {
     int idx = uni_hid_device_get_idx_for_instance(d);
     if (idx < 0 || !s_xbox_ble_poll_active[idx])
         return;
-    logi("Xbox BLE: first input report — poll stopped\n");
+    logi("Xbox BLE: first input report — poll stopped, start keepalive\n");
     uni_hid_parser_xboxone_ble_teardown(d);
+    gap_request_connection_parameter_update(d->conn.handle, 7, 9, 0, 600);
+    uni_hid_parser_xboxone_ble_keepalive(d);
 }
 
 void uni_hid_parser_xboxone_ble_teardown(uni_hid_device_t* d) {
