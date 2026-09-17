@@ -13,6 +13,9 @@
 #include "uni_hid_device.h"
 #include "uni_log.h"
 
+#define AOLION_K20_VID 0x1949
+#define AOLION_K20_PID 0x0402
+
 void uni_hid_parser_android_init_report(uni_hid_device_t* d) {
     // Reset old state. Each report contains a full-state.
     uni_controller_t* ctl = &d->controller;
@@ -188,7 +191,17 @@ void uni_hid_parser_android_parse_usage(uni_hid_device_t* d,
                     // 8Bitdo, we should have a HID parser and then mapping files for each
                     // VID / PID (similar to Android .kl files).
                     if (value)
-                        ctl->gamepad.misc_buttons |= MISC_BUTTON_START;
+                    {
+                        // AOLION K20 - Android mode
+                        if (d->vendor_id == AOLION_K20_VID && d->product_id == AOLION_K20_PID)
+						{
+                            ctl->gamepad.misc_buttons |= MISC_BUTTON_SYSTEM;
+                        }
+                        else
+                        {
+                            ctl->gamepad.misc_buttons |= MISC_BUTTON_START;
+                        }
+                    }
                     break;
                 case HID_USAGE_AC_BACK:
                     if (value)
