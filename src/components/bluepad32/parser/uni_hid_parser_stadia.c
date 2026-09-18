@@ -115,8 +115,8 @@ static void stadia_stop_rumble_now(uni_hid_device_t* d) {
         .weak_magnitude = 0,
     };
 
-    status = hids_client_send_write_report(d->hids_cid, STADIA_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
-                                           (const uint8_t*)&ff, sizeof(ff));
+    status = hids_host_send_write_report(d->hids_cid, STADIA_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
+                                         (const uint8_t*)&ff, sizeof(ff));
     if (status == ERROR_CODE_COMMAND_DISALLOWED) {
         logd("Stadia: Failed to turn off rumble, error=%#x, retrying...\n", status);
         ins->rumble_timer_duration.process = &on_stadia_set_rumble_off;
@@ -151,8 +151,8 @@ static void stadia_play_dual_rumble_now(uni_hid_device_t* d,
         .weak_magnitude = weak_magnitude << 8,
     };
 
-    status = hids_client_send_write_report(d->hids_cid, STADIA_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
-                                           (const uint8_t*)&ff, sizeof(ff));
+    status = hids_host_send_write_report(d->hids_cid, STADIA_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
+                                         (const uint8_t*)&ff, sizeof(ff));
     if (status == ERROR_CODE_COMMAND_DISALLOWED) {
         logd("Stadia: Failed to send rumble report, error=%#x, retrying...\n", status);
         ins->rumble_timer_delayed_start.process = &on_stadia_set_rumble_on;

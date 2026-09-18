@@ -75,8 +75,12 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 
 add_subdirectory(${BLUEPAD32_ROOT}/src/components/bluepad32 libbluepad32)
 
-pico_enable_stdio_usb(${PROJECT_NAME} 1)
-pico_enable_stdio_uart(${PROJECT_NAME} 0)
+# Pico W BLE quirks used by Switch 2 / DS4 paths in the MegaCadeDev fork
+# (Just Works AuthReq default at SM init, no DS4 virtual mouse on CYW43).
+target_compile_definitions(bluepad32 PUBLIC OGXM_BLUEPAD32_PICO_W=1)
+
+pico_enable_stdio_usb(bluepad32_picow_example_app 1)
+pico_enable_stdio_uart(bluepad32_picow_example_app 0)
 
 # create map/bin/hex/uf2 file in addition to ELF.
 pico_add_extra_outputs(${PROJECT_NAME})

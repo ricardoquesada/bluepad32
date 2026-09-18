@@ -120,6 +120,29 @@ Supported "extra features":
 
 [switch_joycon_img]: https://lh3.googleusercontent.com/pw/ACtC-3cN7JVNm3SvOM3IeKiAg4Ex03Dg7yxozBRNNV95Ycr_0J1eHF03_oDz8ydwpTZCFcPPfFuSzroK4UQ-3KcM0Y2XKew8deuYTqu_q5Q0nEEjA_KTQJCioVRU0IEbBGXHqy2ybtTP7EXp3p-7_RfjYK7Wjg=w360-no
 
+## Nintendo Switch 2 Pro / Joy-Con 2
+
+Wireless (BLE) support for Switch 2 family controllers (MegaCadeDev / OGX-Mini fork):
+
+| Controller | Product ID | Notes |
+|------------|------------|--------|
+| Switch 2 Pro | `0x2069` | Full gamepad |
+| Joy-Con 2 (L) | `0x2067` | Solo or merged with R |
+| Joy-Con 2 (R) | `0x2066` | Solo or merged with L |
+
+Supported "extra features":
+
+| Rumble           | Gyro / Accelerometer | Joy-Con L+R merge |
+|------------------|----------------------|-------------------|
+| :material-check: | :material-check:     | :material-check:  |
+
+- Uses a **proprietary BLE GATT** protocol (not standard HID-over-GATT)
+- Pairing requires **Just Works SMP** (`AuthReq=0`); do **not** pair the pad in Windows/macOS Bluetooth settings first
+- **Pro 2 / Joy-Con 2:** put the controller in SYNC / pairing mode; Bluepad32 connects from advertisement
+- **Joy-Con 2 as one controller:** pair **Left** first, then SYNC **Right** while left stays connected — halves merge into one player slot
+- Idle link uses a periodic rumble keepalive (~5–8 ms) to avoid HCI disconnect `0x08`
+- Protocol: BLE
+
 ## Nintendo Wii U Pro controller
 
 [![Wii U Pro][wii_u_pro]][27]
@@ -339,6 +362,21 @@ Supported "extra features":
 
 [steam_controller_img]:  https://lh3.googleusercontent.com/pw/AJFCJaX2KZ4NOFbcc0QuI-qgHReYsfsogpRIL1--86cZsMzrVmpDKuFPNHyGKeFXaCiQLtdCSey0SaH9fcj-OG7zDLUGZuZQ1B6wbLQ-pQrD883iMdH6g7fT7oQ-HfVkQXQGH-ZQRTD-LGITxIdI3Gx6VvdD-A=-no
 
+## Steam Controller 2026 (Triton)
+
+- Valve “Triton” BLE gamepad (`28de:1303`; also `0x1302` USB, `0x1304` puck, `0x1305` Nereid)
+- Uses standard HID-over-GATT (report `0x45`), not the original Steam Controller custom GATT
+- Requires **LE Secure Connections** (`ENABLE_LE_SECURE_CONNECTIONS` in `btstack_config.h`)
+- Supported features:
+    - Disables lizard mode (refreshed ~every 3 s)
+    - Dual rumble
+    - Face / LB/RB / L3/R3 / d-pad / triggers / trackpad clicks
+- Pair instructions:
+    - Disconnect the controller from any PC or phone first
+    - Hold **RB + B + Steam** until it advertises
+- Button map notes: **View → Start**, **Menu → Select/Back**, **Steam / QAM → System**; grip paddles L4/L5/R4/R5 unmapped
+- Protocol: BLE
+
 ## Stadia Controller
 
 [![Stadia Controller][stadia_controller]][stadia_ebay]
@@ -525,12 +563,14 @@ Non-comprehensive list of supported Bluetooth gamepads their protocols:
 | DualShock 3 (PS3)       | :material-check:     |                      |
 | Nintendo Switch Pro     | :material-check:     |                      |
 | Nintendo Switch JoyCons | :material-check:     |                      |
+| Nintendo Switch 2 Pro / Joy-Con 2 |           | :material-check:****** |
 | Nintendo Wii U Pro      | :material-check:     |                      |
 | Nintendo Wii Remote     | :material-check:     |                      |
 | Nintendo Balance Board  | :material-check:     |                      |
 | Xbox Wireless           | :material-check:*    | :material-check:*    |
 | Xbox Adaptive           |                      | :material-check:*    |
 | Steam                   |                      | :material-check:**   |
+| Steam Controller 2026   |                      | :material-check:*****|
 | Stadia                  |                      | :material-check:***  |
 | Android                 | :material-check:**** | :material-check:**** |
 | 8BitDo                  | :material-check:     |                      |
@@ -546,6 +586,10 @@ Non-comprehensive list of supported Bluetooth gamepads their protocols:
 ***: Requires [Stadia Bluetooth firmware update][stadia_instructions]
 
 ****: Some Android controllers use BR/EDR, some use BLE.
+
+*****: Steam Controller 2026 (Triton). Pair with **RB + B + Steam**. Requires LE Secure Connections.
+
+******: Switch 2 Pro / Joy-Con 2. Put pad in SYNC mode; do not pair in OS Bluetooth first. Joy-Con: Left then Right to merge.
 
 [1]: https://lh3.googleusercontent.com/sfRd1qSHaxe4he4lt63Xjsr_ejmrthB00bPpIj4CwuUOyzKy3otIrdsPqhy_Y0U78Ibcw5bssuUOgKxNsvhvq6AQGlmigtj2tWA67HQHEaDU4tEmq850Z47rwRW9EzAhFGi6XrgUhUI=-no
 

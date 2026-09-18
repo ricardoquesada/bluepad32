@@ -23,4 +23,13 @@ void uni_hid_parser_switch_play_dual_rumble(struct uni_hid_device_s* d,
 bool uni_hid_parser_switch_does_name_match(struct uni_hid_device_s* d, const char* name);
 void uni_hid_parser_switch_device_dump(struct uni_hid_device_s* d);
 
+void uni_hid_parser_switch_teardown(struct uni_hid_device_s* d);
+bool uni_hid_parser_switch_input_processed_in_parser(const struct uni_hid_device_s* d);
+bool uni_hid_parser_switch_solo_needs_partner(const struct uni_hid_device_s* d);
+bool uni_hid_parser_switch_any_awaiting_partner(void);
+void uni_hid_parser_switch_resume_partner_scan_if_needed(void);
+bool uni_hid_parser_switch_is_joycon_pair_secondary(const struct uni_hid_device_s* d);
+int uni_hid_parser_switch_get_gamepad_output_idx(const struct uni_hid_device_s* d);
+int uni_hid_parser_switch_get_pair_partner_idx(const struct uni_hid_device_s* d);
+
 #endif  // UNI_HID_PARSER_SWITCH_H

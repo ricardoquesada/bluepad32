@@ -49,6 +49,9 @@ typedef enum {
     UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_SELECT,
     UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_START,
     UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_CAPTURE,
+    UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_SL,    // Joy-Con SL / Switch 2 Pro GL
+    UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_SR,    // Joy-Con SR / Switch 2 Pro GR
+    UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_CHAT,  // Switch 2 Chat / C
 } uni_gamepad_mappings_misc_button_t;
 
 typedef enum {
@@ -92,6 +95,9 @@ enum {
     MISC_BUTTON_SELECT = BIT(UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_SELECT),    // AKA: Select, Share, Create, -
     MISC_BUTTON_START = BIT(UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_START),      // AKA: Start, Options, +
     MISC_BUTTON_CAPTURE = BIT(UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_CAPTURE),  // AKA: Mute, Capture, Share
+    MISC_BUTTON_SL = BIT(UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_SL),            // Joy-Con SL / Switch 2 Pro GL
+    MISC_BUTTON_SR = BIT(UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_SR),            // Joy-Con SR / Switch 2 Pro GR
+    MISC_BUTTON_CHAT = BIT(UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_CHAT),        // Switch 2 Chat / C
 
     // Deprecated
     MISC_BUTTON_BACK = MISC_BUTTON_SELECT,
@@ -188,6 +194,9 @@ typedef struct {
     uint8_t misc_button_start;
     uint8_t misc_button_system;
     uint8_t misc_button_capture;
+    uint8_t misc_button_sl;
+    uint8_t misc_button_sr;
+    uint8_t misc_button_chat;
 
     // Remaps for axis
     uint8_t axis_x;

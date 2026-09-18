@@ -116,6 +116,13 @@ typedef struct {
     int y_prev;
     bool prev_touch_active;
 
+    /* Latest touchpad bytes (for OGX Steam mode USB mouse passthrough). */
+    uint8_t touch_points[8];
+    bool touchpad_click;
+
+    uint8_t last_input_report[78];
+    uint16_t last_input_report_len;
+
 } ds5_instance_t;
 _Static_assert(sizeof(ds5_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "DS5 instance too big");
 
@@ -365,22 +372,22 @@ ds5_adaptive_trigger_effect_t ds5_new_adaptive_trigger_effect_vibration(uint8_t 
 }
 
 void ds5_set_adaptive_trigger_effect(struct uni_hid_device_s* d,
-                                     ds5_adaptive_trigger_type_t trigger_type,
+                                     ds5_adaptive_trigger_type_t type,
                                      const ds5_adaptive_trigger_effect_t* effect) {
     if (effect->effect == DS5_ADAPTIVE_TRIGGER_EFFECT_INVALID) {
         loge("DS5: Invalid trigger effect\n");
         return;
     }
 
-    ds5_output_report_t out = {.valid_flag0 = (trigger_type == UNI_ADAPTIVE_TRIGGER_TYPE_LEFT) ? DS5_FLAG0_FFB_LEFT
-                                                                                               : DS5_FLAG0_FFB_RIGHT};
+    ds5_output_report_t out = {.valid_flag0 =
+                                   (type == UNI_ADAPTIVE_TRIGGER_TYPE_LEFT) ? DS5_FLAG0_FFB_LEFT : DS5_FLAG0_FFB_RIGHT};
 
-    if (trigger_type == UNI_ADAPTIVE_TRIGGER_TYPE_LEFT) {
+    if (type == UNI_ADAPTIVE_TRIGGER_TYPE_LEFT) {
         memcpy(out.left_trigger_ffb, effect, sizeof(*effect));
-    } else if (trigger_type == UNI_ADAPTIVE_TRIGGER_TYPE_RIGHT) {
+    } else if (type == UNI_ADAPTIVE_TRIGGER_TYPE_RIGHT) {
         memcpy(out.right_trigger_ffb, effect, sizeof(*effect));
     } else {
-        loge("DS5: Invalid trigger type: %d\n", trigger_type);
+        loge("DS5: Invalid trigger type: %d\n", type);
         return;
     }
 
@@ -554,18 +561,46 @@ void uni_hid_parser_ds5_parse_feature_report(uni_hid_device_t* d, const uint8_t*
     }
 }
 
+/** Extract touch bytes from a DualSense 0x31 input report (BT payload at report[2]). */
+static void ds5_store_touch_from_report(ds5_instance_t* ins, const uint8_t* report, uint16_t len)
+{
+    enum { kTouchOffset = 2 + 32 }; /* payload start + offsetof(points) in ds5_input_report_t */
+
+    if (len < 12 || report[0] != 0x31) {
+        return;
+    }
+    if (len >= kTouchOffset + 8) {
+        memcpy(ins->touch_points, &report[kTouchOffset], 8);
+    }
+    const uint8_t* payload = &report[2];
+    ins->touchpad_click = (payload[9] & 0x02) != 0;
+
+    if (len > sizeof(ins->last_input_report)) {
+        len = sizeof(ins->last_input_report);
+    }
+    ins->last_input_report_len = len;
+    memcpy(ins->last_input_report, report, len);
+}
+
 void uni_hid_parser_ds5_parse_input_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
     ds5_instance_t* ins = get_ds5_instance(d);
+
+    if (report[0] != 0x31) {
+        loge("DS5: Unexpected report type: got 0x%02x, want: 0x31\n", report[0]);
+        return;
+    }
+    if (len < 12) {
+        loge("DS5: Report too short: got %d, need >= 12\n", len);
+        return;
+    }
+
+    ds5_store_touch_from_report(ins, report, len);
 
     // Don't process reports until state is ready. Prevents possible div-by-0 on calibration
     // and ignores other warnings.
     if (ins->state != DS5_STATE_READY)
         return;
 
-    if (report[0] != 0x31) {
-        loge("DS5: Unexpected report type: got 0x%02x, want: 0x31\n", report[0]);
-        return;
-    }
     if (len != 78) {
         loge("DS5: Unexpected report len: got %d, want: 78\n", len);
         return;
@@ -639,6 +674,14 @@ void uni_hid_parser_ds5_parse_input_report(uni_hid_device_t* d, const uint8_t* r
     // Value goes from 0 to 10. Make it from 0 to 250.
     // The +1 is to avoid having a value of 0, which means "battery unavailable".
     ctl->battery = (r->status & DS5_STATUS_BATTERY_CAPACITY) * 25 + 1;
+
+    {
+        enum { kTouchOffset = 2 + 32 };
+        if (len >= kTouchOffset + 8) {
+            memcpy(ins->touch_points, &report[kTouchOffset], 8);
+        }
+        ins->touchpad_click = (r->buttons[2] & 0x02) != 0;
+    }
 
     if (d->child) {
         ds5_parse_mouse(d->child, report, len);
@@ -932,4 +975,27 @@ static void ds5_parse_mouse(uni_hid_device_t* d, const uint8_t* report, uint16_t
     ins->y_prev = y;
 
     uni_hid_device_process_controller(d);
+}
+
+void uni_hid_parser_ds5_get_touchpad(uni_hid_device_t* d, uint8_t touch_points[8], bool* touchpad_click) {
+    if (!d || !touch_points || !touchpad_click) {
+        return;
+    }
+    ds5_instance_t* ins = get_ds5_instance(d);
+    memcpy(touch_points, ins->touch_points, 8);
+    *touchpad_click = ins->touchpad_click;
+}
+
+bool uni_hid_parser_ds5_get_last_input_report(uni_hid_device_t* d, uint8_t* report, uint16_t* len) {
+    if (!d || !report || !len) {
+        return false;
+    }
+    ds5_instance_t* ins = get_ds5_instance(d);
+    if (ins->last_input_report_len == 0) {
+        return false;
+    }
+  const uint16_t n = ins->last_input_report_len;
+  memcpy(report, ins->last_input_report, n);
+  *len = n;
+  return true;
 }

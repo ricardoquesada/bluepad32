@@ -70,6 +70,10 @@ typedef enum {
     k_eControllerType_OUYAController = 55,           // (Bluepad32)
     k_eControllerType_PSMoveController = 56,         // (Bluepad32)
     k_eControllerType_AtariJoystick = 57,            // (Bluepad32)
+    k_eControllerType_Switch2ProController = 58,     // (Bluepad32 / OGX-Mini)
+    k_eControllerType_Switch2JoyConLeft = 59,        // (Bluepad32 / OGX-Mini)
+    k_eControllerType_Switch2JoyConRight = 60,       // (Bluepad32 / OGX-Mini)
+    k_eControllerType_SteamControllerTriton = 61,    // (Bluepad32 / OGX-Mini) Steam Controller 2026
 
     k_eControllerType_LastController,  // Don't add game controllers below this enumeration - this enumeration can
     // change value
@@ -120,6 +124,10 @@ const char* uni_guess_controller_name(uint16_t vid, uint16_t pid);
 #define CONTROLLER_TYPE_OUYAController k_eControllerType_OUYAController
 #define CONTROLLER_TYPE_PSMoveController k_eControllerType_PSMoveController
 #define CONTROLLER_TYPE_AtariJoystick k_eControllerType_AtariJoystick
+#define CONTROLLER_TYPE_Switch2ProController k_eControllerType_Switch2ProController
+#define CONTROLLER_TYPE_Switch2JoyConLeft k_eControllerType_Switch2JoyConLeft
+#define CONTROLLER_TYPE_Switch2JoyConRight k_eControllerType_Switch2JoyConRight
+#define CONTROLLER_TYPE_SteamControllerTriton k_eControllerType_SteamControllerTriton
 #define CONTROLLER_TYPE_LastController k_eControllerType_LastController
 #define CONTROLLER_TYPE_GenericKeyboard k_eControllertype_GenericKeyboard
 #define CONTROLLER_TYPE_GenericMouse k_eControllertype_GenericMouse

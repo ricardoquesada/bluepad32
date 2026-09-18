@@ -10,10 +10,48 @@
 
 #include "parser/uni_hid_parser_xboxone.h"
 
+#include <ble/gatt-service/hids_host.h>
+#include <btstack.h>
+#include <gap.h>
+
 #include "controller/uni_controller.h"
 #include "hid_usage.h"
+#include "sdkconfig.h"
 #include "uni_hid_device.h"
 #include "uni_log.h"
+
+#define XBOX_BLE_INPUT_REPORT_ID 0x01
+#define XBOX_BLE_POLL_MS 100
+#define XBOX_BLE_POLL_MAX 150
+
+static uint8_t s_xbox_ble_poll_active[CONFIG_BLUEPAD32_MAX_DEVICES];
+static uint16_t s_xbox_ble_poll_attempts[CONFIG_BLUEPAD32_MAX_DEVICES];
+static btstack_timer_source_t s_xbox_ble_poll_timers[CONFIG_BLUEPAD32_MAX_DEVICES];
+
+static void xbox_ble_poll_callback(btstack_timer_source_t* ts) {
+    uni_hid_device_t* d = (uni_hid_device_t*)ts->context;
+    int idx = uni_hid_device_get_idx_for_instance(d);
+    uint8_t status;
+
+    if (idx < 0 || !s_xbox_ble_poll_active[idx])
+        return;
+
+    if (++s_xbox_ble_poll_attempts[idx] > XBOX_BLE_POLL_MAX) {
+        logi("Xbox BLE: input poll stopped (no report after %u tries)\n", (unsigned)XBOX_BLE_POLL_MAX);
+        uni_hid_parser_xboxone_ble_teardown(d);
+        return;
+    }
+
+    status = hids_host_send_get_report(d->hids_cid, XBOX_BLE_INPUT_REPORT_ID, HID_REPORT_TYPE_INPUT);
+    if (status != ERROR_CODE_SUCCESS) {
+        /* 0x0c = COMMAND_DISALLOWED — HIDS client busy / stuck (often bad Control Point queue). */
+        if ((s_xbox_ble_poll_attempts[idx] <= 5u) || (s_xbox_ble_poll_attempts[idx] % 25u) == 0u)
+            logi("Xbox BLE: GET report try %u status=%#x\n", (unsigned)s_xbox_ble_poll_attempts[idx], status);
+    }
+
+    btstack_run_loop_set_timer(ts, XBOX_BLE_POLL_MS);
+    btstack_run_loop_add_timer(ts);
+}
 
 // Xbox doesn't report trigger buttons. Instead, it reports throttle/brake.
 // This threshold represents the minimum value of throttle/brake to "report"
@@ -316,6 +354,10 @@ static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
                     break;
                 case HID_USAGE_AC_BACK:
                     break;
+				case HID_USAGE_AC_HOME:
+					if (value)
+						ctl->gamepad.misc_buttons |= MISC_BUTTON_SYSTEM;
+					break;
                 default:
                     logi("Xbox: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
                     break;
@@ -481,6 +523,10 @@ static void parse_usage_firmware_v4_v5(uni_hid_device_t* d,
                     if (value)
                         ctl->gamepad.misc_buttons |= MISC_BUTTON_SELECT;
                     break;
+				case HID_USAGE_AC_HOME:
+					if (value)
+						ctl->gamepad.misc_buttons |= MISC_BUTTON_SYSTEM;
+					break;
                 case HID_USAGE_ASSIGN_SELECTION:
                 case HID_USAGE_ORDER_MOVIE:
                 case HID_USAGE_MEDIA_SELECT_SECURITY:
@@ -552,6 +598,85 @@ void xboxone_play_quad_rumble(struct uni_hid_device_s* d,
     }
 }
 
+bool uni_hid_parser_xboxone_is_ble_hids(const uni_hid_device_t* d) {
+    if (d == NULL || d->hids_cid == 0)
+        return false;
+    if (d->conn.protocol != UNI_BT_CONN_PROTOCOL_BLE)
+        return false;
+    return d->vendor_id == XBOX_WIRELESS_VID;
+}
+
+const uint8_t* uni_hid_parser_xboxone_ble_hid_descriptor(uint16_t* out_len) {
+    if (out_len)
+        *out_len = (uint16_t)sizeof(xbox_hid_descriptor_4_8_fw);
+    return xbox_hid_descriptor_4_8_fw;
+}
+
+void uni_hid_parser_xboxone_ble_on_hid_connected(uni_hid_device_t* d) {
+    int idx = uni_hid_device_get_idx_for_instance(d);
+    uint8_t status;
+
+    if (idx < 0 || !uni_hid_parser_xboxone_is_ble_hids(d))
+        return;
+
+    status = hids_host_send_exit_suspend(d->hids_cid, 0);
+    logi("Xbox BLE: exit suspend status=%#x\n", status);
+
+    s_xbox_ble_poll_active[idx] = 1;
+    s_xbox_ble_poll_attempts[idx] = 0;
+    s_xbox_ble_poll_timers[idx].process = xbox_ble_poll_callback;
+    s_xbox_ble_poll_timers[idx].context = d;
+    btstack_run_loop_set_timer(&s_xbox_ble_poll_timers[idx], XBOX_BLE_POLL_MS);
+    btstack_run_loop_add_timer(&s_xbox_ble_poll_timers[idx]);
+    logi("Xbox BLE: polling input (GET only; keepalive after first report)\n");
+}
+
+void uni_hid_parser_xboxone_ble_on_input(uni_hid_device_t* d) {
+    int idx = uni_hid_device_get_idx_for_instance(d);
+    if (idx < 0 || !s_xbox_ble_poll_active[idx])
+        return;
+    logi("Xbox BLE: first input report — poll stopped, start keepalive\n");
+    uni_hid_parser_xboxone_ble_teardown(d);
+    gap_request_connection_parameter_update(d->conn.handle, 7, 9, 0, 600);
+    uni_hid_parser_xboxone_ble_keepalive(d);
+}
+
+void uni_hid_parser_xboxone_ble_teardown(uni_hid_device_t* d) {
+    int idx = uni_hid_device_get_idx_for_instance(d);
+    if (idx < 0)
+        return;
+    s_xbox_ble_poll_active[idx] = 0;
+    s_xbox_ble_poll_attempts[idx] = 0;
+    btstack_run_loop_remove_timer(&s_xbox_ble_poll_timers[idx]);
+}
+
+void uni_hid_parser_xboxone_ble_keepalive(uni_hid_device_t* d) {
+    if (d == NULL || !uni_hid_parser_xboxone_is_ble_hids(d))
+        return;
+    xboxone_instance_t* ins = get_xboxone_instance(d);
+    if (ins->version != XBOXONE_FIRMWARE_V5 && gap_get_connection_type(d->conn.handle) != GAP_CONNECTION_LE)
+        return;
+
+    struct xboxone_ff_report ff = {
+        .transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT,
+        .report_id = XBOX_RUMBLE_REPORT_ID,
+        .enable_actuators = 0,
+        .magnitude_left_trigger = 0,
+        .magnitude_right_trigger = 0,
+        .magnitude_strong = 0,
+        .magnitude_weak = 0,
+        .duration_10ms = 0,
+        .start_delay_10ms = 0,
+        .loop_count = 0,
+    };
+
+    uint8_t status = hids_host_send_write_report(d->hids_cid, XBOX_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
+                                                 &ff.enable_actuators, sizeof(ff) - 2);
+    if (status != ERROR_CODE_SUCCESS && status != ERROR_CODE_COMMAND_DISALLOWED) {
+        logd("Xbox BLE keepalive write status=%#x\n", status);
+    }
+}
+
 void uni_hid_parser_xboxone_device_dump(uni_hid_device_t* d) {
     static const char* versions[] = {
         "v3.1",
@@ -614,9 +739,9 @@ static void xboxone_stop_rumble_now(uni_hid_device_t* d) {
     };
 
     if (ins->version == XBOXONE_FIRMWARE_V5) {
-        status = hids_client_send_write_report(d->hids_cid, XBOX_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
-                                               &ff.enable_actuators,  // skip the first type bytes,
-                                               sizeof(ff) - 2         // subtract the 2 bytes from total
+        status = hids_host_send_write_report(d->hids_cid, XBOX_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
+                                             &ff.enable_actuators,  // skip the first type bytes,
+                                             sizeof(ff) - 2         // subtract the 2 bytes from total
         );
         if (status == ERROR_CODE_COMMAND_DISALLOWED) {
             logd("Xbox: Failed to turn off rumble, error=%#x, retrying...\n", status);
@@ -674,9 +799,9 @@ static void xboxone_play_quad_rumble_now(uni_hid_device_t* d,
     };
 
     if (ins->version == XBOXONE_FIRMWARE_V5) {
-        status = hids_client_send_write_report(d->hids_cid, XBOX_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
-                                               &ff.enable_actuators,  // skip the first two bytes,
-                                               sizeof(ff) - 2         // subtract the two bytes from total
+        status = hids_host_send_write_report(d->hids_cid, XBOX_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
+                                             &ff.enable_actuators,  // skip the first two bytes,
+                                             sizeof(ff) - 2         // subtract the two bytes from total
         );
         if (status == ERROR_CODE_COMMAND_DISALLOWED) {
             logd("Xbox: Failed to send rumble report, error=%#x, retrying...\n", status);

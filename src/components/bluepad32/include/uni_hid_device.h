@@ -34,7 +34,7 @@
 #include "uni_error.h"
 
 #define HID_MAX_NAME_LEN 240              ///< Max HID device name length.
-#define HID_MAX_DESCRIPTOR_LEN 512        ///< Max HID descriptor length.
+#define HID_MAX_DESCRIPTOR_LEN 1024       ///< Max HID descriptor length (Triton Report Map is large).
 #define HID_DEVICE_MAX_PARSER_DATA 256    ///< Max size for parser-specific data.
 #define HID_DEVICE_MAX_PLATFORM_DATA 256  ///< Max size for platform-specific data.
 
@@ -291,10 +291,8 @@ void uni_hid_device_on_connected(uni_hid_device_t* d, bool connected);
  */
 void uni_hid_device_connect(uni_hid_device_t* d);
 
-/**
- * @brief Disconnects from the given HID device.
- * @param d The HID device to disconnect from.
- */
+/** Restart the connect-to-ready watchdog (e.g. long GATT setup). */
+void uni_hid_device_kick_connection_timeout(uni_hid_device_t* d);
 void uni_hid_device_disconnect(uni_hid_device_t* d);
 
 /**

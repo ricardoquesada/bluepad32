@@ -6,6 +6,7 @@
 #ifndef UNI_HID_PARSER_DS5_H
 #define UNI_HID_PARSER_DS5_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "parser/uni_hid_parser.h"
@@ -64,5 +65,11 @@ ds5_adaptive_trigger_effect_t ds5_new_adaptive_trigger_effect_vibration(uint8_t 
 void ds5_set_adaptive_trigger_effect(struct uni_hid_device_s* d,
                                      ds5_adaptive_trigger_type_t trigger_type,
                                      const ds5_adaptive_trigger_effect_t* effect);
+
+/** Returns latest raw touchpad bytes from the last DS5 input report. */
+void uni_hid_parser_ds5_get_touchpad(struct uni_hid_device_s* d, uint8_t touch_points[8], bool* touchpad_click);
+
+/** Copy the last raw 0x31 input report (up to 78 bytes). */
+bool uni_hid_parser_ds5_get_last_input_report(struct uni_hid_device_s* d, uint8_t* report, uint16_t* len);
 
 #endif  // UNI_HID_PARSER_DS5_H
