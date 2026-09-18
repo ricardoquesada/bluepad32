@@ -656,6 +656,20 @@ void uni_bt_bredr_on_hci_connection_complete(uint16_t channel, const uint8_t* pa
 
     handle = hci_event_connection_complete_get_connection_handle(packet);
     uni_hid_device_set_connection_handle(d, handle);
+	
+	/*
+	Classic Bluetooth link supervision timeout.
+	This is NOT an inactivity timeout. An idle controller can remain connected
+	indefinitely. The timeout only expires when the Bluetooth ACL link itself
+	stops responding.
+	Units are 0.625 ms
+	1200 * 0.625 ms = 750 ms
+	*/
+	#define OGXM_CLASSIC_LINK_SUPERVISION_TIMEOUT 1200
+
+	hci_send_cmd(&hci_write_link_supervision_timeout,
+				 handle,
+				 OGXM_CLASSIC_LINK_SUPERVISION_TIMEOUT);
 
     // if (uni_hid_device_is_incoming(d)) {
     //   hci_send_cmd(&hci_authentication_requested, handle);
