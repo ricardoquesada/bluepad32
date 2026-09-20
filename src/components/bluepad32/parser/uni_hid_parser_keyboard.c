@@ -274,7 +274,7 @@ void uni_hid_parser_keyboard_set_leds(struct uni_hid_device_s* d, uint8_t led_bi
 
     if (type == GAP_CONNECTION_LE) {
         // TODO: Which is the report Id ? Is it always 1 ?
-        status = hids_client_send_write_report(d->hids_cid, 1, HID_REPORT_TYPE_OUTPUT, &led_bitmask, 1);
+        status = hids_host_send_write_report(d->hids_cid, 1, HID_REPORT_TYPE_OUTPUT, &led_bitmask, 1);
         // TODO: If error, it should retry
         if (status != ERROR_CODE_SUCCESS)
             logi("Keyboard: Failed to send LED report, error=%#x\n", status);
