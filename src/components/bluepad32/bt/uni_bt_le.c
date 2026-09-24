@@ -77,6 +77,20 @@
 static bool is_scanning;
 static bool ble_enabled;
 
+static bool is_bonded_address(const bd_addr_t addr, bd_addr_type_t addr_type) {
+    bd_addr_t entry_address;
+    int entry_address_type;
+
+    for (int i = 0; i < le_device_db_max_count(); i++) {
+        entry_address_type = (int)BD_ADDR_TYPE_UNKNOWN;
+        le_device_db_info(i, &entry_address_type, entry_address, NULL);
+        if (entry_address_type == (int)addr_type && memcmp(entry_address, addr, sizeof(bd_addr_t)) == 0)
+            return true;
+    }
+
+    return false;
+}
+
 // Temporal space for SDP in BLE
 static uint8_t hid_descriptor_storage[HID_MAX_DESCRIPTOR_LEN * CONFIG_BLUEPAD32_MAX_DEVICES];
 static btstack_packet_callback_registration_t sm_event_callback_registration;
@@ -575,8 +589,9 @@ static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
             logi("SM_EVENT_IDENTITY_RESOLVING_STARTED\n");
             break;
         case SM_EVENT_IDENTITY_RESOLVING_FAILED:
-            sm_event_identity_created_get_address(packet, addr);
-            logi("Identity resolving failed for %s\n\n", bd_addr_to_str(addr));
+            sm_event_identity_resolving_failed_get_address(packet, addr);
+            logi("Identity resolving failed for type %u address %s\n",
+                 sm_event_identity_resolving_failed_get_addr_type(packet), bd_addr_to_str(addr));
             break;
         case SM_EVENT_IDENTITY_RESOLVING_SUCCEEDED:
             sm_event_identity_resolving_succeeded_get_identity_address(packet, addr);
@@ -761,6 +776,12 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
     ARG_UNUSED(size);
 
     gap_event_advertising_report_get_address(packet, addr);
+    addr_type = gap_event_advertising_report_get_address_type(packet);
+    rssi = gap_event_advertising_report_get_rssi(packet);
+    bool is_directed_bonded =
+            gap_event_advertising_report_get_advertising_event_type(packet) == 1 &&
+            is_bonded_address(addr, addr_type);
+
     if (uni_hid_device_get_instance_for_address(addr)) {
         // Ignore, address already found
         return;
@@ -768,13 +789,24 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
 
     adv_event_get_data(packet, &appearance, name);
 
+    bool is_steam_controller = strcmp(name, "SteamController") == 0;
+    if (is_directed_bonded) {
+        is_steam_controller = true;
+        appearance = UNI_BT_HID_APPEARANCE_GAMEPAD;
+        strcpy(name, "SteamController");
+    }
+
     if (appearance != UNI_BT_HID_APPEARANCE_GAMEPAD && appearance != UNI_BT_HID_APPEARANCE_JOYSTICK &&
-        appearance != UNI_BT_HID_APPEARANCE_MOUSE && appearance != UNI_BT_HID_APPEARANCE_KEYBOARD) {
+        appearance != UNI_BT_HID_APPEARANCE_MOUSE && appearance != UNI_BT_HID_APPEARANCE_KEYBOARD &&
+        !is_steam_controller) {
         // Don't log it. There too many devices advertising themselves.
         if (appearance != 0 || strlen(name) != 0)
             logd("Not a HID controller, appearance: %#x, name =%s\n", appearance, name);
         return;
     }
+
+    if (is_steam_controller && appearance == 0)
+        appearance = UNI_BT_HID_APPEARANCE_GAMEPAD;
 
     switch (appearance) {
         case UNI_BT_HID_APPEARANCE_MOUSE:
@@ -793,9 +825,6 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
             cod = 0;
             break;
     }
-
-    addr_type = gap_event_advertising_report_get_address_type(packet);
-    rssi = gap_event_advertising_report_get_rssi(packet);
 
     logi("Device found: %s (%s)", bd_addr_to_str(addr), addr_type == 0 ? "public" : "random");
     logi(", appearance %#x / COD %#x", appearance, cod);
@@ -921,7 +950,7 @@ void uni_bt_le_setup(void) {
     // scan_parameters_service_client_init();
     device_information_service_client_init();
 
-    gap_set_scan_parameters(0 /* type: passive */, 48 /* interval */, 48 /* window */);
+    gap_set_scan_parameters(1 /* type: active */, 48 /* interval */, 48 /* window */);
 }
 
 void uni_bt_le_scan_start(void) {
