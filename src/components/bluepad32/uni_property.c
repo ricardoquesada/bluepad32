@@ -59,7 +59,9 @@ static const uni_property_t* get_property(uni_property_idx_t idx);
 // Helpers
 static const uni_property_t* get_property(uni_property_idx_t idx) {
     if (idx >= UNI_PROPERTY_IDX_LAST) {
-        if (uni_get_platform()->get_property)
+        // Delegate platform-specific property indices (>= UNI_PROPERTY_IDX_LAST)
+        // to the active platform vtable when both the platform and callback exist.
+        if (uni_get_platform() && uni_get_platform()->get_property)
             return uni_get_platform()->get_property(idx);
         // Invalid
         return NULL;
@@ -147,9 +149,9 @@ void uni_property_set(uni_property_idx_t idx, uni_property_value_t value) {
 uni_property_value_t uni_property_get(uni_property_idx_t idx) {
     const uni_property_t* p = get_property(idx);
     if (!p) {
-        uni_property_value_t ret;
+        // Zero-initialize the entire union so callers reading u32/f32/str get deterministic 0/NULL.
+        uni_property_value_t ret = {0};
         loge("Could not find property %d\n", idx);
-        ret.u8 = 0;
         return ret;
     }
     return uni_property_get_with_property(p);

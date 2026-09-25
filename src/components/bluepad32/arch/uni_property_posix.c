@@ -12,6 +12,7 @@
 #include "uni_log.h"
 
 #define TLV_DB_PATH_PREFIX "/tmp/bp32_property.tvl"
+#define PROPERTY_STRING_MAX_LEN 128
 
 static const btstack_tlv_t* tlv_impl;
 static btstack_tlv_posix_t tlv_context;
@@ -51,6 +52,10 @@ void uni_property_set_with_property(const uni_property_t* p, uni_property_value_
     if (p->flags & UNI_PROPERTY_FLAG_READ_ONLY)
         return;
 
+    // Ensure the POSIX TLV instance is initialized even if property access occurs
+    // before an explicit uni_property_init() call.
+    get_or_create_instance_tlv();
+
     switch (p->type) {
         case UNI_PROPERTY_TYPE_BOOL:
             data = (uint8_t*)&value.boolean;
@@ -68,6 +73,19 @@ void uni_property_set_with_property(const uni_property_t* p, uni_property_value_
             data = (uint8_t*)&value.f32;
             size = sizeof(value.f32);
             break;
+        case UNI_PROPERTY_TYPE_STRING:
+            // Reject NULL strings and enforce PROPERTY_STRING_MAX_LEN (including NUL terminator).
+            if (!value.str) {
+                loge("uni_property_set_with_property: NULL string for %s\n", p->name);
+                return;
+            }
+            data = (uint8_t*)value.str;
+            size = (int)strlen(value.str) + 1;
+            if (size > PROPERTY_STRING_MAX_LEN) {
+                loge("uni_property_set_with_property: string too long (%d)\n", size);
+                return;
+            }
+            break;
         default:
             loge("uni_property_set_with_property: unsupported type %d\n", p->type);
             return;
@@ -79,19 +97,29 @@ void uni_property_set_with_property(const uni_property_t* p, uni_property_value_
 }
 
 uni_property_value_t uni_property_get_with_property(const uni_property_t* p) {
-    uni_property_value_t value;
+    uni_property_value_t value = {0};
     int size;
     int read;
+    // Static buffer holds the retrieved string property; cleared before each read to guarantee NUL-termination.
+    static char str_ret[PROPERTY_STRING_MAX_LEN];
 
     if (!p) {
         loge("Invalid get property\n");
-        value.u8 = 0;
         return value;
     }
 
+    get_or_create_instance_tlv();
+
     if (p->type == UNI_PROPERTY_TYPE_STRING) {
-        loge("No TLV for %s, returning default value\n", p->name);
-        return p->default_value;
+        memset(str_ret, 0, PROPERTY_STRING_MAX_LEN);
+        read = tlv_impl->get_tag(tlv_context_ptr, posix_get_tag_for_index(p->idx), (uint8_t*)str_ret,
+                                 PROPERTY_STRING_MAX_LEN - 1);
+        if (read == 0) {
+            logd("Property %s (%#x) not found in DB, returning default\n", p->name, posix_get_tag_for_index(p->idx));
+            return p->default_value;
+        }
+        value.str = str_ret;
+        return value;
     }
 
     switch (p->type) {
@@ -108,8 +136,7 @@ uni_property_value_t uni_property_get_with_property(const uni_property_t* p) {
             size = sizeof(value.f32);
             break;
         default:
-            loge("uni_property_set_with_property: unsupported type %d\n", p->type);
-            value.u8 = 0;
+            loge("uni_property_get_with_property: unsupported type %d\n", p->type);
             return value;
     }
 

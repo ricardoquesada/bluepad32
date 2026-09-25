@@ -41,14 +41,48 @@ static void update_allowlist_to_property(void) {
     uni_property_set(UNI_PROPERTY_IDX_ALLOWLIST_LIST, val);
 }
 
+static bool is_address_in_allowlist(bd_addr_t addr) {
+    for (size_t i = 0; i < ARRAY_SIZE(addr_allow_list); i++) {
+        if (bd_addr_cmp(addr, addr_allow_list[i]) == 0)
+            return true;
+    }
+
+    return false;
+}
+
+// Inserts `addr` into the in-memory `addr_allow_list` table.
+// When `persist` is true, the updated table is serialized and written back to
+// persistent property storage (NVS/TLV). When `persist` is false (used during
+// boot-time hydration in `update_allowlist_from_property`), only the in-memory
+// array is populated so the stored property string is not prematurely overwritten.
+static bool add_addr_internal(bd_addr_t addr, bool persist) {
+    // Reject the all-zero BD_ADDR since `zero_addr` is reserved as the empty-slot sentinel.
+    if (bd_addr_cmp(addr, zero_addr) == 0)
+        return false;
+    // Don't add duplicate entries
+    if (is_address_in_allowlist(addr))
+        return false;
+
+    for (size_t i = 0; i < ARRAY_SIZE(addr_allow_list); i++) {
+        if (bd_addr_cmp(addr_allow_list[i], zero_addr) == 0) {
+            bd_addr_copy(addr_allow_list[i], addr);
+            if (persist)
+                update_allowlist_to_property();
+            return true;
+        }
+    }
+    return false;
+}
+
 static void update_allowlist_from_property(void) {
-    // Parses the list from the property and stored it locally.
+    // Parses the comma-separated BD_ADDR list from persistent storage into `addr_allow_list`.
     uni_property_value_t val;
     bd_addr_t addr;
-    int offset;
+    size_t offset;
     size_t len;
 
-    // Whether it is enabled.
+    memset(addr_allow_list, 0, sizeof(addr_allow_list));
+
     val = uni_property_get(UNI_PROPERTY_IDX_ALLOWLIST_LIST);
 
     if (val.str == NULL)
@@ -62,20 +96,13 @@ static void update_allowlist_from_property(void) {
             loge("Failed to parse allowlist: '%s' ('%s')\n", &val.str[offset], val.str);
             return;
         }
-        uni_bt_allowlist_add_addr(addr);
+        // Pass `persist = false` so adding the first address does not serialize a
+        // 1-element list back to storage and clobber the remaining addresses in `val.str`.
+        add_addr_internal(addr, false);
         // Each address takes 18 bytes:
         // 00:11:22:33:44:55,
         offset += 6 * 2 + 5 + 1;
     }
-}
-
-static bool is_address_in_allowlist(bd_addr_t addr) {
-    for (size_t i = 0; i < ARRAY_SIZE(addr_allow_list); i++) {
-        if (bd_addr_cmp(addr, addr_allow_list[i]) == 0)
-            return true;
-    }
-
-    return false;
 }
 
 //
@@ -90,21 +117,13 @@ bool uni_bt_allowlist_is_allowed_addr(bd_addr_t addr) {
 }
 
 bool uni_bt_allowlist_add_addr(bd_addr_t addr) {
-    // Don't add duplicate entries
-    if (is_address_in_allowlist(addr))
-        return false;
-
-    for (size_t i = 0; i < ARRAY_SIZE(addr_allow_list); i++) {
-        if (bd_addr_cmp(addr_allow_list[i], zero_addr) == 0) {
-            bd_addr_copy(addr_allow_list[i], addr);
-            update_allowlist_to_property();
-            return true;
-        }
-    }
-    return false;
+    return add_addr_internal(addr, true);
 }
 
 bool uni_bt_allowlist_remove_addr(bd_addr_t addr) {
+    if (bd_addr_cmp(addr, zero_addr) == 0)
+        return false;
+
     for (size_t i = 0; i < ARRAY_SIZE(addr_allow_list); i++) {
         if (bd_addr_cmp(addr_allow_list[i], addr) == 0) {
             bd_addr_copy(addr_allow_list[i], zero_addr);
