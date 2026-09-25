@@ -91,7 +91,8 @@ uni_property_value_t uni_property_get_with_property(const uni_property_t* p) {
 
     if (p->type == UNI_PROPERTY_TYPE_STRING) {
         memset(str_ret, 0, PROPERTY_STRING_MAX_LEN);
-        read = tlv_impl->get_tag(tlv_context, pico_get_tag_for_index(p->idx), (uint8_t*)str_ret, PROPERTY_STRING_MAX_LEN - 1);
+        read = tlv_impl->get_tag(tlv_context, pico_get_tag_for_index(p->idx), (uint8_t*)str_ret,
+                                 PROPERTY_STRING_MAX_LEN - 1);
         if (read == 0) {
             logd("Property %s (idx=%d, tag=%#x) not found in DB, returning default\n", p->name, p->idx,
                  pico_get_tag_for_index(p->idx));
