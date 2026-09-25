@@ -62,11 +62,13 @@ typedef enum {
 } uni_property_type_t;
 
 typedef union {
-    bool boolean;
-    uint8_t u8;
-    uint32_t u32;
-    float f32;
+    // Keep the pointer-sized `str` member first so that `= {0}` zero-initializes
+    // the entire union on both 32-bit and 64-bit targets.
     const char* str;
+    float f32;
+    uint32_t u32;
+    uint8_t u8;
+    bool boolean;
 } uni_property_value_t;
 
 typedef enum {
