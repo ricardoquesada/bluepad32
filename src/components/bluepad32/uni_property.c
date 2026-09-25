@@ -6,6 +6,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <string.h>
 
 #include "bt/uni_bt_defines.h"
 #include "platform/uni_platform.h"
@@ -149,8 +150,9 @@ void uni_property_set(uni_property_idx_t idx, uni_property_value_t value) {
 uni_property_value_t uni_property_get(uni_property_idx_t idx) {
     const uni_property_t* p = get_property(idx);
     if (!p) {
-        // Zero-initialize the entire union so callers reading u32/f32/str get deterministic 0/NULL.
-        uni_property_value_t ret = {0};
+        // Zero-initialize the entire union (in C11, `{0}` only initializes the 1-byte `boolean` first member).
+        uni_property_value_t ret;
+        memset(&ret, 0, sizeof(ret));
         loge("Could not find property %d\n", idx);
         return ret;
     }

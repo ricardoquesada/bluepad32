@@ -97,12 +97,13 @@ void uni_property_set_with_property(const uni_property_t* p, uni_property_value_
 }
 
 uni_property_value_t uni_property_get_with_property(const uni_property_t* p) {
-    uni_property_value_t value = {0};
+    uni_property_value_t value;
     int size;
     int read;
     // Static buffer holds the retrieved string property; cleared before each read to guarantee NUL-termination.
     static char str_ret[PROPERTY_STRING_MAX_LEN];
 
+    memset(&value, 0, sizeof(value));
     if (!p) {
         loge("Invalid get property\n");
         return value;

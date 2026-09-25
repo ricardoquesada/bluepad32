@@ -76,10 +76,11 @@ uni_property_value_t uni_property_get_with_property(const uni_property_t* p) {
     nvs_handle_t nvs_handle;
     esp_err_t err;
     // Zero-initialize the entire union so any error path returns deterministic 0/NULL across all widths.
-    uni_property_value_t ret = {0};
+    uni_property_value_t ret;
     size_t str_len = PROPERTY_STRING_MAX_LEN - 1;
     static char str_ret[PROPERTY_STRING_MAX_LEN];
 
+    memset(&ret, 0, sizeof(ret));
     if (!p) {
         loge("Cannot get invalid property\n");
         return ret;
