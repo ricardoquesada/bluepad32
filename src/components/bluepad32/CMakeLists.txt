@@ -88,18 +88,21 @@ endif()
 
 if(CONFIG_IDF_TARGET_ESP32)
     # Files that are only meant to be compiled on ESP32 (original)
-    list(APPEND srcs
-        # Place here files that are ESP32-only
-         "platform/uni_platform_mightymiggy.c"
-         "platform/uni_platform_nina.c"
-         "platform/uni_platform_unijoysticle.c"
-         "platform/uni_platform_unijoysticle_2.c"
-         "platform/uni_platform_unijoysticle_2plus.c"
-         "platform/uni_platform_unijoysticle_800xl.c"
-         "platform/uni_platform_unijoysticle_a500.c"
-         "platform/uni_platform_unijoysticle_c64.c"
-         "platform/uni_platform_unijoysticle_msx.c"
-         "platform/uni_platform_unijoysticle_singleport.c")
+    if(CONFIG_BLUEPAD32_PLATFORM_MIGHTYMIGGY)
+        list(APPEND srcs "platform/uni_platform_mightymiggy.c")
+    elseif(CONFIG_BLUEPAD32_PLATFORM_NINA OR CONFIG_BLUEPAD32_PLATFORM_AIRLIFT)
+        list(APPEND srcs "platform/uni_platform_nina.c")
+    elseif(CONFIG_BLUEPAD32_PLATFORM_UNIJOYSTICLE)
+        list(APPEND srcs
+             "platform/uni_platform_unijoysticle.c"
+             "platform/uni_platform_unijoysticle_2.c"
+             "platform/uni_platform_unijoysticle_2plus.c"
+             "platform/uni_platform_unijoysticle_800xl.c"
+             "platform/uni_platform_unijoysticle_a500.c"
+             "platform/uni_platform_unijoysticle_c64.c"
+             "platform/uni_platform_unijoysticle_msx.c"
+             "platform/uni_platform_unijoysticle_singleport.c")
+    endif()
 endif()
 
 #
@@ -147,7 +150,7 @@ if(IDF_TARGET)
     set(requires "nvs_flash" "btstack" "app_update" "esp_timer" "driver")
 
     if("${IDF_VERSION_MAJOR}" GREATER_EQUAL 5)
-        list(APPEND requires "cmd_nvs" "cmd_system" "esp_driver_ledc" "esp_driver_spi")
+        list(APPEND requires "cmd_nvs" "cmd_system" "esp_driver_ledc" "esp_driver_spi" "esp_driver_gptimer" "esp_driver_gpio" "esp_driver_uart")
     else()
         # Use legacy components when compiled using ESP-IDF v4.4
         list(APPEND requires "cmd_nvs_4.4" "cmd_system_4.4")

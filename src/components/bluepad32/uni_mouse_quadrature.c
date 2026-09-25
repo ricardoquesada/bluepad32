@@ -129,7 +129,8 @@ static bool IRAM_ATTR timer_handler(gptimer_handle_t timer, const gptimer_alarm_
     return (high_task_awoken == pdTRUE);
 }
 
-static void init_from_cpu_task() {
+static void init_from_cpu_task(void* pvParameters) {
+    ARG_UNUSED(pvParameters);
     // From ESP-IDF documentation:
     // "Register Timer interrupt handler, the handler is an ISR.
     // The handler will be attached to the same CPU core that this function is running on."
@@ -259,14 +260,27 @@ void uni_mouse_quadrature_setup_port(int port_idx,
 }
 
 void uni_mouse_quadrature_deinit(void) {
-    // Stop the timers
+    if (!initialized)
+        return;
+
+    // ESP-IDF gptimer state machine requires an enabled timer to be stopped (if running)
+    // and disabled before gptimer_del_timer() is called; otherwise deletion fails with ESP_ERR_INVALID_STATE.
     for (int i = 0; i < UNI_MOUSE_QUADRATURE_PORT_MAX; i++) {
         for (int j = 0; j < UNI_MOUSE_QUADRATURE_ENCODER_MAX; j++) {
-            gptimer_del_timer(s_gptimers[i][j]);
-            s_gptimers[i][j] = NULL;
-            vTaskDelete(s_timer_tasks[i][j]);
-            s_timer_tasks[i][j] = NULL;
+            if (s_gptimers[i][j]) {
+                if (timer_started[i]) {
+                    gptimer_stop(s_gptimers[i][j]);
+                }
+                gptimer_disable(s_gptimers[i][j]);
+                gptimer_del_timer(s_gptimers[i][j]);
+                s_gptimers[i][j] = NULL;
+            }
+            if (s_timer_tasks[i][j]) {
+                vTaskDelete(s_timer_tasks[i][j]);
+                s_timer_tasks[i][j] = NULL;
+            }
         }
+        timer_started[i] = false;
     }
 
     initialized = false;
@@ -274,7 +288,7 @@ void uni_mouse_quadrature_deinit(void) {
 
 void uni_mouse_quadrature_start(int port_idx) {
     if (!initialized) {
-        loge("%s: Error, Not initialized\n");
+        loge("%s: Error, Not initialized\n", __func__);
         return;
     }
 
@@ -294,7 +308,7 @@ void uni_mouse_quadrature_start(int port_idx) {
 
 void uni_mouse_quadrature_pause(int port_idx) {
     if (!initialized) {
-        loge("%s: Error, Not initialized\n");
+        loge("%s: Error, Not initialized\n", __func__);
         return;
     }
 
@@ -315,7 +329,7 @@ void uni_mouse_quadrature_pause(int port_idx) {
 // Should be called everytime that mouse report is received.
 void uni_mouse_quadrature_update(int port_idx, int32_t dx, int32_t dy) {
     if (!initialized) {
-        loge("%s: Error, Not initialized\n");
+        loge("%s: Error, Not initialized\n", __func__);
         return;
     }
     if (port_idx < 0 || port_idx >= UNI_MOUSE_QUADRATURE_PORT_MAX) {
