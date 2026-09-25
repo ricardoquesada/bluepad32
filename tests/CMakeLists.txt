@@ -27,6 +27,8 @@ elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
 	SET(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -Wunused-but-set-variable -Wunused-variable -Wswitch-default -Werror")
 endif()
 
+add_compile_definitions(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
+
 # initialize the SDK based on PICO_SDK_PATH
 # note: this must happen before project()
 include(btstack_import.cmake)
@@ -41,7 +43,7 @@ target_include_directories(test_uni_hid_device PRIVATE
 
 # Needed for btstack_config.h / sdkconfig.h
 # so that libbluepad32 can include them
-include_directories(test_uni_hid_device .)
+include_directories(.)
 
 target_link_libraries(test_uni_hid_device
     bluepad32
@@ -56,10 +58,6 @@ add_executable(test_uni_hid_parser
 target_include_directories(test_uni_hid_parser PRIVATE
     .
     ${BLUEPAD32_ROOT}/src/components/bluepad32/include)
-
-# Needed for btstack_config.h / sdkconfig.h
-# so that libbluepad32 can include them
-include_directories(test_uni_hid_parser .)
 
 target_link_libraries(test_uni_hid_parser
     bluepad32
