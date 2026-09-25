@@ -5,7 +5,7 @@ set(CMAKE_C_STANDARD 11)
 
 project(bluepad32_test C ASM)
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 set(BLUEPAD32_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
@@ -33,6 +33,8 @@ add_compile_definitions(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
 # note: this must happen before project()
 include(btstack_import.cmake)
 
+enable_testing()
+
 add_executable(test_uni_hid_device
 		test_uni_hid_device.c
 )
@@ -51,6 +53,8 @@ target_link_libraries(test_uni_hid_device
     m
 )
 
+add_test(NAME test_uni_hid_device COMMAND test_uni_hid_device)
+
 add_executable(test_uni_hid_parser
 		test_uni_hid_parser.c
 )
@@ -64,5 +68,7 @@ target_link_libraries(test_uni_hid_parser
     btstack
     m
 )
+
+add_test(NAME test_uni_hid_parser COMMAND test_uni_hid_parser)
 
 add_subdirectory(${BLUEPAD32_ROOT}/src/components/bluepad32 libbluepad32)
