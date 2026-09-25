@@ -267,6 +267,12 @@ ds5_adaptive_trigger_effect_t ds5_new_adaptive_trigger_effect_feedback(uint8_t p
         return out;
     }
 
+    // A strength of 0 means no resistance; delegate to the OFF effect rather than
+    // computing (strength - 1), which would underflow to 0xFF and apply maximum force (0x07).
+    if (strength == 0) {
+        return ds5_new_adaptive_trigger_effect_off();
+    }
+
     out.effect = DS5_ADAPTIVE_TRIGGER_EFFECT_FEEDBACK;
 
     uint8_t force_value = (strength - 1) & 0x07;  // only 3 bits used
@@ -274,8 +280,9 @@ ds5_adaptive_trigger_effect_t ds5_new_adaptive_trigger_effect_feedback(uint8_t p
     uint16_t active_zones = 0;
 
     for (uint8_t i = position; i <= 9; i++) {
-        force_zones |= force_value << (i * 3);  // each force value occupies 3 bits x 10 zones
-        active_zones |= (uint16_t)(1 << i);     // zone mask
+        // Cast to uint32_t before shifting up to 27 bits (i = 9 -> 9 * 3 = 27).
+        force_zones |= (uint32_t)force_value << (i * 3);  // each force value occupies 3 bits x 10 zones
+        active_zones |= (uint16_t)(1 << i);               // zone mask
     }
 
     out.data[0] = (active_zones >> 0) & 0xFF;
@@ -306,8 +313,12 @@ ds5_adaptive_trigger_effect_t ds5_new_adaptive_trigger_effect_weapon(uint8_t sta
         return out;
     }
     if (strength > 8) {
-        loge("DS5: Invalid strength %d, expected <= 8\n", end_position);
+        loge("DS5: Invalid strength %d, expected <= 8\n", strength);
         return out;
+    }
+    // Avoid (0 - 1) underflow in out.data[2] when caller requests zero strength.
+    if (strength == 0) {
+        return ds5_new_adaptive_trigger_effect_off();
     }
 
     out.effect = DS5_ADAPTIVE_TRIGGER_EFFECT_WEAPON;
@@ -335,8 +346,12 @@ ds5_adaptive_trigger_effect_t ds5_new_adaptive_trigger_effect_vibration(uint8_t 
         return out;
     }
     if (amplitude > 8) {
-        loge("DS5: Invalid amplitude %d, expected <= 8\n", position);
+        loge("DS5: Invalid amplitude %d, expected <= 8\n", amplitude);
         return out;
+    }
+    // Avoid (0 - 1) underflow in strength_value when caller requests zero amplitude.
+    if (amplitude == 0) {
+        return ds5_new_adaptive_trigger_effect_off();
     }
 
     out.effect = DS5_ADAPTIVE_TRIGGER_EFFECT_VIBRATION;
@@ -422,15 +437,19 @@ void uni_hid_parser_ds5_setup(uni_hid_device_t* d) {
 }
 
 void uni_hid_parser_ds5_parse_feature_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
+    if (!d || !report || len < 1) {
+        return;
+    }
     ds5_instance_t* ins = get_ds5_instance(d);
     uint8_t report_id = report[0];
 
     switch (report_id) {
         case DS5_FEATURE_REPORT_PAIRING_INFO:
-            if (len != DS5_FEATURE_REPORT_PAIRING_INFO_SIZE) {
+            // Abort on truncated reports rather than falling through to subsequent requests.
+            if (len < DS5_FEATURE_REPORT_PAIRING_INFO_SIZE) {
                 loge("DS5: Unexpected pairing info size: got %d, want: %d\n", len,
                      DS5_FEATURE_REPORT_PAIRING_INFO_SIZE);
-                /* fallthrough */
+                break;
             }
             // report[0]: Report ID, in this case 9
             // report[1-6] has the DualSense Mac Address in reverse order
@@ -444,22 +463,23 @@ void uni_hid_parser_ds5_parse_feature_report(uni_hid_device_t* d, const uint8_t*
             break;
 
         case DS5_FEATURE_REPORT_FIRMWARE_VERSION: {
-            if (len != DS5_FEATURE_REPORT_FIRMWARE_VERSION_SIZE) {
+            if (len < DS5_FEATURE_REPORT_FIRMWARE_VERSION_SIZE) {
                 loge("DS5: Unexpected firmware version size: got %d, want: %d\n", len,
                      DS5_FEATURE_REPORT_FIRMWARE_VERSION_SIZE);
-                /* fallthrough */
+                break;
             }
             ds5_feature_report_firmware_version_t* r = (ds5_feature_report_firmware_version_t*)report;
             ins->hw_version = r->hw_version;
             ins->fw_version = r->fw_version;
             ins->update_version = r->update_version;
 
-            // ASCII-z strings
+            // Copy fixed-length firmware date/time fields into +1 zero-initialized buffers
+            // to guarantee NUL-termination when logged with `%s`.
             char date_z[sizeof(r->string_date) + 1] = {0};
             char time_z[sizeof(r->string_time) + 1] = {0};
 
-            strncpy(date_z, r->string_date, sizeof(date_z) - 1);
-            strncpy(time_z, r->string_time, sizeof(time_z) - 1);
+            memcpy(date_z, r->string_date, sizeof(r->string_date));
+            memcpy(time_z, r->string_time, sizeof(r->string_time));
 
             // Supported in DualSense Edge, and in new regular DualSense.
             // "Vibration2" is the new way to rumble. The old one was emulating classic controllers.
@@ -476,9 +496,9 @@ void uni_hid_parser_ds5_parse_feature_report(uni_hid_device_t* d, const uint8_t*
             int speed_2x;
             int range_2g;
 
-            if (len != DS5_FEATURE_REPORT_CALIBRATION_SIZE) {
+            if (len < DS5_FEATURE_REPORT_CALIBRATION_SIZE) {
                 loge("DS5: Unexpected calibration size: got %d, want: %d\n", len, DS5_FEATURE_REPORT_CALIBRATION_SIZE);
-                /* fallthrough */
+                break;
             }
             logi("DS5: Calibration report received\n");
             ds5_feature_report_calibration_t* r = (ds5_feature_report_calibration_t*)report;
@@ -507,7 +527,8 @@ void uni_hid_parser_ds5_parse_feature_report(uni_hid_device_t* d, const uint8_t*
             // calibration data properly.
             for (size_t i = 0; i < ARRAY_SIZE(ins->gyro_calib_data); i++) {
                 if (ins->gyro_calib_data[i].sens_denom == 0) {
-                    loge("Invalid gyro calibration data for axis (%d), disabling calibration for axis = %d\n", i);
+                    loge("Invalid gyro calibration data for axis (%d), disabling calibration for axis = %d\n", (int)i,
+                         (int)i);
                     ins->gyro_calib_data[i].bias = 0;
                     ins->gyro_calib_data[i].sens_numer = DS5_GYRO_RANGE;
                     ins->gyro_calib_data[i].sens_denom = INT16_MAX;
@@ -537,7 +558,7 @@ void uni_hid_parser_ds5_parse_feature_report(uni_hid_device_t* d, const uint8_t*
             for (size_t i = 0; i < ARRAY_SIZE(ins->accel_calib_data); i++) {
                 if (ins->accel_calib_data[i].sens_denom == 0) {
                     loge("Invalid accelerometer calibration data for axis (%d), disabling calibration for axis=%d\n",
-                         i);
+                         (int)i, (int)i);
                     ins->accel_calib_data[i].bias = 0;
                     ins->accel_calib_data[i].sens_numer = DS5_ACC_RANGE;
                     ins->accel_calib_data[i].sens_denom = INT16_MAX;
