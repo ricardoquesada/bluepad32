@@ -1,8 +1,6 @@
 # Programmer's Guide: Raw API
 
-WIP
-
-Valid when using Pico-SDK / ESP-IDF directly. E.g.: If your project is based on any of these examples, then you are
+Valid when using Pico-SDK, ESP-IDF, or POSIX directly. If your project is based on any of these examples, then you are
 using the "Raw API":
 
 - [ESP32 example][esp32_example] (uses "Raw API")
@@ -14,7 +12,7 @@ using the "Raw API":
 !!! note "TL;DR"
 
     Bluepad32 / BTstack are **NOT** multithreaded.
-    Only call Bluepad32 and BTstack APIs from the BTstack thread.
+    Only call Bluepad32 and BTstack APIs from the BTstack thread, or use the designated `*_safe` cross-thread wrappers.
 
 ### What's safe to call from BTstack thread
 
@@ -22,24 +20,50 @@ The BTstack thread (or BTstack task) is where BTstack and Bluepad32 run.
 
 The Bluepad32 and BTstack *callbacks* run in the BTstack thread. E.g.:
 
-- Bluepad32 platform callbacks like: `platform.on_controller_data()` or `platform.on_device_connected()`
-- BTstack callbacks like the packet handlers, e.g: `l2cap_packet_handler()`
+- Bluepad32 platform callbacks like: `platform.on_controller_data()`, `platform.on_device_connected()`, `platform.on_device_ready()`, `platform.on_device_disconnected()`, or `platform.on_init_complete()`
+- BTstack callbacks like the packet handlers (`l2cap_packet_handler()`) or `btstack_run_loop_execute_on_main_thread()` callbacks
 
-It is safe to call any Bluepad32 API (usually they start with `uni_` prefix),
-or any BTstack API (usually they start with `bstack_` prefix) from any of the above-mentioned callbacks.
+It is safe to call any Bluepad32 API (functions starting with the `uni_` prefix, including `*_unsafe` functions)
+or any BTstack API (functions starting with the `btstack_`, `gap_`, `hci_`, `l2cap_`, or `gatt_` prefixes) from any of the above-mentioned callbacks.
 
 ### What's safe to call from anywhere
 
-- BTstack's `btstack_run_loop_execute_on_main_thread()`: schedules a callback that runs in BTstack thread.
-- Bluepad32's functions that have the `_safe` suffix like `uni_bt_enable_new_connections_safe()`
-- A handful of Bluepad32 functions that are not related to BTstack. TODO: document them.
+- BTstack's `btstack_run_loop_execute_on_main_thread()`: schedules a `btstack_context_callback_registration_t` callback to run sequentially on the BTstack thread.
+- Bluepad32's functions that have the `_safe` suffix, such as `uni_bt_start_scanning_and_autoconnect_safe()`, `uni_bt_stop_scanning_safe()`, `uni_bt_del_keys_safe()`, or `uni_bt_disconnect_device_safe()`.
+- Stateless/atomic query helpers and pure data-conversion utilities documented in the reference table below.
+
+### Bluepad32 API & Thread Safety (`*_safe` vs `*_unsafe`)
+
+Bluepad32 provides explicit `_safe` and `_unsafe` variants for Bluetooth management operations in `bt/uni_bt.h`:
+
+| Operation / Purpose | Cross-Thread Safe API (Any FreeRTOS Task / Core / ISR Context) | BTstack-Thread Only API (Platform Callbacks / Run-Loop Context) | Notes & Implementation Semantics |
+| :--- | :--- | :--- | :--- |
+| **Start Scanning & Autoconnect** | `uni_bt_start_scanning_and_autoconnect_safe(void)` | `uni_bt_start_scanning_and_autoconnect_unsafe(void)` | Starts Classic BT inquiry and/or BLE scanning (`CMD_BT_START_SCANNING`). |
+| **Stop Scanning** | `uni_bt_stop_scanning_safe(void)` | `uni_bt_stop_scanning_unsafe(void)` | Stops active Classic BT inquiry and BLE scanning (`CMD_BT_STOP_SCANNING`). |
+| **Enable/Disable New Connections (Deprecated)** | `uni_bt_enable_new_connections_safe(bool enabled)` | `uni_bt_enable_new_connections_unsafe(bool enabled)` | Wrapper around `start_scanning_and_autoconnect` / `stop_scanning`. |
+| **Delete Stored Bluetooth Bonding Keys** | `uni_bt_del_keys_safe(void)` | `uni_bt_del_keys_unsafe(void)` | Deletes Classic BT and BLE link keys from NVS/TLV (`CMD_BT_DEL_KEYS`). |
+| **List Stored Bluetooth Bonding Keys** | `uni_bt_list_keys_safe(void)` | `uni_bt_list_keys_unsafe(void)` | Logs bonded Classic BT and BLE link keys (`CMD_BT_LIST_KEYS`). |
+| **Disconnect & Delete a Controller** | `uni_bt_disconnect_device_safe(int device_idx)` | `uni_hid_device_disconnect(d)` + `uni_hid_device_delete(d)` | `_safe` encodes `device_idx` in the upper 16 bits of `context` (`CMD_DISCONNECT_DEVICE`). |
+| **Dump Connected Devices to Console** | `uni_bt_dump_devices_safe(void)` | `uni_hid_device_dump_all(void)` | Prints all active `uni_hid_device_t` instances (`CMD_DUMP_DEVICES`). |
+| **Enable/Disable BLE Config Service** | `uni_bt_enable_service_safe(bool enabled)` | `uni_bt_service_set_enabled(bool enabled)` | Toggles the BLE GATT telemetry/configuration service (`CMD_BLE_SERVICE_ENABLE`/`DISABLE`). |
+| **Read Local Bluetooth MAC Address** | `uni_bt_get_local_bd_addr_safe(bd_addr_t addr)` | `memcpy(addr, uni_local_bd_addr, 6)` | Copies the cached 6-byte local `bd_addr_t`. |
+| **Query Scanning / Incoming Flags** | `uni_bt_is_scanning(void)`, `uni_bt_incoming_connections_is_allowed(void)`, `uni_bt_allow_incoming_connections(bool)` | Same | Reads/writes boolean flags (`bt_scanning_enabled`, `bt_allow_incoming_connections`). |
+| **Pure Controller Remapping / Joystick Math** | `uni_gamepad_remap(...)`, `uni_joy_to_single_joy_from_gamepad(...)`, `uni_joy_to_twinstick_from_gamepad(...)` | Same | Pure functions operating on caller-owned structs; safe on any thread if structs are not shared concurrently. |
+| **Device Lookup & Haptics / LEDs** | *Must schedule via `btstack_run_loop_execute_on_main_thread()`* | `uni_hid_device_get_instance_for_idx(idx)`, `d->report_parser.play_dual_rumble(...)`, `d->report_parser.set_player_leds(...)`, `d->report_parser.set_lightbar_color(...)` | Mutates `uni_hid_device_t` state and queues L2CAP/GATT output reports; **must only execute on the BTstack thread**. |
+
+#### The `CMD_CALLBACK_MAX = 8` Ring-Buffer Constraint
+
+Internally, every `uni_bt_*_safe()` function allocates a `btstack_context_callback_registration_t` entry from a static 8-slot circular array (`cmd_callback_registration[CMD_CALLBACK_MAX]` where `CMD_CALLBACK_MAX = 8` in `src/components/bluepad32/bt/uni_bt.c`) and schedules it via `btstack_run_loop_execute_on_main_thread()`.
+
+!!! warning "Do not burst more than 8 `_safe()` calls per BTstack run-loop tick"
+
+    Because BTstack links `btstack_context_callback_registration_t` structs into an intrusive singly-linked list until the BTstack thread drains the queue, calling `uni_bt_*_safe()` more than **8 times** before the BTstack thread executes a run-loop iteration will wrap `cmd_callback_idx` around the ring buffer and overwrite a pending registration node. Always coalesce or rate-limit external task commands to fewer than 8 pending calls per frame.
 
 ### What's NOT safe to call from anywhere
 
-The rest.
+Any function not listed in the cross-thread column above.
 
-If your code is **NOT** running in the BTstack thread don't call any Bluepad32 / BTstack function,
-except the ones mentioned above.
+If your code is **NOT** running in the BTstack thread, do not call `uni_hid_device_*`, `uni_bt_*_unsafe`, `d->report_parser.*`, or raw BTstack functions directly. Instead, use the `_safe` wrapper or schedule your callback with `btstack_run_loop_execute_on_main_thread()`.
 
 ### Details
 
@@ -51,7 +75,7 @@ your program:
 
 - might crash at random places (very likely)
 - might not do what you want
-- of if you are extremely lucky, it might work... sometimes.
+- or if you are extremely lucky, it might work... sometimes.
 
 From [BTstack documentation][btstack_multithreading]
 
