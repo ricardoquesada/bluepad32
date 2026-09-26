@@ -211,8 +211,8 @@ static void test_ds4_ds5_feature_report_bounds(void) {
     uint8_t valid_ds4_fw[49];
     memset(valid_ds4_fw, 0xFF, sizeof(valid_ds4_fw));
     valid_ds4_fw[0] = 0xa3;
-    memset(&valid_ds4_fw[1], 'D', 11);   // string_date[11] without null terminator
-    memset(&valid_ds4_fw[17], 'T', 8);   // string_time[8] without null terminator
+    memset(&valid_ds4_fw[1], 'D', 11);  // string_date[11] without null terminator
+    memset(&valid_ds4_fw[17], 'T', 8);  // string_time[8] without null terminator
     memset(d.parser_data, 0, sizeof(d.parser_data));
     uni_hid_parser_ds4_parse_feature_report(&d, valid_ds4_fw, sizeof(valid_ds4_fw));
 

@@ -94,12 +94,12 @@ enum switch_proto_reqs {
 
 // Received in SUBCMD_REQ_DEV_INFO
 enum switch_controller_types {
-    SWITCH_CONTROLLER_TYPE_JCL = 0x01,   // Joy-con left
-    SWITCH_CONTROLLER_TYPE_JCR = 0x02,   // Joy-con right
-    SWITCH_CONTROLLER_TYPE_PRO = 0x03,   // Pro Controller
+    SWITCH_CONTROLLER_TYPE_JCL = 0x01,    // Joy-con left
+    SWITCH_CONTROLLER_TYPE_JCR = 0x02,    // Joy-con right
+    SWITCH_CONTROLLER_TYPE_PRO = 0x03,    // Pro Controller
     SWITCH_CONTROLLER_TYPE_NES_L = 0x09,  // NES Controller (Left)
     SWITCH_CONTROLLER_TYPE_NES_R = 0x0a,  // NES Controller (Right)
-    SWITCH_CONTROLLER_TYPE_SNES = 0x0b,  // SNES Controller
+    SWITCH_CONTROLLER_TYPE_SNES = 0x0b,   // SNES Controller
 };
 
 enum {
@@ -888,7 +888,8 @@ static void parse_report_30(struct uni_hid_device_s* d, const uint8_t* report, i
     // (enough for the 3-byte header + 9-byte `switch_buttons_s`), verify that the report
     // contains the full 48-byte `3 + sizeof(struct switch_report_30_s)` payload before
     // dereferencing `r->imu[2]` (bytes 36..47) to prevent out-of-bounds reads on short/clone packets.
-    if (ins->mode == SWITCH_MODE_IMU && len >= (int)(3 + sizeof(struct switch_report_30_s)) && ins->imu_cal_gyro_divisor[0] != 0)
+    if (ins->mode == SWITCH_MODE_IMU && len >= (int)(3 + sizeof(struct switch_report_30_s)) &&
+        ins->imu_cal_gyro_divisor[0] != 0)
         parse_imu(d, &r->imu[2]);
 }
 
