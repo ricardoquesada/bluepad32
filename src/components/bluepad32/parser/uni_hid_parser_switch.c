@@ -97,6 +97,8 @@ enum switch_controller_types {
     SWITCH_CONTROLLER_TYPE_JCL = 0x01,   // Joy-con left
     SWITCH_CONTROLLER_TYPE_JCR = 0x02,   // Joy-con right
     SWITCH_CONTROLLER_TYPE_PRO = 0x03,   // Pro Controller
+    SWITCH_CONTROLLER_TYPE_NES_L = 0x09,  // NES Controller (Left)
+    SWITCH_CONTROLLER_TYPE_NES_R = 0x0a,  // NES Controller (Right)
     SWITCH_CONTROLLER_TYPE_SNES = 0x0b,  // SNES Controller
 };
 
@@ -872,6 +874,8 @@ static void parse_report_30(struct uni_hid_device_s* d, const uint8_t* report, i
             parse_report_30_joycon_right(d, r);
             break;
         case SWITCH_CONTROLLER_TYPE_PRO:
+        case SWITCH_CONTROLLER_TYPE_NES_L:
+        case SWITCH_CONTROLLER_TYPE_NES_R:
         case SWITCH_CONTROLLER_TYPE_SNES:
             parse_report_30_pro_controller(d, r);
             break;
@@ -880,12 +884,11 @@ static void parse_report_30(struct uni_hid_device_s* d, const uint8_t* report, i
             break;
     }
 
-    // IMU is valid for all 3 types of controllers.
-
     // 3 gyro/accel frames are reported.
     // Different approaches: take the latest one, or average them.
     // We just take the latest one. If it is not accurate enough, we can average them.
-    if (ins->mode == SWITCH_MODE_IMU)
+    // Only parse IMU if mode is set AND calibration divisors are valid (NES has no IMU).
+    if (ins->mode == SWITCH_MODE_IMU && ins->imu_cal_gyro_divisor[0] != 0)
         parse_imu(d, &r->imu[2]);
 }
 
