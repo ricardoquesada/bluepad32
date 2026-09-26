@@ -2,6 +2,7 @@
 // Copyright 2019 Ricardo Quesada
 // http://retro.moe/unijoysticle2
 
+#include <stdlib.h>
 #include <string.h>
 
 #include <uni.h>
@@ -62,6 +63,8 @@ static ds5_adaptive_trigger_effect_t next_trigger_adaptive_effect(int* trigger_e
 //
 static void posix_init(int argc, const char** argv) {
     logi("posix: init()\n");
+    bool ble_enabled = true;
+
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--enhanced") == 0 || strcmp(argv[i], "-e") == 0) {
             g_enhanced_mode = 1;
@@ -71,7 +74,12 @@ static void posix_init(int argc, const char** argv) {
             g_delete_keys = 1;
             logi("Stored keys will be deleted\n");
         }
+        if ((strcmp(argv[i], "--ble") == 0 || strcmp(argv[i], "-b") == 0) && i + 1 < argc) {
+            ble_enabled = atoi(argv[++i]) != 0;
+        }
     }
+    uni_bt_le_set_enabled(ble_enabled);
+    logi("BLE enabled: %d\n", ble_enabled);
 
 #if 0
     uni_gamepad_mappings_t mappings = GAMEPAD_DEFAULT_MAPPINGS;

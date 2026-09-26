@@ -6,6 +6,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <string.h>
 
 #include "bt/uni_bt_defines.h"
 #include "platform/uni_platform.h"
@@ -59,7 +60,9 @@ static const uni_property_t* get_property(uni_property_idx_t idx);
 // Helpers
 static const uni_property_t* get_property(uni_property_idx_t idx) {
     if (idx >= UNI_PROPERTY_IDX_LAST) {
-        if (uni_get_platform()->get_property)
+        // Delegate platform-specific property indices (>= UNI_PROPERTY_IDX_LAST)
+        // to the active platform vtable when both the platform and callback exist.
+        if (uni_get_platform() && uni_get_platform()->get_property)
             return uni_get_platform()->get_property(idx);
         // Invalid
         return NULL;
@@ -147,9 +150,10 @@ void uni_property_set(uni_property_idx_t idx, uni_property_value_t value) {
 uni_property_value_t uni_property_get(uni_property_idx_t idx) {
     const uni_property_t* p = get_property(idx);
     if (!p) {
+        // Zero-initialize the entire union (in C11, `{0}` only initializes the 1-byte `boolean` first member).
         uni_property_value_t ret;
+        memset(&ret, 0, sizeof(ret));
         loge("Could not find property %d\n", idx);
-        ret.u8 = 0;
         return ret;
     }
     return uni_property_get_with_property(p);

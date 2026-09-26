@@ -149,6 +149,13 @@ void uni_bt_bredr_list_bonded_keys(void) {
 void uni_bt_bredr_setup(void) {
     int security_level = uni_bt_get_gap_security_level();
     gap_set_security_level(security_level);
+    // BTstack v1.8.2+ disables SSP auto-accept by default; enable it so BTstack automatically
+    // sends HCI_User_Confirmation_Request_Reply for SSP "Just Works" controllers (e.g., DualSense, Switch Pro).
+    gap_ssp_set_auto_accept(true);
+    // BTstack v1.8.2+ raises the default minimum encryption key size from 7 to 16 bytes.
+    // Restore the 7-byte minimum (Bluetooth Core Errata 11838) before hci_power_control(HCI_POWER_ON)
+    // so legacy BR/EDR gamepads negotiating 7..15-byte keys are not downgraded to LEVEL_0.
+    gap_set_required_encryption_key_size(7);
 
     gap_connectable_control(1);
 

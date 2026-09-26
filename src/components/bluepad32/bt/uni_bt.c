@@ -428,6 +428,8 @@ void uni_bt_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
                         default:
                             break;
                     }
+                    // Prevent fallthrough from HCI_EVENT_HID_META into HCI_EVENT_INQUIRY_RESULT.
+                    break;
                 }
                 case HCI_EVENT_INQUIRY_RESULT:
                     // logi("--> HCI_EVENT_INQUIRY_RESULT <--\n");
@@ -537,17 +539,19 @@ void uni_bt_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
 
 // Properties
 void uni_bt_set_gap_security_level(int gap) {
-    uni_property_value_t val;
+    uni_property_value_t val = {0};
 
-    val.u32 = gap;
+    // UNI_PROPERTY_IDX_GAP_LEVEL is defined as UNI_PROPERTY_TYPE_U8 in uni_property.c,
+    // so access val.u8 directly to stay consistent across endiannesses and TLV/NVS backends.
+    val.u8 = (uint8_t)gap;
     uni_property_set(UNI_PROPERTY_IDX_GAP_LEVEL, val);
 }
 
 int uni_bt_get_gap_security_level() {
-    uni_property_value_t val;
+    uni_property_value_t val = {0};
 
     val = uni_property_get(UNI_PROPERTY_IDX_GAP_LEVEL);
-    return val.u32;
+    return val.u8;
 }
 
 void uni_bt_set_gap_inquiry_length(int len) {

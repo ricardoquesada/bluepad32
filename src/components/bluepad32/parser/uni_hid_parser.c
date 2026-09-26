@@ -85,11 +85,19 @@ int32_t uni_hid_parser_process_axis(const hid_globals_t* globals, uint32_t value
         max = (1 << globals->report_size) - 1;
     }
 
-    // Get the range: how big can be the number
+    // Get the range: how big can be the number.
+    // Guard against malformed HID descriptors where logical_minimum > logical_maximum
+    // (range <= 0) to prevent division-by-zero traps.
     int32_t range = (max - min) + 1;
+    if (range <= 0) {
+        loge("uni_hid_parser_process_axis: invalid range (%d) for min=%d, max=%d\n", range, min, max);
+        return 0;
+    }
 
     // First, we "center" the value, meaning that 0 is when the axis is not used.
-    int32_t centered = value - range / 2 - min;
+    // Cast `value` to signed int32_t so signed HID inputs (e.g. -128..127) are not
+    // promoted to unsigned arithmetic.
+    int32_t centered = (int32_t)value - range / 2 - min;
 
     // Then we normalize between -512 and 511
     int32_t normalized = centered * AXIS_NORMALIZE_RANGE / range;
@@ -99,7 +107,7 @@ int32_t uni_hid_parser_process_axis(const hid_globals_t* globals, uint32_t value
     return normalized;
 }
 
-// Converts a possible value between (0, x) to (0, 1023)
+// Converts a possible value between (min, max) to (0, 1023)
 int32_t uni_hid_parser_process_pedal(const hid_globals_t* globals, uint32_t value) {
     int32_t max = globals->logical_maximum;
     int32_t min = globals->logical_minimum;
@@ -110,9 +118,16 @@ int32_t uni_hid_parser_process_pedal(const hid_globals_t* globals, uint32_t valu
         max = (1 << globals->report_size) - 1;
     }
 
-    // Get the range: how big can be the number
+    // Get the range: how big can be the number.
+    // Guard against range <= 0 to avoid division-by-zero on broken descriptors.
     int32_t range = (max - min) + 1;
-    int32_t normalized = value * AXIS_NORMALIZE_RANGE / range;
+    if (range <= 0) {
+        loge("uni_hid_parser_process_pedal: invalid range (%d) for min=%d, max=%d\n", range, min, max);
+        return 0;
+    }
+    // Subtract `min` from the signed `(int32_t)value` so pedals reporting signed
+    // ranges (such as [-128, 127]) normalize cleanly into [0, 1023].
+    int32_t normalized = ((int32_t)value - min) * AXIS_NORMALIZE_RANGE / range;
     logd("original = %d, normalized = %d (range = %d, min=%d, max=%d)\n", value, normalized, range, min, max);
 
     return normalized;

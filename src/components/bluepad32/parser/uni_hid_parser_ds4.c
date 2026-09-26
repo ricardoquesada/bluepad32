@@ -278,6 +278,9 @@ void uni_hid_parser_ds4_init_report(uni_hid_device_t* d) {
 }
 
 void uni_hid_parser_ds4_parse_feature_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
+    if (!d || !report || len < 1) {
+        return;
+    }
     ds4_instance_t* ins = get_ds4_instance(d);
     uint8_t report_id = report[0];
 
@@ -286,9 +289,10 @@ void uni_hid_parser_ds4_parse_feature_report(uni_hid_device_t* d, const uint8_t*
             int speed_2x;
             int range_2g;
 
-            if (len != DS4_FEATURE_REPORT_CALIBRATION_SIZE) {
+            // Reject truncated feature reports before casting `report` to the packed struct.
+            if (len < DS4_FEATURE_REPORT_CALIBRATION_SIZE) {
                 loge("DS4: Unexpected calibration size: got %d, want: %d\n", len, DS4_FEATURE_REPORT_CALIBRATION_SIZE);
-                /* fallthrough */
+                break;
             }
 
             logi("DS4: Calibration report received\n");
@@ -317,7 +321,8 @@ void uni_hid_parser_ds4_parse_feature_report(uni_hid_device_t* d, const uint8_t*
             // calibration data properly.
             for (size_t i = 0; i < ARRAY_SIZE(ins->gyro_calib_data); i++) {
                 if (ins->gyro_calib_data[i].sens_denom == 0) {
-                    loge("Invalid gyro calibration data for axis (%d), disabling calibration for axis = %d\n", i);
+                    loge("Invalid gyro calibration data for axis (%d), disabling calibration for axis = %d\n", (int)i,
+                         (int)i);
                     ins->gyro_calib_data[i].bias = 0;
                     ins->gyro_calib_data[i].sens_numer = DS4_GYRO_RANGE;
                     ins->gyro_calib_data[i].sens_denom = INT16_MAX;
@@ -347,7 +352,7 @@ void uni_hid_parser_ds4_parse_feature_report(uni_hid_device_t* d, const uint8_t*
             for (size_t i = 0; i < ARRAY_SIZE(ins->accel_calib_data); i++) {
                 if (ins->accel_calib_data[i].sens_denom == 0) {
                     loge("Invalid accelerometer calibration data for axis (%d), disabling calibration for axis=%d\n",
-                         i);
+                         (int)i, (int)i);
                     ins->accel_calib_data[i].bias = 0;
                     ins->accel_calib_data[i].sens_numer = DS4_ACC_RANGE;
                     ins->accel_calib_data[i].sens_denom = INT16_MAX;
@@ -357,17 +362,24 @@ void uni_hid_parser_ds4_parse_feature_report(uni_hid_device_t* d, const uint8_t*
             break;
         }
         case DS4_FEATURE_REPORT_FIRMWARE_VERSION: {
-            if (len != DS4_FEATURE_REPORT_FIRMWARE_VERSION_SIZE) {
+            if (len < DS4_FEATURE_REPORT_FIRMWARE_VERSION_SIZE) {
                 loge("DS4: Unexpected firmware version size: got %d, want: %d\n", len,
                      DS4_FEATURE_REPORT_FIRMWARE_VERSION_SIZE);
-                /* fallthrough */
+                break;
             }
             ds4_feature_report_firmware_version_t* r = (ds4_feature_report_firmware_version_t*)report;
+
+            // Copy fixed-width firmware date/time fields into +1 zero-initialized buffers
+            // to guarantee NUL-termination before passing to `%s` format specifiers.
+            char date_z[sizeof(r->string_date) + 1] = {0};
+            char time_z[sizeof(r->string_time) + 1] = {0};
+            memcpy(date_z, r->string_date, sizeof(r->string_date));
+            memcpy(time_z, r->string_time, sizeof(r->string_time));
 
             ins->hw_version = r->hw_version;
             ins->fw_version = r->fw_version;
             logi("DS4: fw version: 0x%04x, hw version: 0x%04x\n", ins->fw_version, ins->hw_version);
-            logi("DS4: Firmware build date: %s, %s\n", r->string_date, r->string_time);
+            logi("DS4: Firmware build date: %s, %s\n", date_z, time_z);
             break;
         }
         default:

@@ -95,7 +95,7 @@ uni_hid_device_t* uni_hid_device_create(bd_addr_t address) {
 }
 
 uni_hid_device_t* uni_hid_device_create_virtual(uni_hid_device_t* parent) {
-    if (!uni_virtual_device_is_enabled())
+    if (!parent || !uni_virtual_device_is_enabled())
         return NULL;
 
     int32_t i = get_free_device_idx();
@@ -104,14 +104,17 @@ uni_hid_device_t* uni_hid_device_create_virtual(uni_hid_device_t* parent) {
 
     logi("Creating virtual device (idx=%d)\n", (int)i);
 
-    // Don't memset the device, it is already "clean".
-    // memsetting could break the initialization.
+    // Initialize the device slot to establish non-zero sentinels (such as
+    // hids_cid = 0xffff) and reset internal circular buffers and connection state.
+    uni_hid_device_init(&g_devices[i]);
 
     // Both parent and child share the same address.
     // Seems safe to copy the address. "get_instance_by_address" skips
     // virtual devices.
     bd_addr_copy(g_devices[i].conn.btaddr, parent->conn.btaddr);
 
+    // Link parent and virtual child bidirectionally so lifecycle events
+    // (disconnection, deletion) cleanly propagate in either direction.
     g_devices[i].parent = parent;
     parent->child = &g_devices[i];
 
@@ -399,9 +402,17 @@ void uni_hid_device_set_hid_descriptor(uni_hid_device_t* d, const uint8_t* descr
         loge("ERROR: Invalid device\n");
         return;
     }
+    // Reject NULL descriptor pointers when a positive length is specified to avoid
+    // undefined behavior in memcpy.
+    if (!descriptor && len > 0) {
+        loge("ERROR: Invalid HID descriptor\n");
+        return;
+    }
 
     int min = btstack_min(HID_MAX_DESCRIPTOR_LEN, len);
-    memcpy(d->hid_descriptor, descriptor, min);
+    if (min > 0) {
+        memcpy(d->hid_descriptor, descriptor, (size_t)min);
+    }
     d->hid_descriptor_len = min;
     d->flags |= FLAGS_HAS_HID_DESCRIPTOR;
 
@@ -505,17 +516,29 @@ void uni_hid_device_delete(uni_hid_device_t* d) {
         return;
     }
 
-    // Delete child first
-    if (d->child)
+    // If this device is a virtual child being deleted directly, unlink it from
+    // its parent so subsequent parent teardown does not dereference a stale child pointer.
+    if (d->parent && d->parent->child == d) {
+        d->parent->child = NULL;
+    }
+
+    // Delete child first and clear the child pointer to prevent double-deletion.
+    if (d->child) {
         uni_hid_device_delete(d->child);
+        d->child = NULL;
+    }
 
     if (uni_hid_device_is_virtual_device(d))
         logi("Deleting virtual device: %s\n", bd_addr_to_str(d->conn.btaddr));
     else
         logi("Deleting device: %s\n", bd_addr_to_str(d->conn.btaddr));
 
-    // Remove the timer. If it was still running, it will crash if the handler gets called.
+    // Remove all embedded btstack_timer_source_t nodes from the BTstack run loop
+    // BEFORE uni_hid_device_init() zeroes the struct with memset. Zeroing an active
+    // intrusive linked-list node in-place would corrupt BTstack's global timer list.
     btstack_run_loop_remove_timer(&d->connection_timer);
+    btstack_run_loop_remove_timer(&d->inquiry_remote_name_timer);
+    btstack_run_loop_remove_timer(&d->misc_button_delay_timer);
 
     uni_hid_device_init(d);
 }

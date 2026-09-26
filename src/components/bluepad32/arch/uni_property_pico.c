@@ -54,10 +54,15 @@ void uni_property_set_with_property(const uni_property_t* p, uni_property_value_
             size = sizeof(value.f32);
             break;
         case UNI_PROPERTY_TYPE_STRING:
+            // Guard against NULL string pointers and enforce PROPERTY_STRING_MAX_LEN (including NUL).
+            if (!value.str) {
+                loge("uni_property_set_with_property: NULL string for %s\n", p->name);
+                return;
+            }
             data = (uint8_t*)value.str;
             size = (int)strlen(value.str) + 1;
             if (size > PROPERTY_STRING_MAX_LEN) {
-                loge("uni_property_set_with_property: string too long (%zu)\n", size);
+                loge("uni_property_set_with_property: string too long (%d)\n", size);
                 return;
             }
             break;
@@ -75,17 +80,20 @@ uni_property_value_t uni_property_get_with_property(const uni_property_t* p) {
     uni_property_value_t value;
     int size;
     int read;
+    // Static buffer holds the most recently retrieved string property value;
+    // zeroed before each TLV read to guarantee NUL-termination.
     static char str_ret[PROPERTY_STRING_MAX_LEN];
 
+    memset(&value, 0, sizeof(value));
     if (!p) {
         loge("Invalid get property\n");
-        value.u8 = 0;
         return value;
     }
 
     if (p->type == UNI_PROPERTY_TYPE_STRING) {
         memset(str_ret, 0, PROPERTY_STRING_MAX_LEN);
-        read = tlv_impl->get_tag(tlv_context, pico_get_tag_for_index(p->idx), str_ret, PROPERTY_STRING_MAX_LEN - 1);
+        read = tlv_impl->get_tag(tlv_context, pico_get_tag_for_index(p->idx), (uint8_t*)str_ret,
+                                 PROPERTY_STRING_MAX_LEN - 1);
         if (read == 0) {
             logd("Property %s (idx=%d, tag=%#x) not found in DB, returning default\n", p->name, p->idx,
                  pico_get_tag_for_index(p->idx));
@@ -109,8 +117,7 @@ uni_property_value_t uni_property_get_with_property(const uni_property_t* p) {
             size = sizeof(value.f32);
             break;
         default:
-            loge("uni_property_set_with_property: unsupported type %d\n", p->type);
-            value.u8 = 0;
+            loge("uni_property_get_with_property: unsupported type %d\n", p->type);
             return value;
     }
 

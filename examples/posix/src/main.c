@@ -196,18 +196,22 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packe
                         }
                     }
                     printf("\n");
+                    // Retrieve the Posix TLV singleton already initialized by uni_property_init()
+                    // (or create a fallback local instance) and pass tlv_context_ptr so BR/EDR link keys
+                    // and BLE bonding keys are persisted to the open TLV file rather than an uninitialized struct.
                     get_or_create_instance_tlv();
                     printf("TLV path: %s\n", tlv_context_ptr->db_path);
 #ifdef ENABLE_CLASSIC
-                    hci_set_link_key_db(btstack_link_key_db_tlv_get_instance(tlv_impl, &tlv_context));
+                    hci_set_link_key_db(btstack_link_key_db_tlv_get_instance(tlv_impl, tlv_context_ptr));
 #endif
 #ifdef ENABLE_BLE
-                    le_device_db_tlv_configure(tlv_impl, &tlv_context);
+                    le_device_db_tlv_configure(tlv_impl, tlv_context_ptr);
 #endif
                     printf("BTstack up and running on %s.\n", bd_addr_to_str(local_addr));
                     break;
                 case HCI_STATE_OFF:
-                    btstack_tlv_posix_deinit(&tlv_context);
+                    // Close the shared Posix TLV singleton context on shutdown.
+                    btstack_tlv_posix_deinit(tlv_context_ptr);
                     if (!shutdown_triggered)
                         break;
                     // reset stdin
@@ -257,26 +261,25 @@ void hal_led_toggle(void) {
     printf("LED State %u\n", led_state);
 }
 
-static char short_options[] = "hu:l:r";
+static char short_options[] = "hu:l:rb:de";
 
-static struct option long_options[] = {{"help", no_argument, NULL, 'h'},
-                                       {"logfile", required_argument, NULL, 'l'},
-                                       {"reset-tlv", no_argument, NULL, 'r'},
-                                       {"usbpath", required_argument, NULL, 'u'},
-                                       {0, 0, 0, 0}};
+static struct option long_options[] = {{"help", no_argument, NULL, 'h'},      {"logfile", required_argument, NULL, 'l'},
+                                       {"reset-tlv", no_argument, NULL, 'r'}, {"usbpath", required_argument, NULL, 'u'},
+                                       {"ble", required_argument, NULL, 'b'}, {"delete", no_argument, NULL, 'd'},
+                                       {"enhanced", no_argument, NULL, 'e'},  {0, 0, 0, 0}};
 
 static char* help_options[] = {
     "print (this) help.",
     "set file to store debug output and HCI trace.",
     "reset bonding information stored in TLV.",
     "set USB path to Bluetooth Controller.",
+    "disable (0) or enable (1) BLE.",
+    "delete stored bonding keys.",
+    "enable enhanced mode.",
 };
 
 static char* option_arg_name[] = {
-    "",
-    "LOGFILE",
-    "",
-    "USBPATH",
+    "", "LOGFILE", "", "USBPATH", "0|1", "", "",
 };
 
 static void usage(const char* name) {
@@ -314,6 +317,11 @@ int main(int argc, const char* argv[]) {
                 break;
             case 'r':
                 tlv_reset = true;
+                break;
+            case 'b':
+            case 'd':
+            case 'e':
+                // Handled in my_platform.c (posix_init)
                 break;
             case 'h':
             default:

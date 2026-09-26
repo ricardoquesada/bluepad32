@@ -52,6 +52,10 @@ void uni_property_set_with_property(const uni_property_t* p, uni_property_value_
         case UNI_PROPERTY_TYPE_STRING:
             err = nvs_set_str(nvs_handle, p->name, value.str);
             break;
+        default:
+            loge("uni_property_set_with_property: unsupported type %d\n", p->type);
+            err = ESP_ERR_INVALID_ARG;
+            break;
     }
 
     if (err != ESP_OK) {
@@ -71,13 +75,14 @@ out:
 uni_property_value_t uni_property_get_with_property(const uni_property_t* p) {
     nvs_handle_t nvs_handle;
     esp_err_t err;
+    // Zero-initialize the entire union so any error path returns deterministic 0/NULL across all widths.
     uni_property_value_t ret;
     size_t str_len = PROPERTY_STRING_MAX_LEN - 1;
     static char str_ret[PROPERTY_STRING_MAX_LEN];
 
+    memset(&ret, 0, sizeof(ret));
     if (!p) {
         loge("Cannot get invalid property\n");
-        ret.u8 = 0;
         return ret;
     }
 
@@ -103,6 +108,10 @@ uni_property_value_t uni_property_get_with_property(const uni_property_t* p) {
             ret.str = str_ret;
             memset(str_ret, 0, sizeof(str_ret));
             err = nvs_get_str(nvs_handle, p->name, str_ret, &str_len);
+            break;
+        default:
+            loge("uni_property_get_with_property: unsupported type %d\n", p->type);
+            err = ESP_ERR_INVALID_ARG;
             break;
     }
 
