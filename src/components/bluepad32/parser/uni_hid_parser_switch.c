@@ -858,8 +858,6 @@ static void parse_report_30(struct uni_hid_device_s* d, const uint8_t* report, i
     // 9D FF 72 FD 01 00 72 10 35 00 C1 FF 9B FF 75 FD FF FF 6C 10 34 00 C2 FF
     // 9A FF
 
-    ARG_UNUSED(len);
-
     switch_instance_t* ins = get_switch_instance(d);
     uni_controller_t* ctl = &d->controller;
     memset(&ctl->gamepad, 0, sizeof(ctl->gamepad));
@@ -884,11 +882,13 @@ static void parse_report_30(struct uni_hid_device_s* d, const uint8_t* report, i
             break;
     }
 
-    // 3 gyro/accel frames are reported.
-    // Different approaches: take the latest one, or average them.
-    // We just take the latest one. If it is not accurate enough, we can average them.
-    // Only parse IMU if mode is set AND calibration divisors are valid (NES has no IMU).
-    if (ins->mode == SWITCH_MODE_IMU && ins->imu_cal_gyro_divisor[0] != 0)
+    // IMU is valid for all 3 types of controllers.
+    // 3 gyro/accel frames are reported; we take the latest sample (`r->imu[2]`).
+    // Because `uni_hid_parser_switch_parse_input_report()` admits packets with `len >= 12`
+    // (enough for the 3-byte header + 9-byte `switch_buttons_s`), verify that the report
+    // contains the full 48-byte `3 + sizeof(struct switch_report_30_s)` payload before
+    // dereferencing `r->imu[2]` (bytes 36..47) to prevent out-of-bounds reads on short/clone packets.
+    if (ins->mode == SWITCH_MODE_IMU && len >= (int)(3 + sizeof(struct switch_report_30_s)) && ins->imu_cal_gyro_divisor[0] != 0)
         parse_imu(d, &r->imu[2]);
 }
 

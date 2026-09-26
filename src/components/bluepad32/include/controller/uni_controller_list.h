@@ -24,7 +24,7 @@
 // DO NOT INCLUDE.
 // CAN ONLY BE INCLUDED FROM uni_controller_type.c
 
-#define MAKE_CONTROLLER_ID(nVID, nPID) (uint32_t)((uint16_t)nVID << 16 | (uint16_t)nPID)
+#define MAKE_CONTROLLER_ID(nVID, nPID) ((uint32_t)nVID << 16 | (uint16_t)nPID)
 
 // clang-format off
 

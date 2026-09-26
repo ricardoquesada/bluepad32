@@ -264,25 +264,44 @@ void uni_hid_parser_steam_parse_input_report(struct uni_hid_device_s* d, const u
 
     uint16_t report_flags = (report[2] & 0xf0) + (report[3] << 8);
 
+    // Each flagged section is packed sequentially starting at byte offset 4.
+    // A 20-byte BLE report has 16 payload bytes after the 4-byte header, whereas enabling
+    // all 5 flags simultaneously requests 3 + 2 + 4 + 4 + 4 = 17 bytes (21 > 20).
+    // Guard every section read with `idx + N <= len` and always advance `idx` by the
+    // section's wire size (including the unmapped 4-byte LEFT_PAD section) so subsequent
+    // sections read from the correct offset without reading past `report + len`.
     idx = 4;
     if (report_flags & STEAM_CONTROLLER_FLAG_BUTTONS) {
-        parse_buttons(d, &report[idx]);
+        if (idx + 3 <= len) {
+            parse_buttons(d, &report[idx]);
+        }
+        idx += 3;
     }
 
     if (report_flags & STEAM_CONTROLLER_FLAG_TRIGGERS) {
-        parse_triggers(d, &report[idx]);
+        if (idx + 2 <= len) {
+            parse_triggers(d, &report[idx]);
+        }
+        idx += 2;
     }
 
     if (report_flags & STEAM_CONTROLLER_FLAG_THUMBSTICK) {
-        parse_thumbstick(d, &report[idx]);
+        if (idx + 4 <= len) {
+            parse_thumbstick(d, &report[idx]);
+        }
+        idx += 4;
     }
 
     if (report_flags & STEAM_CONTROLLER_FLAG_LEFT_PAD) {
+        // Not mapped for the moment, but still occupies 4 bytes in the report stream.
         idx += 4;
     }
 
     if (report_flags & STEAM_CONTROLLER_FLAG_RIGHT_PAD) {
-        parse_right_pad(d, &report[idx]);
+        if (idx + 4 <= len) {
+            parse_right_pad(d, &report[idx]);
+        }
+        idx += 4;
     }
 }
 
@@ -332,8 +351,10 @@ static void parse_buttons(struct uni_hid_device_s* d, const uint8_t* data) {
 static void parse_thumbstick(struct uni_hid_device_s* d, const uint8_t* data) {
     uni_controller_t* ctl = &d->controller;
 
-    int16_t x = (data[0] | data[1] << 8);
-    int16_t y = (data[2] | data[3] << 8);
+    // Widen to 32-bit signed integers after 16-bit sign-extension so negating INT16_MIN
+    // (-32768 / 0x8000) produces +32768 (+512 after >> 6) instead of signed 16-bit overflow UB.
+    int32_t x = (int16_t)(data[0] | (data[1] << 8));
+    int32_t y = (int16_t)(data[2] | (data[3] << 8));
     y = -y;
 
     ctl->gamepad.axis_x = (x >> 6);
@@ -350,8 +371,10 @@ static void parse_triggers(struct uni_hid_device_s* d, const uint8_t* data) {
 static void parse_right_pad(struct uni_hid_device_s* d, const uint8_t* data) {
     uni_controller_t* ctl = &d->controller;
 
-    int16_t x = (data[0] | data[1] << 8);
-    int16_t y = (data[2] | data[3] << 8);
+    // Widen to 32-bit signed integers after 16-bit sign-extension so negating INT16_MIN
+    // (-32768 / 0x8000) produces +32768 (+512 after >> 6) instead of signed 16-bit overflow UB.
+    int32_t x = (int16_t)(data[0] | (data[1] << 8));
+    int32_t y = (int16_t)(data[2] | (data[3] << 8));
     y = -y;
 
     ctl->gamepad.axis_rx = (x >> 6);

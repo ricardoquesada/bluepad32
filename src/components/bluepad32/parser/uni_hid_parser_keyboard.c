@@ -86,11 +86,17 @@ static void jx_05_parse_usage(uni_hid_device_t* d,
                         // The previous report was "down" or "button". This report should determine which one is one.
                         ins->jx_05.is_down_or_button = false;
 
-                        // Button repeats the first and last (second) report coordinates
-                        if (x == -260 && y == 145)
-                            d->controller.keyboard.pressed_keys[idx++] = HID_USAGE_KB_SPACEBAR;
-                        else
-                            d->controller.keyboard.pressed_keys[idx++] = HID_USAGE_KB_DOWN_ARROW;
+                        // Button repeats the first and last (second) report coordinates.
+                        // Guard against overflowing `pressed_keys[UNI_KEYBOARD_PRESSED_KEYS_MAX]`
+                        // and persist `pressed_key_index` immediately so subsequent usages in the
+                        // same report observe the updated index even when `ready_to_process` is false.
+                        if (idx < UNI_KEYBOARD_PRESSED_KEYS_MAX) {
+                            if (x == -260 && y == 145)
+                                d->controller.keyboard.pressed_keys[idx++] = HID_USAGE_KB_SPACEBAR;
+                            else
+                                d->controller.keyboard.pressed_keys[idx++] = HID_USAGE_KB_DOWN_ARROW;
+                        }
+                        ins->pressed_key_index = idx;
                     }
                     if (ins->jx_05.ready_to_process) {
                         // This is the last usage in the JX05 report.
@@ -101,14 +107,14 @@ static void jx_05_parse_usage(uni_hid_device_t* d,
                         //  x=-387, y=251  / ... / x= 225, y=251, and tip_switch=false, "scroll left"
                         //  x=-48,  y=251  / ... / x=-467, y=251, and tip_switch=false, "scroll right"
                         //  x=-260, y=145  / x=-260, y=145, and tip_switch=false, "button"
-                        if (x == -260 && y == -222)
+                        if (x == -260 && y == -222 && idx < UNI_KEYBOARD_PRESSED_KEYS_MAX)
                             d->controller.keyboard.pressed_keys[idx++] = HID_USAGE_KB_UP_ARROW;
                         else if (x == -260 && y == 145)
                             // Could either be "down" or "press". The next packet decides
                             ins->jx_05.is_down_or_button = true;
-                        else if (x == -387 && y == 251)
+                        else if (x == -387 && y == 251 && idx < UNI_KEYBOARD_PRESSED_KEYS_MAX)
                             d->controller.keyboard.pressed_keys[idx++] = HID_USAGE_KB_LEFT_ARROW;
-                        else if (x == -48 && y == 251)
+                        else if (x == -48 && y == 251 && idx < UNI_KEYBOARD_PRESSED_KEYS_MAX)
                             d->controller.keyboard.pressed_keys[idx++] = HID_USAGE_KB_RIGHT_ARROW;
                         else
                             break;
@@ -197,6 +203,12 @@ void uni_hid_parser_keyboard_parse_usage(uni_hid_device_t* d,
         case HID_USAGE_PAGE_CONSUMER:
             if (!value)
                 break;
+            // Ensure consumer-page keys also respect the `UNI_KEYBOARD_PRESSED_KEYS_MAX` (10)
+            // capacity when combined with standard keyboard/keypad usages in the same report.
+            if (idx >= UNI_KEYBOARD_PRESSED_KEYS_MAX) {
+                loge("Keyboard: reached max pressed keys (%d) on consumer page\n", UNI_KEYBOARD_PRESSED_KEYS_MAX);
+                break;
+            }
             // To support TikTok Ring Controller and "5-button keyboard". See:
             // https://github.com/ricardoquesada/bluepad32/issues/68
             // https://github.com/ricardoquesada/bluepad32/issues/104
