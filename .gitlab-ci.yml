@@ -1,6 +1,21 @@
 stages:
   - build
 
+unit_test_posix:
+  image: ubuntu:24.04
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  stage: build
+  before_script:
+    - export DEBIAN_FRONTEND=noninteractive
+    - apt-get update
+    - apt-get -y install tzdata git clang make cmake pkg-config libusb-1.0-0-dev
+    - cd external/btstack && git apply ../patches/*.patch && cd ../..
+  script:
+    - cmake -S tests -B tests/build -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON
+    - cmake --build tests/build --parallel
+    - ctest --test-dir tests/build --output-on-failure -V
+
 build-debian-linux-gcc:
   image: gcc
   variables:
@@ -41,3 +56,4 @@ build-esp-idf-5.5:
   script:
     - cd examples/esp32
     - idf.py build
+

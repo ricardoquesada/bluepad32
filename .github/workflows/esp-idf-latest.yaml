@@ -7,13 +7,16 @@ on:
     branches: [ main, develop ]
 
 jobs:
-  build:
-
+  build-platforms:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [plat_unijoysticle, plat_mightymiggy, plat_nina, plat_airlift]
 
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         submodules: 'recursive'
 
@@ -21,59 +24,35 @@ jobs:
       shell: bash
       run: cd external/btstack && git apply ../patches/*.patch
 
-    - name: Unijoysticle build
+    - name: Build ${{ matrix.platform }}
       uses: espressif/esp-idf-ci-action@main
       with:
         esp_idf_version: release-v5.5
         target: esp32
         path: 'src'
-        command: 'idf.py -B build_plat_unijoysticle -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.plat_unijoysticle" build'
+        command: 'idf.py -B build_${{ matrix.platform }} -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.${{ matrix.platform }}" build'
 
-    - name: Example ESP32 build
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [esp32, esp32s3, esp32c3, esp32c6, esp32h2, esp32c5]
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
+
+    - name: Patch BTStack
+      shell: bash
+      run: cd external/btstack && git apply ../patches/*.patch
+
+    - name: Example ${{ matrix.target }} build
       uses: espressif/esp-idf-ci-action@main
       with:
         esp_idf_version: release-v5.5
-        target: esp32
+        target: ${{ matrix.target }}
         path: 'examples/esp32'
-        command: "idf.py set-target esp32 && idf.py build"
-
-    - name: Example ESP32-S3 build
-      uses: espressif/esp-idf-ci-action@main
-      with:
-        esp_idf_version: release-v5.5
-        target: esp32-s3
-        path: 'examples/esp32'
-        command: "idf.py set-target esp32s3 && idf.py build"
-
-    - name: Example ESP32-C3 build
-      uses: espressif/esp-idf-ci-action@main
-      with:
-        esp_idf_version: release-v5.5
-        target: esp32-c3
-        path: 'examples/esp32'
-        command: "idf.py set-target esp32c3 && idf.py build"
-
-    - name: Example ESP32-C6 build
-      uses: espressif/esp-idf-ci-action@main
-      with:
-        esp_idf_version: release-v5.5
-        target: esp32-c6
-        path: 'examples/esp32'
-        command: "idf.py set-target esp32c6 && idf.py build"
-
-    - name: Example ESP32-H2 build
-      uses: espressif/esp-idf-ci-action@main
-      with:
-        esp_idf_version: release-v5.5
-        target: esp32-h2
-        path: 'examples/esp32'
-        command: "idf.py set-target esp32h2 && idf.py build"
-
-    - name: Example ESP32-C5 build
-      uses: espressif/esp-idf-ci-action@main
-      with:
-        esp_idf_version: release-v5.5
-        target: esp32-c5
-        path: 'examples/esp32'
-        command: "idf.py set-target esp32c5 && idf.py build"
-
+        command: "idf.py set-target ${{ matrix.target }} && idf.py build"

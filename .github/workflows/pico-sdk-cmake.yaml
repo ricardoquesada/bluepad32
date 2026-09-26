@@ -1,4 +1,4 @@
-name: Build with Pico SDK develop
+name: Build with Pico SDK
 
 on:
   push:
@@ -13,49 +13,60 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        board: [pico_w, pico2_w]
+        btstack_source: [pico_sdk]
+        include:
+          - board: pico_w
+            btstack_source: bluepad32_submodule
 
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         submodules: 'recursive'
 
-    - name: Checkout pico-sdk/develop
-      uses: actions/checkout@v2
+    - name: Patch BTStack
+      if: matrix.btstack_source == 'bluepad32_submodule'
+      shell: bash
+      run: cd external/btstack && git apply ../patches/*.patch
+
+    - name: Checkout pico-sdk/master
+      uses: actions/checkout@v4
       with:
         repository: raspberrypi/pico-sdk
-        ref: develop
+        ref: master
         path: pico-sdk
 
     - name: Checkout pico-sdk submodules
-      working-directory: ${{github.workspace}}/pico-sdk
+      working-directory: ${{ github.workspace }}/pico-sdk
       run: git submodule update --init
 
     - name: Create build folder
       run: |
         echo "Cleaning up previous run"
-        rm -rf "${{github.workspace}}/examples/pico_w/build"
-        mkdir -p "${{github.workspace}}/examples/pico_w/build"
+        rm -rf "${{ github.workspace }}/examples/pico_w/build"
+        mkdir -p "${{ github.workspace }}/examples/pico_w/build"
 
     - name: Install dependencies
-      run: sudo apt-get update && sudo apt -y install tzdata pkg-config make cmake gcc-arm-none-eabi
+      run: sudo apt-get update && sudo apt-get -y install tzdata pkg-config make cmake gcc-arm-none-eabi
 
-    - name: Configure CMake
-      # Use a bash shell so we can use the same syntax for environment variable
-      # access regardless of the host operating system
+    - name: Configure CMake (Pico SDK BTstack)
+      if: matrix.btstack_source == 'pico_sdk'
       shell: bash
-      working-directory: ${{github.workspace}}/examples/pico_w/build
-      # Note the current convention is to use the -S and -B options here to specify source
-      # and build directories, but this is only available with CMake 3.13 and higher.
-      # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
-      run: PICO_SDK_PATH=../../../pico-sdk cmake .. -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DPICO_BOARD=pico_w
+      working-directory: ${{ github.workspace }}/examples/pico_w/build
+      run: PICO_SDK_PATH=../../../pico-sdk cmake .. -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DPICO_BOARD=${{ matrix.board }}
 
-    - name: Get core count
-      id: core_count
-      run : cat /proc/cpuinfo  | grep processor | wc -l
+    - name: Configure CMake (Bluepad32 Submodule BTstack)
+      if: matrix.btstack_source == 'bluepad32_submodule'
+      shell: bash
+      working-directory: ${{ github.workspace }}/examples/pico_w/build
+      run: PICO_SDK_PATH=../../../pico-sdk cmake .. -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DPICO_BOARD=${{ matrix.board }} -DBTSTACK_ROOT=${{ github.workspace }}/external/btstack
 
     - name: Build
-      working-directory: ${{github.workspace}}/examples/pico_w/build
+      working-directory: ${{ github.workspace }}/examples/pico_w/build
       shell: bash
-      # Execute the build.  You can specify a specific target with "--target <NAME>"
       run: cmake --build . --config $BUILD_TYPE --parallel $(nproc)
+

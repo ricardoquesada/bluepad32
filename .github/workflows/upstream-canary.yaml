@@ -1,0 +1,134 @@
+name: Upstream Dependency Canary
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+jobs:
+  btstack-master-canary:
+    name: BTstack Canary (${{ matrix.btstack_ref }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        btstack_ref: [master, develop]
+
+    steps:
+    - name: Checkout Bluepad32
+      uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
+
+    - name: Checkout upstream BTstack (${{ matrix.btstack_ref }})
+      shell: bash
+      run: |
+        cd external/btstack
+        git remote set-url origin https://github.com/bluekitchen/btstack.git || true
+        git fetch origin ${{ matrix.btstack_ref }}
+        git checkout FETCH_HEAD
+        if git apply --check ../patches/*.patch 2>/dev/null; then
+          git apply ../patches/*.patch
+        else
+          echo "::warning::Local patches did not apply cleanly onto upstream BTstack ${{ matrix.btstack_ref }}; proceeding with unpatched upstream tree"
+        fi
+
+    - name: Install dependencies
+      run: sudo apt-get update && sudo apt-get -y install tzdata make pkg-config libusb-1.0-0-dev clang cmake
+
+    - name: Configure and build unit tests (ASan + UBSan)
+      shell: bash
+      run: |
+        cmake -S "${{ github.workspace }}/tests" -B "${{ github.workspace }}/tests/build" -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON
+        cmake --build "${{ github.workspace }}/tests/build" --parallel
+
+    - name: Run CTest contract suite against upstream BTstack
+      shell: bash
+      working-directory: ${{ github.workspace }}/tests/build
+      run: ctest --output-on-failure -V
+
+    - name: Configure and build POSIX example
+      shell: bash
+      run: |
+        cmake -S "${{ github.workspace }}/examples/posix" -B "${{ github.workspace }}/examples/posix/build" -DCMAKE_BUILD_TYPE=Debug
+        cmake --build "${{ github.workspace }}/examples/posix/build" --parallel
+
+  esp-idf-canary:
+    name: ESP-IDF Canary (${{ matrix.idf_image }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        idf_image:
+          - espressif/idf:release-v5.4
+          - espressif/idf:release-v5.5
+          - espressif/idf:latest
+    container:
+      image: ${{ matrix.idf_image }}
+
+    steps:
+    - name: Checkout Bluepad32
+      uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
+
+    - name: Patch BTStack
+      shell: bash
+      run: cd external/btstack && git apply ../patches/*.patch
+
+    - name: Build src/ CI platforms (unijoysticle, mightymiggy, nina, airlift)
+      shell: bash
+      working-directory: ${{ github.workspace }}/src
+      run: |
+        . $IDF_PATH/export.sh
+        for plat in plat_unijoysticle plat_mightymiggy plat_nina plat_airlift; do
+          idf.py -B "build_${plat}" -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.${plat}" build
+        done
+
+    - name: Build examples/esp32 across targets (esp32, esp32s3, esp32c3)
+      shell: bash
+      working-directory: ${{ github.workspace }}/examples/esp32
+      run: |
+        . $IDF_PATH/export.sh
+        for target in esp32 esp32s3 esp32c3; do
+          rm -rf build sdkconfig
+          idf.py set-target "${target}"
+          idf.py build
+        done
+
+  pico-sdk-master-canary:
+    name: Pico SDK Canary (${{ matrix.pico_ref }} / ${{ matrix.board }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        pico_ref: [master, develop]
+        board: [pico_w, pico2_w]
+
+    steps:
+    - name: Checkout Bluepad32
+      uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
+
+    - name: Checkout upstream pico-sdk (${{ matrix.pico_ref }})
+      uses: actions/checkout@v4
+      with:
+        repository: raspberrypi/pico-sdk
+        ref: ${{ matrix.pico_ref }}
+        path: pico-sdk
+
+    - name: Checkout pico-sdk submodules
+      working-directory: ${{ github.workspace }}/pico-sdk
+      run: git submodule update --init
+
+    - name: Install dependencies
+      run: sudo apt-get update && sudo apt-get -y install tzdata pkg-config make cmake gcc-arm-none-eabi
+
+    - name: Configure and build Pico W example (${{ matrix.board }})
+      shell: bash
+      run: |
+        mkdir -p "${{ github.workspace }}/examples/pico_w/build"
+        cd "${{ github.workspace }}/examples/pico_w/build"
+        PICO_SDK_PATH=../../../pico-sdk cmake .. -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=${{ matrix.board }}
+        cmake --build . --config Release --parallel $(nproc)

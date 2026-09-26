@@ -1,30 +1,34 @@
 cmake_minimum_required(VERSION 3.13)
 
 # PICO_BOARD should be set to 'pico_w', 'pico2_w' or not set at all.
-if(DEFINED PICO_BOARD)
-    message(DEBUG, "Using PICO_BOARD ${PICO_BOARD}")
-else()
-    message(VERBOSE, "PICO_BOARD not defined. Using 'pico_w'")
+if(NOT DEFINED PICO_BOARD)
+    message(VERBOSE "PICO_BOARD not defined. Using 'pico_w'")
     set(PICO_BOARD "pico_w")
+else()
+    message(DEBUG "Using PICO_BOARD ${PICO_BOARD}")
 endif()
 
 set(BLUEPAD32_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 
-# To use BTstack from Pico SDK do
-set(BTSTACK_ROOT ${PICO_SDK_PATH}/lib/btstack)
-
 # If you want to use latest BTstack (included in Bluepad32 repo),
-# uncomment the following lines:
-# -- uncomment from here:
+# uncomment the following line (or pass -DBTSTACK_ROOT=... to cmake):
 #set(BTSTACK_ROOT ${BLUEPAD32_ROOT}/external/btstack)
-#set(PICO_BTSTACK_PATH ${BTSTACK_ROOT})
-# Add missing files here. See:
-# https://github.com/bluekitchen/btstack/issues/649
-# https://github.com/raspberrypi/pico-sdk/issues/2142
-#set(BTSTACK_MISSING_SOURCES
-#    ${BTSTACK_ROOT}/src/hci_event_builder.c
-#)
-# -- uncomment until here
+
+if(DEFINED BTSTACK_ROOT)
+    message(STATUS "Using custom BTSTACK_ROOT: ${BTSTACK_ROOT}")
+    set(PICO_BTSTACK_PATH ${BTSTACK_ROOT})
+    # Add missing files here. See:
+    # https://github.com/bluekitchen/btstack/issues/649
+    # https://github.com/raspberrypi/pico-sdk/issues/2142
+    if(EXISTS "${BTSTACK_ROOT}/src/hci_event_builder.c")
+        set(BTSTACK_MISSING_SOURCES
+            ${BTSTACK_ROOT}/src/hci_event_builder.c
+        )
+    endif()
+else()
+    # Default: use BTstack bundled in Pico SDK
+    set(BTSTACK_ROOT ${PICO_SDK_PATH}/lib/btstack)
+endif()
 
 # initialize the SDK based on PICO_SDK_PATH
 # note: this must happen before project()
