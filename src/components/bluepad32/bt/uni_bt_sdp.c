@@ -81,7 +81,9 @@ static void sdp_query_timeout(btstack_timer_source_t* ts);
 static uint8_t device_id_sdp_service_buffer[100];
 
 // HID results: HID descriptor, PSM interrupt, PSM control, etc.
-static void uni_handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
+// Exposed with non-static linkage so Layer 2 packet-handler unit tests can feed
+// synthetic SDP_EVENT_QUERY_ATTRIBUTE_VALUE / SDP_EVENT_QUERY_COMPLETE byte streams directly.
+void uni_handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     ARG_UNUSED(packet_type);
     ARG_UNUSED(channel);
     ARG_UNUSED(size);
@@ -98,6 +100,8 @@ static void uni_handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channe
 
     switch (hci_event_packet_get_type(packet)) {
         case SDP_EVENT_QUERY_ATTRIBUTE_VALUE:
+            // Guard against oversized SDP attributes exceeding MAX_ATTRIBUTE_VALUE_SIZE (512 bytes)
+            // before writing the streamed byte at its reported offset.
             if (sdp_event_query_attribute_byte_get_attribute_length(packet) <= sdp_attribute_value_buffer_size) {
                 sdp_attribute_value[sdp_event_query_attribute_byte_get_data_offset(packet)] =
                     sdp_event_query_attribute_byte_get_data(packet);
@@ -140,8 +144,10 @@ static void uni_handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channe
     }
 }
 
-// Device ID results: Vendor ID, Product ID, Version, etc...
-static void uni_handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
+// Device ID results: Vendor ID, Product ID, Version, etc.
+// Exposed with non-static linkage so Layer 2 packet-handler unit tests can feed
+// synthetic SDP_EVENT_QUERY_ATTRIBUTE_VALUE / SDP_EVENT_QUERY_COMPLETE byte streams directly.
+void uni_handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
     ARG_UNUSED(packet_type);
     ARG_UNUSED(channel);
     ARG_UNUSED(size);
@@ -155,6 +161,8 @@ static void uni_handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channe
 
     switch (hci_event_packet_get_type(packet)) {
         case SDP_EVENT_QUERY_ATTRIBUTE_VALUE:
+            // Guard against oversized SDP attributes exceeding MAX_ATTRIBUTE_VALUE_SIZE (512 bytes)
+            // before writing the streamed byte at its reported offset.
             if (sdp_event_query_attribute_byte_get_attribute_length(packet) <= sdp_attribute_value_buffer_size) {
                 sdp_attribute_value[sdp_event_query_attribute_byte_get_data_offset(packet)] =
                     sdp_event_query_attribute_byte_get_data(packet);
@@ -215,6 +223,13 @@ static void sdp_query_timeout(btstack_timer_source_t* ts) {
 }
 
 // Public functions
+
+// Test seam: binds the module-scoped `sdp_device` pointer directly so unit tests can invoke
+// `uni_handle_sdp_pid_query_result` and `uni_handle_sdp_hid_query_result` without opening
+// a live L2CAP SDP connection.
+void uni_bt_sdp_set_device_for_test(uni_hid_device_t* d) {
+    sdp_device = d;
+}
 
 void uni_bt_sdp_query_start(uni_hid_device_t* d) {
     logi("-----------> sdp_query_start()\n");

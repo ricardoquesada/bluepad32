@@ -79,8 +79,11 @@ static void setup_call_next_fn(void) {
         // Populate global variable here, and just once.
         gap_local_bd_addr(uni_local_bd_addr);
 
-        // Only after all BT setup is done, call on_init_complete()
-        uni_get_platform()->on_init_complete();
+        // Only after all BT setup is done, invoke on_init_complete() if provided by the platform.
+        // Guard against NULL so minimal platforms and unit-test fixtures can safely omit it.
+        if (uni_get_platform()->on_init_complete) {
+            uni_get_platform()->on_init_complete();
+        }
 
         // Platform can disable the service.
         if (IS_ENABLED(UNI_ENABLE_BLE) && uni_bt_service_is_enabled())
@@ -129,6 +132,12 @@ bool uni_bt_setup_is_ready() {
 int uni_bt_setup(void) {
     bool bredr_enabled = false;
     bool ble_enabled = false;
+
+    // Reset the setup command index and state machine so repeated calls to uni_bt_setup()
+    // (e.g., across subsystem restarts or unit tests) start cleanly from step 0 without
+    // indexing past the end of setup_fns[].
+    setup_fn_idx = 0;
+    setup_state = SETUP_STATE_BTSTACK_IN_PROGRESS;
 
     // Initialize L2CAP
     l2cap_init();

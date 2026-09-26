@@ -149,12 +149,17 @@ static void get_advertisement_data(const uint8_t* adv_data, uint8_t adv_size, ui
             case BLUETOOTH_DATA_TYPE_LIST_OF_128_BIT_SERVICE_SOLICITATION_UUIDS:
                 break;
             case BLUETOOTH_DATA_TYPE_SHORTENED_LOCAL_NAME:
-            case BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME:
-                for (i = 0; i < size; i++) {
+            case BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME: {
+                // Clamp to 63 bytes + NUL terminator because the caller passes a 64-byte stack
+                // buffer (`char name[64]`), whereas malformed or extended BLE advertising
+                // payloads can report `size` up to 255 bytes.
+                int copy_len = (size < 63) ? size : 63;
+                for (i = 0; i < copy_len; i++) {
                     name[i] = data[i];
                 }
-                name[size] = 0;
+                name[copy_len] = 0;
                 break;
+            }
             case BLUETOOTH_DATA_TYPE_TX_POWER_LEVEL:
                 break;
             case BLUETOOTH_DATA_TYPE_SLAVE_CONNECTION_INTERVAL_RANGE:
