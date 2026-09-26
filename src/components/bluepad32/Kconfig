@@ -90,10 +90,16 @@ menu "Bluepad32"
     config BLUEPAD32_USB_CONSOLE_ENABLE
         bool "Enable USB Console"
         default  y
-        depends on !ESP_CONSOLE_NONE
+        depends on ESP_CONSOLE_UART
         help
             Enables the USB console.
             User can interact with the Bluepad32 firmware via commands.
+
+            Requires UART as the primary console (ESP_CONSOLE_UART_DEFAULT or
+            ESP_CONSOLE_UART_CUSTOM). USB_SERIAL_JTAG and USB_CDC primary
+            consoles are not supported: the REPL uses the UART-only APIs
+            (esp_console_dev_uart_config_t, esp_console_new_repl_uart()),
+            which are not defined when UART is not the primary console.
 
     config BLUEPAD32_CONSOLE_NVS_COMMAND_ENABLE
         bool "Enable NVS console commands"
