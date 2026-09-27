@@ -356,6 +356,17 @@ static void uni_device_information_packet_handler(uint8_t packet_type,
                                                   uint16_t channel,
                                                   uint8_t* packet,
                                                   uint16_t size) {
+    UNUSED(channel);
+
+    if (packet_type != HCI_EVENT_PACKET) {
+        loge("uni_device_information_packet_handler: unsupported packet type: %#x\n", packet_type);
+        return;
+    }
+
+    uni_bt_le_on_hci_event_gattservice_meta(packet, size);
+}
+
+void uni_bt_le_on_hci_event_gattservice_meta(const uint8_t* packet, uint16_t size) {
     uint8_t code;
     uint8_t status;
     uint8_t att_status;
@@ -364,13 +375,7 @@ static void uni_device_information_packet_handler(uint8_t packet_type,
     uint8_t event_type;
     uint16_t hids_cid;
 
-    UNUSED(channel);
     UNUSED(size);
-
-    if (packet_type != HCI_EVENT_PACKET) {
-        loge("uni_device_information_packet_handler: unsupported packet type: %#x\n", packet_type);
-        return;
-    }
 
     event_type = hci_event_packet_get_type(packet);
     if (event_type != HCI_EVENT_GATTSERVICE_META) {
@@ -546,6 +551,8 @@ static void uni_device_information_packet_handler(uint8_t packet_type,
             if (att_status != ATT_ERROR_SUCCESS) {
                 logi("PNP ID read failed, ATT Error 0x%02x\n", att_status);
             } else {
+                // Only record Vendor ID and Product ID when the GATT characteristic read succeeded;
+                // on ATT errors, the packet payload does not contain valid PnP ID fields (fixes B6).
                 logi("Vendor Source ID: 0x%02x\n",
                      gattservice_subevent_device_information_pnp_id_get_vendor_source_id(packet));
                 logi("Vendor  ID:       0x%04x\n",
@@ -554,10 +561,11 @@ static void uni_device_information_packet_handler(uint8_t packet_type,
                      gattservice_subevent_device_information_pnp_id_get_product_id(packet));
                 logi("Product Version:  0x%04x\n",
                      gattservice_subevent_device_information_pnp_id_get_product_version(packet));
+                uni_hid_device_set_vendor_id(device,
+                                             gattservice_subevent_device_information_pnp_id_get_vendor_id(packet));
+                uni_hid_device_set_product_id(device,
+                                              gattservice_subevent_device_information_pnp_id_get_product_id(packet));
             }
-            uni_hid_device_set_vendor_id(device, gattservice_subevent_device_information_pnp_id_get_vendor_id(packet));
-            uni_hid_device_set_product_id(device,
-                                          gattservice_subevent_device_information_pnp_id_get_product_id(packet));
 
             break;
 

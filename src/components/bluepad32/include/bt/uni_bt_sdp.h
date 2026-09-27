@@ -45,6 +45,16 @@ void uni_bt_sdp_query_start(uni_hid_device_t* d);
 void uni_bt_sdp_query_end(uni_hid_device_t* d);
 
 /**
+ * @brief Abort an in-progress SDP query for the specified device, if active.
+ *
+ * If `d` is currently the active `sdp_device`, removes `sdp_query_timer` from
+ * the BTstack run loop and clears `sdp_device = NULL`. Safe to call for any device.
+ *
+ * @param d Pointer to the HID device being disconnected, deleted, or aborted.
+ */
+void uni_bt_sdp_query_abort(uni_hid_device_t* d);
+
+/**
  * @brief Initiate an SDP PnP Information (`0x1200`) query to fetch Vendor ID and Product ID.
  *
  * @param d Pointer to the target HID device instance.

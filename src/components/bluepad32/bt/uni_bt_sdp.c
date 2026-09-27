@@ -58,9 +58,8 @@
 #include "uni_config.h"
 #include "uni_log.h"
 
-// These are the only two supported platforms with BR/EDR support.
-#if !(defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_TARGET_POSIX) || defined(CONFIG_TARGET_PICO_W))
-#error "This file can only be compiled for ESP32, Pico W, or Posix"
+#if !UNI_ENABLE_BREDR
+#error "BR/EDR is not enabled on this platform"
 #endif
 
 #define MAX_ATTRIBUTE_VALUE_SIZE 512  // Apparently PS4 has a 470-bytes report
@@ -259,6 +258,17 @@ void uni_bt_sdp_query_end(uni_hid_device_t* d) {
     uni_bt_bredr_process_fsm(d);
 }
 
+void uni_bt_sdp_query_abort(uni_hid_device_t* d) {
+    // Only disarm sdp_query_timer and clear sdp_device if the device being deleted/aborted
+    // is the one currently running an SDP query. When a concurrent 2nd device is rejected in
+    // uni_bt_sdp_query_start(), uni_hid_device_delete(d2) calls this function; checking
+    // sdp_device == d prevents d2's teardown from cancelling d1's active SDP query.
+    if (d != NULL && sdp_device == d) {
+        btstack_run_loop_remove_timer(&sdp_query_timer);
+        sdp_device = NULL;
+    }
+}
+
 void uni_bt_sdp_query_start_vid_pid(uni_hid_device_t* d) {
     logi("Starting SDP VID/PID query for %s\n", bd_addr_to_str(d->conn.btaddr));
 
@@ -267,6 +277,7 @@ void uni_bt_sdp_query_start_vid_pid(uni_hid_device_t* d) {
                                              BLUETOOTH_SERVICE_CLASS_PNP_INFORMATION);
     if (status != 0) {
         loge("Failed to perform SDP VID/PID query\n");
+        uni_bt_sdp_query_abort(d);
         uni_hid_device_disconnect(d);
         uni_hid_device_delete(d);
         /* 'd' is destroyed after this call, don't use it */
@@ -294,7 +305,7 @@ void uni_bt_sdp_query_start_hid_descriptor(uni_hid_device_t* d) {
                                              BLUETOOTH_SERVICE_CLASS_HUMAN_INTERFACE_DEVICE_SERVICE);
     if (status != 0) {
         loge("Failed to perform SDP query for %s. Removing it...\n", bd_addr_to_str(d->conn.btaddr));
-        btstack_run_loop_remove_timer(&sdp_query_timer);
+        uni_bt_sdp_query_abort(d);
         uni_hid_device_disconnect(d);
         uni_hid_device_delete(d);
         /* 'd'' is destroyed after this call, don't use it */

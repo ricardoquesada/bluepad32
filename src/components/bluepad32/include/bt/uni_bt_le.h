@@ -20,6 +20,18 @@ extern "C" {
 
 void uni_bt_le_on_hci_event_le_meta(const uint8_t* packet, uint16_t size);
 void uni_bt_le_on_hci_event_encryption_change(const uint8_t* packet, uint16_t size);
+
+/**
+ * @brief Handle `HCI_EVENT_GATTSERVICE_META` subevents from the BLE Device Information Service (DIS) client.
+ *
+ * Processes `GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_DONE` to transition to HID over GATT (HIDS)
+ * discovery, and validates `ATT_ERROR_SUCCESS` on `GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_PNP_ID`
+ * before updating the device's Vendor ID and Product ID.
+ *
+ * @param packet Pointer to the raw BTstack `HCI_EVENT_GATTSERVICE_META` packet.
+ * @param size   Size of `packet` in bytes.
+ */
+void uni_bt_le_on_hci_event_gattservice_meta(const uint8_t* packet, uint16_t size);
 void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t size);
 void uni_bt_le_on_hci_disconnection_complete(uint16_t channel, const uint8_t* packet, uint16_t size);
 
