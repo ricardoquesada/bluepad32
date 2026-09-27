@@ -1,43 +1,52 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2023 Ricardo Quesada
+// Copyright 2022 Ricardo Quesada
 // http://retro.moe/unijoysticle2
 
 #include "uni_property.h"
 
-#include <btstack_tlv_posix.h>
+#include <string.h>
+
+#include "sdkconfig.h"
+
+#include <btstack_tlv.h>
 #include <btstack_util.h>
-#include <hci.h>
+#ifdef CONFIG_TARGET_POSIX
+#include <btstack_tlv_posix.h>
+#endif
 
 #include "uni_common.h"
 #include "uni_log.h"
 
+#ifdef CONFIG_TARGET_POSIX
 #define TLV_DB_PATH_PREFIX "/tmp/bp32_property.tvl"
+static btstack_tlv_posix_t tlv_context;
+#endif
+
 #define PROPERTY_STRING_MAX_LEN 128
 
-static const btstack_tlv_t* tlv_impl;
-static btstack_tlv_posix_t tlv_context;
-static btstack_tlv_posix_t* tlv_context_ptr;
+typedef struct {
+    const btstack_tlv_t* impl;
+    void* context;
+} tlv_handle_t;
 
 // Prevent possible clashes from user using TLV directly
 static const char tag_0 = 'B';
 static const char tag_1 = 'P';
 static const char tag_2 = '3';
 
-static uint32_t posix_get_tag_for_index(uint8_t index) {
-    return (tag_0 << 24) | (tag_1 << 16) | (tag_2 << 8) | index;
+static uint32_t get_tag_for_index(uint8_t index) {
+    return ((uint32_t)tag_0 << 24) | ((uint32_t)tag_1 << 16) | ((uint32_t)tag_2 << 8) | index;
 }
 
-static void create_instance_tlv(void) {
-    logi("uni_property TLV path: %s\n", TLV_DB_PATH_PREFIX);
-    tlv_impl = btstack_tlv_posix_init_instance(&tlv_context, TLV_DB_PATH_PREFIX);
-    btstack_tlv_set_instance(tlv_impl, &tlv_context);
-    tlv_context_ptr = &tlv_context;
-}
-
-static void get_or_create_instance_tlv(void) {
-    btstack_tlv_get_instance(&tlv_impl, (void**)&tlv_context_ptr);
-    if (!tlv_impl || !tlv_context_ptr)
-        create_instance_tlv();
+// Query the BTstack TLV singleton dynamically on every get/set call rather than caching
+// it during uni_property_init(). On embedded targets like Pico W (CYW43), uni_property_init()
+// runs inside uni_init() BEFORE BTstack reaches HCI_STATE_WORKING and registers its flash-bank
+// TLV instance via btstack_tlv_set_instance(). Dynamic lookup ensures calls before HCI_STATE_WORKING
+// safely fall back to property defaults, and calls after HCI_STATE_WORKING automatically use flash TLV.
+static tlv_handle_t get_tlv(void) {
+    tlv_handle_t h = {0};
+    btstack_tlv_get_instance(&h.impl, &h.context);
+    return h;
 }
 
 void uni_property_set_with_property(const uni_property_t* p, uni_property_value_t value) {
@@ -52,9 +61,11 @@ void uni_property_set_with_property(const uni_property_t* p, uni_property_value_
     if (p->flags & UNI_PROPERTY_FLAG_READ_ONLY)
         return;
 
-    // Ensure the POSIX TLV instance is initialized even if property access occurs
-    // before an explicit uni_property_init() call.
-    get_or_create_instance_tlv();
+    tlv_handle_t tlv = get_tlv();
+    if (!tlv.impl || !tlv.context) {
+        logd("uni_property_set_with_property: TLV not initialized, skipping %s\n", p->name);
+        return;
+    }
 
     switch (p->type) {
         case UNI_PROPERTY_TYPE_BOOL:
@@ -91,8 +102,8 @@ void uni_property_set_with_property(const uni_property_t* p, uni_property_value_
             return;
     }
 
-    if (tlv_impl->store_tag(tlv_context_ptr, posix_get_tag_for_index(p->idx), data, size)) {
-        loge("Failed to store property %s(%d)\n", p->name, posix_get_tag_for_index(p->idx));
+    if (tlv.impl->store_tag(tlv.context, get_tag_for_index(p->idx), data, size)) {
+        loge("Failed to store property %s(%d)\n", p->name, p->idx);
     }
 }
 
@@ -100,7 +111,8 @@ uni_property_value_t uni_property_get_with_property(const uni_property_t* p) {
     uni_property_value_t value;
     int size;
     int read;
-    // Static buffer holds the retrieved string property; cleared before each read to guarantee NUL-termination.
+    // Static buffer holds the most recently retrieved string property value;
+    // zeroed before each TLV read to guarantee NUL-termination.
     static char str_ret[PROPERTY_STRING_MAX_LEN];
 
     memset(&value, 0, sizeof(value));
@@ -109,16 +121,22 @@ uni_property_value_t uni_property_get_with_property(const uni_property_t* p) {
         return value;
     }
 
-    get_or_create_instance_tlv();
+    tlv_handle_t tlv = get_tlv();
+    if (!tlv.impl || !tlv.context) {
+        logd("uni_property_get_with_property: TLV not initialized, returning default for %s\n", p->name);
+        return p->default_value;
+    }
 
     if (p->type == UNI_PROPERTY_TYPE_STRING) {
         memset(str_ret, 0, PROPERTY_STRING_MAX_LEN);
-        read = tlv_impl->get_tag(tlv_context_ptr, posix_get_tag_for_index(p->idx), (uint8_t*)str_ret,
-                                 PROPERTY_STRING_MAX_LEN - 1);
+        read =
+            tlv.impl->get_tag(tlv.context, get_tag_for_index(p->idx), (uint8_t*)str_ret, PROPERTY_STRING_MAX_LEN - 1);
         if (read == 0) {
-            logd("Property %s (%#x) not found in DB, returning default\n", p->name, posix_get_tag_for_index(p->idx));
+            logd("Property %s (idx=%d, tag=%#x) not found in DB, returning default\n", p->name, p->idx,
+                 get_tag_for_index(p->idx));
             return p->default_value;
         }
+        str_ret[PROPERTY_STRING_MAX_LEN - 1] = '\0';
         value.str = str_ret;
         return value;
     }
@@ -141,15 +159,28 @@ uni_property_value_t uni_property_get_with_property(const uni_property_t* p) {
             return value;
     }
 
-    read = tlv_impl->get_tag(tlv_context_ptr, posix_get_tag_for_index(p->idx), (uint8_t*)&value, size);
+    read = tlv.impl->get_tag(tlv.context, get_tag_for_index(p->idx), (uint8_t*)&value, size);
     if (read == 0) {
-        logd("Property %s (%#x) not found in DB, returning default\n", p->name, posix_get_tag_for_index(p->idx));
+        logd("Property %s (idx=%d, tag=%#x) not found in DB, returning default\n", p->name, p->idx,
+             get_tag_for_index(p->idx));
         return p->default_value;
     }
     return value;
 }
 
 void uni_property_init(void) {
-    get_or_create_instance_tlv();
+#ifdef CONFIG_TARGET_POSIX
+    tlv_handle_t tlv = get_tlv();
+    if (!tlv.impl || !tlv.context) {
+        logi("uni_property TLV path: %s\n", TLV_DB_PATH_PREFIX);
+        const btstack_tlv_t* tlv_impl = btstack_tlv_posix_init_instance(&tlv_context, TLV_DB_PATH_PREFIX);
+        btstack_tlv_set_instance(tlv_impl, &tlv_context);
+    }
+#else
+    tlv_handle_t tlv = get_tlv();
+    if (!tlv.impl || !tlv.context) {
+        logd("TLV not initialized yet (will use defaults until BTstack TLV instance is registered)\n");
+    }
+#endif
     uni_property_init_debug();
 }

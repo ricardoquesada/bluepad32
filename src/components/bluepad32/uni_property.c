@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "bt/uni_bt_defines.h"
+#include "controller/uni_balance_board.h"
 #include "platform/uni_platform.h"
 #include "sdkconfig.h"
 #include "uni_log.h"
@@ -50,6 +51,10 @@ static const uni_property_t properties[] = {
      .default_value.boolean = false
 #endif  // CONFIG_BLUEPAD32_ENABLE_VIRTUAL_DEVICE_BY_DEFAULT
     },
+    {UNI_PROPERTY_IDX_UNI_BB_FIRE_THRESHOLD, UNI_PROPERTY_NAME_UNI_BB_FIRE_THRESHOLD, UNI_PROPERTY_TYPE_U32,
+     .default_value.u32 = UNI_BALANCE_BOARD_FIRE_THRESHOLD_DEFAULT},
+    {UNI_PROPERTY_IDX_UNI_BB_MOVE_THRESHOLD, UNI_PROPERTY_NAME_UNI_BB_MOVE_THRESHOLD, UNI_PROPERTY_TYPE_U32,
+     .default_value.u32 = UNI_BALANCE_BOARD_MOVE_THRESHOLD_DEFAULT},
 
     // TODO: Platform specific. Should be defined in its own file.
 };

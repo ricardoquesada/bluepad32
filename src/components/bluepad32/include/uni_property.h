@@ -20,6 +20,8 @@
 #define UNI_PROPERTY_NAME_GAP_MAX_PERIODIC_LEN "bp.gap.max_len"
 #define UNI_PROPERTY_NAME_GAP_MIN_PERIODIC_LEN "bp.gap.min_len"
 #define UNI_PROPERTY_NAME_MOUSE_SCALE "bp.mouse.scale"
+#define UNI_PROPERTY_NAME_UNI_BB_FIRE_THRESHOLD "bp.uni.bb_fire"
+#define UNI_PROPERTY_NAME_UNI_BB_MOVE_THRESHOLD "bp.uni.bb_move"
 #define UNI_PROPERTY_NAME_VERSION "bp.version"
 #define UNI_PROPERTY_NAME_VIRTUAL_DEVICE_ENABLED "bp.virt_dev_en"
 
@@ -34,14 +36,18 @@ typedef enum {
     UNI_PROPERTY_IDX_MOUSE_SCALE,
     UNI_PROPERTY_IDX_VERSION,
     UNI_PROPERTY_IDX_VIRTUAL_DEVICE_ENABLED,
+    // Placed immediately before UNI_PROPERTY_IDX_LAST so that Balance Board thresholds are
+    // registered in the global property table on all platforms (called from uni_balance_board_init()
+    // during uni_init()) without shifting the numeric indices (0..9) of existing global properties
+    // stored as BTstack TLV tags ('BP3' | idx).
+    UNI_PROPERTY_IDX_UNI_BB_FIRE_THRESHOLD,
+    UNI_PROPERTY_IDX_UNI_BB_MOVE_THRESHOLD,
     UNI_PROPERTY_IDX_LAST,
 
     // Unijoysticle only properties
     // TODO: Should be moved to the platform file
     // Or could be conditionally compiled.
     UNI_PROPERTY_IDX_UNI_AUTOFIRE_CPS = UNI_PROPERTY_IDX_LAST,
-    UNI_PROPERTY_IDX_UNI_BB_FIRE_THRESHOLD,
-    UNI_PROPERTY_IDX_UNI_BB_MOVE_THRESHOLD,
     UNI_PROPERTY_IDX_UNI_C64_POT_MODE,
     UNI_PROPERTY_IDX_UNI_MODEL,
     UNI_PROPERTY_IDX_UNI_MOUSE_EMULATION,
@@ -93,8 +99,8 @@ void uni_property_dump_property(const uni_property_t* p);
 void uni_property_init_debug(void);
 const uni_property_t* uni_property_get_property_by_name(const char* name);
 
-// Interface
-// Each arch needs to implement these functions:
+// Architecture-specific storage backend interface (implemented by NVS on ESP32,
+// BTstack TLV on POSIX / Pico W, or in-memory storage).
 void uni_property_init(void);
 void uni_property_set_with_property(const uni_property_t* p, uni_property_value_t value);
 uni_property_value_t uni_property_get_with_property(const uni_property_t* p);
