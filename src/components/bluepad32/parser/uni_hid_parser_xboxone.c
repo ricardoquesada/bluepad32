@@ -12,6 +12,7 @@
 
 #include "controller/uni_controller.h"
 #include "hid_usage.h"
+#include "parser/uni_hid_parser_rumble.h"
 #include "uni_hid_device.h"
 #include "uni_log.h"
 
@@ -21,8 +22,6 @@
 #define TRIGGER_BUTTON_THRESHOLD 32
 
 #define XBOX_RUMBLE_REPORT_ID 0x03
-
-#define BLE_RETRY_MS 50
 
 static const uint16_t XBOX_WIRELESS_VID = 0x045e;  // Microsoft
 static const uint16_t XBOX_WIRELESS_PID = 0x02e0;  // Xbox One (Bluetooth)
@@ -64,17 +63,6 @@ enum {
     XBOXONE_FF_TRIGGER_LEFT = BIT(3),
 };
 
-typedef enum {
-    XBOXONE_STATE_RUMBLE_DISABLED,
-    XBOXONE_STATE_RUMBLE_DELAYED,
-    XBOXONE_STATE_RUMBLE_IN_PROGRESS,
-} xboxone_state_rumble_t;
-
-typedef enum {
-    XBOXONE_RETRY_CMD_RUMBLE_ON,
-    XBOXONE_RETRY_CMD_RUMBLE_OFF,
-} xboxone_retry_cmd_t;
-
 struct xboxone_ff_report {
     // Report related
     uint8_t transaction_type;  // type of transaction
@@ -94,36 +82,16 @@ struct xboxone_ff_report {
 // xboxone_instance_t represents data used by the Xbox driver instance.
 typedef struct xboxone_instance_s {
     enum xboxone_firmware version;
-    // Cannot use the Xbox duration field because 8BitDo controllers keep rumbling forever.
-    // So we use a timer to cancel the rumbling after "duration".
-    // https://gitlab.com/ricardoquesada/unijoysticle2/-/issues/10
-    // https://github.com/ricardoquesada/bluepad32/issues/85
-    // We also use a delayed timer, instead of the internal Xbox delay. More compatible.
-    btstack_timer_source_t rumble_timer_duration;
-    btstack_timer_source_t rumble_timer_delayed_start;
-    xboxone_state_rumble_t rumble_state;
-
-    // Used by delayed start
-    uint16_t rumble_duration_ms;
-    uint8_t rumble_trigger_left;
-    uint8_t rumble_trigger_right;
-    uint8_t rumble_weak_magnitude;
-    uint8_t rumble_strong_magnitude;
-
 } xboxone_instance_t;
 _Static_assert(sizeof(xboxone_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "Xbox one instance too big");
 
 static xboxone_instance_t* get_xboxone_instance(uni_hid_device_t* d);
-static void on_xboxone_set_rumble_on(btstack_timer_source_t* ts);
-static void on_xboxone_set_rumble_off(btstack_timer_source_t* ts);
-static void xboxone_stop_rumble_now(uni_hid_device_t* d);
-static void xboxone_play_quad_rumble_now(uni_hid_device_t* d,
-                                         uint16_t duration_ms,
-                                         uint8_t trigger_left,
-                                         uint8_t trigger_right,
-                                         uint8_t weak_magnitude,
-                                         uint8_t strong_magnitude);
-static void xboxone_retry_cmd(uni_hid_device_t* d, xboxone_retry_cmd_t cmd);
+static uni_rumble_result_t xboxone_start_rumble_now(struct uni_hid_device_s* d,
+                                                    uint8_t weak_magnitude,
+                                                    uint8_t strong_magnitude,
+                                                    uint8_t trigger_left,
+                                                    uint8_t trigger_right);
+static uni_rumble_result_t xboxone_stop_rumble_now(struct uni_hid_device_s* d);
 static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
                                       const hid_globals_t* globals,
                                       uint16_t usage_page,
@@ -154,6 +122,9 @@ bool uni_hid_parser_xboxone_does_name_match(struct uni_hid_device_s* d, const ch
 
 void uni_hid_parser_xboxone_setup(uni_hid_device_t* d) {
     xboxone_instance_t* ins = get_xboxone_instance(d);
+    memset(ins, 0, sizeof(*ins));
+    uni_hid_parser_rumble_init(d, xboxone_start_rumble_now, xboxone_stop_rumble_now);
+
     // FIXME: Parse HID descriptor and see if it supports 0xf buttons. Checking
     // for the len is a horrible hack.
     if (gap_get_connection_type(d->conn.handle) == GAP_CONNECTION_LE) {
@@ -521,35 +492,8 @@ void xboxone_play_quad_rumble(struct uni_hid_device_s* d,
         return;
     }
 
-    xboxone_instance_t* ins = get_xboxone_instance(d);
-    switch (ins->rumble_state) {
-        case XBOXONE_STATE_RUMBLE_DELAYED:
-            btstack_run_loop_remove_timer(&ins->rumble_timer_delayed_start);
-            break;
-        case XBOXONE_STATE_RUMBLE_IN_PROGRESS:
-            btstack_run_loop_remove_timer(&ins->rumble_timer_duration);
-            break;
-        default:
-            // Do nothing
-            break;
-    }
-
-    if (start_delay_ms == 0) {
-        xboxone_play_quad_rumble_now(d, duration_ms, trigger_left, trigger_right, weak_magnitude, strong_magnitude);
-    } else {
-        // Set timer to have a delayed start
-        ins->rumble_timer_delayed_start.process = &on_xboxone_set_rumble_on;
-        ins->rumble_timer_delayed_start.context = d;
-        ins->rumble_state = XBOXONE_STATE_RUMBLE_DELAYED;
-        ins->rumble_duration_ms = duration_ms;
-        ins->rumble_trigger_left = trigger_left;
-        ins->rumble_trigger_right = trigger_right;
-        ins->rumble_strong_magnitude = strong_magnitude;
-        ins->rumble_weak_magnitude = weak_magnitude;
-
-        btstack_run_loop_set_timer(&ins->rumble_timer_delayed_start, start_delay_ms);
-        btstack_run_loop_add_timer(&ins->rumble_timer_delayed_start);
-    }
+    uni_hid_parser_rumble_play_quad(d, start_delay_ms, duration_ms, weak_magnitude, strong_magnitude, trigger_left,
+                                    trigger_right, xboxone_start_rumble_now, xboxone_stop_rumble_now);
 }
 
 void uni_hid_parser_xboxone_device_dump(uni_hid_device_t* d) {
@@ -566,39 +510,13 @@ void uni_hid_parser_xboxone_device_dump(uni_hid_device_t* d) {
 //
 // Helpers
 //
-xboxone_instance_t* get_xboxone_instance(uni_hid_device_t* d) {
+static xboxone_instance_t* get_xboxone_instance(uni_hid_device_t* d) {
     return (xboxone_instance_t*)&d->parser_data[0];
 }
 
-static void xboxone_retry_cmd(uni_hid_device_t* d, xboxone_retry_cmd_t cmd) {
-    xboxone_instance_t* ins = get_xboxone_instance(d);
-    ins->rumble_timer_delayed_start.context = d;
-
-    switch (cmd) {
-        case XBOXONE_RETRY_CMD_RUMBLE_ON:
-            ins->rumble_timer_delayed_start.process = &on_xboxone_set_rumble_on;
-            ins->rumble_state = XBOXONE_STATE_RUMBLE_DELAYED;
-            btstack_run_loop_set_timer(&ins->rumble_timer_delayed_start, BLE_RETRY_MS);
-            btstack_run_loop_add_timer(&ins->rumble_timer_delayed_start);
-            break;
-        case XBOXONE_RETRY_CMD_RUMBLE_OFF:
-            ins->rumble_timer_duration.process = &on_xboxone_set_rumble_off;
-            ins->rumble_state = XBOXONE_STATE_RUMBLE_IN_PROGRESS;
-            btstack_run_loop_set_timer(&ins->rumble_timer_duration, BLE_RETRY_MS);
-            btstack_run_loop_add_timer(&ins->rumble_timer_duration);
-            break;
-        default:
-            break;
-    }
-}
-
-static void xboxone_stop_rumble_now(uni_hid_device_t* d) {
+static uni_rumble_result_t xboxone_stop_rumble_now(struct uni_hid_device_s* d) {
     uint8_t status;
     xboxone_instance_t* ins = get_xboxone_instance(d);
-
-    // No need to protect it with a mutex since it runs in the same main thread
-    assert(ins->rumble_state != XBOXONE_STATE_RUMBLE_DISABLED);
-    ins->rumble_state = XBOXONE_STATE_RUMBLE_DISABLED;
 
     struct xboxone_ff_report ff = {
         .transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT,
@@ -620,42 +538,36 @@ static void xboxone_stop_rumble_now(uni_hid_device_t* d) {
         );
         if (status == ERROR_CODE_COMMAND_DISALLOWED) {
             logd("Xbox: Failed to turn off rumble, error=%#x, retrying...\n", status);
-            xboxone_retry_cmd(d, XBOXONE_RETRY_CMD_RUMBLE_OFF);
-            return;
+            return UNI_RUMBLE_RETRY_BLE;
         } else if (status != ERROR_CODE_SUCCESS) {
             // Do nothing, log the error
             logi("Xbox: Failed to turn off rumble, error=%#x\n", status);
+            return UNI_RUMBLE_ERR;
         }
         // else, SUCCESS
     } else {
         uni_hid_device_send_intr_report(d, (uint8_t*)&ff, sizeof(ff));
     }
+    return UNI_RUMBLE_OK;
 }
 
-static void xboxone_play_quad_rumble_now(uni_hid_device_t* d,
-                                         uint16_t duration_ms,
-                                         uint8_t trigger_left,
-                                         uint8_t trigger_right,
-                                         uint8_t weak_magnitude,
-                                         uint8_t strong_magnitude) {
+static uni_rumble_result_t xboxone_start_rumble_now(struct uni_hid_device_s* d,
+                                                    uint8_t weak_magnitude,
+                                                    uint8_t strong_magnitude,
+                                                    uint8_t trigger_left,
+                                                    uint8_t trigger_right) {
     uint8_t status;
     uint8_t mask = 0;
 
     xboxone_instance_t* ins = get_xboxone_instance(d);
-
-    if (duration_ms == 0) {
-        if (ins->rumble_state != XBOXONE_STATE_RUMBLE_DISABLED)
-            xboxone_stop_rumble_now(d);
-        return;
-    }
 
     mask |= (trigger_left != 0) ? XBOXONE_FF_TRIGGER_LEFT : 0;
     mask |= (trigger_right != 0) ? XBOXONE_FF_TRIGGER_RIGHT : 0;
     mask |= (weak_magnitude != 0) ? XBOXONE_FF_WEAK : 0;
     mask |= (strong_magnitude != 0) ? XBOXONE_FF_STRONG : 0;
 
-    logd("xbox rumble: duration=%d, left=%d, right=%d, weak=%d, strong=%d, mask=%#x\n", duration_ms, trigger_left,
-         trigger_right, weak_magnitude, strong_magnitude, mask);
+    logd("xbox rumble: duration=%d, left=%d, right=%d, weak=%d, strong=%d, mask=%#x\n", d->rumble.duration_ms,
+         trigger_left, trigger_right, weak_magnitude, strong_magnitude, mask);
 
     // Magnitude is 0..100 so scale the 8-bit input here
 
@@ -680,35 +592,15 @@ static void xboxone_play_quad_rumble_now(uni_hid_device_t* d,
         );
         if (status == ERROR_CODE_COMMAND_DISALLOWED) {
             logd("Xbox: Failed to send rumble report, error=%#x, retrying...\n", status);
-            xboxone_retry_cmd(d, XBOXONE_RETRY_CMD_RUMBLE_ON);
-            return;
+            return UNI_RUMBLE_RETRY_BLE;
         } else if (status != ERROR_CODE_SUCCESS) {
             // Don't retry, log the error and return
             logi("Xbox: Failed to send rumble report, error=%#x\n", status);
-            return;
+            return UNI_RUMBLE_ERR;
         }
     } else {
         uni_hid_device_send_intr_report(d, (uint8_t*)&ff, sizeof(ff));
     }
 
-    // Set timer to turn off rumble
-    ins->rumble_timer_duration.process = &on_xboxone_set_rumble_off;
-    ins->rumble_timer_duration.context = d;
-    ins->rumble_state = XBOXONE_STATE_RUMBLE_IN_PROGRESS;
-
-    btstack_run_loop_set_timer(&ins->rumble_timer_duration, duration_ms);
-    btstack_run_loop_add_timer(&ins->rumble_timer_duration);
-}
-
-static void on_xboxone_set_rumble_on(btstack_timer_source_t* ts) {
-    uni_hid_device_t* d = ts->context;
-    xboxone_instance_t* ins = get_xboxone_instance(d);
-
-    xboxone_play_quad_rumble_now(d, ins->rumble_duration_ms, ins->rumble_trigger_left, ins->rumble_trigger_right,
-                                 ins->rumble_weak_magnitude, ins->rumble_strong_magnitude);
-}
-
-static void on_xboxone_set_rumble_off(btstack_timer_source_t* ts) {
-    uni_hid_device_t* d = ts->context;
-    xboxone_stop_rumble_now(d);
+    return UNI_RUMBLE_OK;
 }

@@ -40,12 +40,6 @@ enum {
     DS4_FF_FLAG_BLINK_COLOR_RUMBLE = DS4_FF_FLAG_RUMBLE | DS4_FF_FLAG_LED_COLOR | DS4_FF_FLAG_LED_BLINK,
 };
 
-typedef enum {
-    DS4_STATE_RUMBLE_DISABLED,
-    DS4_STATE_RUMBLE_DELAYED,
-    DS4_STATE_RUMBLE_IN_PROGRESS,
-} ds4_state_rumble_t;
-
 // Calibration data for motion sensors.
 struct ds4_calibration_data {
     int16_t bias;
@@ -54,16 +48,6 @@ struct ds4_calibration_data {
 };
 
 typedef struct {
-    // Although technically, we can use one timer for delay and duration, easier to debug/maintain if we have two.
-    btstack_timer_source_t rumble_timer_duration;
-    btstack_timer_source_t rumble_timer_delayed_start;
-    ds4_state_rumble_t rumble_state;
-
-    // Used by delayed start
-    uint16_t rumble_weak_magnitude;
-    uint16_t rumble_strong_magnitude;
-    uint16_t rumble_duration_ms;
-
     uint16_t fw_version;
     uint16_t hw_version;
 
@@ -208,18 +192,18 @@ static void ds4_send_output_report(uni_hid_device_t* d, ds4_output_report_t* out
 static void ds4_request_calibration_report(uni_hid_device_t* d);
 static void ds4_request_firmware_version_report(uni_hid_device_t* d);
 static void ds4_send_enable_lightbar_report(uni_hid_device_t* d);
-static void on_ds4_set_rumble_on(btstack_timer_source_t* ts);
-static void on_ds4_set_rumble_off(btstack_timer_source_t* ts);
-static void ds4_stop_rumble_now(uni_hid_device_t* d);
-static void ds4_play_dual_rumble_now(uni_hid_device_t* d,
-                                     uint16_t duration_ms,
-                                     uint8_t weak_magnitude,
-                                     uint8_t strong_magnitude);
+static uni_rumble_result_t ds4_stop_rumble_now(struct uni_hid_device_s* d);
+static uni_rumble_result_t ds4_start_rumble_now(struct uni_hid_device_s* d,
+                                                uint8_t weak_magnitude,
+                                                uint8_t strong_magnitude,
+                                                uint8_t trigger_left,
+                                                uint8_t trigger_right);
 static void ds4_parse_mouse(uni_hid_device_t* d, const ds4_input_report_11_t* r);
 
 void uni_hid_parser_ds4_setup(struct uni_hid_device_s* d) {
     ds4_instance_t* ins = get_ds4_instance(d);
     memset(ins, 0, sizeof(*ins));
+    uni_hid_parser_rumble_init(d, ds4_start_rumble_now, ds4_stop_rumble_now);
 
     // Default values for Accel / Gyro calibration data, until calibration is supported.
     for (size_t i = 0; i < ARRAY_SIZE(ins->accel_calib_data); i++) {
@@ -558,33 +542,8 @@ void uni_hid_parser_ds4_play_dual_rumble(struct uni_hid_device_s* d,
         return;
     }
 
-    ds4_instance_t* ins = get_ds4_instance(d);
-    switch (ins->rumble_state) {
-        case DS4_STATE_RUMBLE_DELAYED:
-            btstack_run_loop_remove_timer(&ins->rumble_timer_delayed_start);
-            break;
-        case DS4_STATE_RUMBLE_IN_PROGRESS:
-            btstack_run_loop_remove_timer(&ins->rumble_timer_duration);
-            break;
-        default:
-            // Do nothing
-            break;
-    }
-
-    if (start_delay_ms == 0) {
-        ds4_play_dual_rumble_now(d, duration_ms, weak_magnitude, strong_magnitude);
-    } else {
-        // Set timer to have a delayed start
-        ins->rumble_timer_delayed_start.process = &on_ds4_set_rumble_on;
-        ins->rumble_timer_delayed_start.context = d;
-        ins->rumble_state = DS4_STATE_RUMBLE_DELAYED;
-        ins->rumble_duration_ms = duration_ms;
-        ins->rumble_strong_magnitude = strong_magnitude;
-        ins->rumble_weak_magnitude = weak_magnitude;
-
-        btstack_run_loop_set_timer(&ins->rumble_timer_delayed_start, start_delay_ms);
-        btstack_run_loop_add_timer(&ins->rumble_timer_delayed_start);
-    }
+    uni_hid_parser_rumble_play_dual(d, start_delay_ms, duration_ms, weak_magnitude, strong_magnitude,
+                                    ds4_start_rumble_now, ds4_stop_rumble_now);
 }
 
 void uni_hid_parser_ds4_device_dump(uni_hid_device_t* d) {
@@ -608,11 +567,8 @@ static void ds4_send_output_report(uni_hid_device_t* d, ds4_output_report_t* out
     uni_hid_device_send_intr_report(d, (uint8_t*)out, sizeof(*out));
 }
 
-static void ds4_stop_rumble_now(uni_hid_device_t* d) {
+static uni_rumble_result_t ds4_stop_rumble_now(struct uni_hid_device_s* d) {
     ds4_instance_t* ins = get_ds4_instance(d);
-    // No need to protect it with a mutex since it runs in the same main thread
-    assert(ins->rumble_state == DS4_STATE_RUMBLE_IN_PROGRESS);
-    ins->rumble_state = DS4_STATE_RUMBLE_DISABLED;
 
     // Сache the previous rumble value
     ins->prev_rumble_weak_magnitude = 0;
@@ -626,19 +582,18 @@ static void ds4_stop_rumble_now(uni_hid_device_t* d) {
         .led_blue = ins->prev_color_blue,
     };
     ds4_send_output_report(d, &out);
+    return UNI_RUMBLE_OK;
 }
 
-static void ds4_play_dual_rumble_now(uni_hid_device_t* d,
-                                     uint16_t duration_ms,
-                                     uint8_t weak_magnitude,
-                                     uint8_t strong_magnitude) {
-    ds4_instance_t* ins = get_ds4_instance(d);
+static uni_rumble_result_t ds4_start_rumble_now(struct uni_hid_device_s* d,
+                                                uint8_t weak_magnitude,
+                                                uint8_t strong_magnitude,
+                                                uint8_t trigger_left,
+                                                uint8_t trigger_right) {
+    ARG_UNUSED(trigger_left);
+    ARG_UNUSED(trigger_right);
 
-    if (duration_ms == 0) {
-        if (ins->rumble_state != DS4_STATE_RUMBLE_DISABLED)
-            ds4_stop_rumble_now(d);
-        return;
-    }
+    ds4_instance_t* ins = get_ds4_instance(d);
 
     // Сache the previous rumble value
     ins->prev_rumble_weak_magnitude = weak_magnitude;
@@ -655,25 +610,7 @@ static void ds4_play_dual_rumble_now(uni_hid_device_t* d,
         .led_blue = ins->prev_color_blue,
     };
     ds4_send_output_report(d, &out);
-
-    // Set timer to turn off rumble
-    ins->rumble_timer_duration.process = &on_ds4_set_rumble_off;
-    ins->rumble_timer_duration.context = d;
-    ins->rumble_state = DS4_STATE_RUMBLE_IN_PROGRESS;
-    btstack_run_loop_set_timer(&ins->rumble_timer_duration, duration_ms);
-    btstack_run_loop_add_timer(&ins->rumble_timer_duration);
-}
-
-static void on_ds4_set_rumble_on(btstack_timer_source_t* ts) {
-    uni_hid_device_t* d = ts->context;
-    ds4_instance_t* ins = get_ds4_instance(d);
-
-    ds4_play_dual_rumble_now(d, ins->rumble_duration_ms, ins->rumble_weak_magnitude, ins->rumble_strong_magnitude);
-}
-
-static void on_ds4_set_rumble_off(btstack_timer_source_t* ts) {
-    uni_hid_device_t* d = ts->context;
-    ds4_stop_rumble_now(d);
+    return UNI_RUMBLE_OK;
 }
 
 static void ds4_request_calibration_report(uni_hid_device_t* d) {

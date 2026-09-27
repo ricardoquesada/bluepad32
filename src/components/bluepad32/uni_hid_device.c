@@ -13,6 +13,7 @@
 #include "bt/uni_bt_bredr.h"
 #include "bt/uni_bt_defines.h"
 #include "bt/uni_bt_le.h"
+#include "bt/uni_bt_sdp.h"
 #include "bt/uni_bt_service.h"
 #include "controller/uni_controller_type.h"
 #include "parser/uni_hid_parser_8bitdo.h"
@@ -67,8 +68,14 @@ static int32_t get_free_device_idx(void);
 #define UNI_BT_RSSI_THRESHOLD (255 - 100)
 
 void uni_hid_device_setup(void) {
-    for (int32_t i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++)
+    for (int32_t i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
+        // Unlink any active rumble or parser-owned timers before zeroing the device slot
+        // so repeated calls to uni_hid_device_setup() cannot corrupt BTstack's timer list.
+        uni_hid_parser_rumble_stop_timers(&g_devices[i]);
+        if (g_devices[i].report_parser.deinit)
+            g_devices[i].report_parser.deinit(&g_devices[i]);
         uni_hid_device_init(&g_devices[i]);
+    }
 }
 
 static int32_t get_free_device_idx(void) {
@@ -539,6 +546,16 @@ void uni_hid_device_delete(uni_hid_device_t* d) {
     btstack_run_loop_remove_timer(&d->connection_timer);
     btstack_run_loop_remove_timer(&d->inquiry_remote_name_timer);
     btstack_run_loop_remove_timer(&d->misc_button_delay_timer);
+    uni_hid_parser_rumble_stop_timers(d);
+    if (d->report_parser.deinit) {
+        d->report_parser.deinit(d);
+    }
+
+#if UNI_ENABLE_BREDR
+    if (IS_ENABLED(UNI_ENABLE_BREDR)) {
+        uni_bt_sdp_query_abort(d);
+    }
+#endif
 
     uni_hid_device_init(d);
 }
@@ -598,101 +615,123 @@ void uni_hid_device_dump_all(void) {
     }
 }
 
-bool uni_hid_device_guess_controller_type_from_name(uni_hid_device_t* d, const char* name) {
-    if (!name)
-        return false;
+typedef bool (*uni_name_matcher_fn_t)(struct uni_hid_device_s* d, const char* name);
 
-    // Try with the different matchers.
-    // But don't include Xbox here yet, since we should try to get the HID descriptor first.
-    // This is because the Xbox Wireless has 3 different types of HID descriptors.
-    bool ret = uni_hid_parser_ds3_does_name_match(d, name);
-    ret = ret || uni_hid_parser_switch_does_name_match(d, name);
+typedef struct {
+    uni_controller_type_t type;
+    const char* name;
+    uni_report_parser_t parser;
+} uni_parser_entry_t;
 
-    if (ret) {
-        uni_hid_device_guess_controller_type_from_pid_vid(d);
+// Pre-SDP name matchers. Do not include Xbox here, since BR/EDR Xbox Wireless Controllers
+// have 3 different HID descriptor revisions and must attempt SDP first before falling back
+// to uni_hid_parser_xboxone_does_name_match() in uni_hid_device_guess_controller_type_from_pid_vid().
+static const uni_name_matcher_fn_t k_pre_sdp_name_matchers[] = {
+    uni_hid_parser_ds3_does_name_match,
+    uni_hid_parser_switch_does_name_match,
+};
+
+#define SWITCH_REPORT_PARSER                                            \
+    {                                                                   \
+        .setup = uni_hid_parser_switch_setup,                           \
+        .deinit = uni_hid_parser_switch_deinit,                         \
+        .init_report = uni_hid_parser_switch_init_report,               \
+        .parse_input_report = uni_hid_parser_switch_parse_input_report, \
+        .set_player_leds = uni_hid_parser_switch_set_player_leds,       \
+        .play_dual_rumble = uni_hid_parser_switch_play_dual_rumble,     \
+        .device_dump = uni_hid_parser_switch_device_dump,               \
     }
-    return ret;
-}
 
-static void setup_report_parser(uni_hid_device_t* d) {
-    uni_controller_type_t type = d->controller_type;
-    switch (type) {
-        case CONTROLLER_TYPE_iCadeController:
-            d->report_parser = (uni_report_parser_t){
+static const uni_parser_entry_t k_parser_entries[] = {
+    {
+        .type = CONTROLLER_TYPE_iCadeController,
+        .name = "iCade",
+        .parser =
+            {
                 .setup = uni_hid_parser_icade_setup,
                 .parse_usage = uni_hid_parser_icade_parse_usage,
-            };
-            logi("Device detected as iCade: 0x%02x\n", type);
-            break;
-        case CONTROLLER_TYPE_OUYAController:
-            d->report_parser = (uni_report_parser_t){
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_OUYAController,
+        .name = "OUYA",
+        .parser =
+            {
                 .init_report = uni_hid_parser_ouya_init_report,
                 .parse_usage = uni_hid_parser_ouya_parse_usage,
                 .set_player_leds = uni_hid_parser_ouya_set_player_leds,
-            };
-            logi("Device detected as OUYA: 0x%02x\n", type);
-            break;
-        case CONTROLLER_TYPE_XBoxOneController:
-            d->report_parser = (uni_report_parser_t){
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_XBoxOneController,
+        .name = "Xbox Wireless",
+        .parser =
+            {
                 .setup = uni_hid_parser_xboxone_setup,
                 .init_report = uni_hid_parser_xboxone_init_report,
                 .parse_usage = uni_hid_parser_xboxone_parse_usage,
                 .play_dual_rumble = uni_hid_parser_xboxone_play_dual_rumble,
                 .device_dump = uni_hid_parser_xboxone_device_dump,
-            };
-            logi("Device detected as Xbox Wireless: 0x%02x\n", type);
-            break;
-        case CONTROLLER_TYPE_AndroidController:
-            d->report_parser = (uni_report_parser_t){
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_AndroidController,
+        .name = "Android",
+        .parser =
+            {
                 .init_report = uni_hid_parser_android_init_report,
                 .parse_usage = uni_hid_parser_android_parse_usage,
                 .set_player_leds = uni_hid_parser_android_set_player_leds,
-            };
-            if (d->vendor_id == UNI_HID_PARSER_STADIA_VID && d->product_id == UNI_HID_PARSER_STADIA_PID) {
-                d->report_parser.setup = uni_hid_parser_stadia_setup;
-                d->report_parser.play_dual_rumble = uni_hid_parser_stadia_play_dual_rumble;
-                logi("Device detected as Stadia: 0x%02x\n", type);
-            } else {
-                logi("Device detected as Android: 0x%02x\n", type);
-            }
-            break;
-        case CONTROLLER_TYPE_NimbusController:
-            d->report_parser = (uni_report_parser_t){
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_NimbusController,
+        .name = "Nimbus",
+        .parser =
+            {
                 .init_report = uni_hid_parser_nimbus_init_report,
                 .parse_usage = uni_hid_parser_nimbus_parse_usage,
                 .set_player_leds = uni_hid_parser_nimbus_set_player_leds,
-            };
-            logi("Device detected as Nimbus: 0x%02x\n", type);
-            break;
-        case CONTROLLER_TYPE_SmartTVRemoteController:
-            d->report_parser = (uni_report_parser_t){
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_SmartTVRemoteController,
+        .name = "Smart TV remote",
+        .parser =
+            {
                 .init_report = uni_hid_parser_smarttvremote_init_report,
                 .parse_usage = uni_hid_parser_smarttvremote_parse_usage,
-            };
-            logi("Device detected as Smart TV remote: 0x%02x\n", type);
-            break;
-        case CONTROLLER_TYPE_PSMoveController:
-            d->report_parser = (uni_report_parser_t){
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_PSMoveController,
+        .name = "PS Move",
+        .parser =
+            {
                 .setup = uni_hid_parser_psmove_setup,
                 .init_report = uni_hid_parser_psmove_init_report,
                 .parse_input_report = uni_hid_parser_psmove_parse_input_report,
                 .set_lightbar_color = uni_hid_parser_psmove_set_lightbar_color,
                 .play_dual_rumble = uni_hid_parser_psmove_play_dual_rumble,
-            };
-            logi("Device detected as PS Move: 0x%02x\n", type);
-            break;
-        case CONTROLLER_TYPE_PS3Controller:
-            d->report_parser = (uni_report_parser_t){
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_PS3Controller,
+        .name = "DualShock 3",
+        .parser =
+            {
                 .setup = uni_hid_parser_ds3_setup,
                 .init_report = uni_hid_parser_ds3_init_report,
                 .parse_input_report = uni_hid_parser_ds3_parse_input_report,
                 .set_player_leds = uni_hid_parser_ds3_set_player_leds,
                 .play_dual_rumble = uni_hid_parser_ds3_play_dual_rumble,
-            };
-            logi("Device detected as DualShock 3: 0x%02x\n", type);
-            break;
-        case CONTROLLER_TYPE_PS4Controller:
-            d->report_parser = (uni_report_parser_t){
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_PS4Controller,
+        .name = "DualShock 4",
+        .parser =
+            {
                 .setup = uni_hid_parser_ds4_setup,
                 .init_report = uni_hid_parser_ds4_init_report,
                 .parse_input_report = uni_hid_parser_ds4_parse_input_report,
@@ -700,11 +739,13 @@ static void setup_report_parser(uni_hid_device_t* d) {
                 .set_lightbar_color = uni_hid_parser_ds4_set_lightbar_color,
                 .play_dual_rumble = uni_hid_parser_ds4_play_dual_rumble,
                 .device_dump = uni_hid_parser_ds4_device_dump,
-            };
-            logi("Device detected as DualShock 4: 0x%02x\n", type);
-            break;
-        case CONTROLLER_TYPE_PS5Controller:
-            d->report_parser = (uni_report_parser_t){
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_PS5Controller,
+        .name = "DualSense",
+        .parser =
+            {
                 .init_report = uni_hid_parser_ds5_init_report,
                 .setup = uni_hid_parser_ds5_setup,
                 .parse_input_report = uni_hid_parser_ds5_parse_input_report,
@@ -713,91 +754,143 @@ static void setup_report_parser(uni_hid_device_t* d) {
                 .set_lightbar_color = uni_hid_parser_ds5_set_lightbar_color,
                 .play_dual_rumble = uni_hid_parser_ds5_play_dual_rumble,
                 .device_dump = uni_hid_parser_ds5_device_dump,
-            };
-            logi("Device detected as DualSense: 0x%02x\n", type);
-            break;
-        case CONTROLLER_TYPE_8BitdoController:
-            d->report_parser = (uni_report_parser_t){
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_8BitdoController,
+        .name = "8BitDo",
+        .parser =
+            {
                 .init_report = uni_hid_parser_8bitdo_init_report,
                 .parse_usage = uni_hid_parser_8bitdo_parse_usage,
-            };
-            logi("Device detected as 8BitDo: 0x%02x\n", type);
-            break;
-        case CONTROLLER_TYPE_GenericController:
-            d->report_parser = (uni_report_parser_t){
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_GenericController,
+        .name = "generic",
+        .parser =
+            {
                 .init_report = uni_hid_parser_generic_init_report,
                 .parse_usage = uni_hid_parser_generic_parse_usage,
-            };
-            logi("Device detected as generic: 0x%02x\n", type);
-            break;
-        case CONTROLLER_TYPE_WiiController:
-            d->report_parser = (uni_report_parser_t){
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_WiiController,
+        .name = "Wii controller",
+        .parser =
+            {
                 .setup = uni_hid_parser_wii_setup,
                 .init_report = uni_hid_parser_wii_init_report,
                 .parse_input_report = uni_hid_parser_wii_parse_input_report,
                 .set_player_leds = uni_hid_parser_wii_set_player_leds,
                 .play_dual_rumble = uni_hid_parser_wii_play_dual_rumble,
                 .device_dump = uni_hid_parser_wii_device_dump,
-            };
-            logi("Device detected as Wii controller: 0x%02x\n", type);
-            break;
-        case CONTROLLER_TYPE_SwitchProController:
-        case CONTROLLER_TYPE_SwitchJoyConRight:
-        case CONTROLLER_TYPE_SwitchJoyConLeft:
-            d->report_parser = (uni_report_parser_t){
-                .setup = uni_hid_parser_switch_setup,
-                .init_report = uni_hid_parser_switch_init_report,
-                .parse_input_report = uni_hid_parser_switch_parse_input_report,
-                .set_player_leds = uni_hid_parser_switch_set_player_leds,
-                .play_dual_rumble = uni_hid_parser_switch_play_dual_rumble,
-                .device_dump = uni_hid_parser_switch_device_dump,
-            };
-            logi("Device detected as Nintendo Switch Pro controller: 0x%02x\n", type);
-            break;
-        case CONTROLLER_TYPE_SteamController:
-            d->report_parser = (uni_report_parser_t){
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_SwitchProController,
+        .name = "Nintendo Switch Pro controller",
+        .parser = SWITCH_REPORT_PARSER,
+    },
+    {
+        .type = CONTROLLER_TYPE_SwitchJoyConRight,
+        .name = "Nintendo Switch Pro controller",
+        .parser = SWITCH_REPORT_PARSER,
+    },
+    {
+        .type = CONTROLLER_TYPE_SwitchJoyConLeft,
+        .name = "Nintendo Switch Pro controller",
+        .parser = SWITCH_REPORT_PARSER,
+    },
+    {
+        .type = CONTROLLER_TYPE_SteamController,
+        .name = "Steam",
+        .parser =
+            {
                 .setup = uni_hid_parser_steam_setup,
                 .init_report = uni_hid_parser_steam_init_report,
                 .parse_input_report = uni_hid_parser_steam_parse_input_report,
-            };
-            logi("Device detected as Steam: 0x%02x\n", type);
-            break;
-        case CONTROLLER_TYPE_AtariJoystick:
-            d->report_parser = (uni_report_parser_t){
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_AtariJoystick,
+        .name = "Atari Joystick/Controller",
+        .parser =
+            {
                 .setup = uni_hid_parser_atari_setup,
                 .init_report = uni_hid_parser_atari_init_report,
                 .parse_input_report = uni_hid_parser_atari_parse_input_report,
-            };
-            logi("Device detected as Atari Joystick/Controller: 0x%02x\n", type);
-            break;
-        case CONTROLLER_TYPE_GenericMouse:
-            d->report_parser = (uni_report_parser_t){
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_GenericMouse,
+        .name = "Mouse",
+        .parser =
+            {
                 .setup = uni_hid_parser_mouse_setup,
                 .parse_input_report = uni_hid_parser_mouse_parse_input_report,
                 .init_report = uni_hid_parser_mouse_init_report,
                 .parse_usage = uni_hid_parser_mouse_parse_usage,
                 .device_dump = uni_hid_parser_mouse_device_dump,
-            };
-            logi("Device detected as Mouse: 0x%02x\n", type);
-            break;
-        case CONTROLLER_TYPE_GenericKeyboard:
-            d->report_parser = (uni_report_parser_t){
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_GenericKeyboard,
+        .name = "Keyboard",
+        .parser =
+            {
                 .setup = uni_hid_parser_keyboard_setup,
                 .parse_input_report = uni_hid_parser_keyboard_parse_input_report,
                 .init_report = uni_hid_parser_keyboard_init_report,
                 .parse_usage = uni_hid_parser_keyboard_parse_usage,
                 .device_dump = uni_hid_parser_keyboard_device_dump,
-            };
-            logi("Device detected as Keyboard: 0x%02x\n", type);
-            break;
-        default:
-            d->report_parser = (uni_report_parser_t){
-                .init_report = uni_hid_parser_generic_init_report,
-                .parse_usage = uni_hid_parser_generic_parse_usage,
-            };
-            logi("Device not detected (0x%02x). Using generic driver.\n", type);
-            break;
+            },
+    },
+};
+
+#undef SWITCH_REPORT_PARSER
+
+bool uni_hid_device_guess_controller_type_from_name(uni_hid_device_t* d, const char* name) {
+    if (!name)
+        return false;
+
+    // Try with the different pre-SDP matchers.
+    // Don't include Xbox here yet, since we should try to get the HID descriptor first.
+    // This is because the Xbox Wireless has 3 different types of HID descriptors.
+    for (size_t i = 0; i < ARRAY_SIZE(k_pre_sdp_name_matchers); i++) {
+        if (k_pre_sdp_name_matchers[i](d, name)) {
+            uni_hid_device_guess_controller_type_from_pid_vid(d);
+            return true;
+        }
     }
+    return false;
+}
+
+static void setup_report_parser(uni_hid_device_t* d) {
+    uni_hid_parser_rumble_init(d, NULL, NULL);
+    uni_controller_type_t type = d->controller_type;
+
+    for (size_t i = 0; i < ARRAY_SIZE(k_parser_entries); i++) {
+        if (k_parser_entries[i].type != type) {
+            continue;
+        }
+        d->report_parser = k_parser_entries[i].parser;
+        if (type == CONTROLLER_TYPE_AndroidController && d->vendor_id == UNI_HID_PARSER_STADIA_VID &&
+            d->product_id == UNI_HID_PARSER_STADIA_PID) {
+            d->report_parser.setup = uni_hid_parser_stadia_setup;
+            d->report_parser.play_dual_rumble = uni_hid_parser_stadia_play_dual_rumble;
+            logi("Device detected as Stadia: 0x%02x\n", type);
+        } else {
+            logi("Device detected as %s: 0x%02x\n", k_parser_entries[i].name, type);
+        }
+        return;
+    }
+
+    d->report_parser = (uni_report_parser_t){
+        .init_report = uni_hid_parser_generic_init_report,
+        .parse_usage = uni_hid_parser_generic_parse_usage,
+    };
+    logi("Device not detected (0x%02x). Using generic driver.\n", type);
 }
 
 void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {

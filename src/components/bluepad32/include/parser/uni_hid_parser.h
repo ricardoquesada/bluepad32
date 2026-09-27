@@ -23,6 +23,11 @@ struct hid_globals_s {
 typedef struct hid_globals_s hid_globals_t;
 
 typedef void (*report_setup_fn_t)(struct uni_hid_device_s* d);
+// Optional teardown hook invoked by uni_hid_device_delete() and uni_hid_device_setup()
+// BEFORE uni_hid_device_init() zeroes the device struct with memset. Parsers that embed
+// intrusive btstack_timer_source_t nodes inside parser_data[] (such as Switch setup_timer)
+// must implement this callback to remove their timers from BTstack's run loop first.
+typedef void (*report_deinit_fn_t)(struct uni_hid_device_s* d);
 typedef void (*report_init_report_fn_t)(struct uni_hid_device_s* d);
 typedef void (*report_parse_usage_fn_t)(struct uni_hid_device_s* d,
                                         const hid_globals_t* globals,
@@ -54,6 +59,8 @@ typedef void (*report_device_dump_t)(struct uni_hid_device_s* d);
 typedef struct {
     // Called only once when the type of gamepad is known.
     report_setup_fn_t setup;
+    // Called before a device slot is zeroed/deleted to clean up parser-owned timers/resources.
+    report_deinit_fn_t deinit;
     // Called before starting a new report
     report_init_report_fn_t init_report;
     // Called for each usage in the report: usage page + usage + value

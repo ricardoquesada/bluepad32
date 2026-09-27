@@ -30,6 +30,7 @@
 #include "controller/uni_controller.h"
 #include "controller/uni_controller_type.h"
 #include "parser/uni_hid_parser.h"
+#include "parser/uni_hid_parser_rumble.h"
 #include "uni_circular_buffer.h"
 #include "uni_error.h"
 
@@ -119,6 +120,14 @@ struct uni_hid_device_s {
     uni_controller_t controller;                  ///< Controller data (gamepad, mouse, etc.)
 
     uni_report_parser_t report_parser;  ///< Function used to parse the HID reports.
+    /**
+     * @brief Shared rumble timer and state machine.
+     *
+     * Stored directly on `uni_hid_device_t` (outside `parser_data[]`) so that parser
+     * `setup()` functions calling `memset(ins, 0, sizeof(*ins))` on `parser_data`
+     * cannot zero active BTstack intrusive timer nodes.
+     */
+    uni_rumble_t rumble;
 
     uint32_t misc_button_wait_release;  ///< Buttons that need to be released before triggering the action again.
     uint32_t misc_button_wait_delay;    ///< Buttons that need to wait for a delay before triggering the action again.
@@ -133,18 +142,6 @@ struct uni_hid_device_s {
      */
     uni_circular_buffer_t outgoing_buffer;
 
-    /**
-     * @brief Bytes reserved to controller's parser instances.
-     * E.g.: The Wii driver uses it for the state machine.
-     */
-    uint8_t parser_data[HID_DEVICE_MAX_PARSER_DATA];
-
-    /**
-     * @brief Bytes reserved to different platforms.
-     * E.g.: C64 or Airlift might use it to store different values.
-     */
-    uint8_t platform_data[HID_DEVICE_MAX_PLATFORM_DATA];
-
     uni_bt_conn_t conn;  ///< Bluetooth connection info.
 
     /**
@@ -158,6 +155,34 @@ struct uni_hid_device_s {
      * For example, DualShock4 has the "mouse" as a child.
      */
     struct uni_hid_device_s* child;
+
+    /**
+     * @brief Bytes reserved to controller's parser instances (e.g., Wii or Switch state machines).
+     *
+     * Placed at the very bottom (tail) of `struct uni_hid_device_s` immediately after `parent`
+     * and `child` rather than directly after `outgoing_buffer`. This avoids internal alignment
+     * padding after `outgoing_buffer` and keeps frequently accessed scalar/pointer fields (`conn`,
+     * `parent`, `child`) 512 bytes closer to the struct base.
+     *
+     * Uses `__attribute__((aligned(sizeof(void*))))` instead of `__BIGGEST_ALIGNMENT__` (which is
+     * 8 or 16 bytes for `long double`/SIMD types) because parser state structs cast onto
+     * `&d->parser_data[0]` (containing pointers such as `btstack_timer_source_t`) only require
+     * pointer-width alignment. Following `parent` and `child`, the offset is naturally a multiple
+     * of `sizeof(void*)`, guaranteeing strict pointer alignment on 32-bit MCUs (ESP32, RP2040) and
+     * 64-bit hosts with 0 bytes of RAM overhead.
+     */
+    uint8_t parser_data[HID_DEVICE_MAX_PARSER_DATA] __attribute__((aligned(sizeof(void*))));
+
+    /**
+     * @brief Bytes reserved to different platforms (e.g., C64 or Airlift per-device state).
+     *
+     * Placed at the tail of `struct uni_hid_device_s` immediately after `parser_data` (whose
+     * 256-byte size is a multiple of `sizeof(void*)`) and aligned to `sizeof(void*)` instead of
+     * `__BIGGEST_ALIGNMENT__`. This guarantees pointer-width alignment for safe struct casting
+     * across C11 and C++ translation units on 32-bit MCUs (ESP32, RP2040) and 64-bit hosts with
+     * 0 bytes of RAM overhead.
+     */
+    uint8_t platform_data[HID_DEVICE_MAX_PLATFORM_DATA] __attribute__((aligned(sizeof(void*))));
 };
 typedef struct uni_hid_device_s uni_hid_device_t;
 

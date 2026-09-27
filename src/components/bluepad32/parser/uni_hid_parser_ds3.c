@@ -44,26 +44,11 @@ typedef enum ds3_fsm {
     DS3_FSM_LED_UPDATED,          // LED updated
 } ds3_fsm_t;
 
-typedef enum {
-    DS3_STATE_RUMBLE_DISABLED,
-    DS3_STATE_RUMBLE_DELAYED,
-    DS3_STATE_RUMBLE_IN_PROGRESS,
-} ds3_state_rumble_t;
-
 // ds3_instance_t represents data used by the DS3 driver instance.
 typedef struct ds3_instance_s {
     ds3_fsm_t state;
     uint8_t player_leds;  // bitmap of LEDs
     bool clone_controller;
-
-    btstack_timer_source_t rumble_timer_duration;
-    btstack_timer_source_t rumble_timer_delayed_start;
-    ds3_state_rumble_t rumble_state;
-
-    // Used by delayed start
-    uint16_t rumble_weak_magnitude;
-    uint16_t rumble_strong_magnitude;
-    uint16_t rumble_duration_ms;
 } ds3_instance_t;
 _Static_assert(sizeof(ds3_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "DS3 instance too big");
 
@@ -137,13 +122,12 @@ typedef struct __attribute((packed)) {
 static ds3_instance_t* get_ds3_instance(uni_hid_device_t* d);
 static void ds3_update_led(uni_hid_device_t* d, uint8_t player_leds);
 static void ds3_send_output_report(uni_hid_device_t* d, ds3_output_report_t* out);
-static void on_ds3_set_rumble_on(btstack_timer_source_t* ts);
-static void on_ds3_set_rumble_off(btstack_timer_source_t* ts);
-static void ds3_stop_rumble_now(uni_hid_device_t* d);
-static void ds3_play_dual_rumble_now(uni_hid_device_t* d,
-                                     uint16_t duration_ms,
-                                     uint8_t weak_magnitude,
-                                     uint8_t strong_magnitude);
+static uni_rumble_result_t ds3_stop_rumble_now(struct uni_hid_device_s* d);
+static uni_rumble_result_t ds3_start_rumble_now(struct uni_hid_device_s* d,
+                                                uint8_t weak_magnitude,
+                                                uint8_t strong_magnitude,
+                                                uint8_t trigger_left,
+                                                uint8_t trigger_right);
 
 void uni_hid_parser_ds3_init_report(uni_hid_device_t* d) {
     uni_controller_t* ctl = &d->controller;
@@ -276,36 +260,16 @@ void uni_hid_parser_ds3_play_dual_rumble(struct uni_hid_device_s* d,
         return;
     }
 
-    ds3_instance_t* ins = get_ds3_instance(d);
-    switch (ins->rumble_state) {
-        case DS3_STATE_RUMBLE_DELAYED:
-            btstack_run_loop_remove_timer(&ins->rumble_timer_delayed_start);
-            break;
-        case DS3_STATE_RUMBLE_IN_PROGRESS:
-            btstack_run_loop_remove_timer(&ins->rumble_timer_duration);
-            break;
-        default:
-            // Do nothing
-            break;
-    }
-
-    if (start_delay_ms == 0) {
-        ds3_play_dual_rumble_now(d, duration_ms, weak_magnitude, strong_magnitude);
-    } else {
-        // Set timer to have a delayed start
-        ins->rumble_timer_delayed_start.process = &on_ds3_set_rumble_on;
-        ins->rumble_timer_delayed_start.context = d;
-        ins->rumble_state = DS3_STATE_RUMBLE_DELAYED;
-        ins->rumble_duration_ms = duration_ms;
-        ins->rumble_strong_magnitude = strong_magnitude;
-        ins->rumble_weak_magnitude = weak_magnitude;
-
-        btstack_run_loop_set_timer(&ins->rumble_timer_delayed_start, start_delay_ms);
-        btstack_run_loop_add_timer(&ins->rumble_timer_delayed_start);
-    }
+    uni_hid_parser_rumble_play_dual(d, start_delay_ms, duration_ms, weak_magnitude, strong_magnitude,
+                                    ds3_start_rumble_now, ds3_stop_rumble_now);
 }
 
 void uni_hid_parser_ds3_setup(struct uni_hid_device_s* d) {
+    // Do NOT memset(ins, 0, sizeof(*ins)) here: uni_hid_parser_ds3_does_name_match() runs
+    // earlier during name discovery and sets ins->clone_controller = true for third-party
+    // PS3 clones. Zeroing ins here would erase that flag and break clone output reports.
+    uni_hid_parser_rumble_init(d, ds3_start_rumble_now, ds3_stop_rumble_now);
+
     // Dual Shock 3 Sixasis requires a magic packet to be sent in order to enable reports. Taken from:
     // https://github.com/torvalds/linux/blob/1d1df41c5a33359a00e919d54eaebfb789711fdc/drivers/hid/hid-sony.c#L1684
     static uint8_t sixaxisEnableReports[] = {(HID_MESSAGE_TYPE_SET_REPORT << 4) | HID_REPORT_TYPE_FEATURE,
@@ -363,12 +327,8 @@ static void ds3_update_led(uni_hid_device_t* d, uint8_t player_leds) {
     ds3_send_output_report(d, &out);
 }
 
-static void ds3_stop_rumble_now(uni_hid_device_t* d) {
+static uni_rumble_result_t ds3_stop_rumble_now(struct uni_hid_device_s* d) {
     ds3_instance_t* ins = get_ds3_instance(d);
-
-    // No need to protect it with a mutex since it runs in the same main thread
-    assert(ins->rumble_state == DS3_STATE_RUMBLE_IN_PROGRESS);
-    ins->rumble_state = DS3_STATE_RUMBLE_DISABLED;
 
     ds3_output_report_t out = {0};
 
@@ -377,20 +337,18 @@ static void ds3_stop_rumble_now(uni_hid_device_t* d) {
     out.player_leds = ins->player_leds << 1;
 
     ds3_send_output_report(d, &out);
+    return UNI_RUMBLE_OK;
 }
 
-static void ds3_play_dual_rumble_now(uni_hid_device_t* d,
-                                     uint16_t duration_ms,
-                                     uint8_t weak_magnitude,
-                                     uint8_t strong_magnitude) {
+static uni_rumble_result_t ds3_start_rumble_now(struct uni_hid_device_s* d,
+                                                uint8_t weak_magnitude,
+                                                uint8_t strong_magnitude,
+                                                uint8_t trigger_left,
+                                                uint8_t trigger_right) {
+    ARG_UNUSED(trigger_left);
+    ARG_UNUSED(trigger_right);
+
     ds3_instance_t* ins = get_ds3_instance(d);
-
-    if (duration_ms == 0) {
-        if (ins->rumble_state == DS3_STATE_RUMBLE_IN_PROGRESS)
-            ds3_stop_rumble_now(d);
-        return;
-    }
-
     ds3_output_report_t out = {0};
 
     // Spec says that 0xff is "forever", but depends on the devices.
@@ -405,25 +363,7 @@ static void ds3_play_dual_rumble_now(uni_hid_device_t* d,
     out.player_leds = ins->player_leds << 1;
 
     ds3_send_output_report(d, &out);
-
-    // Set timer to turn off rumble
-    ins->rumble_timer_duration.process = &on_ds3_set_rumble_off;
-    ins->rumble_timer_duration.context = d;
-    ins->rumble_state = DS3_STATE_RUMBLE_IN_PROGRESS;
-    btstack_run_loop_set_timer(&ins->rumble_timer_duration, duration_ms);
-    btstack_run_loop_add_timer(&ins->rumble_timer_duration);
-}
-
-static void on_ds3_set_rumble_off(btstack_timer_source_t* ts) {
-    uni_hid_device_t* d = ts->context;
-    ds3_stop_rumble_now(d);
-}
-
-static void on_ds3_set_rumble_on(btstack_timer_source_t* ts) {
-    uni_hid_device_t* d = ts->context;
-    ds3_instance_t* ins = get_ds3_instance(d);
-
-    ds3_play_dual_rumble_now(d, ins->rumble_duration_ms, ins->rumble_weak_magnitude, ins->rumble_strong_magnitude);
+    return UNI_RUMBLE_OK;
 }
 
 static void ds3_send_output_report(uni_hid_device_t* d, ds3_output_report_t* out) {
