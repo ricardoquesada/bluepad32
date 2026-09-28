@@ -43,7 +43,6 @@ constexpr const char* kControllerTabNames[kMaxControllers] = {
 
 const ImVec4 kTextColorWhite = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
 const ImVec4 kTextColorGrey = ImVec4(0.65f, 0.65f, 0.65f, 1.0f);
-const ImVec4 kTextColorRed = ImVec4(1.0f, 0.30f, 0.30f, 1.0f);
 const ImVec4 kTextColorGreen = ImVec4(0.20f, 1.0f, 0.20f, 1.0f);
 const ImVec4 kTextColorYellow = ImVec4(1.0f, 0.85f, 0.20f, 1.0f);
 const ImVec4 kTextColorCyan = ImVec4(0.30f, 0.85f, 1.0f, 1.0f);
@@ -416,9 +415,11 @@ void DemoScene::RenderPanel(int slot, const ControllerSnapshot& snap) {
         };
 
         const CategoryTab kTabs[] = {
-            {0, " Controls ", &DemoScene::RenderPanel_ControlsTab}, {1, " Info ", &DemoScene::RenderPanel_InfoTab},
-            {2, " Rumble ", &DemoScene::RenderPanel_VibrationTab},  {3, " IMU ", &DemoScene::RenderPanel_MotionTab},
-            {4, " Lights ", &DemoScene::RenderPanel_LightsTab},
+            {0, " Controls ", &DemoScene::RenderPanel_ControlsTab},
+            {1, " Rumble ", &DemoScene::RenderPanel_VibrationTab},
+            {2, " IMU ", &DemoScene::RenderPanel_MotionTab},
+            {3, " Lights ", &DemoScene::RenderPanel_LightsTab},
+            {4, " Info ", &DemoScene::RenderPanel_InfoTab},
         };
 
         for (const CategoryTab& tab : kTabs) {

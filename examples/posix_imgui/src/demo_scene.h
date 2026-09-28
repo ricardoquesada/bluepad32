@@ -30,7 +30,7 @@
 
 /**
  * @brief Manages UI state, IMU history buffers, and Dear ImGui rendering across 4 controller
- *        slots (`#1`..`#4`) and 5 category tabs (`Controls`, `Info`, `Rumble`, `IMU`, `Lights`).
+ *        slots (`#1`..`#4`) and 5 category tabs (`Controls`, `Rumble`, `IMU`, `Lights`, `Info`).
  */
 class DemoScene {
    public:
@@ -78,14 +78,14 @@ class DemoScene {
 
     /// Tab 1 — `Controls`: 2D graphical button/stick/trigger canvas + post-canvas numeric telemetry.
     void RenderPanel_ControlsTab(int slot, const ControllerSnapshot& snap);
-    /// Tab 2 — `Info`: Hardware/Bluetooth diagnostics, battery progress bar, and capability badges.
-    void RenderPanel_InfoTab(int slot, const ControllerSnapshot& snap);
-    /// Tab 3 — `Rumble`: Dual-motor force-feedback parameters, Vibrate/Stop buttons, and presets.
+    /// Tab 2 — `Rumble`: Dual-motor force-feedback parameters, Vibrate/Stop buttons, and presets.
     void RenderPanel_VibrationTab(int slot, const ControllerSnapshot& snap);
-    /// Tab 4 — `IMU`: 6-axis Accelerometer & Gyroscope table, progress bars, and 240-sample plots.
+    /// Tab 3 — `IMU`: 6-axis Accelerometer & Gyroscope table, progress bars, and 240-sample plots.
     void RenderPanel_MotionTab(int slot, const ControllerSnapshot& snap);
-    /// Tab 5 — `Lights`: Player ID LEDs, RGB Lightbar color picker/swatches, and Brightness LED placeholder.
+    /// Tab 4 — `Lights`: Player ID LEDs, RGB Lightbar color picker/swatches, and Brightness LED placeholder.
     void RenderPanel_LightsTab(int slot, const ControllerSnapshot& snap);
+    /// Tab 5 — `Info`: Hardware/Bluetooth diagnostics, battery progress bar, and capability badges.
+    void RenderPanel_InfoTab(int slot, const ControllerSnapshot& snap);
 
     /// Appends a new IMU sample for `slot` when `snap.last_report_timestamp_us` advances.
     void UpdateImuHistory(int slot, const ControllerSnapshot& snap);
