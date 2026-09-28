@@ -48,10 +48,6 @@ const ImVec4 kTextColorGreen = ImVec4(0.20f, 1.0f, 0.20f, 1.0f);
 const ImVec4 kTextColorYellow = ImVec4(1.0f, 0.85f, 0.20f, 1.0f);
 const ImVec4 kTextColorCyan = ImVec4(0.30f, 0.85f, 1.0f, 1.0f);
 
-constexpr float kUiScaleMin = 0.50f;
-constexpr float kUiScaleMax = 4.00f;
-constexpr float kUiScaleStep = 0.25f;
-
 constexpr float kFontScaleMin = 0.50f;
 constexpr float kFontScaleMax = 4.00f;
 constexpr float kFontScaleStep = 0.25f;
@@ -184,6 +180,13 @@ void ApplyRadialDeadzone(int32_t rawX, int32_t rawY, float deadzone, float* outX
     }
     *outX = nx;
     *outY = ny;
+}
+
+float NormalizeTriggerAxis(int32_t raw_trigger, bool digital_fallback) {
+    if (raw_trigger > 0) {
+        return std::clamp(static_cast<float>(raw_trigger) / 1023.0f, 0.0f, 1.0f);
+    }
+    return digital_fallback ? 1.0f : 0.0f;
 }
 
 void DrawVectorButtonBadge(ImDrawList* drawList,
@@ -426,9 +429,6 @@ DemoScene::DemoScene()
       mMostRecentConnectedSlot(-1),
       mCurrentControllerSlot(0),
       mActiveControllerPanelTab(0),
-      mControllerPanelBaseX(0.0f),
-      mControllerPanelBaseY(0.0f),
-      mControllerPanelScale(1.25f),
       mFontScale(1.0f),
       mRadialDeadzone(0.10f),
       mDontTrimDeadzone(false),
@@ -480,14 +480,6 @@ DemoScene::DemoScene()
 }
 
 DemoScene::~DemoScene() = default;
-
-void DemoScene::OnCreate() {
-    ControllerUIData::LoadControllerUIData();
-}
-
-void DemoScene::OnDestroy() {
-    ControllerUIData::UnloadControllerUIData();
-}
 
 void DemoScene::UpdateImuHistory(int slot, const ControllerSnapshot& snap) {
     if (slot < 0 || slot >= kMaxControllers) {
@@ -703,8 +695,8 @@ void DemoScene::RenderStatusBar() {
     }
 
     ImGui::SameLine(0.0f, 24.0f);
-    ImGui::TextColored(kTextColorGrey, "UI Scale: %.2fx | Deadzone: %s | %.1f FPS",
-                       static_cast<double>(mControllerPanelScale), mDontTrimDeadzone ? "Raw (Untrimmed)" : "Trimmed",
+    ImGui::TextColored(kTextColorGrey, "Radial Deadzone: %.0f%% | %.1f FPS",
+                       static_cast<double>((mDontTrimDeadzone ? 0.0f : mRadialDeadzone) * 100.0f),
                        static_cast<double>(ImGui::GetIO().Framerate));
 }
 
@@ -744,25 +736,7 @@ bool DemoScene::RenderPreferences() {
     }
 
     ImGui::Spacing();
-    ImGui::Text("Controller UI scale:");
-    ImGui::SameLine(180.0f);
-    if (ImGui::Button(" - ##ui")) {
-        mControllerPanelScale = std::max(kUiScaleMin, mControllerPanelScale - kUiScaleStep);
-    }
-    ImGui::SameLine();
-    ImGui::Text("%2.2fx", static_cast<double>(mControllerPanelScale));
-    ImGui::SameLine();
-    if (ImGui::Button(" + ##ui")) {
-        mControllerPanelScale = std::min(kUiScaleMax, mControllerPanelScale + kUiScaleStep);
-    }
-    ImGui::SameLine(0.0f, 16.0f);
-    ImGui::SetNextItemWidth(180.0f);
-    ImGui::SliderFloat("##ui_slider", &mControllerPanelScale, kUiScaleMin, kUiScaleMax, "%.2fx");
-
-    ImGui::Spacing();
     ImGui::Checkbox("Raw deadzone (do not trim stick center deadzone to 0.0)", &mDontTrimDeadzone);
-    ImGui::TextColored(kTextColorGrey, "  Bluepad32 AXIS_THRESHOLD = %d (out of [-512, 511] full scale)",
-                       AXIS_THRESHOLD);
 
     ImGui::Spacing();
     ImGui::Separator();

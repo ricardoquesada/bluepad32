@@ -25,24 +25,12 @@
  *     single-frame `newly_connected_slot` latching, command queue draining via
  *     `btstack_run_loop_base_execute_callbacks()`, and dangling-pointer protection when
  *     a device disconnects before its queued command executes.
- *   - Suite D (`TextureAssetLoader` CPU-Side PNG Resolution & `libpng` Decoding):
- *     Verifies that all 44 sprite PNGs in `assets/gamecontroller/` resolve and decode into
- *     8-bit RGBA buffers, and that missing or corrupt/truncated PNG streams trigger the
- *     isolated `setjmp` error handler cleanly without aborting.
- *   - Suite E (Button Layout Reconfiguration, Deadzone & Trigger Normalization):
- *     Verifies `ConfigureButtonLayout()` across `STANDARD`, `SHAPES`, and `REVERSE`
- *     (confirming both quad positions and `buttonMask` fields swap for Switch and restore
- *     when returning to `STANDARD`), `MapGamepadToUIButtonMask()`, `NormalizeStickAxis()`,
- *     and `NormalizeTriggerAxis()`.
  */
 
 #include <unistd.h>
-#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <string>
-#include <vector>
 
 extern "C" {
 #include <btstack.h>
@@ -50,10 +38,7 @@ extern "C" {
 #include "btstack_run_loop_posix.h"
 }
 
-#include "controllerui_data.h"
-#include "controllerui_util.h"
 #include "posix_imgui_platform.h"
-#include "texture_asset_loader.h"
 
 namespace {
 
@@ -67,19 +52,6 @@ int g_tests_failed = 0;
             g_tests_failed++;                                                                          \
             return;                                                                                    \
         }                                                                                              \
-    } while (0)
-
-#define TEST_ASSERT_NEAR(actual, expected, tol)                                                                 \
-    do {                                                                                                        \
-        float _a = static_cast<float>(actual);                                                                  \
-        float _e = static_cast<float>(expected);                                                                \
-        if (std::fabs(_a - _e) > static_cast<float>(tol)) {                                                     \
-            std::fprintf(stderr, "  [FAIL] %s:%d: Expected %f +/- %f, got %f (%s vs %s)\n", __FILE__, __LINE__, \
-                         static_cast<double>(_e), static_cast<double>(tol), static_cast<double>(_a), #actual,   \
-                         #expected);                                                                            \
-            g_tests_failed++;                                                                                   \
-            return;                                                                                             \
-        }                                                                                                       \
     } while (0)
 
 #define RUN_TEST(fn)                           \
@@ -524,184 +496,6 @@ void test_command_queue_draining_and_dangling_pointer_safety() {
     TEST_ASSERT(g_mock_calls.rumble_calls == 0);
 }
 
-// ============================================================================
-// Suite D: TextureAssetLoader PNG Resolution & libpng Decoding
-// ============================================================================
-
-/// Test 9: Verifies CPU-side path resolution and `libpng` RGBA8 decoding across all 44
-/// controller sprite PNG assets in `assets/gamecontroller/`.
-void test_texture_asset_loader_decodes_all_44_png_assets() {
-    size_t count = 0;
-    const char* const* assets = ControllerUIData::getAllSpriteAssetNames(&count);
-    TEST_ASSERT(assets != nullptr);
-    TEST_ASSERT(count == 44);
-
-    for (size_t i = 0; i < count; ++i) {
-        uint32_t width = 0;
-        uint32_t height = 0;
-        std::vector<uint8_t> rgba;
-        bool ok = TextureAssetLoader::DecodePNGToRGBA(assets[i], &width, &height, &rgba);
-        TEST_ASSERT(ok);
-        TEST_ASSERT(width > 0);
-        TEST_ASSERT(height > 0);
-        TEST_ASSERT(rgba.size() == static_cast<size_t>(width) * static_cast<size_t>(height) * 4);
-    }
-}
-
-/// Test 10: Verifies that `DecodePNGToRGBA` returns `false` cleanly on missing paths,
-/// null/empty filenames, and truncated/corrupt PNG streams (exercising the `setjmp` recovery).
-void test_texture_asset_loader_handles_missing_and_corrupt_files() {
-    uint32_t width = 0;
-    uint32_t height = 0;
-    std::vector<uint8_t> rgba;
-
-    TEST_ASSERT(!TextureAssetLoader::DecodePNGToRGBA("gamecontroller/Does_Not_Exist.png", &width, &height, &rgba));
-    TEST_ASSERT(!TextureAssetLoader::DecodePNGToRGBA(nullptr, &width, &height, &rgba));
-    TEST_ASSERT(!TextureAssetLoader::DecodePNGToRGBA("", &width, &height, &rgba));
-
-    // Create a temporary corrupt file with a valid 8-byte PNG signature but truncated IHDR chunk
-    // to exercise the libpng setjmp error handler cleanly without aborting.
-    const char* tmp_corrupt_path = "/tmp/bluepad32_test_corrupt.png";
-    {
-        FILE* fp = std::fopen(tmp_corrupt_path, "wb");
-        TEST_ASSERT(fp != nullptr);
-        const uint8_t corrupt_bytes[] = {0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n', 0x00, 0x00, 0x00, 0x0d, 'I', 'H'};
-        TEST_ASSERT(std::fwrite(corrupt_bytes, 1, sizeof(corrupt_bytes), fp) == sizeof(corrupt_bytes));
-        std::fclose(fp);
-    }
-    TEST_ASSERT(!TextureAssetLoader::DecodePNGToRGBA(tmp_corrupt_path, &width, &height, &rgba));
-    std::remove(tmp_corrupt_path);
-}
-
-// ============================================================================
-// Suite E: Button Layout (STANDARD, SHAPES, REVERSE), Deadzone & Trigger Mapping
-// ============================================================================
-
-/// Test 11: Verifies `ConfigureButtonLayout()` across `STANDARD` (Xbox), `SHAPES`
-/// (PlayStation), and `REVERSE` (Nintendo Switch), confirming that `REVERSE` swaps both
-/// quad positions and `buttonMask` bindings and that returning to `STANDARD` restores both.
-void test_configure_button_layout_standard_shapes_and_switch_reverse() {
-    const ImVec2 pos_south = ControllerUIData::getButtonQuadPosition(UIBUTTON_DPAD_DOWN);
-    const ImVec2 pos_east = ControllerUIData::getButtonQuadPosition(UIBUTTON_DPAD_RIGHT);
-    const ImVec2 pos_west = ControllerUIData::getButtonQuadPosition(UIBUTTON_DPAD_LEFT);
-    const ImVec2 pos_north = ControllerUIData::getButtonQuadPosition(UIBUTTON_DPAD_UP);
-
-    // 1. CONTROLLER_LAYOUT_STANDARD (Xbox)
-    ControllerUIData::ConfigureButtonLayout(CONTROLLER_LAYOUT_STANDARD);
-    TEST_ASSERT(ControllerUIData::getControllerButtonInfo(UIBUTTON_A).enabled);
-    TEST_ASSERT(ControllerUIData::getControllerButtonInfo(UIBUTTON_B).enabled);
-    TEST_ASSERT(ControllerUIData::getControllerButtonInfo(UIBUTTON_X).enabled);
-    TEST_ASSERT(ControllerUIData::getControllerButtonInfo(UIBUTTON_Y).enabled);
-    TEST_ASSERT(!ControllerUIData::getControllerButtonInfo(UIBUTTON_CROSS).enabled);
-    TEST_ASSERT(!ControllerUIData::getControllerButtonInfo(UIBUTTON_CIRCLE).enabled);
-    TEST_ASSERT(!ControllerUIData::getControllerButtonInfo(UIBUTTON_SQUARE).enabled);
-    TEST_ASSERT(!ControllerUIData::getControllerButtonInfo(UIBUTTON_TRIANGLE).enabled);
-
-    TEST_ASSERT_NEAR(ControllerUIData::getControllerButtonInfo(UIBUTTON_A).basePosition.x, pos_south.x, 0.01f);
-    TEST_ASSERT_NEAR(ControllerUIData::getControllerButtonInfo(UIBUTTON_A).basePosition.y, pos_south.y, 0.01f);
-    TEST_ASSERT(ControllerUIData::getControllerButtonInfo(UIBUTTON_A).buttonMask == UI_BUTTON_MASK_A);
-
-    TEST_ASSERT_NEAR(ControllerUIData::getControllerButtonInfo(UIBUTTON_B).basePosition.x, pos_east.x, 0.01f);
-    TEST_ASSERT_NEAR(ControllerUIData::getControllerButtonInfo(UIBUTTON_B).basePosition.y, pos_east.y, 0.01f);
-    TEST_ASSERT(ControllerUIData::getControllerButtonInfo(UIBUTTON_B).buttonMask == UI_BUTTON_MASK_B);
-
-    TEST_ASSERT_NEAR(ControllerUIData::getControllerButtonInfo(UIBUTTON_X).basePosition.x, pos_west.x, 0.01f);
-    TEST_ASSERT_NEAR(ControllerUIData::getControllerButtonInfo(UIBUTTON_X).basePosition.y, pos_west.y, 0.01f);
-    TEST_ASSERT(ControllerUIData::getControllerButtonInfo(UIBUTTON_X).buttonMask == UI_BUTTON_MASK_X);
-
-    TEST_ASSERT_NEAR(ControllerUIData::getControllerButtonInfo(UIBUTTON_Y).basePosition.x, pos_north.x, 0.01f);
-    TEST_ASSERT_NEAR(ControllerUIData::getControllerButtonInfo(UIBUTTON_Y).basePosition.y, pos_north.y, 0.01f);
-    TEST_ASSERT(ControllerUIData::getControllerButtonInfo(UIBUTTON_Y).buttonMask == UI_BUTTON_MASK_Y);
-
-    // 2. CONTROLLER_LAYOUT_SHAPES (PlayStation)
-    ControllerUIData::ConfigureButtonLayout(CONTROLLER_LAYOUT_SHAPES);
-    TEST_ASSERT(!ControllerUIData::getControllerButtonInfo(UIBUTTON_A).enabled);
-    TEST_ASSERT(!ControllerUIData::getControllerButtonInfo(UIBUTTON_B).enabled);
-    TEST_ASSERT(!ControllerUIData::getControllerButtonInfo(UIBUTTON_X).enabled);
-    TEST_ASSERT(!ControllerUIData::getControllerButtonInfo(UIBUTTON_Y).enabled);
-    TEST_ASSERT(ControllerUIData::getControllerButtonInfo(UIBUTTON_CROSS).enabled);
-    TEST_ASSERT(ControllerUIData::getControllerButtonInfo(UIBUTTON_CIRCLE).enabled);
-    TEST_ASSERT(ControllerUIData::getControllerButtonInfo(UIBUTTON_SQUARE).enabled);
-    TEST_ASSERT(ControllerUIData::getControllerButtonInfo(UIBUTTON_TRIANGLE).enabled);
-
-    // 3. CONTROLLER_LAYOUT_REVERSE (Nintendo Switch: B at South, A at East, Y at West, X at North)
-    ControllerUIData::ConfigureButtonLayout(CONTROLLER_LAYOUT_REVERSE);
-    TEST_ASSERT(ControllerUIData::getControllerButtonInfo(UIBUTTON_A).enabled);
-    TEST_ASSERT(ControllerUIData::getControllerButtonInfo(UIBUTTON_B).enabled);
-    TEST_ASSERT(ControllerUIData::getControllerButtonInfo(UIBUTTON_X).enabled);
-    TEST_ASSERT(ControllerUIData::getControllerButtonInfo(UIBUTTON_Y).enabled);
-    TEST_ASSERT(!ControllerUIData::getControllerButtonInfo(UIBUTTON_CROSS).enabled);
-
-    // UIBUTTON_B is at South and triggered by UI_BUTTON_MASK_A (physical South in Bluepad32).
-    TEST_ASSERT_NEAR(ControllerUIData::getControllerButtonInfo(UIBUTTON_B).basePosition.x, pos_south.x, 0.01f);
-    TEST_ASSERT_NEAR(ControllerUIData::getControllerButtonInfo(UIBUTTON_B).basePosition.y, pos_south.y, 0.01f);
-    TEST_ASSERT(ControllerUIData::getControllerButtonInfo(UIBUTTON_B).buttonMask == UI_BUTTON_MASK_A);
-
-    // UIBUTTON_A is at East and triggered by UI_BUTTON_MASK_B (physical East in Bluepad32).
-    TEST_ASSERT_NEAR(ControllerUIData::getControllerButtonInfo(UIBUTTON_A).basePosition.x, pos_east.x, 0.01f);
-    TEST_ASSERT_NEAR(ControllerUIData::getControllerButtonInfo(UIBUTTON_A).basePosition.y, pos_east.y, 0.01f);
-    TEST_ASSERT(ControllerUIData::getControllerButtonInfo(UIBUTTON_A).buttonMask == UI_BUTTON_MASK_B);
-
-    // UIBUTTON_Y is at West and triggered by UI_BUTTON_MASK_X (physical West in Bluepad32).
-    TEST_ASSERT_NEAR(ControllerUIData::getControllerButtonInfo(UIBUTTON_Y).basePosition.x, pos_west.x, 0.01f);
-    TEST_ASSERT_NEAR(ControllerUIData::getControllerButtonInfo(UIBUTTON_Y).basePosition.y, pos_west.y, 0.01f);
-    TEST_ASSERT(ControllerUIData::getControllerButtonInfo(UIBUTTON_Y).buttonMask == UI_BUTTON_MASK_X);
-
-    // UIBUTTON_X is at North and triggered by UI_BUTTON_MASK_Y (physical North in Bluepad32).
-    TEST_ASSERT_NEAR(ControllerUIData::getControllerButtonInfo(UIBUTTON_X).basePosition.x, pos_north.x, 0.01f);
-    TEST_ASSERT_NEAR(ControllerUIData::getControllerButtonInfo(UIBUTTON_X).basePosition.y, pos_north.y, 0.01f);
-    TEST_ASSERT(ControllerUIData::getControllerButtonInfo(UIBUTTON_X).buttonMask == UI_BUTTON_MASK_Y);
-
-    // 4. Transition back from REVERSE -> STANDARD restores both positions and masks.
-    ControllerUIData::ConfigureButtonLayout(CONTROLLER_LAYOUT_STANDARD);
-    TEST_ASSERT_NEAR(ControllerUIData::getControllerButtonInfo(UIBUTTON_A).basePosition.x, pos_south.x, 0.01f);
-    TEST_ASSERT(ControllerUIData::getControllerButtonInfo(UIBUTTON_A).buttonMask == UI_BUTTON_MASK_A);
-    TEST_ASSERT_NEAR(ControllerUIData::getControllerButtonInfo(UIBUTTON_B).basePosition.x, pos_east.x, 0.01f);
-    TEST_ASSERT(ControllerUIData::getControllerButtonInfo(UIBUTTON_B).buttonMask == UI_BUTTON_MASK_B);
-    TEST_ASSERT_NEAR(ControllerUIData::getControllerButtonInfo(UIBUTTON_X).basePosition.x, pos_west.x, 0.01f);
-    TEST_ASSERT(ControllerUIData::getControllerButtonInfo(UIBUTTON_X).buttonMask == UI_BUTTON_MASK_X);
-    TEST_ASSERT_NEAR(ControllerUIData::getControllerButtonInfo(UIBUTTON_Y).basePosition.x, pos_north.x, 0.01f);
-    TEST_ASSERT(ControllerUIData::getControllerButtonInfo(UIBUTTON_Y).buttonMask == UI_BUTTON_MASK_Y);
-
-    // Verify MapGamepadToUIButtonMask translation
-    uni_gamepad_t gp{};
-    gp.dpad = DPAD_DOWN | DPAD_LEFT;
-    gp.buttons = BUTTON_A | BUTTON_SHOULDER_L | BUTTON_THUMB_R;
-    gp.brake = 600;
-    gp.misc_buttons = MISC_BUTTON_START | MISC_BUTTON_CAPTURE;
-    uint32_t mask = MapGamepadToUIButtonMask(gp);
-    TEST_ASSERT((mask & UI_BUTTON_MASK_DPAD_DOWN) != 0);
-    TEST_ASSERT((mask & UI_BUTTON_MASK_DPAD_LEFT) != 0);
-    TEST_ASSERT((mask & UI_BUTTON_MASK_A) != 0);
-    TEST_ASSERT((mask & UI_BUTTON_MASK_L1) != 0);
-    TEST_ASSERT((mask & UI_BUTTON_MASK_L2) != 0);
-    TEST_ASSERT((mask & UI_BUTTON_MASK_R3) != 0);
-    TEST_ASSERT((mask & UI_BUTTON_MASK_START) != 0);
-    TEST_ASSERT((mask & UI_BUTTON_MASK_CAPTURE) != 0);
-    TEST_ASSERT((mask & UI_BUTTON_MASK_B) == 0);
-}
-
-/// Test 12: Verifies `NormalizeStickAxis` deadzone trimming (`AXIS_THRESHOLD`) and clamping,
-/// plus `NormalizeTriggerAxis` `[0, 1023]` scaling and digital button fallback.
-void test_axis_deadzone_and_trigger_normalization() {
-    // Stick axis normalization & deadzone trimming
-    TEST_ASSERT_NEAR(NormalizeStickAxis(0, false), 0.0f, 1e-6f);
-    TEST_ASSERT_NEAR(NormalizeStickAxis(5, false), 0.0f, 1e-6f);
-    TEST_ASSERT_NEAR(NormalizeStickAxis(-5, false), 0.0f, 1e-6f);
-    TEST_ASSERT_NEAR(NormalizeStickAxis(5, true), 5.0f / 512.0f, 1e-5f);
-    TEST_ASSERT_NEAR(NormalizeStickAxis(-512, false), -1.0f, 1e-5f);
-    TEST_ASSERT_NEAR(NormalizeStickAxis(511, false), 511.0f / 512.0f, 1e-4f);
-    TEST_ASSERT_NEAR(NormalizeStickAxis(600, false), 1.0f, 1e-5f);
-    TEST_ASSERT_NEAR(NormalizeStickAxis(-600, false), -1.0f, 1e-5f);
-
-    // Trigger axis normalization & digital fallback
-    TEST_ASSERT_NEAR(NormalizeTriggerAxis(0, false), 0.0f, 1e-6f);
-    TEST_ASSERT_NEAR(NormalizeTriggerAxis(0, true), 1.0f, 1e-6f);
-    TEST_ASSERT_NEAR(NormalizeTriggerAxis(512, false), 512.0f / 1023.0f, 1e-5f);
-    TEST_ASSERT_NEAR(NormalizeTriggerAxis(1023, false), 1.0f, 1e-5f);
-    TEST_ASSERT_NEAR(NormalizeTriggerAxis(2000, false), 1.0f, 1e-5f);
-}
-
 }  // namespace
 
 int main() {
@@ -720,14 +514,6 @@ int main() {
     // Suite C
     RUN_TEST(test_on_controller_data_updates_snapshot_and_delta_ms);
     RUN_TEST(test_command_queue_draining_and_dangling_pointer_safety);
-
-    // Suite D
-    RUN_TEST(test_texture_asset_loader_decodes_all_44_png_assets);
-    RUN_TEST(test_texture_asset_loader_handles_missing_and_corrupt_files);
-
-    // Suite E
-    RUN_TEST(test_configure_button_layout_standard_shapes_and_switch_reverse);
-    RUN_TEST(test_axis_deadzone_and_trigger_normalization);
 
     std::printf("\nSummary: %d/%d tests passed.\n", g_tests_run - g_tests_failed, g_tests_run);
     return g_tests_failed == 0 ? EXIT_SUCCESS : EXIT_FAILURE;

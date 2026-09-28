@@ -2,8 +2,8 @@
 
 Interactive desktop GUI controller tester for Bluepad32 on Linux and macOS,
 combining Bluepad32's POSIX `libusb` Bluetooth stack with **Dear ImGui**
-(`external/imgui`, using the GLFW + OpenGL3 backend) and the visual gamepad
-layout and sprite assets from the Android Game Development Kit (AGDK)
+(`external/imgui`, using the GLFW + OpenGL3 backend) and procedural `ImDrawList`
+vector widgets inspired by the Android Game Development Kit (AGDK)
 `game_controller` sample.
 
 Supports up to 4 concurrent Bluetooth gamepads (`Controller #1` ..
@@ -49,8 +49,7 @@ GLFW + OpenGL3 + Dear ImGui must own the main thread for window event polling
 and rendering, `examples/posix_imgui` decouples execution across two threads:
 
 * **Thread 1 (Main / UI Thread):** Runs the 60 Hz GLFW + OpenGL3 + Dear ImGui
-  render loop (`main.cpp`, `demo_scene.cpp`, `controllerui_data.cpp`,
-  `controllerui_util.cpp`, `texture_asset_loader.cpp`). Reads a lock-protected
+  render loop (`main.cpp`, `demo_scene.cpp`). Reads a lock-protected
   snapshot of all 4 controller slots once per frame via
   `posix_imgui_get_snapshots()` and enqueues output commands (rumble, player
   LEDs, RGB lightbar, shutdown) via non-blocking `posix_imgui_request_*()`
@@ -67,7 +66,7 @@ and rendering, `examples/posix_imgui` decouples execution across two threads:
 * **Linux (Debian/Ubuntu):**
 
   ```bash
-  sudo apt install build-essential cmake pkg-config libusb-1.0-0-dev libpng-dev libgl1-mesa-dev libglfw3-dev
+  sudo apt install build-essential cmake pkg-config libusb-1.0-0-dev libgl1-mesa-dev libglfw3-dev
   ```
 
   *(Note: If `libglfw3-dev` is not installed on the system, CMake will
@@ -77,7 +76,7 @@ and rendering, `examples/posix_imgui` decouples execution across two threads:
 * **macOS (Homebrew):**
 
   ```bash
-  brew install cmake pkg-config libusb libpng glfw
+  brew install cmake pkg-config libusb glfw
   ```
 
 ### ImGui
@@ -97,8 +96,7 @@ cmake --build build -j
 
 A headless CTest unit test suite (`test_posix_imgui`) verifies platform slot
 management, pre-ready disconnect guards, 5th-controller rejection,
-layout/capability classification, command queue draining, CPU-side `libpng`
-decoding of all 44 PNG sprites, and Switch reversed button/mask mapping without
+layout/capability classification, and command queue draining without
 requiring a USB Bluetooth dongle or X11/Wayland display:
 
 ```bash

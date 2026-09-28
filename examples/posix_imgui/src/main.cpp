@@ -484,7 +484,6 @@ int main(int argc, const char* argv[]) {
     ImGui_ImplOpenGL3_Init(glsl_version);
 
     DemoScene demo_scene;
-    demo_scene.OnCreate();
 
     // 4. Spawn the BTstack worker thread
     std::thread bt_thread([]() {
@@ -535,9 +534,7 @@ int main(int argc, const char* argv[]) {
         bt_thread.join();
     }
 
-    // 7. Tear down OpenGL textures, Dear ImGui, and GLFW
-    demo_scene.OnDestroy();
-
+    // 7. Tear down Dear ImGui and GLFW
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();

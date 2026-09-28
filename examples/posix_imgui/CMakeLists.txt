@@ -45,9 +45,8 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 include(btstack_import.cmake)
 add_subdirectory(${BLUEPAD32_ROOT}/src/components/bluepad32 libbluepad32)
 
-# Find OpenGL, libpng, and POSIX Threads
+# Find OpenGL and POSIX Threads
 find_package(OpenGL REQUIRED)
-find_package(PNG REQUIRED)
 find_package(Threads REQUIRED)
 
 # Probe for system GLFW3 quietly first; if absent on the host workstation,
@@ -103,26 +102,12 @@ target_link_libraries(imgui PUBLIC
     OpenGL::GL
 )
 
-# Stage the 44 controller PNG sprite assets into build/assets/gamecontroller/
-# so relative asset resolution works when running directly from the build tree.
-add_custom_target(stage_posix_imgui_assets ALL
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/assets/gamecontroller
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_CURRENT_SOURCE_DIR}/assets/gamecontroller
-        ${CMAKE_CURRENT_BINARY_DIR}/assets/gamecontroller
-    COMMENT "Staging 44 controller PNG sprite assets to ${CMAKE_CURRENT_BINARY_DIR}/assets/gamecontroller"
-)
-
 # Headless automated unit test target (Layer 2 verification via CTest)
 enable_testing()
 add_executable(test_posix_imgui
     src/test_posix_imgui.cpp
     src/posix_imgui_platform.cpp
-    src/texture_asset_loader.cpp
-    src/controllerui_data.cpp
-    src/controllerui_util.cpp
 )
-add_dependencies(test_posix_imgui stage_posix_imgui_assets)
 target_include_directories(test_posix_imgui PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${BLUEPAD32_ROOT}/src/components/bluepad32/include
@@ -133,7 +118,6 @@ target_link_libraries(test_posix_imgui PRIVATE
     btstack
     imgui
     OpenGL::GL
-    PNG::PNG
     Threads::Threads
     m
 )
@@ -144,11 +128,7 @@ add_executable(${PROJECT_NAME}
     src/main.cpp
     src/demo_scene.cpp
     src/posix_imgui_platform.cpp
-    src/texture_asset_loader.cpp
-    src/controllerui_data.cpp
-    src/controllerui_util.cpp
 )
-add_dependencies(${PROJECT_NAME} stage_posix_imgui_assets)
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${BLUEPAD32_ROOT}/src/components/bluepad32/include
@@ -160,7 +140,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     imgui
     ${GLFW_LINK_TARGET}
     OpenGL::GL
-    PNG::PNG
     Threads::Threads
     m
 )

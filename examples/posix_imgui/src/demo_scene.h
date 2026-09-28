@@ -23,8 +23,6 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "controllerui_data.h"
-#include "controllerui_util.h"
 #include "imgui.h"
 #include "posix_imgui_platform.h"
 
@@ -43,20 +41,6 @@ class DemoScene {
     ~DemoScene();
 
     /**
-     * @brief Loads OpenGL 2D textures for all 44 controller sprites via `ControllerUIData`.
-     *
-     * Must be called on Thread 1 after the OpenGL context is created and made current.
-     */
-    void OnCreate();
-
-    /**
-     * @brief Unloads all OpenGL 2D textures created by `OnCreate()`.
-     *
-     * Must be called on Thread 1 before destroying the GLFW OpenGL context.
-     */
-    void OnDestroy();
-
-    /**
      * @brief Executes one UI frame: snapshots controller state from the platform bridge,
      *        updates IMU circular history buffers, and renders the full Dear ImGui window.
      */
@@ -65,10 +49,10 @@ class DemoScene {
    private:
     /// Configures the root full-viewport Dear ImGui window spanning `io.DisplaySize`.
     void SetupUIWindow();
-    /// Renders the `Preferences...` button or modal panel (Font scale, UI scale, Raw deadzone).
+    /// Renders the `Preferences...` button or modal panel (Font scale, Raw deadzone).
     /// Returns true if the Preferences panel is currently open (suppressing the main tab bar).
     bool RenderPreferences();
-    /// Renders the top summary bar (connected count, UI scale, deadzone mode, and FPS).
+    /// Renders the top summary bar (connected count, deadzone mode, and FPS).
     void RenderStatusBar();
     /// Renders the 4 top-level controller tabs (`Controller #1` .. `Controller #4`), auto-focusing
     /// newly connected controllers via `ImGuiTabItemFlags_SetSelected`.
@@ -76,11 +60,11 @@ class DemoScene {
     /// Renders the header summary and 5 category tabs for a connected controller in `slot`.
     void RenderPanel(int slot, const ControllerSnapshot& snap);
 
-    /// Tab 1 — `Controls`: 2D graphical button/stick/trigger canvas + post-canvas numeric telemetry.
+    /// Tab 1 — `Controls`: Multi-card `ImDrawList` vector dashboard for buttons, sticks, and triggers.
     void RenderPanel_ControlsTab(int slot, const ControllerSnapshot& snap);
     /// Tab 2 — `Rumble`: Dual-motor force-feedback parameters, Vibrate/Stop buttons, and presets.
     void RenderPanel_VibrationTab(int slot, const ControllerSnapshot& snap);
-    /// Tab 3 — `IMU`: 6-axis Accelerometer & Gyroscope table, progress bars, and 240-sample plots.
+    /// Tab 3 — `IMU`: Circular Accelerometer bullseye & Gyroscope needle dials + 240-sample plots.
     void RenderPanel_MotionTab(int slot, const ControllerSnapshot& snap);
     /// Tab 4 — `Lights`: Player ID LEDs, RGB Lightbar color picker/swatches, and Brightness LED placeholder.
     void RenderPanel_LightsTab(int slot, const ControllerSnapshot& snap);
@@ -100,13 +84,10 @@ class DemoScene {
     int mCurrentControllerSlot;                      ///< Currently active controller tab index (`0..3`).
     int mActiveControllerPanelTab;                   ///< Currently active category tab index (`0..4`).
 
-    float mControllerPanelBaseX;  ///< Window-local X origin of the 2D controller canvas.
-    float mControllerPanelBaseY;  ///< Window-local Y origin of the 2D controller canvas.
-    float mControllerPanelScale;  ///< Uniform sprite scale multiplier (default `1.25f`).
-    float mFontScale;             ///< Dear ImGui font scale (`style.FontScaleMain`).
-    float mRadialDeadzone;        ///< Radial stick deadzone fraction (`0.00..0.35`, default `0.10`).
-    bool mDontTrimDeadzone;       ///< If true, bypasses `AXIS_THRESHOLD` stick deadzone trimming.
-    bool mPreferencesActive;      ///< True while the `Preferences...` view is open.
+    float mFontScale;         ///< Dear ImGui font scale (`style.FontScaleMain`).
+    float mRadialDeadzone;    ///< Radial stick deadzone fraction (`0.00..0.35`, default `0.10`).
+    bool mDontTrimDeadzone;   ///< If true, bypasses stick deadzone trimming.
+    bool mPreferencesActive;  ///< True while the `Preferences...` view is open.
 
     // Per-controller Controls tab "Last Detected Input" tracking
     char mLastDetectedInput[kMaxControllers][64];  ///< Most recently triggered input label per slot.
