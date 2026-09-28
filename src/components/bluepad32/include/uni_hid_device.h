@@ -158,29 +158,11 @@ struct uni_hid_device_s {
 
     /**
      * @brief Bytes reserved to controller's parser instances (e.g., Wii or Switch state machines).
-     *
-     * Placed at the very bottom (tail) of `struct uni_hid_device_s` immediately after `parent`
-     * and `child` rather than directly after `outgoing_buffer`. This avoids internal alignment
-     * padding after `outgoing_buffer` and keeps frequently accessed scalar/pointer fields (`conn`,
-     * `parent`, `child`) 512 bytes closer to the struct base.
-     *
-     * Uses `__attribute__((aligned(sizeof(void*))))` instead of `__BIGGEST_ALIGNMENT__` (which is
-     * 8 or 16 bytes for `long double`/SIMD types) because parser state structs cast onto
-     * `&d->parser_data[0]` (containing pointers such as `btstack_timer_source_t`) only require
-     * pointer-width alignment. Following `parent` and `child`, the offset is naturally a multiple
-     * of `sizeof(void*)`, guaranteeing strict pointer alignment on 32-bit MCUs (ESP32, RP2040) and
-     * 64-bit hosts with 0 bytes of RAM overhead.
      */
     uint8_t parser_data[HID_DEVICE_MAX_PARSER_DATA] __attribute__((aligned(sizeof(void*))));
 
     /**
      * @brief Bytes reserved to different platforms (e.g., C64 or Airlift per-device state).
-     *
-     * Placed at the tail of `struct uni_hid_device_s` immediately after `parser_data` (whose
-     * 256-byte size is a multiple of `sizeof(void*)`) and aligned to `sizeof(void*)` instead of
-     * `__BIGGEST_ALIGNMENT__`. This guarantees pointer-width alignment for safe struct casting
-     * across C11 and C++ translation units on 32-bit MCUs (ESP32, RP2040) and 64-bit hosts with
-     * 0 bytes of RAM overhead.
      */
     uint8_t platform_data[HID_DEVICE_MAX_PLATFORM_DATA] __attribute__((aligned(sizeof(void*))));
 };
