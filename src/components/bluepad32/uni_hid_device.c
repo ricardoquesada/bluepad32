@@ -631,17 +631,6 @@ static const uni_name_matcher_fn_t k_pre_sdp_name_matchers[] = {
     uni_hid_parser_switch_does_name_match,
 };
 
-#define SWITCH_REPORT_PARSER                                            \
-    {                                                                   \
-        .setup = uni_hid_parser_switch_setup,                           \
-        .deinit = uni_hid_parser_switch_deinit,                         \
-        .init_report = uni_hid_parser_switch_init_report,               \
-        .parse_input_report = uni_hid_parser_switch_parse_input_report, \
-        .set_player_leds = uni_hid_parser_switch_set_player_leds,       \
-        .play_dual_rumble = uni_hid_parser_switch_play_dual_rumble,     \
-        .device_dump = uni_hid_parser_switch_device_dump,               \
-    }
-
 static const uni_parser_entry_t k_parser_entries[] = {
     {
         .type = CONTROLLER_TYPE_iCadeController,
@@ -790,17 +779,44 @@ static const uni_parser_entry_t k_parser_entries[] = {
     {
         .type = CONTROLLER_TYPE_SwitchProController,
         .name = "Nintendo Switch Pro controller",
-        .parser = SWITCH_REPORT_PARSER,
+        .parser =
+            {
+                .setup = uni_hid_parser_switch_setup,
+                .deinit = uni_hid_parser_switch_deinit,
+                .init_report = uni_hid_parser_switch_init_report,
+                .parse_input_report = uni_hid_parser_switch_parse_input_report,
+                .set_player_leds = uni_hid_parser_switch_set_player_leds,
+                .play_dual_rumble = uni_hid_parser_switch_play_dual_rumble,
+                .device_dump = uni_hid_parser_switch_device_dump,
+            },
     },
     {
         .type = CONTROLLER_TYPE_SwitchJoyConRight,
         .name = "Nintendo Switch Pro controller",
-        .parser = SWITCH_REPORT_PARSER,
+        .parser =
+            {
+                .setup = uni_hid_parser_switch_setup,
+                .deinit = uni_hid_parser_switch_deinit,
+                .init_report = uni_hid_parser_switch_init_report,
+                .parse_input_report = uni_hid_parser_switch_parse_input_report,
+                .set_player_leds = uni_hid_parser_switch_set_player_leds,
+                .play_dual_rumble = uni_hid_parser_switch_play_dual_rumble,
+                .device_dump = uni_hid_parser_switch_device_dump,
+            },
     },
     {
         .type = CONTROLLER_TYPE_SwitchJoyConLeft,
         .name = "Nintendo Switch Pro controller",
-        .parser = SWITCH_REPORT_PARSER,
+        .parser =
+            {
+                .setup = uni_hid_parser_switch_setup,
+                .deinit = uni_hid_parser_switch_deinit,
+                .init_report = uni_hid_parser_switch_init_report,
+                .parse_input_report = uni_hid_parser_switch_parse_input_report,
+                .set_player_leds = uni_hid_parser_switch_set_player_leds,
+                .play_dual_rumble = uni_hid_parser_switch_play_dual_rumble,
+                .device_dump = uni_hid_parser_switch_device_dump,
+            },
     },
     {
         .type = CONTROLLER_TYPE_SteamController,
@@ -847,8 +863,6 @@ static const uni_parser_entry_t k_parser_entries[] = {
             },
     },
 };
-
-#undef SWITCH_REPORT_PARSER
 
 bool uni_hid_device_guess_controller_type_from_name(uni_hid_device_t* d, const char* name) {
     if (!name)
