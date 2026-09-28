@@ -107,11 +107,12 @@ static void hog_disconnect(hci_con_handle_t con_handle) {
     uni_hid_device_t* device;
 
     device = uni_hid_device_get_instance_for_connection_handle(con_handle);
-    if (device) {
+    if (device && device->hids_cid != 0xffff) {
         status = hids_host_disconnect(device->hids_cid);
-        if (status != ERROR_CODE_SUCCESS) {
+        if (status != ERROR_CODE_SUCCESS && status != ERROR_CODE_UNKNOWN_CONNECTION_IDENTIFIER) {
             loge("Failed to disconnect HIDS client for hids_cid=%d, status=%d\n", device->hids_cid, status);
         }
+        device->hids_cid = 0xffff;
         // gap_delete_bonding(0, device->conn.btaddr);
     }
 
@@ -924,6 +925,15 @@ void uni_bt_le_setup(void) {
 
     sm_init();
     sm_set_io_capabilities(IO_CAPABILITY_NO_INPUT_NO_OUTPUT);
+
+    // BTstack v1.8.2+ enables LE Secure Connections Only mode (`sm_sc_only_mode = true`) and raises
+    // `sm_min_encryption_key_size` from 7 to 16 bytes by default in `sm_init()`.
+    // Disable SC-only mode and restore the 7..16-byte key size range so BLE peripherals that only
+    // support Bluetooth 4.0/4.1 LE Legacy Pairing (e.g., Steam Controller 2015 BLE firmware) are not
+    // rejected with `SM_REASON_AUTHENTHICATION_REQUIREMENTS` (reason = 3), and `sm_init_setup()`
+    // respects `sm_set_authentication_requirements(SM_AUTHREQ_BONDING)` instead of forcing SC.
+    sm_set_secure_connections_only_mode(false);
+    sm_set_encryption_key_size_range(7, 16);
 
     // TL;DR:
     // Enable Secure connection, disable bonding

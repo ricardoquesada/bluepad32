@@ -65,6 +65,12 @@
 #define MAX_NR_MESH_TRANSPORT_KEYS    16
 #define MAX_NR_MESH_VIRTUAL_ADDRESSES 16
 
+// buffers
+#define MAX_NR_GATT_CLIENTS 4
+#define MAX_NR_HCI_CONNECTIONS 4
+#define MAX_NR_HID_HOST_CONNECTIONS 4
+#define MAX_NR_HIDS_HOSTS 4
+
 // allow for one NetKey update
 #define MAX_NR_MESH_NETWORK_KEYS      (MAX_NR_MESH_SUBNETS+1)
 

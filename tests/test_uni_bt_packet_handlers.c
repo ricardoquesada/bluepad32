@@ -44,12 +44,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <ble/le_device_db_tlv.h>
 #include <bluetooth_data_types.h>
 #include <btstack.h>
 #include <btstack_memory.h>
 #include <btstack_run_loop.h>
 #include <btstack_run_loop_base.h>
 #include <btstack_run_loop_posix.h>
+#include <btstack_tlv.h>
 #include <classic/sdp_util.h>
 #include <hci.h>
 #include <hci_transport.h>
@@ -136,9 +138,13 @@ void uni_logv(const char* fmt, va_list args) {
 static int g_transport_open_count = 0;
 static int g_transport_send_count = 0;
 static uint16_t g_last_hci_cmd_opcode = 0;
+static uint16_t g_pending_crypto_opcode = 0;
 static uint8_t g_last_hci_cmd_buf[260];
 static int g_last_hci_cmd_size = 0;
+static uint8_t g_last_acl_buf[260];
+static int g_last_acl_size = 0;
 static bool g_auto_replenish_credits = true;
+static void (*g_transport_packet_handler)(uint8_t packet_type, uint8_t* packet, uint16_t size) = NULL;
 
 static void dummy_transport_init(const void* transport_config) {
     ARG_UNUSED(transport_config);
@@ -156,7 +162,7 @@ static int dummy_transport_close(void) {
 static void dummy_transport_register_packet_handler(void (*handler)(uint8_t packet_type,
                                                                     uint8_t* packet,
                                                                     uint16_t size)) {
-    ARG_UNUSED(handler);
+    g_transport_packet_handler = handler;
 }
 
 static int dummy_transport_can_send_packet_now(uint8_t packet_type) {
@@ -168,8 +174,14 @@ static int dummy_transport_send_packet(uint8_t packet_type, uint8_t* packet, int
     g_transport_send_count++;
     if (packet_type == HCI_COMMAND_DATA_PACKET && size >= 2) {
         g_last_hci_cmd_opcode = little_endian_read_16(packet, 0);
+        if (g_last_hci_cmd_opcode == 0x2018 || g_last_hci_cmd_opcode == 0x2017) {
+            g_pending_crypto_opcode = g_last_hci_cmd_opcode;
+        }
         g_last_hci_cmd_size = (size < (int)sizeof(g_last_hci_cmd_buf)) ? size : (int)sizeof(g_last_hci_cmd_buf);
         memcpy(g_last_hci_cmd_buf, packet, (size_t)g_last_hci_cmd_size);
+    } else if (packet_type == HCI_ACL_DATA_PACKET && size > 0) {
+        g_last_acl_size = (size < (int)sizeof(g_last_acl_buf)) ? size : (int)sizeof(g_last_acl_buf);
+        memcpy(g_last_acl_buf, packet, (size_t)g_last_acl_size);
     }
     // Release BTstack's outgoing packet buffer lock and replenish HCI command credits
     // so synchronous unit tests can issue consecutive HCI commands without spinning
@@ -1062,6 +1074,190 @@ TEST(bt_le_pnp_id_att_error_status_guard_b6) {
 }
 
 // ============================================================================
+// 11. TEST(bt_le_setup_legacy_pairing_steam_controller_regression)
+// ============================================================================
+
+static void pump_btstack_crypto_and_sm(void) {
+    // Pump any pending HCI_OPCODE_HCI_LE_RAND (0x2018) or HCI_OPCODE_HCI_LE_ENCRYPT (0x2017)
+    // commands emitted by btstack_crypto / SM, and advance SM's state machine via its 0ms timer.
+    for (int step = 0; step < 32; step++) {
+        replenish_hci_cmd_credits();
+        btstack_run_loop_base_process_timers(btstack_run_loop_get_time_ms() + 1);
+        if (g_pending_crypto_opcode == 0x2018) {
+            // HCI_OPCODE_HCI_LE_RAND -> Command Complete with 8 random bytes at offset 6
+            g_pending_crypto_opcode = 0;
+            uint8_t cc_rand[14] = {
+                HCI_EVENT_COMMAND_COMPLETE,
+                12,
+                1,
+                0x18,
+                0x20,
+                ERROR_CODE_SUCCESS,
+                (uint8_t)(0x11 + step),
+                0x22,
+                0x33,
+                0x44,
+                0x55,
+                0x66,
+                0x77,
+                0x88,
+            };
+            g_transport_packet_handler(HCI_EVENT_PACKET, cc_rand, sizeof(cc_rand));
+        } else if (g_pending_crypto_opcode == 0x2017) {
+            // HCI_OPCODE_HCI_LE_ENCRYPT -> Command Complete with 16 encrypted bytes at offset 6
+            g_pending_crypto_opcode = 0;
+            uint8_t cc_enc[22] = {
+                HCI_EVENT_COMMAND_COMPLETE,
+                20,
+                1,
+                0x17,
+                0x20,
+                ERROR_CODE_SUCCESS,
+                0xaa,
+                0xbb,
+                0xcc,
+                0xdd,
+                0xee,
+                0xff,
+                0x00,
+                0x11,
+                0x22,
+                0x33,
+                0x44,
+                0x55,
+                0x66,
+                0x77,
+                0x88,
+                0x99,
+            };
+            g_transport_packet_handler(HCI_EVENT_PACKET, cc_enc, sizeof(cc_enc));
+        } else {
+            btstack_run_loop_base_process_timers(btstack_run_loop_get_time_ms() + 1);
+            if (g_pending_crypto_opcode == 0) {
+                break;
+            }
+        }
+    }
+}
+
+TEST(bt_le_setup_legacy_pairing_steam_controller_regression) {
+    reset_test_fixture();
+    ASSERT_NE(NULL, g_transport_packet_handler);
+
+    // Configure LE Device DB TLV with the active Posix TLV instance so SM identity resolution can query it.
+    const btstack_tlv_t* tlv_impl = NULL;
+    void* tlv_context_ptr = NULL;
+    btstack_tlv_get_instance(&tlv_impl, &tlv_context_ptr);
+    ASSERT_NE(NULL, tlv_impl);
+    le_device_db_tlv_configure(tlv_impl, tlv_context_ptr);
+
+    // Run uni_bt_le_setup() to configure SM (`sm_set_secure_connections_only_mode(false)`,
+    // `sm_set_encryption_key_size_range(7, 16)`, `sm_set_authentication_requirements(SM_AUTHREQ_BONDING)`).
+    uni_bt_le_setup();
+
+    // Reset both btstack_crypto and SM internal state by emitting HCI_STATE_HALTING,
+    // then transition to HCI_STATE_WORKING and pump the initial ER/IR/DKG/ECC key generation.
+    hci_stack_t* stack = hci_get_stack();
+    ASSERT_NE(NULL, stack);
+    stack->state = HCI_STATE_HALTING;
+    hci_emit_state();
+
+    stack->state = HCI_STATE_WORKING;
+    stack->acl_packets_total_num = 16;
+    stack->le_acl_packets_total_num = 16;
+    stack->acl_data_packet_length = 1024;
+    stack->le_data_packets_length = 251;
+    replenish_hci_cmd_credits();
+    g_last_hci_cmd_opcode = 0;
+    g_pending_crypto_opcode = 0;
+    hci_emit_state();
+    pump_btstack_crypto_and_sm();
+
+    // Create a BLE device representing the 2015 Steam Controller (random address C1:92:66:E9:B3:6A).
+    bd_addr_t steam_addr = {0xC1, 0x92, 0x66, 0xE9, 0xB3, 0x6A};
+    hci_con_handle_t con_handle = 0x004c;
+    uni_hid_device_t* d = uni_hid_device_create(steam_addr);
+    ASSERT_NE(NULL, d);
+    uni_bt_conn_set_protocol(&d->conn, UNI_BT_CONN_PROTOCOL_BLE);
+
+    // 1. Inject HCI_EVENT_LE_META / HCI_SUBEVENT_LE_CONNECTION_COMPLETE (21 bytes) into the HCI transport.
+    //    hci.c creates the connection, emits GAP_SUBEVENT_LE_CONNECTION_COMPLETE to SM, and emits
+    //    HCI_SUBEVENT_LE_CONNECTION_COMPLETE to uni_bt_le_on_hci_event_le_meta(), which calls
+    //    sm_request_pairing(0x004c).
+    memset(g_last_acl_buf, 0, sizeof(g_last_acl_buf));
+    g_last_acl_size = 0;
+    g_last_hci_cmd_opcode = 0;
+
+    uint8_t le_conn_evt[21];
+    memset(le_conn_evt, 0, sizeof(le_conn_evt));
+    le_conn_evt[0] = HCI_EVENT_LE_META;
+    le_conn_evt[1] = 19;
+    le_conn_evt[2] = HCI_SUBEVENT_LE_CONNECTION_COMPLETE;
+    le_conn_evt[3] = ERROR_CODE_SUCCESS;
+    little_endian_store_16(le_conn_evt, 4, con_handle);
+    le_conn_evt[6] = HCI_ROLE_MASTER;
+    le_conn_evt[7] = BD_ADDR_TYPE_LE_RANDOM;
+    put_bd_addr_reversed(&le_conn_evt[8], steam_addr);
+    little_endian_store_16(le_conn_evt, 14, 0x0018);  // conn_interval
+    little_endian_store_16(le_conn_evt, 16, 0x0000);  // conn_latency
+    little_endian_store_16(le_conn_evt, 18, 0x0048);  // supervision_timeout
+    le_conn_evt[20] = 0x05;                           // master_clock_accuracy
+
+    g_transport_packet_handler(HCI_EVENT_PACKET, le_conn_evt, sizeof(le_conn_evt));
+    EXPECT_EQ(con_handle, d->conn.handle);
+    pump_btstack_crypto_and_sm();
+
+    // Verify that SM sent an SMP Pairing Request (0x01) on L2CAP CID 0x0006 with
+    // AuthReq == SM_AUTHREQ_BONDING (0x01), NOT forced to 0x29 by sm_sc_only_mode!
+    ASSERT_EQ(15, g_last_acl_size);
+    EXPECT_EQ(0x0006, little_endian_read_16(g_last_acl_buf, 6));  // L2CAP CID = SMP
+    EXPECT_EQ(0x01, g_last_acl_buf[8]);                           // Opcode = Pairing Request (0x01)
+    EXPECT_EQ(IO_CAPABILITY_NO_INPUT_NO_OUTPUT, g_last_acl_buf[9]);
+    EXPECT_EQ(SM_AUTHREQ_BONDING, g_last_acl_buf[11]);  // AuthReq = Bonding (0x01), SC bit NOT forced
+    EXPECT_EQ(16, g_last_acl_buf[12]);                  // Max Encryption Key Size = 16
+
+    // Clear the ACL packet slot counter on the connection so SM can transmit the next PDU if needed.
+    hci_connection_t* hci_con = hci_connection_for_handle(con_handle);
+    ASSERT_NE(NULL, hci_con);
+    hci_con->num_packets_sent = 0;
+    memset(g_last_acl_buf, 0, sizeof(g_last_acl_buf));
+    g_last_acl_size = 0;
+    g_last_hci_cmd_opcode = 0;
+
+    // 2. Inject the exact Steam Controller (2015) SMP Pairing Response (Frame 1370 from hci_dump.pklg):
+    //    Opcode = 0x02 (Pairing Response), IO = 0x03 (NoInputNoOutput), OOB = 0x00,
+    //    AuthReq = 0x01 (Bonding only, Secure Connections = 0 -> LE Legacy Pairing),
+    //    MaxKeySize = 16 (0x10), InitiatorKeyDist = 0x02 (IRK), ResponderKeyDist = 0x03 (LTK | IRK).
+    uint8_t steam_pairing_rsp_acl[15] = {
+        0x4c, 0x20,  // Handle 0x004c | PB=10
+        0x0b, 0x00,  // ACL length = 11
+        0x07, 0x00,  // L2CAP length = 7
+        0x06, 0x00,  // L2CAP CID = 0x0006 (SMP)
+        0x02,        // SMP Opcode: Pairing Response (0x02)
+        0x03,        // IO Capability: No Input, No Output (0x03)
+        0x00,        // OOB Data Flag: Not Present (0x00)
+        0x01,        // AuthReq: Bonding (0x01) - LE Legacy Pairing (SC = 0)
+        0x10,        // Max Encryption Key Size: 16
+        0x02,        // Initiator Key Distribution: IRK (0x02)
+        0x03,        // Responder Key Distribution: LTK | IRK (0x03)
+    };
+    g_transport_packet_handler(HCI_ACL_DATA_PACKET, steam_pairing_rsp_acl, sizeof(steam_pairing_rsp_acl));
+    pump_btstack_crypto_and_sm();
+
+    // Verify that SM did NOT reject the Steam Controller with SMP Pairing Failed (0x05) /
+    // SM_REASON_AUTHENTHICATION_REQUIREMENTS (0x03), and instead proceeded to Phase 2 Legacy Pairing
+    // by sending SMP Pairing Confirm (0x03, 17-byte SMP PDU = 25-byte ACL frame)!
+    ASSERT_EQ(25, g_last_acl_size);
+    EXPECT_EQ(0x0006, little_endian_read_16(g_last_acl_buf, 6));  // L2CAP CID = SMP
+    EXPECT_EQ(0x03, g_last_acl_buf[8]);                           // Opcode = Pairing Confirm (0x03)
+
+    // Clean up connection via HCI_EVENT_DISCONNECTION_COMPLETE.
+    uint8_t disc_evt[6] = {HCI_EVENT_DISCONNECTION_COMPLETE, 4, 0x00, 0x4c, 0x00, 0x08};
+    g_transport_packet_handler(HCI_EVENT_PACKET, disc_evt, sizeof(disc_evt));
+    EXPECT_EQ(NULL, uni_hid_device_get_instance_for_address(steam_addr));
+}
+
+// ============================================================================
 // Main Test Runner
 // ============================================================================
 
@@ -1085,7 +1281,8 @@ int main(void) {
     RUN_TEST(bt_disconnect_cleans_up_device);
     RUN_TEST(bt_sdp_query_abort_on_disconnect_and_failure_b5);
     RUN_TEST(bt_le_pnp_id_att_error_status_guard_b6);
+    RUN_TEST(bt_le_setup_legacy_pairing_steam_controller_regression);
 
-    printf("\nAll 10 BTstack packet handler contract tests passed!\n");
+    printf("\nAll 11 BTstack packet handler contract tests passed!\n");
     return 0;
 }
