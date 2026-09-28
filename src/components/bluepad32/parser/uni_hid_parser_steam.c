@@ -111,20 +111,37 @@ static void uni_steam_handle_gatt_client_event(uint8_t packet_type, uint16_t cha
     uint8_t att_status;
     uni_hid_device_t* device;
     steam_instance_t* ins;
+    hci_con_handle_t con_handle;
 
+    ARG_UNUSED(channel);
     ARG_UNUSED(size);
 
     if (packet_type != HCI_EVENT_PACKET)
         return;
 
-    device = uni_hid_device_get_instance_for_connection_handle(channel);
+    uint8_t event = hci_event_packet_get_type(packet);
+    switch (event) {
+        case GATT_EVENT_SERVICE_QUERY_RESULT:
+            con_handle = gatt_event_service_query_result_get_handle(packet);
+            break;
+        case GATT_EVENT_CHARACTERISTIC_QUERY_RESULT:
+            con_handle = gatt_event_characteristic_query_result_get_handle(packet);
+            break;
+        case GATT_EVENT_QUERY_COMPLETE:
+            con_handle = gatt_event_query_complete_get_handle(packet);
+            break;
+        default:
+            loge("Steam: Unknown GATT event: %#x\n", event);
+            return;
+    }
+
+    device = uni_hid_device_get_instance_for_connection_handle(con_handle);
     if (!device) {
-        loge("Steam: Invalid device for connection handle: %d\n", channel);
+        loge("Steam: Invalid device for connection handle: %#x\n", con_handle);
         return;
     }
     ins = get_steam_instance(device);
 
-    uint8_t event = hci_event_packet_get_type(packet);
     switch (ins->query_state) {
         case STATE_QUERY_SERVICE:
             switch (event) {
@@ -143,7 +160,7 @@ static void uni_steam_handle_gatt_client_event(uint8_t packet_type, uint16_t cha
                     // service query complete, look for characteristic report
                     ins->query_state = STATE_QUERY_CHARACTERISTIC_REPORT;
                     gatt_client_discover_characteristics_for_service_by_uuid128(uni_steam_handle_gatt_client_event,
-                                                                                channel, &ins->service,
+                                                                                con_handle, &ins->service,
                                                                                 le_steam_characteristic_report_uuid);
                     break;
                 default:
@@ -160,7 +177,7 @@ static void uni_steam_handle_gatt_client_event(uint8_t packet_type, uint16_t cha
                         // gap_disconnect(connection_handle);
                         break;
                     }
-                    gatt_client_write_value_of_characteristic(uni_steam_handle_gatt_client_event, channel,
+                    gatt_client_write_value_of_characteristic(uni_steam_handle_gatt_client_event, con_handle,
                                                               ins->characteristic_report.value_handle,
                                                               sizeof(cmd_clear_mappings), cmd_clear_mappings);
                     ins->query_state = STATE_QUERY_CLEAR_MAPPINGS;
@@ -182,7 +199,7 @@ static void uni_steam_handle_gatt_client_event(uint8_t packet_type, uint16_t cha
                         // gap_disconnect(connection_handle);
                         break;
                     }
-                    gatt_client_write_value_of_characteristic(uni_steam_handle_gatt_client_event, channel,
+                    gatt_client_write_value_of_characteristic(uni_steam_handle_gatt_client_event, con_handle,
                                                               ins->characteristic_report.value_handle,
                                                               sizeof(cmd_disable_lizard), cmd_disable_lizard);
                     ins->query_state = STATE_QUERY_DISABLE_LIZARD;

@@ -1251,6 +1251,172 @@ TEST(bt_le_setup_legacy_pairing_steam_controller_regression) {
     EXPECT_EQ(0x0006, little_endian_read_16(g_last_acl_buf, 6));  // L2CAP CID = SMP
     EXPECT_EQ(0x03, g_last_acl_buf[8]);                           // Opcode = Pairing Confirm (0x03)
 
+    // 3. Exercise the Steam Controller GATT setup state machine (`uni_hid_parser_steam_setup` ->
+    //    `uni_steam_handle_gatt_client_event`) on non-zero `con_handle = 0x004c`.
+    //    Regression test for `uni_steam_handle_gatt_client_event()` previously using `channel`
+    //    (which `gatt_client.c:emit_event_new()` always passes as `0`) instead of extracting
+    //    `con_handle` from the GATT event payload (`gatt_event_*_get_handle(packet)`).
+    hci_con->num_packets_sent = 0;
+    memset(g_last_acl_buf, 0, sizeof(g_last_acl_buf));
+    g_last_acl_size = 0;
+
+    uni_hid_device_set_vendor_id(d, 0x28de);
+    uni_hid_device_set_product_id(d, 0x1106);
+    uni_hid_device_guess_controller_type_from_pid_vid(d);
+    EXPECT_EQ(CONTROLLER_TYPE_SteamController, d->controller_type);
+    uni_hid_device_connect(d);
+    uni_hid_device_set_ready(d);
+    EXPECT_EQ(UNI_BT_CONN_STATE_DEVICE_PENDING_READY, uni_bt_conn_get_state(&d->conn));
+
+    // Step 3a: On the first GATT query, `gatt_client` sends ATT_EXCHANGE_MTU_REQUEST (0x02, 11 bytes);
+    // reply with ATT_EXCHANGE_MTU_RESPONSE (0x03, MTU = 23) so `gatt_client` proceeds to send
+    // ATT_FIND_BY_TYPE_VALUE_REQUEST (0x06, 31 bytes) for the 128-bit Steam service UUID.
+    ASSERT_EQ(11, g_last_acl_size);
+    EXPECT_EQ(0x0004, little_endian_read_16(g_last_acl_buf, 6));  // L2CAP CID = ATT
+    EXPECT_EQ(0x02, g_last_acl_buf[8]);                           // ATT_EXCHANGE_MTU_REQUEST
+
+    hci_con->num_packets_sent = 0;
+    memset(g_last_acl_buf, 0, sizeof(g_last_acl_buf));
+    g_last_acl_size = 0;
+    uint8_t att_mtu_rsp[11] = {
+        0x4c, 0x20,  // Handle 0x004c | PB=10
+        0x07, 0x00,  // ACL length = 7
+        0x03, 0x00,  // L2CAP length = 3
+        0x04, 0x00,  // L2CAP CID = 0x0004 (ATT)
+        0x03,        // ATT_EXCHANGE_MTU_RESPONSE (0x03)
+        0x17, 0x00,  // Server Rx MTU = 23
+    };
+    g_transport_packet_handler(HCI_ACL_DATA_PACKET, att_mtu_rsp, sizeof(att_mtu_rsp));
+
+    ASSERT_EQ(31, g_last_acl_size);
+    EXPECT_EQ(0x0004, little_endian_read_16(g_last_acl_buf, 6));  // L2CAP CID = ATT
+    EXPECT_EQ(0x06, g_last_acl_buf[8]);                           // ATT_FIND_BY_TYPE_VALUE_REQUEST
+
+    // Inject Frame 630 from hci_dump.pklg: ATT_FIND_BY_TYPE_VALUE_RESPONSE (0x07) with
+    // service handle range 0x0027..0xffff on con_handle = 0x004c.
+    hci_con->num_packets_sent = 0;
+    memset(g_last_acl_buf, 0, sizeof(g_last_acl_buf));
+    g_last_acl_size = 0;
+    uint8_t att_find_by_type_rsp[13] = {
+        0x4c, 0x20,  // Handle 0x004c | PB=10
+        0x09, 0x00,  // ACL length = 9
+        0x05, 0x00,  // L2CAP length = 5
+        0x04, 0x00,  // L2CAP CID = 0x0004 (ATT)
+        0x07,        // ATT_FIND_BY_TYPE_VALUE_RESPONSE (0x07)
+        0x27, 0x00,  // Found Attribute Handle = 0x0027
+        0xff, 0xff,  // Group End Handle = 0xffff
+    };
+    g_transport_packet_handler(HCI_ACL_DATA_PACKET, att_find_by_type_rsp, sizeof(att_find_by_type_rsp));
+
+    // Step 3b: Verify `uni_steam_handle_gatt_client_event()` resolved `con_handle = 0x004c`
+    // (NOT `channel = 0`) and issued ATT_READ_BY_TYPE_REQUEST (0x08) for characteristic discovery
+    // in range 0x0027..0xffff.
+    ASSERT_EQ(15, g_last_acl_size);
+    EXPECT_EQ(0x0004, little_endian_read_16(g_last_acl_buf, 6));  // L2CAP CID = ATT
+    EXPECT_EQ(0x08, g_last_acl_buf[8]);                           // ATT_READ_BY_TYPE_REQUEST
+    EXPECT_EQ(0x0027, little_endian_read_16(g_last_acl_buf, 9));
+    EXPECT_EQ(0xffff, little_endian_read_16(g_last_acl_buf, 11));
+
+    // Inject ATT_READ_BY_TYPE_RESPONSE (0x09) reporting the Steam report characteristic
+    // (100F6C34-1735-4313-B402-38567131E5F3) at declaration handle 0x002a, properties 0x0a,
+    // value handle 0x002b.
+    hci_con->num_packets_sent = 0;
+    memset(g_last_acl_buf, 0, sizeof(g_last_acl_buf));
+    g_last_acl_size = 0;
+    uint8_t att_read_by_type_rsp[31] = {
+        0x4c,
+        0x20,  // Handle 0x004c | PB=10
+        0x1b,
+        0x00,  // ACL length = 27
+        0x17,
+        0x00,  // L2CAP length = 23
+        0x04,
+        0x00,  // L2CAP CID = 0x0004 (ATT)
+        0x09,  // ATT_READ_BY_TYPE_RESPONSE (0x09)
+        21,    // Length of each attribute handle-value pair (2 + 1 + 2 + 16 = 21)
+        0x2a,
+        0x00,  // Characteristic declaration handle = 0x002a
+        0x0a,  // Properties = Read | Write
+        0x2b,
+        0x00,  // Characteristic value handle = 0x002b
+        // 128-bit UUID 100F6C34-1735-4313-B402-38567131E5F3 in little-endian ATT wire order:
+        0xf3,
+        0xe5,
+        0x31,
+        0x71,
+        0x56,
+        0x38,
+        0x02,
+        0xb4,
+        0x13,
+        0x43,
+        0x35,
+        0x17,
+        0x34,
+        0x6c,
+        0x0f,
+        0x10,
+    };
+    g_transport_packet_handler(HCI_ACL_DATA_PACKET, att_read_by_type_rsp, sizeof(att_read_by_type_rsp));
+
+    // gatt_client sends another ATT_READ_BY_TYPE_REQUEST starting at 0x002c; complete it with
+    // ATT_ERROR_RESPONSE (ATT_ERROR_ATTRIBUTE_NOT_FOUND = 0x0a).
+    EXPECT_EQ(0x08, g_last_acl_buf[8]);
+    hci_con->num_packets_sent = 0;
+    memset(g_last_acl_buf, 0, sizeof(g_last_acl_buf));
+    g_last_acl_size = 0;
+    uint8_t att_err_not_found[13] = {
+        0x4c, 0x20,  // Handle 0x004c | PB=10
+        0x09, 0x00,  // ACL length = 9
+        0x05, 0x00,  // L2CAP length = 5
+        0x04, 0x00,  // L2CAP CID = 0x0004 (ATT)
+        0x01,        // ATT_ERROR_RESPONSE (0x01)
+        0x08,        // Request Opcode In Error = ATT_READ_BY_TYPE_REQUEST (0x08)
+        0x2c, 0x00,  // Handle In Error = 0x002c
+        0x0a,        // Error Code = ATT_ERROR_ATTRIBUTE_NOT_FOUND (0x0a)
+    };
+    g_transport_packet_handler(HCI_ACL_DATA_PACKET, att_err_not_found, sizeof(att_err_not_found));
+
+    // Step 3c: Verify `uni_steam_handle_gatt_client_event()` wrote `cmd_clear_mappings` (0xc0, 0x81, 0x01)
+    // via ATT_WRITE_REQUEST (0x12) to characteristic value handle 0x002b on `con_handle = 0x004c`.
+    ASSERT_EQ(14, g_last_acl_size);
+    EXPECT_EQ(0x0004, little_endian_read_16(g_last_acl_buf, 6));  // L2CAP CID = ATT
+    EXPECT_EQ(0x12, g_last_acl_buf[8]);                           // ATT_WRITE_REQUEST
+    EXPECT_EQ(0x002b, little_endian_read_16(g_last_acl_buf, 9));  // Value Handle = 0x002b
+    EXPECT_EQ(0xc0, g_last_acl_buf[11]);
+    EXPECT_EQ(0x81, g_last_acl_buf[12]);  // STEAM_CMD_CLEAR_MAPPINGS
+    EXPECT_EQ(0x01, g_last_acl_buf[13]);
+
+    // Inject ATT_WRITE_RESPONSE (0x13) to complete `STATE_QUERY_CLEAR_MAPPINGS`.
+    hci_con->num_packets_sent = 0;
+    memset(g_last_acl_buf, 0, sizeof(g_last_acl_buf));
+    g_last_acl_size = 0;
+    uint8_t att_write_rsp[9] = {
+        0x4c, 0x20,  // Handle 0x004c | PB=10
+        0x05, 0x00,  // ACL length = 5
+        0x01, 0x00,  // L2CAP length = 1
+        0x04, 0x00,  // L2CAP CID = 0x0004 (ATT)
+        0x13,        // ATT_WRITE_RESPONSE (0x13)
+    };
+    g_transport_packet_handler(HCI_ACL_DATA_PACKET, att_write_rsp, sizeof(att_write_rsp));
+
+    // Step 3d: Verify `uni_steam_handle_gatt_client_event()` wrote `cmd_disable_lizard` (18 bytes)
+    // via ATT_WRITE_REQUEST (0x12) to characteristic value handle 0x002b on `con_handle = 0x004c`.
+    ASSERT_EQ(29, g_last_acl_size);
+    EXPECT_EQ(0x0004, little_endian_read_16(g_last_acl_buf, 6));  // L2CAP CID = ATT
+    EXPECT_EQ(0x12, g_last_acl_buf[8]);                           // ATT_WRITE_REQUEST
+    EXPECT_EQ(0x002b, little_endian_read_16(g_last_acl_buf, 9));  // Value Handle = 0x002b
+    EXPECT_EQ(0xc0, g_last_acl_buf[11]);
+    EXPECT_EQ(0x87, g_last_acl_buf[12]);  // STEAM_CMD_WRITE_REGISTER
+    EXPECT_EQ(0x0f, g_last_acl_buf[13]);
+
+    // Inject second ATT_WRITE_RESPONSE (0x13) to complete `STATE_QUERY_DISABLE_LIZARD` and verify
+    // `uni_hid_device_set_ready_complete(d)` transitions the Steam Controller to `DEVICE_READY`.
+    hci_con->num_packets_sent = 0;
+    g_transport_packet_handler(HCI_ACL_DATA_PACKET, att_write_rsp, sizeof(att_write_rsp));
+    EXPECT_EQ(UNI_BT_CONN_STATE_DEVICE_READY, uni_bt_conn_get_state(&d->conn));
+    EXPECT_EQ(1, g_ready_count);
+
     // Clean up connection via HCI_EVENT_DISCONNECTION_COMPLETE.
     uint8_t disc_evt[6] = {HCI_EVENT_DISCONNECTION_COMPLETE, 4, 0x00, 0x4c, 0x00, 0x08};
     g_transport_packet_handler(HCI_EVENT_PACKET, disc_evt, sizeof(disc_evt));
