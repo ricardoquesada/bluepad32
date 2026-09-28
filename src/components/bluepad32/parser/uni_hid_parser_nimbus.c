@@ -4,6 +4,8 @@
 
 #include "parser/uni_hid_parser_nimbus.h"
 
+#include <stdint.h>
+
 #include "hid_usage.h"
 #include "uni_common.h"
 #include "uni_hid_device.h"

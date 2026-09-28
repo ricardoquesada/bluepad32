@@ -4,6 +4,7 @@
 
 #include "parser/uni_hid_parser_rumble.h"
 
+#include <stdint.h>
 #include <string.h>
 
 #include "uni_hid_device.h"

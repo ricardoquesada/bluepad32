@@ -5,6 +5,7 @@
 #include "parser/uni_hid_parser_mouse.h"
 
 #include <math.h>
+#include <stdint.h>
 #include <time.h>
 
 #include "controller/uni_controller.h"

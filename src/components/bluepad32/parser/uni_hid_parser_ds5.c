@@ -11,6 +11,7 @@
 #include "parser/uni_hid_parser_ds5.h"
 
 #include <assert.h>
+#include <stdint.h>
 
 #include "bt/uni_bt_defines.h"
 #include "uni_config.h"

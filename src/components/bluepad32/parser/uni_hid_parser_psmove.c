@@ -9,6 +9,7 @@
 
 #include "parser/uni_hid_parser_psmove.h"
 
+#include <stdint.h>
 #include <string.h>
 
 #include "controller/uni_controller.h"

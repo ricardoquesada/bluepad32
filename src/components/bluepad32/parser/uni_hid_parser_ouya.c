@@ -4,6 +4,9 @@
 
 #include "parser/uni_hid_parser_ouya.h"
 
+#include <stdint.h>
+
+#include "controller/uni_controller.h"
 #include "hid_usage.h"
 #include "uni_common.h"
 #include "uni_hid_device.h"

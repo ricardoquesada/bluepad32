@@ -4,6 +4,8 @@
 
 #include "parser/uni_hid_parser.h"
 
+#include <stdint.h>
+
 #include "hid_usage.h"
 #include "uni_btstack_version_compat.h"
 #include "uni_hid_device.h"

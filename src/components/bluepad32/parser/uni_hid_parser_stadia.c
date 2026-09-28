@@ -7,6 +7,8 @@
 
 #include "parser/uni_hid_parser_stadia.h"
 
+#include <stdint.h>
+
 #include "controller/uni_controller.h"
 #include "parser/uni_hid_parser_rumble.h"
 #include "uni_common.h"

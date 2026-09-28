@@ -25,6 +25,7 @@ limitations under the License.
 
 #include "parser/uni_hid_parser_ds3.h"
 
+#include <stdint.h>
 #include <string.h>
 
 #include "controller/uni_controller.h"

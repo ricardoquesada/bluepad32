@@ -12,6 +12,7 @@
 #include "parser/uni_hid_parser_ds4.h"
 
 #include <assert.h>
+#include <stdint.h>
 
 #include "bt/uni_bt_defines.h"
 #include "hid_usage.h"

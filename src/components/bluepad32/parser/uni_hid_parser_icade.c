@@ -4,6 +4,8 @@
 
 #include "parser/uni_hid_parser_icade.h"
 
+#include <stdint.h>
+
 #include "hid_usage.h"
 #include "uni_common.h"
 #include "uni_hid_device.h"
