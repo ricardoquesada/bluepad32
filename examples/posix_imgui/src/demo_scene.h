@@ -111,12 +111,13 @@ class DemoScene {
     float mRumbleWeakIntensity[kMaxControllers];    ///< Weak motor normalized intensity (`0.0..1.0`).
     float mRumbleStrongIntensity[kMaxControllers];  ///< Strong motor normalized intensity (`0.0..1.0`).
 
-    // Per-controller IMU circular history ring buffers
+    // Per-controller IMU circular history ring buffers & integrated gyro dial angles
     float mGyroHistory[kMaxControllers][kMotionAxisCount][kImuHistoryLen];
     float mAccelHistory[kMaxControllers][kMotionAxisCount][kImuHistoryLen];
-    size_t mImuHistoryOffset[kMaxControllers];      ///< Next write index in `[0, kImuHistoryLen - 1]`.
-    uint64_t mLastImuTimestampUs[kMaxControllers];  ///< Timestamp of the last recorded IMU report.
-    bool mImuPlotPaused;                            ///< If true, freezes IMU history ring buffers.
+    float mGyroAngleDeg[kMaxControllers][kMotionAxisCount];  ///< Integrated gyro angle in `[-180, +180]` deg.
+    size_t mImuHistoryOffset[kMaxControllers];               ///< Next write index in `[0, kImuHistoryLen - 1]`.
+    uint64_t mLastImuTimestampUs[kMaxControllers];           ///< Timestamp of the last recorded IMU report.
+    bool mImuPlotPaused;                                     ///< If true, freezes IMU history ring buffers.
 
     // Per-controller Lights tab parameters
     int mPlayerLedIndex[kMaxControllers];     ///< Selected player index (`1..4`).

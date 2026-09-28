@@ -20,10 +20,13 @@ interactive tabs per controller:
     ms`), and weak/strong motor intensities (`0.00..1.00` -> `0..255`) with **Vibrate**, **Stop Rumble**, and one-click
    haptic presets wired to
    `d->report_parser.play_dual_rumble`.
-3. **IMU:** Real-time 3-axis Accelerometer (`accel[0..2]`) and Gyroscope (`gyro[0..2]`) table with packet interval delta
-   (`ms`), visual axis bars,
-   and 240-sample scrolling history plots (`ImGui::PlotLines`) with
-   pause/resume and clear controls.
+3. **IMU:** Real-time 6-axis motion visualization featuring a 2D circular
+   bullseye radar widget for the **Accelerometer** (`m/s²` and raw `accel[0..2]`
+   readouts) and three circular compass/needle dials (`X`, `Y`, `Z`) for the
+   **Gyroscope** showing integrated rotation angles (`°` with `Reset` button)
+   and live angular velocity (`rad/s` and raw `gyro[0..2]`), plus 240-sample
+   scrolling history plots (`ImGui::PlotLines`) with pause/resume and clear
+   controls.
 4. **Lights:** Interactive Player ID LEDs (`1..4` slider, raw 4-bit LED
    checkboxes, and seat presets wired to `d->report_parser.set_player_leds`),
    RGB Lightbar color picker and color swatches (`d->report_parser.set_lightbar_color` for DualShock 4, DualSense, and

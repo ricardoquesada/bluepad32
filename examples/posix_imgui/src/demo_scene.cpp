@@ -29,6 +29,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdarg>
 #include <cstdio>
 #include <cstring>
 
@@ -138,6 +139,40 @@ const char* SubtypeToString(uni_controller_subtype_t subtype) {
     }
 }
 
+constexpr float kPi = 3.14159265358979323846f;
+constexpr float kDegToRad = kPi / 180.0f;
+constexpr float kGravityMps2 = 9.80665f;
+
+float AccelCountsPerG(uint16_t vendor_id) {
+    // Sony DualShock 4 / DualSense parsers normalize 1g to 8192 counts;
+    // Nintendo Switch parsers normalize 1g to ~4096 counts.
+    if (vendor_id == 0x057e) {
+        return 4096.0f;
+    }
+    return 8192.0f;
+}
+
+float GyroCountsPerDegPerSec(uint16_t vendor_id) {
+    // Sony DualShock 4 / DualSense parsers use 1024 counts per deg/s;
+    // Nintendo Switch parser uses 1000 counts per deg/s.
+    if (vendor_id == 0x057e) {
+        return 1000.0f;
+    }
+    return 1024.0f;
+}
+
+void DrawTextCenteredInColumn(float colStartX, float colWidth, const ImVec4& color, const char* fmt, ...) {
+    char buf[128];
+    va_list args;
+    va_start(args, fmt);
+    std::vsnprintf(buf, sizeof(buf), fmt, args);
+    va_end(args);
+
+    const ImVec2 sz = ImGui::CalcTextSize(buf);
+    ImGui::SetCursorPosX(colStartX + std::max(0.0f, (colWidth - sz.x) * 0.5f));
+    ImGui::TextColored(color, "%s", buf);
+}
+
 }  // namespace
 
 DemoScene::DemoScene()
@@ -158,6 +193,7 @@ DemoScene::DemoScene()
       mRumbleStrongIntensity{},
       mGyroHistory{},
       mAccelHistory{},
+      mGyroAngleDeg{},
       mImuHistoryOffset{},
       mLastImuTimestampUs{},
       mImuPlotPaused(false),
@@ -216,11 +252,27 @@ void DemoScene::UpdateImuHistory(int slot, const ControllerSnapshot& snap) {
         return;
     }
 
+    float dt_sec = 0.0f;
+    if (mLastImuTimestampUs[slot] > 0 && snap.last_report_timestamp_us > mLastImuTimestampUs[slot]) {
+        dt_sec = static_cast<float>(snap.last_report_timestamp_us - mLastImuTimestampUs[slot]) * 1e-6f;
+    } else if (snap.report_delta_ms > 0 && snap.report_delta_ms <= 500) {
+        dt_sec = static_cast<float>(snap.report_delta_ms) * 1e-3f;
+    }
     mLastImuTimestampUs[slot] = snap.last_report_timestamp_us;
+
+    const float gyroScale = GyroCountsPerDegPerSec(snap.vendor_id);
     const size_t idx = mImuHistoryOffset[slot];
     for (size_t axis = 0; axis < kMotionAxisCount; ++axis) {
-        mGyroHistory[slot][axis][idx] = static_cast<float>(snap.controller.gamepad.gyro[axis]);
-        mAccelHistory[slot][axis][idx] = static_cast<float>(snap.controller.gamepad.accel[axis]);
+        const float rawGyro = static_cast<float>(snap.controller.gamepad.gyro[axis]);
+        const float rawAccel = static_cast<float>(snap.controller.gamepad.accel[axis]);
+        mGyroHistory[slot][axis][idx] = rawGyro;
+        mAccelHistory[slot][axis][idx] = rawAccel;
+
+        if (dt_sec > 0.0f && dt_sec <= 0.5f) {
+            const float degPerSec = rawGyro / gyroScale;
+            // Integrate angular rate into [-180, +180] degree dial angle
+            mGyroAngleDeg[slot][axis] = std::remainder(mGyroAngleDeg[slot][axis] + degPerSec * dt_sec, 360.0f);
+        }
     }
     mImuHistoryOffset[slot] = (idx + 1) % kImuHistoryLen;
 }
@@ -231,6 +283,7 @@ void DemoScene::ClearImuHistory(int slot) {
     }
     std::memset(mGyroHistory[slot], 0, sizeof(mGyroHistory[slot]));
     std::memset(mAccelHistory[slot], 0, sizeof(mAccelHistory[slot]));
+    std::memset(mGyroAngleDeg[slot], 0, sizeof(mGyroAngleDeg[slot]));
     mImuHistoryOffset[slot] = 0;
     mLastImuTimestampUs[slot] = 0;
 }
@@ -686,40 +739,173 @@ void DemoScene::RenderPanel_MotionTab(int slot, const ControllerSnapshot& snap) 
     }
 
     const uni_gamepad_t& gp = snap.controller.gamepad;
+    const float accelScale = AccelCountsPerG(snap.vendor_id);
+    const float gyroScale = GyroCountsPerDegPerSec(snap.vendor_id);
 
-    // 2-Column Motion Table matching AGDK RenderMotionTableData
-    if (ImGui::BeginTable("##motiontable", 3,
-                          ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit)) {
-        ImGui::TableSetupColumn("Axis / Metric", ImGuiTableColumnFlags_WidthFixed, 140.0f);
-        ImGui::TableSetupColumn("Accelerometer (raw / G)", ImGuiTableColumnFlags_WidthFixed, 260.0f);
-        ImGui::TableSetupColumn("Gyroscope (raw / deg/s)", ImGuiTableColumnFlags_WidthFixed, 260.0f);
-        ImGui::TableHeadersRow();
+    float accelG[3] = {};
+    float accelMps2[3] = {};
+    float gyroDegS[3] = {};
+    float gyroRadS[3] = {};
+    for (int axis = 0; axis < 3; ++axis) {
+        accelG[axis] = static_cast<float>(gp.accel[axis]) / accelScale;
+        accelMps2[axis] = accelG[axis] * kGravityMps2;
+        gyroDegS[axis] = static_cast<float>(gp.gyro[axis]) / gyroScale;
+        gyroRadS[axis] = gyroDegS[axis] * kDegToRad;
+    }
 
+    ImGui::Spacing();
+    if (ImGui::BeginTable(
+            "##imu_circular_cards", 2,
+            ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_PadOuterX | ImGuiTableFlags_SizingStretchSame)) {
+        ImGui::TableSetupColumn("##accel_card", ImGuiTableColumnFlags_WidthStretch, 0.44f);
+        ImGui::TableSetupColumn("##gyro_card", ImGuiTableColumnFlags_WidthStretch, 0.56f);
         ImGui::TableNextRow();
-        ImGui::TableNextColumn();
-        ImGui::TextColored(kTextColorGrey, "Interval (ms)");
-        ImGui::TableNextColumn();
-        ImGui::Text("%4u ms", snap.report_delta_ms);
-        ImGui::TableNextColumn();
-        ImGui::Text("%4u ms", snap.report_delta_ms);
 
-        const char* kAxisNames[3] = {"X Axis", "Y Axis", "Z Axis"};
-        for (int axis = 0; axis < 3; ++axis) {
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::TextColored(kTextColorGrey, "%s", kAxisNames[axis]);
+        // ====================================================================
+        // Left Column: Accelerometer 2D Circular Bullseye Radar Widget
+        // ====================================================================
+        ImGui::TableNextColumn();
+        {
+            ImGui::TextColored(kTextColorWhite, "Accelerometer");
+            ImGui::TextColored(kTextColorGrey, "Tilt and linear movement (m/s\xC2\xB2)");
+            ImGui::Spacing();
 
-            ImGui::TableNextColumn();
-            ImGui::Text("%7d", gp.accel[axis]);
-            ImGui::SameLine(90.0f);
-            const float accelNorm = std::clamp((static_cast<float>(gp.accel[axis]) + 8192.0f) / 16384.0f, 0.0f, 1.0f);
-            ImGui::ProgressBar(accelNorm, ImVec2(150.0f, 0.0f), "");
+            const float colStartX = ImGui::GetCursorPosX();
+            const float colWidth = ImGui::GetContentRegionAvail().x;
+            constexpr float kBullseyeRadius = 56.0f;
+            constexpr float kBullseyeDiameter = kBullseyeRadius * 2.0f;
 
-            ImGui::TableNextColumn();
-            ImGui::Text("%7d", gp.gyro[axis]);
-            ImGui::SameLine(90.0f);
-            const float gyroNorm = std::clamp((static_cast<float>(gp.gyro[axis]) + 2048.0f) / 4096.0f, 0.0f, 1.0f);
-            ImGui::ProgressBar(gyroNorm, ImVec2(150.0f, 0.0f), "");
+            ImGui::SetCursorPosX(colStartX + std::max(0.0f, (colWidth - kBullseyeDiameter) * 0.5f));
+            const ImVec2 canvasMin = ImGui::GetCursorScreenPos();
+            ImGui::Dummy(ImVec2(kBullseyeDiameter, kBullseyeDiameter));
+
+            const ImVec2 center(canvasMin.x + kBullseyeRadius, canvasMin.y + kBullseyeRadius);
+            ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+            // Subtle dark circular backdrop
+            drawList->AddCircleFilled(center, kBullseyeRadius, IM_COL32(22, 26, 34, 220), 64);
+
+            // Three concentric target rings (r/3, 2r/3, r)
+            drawList->AddCircle(center, kBullseyeRadius * (1.0f / 3.0f), IM_COL32(95, 110, 130, 130), 48, 1.2f);
+            drawList->AddCircle(center, kBullseyeRadius * (2.0f / 3.0f), IM_COL32(95, 110, 130, 150), 64, 1.2f);
+            drawList->AddCircle(center, kBullseyeRadius, IM_COL32(150, 170, 195, 220), 64, 1.8f);
+
+            // Crosshair lines through center
+            drawList->AddLine(ImVec2(center.x - kBullseyeRadius, center.y),
+                              ImVec2(center.x + kBullseyeRadius, center.y), IM_COL32(95, 110, 130, 150), 1.0f);
+            drawList->AddLine(ImVec2(center.x, center.y - kBullseyeRadius),
+                              ImVec2(center.x, center.y + kBullseyeRadius), IM_COL32(95, 110, 130, 150), 1.0f);
+
+            // Map in-plane tilt axes to 2D radar dot:
+            // Sony DS4/DualSense (0x054c) uses Y as vertical gravity (+1g at rest) and X/Z as horizontal plane;
+            // Nintendo Switch / other controllers use Z as vertical gravity and X/Y as horizontal plane.
+            float nx = accelG[0];
+            float ny = (snap.vendor_id == 0x054c) ? accelG[2] : accelG[1];
+            const float mag = std::hypot(nx, ny);
+            if (mag > 1.0f) {
+                nx /= mag;
+                ny /= mag;
+            }
+
+            const float maxDotOffset = kBullseyeRadius - 7.0f;
+            const ImVec2 dotPos(center.x + nx * maxDotOffset, center.y - ny * maxDotOffset);
+
+            drawList->AddLine(center, dotPos, IM_COL32(80, 200, 255, 110), 1.5f);
+            drawList->AddCircleFilled(dotPos, 8.0f, IM_COL32(80, 215, 255, 70), 24);
+            drawList->AddCircleFilled(dotPos, 5.5f, IM_COL32(90, 220, 255, 255), 24);
+            drawList->AddCircle(dotPos, 5.5f, IM_COL32(230, 250, 255, 220), 24, 1.2f);
+
+            ImGui::Spacing();
+            if (ImGui::BeginTable("##accel_xyz_readouts", 3, ImGuiTableFlags_SizingStretchSame)) {
+                const char* kAxisLabels[3] = {"X", "Y", "Z"};
+                ImGui::TableNextRow();
+                for (int axis = 0; axis < 3; ++axis) {
+                    ImGui::TableNextColumn();
+                    const float subStartX = ImGui::GetCursorPosX();
+                    const float subWidth = ImGui::GetContentRegionAvail().x;
+                    DrawTextCenteredInColumn(subStartX, subWidth, kTextColorGrey, "%s", kAxisLabels[axis]);
+                    DrawTextCenteredInColumn(subStartX, subWidth, kTextColorWhite, "%+0.2f",
+                                             static_cast<double>(accelMps2[axis]));
+                    DrawTextCenteredInColumn(subStartX, subWidth, kTextColorGrey, "(%d)", gp.accel[axis]);
+                }
+                ImGui::EndTable();
+            }
+        }
+
+        // ====================================================================
+        // Right Column: Gyroscope 3x Circular Needle Dials (X, Y, Z)
+        // ====================================================================
+        ImGui::TableNextColumn();
+        {
+            ImGui::TextColored(kTextColorWhite, "Gyroscope");
+            ImGui::SameLine();
+            const float resetBtnWidth = 68.0f;
+            const float availRight = ImGui::GetContentRegionAvail().x;
+            if (availRight > resetBtnWidth) {
+                ImGui::SetCursorPosX(ImGui::GetCursorPosX() + availRight - resetBtnWidth);
+            }
+            if (ImGui::SmallButton(" Reset ")) {
+                std::memset(mGyroAngleDeg[slot], 0, sizeof(mGyroAngleDeg[slot]));
+            }
+            ImGui::TextColored(kTextColorGrey, "Rotation angle & speed (rad/s)");
+            ImGui::Spacing();
+
+            if (ImGui::BeginTable("##gyro_dials_table", 3, ImGuiTableFlags_SizingStretchSame)) {
+                const char* kAxisLabels[3] = {"X", "Y", "Z"};
+                ImGui::TableNextRow();
+                for (int axis = 0; axis < 3; ++axis) {
+                    ImGui::TableNextColumn();
+                    const float subStartX = ImGui::GetCursorPosX();
+                    const float subWidth = ImGui::GetContentRegionAvail().x;
+                    constexpr float kDialRadius = 46.0f;
+                    constexpr float kDialDiameter = kDialRadius * 2.0f;
+
+                    ImGui::SetCursorPosX(subStartX + std::max(0.0f, (subWidth - kDialDiameter) * 0.5f));
+                    const ImVec2 dialMin = ImGui::GetCursorScreenPos();
+                    ImGui::Dummy(ImVec2(kDialDiameter, kDialDiameter));
+
+                    const ImVec2 dialCenter(dialMin.x + kDialRadius, dialMin.y + kDialRadius);
+                    ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+                    // Dial background and outer ring
+                    drawList->AddCircleFilled(dialCenter, kDialRadius, IM_COL32(22, 26, 34, 220), 64);
+                    drawList->AddCircle(dialCenter, kDialRadius, IM_COL32(150, 170, 195, 220), 64, 1.8f);
+
+                    // Minor 3/6/9-o'clock reference ticks
+                    drawList->AddLine(ImVec2(dialCenter.x + kDialRadius - 5.0f, dialCenter.y),
+                                      ImVec2(dialCenter.x + kDialRadius, dialCenter.y), IM_COL32(95, 110, 130, 160),
+                                      1.2f);
+                    drawList->AddLine(ImVec2(dialCenter.x - kDialRadius, dialCenter.y),
+                                      ImVec2(dialCenter.x - kDialRadius + 5.0f, dialCenter.y),
+                                      IM_COL32(95, 110, 130, 160), 1.2f);
+                    drawList->AddLine(ImVec2(dialCenter.x, dialCenter.y + kDialRadius - 5.0f),
+                                      ImVec2(dialCenter.x, dialCenter.y + kDialRadius), IM_COL32(95, 110, 130, 160),
+                                      1.2f);
+
+                    // Prominent 12-o'clock zero-degree reference tick
+                    drawList->AddLine(ImVec2(dialCenter.x, dialCenter.y - kDialRadius),
+                                      ImVec2(dialCenter.x, dialCenter.y - kDialRadius + 8.0f),
+                                      IM_COL32(220, 230, 245, 240), 2.0f);
+
+                    // Rotating needle showing integrated rotation angle in degrees
+                    const float angleDeg = mGyroAngleDeg[slot][axis];
+                    const float angleRad = angleDeg * kDegToRad;
+                    const float needleLen = kDialRadius - 8.0f;
+                    const ImVec2 needleTip(dialCenter.x + std::sin(angleRad) * needleLen,
+                                           dialCenter.y - std::cos(angleRad) * needleLen);
+
+                    drawList->AddLine(dialCenter, needleTip, IM_COL32(90, 220, 255, 255), 2.4f);
+                    drawList->AddCircleFilled(dialCenter, 4.0f, IM_COL32(220, 230, 245, 255), 16);
+
+                    ImGui::Spacing();
+                    DrawTextCenteredInColumn(subStartX, subWidth, kTextColorWhite, "%.0f\xC2\xB0",
+                                             static_cast<double>(angleDeg));
+                    DrawTextCenteredInColumn(subStartX, subWidth, kTextColorWhite, "%s  %+0.2f", kAxisLabels[axis],
+                                             static_cast<double>(gyroRadS[axis]));
+                    DrawTextCenteredInColumn(subStartX, subWidth, kTextColorGrey, "(%d)", gp.gyro[axis]);
+                }
+                ImGui::EndTable();
+            }
         }
 
         ImGui::EndTable();
