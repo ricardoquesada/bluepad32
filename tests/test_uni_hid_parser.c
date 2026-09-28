@@ -431,6 +431,7 @@ int main(int argc, char** argv) {
     btstack_memory_init();
     btstack_run_loop_init(btstack_run_loop_posix_get_instance());
     uni_property_init();
+    uni_balance_board_init();
 
     test_process_axis();
     test_process_pedal();

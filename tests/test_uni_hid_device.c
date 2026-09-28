@@ -8,6 +8,7 @@
 // - `uni_hid_device` pool lifecycle, virtual child linking, and BTstack timer teardown.
 
 #include <assert.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -16,6 +17,7 @@
 #include <btstack.h>
 #include <btstack_memory.h>
 #include <btstack_run_loop.h>
+#include <btstack_run_loop_base.h>
 #include <btstack_run_loop_posix.h>
 #include <btstack_tlv.h>
 #include <btstack_tlv_posix.h>
@@ -578,6 +580,7 @@ static void dummy_timer_handler(btstack_timer_source_t* ts) {
 
 static void test_intrusive_timer_removal_on_delete(void) {
     printf("Testing intrusive BTstack timer removal before memset...\n");
+    btstack_run_loop_base_timers = NULL;
     bd_addr_t addr = {0x41, 0x42, 0x43, 0x44, 0x45, 0x46};
     uni_hid_device_t* d = uni_hid_device_create(addr);
     assert(d != NULL);
@@ -591,8 +594,19 @@ static void test_intrusive_timer_removal_on_delete(void) {
     btstack_run_loop_set_timer(&d->misc_button_delay_timer, 1000);
     btstack_run_loop_add_timer(&d->misc_button_delay_timer);
 
-    // Delete device: must remove all 3 timers before memset(d, 0, sizeof(*d))
+    // Also attach Switch Pro parser (which arms setup_timer in parser_data) and delayed rumble timer (B3)
+    uni_hid_device_set_vendor_id(d, 0x057e);
+    uni_hid_device_set_product_id(d, 0x2009);
+    uni_hid_device_guess_controller_type_from_pid_vid(d);
+    assert(d->report_parser.setup != NULL);
+    assert(d->report_parser.deinit != NULL);
+    d->report_parser.setup(d);
+    d->report_parser.play_dual_rumble(d, 200, 500, 128, 255);
+    assert(d->rumble.state == UNI_RUMBLE_STATE_DELAYED);
+
+    // Delete device: must remove device timers, rumble timers, and parser deinit timers before memset(d, 0, sizeof(*d))
     uni_hid_device_delete(d);
+    assert(btstack_run_loop_base_timers == NULL);
 
     // Verify BTstack run loop timer linked list is uncorrupted by adding and removing a fresh timer
     btstack_timer_source_t verify_timer;
@@ -601,6 +615,49 @@ static void test_intrusive_timer_removal_on_delete(void) {
     btstack_run_loop_set_timer(&verify_timer, 500);
     btstack_run_loop_add_timer(&verify_timer);
     assert(btstack_run_loop_remove_timer(&verify_timer) == 1);
+    assert(btstack_run_loop_base_timers == NULL);
+    printf("PASS\n");
+}
+
+/**
+ * @brief Verifies pointer-width alignment and tail placement of `parser_data` and `platform_data` (B6 / Addendum 1).
+ *
+ * Ensures that:
+ * 1. `parser_data` and `platform_data` are placed at the very bottom (tail) of `struct uni_hid_device_s`
+ *    immediately after `parent` and `child`, avoiding internal padding after `outgoing_buffer` and keeping
+ *    hot scalar/pointer fields (`conn`, `parent`, `child`) 512 bytes closer to the struct base.
+ * 2. `__attribute__((aligned(sizeof(void*))))` (used instead of `__BIGGEST_ALIGNMENT__`) guarantees
+ *    pointer-width alignment on 32-bit MCUs (ESP32, RP2040) and 64-bit hosts with 0 bytes of RAM overhead
+ *    across both compile-time struct offsets and runtime device pool instances.
+ */
+static void test_hid_device_parser_and_platform_data_alignment_b6(void) {
+    printf("Testing uni_hid_device parser_data and platform_data alignment and tail placement (B6)...\n");
+    // Compile-time verification of pointer-width alignment (sizeof(void*)) and tail placement after parent/child.
+    _Static_assert(offsetof(uni_hid_device_t, parser_data) % sizeof(void*) == 0, "parser_data must be pointer-aligned");
+    _Static_assert(offsetof(uni_hid_device_t, platform_data) % sizeof(void*) == 0,
+                   "platform_data must be pointer-aligned");
+    _Static_assert(offsetof(uni_hid_device_t, parser_data) > offsetof(uni_hid_device_t, child),
+                   "parser_data must be placed after child at the tail of uni_hid_device_t");
+    _Static_assert(offsetof(uni_hid_device_t, platform_data) > offsetof(uni_hid_device_t, parser_data),
+                   "platform_data must be placed after parser_data at the tail of uni_hid_device_t");
+
+    // Runtime verification of struct offsets and per-instance buffer alignment across the entire device pool.
+    assert(offsetof(uni_hid_device_t, parser_data) % sizeof(void*) == 0);
+    assert(offsetof(uni_hid_device_t, platform_data) % sizeof(void*) == 0);
+    assert(offsetof(uni_hid_device_t, parser_data) > offsetof(uni_hid_device_t, child));
+    assert(offsetof(uni_hid_device_t, platform_data) > offsetof(uni_hid_device_t, parser_data));
+
+    uni_hid_device_t* created[CONFIG_BLUEPAD32_MAX_DEVICES] = {0};
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
+        bd_addr_t addr = {0x60, 0x00, 0x00, 0x00, 0x00, (uint8_t)(i + 1)};
+        created[i] = uni_hid_device_create(addr);
+        assert(created[i] != NULL);
+        assert(((uintptr_t)&created[i]->parser_data[0] % sizeof(void*)) == 0);
+        assert(((uintptr_t)&created[i]->platform_data[0] % sizeof(void*)) == 0);
+    }
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
+        uni_hid_device_delete(created[i]);
+    }
     printf("PASS\n");
 }
 
@@ -684,6 +741,7 @@ int main(int argc, char** argv) {
     test_virtual_child_creation_and_direct_delete();
     test_parent_delete_cascades_to_virtual_child();
     test_intrusive_timer_removal_on_delete();
+    test_hid_device_parser_and_platform_data_alignment_b6();
     test_device_pool_exhaustion_and_null_guards();
     test_cod_filtering();
 

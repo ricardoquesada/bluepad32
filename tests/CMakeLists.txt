@@ -73,5 +73,6 @@ register_bluepad32_test(test_uni_hid_device test_uni_hid_device.c)
 register_bluepad32_test(test_uni_hid_parser test_uni_hid_parser.c)
 register_bluepad32_test(test_uni_hid_parser_synthetic test_uni_hid_parser_synthetic.c)
 register_bluepad32_test(test_uni_bt_packet_handlers test_uni_bt_packet_handlers.c)
+register_bluepad32_test(test_uni_property_and_bb test_uni_property_and_bb.c)
 
 add_subdirectory(${BLUEPAD32_ROOT}/src/components/bluepad32 libbluepad32)

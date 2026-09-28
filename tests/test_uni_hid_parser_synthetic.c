@@ -49,6 +49,7 @@
 #include "parser/uni_hid_parser_nimbus.h"
 #include "parser/uni_hid_parser_ouya.h"
 #include "parser/uni_hid_parser_psmove.h"
+#include "parser/uni_hid_parser_rumble.h"
 #include "parser/uni_hid_parser_smarttvremote.h"
 #include "parser/uni_hid_parser_stadia.h"
 #include "parser/uni_hid_parser_steam.h"
@@ -109,6 +110,8 @@
             abort();                                                                         \
         }                                                                                    \
     } while (0)
+
+#define EXPECT_FALSE(cond) EXPECT_TRUE(!(cond))
 
 #define EXPECT_GT(val1, val2)                                                                           \
     do {                                                                                                \
@@ -1460,6 +1463,735 @@ TEST(hid_parser_sweep_all_controllers_short_and_prng_fuzz) {
     EXPECT_GT(tested_entries, 450);
 }
 
+// ============================================================================
+// 17. B3: Rumble & Switch Setup Timer Teardown on Disconnect & Re-Setup
+// ============================================================================
+TEST(rumble_and_switch_setup_timer_teardown_on_disconnect_and_resetup_b3) {
+    // 1. Delayed Rumble Disconnect:
+    btstack_run_loop_base_timers = NULL;
+    uni_hid_device_setup();
+    bd_addr_t addr1 = {0x70, 0x00, 0x00, 0x00, 0x00, 0x01};
+    uni_hid_device_t* d1 = uni_hid_device_create(addr1);
+    ASSERT_NE(NULL, d1);
+    uni_hid_device_set_vendor_id(d1, 0x054c);
+    uni_hid_device_set_product_id(d1, 0x09cc);
+    uni_hid_device_guess_controller_type_from_pid_vid(d1);
+    ASSERT_NE(NULL, d1->report_parser.setup);
+    d1->report_parser.setup(d1);
+
+    d1->report_parser.play_dual_rumble(d1, 200, 500, 128, 255);
+    EXPECT_EQ(UNI_RUMBLE_STATE_DELAYED, d1->rumble.state);
+    EXPECT_NE(NULL, btstack_run_loop_base_timers);
+
+    uni_hid_device_delete(d1);
+    EXPECT_EQ(NULL, btstack_run_loop_base_timers);
+
+    // 2. In-Progress Rumble Disconnect:
+    bd_addr_t addr2 = {0x70, 0x00, 0x00, 0x00, 0x00, 0x02};
+    uni_hid_device_t* d2 = uni_hid_device_create(addr2);
+    ASSERT_NE(NULL, d2);
+    uni_hid_device_set_vendor_id(d2, 0x054c);
+    uni_hid_device_set_product_id(d2, 0x09cc);
+    uni_hid_device_guess_controller_type_from_pid_vid(d2);
+    d2->report_parser.setup(d2);
+
+    d2->report_parser.play_dual_rumble(d2, 0, 500, 128, 255);
+    EXPECT_EQ(UNI_RUMBLE_STATE_IN_PROGRESS, d2->rumble.state);
+    EXPECT_NE(NULL, btstack_run_loop_base_timers);
+
+    uni_hid_device_delete(d2);
+    EXPECT_EQ(NULL, btstack_run_loop_base_timers);
+
+    // 3. Parser Re-Setup While Rumble Active:
+    // 3a. Parsers calling uni_hid_parser_rumble_init() in setup() (e.g., DS4) safely disarm
+    //     active rumble timers before zeroing d->rumble.
+    bd_addr_t addr3 = {0x70, 0x00, 0x00, 0x00, 0x00, 0x03};
+    uni_hid_device_t* d3 = uni_hid_device_create(addr3);
+    ASSERT_NE(NULL, d3);
+    uni_hid_device_set_vendor_id(d3, 0x054c);
+    uni_hid_device_set_product_id(d3, 0x09cc);
+    uni_hid_device_guess_controller_type_from_pid_vid(d3);
+    d3->report_parser.setup(d3);
+    d3->report_parser.play_dual_rumble(d3, 0, 500, 128, 255);
+    EXPECT_EQ(UNI_RUMBLE_STATE_IN_PROGRESS, d3->rumble.state);
+    EXPECT_NE(NULL, btstack_run_loop_base_timers);
+    d3->report_parser.setup(d3);
+    EXPECT_EQ(UNI_RUMBLE_STATE_DISABLED, d3->rumble.state);
+    EXPECT_EQ(NULL, btstack_run_loop_base_timers);
+    uni_hid_device_delete(d3);
+
+    // 3b. Zeroing d->parser_data directly (as parser setup() functions do via memset(ins, 0, sizeof(*ins)))
+    //     leaves d->rumble untouched outside d->parser_data and never corrupts btstack_run_loop_base_timers.
+    uni_hid_device_t* d3_xb = uni_hid_device_create(addr3);
+    ASSERT_NE(NULL, d3_xb);
+    uni_hid_device_set_vendor_id(d3_xb, 0x045e);
+    uni_hid_device_set_product_id(d3_xb, 0x02e0);
+    uni_hid_device_guess_controller_type_from_pid_vid(d3_xb);
+    d3_xb->report_parser.setup(d3_xb);
+    d3_xb->report_parser.play_dual_rumble(d3_xb, 0, 500, 128, 255);
+    EXPECT_EQ(UNI_RUMBLE_STATE_IN_PROGRESS, d3_xb->rumble.state);
+    memset(d3_xb->parser_data, 0, sizeof(d3_xb->parser_data));
+    EXPECT_EQ(UNI_RUMBLE_STATE_IN_PROGRESS, d3_xb->rumble.state);
+    EXPECT_NE(NULL, btstack_run_loop_base_timers);
+    uni_hid_device_delete(d3_xb);
+    EXPECT_EQ(NULL, btstack_run_loop_base_timers);
+
+    // 4. Nintendo Switch setup_timer Teardown on Re-Setup and Disconnect:
+    bd_addr_t addr_sw = {0x70, 0x00, 0x00, 0x00, 0x00, 0x04};
+    uni_hid_device_t* d_sw = uni_hid_device_create(addr_sw);
+    ASSERT_NE(NULL, d_sw);
+    uni_hid_device_set_vendor_id(d_sw, 0x057e);
+    uni_hid_device_set_product_id(d_sw, 0x2009);
+    uni_hid_device_guess_controller_type_from_pid_vid(d_sw);
+    ASSERT_EQ(CONTROLLER_TYPE_SwitchProController, d_sw->controller_type);
+    ASSERT_NE(NULL, d_sw->report_parser.setup);
+    ASSERT_NE(NULL, d_sw->report_parser.deinit);
+
+    d_sw->report_parser.setup(d_sw);
+    EXPECT_NE(NULL, btstack_run_loop_base_timers);
+    EXPECT_NE(NULL, btstack_run_loop_base_timers->next);
+    EXPECT_EQ(NULL, btstack_run_loop_base_timers->next->next);
+    // Re-setup must disarm the previous setup_timer before memset(ins, 0, sizeof(*ins))
+    d_sw->report_parser.setup(d_sw);
+    EXPECT_NE(NULL, btstack_run_loop_base_timers);
+    EXPECT_NE(NULL, btstack_run_loop_base_timers->next);
+    EXPECT_EQ(NULL, btstack_run_loop_base_timers->next->next);
+
+    // Deleting Switch device invokes report_parser.deinit(d_sw) which removes setup_timer
+    // and also stops connection_timer, leaving the timer list completely empty.
+    uni_hid_device_delete(d_sw);
+    EXPECT_EQ(NULL, btstack_run_loop_base_timers);
+}
+
+// ============================================================================
+// 18. B4: Delayed Rumble Cancellation & State Transitions Across All 8 Parsers
+// ============================================================================
+TEST(rumble_delayed_cancel_and_state_transitions_all_parsers_b4) {
+    static const struct {
+        uint16_t vid;
+        uint16_t pid;
+        uni_controller_type_t expected_type;
+    } k_rumble_controllers[] = {
+        {0x054c, 0x0268, CONTROLLER_TYPE_PS3Controller},        // ds3
+        {0x054c, 0x09cc, CONTROLLER_TYPE_PS4Controller},        // ds4
+        {0x054c, 0x0ce6, CONTROLLER_TYPE_PS5Controller},        // ds5
+        {0x054c, 0x03d5, CONTROLLER_TYPE_PSMoveController},     // psmove
+        {0x057e, 0x2009, CONTROLLER_TYPE_SwitchProController},  // switch
+        {0x057e, 0x0306, CONTROLLER_TYPE_WiiController},        // wii
+        {0x045e, 0x02e0, CONTROLLER_TYPE_XBoxOneController},    // xboxone
+        {0x18d1, 0x9400, CONTROLLER_TYPE_AndroidController},    // stadia
+    };
+
+    for (size_t i = 0; i < ARRAY_SIZE(k_rumble_controllers); i++) {
+        uni_hid_device_t d;
+        setup_synthetic_device(&d, k_rumble_controllers[i].vid, k_rumble_controllers[i].pid);
+        d.conn.interrupt_cid = 0x0041;
+        ASSERT_EQ(k_rumble_controllers[i].expected_type, d.controller_type);
+        ASSERT_NE(NULL, d.report_parser.play_dual_rumble);
+
+        // Drain any initial setup packets from outgoing_buffer.
+        uni_circular_buffer_reset(&d.outgoing_buffer);
+
+        // 1. Cancel while UNI_RUMBLE_STATE_DELAYED:
+        //    Must NOT trigger assert(state == IN_PROGRESS) in ds4/switch, must transition
+        //    to UNI_RUMBLE_STATE_DISABLED (not stuck in DELAYED as in ds3/wii/psmove),
+        //    and must NOT call stop_fn since the motor never started.
+        d.report_parser.play_dual_rumble(&d, 100, 400, 100, 200);
+        EXPECT_EQ(UNI_RUMBLE_STATE_DELAYED, d.rumble.state);
+        EXPECT_EQ(1, uni_circular_buffer_is_empty(&d.outgoing_buffer));
+
+        d.report_parser.play_dual_rumble(&d, 0, 0, 0, 0);
+        EXPECT_EQ(UNI_RUMBLE_STATE_DISABLED, d.rumble.state);
+        EXPECT_EQ(1, uni_circular_buffer_is_empty(&d.outgoing_buffer));
+
+        // 2. Cancel while UNI_RUMBLE_STATE_IN_PROGRESS:
+        d.report_parser.play_dual_rumble(&d, 0, 400, 100, 200);
+        EXPECT_EQ(UNI_RUMBLE_STATE_IN_PROGRESS, d.rumble.state);
+        uni_circular_buffer_reset(&d.outgoing_buffer);
+
+        d.report_parser.play_dual_rumble(&d, 0, 0, 0, 0);
+        EXPECT_EQ(UNI_RUMBLE_STATE_DISABLED, d.rumble.state);
+
+        // 3. Cancel while already UNI_RUMBLE_STATE_DISABLED:
+        uni_circular_buffer_reset(&d.outgoing_buffer);
+        d.report_parser.play_dual_rumble(&d, 0, 0, 0, 0);
+        EXPECT_EQ(UNI_RUMBLE_STATE_DISABLED, d.rumble.state);
+        EXPECT_EQ(1, uni_circular_buffer_is_empty(&d.outgoing_buffer));
+
+        // 4. Timer expiry callbacks (timer_delayed_start.process -> timer_duration.process):
+        d.report_parser.play_dual_rumble(&d, 50, 300, 80, 160);
+        EXPECT_EQ(UNI_RUMBLE_STATE_DELAYED, d.rumble.state);
+        ASSERT_NE(NULL, d.rumble.timer_delayed_start.process);
+        d.rumble.timer_delayed_start.process(&d.rumble.timer_delayed_start);
+        EXPECT_EQ(UNI_RUMBLE_STATE_IN_PROGRESS, d.rumble.state);
+
+        ASSERT_NE(NULL, d.rumble.timer_duration.process);
+        d.rumble.timer_duration.process(&d.rumble.timer_duration);
+        EXPECT_EQ(UNI_RUMBLE_STATE_DISABLED, d.rumble.state);
+
+        if (d.report_parser.deinit) {
+            d.report_parser.deinit(&d);
+        }
+    }
+
+    // 5. Per-Parser Hardware Invariants:
+    // 5a. DS3: clone_controller set in uni_hid_parser_ds3_does_name_match() must survive uni_hid_parser_ds3_setup()!
+    {
+        uni_hid_device_t d_ds3;
+        btstack_run_loop_base_timers = NULL;
+        uni_hid_device_setup();
+        uni_hid_device_init(&d_ds3);
+        EXPECT_TRUE(uni_hid_parser_ds3_does_name_match(&d_ds3, "PLAYSTATION(R)3Conteroller-PANHAI"));
+        // Verify parser_data[offsetof(clone_controller)] is non-zero before and after setup().
+        bool any_nonzero_before = false;
+        for (size_t b = 0; b < HID_DEVICE_MAX_PARSER_DATA; b++) {
+            if (d_ds3.parser_data[b] != 0) {
+                any_nonzero_before = true;
+            }
+        }
+        EXPECT_TRUE(any_nonzero_before);
+        uint8_t saved_parser_data[HID_DEVICE_MAX_PARSER_DATA];
+        memcpy(saved_parser_data, d_ds3.parser_data, sizeof(saved_parser_data));
+        uni_hid_parser_ds3_setup(&d_ds3);
+        EXPECT_EQ(0, memcmp(saved_parser_data, d_ds3.parser_data, sizeof(saved_parser_data)));
+    }
+
+    // 5b. DS4: set_lightbar_color() while rumble is in progress preserves motor_right & motor_left,
+    //     and stopping rumble preserves led_red/led_green/led_blue while zeroing motor_right & motor_left.
+    {
+        uni_hid_device_t d_ds4;
+        setup_synthetic_device(&d_ds4, 0x054c, 0x09cc);
+        d_ds4.conn.interrupt_cid = 0x0041;
+        uni_circular_buffer_reset(&d_ds4.outgoing_buffer);
+
+        d_ds4.report_parser.play_dual_rumble(&d_ds4, 0, 500, 0x55, 0xAA);
+        uni_circular_buffer_reset(&d_ds4.outgoing_buffer);
+
+        d_ds4.report_parser.set_lightbar_color(&d_ds4, 0x11, 0x22, 0x33);
+        int16_t cid = 0;
+        void* data = NULL;
+        int len = 0;
+        ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d_ds4.outgoing_buffer, &cid, &data, &len));
+        ASSERT_EQ(79, len);
+        const uint8_t* rpt = (const uint8_t*)data;
+        // In ds4_output_report_t: [7]=motor_right, [8]=motor_left, [9]=led_red, [10]=led_green, [11]=led_blue
+        EXPECT_EQ(0x55, rpt[7]);
+        EXPECT_EQ(0xAA, rpt[8]);
+        EXPECT_EQ(0x11, rpt[9]);
+        EXPECT_EQ(0x22, rpt[10]);
+        EXPECT_EQ(0x33, rpt[11]);
+
+        // Now stop rumble and verify LED color is preserved while motors are zeroed.
+        d_ds4.report_parser.play_dual_rumble(&d_ds4, 0, 0, 0, 0);
+        ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d_ds4.outgoing_buffer, &cid, &data, &len));
+        ASSERT_EQ(79, len);
+        rpt = (const uint8_t*)data;
+        EXPECT_EQ(0x00, rpt[7]);
+        EXPECT_EQ(0x00, rpt[8]);
+        EXPECT_EQ(0x11, rpt[9]);
+        EXPECT_EQ(0x22, rpt[10]);
+        EXPECT_EQ(0x33, rpt[11]);
+    }
+
+    // 5c. PSMove: set_lightbar_color() while rumble is active preserves ins->rumble_magnitude,
+    //     and stopping rumble resets ins->rumble_magnitude = 0.
+    {
+        uni_hid_device_t d_psm;
+        setup_synthetic_device(&d_psm, 0x054c, 0x03d5);
+        d_psm.conn.interrupt_cid = 0x0041;
+        uni_circular_buffer_reset(&d_psm.outgoing_buffer);
+
+        d_psm.report_parser.play_dual_rumble(&d_psm, 0, 500, 0x80, 0xC0);
+        uni_circular_buffer_reset(&d_psm.outgoing_buffer);
+
+        d_psm.report_parser.set_lightbar_color(&d_psm, 0xAA, 0xBB, 0xCC);
+        int16_t cid = 0;
+        void* data = NULL;
+        int len = 0;
+        ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d_psm.outgoing_buffer, &cid, &data, &len));
+        ASSERT_EQ(10, len);
+        const uint8_t* rpt = (const uint8_t*)data;
+        // In psmove_output_report_t: [3..5]=led_rgb, [7]=rumble
+        EXPECT_EQ(0xAA, rpt[3]);
+        EXPECT_EQ(0xBB, rpt[4]);
+        EXPECT_EQ(0xCC, rpt[5]);
+        EXPECT_NE(0x00, rpt[7]);
+
+        // Stop rumble and verify subsequent set_lightbar_color sends rumble == 0.
+        d_psm.report_parser.play_dual_rumble(&d_psm, 0, 0, 0, 0);
+        uni_circular_buffer_reset(&d_psm.outgoing_buffer);
+        d_psm.report_parser.set_lightbar_color(&d_psm, 0xAA, 0xBB, 0xCC);
+        ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d_psm.outgoing_buffer, &cid, &data, &len));
+        rpt = (const uint8_t*)data;
+        EXPECT_EQ(0x00, rpt[7]);
+    }
+}
+
+// ============================================================================
+// 19. B4: BLE 50ms Retry (UNI_RUMBLE_RETRY_BLE) for Xbox One & Stadia
+// ============================================================================
+static uint8_t g_mock_hids_write_status = ERROR_CODE_SUCCESS;
+static int g_mock_hids_write_calls = 0;
+static uint8_t g_mock_hids_last_report_id = 0;
+static uint8_t g_mock_hids_last_report[32];
+static uint8_t g_mock_hids_last_report_len = 0;
+
+void hids_host_init(uint8_t* hid_descriptor_storage, uint16_t hid_descriptor_storage_len) {
+    ARG_UNUSED(hid_descriptor_storage);
+    ARG_UNUSED(hid_descriptor_storage_len);
+}
+
+uint8_t hids_host_connect(hci_con_handle_t con_handle,
+                          btstack_packet_handler_t packet_handler,
+                          hid_protocol_mode_t protocol_mode,
+                          uint16_t* hids_cid) {
+    ARG_UNUSED(con_handle);
+    ARG_UNUSED(packet_handler);
+    ARG_UNUSED(protocol_mode);
+    if (hids_cid != NULL) {
+        *hids_cid = 1;
+    }
+    return ERROR_CODE_SUCCESS;
+}
+
+uint8_t hids_host_disconnect(uint16_t hids_cid) {
+    ARG_UNUSED(hids_cid);
+    return ERROR_CODE_SUCCESS;
+}
+
+const uint8_t* hids_host_descriptor_storage_get_descriptor_data(uint16_t hids_cid, uint8_t service_index) {
+    ARG_UNUSED(hids_cid);
+    ARG_UNUSED(service_index);
+    return NULL;
+}
+
+uint16_t hids_host_descriptor_storage_get_descriptor_len(uint16_t hids_cid, uint8_t service_index) {
+    ARG_UNUSED(hids_cid);
+    ARG_UNUSED(service_index);
+    return 0;
+}
+
+uint8_t hids_host_send_write_report(uint16_t hids_cid,
+                                    uint8_t report_id,
+                                    hid_report_type_t report_type,
+                                    const uint8_t* report,
+                                    uint8_t report_len) {
+    ARG_UNUSED(hids_cid);
+    ARG_UNUSED(report_type);
+    g_mock_hids_write_calls++;
+    g_mock_hids_last_report_id = report_id;
+    g_mock_hids_last_report_len = report_len;
+    if (report != NULL && report_len <= sizeof(g_mock_hids_last_report)) {
+        memcpy(g_mock_hids_last_report, report, report_len);
+    }
+    return g_mock_hids_write_status;
+}
+
+TEST(rumble_ble_50ms_retry_xboxone_and_stadia_b4) {
+    // 1. Xbox One Firmware v5.x (BLE):
+    //    Trigger XBOXONE_FIRMWARE_V5 via Consumer Record usage (0x000c, 0x00b2), then test
+    //    xboxone_play_quad_rumble() with start_delay_ms == 0 when hids_host_send_write_report
+    //    returns ERROR_CODE_COMMAND_DISALLOWED (Latent Bug 2A & 2B):
+    uni_hid_device_t d_xb;
+    setup_synthetic_device(&d_xb, 0x045e, 0x0b13);
+    d_xb.conn.protocol = UNI_BT_CONN_PROTOCOL_BLE;
+    d_xb.hids_cid = 0x0011;
+    // Set firmware v5.x by parsing Button 0x0f (v3.1 -> v4.8) followed by Consumer Record 0x00b2 (v4.8 -> v5.x):
+    hid_globals_t globals = {.logical_minimum = 0, .logical_maximum = 1, .report_size = 1, .report_count = 1};
+    d_xb.report_parser.init_report(&d_xb);
+    d_xb.report_parser.parse_usage(&d_xb, &globals, 0x0009, 0x000f, 1);
+    d_xb.report_parser.parse_usage(&d_xb, &globals, 0x000c, 0x00b2, 1);
+
+    g_mock_hids_write_calls = 0;
+    g_mock_hids_write_status = ERROR_CODE_COMMAND_DISALLOWED;
+
+    // Immediate start (start_delay_ms == 0) hits ERROR_CODE_COMMAND_DISALLOWED -> UNI_RUMBLE_RETRY_BLE:
+    // Must preserve duration_ms and all 4 actuator magnitudes (Latent Bug 2A regression).
+    xboxone_play_quad_rumble(&d_xb, 0, 350, 45, 95, 90, 180);
+    EXPECT_EQ(1, g_mock_hids_write_calls);
+    EXPECT_EQ(UNI_RUMBLE_STATE_DELAYED, d_xb.rumble.state);
+    EXPECT_EQ(350, d_xb.rumble.duration_ms);
+    EXPECT_EQ(90, d_xb.rumble.weak_magnitude);
+    EXPECT_EQ(180, d_xb.rumble.strong_magnitude);
+    EXPECT_EQ(45, d_xb.rumble.trigger_left);
+    EXPECT_EQ(95, d_xb.rumble.trigger_right);
+    EXPECT_EQ(&d_xb, btstack_run_loop_get_timer_context(&d_xb.rumble.timer_delayed_start));
+    EXPECT_NE(NULL, btstack_run_loop_base_timers);
+
+    // Second call (when 50ms timer_delayed_start.process fires) returns ERROR_CODE_SUCCESS:
+    g_mock_hids_write_status = ERROR_CODE_SUCCESS;
+    d_xb.rumble.timer_delayed_start.process(&d_xb.rumble.timer_delayed_start);
+    EXPECT_EQ(2, g_mock_hids_write_calls);
+    EXPECT_EQ(UNI_RUMBLE_STATE_IN_PROGRESS, d_xb.rumble.state);
+    EXPECT_EQ(350, d_xb.rumble.duration_ms);
+    EXPECT_EQ(&d_xb, btstack_run_loop_get_timer_context(&d_xb.rumble.timer_duration));
+
+    // When timer_duration expires and stop_fn returns UNI_RUMBLE_RETRY_BLE (Latent Bug 2B):
+    g_mock_hids_write_status = ERROR_CODE_COMMAND_DISALLOWED;
+    d_xb.rumble.timer_duration.process(&d_xb.rumble.timer_duration);
+    EXPECT_EQ(3, g_mock_hids_write_calls);
+    EXPECT_EQ(UNI_RUMBLE_STATE_IN_PROGRESS, d_xb.rumble.state);
+    EXPECT_EQ(&d_xb, btstack_run_loop_get_timer_context(&d_xb.rumble.timer_duration));
+    EXPECT_NE(NULL, btstack_run_loop_base_timers);
+
+    // Next 50ms stop retry succeeds (ERROR_CODE_SUCCESS -> UNI_RUMBLE_OK):
+    g_mock_hids_write_status = ERROR_CODE_SUCCESS;
+    d_xb.rumble.timer_duration.process(&d_xb.rumble.timer_duration);
+    EXPECT_EQ(4, g_mock_hids_write_calls);
+    EXPECT_EQ(UNI_RUMBLE_STATE_DISABLED, d_xb.rumble.state);
+
+    // 2. Stadia Controller (0x18d1:0x9400) BLE 50ms retry for both start and stop:
+    uni_hid_device_t d_stadia;
+    setup_synthetic_device(&d_stadia, 0x18d1, 0x9400);
+    d_stadia.conn.protocol = UNI_BT_CONN_PROTOCOL_BLE;
+    d_stadia.hids_cid = 0x0022;
+
+    g_mock_hids_write_calls = 0;
+    g_mock_hids_write_status = ERROR_CODE_COMMAND_DISALLOWED;
+    d_stadia.report_parser.play_dual_rumble(&d_stadia, 0, 250, 0x40, 0x80);
+    EXPECT_EQ(1, g_mock_hids_write_calls);
+    EXPECT_EQ(UNI_RUMBLE_STATE_DELAYED, d_stadia.rumble.state);
+    EXPECT_EQ(250, d_stadia.rumble.duration_ms);
+    EXPECT_EQ(0x40, d_stadia.rumble.weak_magnitude);
+    EXPECT_EQ(0x80, d_stadia.rumble.strong_magnitude);
+    EXPECT_EQ(&d_stadia, btstack_run_loop_get_timer_context(&d_stadia.rumble.timer_delayed_start));
+
+    g_mock_hids_write_status = ERROR_CODE_SUCCESS;
+    d_stadia.rumble.timer_delayed_start.process(&d_stadia.rumble.timer_delayed_start);
+    EXPECT_EQ(2, g_mock_hids_write_calls);
+    EXPECT_EQ(UNI_RUMBLE_STATE_IN_PROGRESS, d_stadia.rumble.state);
+    EXPECT_EQ(4, g_mock_hids_last_report_len);
+    // Stadia report: strong_magnitude << 8 (0x8000 LE = 0x00, 0x80), weak_magnitude << 8 (0x4000 LE = 0x00, 0x40)
+    EXPECT_EQ(0x00, g_mock_hids_last_report[0]);
+    EXPECT_EQ(0x80, g_mock_hids_last_report[1]);
+    EXPECT_EQ(0x00, g_mock_hids_last_report[2]);
+    EXPECT_EQ(0x40, g_mock_hids_last_report[3]);
+
+    // Stadia stop retry -> success:
+    g_mock_hids_write_status = ERROR_CODE_COMMAND_DISALLOWED;
+    d_stadia.rumble.timer_duration.process(&d_stadia.rumble.timer_duration);
+    EXPECT_EQ(3, g_mock_hids_write_calls);
+    EXPECT_EQ(UNI_RUMBLE_STATE_IN_PROGRESS, d_stadia.rumble.state);
+    EXPECT_EQ(&d_stadia, btstack_run_loop_get_timer_context(&d_stadia.rumble.timer_duration));
+
+    g_mock_hids_write_status = ERROR_CODE_SUCCESS;
+    d_stadia.rumble.timer_duration.process(&d_stadia.rumble.timer_duration);
+    EXPECT_EQ(4, g_mock_hids_write_calls);
+    EXPECT_EQ(UNI_RUMBLE_STATE_DISABLED, d_stadia.rumble.state);
+
+    // 3. Non-retryable BLE error (ERROR_CODE_UNKNOWN_CONNECTION_IDENTIFIER -> UNI_RUMBLE_ERR):
+    g_mock_hids_write_status = ERROR_CODE_UNKNOWN_CONNECTION_IDENTIFIER;
+    d_xb.report_parser.play_dual_rumble(&d_xb, 0, 250, 100, 200);
+    EXPECT_EQ(UNI_RUMBLE_STATE_DISABLED, d_xb.rumble.state);
+    d_stadia.report_parser.play_dual_rumble(&d_stadia, 0, 250, 100, 200);
+    EXPECT_EQ(UNI_RUMBLE_STATE_DISABLED, d_stadia.rumble.state);
+
+    // Restore default mock status for subsequent tests.
+    g_mock_hids_write_status = ERROR_CODE_SUCCESS;
+}
+
+// ============================================================================
+// 20. B4: Wiimote wii_set_led() Preserves Rumble Bit 0x01
+// ============================================================================
+TEST(wii_set_led_preserves_rumble_bit_b4) {
+    uni_hid_device_t d;
+    setup_synthetic_device(&d, 0x057e, 0x0306);
+    d.conn.interrupt_cid = 0x0041;
+    uni_circular_buffer_reset(&d.outgoing_buffer);
+
+    // 1. Start rumble on Wiimote and verify uni_hid_parser_rumble_is_in_progress(&d) is true.
+    d.report_parser.play_dual_rumble(&d, 0, 500, 128, 128);
+    EXPECT_TRUE(uni_hid_parser_rumble_is_in_progress(&d));
+    uni_circular_buffer_reset(&d.outgoing_buffer);
+
+    // 2. Set Player 2 LED (seat = 0x02 -> 0x20) while rumble is active:
+    //    Dequeue the 3-byte output report {0xa2, 0x11, led} and verify bit 0x01 is preserved!
+    d.report_parser.set_player_leds(&d, 0x02);
+    int16_t cid = 0;
+    void* data = NULL;
+    int len = 0;
+    ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d.outgoing_buffer, &cid, &data, &len));
+    ASSERT_EQ(3, len);
+    const uint8_t* rpt = (const uint8_t*)data;
+    EXPECT_EQ(0xa2, rpt[0]);
+    EXPECT_EQ(0x11, rpt[1]);
+    EXPECT_EQ(0x20 | 0x01, rpt[2]);
+
+    // 3. Stop rumble and set Player 2 LED again: verify bit 0x01 is now cleared (0x20).
+    d.report_parser.play_dual_rumble(&d, 0, 0, 0, 0);
+    EXPECT_FALSE(uni_hid_parser_rumble_is_in_progress(&d));
+    uni_circular_buffer_reset(&d.outgoing_buffer);
+
+    d.report_parser.set_player_leds(&d, 0x02);
+    ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d.outgoing_buffer, &cid, &data, &len));
+    ASSERT_EQ(3, len);
+    rpt = (const uint8_t*)data;
+    EXPECT_EQ(0xa2, rpt[0]);
+    EXPECT_EQ(0x11, rpt[1]);
+    EXPECT_EQ(0x20, rpt[2]);
+}
+
+// ============================================================================
+// 21. B6: Wii Balance Board Zero & Inverted Calibration Division-by-Zero Guards
+// ============================================================================
+TEST(wii_balance_board_zero_and_inverted_calibration_guards_b6) {
+    uni_hid_device_t d;
+    setup_synthetic_device(&d, 0x057e, 0x0306);
+    ASSERT_EQ(CONTROLLER_TYPE_WiiController, d.controller_type);
+
+    // Walk Wii extension FSM to register a Wii Balance Board (00 00 a4 20 04 02):
+    uint8_t status_ext[7] = {0x20, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00};
+    feed_input_report(&d, status_ext, sizeof(status_ext));
+    uint8_t ack_wmem[5] = {0x22, 0x00, 0x00, 0x16, 0x00};
+    feed_input_report(&d, ack_wmem, sizeof(ack_wmem));
+    feed_input_report(&d, ack_wmem, sizeof(ack_wmem));
+    uint8_t read_bb_id[22] = {
+        0x21, 0x00, 0x00, 0x50, 0x00, 0xfa, 0x00, 0x00, 0xa4, 0x20, 0x04, 0x02,
+    };
+    feed_input_report(&d, read_bb_id, sizeof(read_bb_id));
+
+    // 1. Zero Calibration (kg0 == kg17 == kg34 == 0, before calibration data is populated):
+    //    Feed Report 0x34 (DRM_KEE, 22 bytes) with raw sensor values val = 0 and val = 1500.
+    //    Verify balance_interpolate() returns 0 for all 4 sensors without float division by zero!
+    uint8_t bb_rpt[22];
+    memset(bb_rpt, 0, sizeof(bb_rpt));
+    bb_rpt[0] = 0x34;
+    // tr = 0, br = 1500 (0x05dc), tl = 0, bl = 1500 (0x05dc)
+    bb_rpt[5] = 0x05;
+    bb_rpt[6] = 0xdc;
+    bb_rpt[9] = 0x05;
+    bb_rpt[10] = 0xdc;
+    bb_rpt[13] = 0x82;  // battery full
+    feed_input_report(&d, bb_rpt, sizeof(bb_rpt));
+    EXPECT_EQ(UNI_CONTROLLER_CLASS_BALANCE_BOARD, d.controller.klass);
+    EXPECT_EQ(0, d.controller.balance_board.tr);
+    EXPECT_EQ(0, d.controller.balance_board.br);
+    EXPECT_EQ(0, d.controller.balance_board.tl);
+    EXPECT_EQ(0, d.controller.balance_board.bl);
+
+    // 2. Equal & Inverted Calibration (tr: kg0=1000, kg17=1000, kg34=2000;
+    //    br: kg0=1000, kg17=2000, kg34=2000; tl/bl: inverted kg0=3000 > kg17=2000 > kg34=1000):
+    uint8_t cal1[22] = {
+        0x21,
+        0x00,
+        0x00,
+        0xf0,
+        0x00,
+        0x24,
+        // kg0: tr=1000 (0x03e8), br=1000 (0x03e8), tl=3000 (0x0bb8), bl=3000 (0x0bb8)
+        0x03,
+        0xe8,
+        0x03,
+        0xe8,
+        0x0b,
+        0xb8,
+        0x0b,
+        0xb8,
+        // kg17: tr=1000 (0x03e8), br=2000 (0x07d0), tl=2000 (0x07d0), bl=2000 (0x07d0)
+        0x03,
+        0xe8,
+        0x07,
+        0xd0,
+        0x07,
+        0xd0,
+        0x07,
+        0xd0,
+    };
+    uint8_t cal2[22] = {
+        0x21,
+        0x00,
+        0x00,
+        0x70,
+        0x00,
+        0x34,
+        // kg34: tr=1000 (0x03e8), br=2000 (0x07d0), tl=1000 (0x03e8), bl=1000 (0x03e8)
+        0x03,
+        0xe8,
+        0x07,
+        0xd0,
+        0x03,
+        0xe8,
+        0x03,
+        0xe8,
+    };
+    feed_input_report(&d, cal1, sizeof(cal1));
+    feed_input_report(&d, cal2, sizeof(cal2));
+    EXPECT_EQ(CONTROLLER_SUBTYPE_WII_BALANCE_BOARD, d.controller_subtype);
+
+    // Feed tr=1000, br=2500, tl=2500, bl=3500:
+    // tr: val=1000 >= kg17(1000), kg34(1000) <= kg17(1000) -> 0
+    // br: val=2500 >= kg17(2000), kg34(2000) <= kg17(2000) -> 0
+    // tl: val=2500 < kg0(3000) -> 0
+    // bl: val=3500 >= kg0(3000) and >= kg17(2000), kg34(1000) <= kg17(2000) -> 0
+    bb_rpt[3] = 0x03;
+    bb_rpt[4] = 0xe8;  // tr = 1000
+    bb_rpt[5] = 0x09;
+    bb_rpt[6] = 0xc4;  // br = 2500
+    bb_rpt[7] = 0x09;
+    bb_rpt[8] = 0xc4;  // tl = 2500
+    bb_rpt[9] = 0x0d;
+    bb_rpt[10] = 0xac;  // bl = 3500
+    feed_input_report(&d, bb_rpt, sizeof(bb_rpt));
+    EXPECT_EQ(0, d.controller.balance_board.tr);
+    EXPECT_EQ(0, d.controller.balance_board.br);
+    EXPECT_EQ(0, d.controller.balance_board.tl);
+    EXPECT_EQ(0, d.controller.balance_board.bl);
+
+    // 3. Valid Calibration (kg0 = 1000, kg17 = 2000, kg34 = 3000 on all 4 sensors):
+    // Re-setup and walk to valid calibration:
+    setup_synthetic_device(&d, 0x057e, 0x0306);
+    feed_input_report(&d, status_ext, sizeof(status_ext));
+    feed_input_report(&d, ack_wmem, sizeof(ack_wmem));
+    feed_input_report(&d, ack_wmem, sizeof(ack_wmem));
+    feed_input_report(&d, read_bb_id, sizeof(read_bb_id));
+
+    uint8_t valid_cal1[22] = {
+        0x21,
+        0x00,
+        0x00,
+        0xf0,
+        0x00,
+        0x24,
+        // kg0: 1000 (0x03e8) x 4
+        0x03,
+        0xe8,
+        0x03,
+        0xe8,
+        0x03,
+        0xe8,
+        0x03,
+        0xe8,
+        // kg17: 2000 (0x07d0) x 4
+        0x07,
+        0xd0,
+        0x07,
+        0xd0,
+        0x07,
+        0xd0,
+        0x07,
+        0xd0,
+    };
+    uint8_t valid_cal2[22] = {
+        0x21,
+        0x00,
+        0x00,
+        0x70,
+        0x00,
+        0x34,
+        // kg34: 3000 (0x0bb8) x 4
+        0x0b,
+        0xb8,
+        0x0b,
+        0xb8,
+        0x0b,
+        0xb8,
+        0x0b,
+        0xb8,
+    };
+    feed_input_report(&d, valid_cal1, sizeof(valid_cal1));
+    feed_input_report(&d, valid_cal2, sizeof(valid_cal2));
+
+    // tr = 500 (< kg0 -> 0g), br = 1500 (midpoint 0..17kg -> 8500g),
+    // tl = 2500 (midpoint 17..34kg -> 25500g), bl = 2000 (exact 17kg -> 17000g)
+    bb_rpt[3] = 0x01;
+    bb_rpt[4] = 0xf4;  // tr = 500
+    bb_rpt[5] = 0x05;
+    bb_rpt[6] = 0xdc;  // br = 1500
+    bb_rpt[7] = 0x09;
+    bb_rpt[8] = 0xc4;  // tl = 2500
+    bb_rpt[9] = 0x07;
+    bb_rpt[10] = 0xd0;  // bl = 2000
+    feed_input_report(&d, bb_rpt, sizeof(bb_rpt));
+    EXPECT_EQ(0, d.controller.balance_board.tr);
+    EXPECT_EQ(8500, d.controller.balance_board.br);
+    EXPECT_EQ(25500, d.controller.balance_board.tl);
+    EXPECT_EQ(17000, d.controller.balance_board.bl);
+}
+
+// ============================================================================
+// 22. B6 & Phase 4: Controller List Uniqueness & Table-Driven Parser Lookup
+// ============================================================================
+TEST(controller_list_uniqueness_and_table_driven_lookup_b6_phase4) {
+    // 1. Verify every entry in arrControllers[] has a valid controller type, and that every
+    //    entry in the Bluepad32 custom additions section (starting at OUYA 0x2836:0x0001) has
+    //    a globally unique (VID, PID) across the entire arrControllers[] table (confirming
+    //    removal of the duplicate 0x057e:0x0306 entry in B6).
+    size_t bp32_addons_start = ARRAY_SIZE(arrControllers);
+    for (size_t i = 0; i < ARRAY_SIZE(arrControllers); i++) {
+        EXPECT_NE(CONTROLLER_TYPE_None, arrControllers[i].controller_type);
+        if (arrControllers[i].device_id == MAKE_CONTROLLER_ID(0x2836, 0x0001)) {
+            bp32_addons_start = i;
+        }
+    }
+    EXPECT_TRUE(bp32_addons_start < ARRAY_SIZE(arrControllers));
+    for (size_t i = bp32_addons_start; i < ARRAY_SIZE(arrControllers); i++) {
+        uint16_t vid = (uint16_t)(arrControllers[i].device_id >> 16);
+        uint16_t pid = (uint16_t)(arrControllers[i].device_id & 0xffff);
+        EXPECT_EQ(arrControllers[i].controller_type, uni_guess_controller_type(vid, pid));
+        for (size_t j = 0; j < ARRAY_SIZE(arrControllers); j++) {
+            if (i == j) {
+                continue;
+            }
+            EXPECT_NE(arrControllers[i].device_id, arrControllers[j].device_id);
+        }
+    }
+
+    // 2. Table-Driven Parser Lookup & Stadia Override (Phase 4.1):
+    uni_hid_device_t d;
+    // Stadia (0x18d1:0x9400) -> CONTROLLER_TYPE_AndroidController with Stadia setup & rumble hooks:
+    setup_synthetic_device(&d, 0x18d1, 0x9400);
+    EXPECT_EQ(CONTROLLER_TYPE_AndroidController, d.controller_type);
+    EXPECT_EQ(uni_hid_parser_stadia_setup, d.report_parser.setup);
+    EXPECT_EQ(uni_hid_parser_stadia_play_dual_rumble, d.report_parser.play_dual_rumble);
+    EXPECT_EQ(uni_hid_parser_android_parse_usage, d.report_parser.parse_usage);
+
+    // Regular Android controller (0x20d6:0x6271) -> CONTROLLER_TYPE_AndroidController with NULL setup/rumble:
+    setup_synthetic_device(&d, 0x20d6, 0x6271);
+    EXPECT_EQ(CONTROLLER_TYPE_AndroidController, d.controller_type);
+    EXPECT_EQ(NULL, d.report_parser.setup);
+    EXPECT_EQ(NULL, d.report_parser.play_dual_rumble);
+    EXPECT_EQ(uni_hid_parser_android_parse_usage, d.report_parser.parse_usage);
+
+    // Unknown VID/PID (0xDEAD:0xBEEF) falls back to CONTROLLER_TYPE_AndroidController:
+    setup_synthetic_device(&d, 0xDEAD, 0xBEEF);
+    EXPECT_EQ(CONTROLLER_TYPE_AndroidController, d.controller_type);
+    EXPECT_EQ(uni_hid_parser_android_init_report, d.report_parser.init_report);
+    EXPECT_EQ(uni_hid_parser_android_parse_usage, d.report_parser.parse_usage);
+
+    // Controller type without a specialized entry in k_parser_entries[] (e.g., Xbox 360 0x045e:0x028e)
+    // falls back to uni_hid_parser_generic in setup_report_parser():
+    setup_synthetic_device(&d, 0x045e, 0x028e);
+    EXPECT_EQ(CONTROLLER_TYPE_XBox360Controller, d.controller_type);
+    EXPECT_EQ(uni_hid_parser_generic_init_report, d.report_parser.init_report);
+    EXPECT_EQ(uni_hid_parser_generic_parse_usage, d.report_parser.parse_usage);
+
+    // 3. Pre-SDP vs. Post-SDP Name Matcher Separation (Phase 4.1):
+    uni_hid_device_init(&d);
+    EXPECT_TRUE(uni_hid_device_guess_controller_type_from_name(&d, "PLAYSTATION(R)3 Controller"));
+    EXPECT_EQ(CONTROLLER_TYPE_PS3Controller, d.controller_type);
+
+    uni_hid_device_init(&d);
+    EXPECT_TRUE(uni_hid_device_guess_controller_type_from_name(&d, "Pro Controller"));
+    EXPECT_EQ(CONTROLLER_TYPE_SwitchProController, d.controller_type);
+
+    // Pre-SDP name matcher MUST return false for "Xbox Wireless Controller" so BR/EDR Xbox
+    // controllers still perform SDP to fetch their genuine HID descriptor:
+    uni_hid_device_init(&d);
+    EXPECT_FALSE(uni_hid_device_guess_controller_type_from_name(&d, "Xbox Wireless Controller"));
+
+    // Post-SDP fallback in uni_hid_device_guess_controller_type_from_pid_vid() with unknown VID/PID
+    // and d.name = "Xbox Wireless Controller" resolves to CONTROLLER_TYPE_XBoxOneController and
+    // attaches the 334-byte fallback HID descriptor:
+    uni_hid_device_init(&d);
+    d.vendor_id = 0xDEAD;
+    d.product_id = 0xBEEF;
+    uni_hid_device_set_name(&d, "Xbox Wireless Controller");
+    uni_hid_device_guess_controller_type_from_pid_vid(&d);
+    EXPECT_EQ(CONTROLLER_TYPE_XBoxOneController, d.controller_type);
+    EXPECT_EQ(334, d.hid_descriptor_len);
+    EXPECT_EQ(uni_hid_parser_xboxone_setup, d.report_parser.setup);
+}
+
 int main(int argc, char** argv) {
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
@@ -1488,7 +2220,13 @@ int main(int argc, char** argv) {
     RUN_TEST(hid_parser_generic_descriptor_gamepad);
     RUN_TEST(hid_parser_descriptor_malformed_and_deep_collection);
     RUN_TEST(hid_parser_sweep_all_controllers_short_and_prng_fuzz);
+    RUN_TEST(rumble_and_switch_setup_timer_teardown_on_disconnect_and_resetup_b3);
+    RUN_TEST(rumble_delayed_cancel_and_state_transitions_all_parsers_b4);
+    RUN_TEST(rumble_ble_50ms_retry_xboxone_and_stadia_b4);
+    RUN_TEST(wii_set_led_preserves_rumble_bit_b4);
+    RUN_TEST(wii_balance_board_zero_and_inverted_calibration_guards_b6);
+    RUN_TEST(controller_list_uniqueness_and_table_driven_lookup_b6_phase4);
 
-    printf("All 16 synthetic HID parser test suites passed!\n");
+    printf("All 22 synthetic HID parser test suites passed!\n");
     return 0;
 }

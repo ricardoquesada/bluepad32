@@ -924,6 +924,144 @@ TEST(bt_disconnect_cleans_up_device) {
 }
 
 // ============================================================================
+// 9. TEST(bt_sdp_query_abort_on_disconnect_and_failure_b5)
+// ============================================================================
+
+TEST(bt_sdp_query_abort_on_disconnect_and_failure_b5) {
+    reset_test_fixture();
+    sdp_client_deinit();
+    l2cap_init();
+
+    // Case 1: Mid-SDP device disconnect clears sdp_device and removes sdp_query_timer.
+    bd_addr_t addr1 = {0x88, 0x99, 0xaa, 0xbb, 0xcc, 0x01};
+    uni_hid_device_t* d1 = uni_hid_device_create(addr1);
+    ASSERT_NE(NULL, d1);
+    uni_hid_device_set_connection_handle(d1, 0x0091);
+
+    uni_bt_sdp_query_start(d1);
+    // sdp_query_timer is now armed in btstack_run_loop_base_timers and sdp_device == d1.
+    EXPECT_NE(NULL, btstack_run_loop_base_timers);
+    EXPECT_EQ(UNI_BT_CONN_STATE_SDP_VENDOR_REQUESTED, uni_bt_conn_get_state(&d1->conn));
+
+    // Case 2: Concurrent second device rejection does NOT abort d1's active SDP query.
+    bd_addr_t addr_concurrent = {0x88, 0x99, 0xaa, 0xbb, 0xcc, 0x02};
+    uni_hid_device_t* d_concurrent = uni_hid_device_create(addr_concurrent);
+    ASSERT_NE(NULL, d_concurrent);
+    uni_bt_sdp_query_start(d_concurrent);
+    // d_concurrent was rejected and deleted, but d1's SDP query and timer remain active!
+    EXPECT_EQ(NULL, uni_hid_device_get_instance_for_address(addr_concurrent));
+    EXPECT_EQ(d1, uni_hid_device_get_instance_for_address(addr1));
+    EXPECT_NE(NULL, btstack_run_loop_base_timers);
+
+    // Verify d1 is still the active sdp_device by streaming a VID attribute to it.
+    const uint8_t de_vid_sony[] = {0x09, 0x05, 0x4c};
+    stream_sdp_attribute_bytes(uni_handle_sdp_pid_query_result, 1, BLUETOOTH_ATTRIBUTE_VENDOR_ID, de_vid_sony,
+                               sizeof(de_vid_sony));
+    EXPECT_EQ(0x054c, uni_hid_device_get_vendor_id(d1));
+
+    // Now disconnect d1 mid-SDP via HCI_EVENT_DISCONNECTION_COMPLETE:
+    // uni_hid_device_delete(d1) must invoke uni_bt_sdp_query_abort(d1), disarming sdp_query_timer
+    // and clearing sdp_device = NULL.
+    uint8_t disc_pkt[6] = {HCI_EVENT_DISCONNECTION_COMPLETE, 4, 0x00, 0x91, 0x00, 0x13};
+    uni_bt_packet_handler(HCI_EVENT_PACKET, 0, disc_pkt, sizeof(disc_pkt));
+    EXPECT_EQ(NULL, uni_hid_device_get_instance_for_address(addr1));
+    EXPECT_EQ(NULL, btstack_run_loop_base_timers);
+
+    // Case 3: Early sdp_client_query_uuid16() failure (SDP_QUERY_BUSY != 0) in
+    // uni_bt_sdp_query_start_vid_pid() and uni_bt_sdp_query_start_hid_descriptor().
+    // Note: sdp_client is still in W4_CONNECT from d1's query above, so sdp_client_ready() is false!
+    EXPECT_FALSE(sdp_client_ready());
+
+    bd_addr_t addr_busy_vid = {0x88, 0x99, 0xaa, 0xbb, 0xcc, 0x03};
+    uni_hid_device_t* d_busy_vid = uni_hid_device_create(addr_busy_vid);
+    ASSERT_NE(NULL, d_busy_vid);
+    // uni_bt_sdp_query_start() arms sdp_query_timer, sets sdp_device = d_busy_vid, and calls
+    // uni_bt_sdp_query_start_vid_pid(), which gets SDP_QUERY_BUSY and must abort & delete d_busy_vid.
+    uni_bt_sdp_query_start(d_busy_vid);
+    EXPECT_EQ(NULL, uni_hid_device_get_instance_for_address(addr_busy_vid));
+    EXPECT_EQ(NULL, btstack_run_loop_base_timers);
+
+    // Also test uni_bt_sdp_query_start_hid_descriptor() when sdp_client_query_uuid16() returns SDP_QUERY_BUSY:
+    bd_addr_t addr_busy_hid = {0x88, 0x99, 0xaa, 0xbb, 0xcc, 0x04};
+    uni_hid_device_t* d_busy_hid = uni_hid_device_create(addr_busy_hid);
+    ASSERT_NE(NULL, d_busy_hid);
+    uni_hid_device_guess_controller_type_from_pid_vid(
+        d_busy_hid);  // Populates generic parse_usage -> requires HID descriptor
+    EXPECT_TRUE(uni_hid_device_does_require_hid_descriptor(d_busy_hid));
+    uni_bt_sdp_set_device_for_test(d_busy_hid);
+    uni_bt_sdp_query_start_hid_descriptor(d_busy_hid);
+    EXPECT_EQ(NULL, uni_hid_device_get_instance_for_address(addr_busy_hid));
+    EXPECT_EQ(NULL, btstack_run_loop_base_timers);
+
+    // Reset BTstack SDP client state and verify a new device d2 can start an SDP query cleanly
+    // without being blocked by a stale sdp_device pointer.
+    sdp_client_deinit();
+    l2cap_init();
+    bd_addr_t addr2 = {0x88, 0x99, 0xaa, 0xbb, 0xcc, 0x05};
+    uni_hid_device_t* d2 = uni_hid_device_create(addr2);
+    ASSERT_NE(NULL, d2);
+    uni_bt_sdp_query_start(d2);
+    EXPECT_EQ(d2, uni_hid_device_get_instance_for_address(addr2));
+    EXPECT_NE(NULL, btstack_run_loop_base_timers);
+
+    uni_hid_device_delete(d2);
+    EXPECT_EQ(NULL, btstack_run_loop_base_timers);
+    sdp_client_deinit();
+    l2cap_init();
+}
+
+// ============================================================================
+// 10. TEST(bt_le_pnp_id_att_error_status_guard_b6)
+// ============================================================================
+
+TEST(bt_le_pnp_id_att_error_status_guard_b6) {
+    reset_test_fixture();
+
+    bd_addr_t addr = {0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0x01};
+    hci_con_handle_t con_handle = 0x0045;
+    uni_hid_device_t* d = uni_hid_device_create(addr);
+    ASSERT_NE(NULL, d);
+    uni_hid_device_set_connection_handle(d, con_handle);
+    ASSERT_EQ(0, uni_hid_device_get_vendor_id(d));
+    ASSERT_EQ(0, uni_hid_device_get_product_id(d));
+
+    // Construct a 13-byte GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_PNP_ID (0x08) packet:
+    //   [0] = HCI_EVENT_GATTSERVICE_META (0xEA)
+    //   [1] = 11 (payload length)
+    //   [2] = GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_PNP_ID (0x08)
+    //   [3..4] = con_handle (little-endian)
+    //   [5] = att_status
+    //   [6] = vendor_source_id
+    //   [7..8] = vendor_id (little-endian)
+    //   [9..10] = product_id (little-endian)
+    //   [11..12] = product_version (little-endian)
+    uint8_t pnp_pkt[13];
+    memset(pnp_pkt, 0, sizeof(pnp_pkt));
+    pnp_pkt[0] = HCI_EVENT_GATTSERVICE_META;
+    pnp_pkt[1] = sizeof(pnp_pkt) - 2;
+    pnp_pkt[2] = GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_PNP_ID;
+    little_endian_store_16(pnp_pkt, 3, con_handle);
+    pnp_pkt[5] = ATT_ERROR_ATTRIBUTE_NOT_FOUND;  // 0x0A != ATT_ERROR_SUCCESS
+    pnp_pkt[6] = 0x02;                           // USB Implementers Forum
+    little_endian_store_16(pnp_pkt, 7, 0xDEAD);  // Garbage vendor_id
+    little_endian_store_16(pnp_pkt, 9, 0xBEEF);  // Garbage product_id
+    little_endian_store_16(pnp_pkt, 11, 0x0100);
+
+    // 1. Dispatch with non-zero ATT error status: vendor_id and product_id MUST remain 0.
+    uni_bt_le_on_hci_event_gattservice_meta(pnp_pkt, sizeof(pnp_pkt));
+    EXPECT_EQ(0, uni_hid_device_get_vendor_id(d));
+    EXPECT_EQ(0, uni_hid_device_get_product_id(d));
+
+    // 2. Dispatch with ATT_ERROR_SUCCESS (0x00) and valid VID=0x045e, PID=0x0b13:
+    pnp_pkt[5] = ATT_ERROR_SUCCESS;
+    little_endian_store_16(pnp_pkt, 7, 0x045e);
+    little_endian_store_16(pnp_pkt, 9, 0x0b13);
+    uni_bt_le_on_hci_event_gattservice_meta(pnp_pkt, sizeof(pnp_pkt));
+    EXPECT_EQ(0x045e, uni_hid_device_get_vendor_id(d));
+    EXPECT_EQ(0x0b13, uni_hid_device_get_product_id(d));
+}
+
+// ============================================================================
 // Main Test Runner
 // ============================================================================
 
@@ -945,7 +1083,9 @@ int main(void) {
     RUN_TEST(bt_le_adv_report_64byte_name_overflow_regression);
     RUN_TEST(bt_bredr_l2cap_data_packet_strips_header_and_routes);
     RUN_TEST(bt_disconnect_cleans_up_device);
+    RUN_TEST(bt_sdp_query_abort_on_disconnect_and_failure_b5);
+    RUN_TEST(bt_le_pnp_id_att_error_status_guard_b6);
 
-    printf("\nAll 8 BTstack packet handler contract tests passed!\n");
+    printf("\nAll 10 BTstack packet handler contract tests passed!\n");
     return 0;
 }
