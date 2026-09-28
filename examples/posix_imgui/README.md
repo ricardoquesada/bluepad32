@@ -10,12 +10,16 @@ Supports up to 4 concurrent Bluetooth gamepads (`Controller #1` ..
 `Controller #4`, corresponding to `GAMEPAD_SEAT_A` .. `GAMEPAD_SEAT_D`) with 5
 interactive tabs per controller:
 
-1. **Controls:** Real-time 2D button, D-Pad, thumbstick, and analog trigger
-   visualization (automatically adapting face buttons between Xbox `A/B/X/Y`,
-   PlayStation `Cross/Circle/Square/Triangle`, and Nintendo Switch reversed
-   `B/A/Y/X` layouts) plus a post-canvas live numeric telemetry readout (`axis_x`, `axis_y`, `axis_rx`, `axis_ry`,
-   `brake`, `throttle`, `dpad`,
-   `buttons`, `misc_buttons`, and `Capture`).
+1. **Controls:** Procedural `ImDrawList` vector dashboard featuring top
+   **`LT / L2`** and **`RT / R2`** analog trigger progress cards flanking
+   **`LB / L1`** and **`RB / R1`** shoulder bumper pills, plus a 3-column grid
+   with circular **`Left Stick (L3)`** and **`Right Stick (R3)`** wells, a
+   5-cell **`D-Pad`** cross, **`Navigation Buttons`** (`Select / Share`,
+   `Mode / Guide / PS`, `Start / Options`), **`Extra Buttons`** (`Capture`,
+   `L3`, `R3`, and live hex bitmasks), **`LAST DETECTED INPUT`** tracker,
+   an interactive **`Radial Deadzone`** (`0%..35%`) slider, and a 4-button
+   **`Action Buttons`** diamond displaying both Xbox/Switch letters and
+   vector-drawn PlayStation symbols (`△`, `□`, `○`, `×`).
 2. **Rumble:** Configurable start delay (`0..1000 ms`), duration (`0..2000
     ms`), and weak/strong motor intensities (`0.00..1.00` -> `0..255`) with **Vibrate**, **Stop Rumble**, and one-click
    haptic presets wired to

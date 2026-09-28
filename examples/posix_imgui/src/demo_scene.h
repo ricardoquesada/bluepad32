@@ -91,6 +91,8 @@ class DemoScene {
     void UpdateImuHistory(int slot, const ControllerSnapshot& snap);
     /// Zeroes the circular IMU history buffers for `slot` (on disconnect or user clear).
     void ClearImuHistory(int slot);
+    /// Tracks newly activated buttons, D-Pad directions, triggers, and sticks for the "Last Detected Input" card.
+    void UpdateLastDetectedInput(int slot, const ControllerSnapshot& snap);
 
     ControllerSnapshot mSnapshots[kMaxControllers];  ///< Frame-local copy of all 4 controller slots.
     bool mPrevConnected[kMaxControllers];            ///< Previous frame's connection state per slot.
@@ -102,8 +104,19 @@ class DemoScene {
     float mControllerPanelBaseY;  ///< Window-local Y origin of the 2D controller canvas.
     float mControllerPanelScale;  ///< Uniform sprite scale multiplier (default `1.25f`).
     float mFontScale;             ///< Dear ImGui font scale (`style.FontScaleMain`).
+    float mRadialDeadzone;        ///< Radial stick deadzone fraction (`0.00..0.35`, default `0.10`).
     bool mDontTrimDeadzone;       ///< If true, bypasses `AXIS_THRESHOLD` stick deadzone trimming.
     bool mPreferencesActive;      ///< True while the `Preferences...` view is open.
+
+    // Per-controller Controls tab "Last Detected Input" tracking
+    char mLastDetectedInput[kMaxControllers][64];  ///< Most recently triggered input label per slot.
+    uint16_t mPrevButtons[kMaxControllers];        ///< Previous frame's `gp.buttons` bitmask.
+    uint8_t mPrevDpad[kMaxControllers];            ///< Previous frame's `gp.dpad` bitmask.
+    uint8_t mPrevMiscButtons[kMaxControllers];     ///< Previous frame's `gp.misc_buttons` bitmask.
+    bool mPrevL2Active[kMaxControllers];           ///< Previous frame's `LT / L2` active state.
+    bool mPrevR2Active[kMaxControllers];           ///< Previous frame's `RT / R2` active state.
+    bool mPrevLeftStickActive[kMaxControllers];    ///< Previous frame's Left Stick deflection state.
+    bool mPrevRightStickActive[kMaxControllers];   ///< Previous frame's Right Stick deflection state.
 
     // Per-controller Rumble tab parameters
     float mRumbleDelayMs[kMaxControllers];          ///< Start delay in ms (`0..1000`, default `0`).
