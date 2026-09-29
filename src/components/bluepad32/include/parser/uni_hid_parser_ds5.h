@@ -25,7 +25,8 @@ void uni_hid_parser_ds5_setup(struct uni_hid_device_s* d);
 void uni_hid_parser_ds5_init_report(struct uni_hid_device_s* d);
 void uni_hid_parser_ds5_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len);
 void uni_hid_parser_ds5_parse_feature_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len);
-void uni_hid_parser_ds5_set_player_leds(struct uni_hid_device_s* d, uint8_t value);
+// Sets the DualSense 5-LED player indicator bar from a 4-bit `leds` bitmask (`0x00..0x0f` / `uni_gamepad_seat_t`).
+void uni_hid_parser_ds5_set_player_leds(struct uni_hid_device_s* d, uint8_t leds);
 void uni_hid_parser_ds5_set_lightbar_color(struct uni_hid_device_s* d, uint8_t r, uint8_t g, uint8_t b);
 void uni_hid_parser_ds5_play_dual_rumble(struct uni_hid_device_s* d,
                                          uint16_t start_delay_ms,

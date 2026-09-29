@@ -41,6 +41,11 @@ typedef void (*report_parse_input_report_fn_t)(struct uni_hid_device_s* d, const
 typedef void (*report_parse_feature_report_fn_t)(struct uni_hid_device_s* d,
                                                  const uint8_t* report,
                                                  uint16_t report_len);
+// Sets the controller's player indicator LEDs.
+// `leds` is a 4-bit bitmask (`BIT(0)..BIT(3)`, `0x00..0x0f`), corresponding to `uni_gamepad_seat_t`
+// (`GAMEPAD_SEAT_NONE = 0x00`, `GAMEPAD_SEAT_A = BIT(0)`, `GAMEPAD_SEAT_B = BIT(1)`,
+// `GAMEPAD_SEAT_C = BIT(2)`, `GAMEPAD_SEAT_D = BIT(3)`) or multi-bit combinations
+// (e.g. `GAMEPAD_SEAT_AB_MASK = 0x03`), NOT a sequential player index `0..4`.
 typedef void (*report_set_player_leds_fn_t)(struct uni_hid_device_s* d, uint8_t leds);
 typedef void (*report_set_lightbar_color_fn_t)(struct uni_hid_device_s* d, uint8_t r, uint8_t g, uint8_t b);
 // start_delay_ms: a delayed start measured in milliseconds. Use 0 to start rumble immediately.
@@ -69,7 +74,8 @@ typedef struct {
     report_parse_input_report_fn_t parse_input_report;
     // Called with the feature report
     report_parse_feature_report_fn_t parse_feature_report;
-    // If implemented, turns on/off the different gamepad LEDs
+    // If implemented, turns on/off the gamepad player LEDs using a 4-bit bitmask (`BIT(0)..BIT(3)` /
+    // `uni_gamepad_seat_t`).
     report_set_player_leds_fn_t set_player_leds;
     // If implemented, changes the lightbar color (e.g.: in DS4 and DualSense)
     report_set_lightbar_color_fn_t set_lightbar_color;

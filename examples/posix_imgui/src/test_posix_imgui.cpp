@@ -25,6 +25,12 @@
  *     single-frame `newly_connected_slot` latching, command queue draining via
  *     `btstack_run_loop_base_execute_callbacks()`, and dangling-pointer protection when
  *     a device disconnects before its queued command executes.
+ *   - Suite D (DualSense Player LEDs 4-Bit Bitmask & Output Report Verification):
+ *     Verifies `uni_hid_parser_ds5_set_player_leds()` NULL-device guard clause, Sony PS5
+ *     symmetric 5-LED patterns for single seats (`GAMEPAD_SEAT_NONE` and `GAMEPAD_SEAT_A..D`,
+ *     including the Player 3 / Player 4 inversion regression fix), all 16 4-bit masks
+ *     (`0x00..0x0f`) with sequence counter wrap and CRC32 validation, upper-nibble masking
+ *     (`0xf0 | mask`), and end-to-end `posix_imgui_platform` integration.
  */
 
 #include <unistd.h>
@@ -496,6 +502,216 @@ void test_command_queue_draining_and_dangling_pointer_safety() {
     TEST_ASSERT(g_mock_calls.rumble_calls == 0);
 }
 
+// ============================================================================
+// Suite D: DualSense Player LEDs 4-Bit Bitmask & Output Report Verification
+// ============================================================================
+
+constexpr uint16_t kTestDs5InterruptCid = 0x0040;
+constexpr uint16_t kDs5OutputReportLen = 79;
+
+/// Dequeues a single 79-byte `ds5_output_report_t` from `d->outgoing_buffer` and validates
+/// all Bluetooth/DualSense framing invariants, sequence tag, player LEDs byte, and CRC32.
+bool dequeue_and_verify_ds5_led_report(uni_hid_device_t* d,
+                                       uint16_t expected_cid,
+                                       uint8_t expected_seq,
+                                       uint8_t expected_player_leds,
+                                       uint8_t* out_player_leds = nullptr) {
+    int16_t cid = 0;
+    void* data = nullptr;
+    int data_len = 0;
+    uint8_t rc = uni_circular_buffer_get(&d->outgoing_buffer, &cid, &data, &data_len);
+    if (rc != UNI_CIRCULAR_BUFFER_ERROR_OK || cid != static_cast<int16_t>(expected_cid) || data == nullptr ||
+        data_len != kDs5OutputReportLen) {
+        return false;
+    }
+
+    const uint8_t* report = static_cast<const uint8_t*>(data);
+
+    // Bluetooth HID Output header & DualSense protocol invariants:
+    //   Byte 0: transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT = 0xa2
+    //   Byte 1: report_id = 0x31
+    //   Byte 2: seq_tag = (expected_seq << 4)
+    //   Byte 3: tag = 0x10
+    //   Byte 4: valid_flag0 = 0x00
+    //   Byte 5: valid_flag1 = DS5_FLAG1_PLAYER_LED_CONTROL_ENABLE (BIT(4) = 0x10)
+    //   Byte 42: valid_flag2 = 0x00
+    //   Byte 47: player_leds (5-LED bitmask in bits 0..4; bits 5..7 must be 0)
+    //   Bytes 48..50: lightbar RGB = 0x00
+    if (report[0] != 0xa2 || report[1] != 0x31 || report[2] != static_cast<uint8_t>(expected_seq << 4) ||
+        report[3] != 0x10 || report[4] != 0x00 || report[5] != 0x10 || report[42] != 0x00) {
+        return false;
+    }
+
+    const uint8_t actual_player_leds = report[47];
+    if (out_player_leds != nullptr) {
+        *out_player_leds = actual_player_leds;
+    }
+    if ((actual_player_leds & 0xe0) != 0x00 || actual_player_leds != expected_player_leds) {
+        return false;
+    }
+
+    if (report[48] != 0x00 || report[49] != 0x00 || report[50] != 0x00) {
+        return false;
+    }
+
+    // Verify trailing little-endian CRC32 over the first 75 bytes.
+    uint32_t actual_crc32 = 0;
+    std::memcpy(&actual_crc32, &report[75], sizeof(actual_crc32));
+    const uint32_t expected_crc32 = ~uni_crc32_le(0xffffffff, report, kDs5OutputReportLen - 4);
+    return actual_crc32 == expected_crc32;
+}
+
+/// Test 9: Verifies `uni_hid_parser_ds5_set_player_leds(nullptr, ...)` returns safely
+/// via the NULL-device guard clause without dereferencing `d->parser_data`.
+void test_ds5_set_player_leds_null_device_safety() {
+    uni_hid_parser_ds5_set_player_leds(nullptr, GAMEPAD_SEAT_NONE);
+    uni_hid_parser_ds5_set_player_leds(nullptr, GAMEPAD_SEAT_A);
+    uni_hid_parser_ds5_set_player_leds(nullptr, 0xff);
+}
+
+/// Test 10: Verifies Sony PS5 symmetric 5-LED patterns for `GAMEPAD_SEAT_NONE` and
+/// single-player seats `GAMEPAD_SEAT_A..D`, explicitly guarding against the prior
+/// `value % 5` inversion of Player 3 (`GAMEPAD_SEAT_C = 0x04`) and Player 4 (`GAMEPAD_SEAT_D = 0x08`).
+void test_ds5_set_player_leds_single_seat_patterns() {
+    uni_hid_device_t d;
+    init_synthetic_device(&d, 0x054c, 0x0ce6, CONTROLLER_TYPE_PS5Controller, "DualSense");
+    d.conn.interrupt_cid = kTestDs5InterruptCid;
+
+    struct SeatCase {
+        uint8_t seat_mask;
+        uint8_t expected_ds5_leds;
+        uint8_t expected_seq;
+    };
+
+    const SeatCase kCases[] = {
+        {GAMEPAD_SEAT_NONE, 0x00, 0},                            // -----
+        {GAMEPAD_SEAT_A, BIT(2), 1},                             // --X-- (0x04)
+        {GAMEPAD_SEAT_B, BIT(1) | BIT(3), 2},                    // -X-X- (0x0a)
+        {GAMEPAD_SEAT_C, BIT(0) | BIT(2) | BIT(4), 3},           // X-X-X (0x15, was 0x1b with value % 5)
+        {GAMEPAD_SEAT_D, BIT(0) | BIT(1) | BIT(3) | BIT(4), 4},  // XX-XX (0x1b, was 0x15 with value % 5)
+    };
+
+    for (const SeatCase& tc : kCases) {
+        uni_hid_parser_ds5_set_player_leds(&d, tc.seat_mask);
+        uint8_t actual_leds = 0xff;
+        TEST_ASSERT(dequeue_and_verify_ds5_led_report(&d, kTestDs5InterruptCid, tc.expected_seq, tc.expected_ds5_leds,
+                                                      &actual_leds));
+        if (tc.seat_mask == GAMEPAD_SEAT_C) {
+            // Regression assertion: Player 3 (0x04) must NOT produce Player 4's 0x1b pattern.
+            TEST_ASSERT(actual_leds == 0x15);
+            TEST_ASSERT(actual_leds != 0x1b);
+        } else if (tc.seat_mask == GAMEPAD_SEAT_D) {
+            // Regression assertion: Player 4 (0x08) must NOT produce Player 3's 0x15 pattern or raw 0x10.
+            TEST_ASSERT(actual_leds == 0x1b);
+            TEST_ASSERT(actual_leds != 0x15);
+            TEST_ASSERT(actual_leds != 0x10);
+        }
+    }
+    TEST_ASSERT(uni_circular_buffer_is_empty(&d.outgoing_buffer));
+}
+
+/// Test 11: Exhaustively tests all 16 4-bit bitmasks (`0x00..0x0f`) and verifies that
+/// `output_seq` increments across `0..14`, wraps to `0` on the 16th report (`0x0f`),
+/// and advances to `1` on the 17th report.
+void test_ds5_set_player_leds_all_16_bitmasks_and_sequence_wrap() {
+    uni_hid_device_t d;
+    init_synthetic_device(&d, 0x054c, 0x0ce6, CONTROLLER_TYPE_PS5Controller, "DualSense");
+    d.conn.interrupt_cid = kTestDs5InterruptCid;
+
+    const uint8_t kExpectedDs5Leds[16] = {
+        0x00,  // 0x00: GAMEPAD_SEAT_NONE  -> -----
+        0x04,  // 0x01: GAMEPAD_SEAT_A     -> --X--
+        0x0a,  // 0x02: GAMEPAD_SEAT_B     -> -X-X-
+        0x03,  // 0x03: SEAT_A | SEAT_B    -> ---XX
+        0x15,  // 0x04: GAMEPAD_SEAT_C     -> X-X-X
+        0x09,  // 0x05: SEAT_A | SEAT_C    -> -X--X
+        0x0a,  // 0x06: SEAT_B | SEAT_C    -> -X-X-
+        0x0b,  // 0x07: SEAT_A | B | C     -> -X-XX
+        0x1b,  // 0x08: GAMEPAD_SEAT_D     -> XX-XX
+        0x11,  // 0x09: SEAT_A | SEAT_D    -> X---X
+        0x12,  // 0x0a: SEAT_B | SEAT_D    -> X--X-
+        0x13,  // 0x0b: SEAT_A | B | D     -> X--XX
+        0x18,  // 0x0c: SEAT_C | SEAT_D    -> XX---
+        0x19,  // 0x0d: SEAT_A | C | D     -> XX--X
+        0x1a,  // 0x0e: SEAT_B | C | D     -> XX-X-
+        0x1b,  // 0x0f: SEAT_A | B | C | D -> XX-XX
+    };
+
+    for (uint8_t mask = 0; mask < 16; ++mask) {
+        const uint8_t expected_seq = static_cast<uint8_t>(mask % 15);
+        uni_hid_parser_ds5_set_player_leds(&d, mask);
+        TEST_ASSERT(dequeue_and_verify_ds5_led_report(&d, kTestDs5InterruptCid, expected_seq, kExpectedDs5Leds[mask]));
+    }
+
+    // 17th call: after wrapping to 0 on the 16th call (index 15), sequence number must be 1.
+    uni_hid_parser_ds5_set_player_leds(&d, GAMEPAD_SEAT_A);
+    TEST_ASSERT(dequeue_and_verify_ds5_led_report(&d, kTestDs5InterruptCid, 1, 0x04));
+    TEST_ASSERT(uni_circular_buffer_is_empty(&d.outgoing_buffer));
+}
+
+/// Test 12: Verifies that dirty upper-nibble bits (`0x10..0xf0`) are masked off before
+/// switching so single-seat patterns never fall into `default:` and upper bits never
+/// leak into bits 5..7 of `player_leds`.
+void test_ds5_set_player_leds_upper_nibble_masking() {
+    const uint8_t kExpectedDs5Leds[16] = {
+        0x00, 0x04, 0x0a, 0x03, 0x15, 0x09, 0x0a, 0x0b, 0x1b, 0x11, 0x12, 0x13, 0x18, 0x19, 0x1a, 0x1b,
+    };
+    const uint8_t kHighNibbles[] = {0x10, 0x20, 0x50, 0xa0, 0xf0};
+
+    for (uint8_t high : kHighNibbles) {
+        uni_hid_device_t d;
+        init_synthetic_device(&d, 0x054c, 0x0ce6, CONTROLLER_TYPE_PS5Controller, "DualSense");
+        d.conn.interrupt_cid = kTestDs5InterruptCid;
+
+        for (uint8_t mask = 0; mask < 16; ++mask) {
+            const uint8_t dirty_input = static_cast<uint8_t>(high | mask);
+            const uint8_t expected_seq = static_cast<uint8_t>(mask % 15);
+            uni_hid_parser_ds5_set_player_leds(&d, dirty_input);
+            TEST_ASSERT(
+                dequeue_and_verify_ds5_led_report(&d, kTestDs5InterruptCid, expected_seq, kExpectedDs5Leds[mask]));
+        }
+        TEST_ASSERT(uni_circular_buffer_is_empty(&d.outgoing_buffer));
+    }
+}
+
+/// Test 13: Verifies end-to-end integration between `posix_imgui_platform` and the real
+/// `uni_hid_parser_ds5_set_player_leds` across all 4 controller slots (`GAMEPAD_SEAT_A..D`)
+/// plus runtime LED override via `posix_imgui_request_player_leds`.
+void test_ds5_player_leds_end_to_end_via_posix_imgui_platform() {
+    btstack_run_loop_deinit();
+    btstack_run_loop_init(btstack_run_loop_posix_get_instance());
+    posix_imgui_reset_for_test();
+
+    struct uni_platform* plat = get_posix_imgui_platform();
+    const uint8_t kExpectedSeatLeds[kMaxControllers] = {
+        0x04,  // Slot 0 (GAMEPAD_SEAT_A): --X--
+        0x0a,  // Slot 1 (GAMEPAD_SEAT_B): -X-X-
+        0x15,  // Slot 2 (GAMEPAD_SEAT_C): X-X-X
+        0x1b,  // Slot 3 (GAMEPAD_SEAT_D): XX-XX
+    };
+
+    uni_hid_device_t devices[kMaxControllers];
+    for (int i = 0; i < kMaxControllers; ++i) {
+        init_synthetic_device(&devices[i], 0x054c, 0x0ce6, CONTROLLER_TYPE_PS5Controller, "DualSense");
+        devices[i].conn.interrupt_cid = static_cast<uint16_t>(kTestDs5InterruptCid + i);
+        devices[i].report_parser.set_player_leds = &uni_hid_parser_ds5_set_player_leds;
+
+        plat->on_device_connected(&devices[i]);
+        TEST_ASSERT(plat->on_device_ready(&devices[i]) == UNI_ERROR_SUCCESS);
+        TEST_ASSERT(dequeue_and_verify_ds5_led_report(&devices[i], static_cast<uint16_t>(kTestDs5InterruptCid + i), 0,
+                                                      kExpectedSeatLeds[i]));
+        TEST_ASSERT(uni_circular_buffer_is_empty(&devices[i].outgoing_buffer));
+    }
+
+    // Override Slot 2 (Player 3) LEDs at runtime with multi-bit mask GAMEPAD_SEAT_AB_MASK (0x03).
+    posix_imgui_request_player_leds(2, GAMEPAD_SEAT_AB_MASK);
+    btstack_run_loop_base_execute_callbacks();
+
+    TEST_ASSERT(
+        dequeue_and_verify_ds5_led_report(&devices[2], static_cast<uint16_t>(kTestDs5InterruptCid + 2), 1, 0x03));
+    TEST_ASSERT(uni_circular_buffer_is_empty(&devices[2].outgoing_buffer));
+}
+
 }  // namespace
 
 int main() {
@@ -514,6 +730,13 @@ int main() {
     // Suite C
     RUN_TEST(test_on_controller_data_updates_snapshot_and_delta_ms);
     RUN_TEST(test_command_queue_draining_and_dangling_pointer_safety);
+
+    // Suite D
+    RUN_TEST(test_ds5_set_player_leds_null_device_safety);
+    RUN_TEST(test_ds5_set_player_leds_single_seat_patterns);
+    RUN_TEST(test_ds5_set_player_leds_all_16_bitmasks_and_sequence_wrap);
+    RUN_TEST(test_ds5_set_player_leds_upper_nibble_masking);
+    RUN_TEST(test_ds5_player_leds_end_to_end_via_posix_imgui_platform);
 
     std::printf("\nSummary: %d/%d tests passed.\n", g_tests_run - g_tests_failed, g_tests_run);
     return g_tests_failed == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
