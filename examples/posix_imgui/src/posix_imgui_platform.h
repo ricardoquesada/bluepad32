@@ -88,6 +88,7 @@ struct ControllerSnapshot {
 
     // Capabilities populated in on_device_ready()
     ControllerLayoutType layout;  ///< Face button layout family (`STANDARD`, `SHAPES`, or `REVERSE`).
+    bool is_virtual_device;       ///< True if `uni_hid_device_is_virtual_device(d)` (e.g., DS4/DS5 touchpad mouse).
     bool has_rumble;              ///< True if `d->report_parser.play_dual_rumble != nullptr`.
     bool has_player_leds;         ///< True if `d->report_parser.set_player_leds != nullptr`.
     bool has_rgb_led;             ///< True if `d->report_parser.set_lightbar_color != nullptr`.
@@ -98,6 +99,22 @@ struct ControllerSnapshot {
     uni_controller_t controller;        ///< Latest parsed Bluepad32 controller state (buttons, axes, IMU, battery).
     uint64_t last_report_timestamp_us;  ///< Monotonic timestamp (`CLOCK_MONOTONIC`, microseconds) of latest report.
     uint32_t report_delta_ms;           ///< Elapsed milliseconds between the two most recent input reports.
+};
+
+/**
+ * @brief Bitmask flags selecting which physical Bluetooth input device categories are
+ *        auto-accepted during discovery (`on_device_discovered`) and readiness (`on_device_ready`).
+ */
+enum PosixImguiDeviceTypeFlags : uint32_t {
+    POSIX_IMGUI_DEVICE_TYPE_NONE = 0u,
+    /// Gamepads, joysticks, and gaming controllers (`UNI_BT_COD_MINOR_GAMEPAD | UNI_BT_COD_MINOR_JOYSTICK`).
+    POSIX_IMGUI_DEVICE_TYPE_GAMEPAD = (1u << 0),
+    /// Physical Bluetooth mice (`UNI_BT_COD_MINOR_MICE`).
+    POSIX_IMGUI_DEVICE_TYPE_MOUSE = (1u << 1),
+    /// Physical Bluetooth keyboards (`UNI_BT_COD_MINOR_KEYBOARD`).
+    POSIX_IMGUI_DEVICE_TYPE_KEYBOARD = (1u << 2),
+    /// Default auto-accept filter: only Gamepads & Joysticks enabled.
+    POSIX_IMGUI_DEVICE_TYPE_DEFAULT = POSIX_IMGUI_DEVICE_TYPE_GAMEPAD,
 };
 
 /**
@@ -146,7 +163,7 @@ void posix_imgui_get_snapshots(ControllerSnapshot out_snapshots[kMaxControllers]
  *
  * @param slot             Controller slot index in `[0, kMaxControllers - 1]`.
  * @param start_delay_ms   Delay before starting vibration in milliseconds (`0..1000`).
- * @param duration_ms      Vibration duration in milliseconds (`0..2000`).
+ * @param duration_ms      Vibration duration in milliseconds (`0..5000`).
  * @param weak_magnitude   High-frequency (weak) motor intensity (`0..255`).
  * @param strong_magnitude Low-frequency (strong) motor intensity (`0..255`).
  */
@@ -179,6 +196,45 @@ void posix_imgui_request_player_leds(int slot, uint8_t leds_bitmask);
  * @param b    Blue channel intensity (`0..255`).
  */
 void posix_imgui_request_lightbar_color(int slot, uint8_t r, uint8_t g, uint8_t b);
+
+/**
+ * @brief Enables or disables virtual child devices (e.g., DualSense / DualShock 4 touchpad mouse).
+ *
+ * Thread-safe and non-blocking. Updates the atomic virtual-device flag and enqueues a
+ * `CMD_SET_VIRTUAL_DEVICES` command on the BTstack thread that calls
+ * `uni_virtual_device_set_enabled(enabled)`. When disabled (`false`), any currently
+ * connected virtual child devices are immediately disconnected and removed from their slots.
+ *
+ * @param enabled True to allow virtual child devices; false (default) to disable and disconnect them.
+ */
+void posix_imgui_request_set_virtual_devices_enabled(bool enabled);
+
+/**
+ * @brief Returns whether virtual child devices are currently enabled (default: `false`).
+ *
+ * Thread-safe (reads an `std::atomic<bool>`).
+ */
+bool posix_imgui_is_virtual_devices_enabled(void);
+
+/**
+ * @brief Updates the bitmask of physical Bluetooth input device categories (`PosixImguiDeviceTypeFlags`)
+ *        allowed to auto-connect.
+ *
+ * Thread-safe and non-blocking. Updates the atomic filter bitmask used by
+ * `on_device_discovered()` and `on_device_ready()`, and enqueues a
+ * `CMD_SET_ALLOWED_DEVICE_TYPES` command on the BTstack thread that immediately
+ * disconnects any currently connected physical devices belonging to a disabled category.
+ *
+ * @param allowed_types_mask Bitwise OR of `PosixImguiDeviceTypeFlags` (default: `POSIX_IMGUI_DEVICE_TYPE_DEFAULT`).
+ */
+void posix_imgui_request_set_allowed_device_types(uint32_t allowed_types_mask);
+
+/**
+ * @brief Returns the current bitmask of allowed physical input device categories.
+ *
+ * Thread-safe (reads an `std::atomic<uint32_t>`).
+ */
+uint32_t posix_imgui_get_allowed_device_types(void);
 
 /**
  * @brief Requests a clean asynchronous shutdown of the BTstack run loop from any thread.

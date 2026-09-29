@@ -86,10 +86,14 @@ class DemoScene {
     int mCurrentControllerSlot;                      ///< Currently active controller tab index (`0..3`).
     int mActiveControllerPanelTab;                   ///< Currently active category tab index (`0..4`).
 
-    float mFontScale;         ///< Dear ImGui font scale (`style.FontScaleMain`).
-    float mRadialDeadzone;    ///< Radial stick deadzone fraction (`0.00..0.35`, default `0.10`).
-    bool mDontTrimDeadzone;   ///< If true, bypasses stick deadzone trimming.
-    bool mPreferencesActive;  ///< True while the `Preferences...` view is open.
+    float mFontScale;             ///< Dear ImGui font scale (`style.FontScaleMain`).
+    float mRadialDeadzone;        ///< Radial stick deadzone fraction (`0.00..0.35`, default `0.10`).
+    bool mDontTrimDeadzone;       ///< If true, bypasses stick deadzone trimming.
+    bool mPreferencesActive;      ///< True while the `Preferences...` view is open.
+    bool mVirtualDevicesEnabled;  ///< If true, enables virtual child devices (e.g., DS4/DS5 touchpad mouse).
+    bool mAutoAcceptGamepads;     ///< If true, auto-accepts Bluetooth gamepads and joysticks (default: true).
+    bool mAutoAcceptMice;         ///< If true, auto-accepts physical Bluetooth mice (default: false).
+    bool mAutoAcceptKeyboards;    ///< If true, auto-accepts physical Bluetooth keyboards (default: false).
 
     // Per-controller Controls tab "Last Detected Input" tracking
     char mLastDetectedInput[kMaxControllers][64];  ///< Most recently triggered input label per slot.

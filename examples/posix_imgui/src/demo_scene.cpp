@@ -432,6 +432,10 @@ DemoScene::DemoScene()
       mRadialDeadzone(0.10f),
       mDontTrimDeadzone(false),
       mPreferencesActive(false),
+      mVirtualDevicesEnabled(posix_imgui_is_virtual_devices_enabled()),
+      mAutoAcceptGamepads((posix_imgui_get_allowed_device_types() & POSIX_IMGUI_DEVICE_TYPE_GAMEPAD) != 0),
+      mAutoAcceptMice((posix_imgui_get_allowed_device_types() & POSIX_IMGUI_DEVICE_TYPE_MOUSE) != 0),
+      mAutoAcceptKeyboards((posix_imgui_get_allowed_device_types() & POSIX_IMGUI_DEVICE_TYPE_KEYBOARD) != 0),
       mLastDetectedInput{},
       mPrevButtons{},
       mPrevDpad{},
@@ -712,7 +716,7 @@ void DemoScene::DoFrame() {
     }
 
     for (int i = 0; i < kMaxControllers; ++i) {
-        if (!mPrevConnected[i] && mSnapshots[i].connected) {
+        if (!mPrevConnected[i] && mSnapshots[i].connected && !mSnapshots[i].is_virtual_device) {
             mMostRecentConnectedSlot = i;
         }
         UpdateImuHistory(i, mSnapshots[i]);
@@ -772,6 +776,12 @@ bool DemoScene::RenderPreferences() {
     if (!mPreferencesActive) {
         if (ImGui::Button("Preferences...")) {
             mPreferencesActive = true;
+            // Synchronize UI checkboxes with the authoritative atomic platform state.
+            mVirtualDevicesEnabled = posix_imgui_is_virtual_devices_enabled();
+            const uint32_t allowedMask = posix_imgui_get_allowed_device_types();
+            mAutoAcceptGamepads = (allowedMask & POSIX_IMGUI_DEVICE_TYPE_GAMEPAD) != 0;
+            mAutoAcceptMice = (allowedMask & POSIX_IMGUI_DEVICE_TYPE_MOUSE) != 0;
+            mAutoAcceptKeyboards = (allowedMask & POSIX_IMGUI_DEVICE_TYPE_KEYBOARD) != 0;
         }
         return false;
     }
@@ -805,6 +815,45 @@ bool DemoScene::RenderPreferences() {
 
     ImGui::Spacing();
     ImGui::Checkbox("Raw deadzone (do not trim stick center deadzone to 0.0)", &mDontTrimDeadzone);
+
+    ImGui::Spacing();
+    ImGui::Spacing();
+    ImGui::TextColored(kTextColorCyan, "Bluetooth Auto-Connect Device Filter");
+    ImGui::Separator();
+    ImGui::Spacing();
+    ImGui::TextColored(
+        kTextColorGrey,
+        "Select which physical Bluetooth HID device categories are automatically accepted when discovered:");
+
+    bool filterChanged = false;
+    filterChanged |= ImGui::Checkbox("Gamepads & Joysticks (Default: ON)", &mAutoAcceptGamepads);
+    filterChanged |= ImGui::Checkbox("Mice (Default: OFF)", &mAutoAcceptMice);
+    filterChanged |= ImGui::Checkbox("Keyboards (Default: OFF)", &mAutoAcceptKeyboards);
+    if (filterChanged) {
+        uint32_t allowedMask = POSIX_IMGUI_DEVICE_TYPE_NONE;
+        if (mAutoAcceptGamepads) {
+            allowedMask |= POSIX_IMGUI_DEVICE_TYPE_GAMEPAD;
+        }
+        if (mAutoAcceptMice) {
+            allowedMask |= POSIX_IMGUI_DEVICE_TYPE_MOUSE;
+        }
+        if (mAutoAcceptKeyboards) {
+            allowedMask |= POSIX_IMGUI_DEVICE_TYPE_KEYBOARD;
+        }
+        posix_imgui_request_set_allowed_device_types(allowedMask);
+    }
+
+    ImGui::Spacing();
+    ImGui::Spacing();
+    ImGui::TextColored(kTextColorCyan, "Virtual Devices");
+    ImGui::Separator();
+    ImGui::Spacing();
+    if (ImGui::Checkbox("Enable Virtual Devices (DualSense / DualShock 4 Touchpad Mouse)", &mVirtualDevicesEnabled)) {
+        posix_imgui_request_set_virtual_devices_enabled(mVirtualDevicesEnabled);
+    }
+    ImGui::TextColored(kTextColorGrey,
+                       "When disabled (default), DualSense and DualShock 4 controllers do not spawn a secondary "
+                       "virtual mouse slot.");
 
     ImGui::Spacing();
     ImGui::Separator();
@@ -855,7 +904,8 @@ void DemoScene::RenderControllerTabs() {
 
 void DemoScene::RenderPanel(int slot, const ControllerSnapshot& snap) {
     const char* displayName = (snap.name[0] != '\0') ? snap.name : snap.model_name;
-    ImGui::TextColored(kTextColorGreen, "[Seat #%d] %s", slot + 1, displayName);
+    ImGui::TextColored(kTextColorGreen, "[Seat #%d] %s%s", slot + 1, displayName,
+                       snap.is_virtual_device ? " [Virtual Device]" : "");
     ImGui::SameLine(0.0f, 16.0f);
     ImGui::TextColored(kTextColorGrey, "(Model: %s | VID: 0x%04X PID: 0x%04X | MAC: %s)", snap.model_name,
                        snap.vendor_id, snap.product_id, bd_addr_to_str(snap.btaddr));
@@ -1175,6 +1225,8 @@ void DemoScene::RenderPanel_InfoTab(int slot, const ControllerSnapshot& snap) {
         addRow("Slot Index / Seat:", "Slot #%d (GAMEPAD_SEAT_%c = 0x%02X)", slot + 1, 'A' + slot, 1 << slot);
         addRow("Bluetooth Device Name:", "%s", snap.name[0] != '\0' ? snap.name : "(Unnamed Device)");
         addRow("Bluepad32 Model Name:", "%s (type=%d)", snap.model_name, static_cast<int>(snap.controller_type));
+        addRow("Device Type:", "%s",
+               snap.is_virtual_device ? "Virtual Child Device (Touchpad Mouse)" : "Physical Bluetooth HID Device");
         addRow("Controller Subtype:", "%s (%d)", SubtypeToString(snap.controller_subtype),
                static_cast<int>(snap.controller_subtype));
         addRow("Vendor ID / Product ID:", "VID: 0x%04X  |  PID: 0x%04X", snap.vendor_id, snap.product_id);

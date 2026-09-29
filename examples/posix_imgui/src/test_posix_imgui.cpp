@@ -712,6 +712,179 @@ void test_ds5_player_leds_end_to_end_via_posix_imgui_platform() {
     TEST_ASSERT(uni_circular_buffer_is_empty(&devices[2].outgoing_buffer));
 }
 
+// ============================================================================
+// Suite E: Device Auto-Accept Filtering & Virtual Device Toggle
+// ============================================================================
+
+/// Test 14: Verifies default allowed physical device types (`POSIX_IMGUI_DEVICE_TYPE_GAMEPAD` only),
+/// `on_device_discovered` CoD filtering, and `on_device_ready` physical device filtering.
+void test_device_discovery_and_ready_filtering_by_device_type() {
+    btstack_run_loop_deinit();
+    btstack_run_loop_init(btstack_run_loop_posix_get_instance());
+    posix_imgui_reset_for_test();
+
+    struct uni_platform* plat = get_posix_imgui_platform();
+    TEST_ASSERT(posix_imgui_get_allowed_device_types() == POSIX_IMGUI_DEVICE_TYPE_GAMEPAD);
+
+    bd_addr_t addr = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
+    const uint16_t kCodGamepad = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_GAMEPAD;
+    const uint16_t kCodJoystick = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_JOYSTICK;
+    const uint16_t kCodMouse = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE;
+    const uint16_t kCodKeyboard = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_KEYBOARD;
+
+    // Default filter: Gamepads and Joysticks accepted, Mice and Keyboards rejected.
+    TEST_ASSERT(plat->on_device_discovered(addr, "Gamepad", kCodGamepad, 200) == UNI_ERROR_SUCCESS);
+    TEST_ASSERT(plat->on_device_discovered(addr, "Joystick", kCodJoystick, 200) == UNI_ERROR_SUCCESS);
+    TEST_ASSERT(plat->on_device_discovered(addr, "Mouse", kCodMouse, 200) == UNI_ERROR_IGNORE_DEVICE);
+    TEST_ASSERT(plat->on_device_discovered(addr, "Keyboard", kCodKeyboard, 200) == UNI_ERROR_IGNORE_DEVICE);
+
+    // Physical mouse and keyboard must also be rejected in on_device_ready() under default filter.
+    uni_hid_device_t mouse_dev;
+    init_synthetic_device(&mouse_dev, 0x046d, 0xb019, CONTROLLER_TYPE_GenericMouse, "BT Mouse");
+    uni_hid_device_set_cod(&mouse_dev, kCodMouse);
+    plat->on_device_connected(&mouse_dev);
+    TEST_ASSERT(plat->on_device_ready(&mouse_dev) == UNI_ERROR_IGNORE_DEVICE);
+    TEST_ASSERT(get_posix_imgui_instance(&mouse_dev)->slot == -1);
+
+    uni_hid_device_t kb_dev;
+    init_synthetic_device(&kb_dev, 0x046d, 0xb342, CONTROLLER_TYPE_GenericKeyboard, "BT Keyboard");
+    uni_hid_device_set_cod(&kb_dev, kCodKeyboard);
+    plat->on_device_connected(&kb_dev);
+    TEST_ASSERT(plat->on_device_ready(&kb_dev) == UNI_ERROR_IGNORE_DEVICE);
+    TEST_ASSERT(get_posix_imgui_instance(&kb_dev)->slot == -1);
+
+    // Enable Mice and Keyboards, disable Gamepads.
+    posix_imgui_request_set_allowed_device_types(POSIX_IMGUI_DEVICE_TYPE_MOUSE | POSIX_IMGUI_DEVICE_TYPE_KEYBOARD);
+    btstack_run_loop_base_execute_callbacks();
+    TEST_ASSERT(posix_imgui_get_allowed_device_types() ==
+                (POSIX_IMGUI_DEVICE_TYPE_MOUSE | POSIX_IMGUI_DEVICE_TYPE_KEYBOARD));
+
+    TEST_ASSERT(plat->on_device_discovered(addr, "Gamepad", kCodGamepad, 200) == UNI_ERROR_IGNORE_DEVICE);
+    TEST_ASSERT(plat->on_device_discovered(addr, "Mouse", kCodMouse, 200) == UNI_ERROR_SUCCESS);
+    TEST_ASSERT(plat->on_device_discovered(addr, "Keyboard", kCodKeyboard, 200) == UNI_ERROR_SUCCESS);
+
+    plat->on_device_connected(&mouse_dev);
+    TEST_ASSERT(plat->on_device_ready(&mouse_dev) == UNI_ERROR_SUCCESS);
+    TEST_ASSERT(get_posix_imgui_instance(&mouse_dev)->slot == 0);
+
+    plat->on_device_connected(&kb_dev);
+    TEST_ASSERT(plat->on_device_ready(&kb_dev) == UNI_ERROR_SUCCESS);
+    TEST_ASSERT(get_posix_imgui_instance(&kb_dev)->slot == 1);
+}
+
+/// Test 15: Verifies that unchecking an input device category at runtime immediately
+/// disconnects any currently connected physical devices of that disabled category while
+/// preserving connected devices of still-enabled categories.
+void test_runtime_disconnection_when_device_category_disabled() {
+    btstack_run_loop_deinit();
+    btstack_run_loop_init(btstack_run_loop_posix_get_instance());
+    posix_imgui_reset_for_test();
+
+    struct uni_platform* plat = get_posix_imgui_platform();
+    posix_imgui_request_set_allowed_device_types(POSIX_IMGUI_DEVICE_TYPE_GAMEPAD | POSIX_IMGUI_DEVICE_TYPE_MOUSE |
+                                                 POSIX_IMGUI_DEVICE_TYPE_KEYBOARD);
+    btstack_run_loop_base_execute_callbacks();
+
+    uni_hid_device_t pad;
+    init_synthetic_device(&pad, 0x054c, 0x0ce6, CONTROLLER_TYPE_PS5Controller, "DualSense");
+    uni_hid_device_set_cod(&pad, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_GAMEPAD);
+    plat->on_device_connected(&pad);
+    TEST_ASSERT(plat->on_device_ready(&pad) == UNI_ERROR_SUCCESS);
+
+    uni_hid_device_t mouse;
+    init_synthetic_device(&mouse, 0x046d, 0xb019, CONTROLLER_TYPE_GenericMouse, "Mouse");
+    uni_hid_device_set_cod(&mouse, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE);
+    plat->on_device_connected(&mouse);
+    TEST_ASSERT(plat->on_device_ready(&mouse) == UNI_ERROR_SUCCESS);
+
+    uni_hid_device_t kb;
+    init_synthetic_device(&kb, 0x046d, 0xb342, CONTROLLER_TYPE_GenericKeyboard, "Keyboard");
+    uni_hid_device_set_cod(&kb, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_KEYBOARD);
+    plat->on_device_connected(&kb);
+    TEST_ASSERT(plat->on_device_ready(&kb) == UNI_ERROR_SUCCESS);
+
+    ControllerSnapshot snapshots[kMaxControllers];
+    posix_imgui_get_snapshots(snapshots, nullptr);
+    TEST_ASSERT(snapshots[0].connected && snapshots[1].connected && snapshots[2].connected);
+
+    // Disable Mouse and Keyboard -> Slot 1 and Slot 2 must disconnect immediately; Slot 0 stays connected.
+    posix_imgui_request_set_allowed_device_types(POSIX_IMGUI_DEVICE_TYPE_GAMEPAD);
+    btstack_run_loop_base_execute_callbacks();
+
+    posix_imgui_get_snapshots(snapshots, nullptr);
+    TEST_ASSERT(snapshots[0].connected);
+    TEST_ASSERT(!snapshots[1].connected);
+    TEST_ASSERT(!snapshots[2].connected);
+}
+
+/// Test 16: Verifies that virtual child devices (e.g., DualSense / DualShock 4 touchpad mouse)
+/// are disabled by default, can be enabled independently of physical mice, do not steal tab
+/// focus from the parent gamepad, and are immediately disconnected when toggled off at runtime.
+void test_virtual_device_disabled_by_default_and_runtime_toggle() {
+    btstack_run_loop_deinit();
+    btstack_run_loop_init(btstack_run_loop_posix_get_instance());
+    posix_imgui_reset_for_test();
+
+    struct uni_platform* plat = get_posix_imgui_platform();
+    TEST_ASSERT(!posix_imgui_is_virtual_devices_enabled());
+    TEST_ASSERT(!uni_virtual_device_is_enabled());
+    TEST_ASSERT(posix_imgui_get_allowed_device_types() == POSIX_IMGUI_DEVICE_TYPE_GAMEPAD);
+
+    // Connect parent DualSense in Slot 0.
+    uni_hid_device_t parent_ds5;
+    init_synthetic_device(&parent_ds5, 0x054c, 0x0ce6, CONTROLLER_TYPE_PS5Controller, "DualSense");
+    uni_hid_device_set_cod(&parent_ds5, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_GAMEPAD);
+    plat->on_device_connected(&parent_ds5);
+    TEST_ASSERT(plat->on_device_ready(&parent_ds5) == UNI_ERROR_SUCCESS);
+
+    // Virtual child mouse must be rejected while Virtual Devices are disabled.
+    uni_hid_device_t virtual_mouse;
+    init_synthetic_device(&virtual_mouse, 0x054c, 0x0ce6, CONTROLLER_TYPE_PS5Controller, "virtual-1");
+    uni_hid_device_set_cod(&virtual_mouse, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE);
+    virtual_mouse.parent = &parent_ds5;
+    parent_ds5.child = &virtual_mouse;
+
+    plat->on_device_connected(&virtual_mouse);
+    TEST_ASSERT(plat->on_device_ready(&virtual_mouse) == UNI_ERROR_IGNORE_DEVICE);
+    TEST_ASSERT(get_posix_imgui_instance(&virtual_mouse)->slot == -1);
+
+    // Enable Virtual Devices (while physical Mice remain disabled).
+    posix_imgui_request_set_virtual_devices_enabled(true);
+    btstack_run_loop_base_execute_callbacks();
+    TEST_ASSERT(posix_imgui_is_virtual_devices_enabled());
+    TEST_ASSERT(uni_virtual_device_is_enabled());
+
+    // Clear the newly_connected_slot latch from parent_ds5 before connecting virtual_mouse.
+    ControllerSnapshot snapshots[kMaxControllers];
+    int newly_connected = -1;
+    posix_imgui_get_snapshots(snapshots, &newly_connected);
+    TEST_ASSERT(newly_connected == 0);
+
+    // Virtual child mouse must now be accepted into Slot 1 even though physical Mice are disabled,
+    // and must NOT overwrite `newly_connected_slot`.
+    plat->on_device_connected(&virtual_mouse);
+    TEST_ASSERT(plat->on_device_ready(&virtual_mouse) == UNI_ERROR_SUCCESS);
+    TEST_ASSERT(get_posix_imgui_instance(&virtual_mouse)->slot == 1);
+
+    posix_imgui_get_snapshots(snapshots, &newly_connected);
+    TEST_ASSERT(newly_connected == -1);
+    TEST_ASSERT(snapshots[0].connected && !snapshots[0].is_virtual_device);
+    TEST_ASSERT(snapshots[1].connected && snapshots[1].is_virtual_device);
+    TEST_ASSERT(snapshots[1].controller.klass == UNI_CONTROLLER_CLASS_MOUSE);
+
+    // Disable Virtual Devices at runtime -> Slot 1 (virtual_mouse) must immediately disconnect
+    // and unlink from parent_ds5, while Slot 0 (parent_ds5) stays connected!
+    posix_imgui_request_set_virtual_devices_enabled(false);
+    btstack_run_loop_base_execute_callbacks();
+    TEST_ASSERT(!posix_imgui_is_virtual_devices_enabled());
+    TEST_ASSERT(!uni_virtual_device_is_enabled());
+
+    posix_imgui_get_snapshots(snapshots, nullptr);
+    TEST_ASSERT(snapshots[0].connected);
+    TEST_ASSERT(!snapshots[1].connected);
+    TEST_ASSERT(parent_ds5.child == nullptr);
+}
+
 }  // namespace
 
 int main() {
@@ -737,6 +910,11 @@ int main() {
     RUN_TEST(test_ds5_set_player_leds_all_16_bitmasks_and_sequence_wrap);
     RUN_TEST(test_ds5_set_player_leds_upper_nibble_masking);
     RUN_TEST(test_ds5_player_leds_end_to_end_via_posix_imgui_platform);
+
+    // Suite E
+    RUN_TEST(test_device_discovery_and_ready_filtering_by_device_type);
+    RUN_TEST(test_runtime_disconnection_when_device_category_disabled);
+    RUN_TEST(test_virtual_device_disabled_by_default_and_runtime_toggle);
 
     std::printf("\nSummary: %d/%d tests passed.\n", g_tests_run - g_tests_failed, g_tests_run);
     return g_tests_failed == 0 ? EXIT_SUCCESS : EXIT_FAILURE;

@@ -47,6 +47,8 @@ enum CommandType {
     CMD_RUMBLE = 0,
     CMD_PLAYER_LEDS,
     CMD_LIGHTBAR_COLOR,
+    CMD_SET_VIRTUAL_DEVICES,
+    CMD_SET_ALLOWED_DEVICE_TYPES,
     CMD_SHUTDOWN,
 };
 
@@ -61,6 +63,8 @@ struct ControllerCommand {
     uint8_t r;
     uint8_t g;
     uint8_t b;
+    bool virtual_devices_enabled;
+    uint32_t allowed_device_types_mask;
 };
 
 int g_enhanced_mode = 0;
@@ -82,6 +86,86 @@ bool g_cmd_wakeup_pending = false;
 btstack_context_callback_registration_t g_cmd_callback = {};
 
 std::atomic<bool> g_shutdown_requested{false};
+std::atomic<bool> g_virtual_devices_enabled{false};
+std::atomic<uint32_t> g_allowed_device_types_mask{POSIX_IMGUI_DEVICE_TYPE_DEFAULT};
+
+void posix_imgui_on_device_disconnected(uni_hid_device_t* d);
+
+// Maps a Bluetooth Class of Device (CoD) value to `PosixImguiDeviceTypeFlags`.
+uint32_t classify_cod_device_types(uint32_t cod) {
+    if ((cod & UNI_BT_COD_MAJOR_MASK) == UNI_BT_COD_MAJOR_PERIPHERAL) {
+        const uint32_t minor_cod = cod & UNI_BT_COD_MINOR_MASK;
+        uint32_t flags = POSIX_IMGUI_DEVICE_TYPE_NONE;
+        if ((minor_cod & (UNI_BT_COD_MINOR_GAMEPAD | UNI_BT_COD_MINOR_JOYSTICK)) != 0) {
+            flags |= POSIX_IMGUI_DEVICE_TYPE_GAMEPAD;
+        }
+        if ((minor_cod & UNI_BT_COD_MINOR_MICE) != 0) {
+            flags |= POSIX_IMGUI_DEVICE_TYPE_MOUSE;
+        }
+        if ((minor_cod & UNI_BT_COD_MINOR_KEYBOARD) != 0) {
+            flags |= POSIX_IMGUI_DEVICE_TYPE_KEYBOARD;
+        }
+        if (flags != POSIX_IMGUI_DEVICE_TYPE_NONE) {
+            return flags;
+        }
+    }
+    // Non-peripheral or zero CoD (e.g., Audio/Video remote or synthetic test gamepad):
+    return POSIX_IMGUI_DEVICE_TYPE_GAMEPAD;
+}
+
+// Classifies a physical `uni_hid_device_t` into one or more `PosixImguiDeviceTypeFlags`.
+uint32_t classify_physical_device_types(const uni_hid_device_t* d) {
+    if (d == nullptr) {
+        return POSIX_IMGUI_DEVICE_TYPE_NONE;
+    }
+
+    uint32_t flags = POSIX_IMGUI_DEVICE_TYPE_NONE;
+    if (uni_hid_device_is_mouse(d) || d->controller_type == CONTROLLER_TYPE_GenericMouse ||
+        d->controller.klass == UNI_CONTROLLER_CLASS_MOUSE) {
+        flags |= POSIX_IMGUI_DEVICE_TYPE_MOUSE;
+    }
+    if (uni_hid_device_is_keyboard(d) || d->controller_type == CONTROLLER_TYPE_GenericKeyboard ||
+        d->controller.klass == UNI_CONTROLLER_CLASS_KEYBOARD) {
+        flags |= POSIX_IMGUI_DEVICE_TYPE_KEYBOARD;
+    }
+    if (uni_hid_device_is_gamepad(d)) {
+        flags |= POSIX_IMGUI_DEVICE_TYPE_GAMEPAD;
+    }
+    if (flags != POSIX_IMGUI_DEVICE_TYPE_NONE) {
+        return flags;
+    }
+    return classify_cod_device_types(d->cod);
+}
+
+// Safely reclaims platform slot(s), disconnects, and deletes a device (and any virtual child)
+// on the BTstack thread without holding `g_state_mutex`.
+void disconnect_and_delete_device(uni_hid_device_t* d) {
+    if (d == nullptr) {
+        return;
+    }
+    if (d->child != nullptr) {
+        posix_imgui_on_device_disconnected(d->child);
+    }
+    posix_imgui_on_device_disconnected(d);
+
+    // Only invoke BTstack / Bluepad32 pool teardown (`uni_hid_device_disconnect` and
+    // `uni_hid_device_delete`) when `d` resides in `uni_hid_device.c`'s device pool.
+    // For synthetic stack-allocated `uni_hid_device_t` structs in headless unit tests
+    // (where `hci_init()` is not called and `hci_stack` is null), unlink parent/child
+    // pointers directly after reclaiming the platform slot(s).
+    if (uni_hid_device_get_idx_for_instance(d) >= 0) {
+        uni_hid_device_disconnect(d);
+        uni_hid_device_delete(d);
+    } else {
+        if (d->parent != nullptr && d->parent->child == d) {
+            d->parent->child = nullptr;
+        }
+        if (d->child != nullptr) {
+            d->child->parent = nullptr;
+            d->child = nullptr;
+        }
+    }
+}
 
 // Maps a Bluepad32 controller model to its physical face-button layout family.
 ControllerLayoutType classify_controller_layout(uni_controller_type_t type) {
@@ -161,6 +245,76 @@ void process_pending_commands(void* context) {
             continue;
         }
 
+        if (cmd.type == CMD_SET_VIRTUAL_DEVICES) {
+            g_virtual_devices_enabled.store(cmd.virtual_devices_enabled);
+            uni_virtual_device_set_enabled(cmd.virtual_devices_enabled);
+
+            if (!cmd.virtual_devices_enabled) {
+                std::vector<uni_hid_device_t*> virtual_to_disconnect;
+                {
+                    std::lock_guard<std::mutex> lock(g_state_mutex);
+                    for (int i = 0; i < kMaxControllers; ++i) {
+                        uni_hid_device_t* dev = g_devices[i];
+                        if (dev != nullptr && uni_hid_device_is_virtual_device(dev)) {
+                            virtual_to_disconnect.push_back(dev);
+                        }
+                    }
+                }
+                for (uni_hid_device_t* dev : virtual_to_disconnect) {
+                    disconnect_and_delete_device(dev);
+                }
+            } else {
+                // If a DualShock 4 or DualSense is already connected in Bluepad32's device pool
+                // without a virtual child, spawn its virtual touchpad mouse immediately.
+                std::vector<uni_hid_device_t*> parents_needing_virtual;
+                {
+                    std::lock_guard<std::mutex> lock(g_state_mutex);
+                    for (int i = 0; i < kMaxControllers; ++i) {
+                        uni_hid_device_t* dev = g_devices[i];
+                        if (dev != nullptr && !uni_hid_device_is_virtual_device(dev) && dev->child == nullptr &&
+                            uni_hid_device_get_idx_for_instance(dev) >= 0 &&
+                            (dev->controller_type == CONTROLLER_TYPE_PS4Controller ||
+                             dev->controller_type == CONTROLLER_TYPE_PS5Controller)) {
+                            parents_needing_virtual.push_back(dev);
+                        }
+                    }
+                }
+                for (uni_hid_device_t* parent : parents_needing_virtual) {
+                    uni_hid_device_t* child = uni_hid_device_create_virtual(parent);
+                    if (child != nullptr) {
+                        uni_hid_device_set_cod(child, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE);
+                        uni_hid_device_connect(child);
+                        if (!uni_hid_device_set_ready_complete(child)) {
+                            parent->child = nullptr;
+                        }
+                    }
+                }
+            }
+            continue;
+        }
+
+        if (cmd.type == CMD_SET_ALLOWED_DEVICE_TYPES) {
+            g_allowed_device_types_mask.store(cmd.allowed_device_types_mask);
+
+            std::vector<uni_hid_device_t*> disallowed_to_disconnect;
+            {
+                std::lock_guard<std::mutex> lock(g_state_mutex);
+                for (int i = 0; i < kMaxControllers; ++i) {
+                    uni_hid_device_t* dev = g_devices[i];
+                    if (dev != nullptr && !uni_hid_device_is_virtual_device(dev)) {
+                        const uint32_t dev_types = classify_physical_device_types(dev);
+                        if ((dev_types & cmd.allowed_device_types_mask) == 0) {
+                            disallowed_to_disconnect.push_back(dev);
+                        }
+                    }
+                }
+            }
+            for (uni_hid_device_t* dev : disallowed_to_disconnect) {
+                disconnect_and_delete_device(dev);
+            }
+            continue;
+        }
+
         if (cmd.slot < 0 || cmd.slot >= kMaxControllers) {
             continue;
         }
@@ -197,6 +351,8 @@ void process_pending_commands(void* context) {
                     d->report_parser.set_lightbar_color(d, cmd.r, cmd.g, cmd.b);
                 }
                 break;
+            case CMD_SET_VIRTUAL_DEVICES:
+            case CMD_SET_ALLOWED_DEVICE_TYPES:
             case CMD_SHUTDOWN:
                 break;
         }
@@ -262,6 +418,10 @@ void posix_imgui_on_init_complete(void) {
         uni_bt_list_keys_unsafe();
     }
 
+    // Enforce the platform's virtual-device state (disabled by default) regardless of
+    // any stale property persisted in `/tmp/bp32_property.tvl`.
+    uni_virtual_device_set_enabled(g_virtual_devices_enabled.load());
+
     uni_property_dump_all();
 
     uni_bt_start_scanning_and_autoconnect_unsafe();
@@ -269,10 +429,14 @@ void posix_imgui_on_init_complete(void) {
 }
 
 uni_error_t posix_imgui_on_device_discovered(bd_addr_t addr, const char* name, uint16_t cod, uint8_t rssi) {
-    (void)addr;
-    (void)name;
-    (void)cod;
     (void)rssi;
+    const uint32_t device_types = classify_cod_device_types(cod);
+    const uint32_t allowed_mask = g_allowed_device_types_mask.load();
+    if ((device_types & allowed_mask) == 0) {
+        logi("posix_imgui: ignoring discovered device %s ('%s', cod=%#x, types=%#x, allowed=%#x)\n",
+             bd_addr_to_str(addr), name ? name : "", cod, device_types, allowed_mask);
+        return UNI_ERROR_IGNORE_DEVICE;
+    }
     return UNI_ERROR_SUCCESS;
 }
 
@@ -320,6 +484,27 @@ uni_error_t posix_imgui_on_device_ready(uni_hid_device_t* d) {
     }
 
     posix_imgui_instance_t* ins = get_posix_imgui_instance(d);
+    const bool is_virtual = uni_hid_device_is_virtual_device(d);
+
+    if (is_virtual) {
+        if (!g_virtual_devices_enabled.load()) {
+            ins->slot = -1;
+            ins->gamepad_seat = GAMEPAD_SEAT_NONE;
+            logi("posix_imgui: rejecting virtual device %p (virtual devices disabled)\n", static_cast<void*>(d));
+            return UNI_ERROR_IGNORE_DEVICE;
+        }
+    } else {
+        const uint32_t device_types = classify_physical_device_types(d);
+        const uint32_t allowed_mask = g_allowed_device_types_mask.load();
+        if ((device_types & allowed_mask) == 0) {
+            ins->slot = -1;
+            ins->gamepad_seat = GAMEPAD_SEAT_NONE;
+            logi("posix_imgui: rejecting physical device %p (types=%#x, allowed=%#x)\n", static_cast<void*>(d),
+                 device_types, allowed_mask);
+            return UNI_ERROR_IGNORE_DEVICE;
+        }
+    }
+
     int assigned_slot = -1;
 
     {
@@ -358,6 +543,7 @@ uni_error_t posix_imgui_on_device_ready(uni_hid_device_t* d) {
         snap.rssi = d->conn.rssi;
 
         snap.layout = classify_controller_layout(d->controller_type);
+        snap.is_virtual_device = is_virtual;
         snap.has_rumble = (d->report_parser.play_dual_rumble != nullptr);
         snap.has_player_leds = (d->report_parser.set_player_leds != nullptr);
         snap.has_rgb_led = (d->report_parser.set_lightbar_color != nullptr);
@@ -366,10 +552,16 @@ uni_error_t posix_imgui_on_device_ready(uni_hid_device_t* d) {
         snap.has_imu = has_imu_support(d->controller_type);
 
         snap.controller = d->controller;
+        if (is_virtual && uni_hid_device_is_mouse(d) && snap.controller.klass == UNI_CONTROLLER_CLASS_NONE) {
+            snap.controller.klass = UNI_CONTROLLER_CLASS_MOUSE;
+        }
         snap.last_report_timestamp_us = 0;
         snap.report_delta_ms = 0;
 
-        g_most_recent_connected_slot = assigned_slot;
+        // Avoid stealing tab focus away from the parent gamepad when a virtual child mouse attaches.
+        if (!is_virtual) {
+            g_most_recent_connected_slot = assigned_slot;
+        }
     }
 
     if (d->report_parser.set_player_leds != nullptr) {
@@ -491,6 +683,32 @@ void posix_imgui_request_lightbar_color(int slot, uint8_t r, uint8_t g, uint8_t 
     enqueue_command(cmd);
 }
 
+void posix_imgui_request_set_virtual_devices_enabled(bool enabled) {
+    g_virtual_devices_enabled.store(enabled);
+    ControllerCommand cmd{};
+    cmd.type = CMD_SET_VIRTUAL_DEVICES;
+    cmd.slot = -1;
+    cmd.virtual_devices_enabled = enabled;
+    enqueue_command(cmd);
+}
+
+bool posix_imgui_is_virtual_devices_enabled(void) {
+    return g_virtual_devices_enabled.load();
+}
+
+void posix_imgui_request_set_allowed_device_types(uint32_t allowed_types_mask) {
+    g_allowed_device_types_mask.store(allowed_types_mask);
+    ControllerCommand cmd{};
+    cmd.type = CMD_SET_ALLOWED_DEVICE_TYPES;
+    cmd.slot = -1;
+    cmd.allowed_device_types_mask = allowed_types_mask;
+    enqueue_command(cmd);
+}
+
+uint32_t posix_imgui_get_allowed_device_types(void) {
+    return g_allowed_device_types_mask.load();
+}
+
 void posix_imgui_request_shutdown(void) {
     g_shutdown_requested.store(true);
     ControllerCommand cmd{};
@@ -519,6 +737,9 @@ void posix_imgui_reset_for_test(void) {
     }
     btstack_run_loop_base_execute_callbacks();
     g_shutdown_requested.store(false);
+    g_virtual_devices_enabled.store(false);
+    g_allowed_device_types_mask.store(POSIX_IMGUI_DEVICE_TYPE_DEFAULT);
+    uni_virtual_device_set_enabled(false);
 }
 
 void posix_imgui_process_pending_commands(void) {
