@@ -77,6 +77,8 @@ class DemoScene {
     void ClearImuHistory(int slot);
     /// Tracks newly activated buttons, D-Pad directions, triggers, and sticks for the "Last Detected Input" card.
     void UpdateLastDetectedInput(int slot, const ControllerSnapshot& snap);
+    /// Dynamically pulses dual-motor rumble proportional to LT/RT pressure when Trigger Rumble Mode is active.
+    void UpdateTriggerRumble(int slot, const ControllerSnapshot& snap);
 
     ControllerSnapshot mSnapshots[kMaxControllers];  ///< Frame-local copy of all 4 controller slots.
     bool mPrevConnected[kMaxControllers];            ///< Previous frame's connection state per slot.
@@ -99,11 +101,15 @@ class DemoScene {
     bool mPrevLeftStickActive[kMaxControllers];    ///< Previous frame's Left Stick deflection state.
     bool mPrevRightStickActive[kMaxControllers];   ///< Previous frame's Right Stick deflection state.
 
-    // Per-controller Rumble tab parameters
-    float mRumbleDelayMs[kMaxControllers];          ///< Start delay in ms (`0..1000`, default `0`).
-    float mRumbleDurationMs[kMaxControllers];       ///< Vibration duration in ms (`0..2000`, default `500`).
-    float mRumbleWeakIntensity[kMaxControllers];    ///< Weak motor normalized intensity (`0.0..1.0`).
-    float mRumbleStrongIntensity[kMaxControllers];  ///< Strong motor normalized intensity (`0.0..1.0`).
+    // Per-controller Rumble tab parameters & Trigger Rumble Mode state
+    float mRumbleDurationMs[kMaxControllers];           ///< Vibration duration in ms (`50..5000`, default `1000`).
+    float mRumbleWeakIntensity[kMaxControllers];        ///< Right motor (Light/High Freq) intensity (`0.0..1.0`).
+    float mRumbleStrongIntensity[kMaxControllers];      ///< Left motor (Heavy/Low Freq) intensity (`0.0..1.0`).
+    bool mTriggerRumbleEnabled[kMaxControllers];        ///< True when LT/RT Trigger Rumble Mode is toggled on.
+    bool mTriggerRumbleActive[kMaxControllers];         ///< True while Trigger Rumble Mode is actively vibrating.
+    double mLastTriggerRumbleTimeSec[kMaxControllers];  ///< Timestamp of last Trigger Rumble command dispatch.
+    uint8_t mLastTriggerStrongU8[kMaxControllers];      ///< Last sent Left Motor (strong) amplitude from LT.
+    uint8_t mLastTriggerWeakU8[kMaxControllers];        ///< Last sent Right Motor (weak) amplitude from RT.
 
     // Per-controller IMU circular history ring buffers & integrated gyro dial angles
     float mGyroHistory[kMaxControllers][kMotionAxisCount][kImuHistoryLen];

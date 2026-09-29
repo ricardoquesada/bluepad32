@@ -52,47 +52,46 @@ constexpr float kFontScaleMin = 0.50f;
 constexpr float kFontScaleMax = 4.00f;
 constexpr float kFontScaleStep = 0.25f;
 
-constexpr float kVibrationDelayMin = 0.0f;
-constexpr float kVibrationDelayMax = 1000.0f;
-constexpr float kVibrationDelayStep = 50.0f;
+void DrawRightAlignedText(const ImVec4& color, const char* fmt, ...) {
+    char buf[128];
+    va_list args;
+    va_start(args, fmt);
+    std::vsnprintf(buf, sizeof(buf), fmt, args);
+    va_end(args);
 
-constexpr float kVibrationDurationMin = 0.0f;
-constexpr float kVibrationDurationMax = 2000.0f;
-constexpr float kVibrationDurationStep = 100.0f;
-
-constexpr float kVibrationIntensityMin = 0.0f;
-constexpr float kVibrationIntensityMax = 1.0f;
-constexpr float kVibrationIntensityStep = 0.05f;
-
-// Renders a labeled `-` / `+` stepper row for Rumble parameters (`Start Delay`, `Duration`,
-// `Weak Motor Intensity`, `Strong Motor Intensity`).
-void VibrationParameters(const char* labelText,
-                         const char* labelTag,
-                         float vMin,
-                         float vMax,
-                         float vStep,
-                         float* vValue) {
-    char plusString[32];
-    char minusString[32];
-    std::snprintf(plusString, sizeof(plusString), " + ##%s", labelTag);
-    std::snprintf(minusString, sizeof(minusString), " - ##%s", labelTag);
-
-    ImGui::Spacing();
-    ImGui::Text("%s", labelText);
-    ImGui::SameLine(190.0f);
-    if (ImGui::Button(minusString)) {
-        *vValue = std::max(vMin, *vValue - vStep);
+    const float textW = ImGui::CalcTextSize(buf).x;
+    const float availW = ImGui::GetContentRegionAvail().x;
+    if (availW > textW) {
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + availW - textW);
     }
-    ImGui::SameLine();
-    if (vMax > 1.0f) {
-        ImGui::Text("%6.0f ms", static_cast<double>(*vValue));
-    } else {
-        ImGui::Text("  %1.2f (%3d)", static_cast<double>(*vValue), static_cast<int>(std::round(*vValue * 255.0f)));
+    ImGui::TextColored(color, "%s", buf);
+}
+
+bool DrawToggleSwitch(const char* strId, bool* v) {
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    const ImVec2 p = ImGui::GetCursorScreenPos();
+    constexpr float kHeight = 26.0f;
+    constexpr float kWidth = 48.0f;
+    constexpr float kRadius = kHeight * 0.5f;
+
+    ImGui::InvisibleButton(strId, ImVec2(kWidth, kHeight));
+    const bool clicked = ImGui::IsItemClicked();
+    if (clicked) {
+        *v = !*v;
     }
-    ImGui::SameLine();
-    if (ImGui::Button(plusString)) {
-        *vValue = std::min(vMax, *vValue + vStep);
-    }
+    const bool hovered = ImGui::IsItemHovered();
+
+    const ImU32 bgCol = *v ? (hovered ? IM_COL32(55, 165, 255, 255) : IM_COL32(35, 145, 240, 255))
+                           : (hovered ? IM_COL32(75, 82, 96, 255) : IM_COL32(52, 58, 70, 255));
+    const ImU32 borderCol = *v ? IM_COL32(110, 205, 255, 255) : IM_COL32(110, 118, 135, 255);
+    const ImU32 knobCol = *v ? IM_COL32(255, 255, 255, 255) : IM_COL32(190, 196, 210, 255);
+
+    drawList->AddRectFilled(p, ImVec2(p.x + kWidth, p.y + kHeight), bgCol, kRadius);
+    drawList->AddRect(p, ImVec2(p.x + kWidth, p.y + kHeight), borderCol, kRadius, 0, 1.5f);
+
+    const float knobX = *v ? (p.x + kWidth - kRadius) : (p.x + kRadius);
+    drawList->AddCircleFilled(ImVec2(knobX, p.y + kRadius), kRadius - 3.5f, knobCol, 24);
+    return clicked;
 }
 
 const char* LayoutTypeToString(ControllerLayoutType layout) {
@@ -441,10 +440,14 @@ DemoScene::DemoScene()
       mPrevR2Active{},
       mPrevLeftStickActive{},
       mPrevRightStickActive{},
-      mRumbleDelayMs{},
       mRumbleDurationMs{},
       mRumbleWeakIntensity{},
       mRumbleStrongIntensity{},
+      mTriggerRumbleEnabled{},
+      mTriggerRumbleActive{},
+      mLastTriggerRumbleTimeSec{},
+      mLastTriggerStrongU8{},
+      mLastTriggerWeakU8{},
       mGyroHistory{},
       mAccelHistory{},
       mGyroAngleDeg{},
@@ -459,10 +462,17 @@ DemoScene::DemoScene()
     for (int i = 0; i < kMaxControllers; ++i) {
         std::snprintf(mLastDetectedInput[i], sizeof(mLastDetectedInput[i]), "None");
 
-        mRumbleDelayMs[i] = 0.0f;
-        mRumbleDurationMs[i] = 500.0f;
-        mRumbleWeakIntensity[i] = 0.50f;
-        mRumbleStrongIntensity[i] = 0.50f;
+        // Default Rumble parameters matching Force Feedback card:
+        // Left Motor (Heavy / Low Freq) = 80% (204/255), Right Motor (Light / High Freq) = 40% (102/255),
+        // Duration = 1000 ms (1.0s).
+        mRumbleDurationMs[i] = 1000.0f;
+        mRumbleStrongIntensity[i] = 0.80f;
+        mRumbleWeakIntensity[i] = 0.40f;
+        mTriggerRumbleEnabled[i] = false;
+        mTriggerRumbleActive[i] = false;
+        mLastTriggerRumbleTimeSec[i] = 0.0;
+        mLastTriggerStrongU8[i] = 0;
+        mLastTriggerWeakU8[i] = 0;
 
         mPlayerLedIndex[i] = i + 1;
         for (int b = 0; b < 4; ++b) {
@@ -637,6 +647,63 @@ void DemoScene::UpdateLastDetectedInput(int slot, const ControllerSnapshot& snap
     mPrevRightStickActive[slot] = rightActive;
 }
 
+void DemoScene::UpdateTriggerRumble(int slot, const ControllerSnapshot& snap) {
+    if (slot < 0 || slot >= kMaxControllers) {
+        return;
+    }
+    if (!snap.connected || !snap.has_rumble || !mTriggerRumbleEnabled[slot]) {
+        if (mTriggerRumbleActive[slot]) {
+            posix_imgui_request_rumble(slot, 0, 0, 0, 0);
+            mTriggerRumbleActive[slot] = false;
+            mLastTriggerStrongU8[slot] = 0;
+            mLastTriggerWeakU8[slot] = 0;
+        }
+        return;
+    }
+
+    const uni_gamepad_t& gp = snap.controller.gamepad;
+    const float l2Norm = NormalizeTriggerAxis(gp.brake, (gp.buttons & BUTTON_TRIGGER_L) != 0);
+    const float r2Norm = NormalizeTriggerAxis(gp.throttle, (gp.buttons & BUTTON_TRIGGER_R) != 0);
+
+    // Threshold minor trigger noise below 2%
+    const float strongNorm = (l2Norm >= 0.02f) ? l2Norm : 0.0f;
+    const float weakNorm = (r2Norm >= 0.02f) ? r2Norm : 0.0f;
+    const uint8_t strongU8 = static_cast<uint8_t>(std::clamp(std::round(strongNorm * 255.0f), 0.0f, 255.0f));
+    const uint8_t weakU8 = static_cast<uint8_t>(std::clamp(std::round(weakNorm * 255.0f), 0.0f, 255.0f));
+
+    if (strongU8 == 0 && weakU8 == 0) {
+        if (mTriggerRumbleActive[slot]) {
+            posix_imgui_request_rumble(slot, 0, 0, 0, 0);
+            mTriggerRumbleActive[slot] = false;
+            mLastTriggerStrongU8[slot] = 0;
+            mLastTriggerWeakU8[slot] = 0;
+        }
+        return;
+    }
+
+    // Reflect live trigger pressure on the Rumble tab sliders while Trigger Rumble Mode is active
+    mRumbleStrongIntensity[slot] = strongNorm;
+    mRumbleWeakIntensity[slot] = weakNorm;
+
+    const double nowSec = ImGui::GetTime();
+    const double elapsedSec = nowSec - mLastTriggerRumbleTimeSec[slot];
+    const int deltaStrong = std::abs(static_cast<int>(strongU8) - static_cast<int>(mLastTriggerStrongU8[slot]));
+    const int deltaWeak = std::abs(static_cast<int>(weakU8) - static_cast<int>(mLastTriggerWeakU8[slot]));
+
+    // Rate-limit Bluetooth HID output reports:
+    //   - Dispatch immediately when transitioning from idle -> active
+    //   - Dispatch at up to 20 Hz (50ms) when trigger pressure changes by >= 8 counts
+    //   - Sustain at 8 Hz (125ms) with a 200ms pulse window while held steady
+    if (!mTriggerRumbleActive[slot] || (elapsedSec >= 0.05 && (deltaStrong >= 8 || deltaWeak >= 8)) ||
+        elapsedSec >= 0.125) {
+        posix_imgui_request_rumble(slot, 0, 200, weakU8, strongU8);
+        mTriggerRumbleActive[slot] = true;
+        mLastTriggerRumbleTimeSec[slot] = nowSec;
+        mLastTriggerStrongU8[slot] = strongU8;
+        mLastTriggerWeakU8[slot] = weakU8;
+    }
+}
+
 void DemoScene::DoFrame() {
     int newly_connected = -1;
     posix_imgui_get_snapshots(mSnapshots, &newly_connected);
@@ -650,6 +717,7 @@ void DemoScene::DoFrame() {
         }
         UpdateImuHistory(i, mSnapshots[i]);
         UpdateLastDetectedInput(i, mSnapshots[i]);
+        UpdateTriggerRumble(i, mSnapshots[i]);
         mPrevConnected[i] = mSnapshots[i].connected;
     }
 
@@ -1158,71 +1226,284 @@ void DemoScene::RenderPanel_InfoTab(int slot, const ControllerSnapshot& snap) {
 
 void DemoScene::RenderPanel_VibrationTab(int slot, const ControllerSnapshot& snap) {
     ImGui::Spacing();
-    ImGui::TextColored(kTextColorCyan, "Dual-Motor Force Feedback (Rumble)");
-    ImGui::Separator();
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 8.0f);
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.10f, 0.11f, 0.14f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.22f, 0.25f, 0.32f, 1.0f));
 
-    if (!snap.has_rumble) {
+    // ========================================================================
+    // Card 1: Dual-Motor Force Amplitude
+    // ========================================================================
+    const float card1Height = snap.has_rumble ? 258.0f : 282.0f;
+    if (ImGui::BeginChild("##rumble_amplitude_card", ImVec2(0.0f, card1Height), ImGuiChildFlags_Borders,
+                          ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
+        ImGui::TextColored(kTextColorWhite, "Dual-Motor Force Amplitude");
+        ImGui::SameLine();
+
+        const char* statusLabel = !snap.has_rumble             ? "No Vibrator"
+                                  : mTriggerRumbleActive[slot] ? "Trigger Haptics Active"
+                                                               : "Vibrator Ready";
+        const ImVec4 statusColor = !snap.has_rumble             ? kTextColorYellow
+                                   : mTriggerRumbleActive[slot] ? kTextColorCyan
+                                                                : kTextColorGreen;
+        const ImU32 dotColor = !snap.has_rumble             ? IM_COL32(255, 215, 50, 255)
+                               : mTriggerRumbleActive[slot] ? IM_COL32(75, 215, 255, 255)
+                                                            : IM_COL32(65, 225, 110, 255);
+
+        const float statusTextW = ImGui::CalcTextSize(statusLabel).x;
+        const float availHeaderW = ImGui::GetContentRegionAvail().x;
+        if (availHeaderW > statusTextW + 16.0f) {
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + availHeaderW - statusTextW);
+        }
+        const ImVec2 statusScreenPos = ImGui::GetCursorScreenPos();
+        ImGui::GetWindowDrawList()->AddCircleFilled(
+            ImVec2(statusScreenPos.x - 10.0f, statusScreenPos.y + ImGui::GetTextLineHeight() * 0.5f), 4.0f, dotColor,
+            16);
+        ImGui::TextColored(statusColor, "%s", statusLabel);
+
+        if (!snap.has_rumble) {
+            ImGui::TextColored(kTextColorYellow,
+                               "Note: %s does not advertise rumble support (`play_dual_rumble` unavailable).",
+                               snap.model_name);
+        }
+
         ImGui::Spacing();
-        ImGui::TextColored(kTextColorYellow, "No vibration / rumble support reported for %s.", snap.model_name);
-        return;
+
+        // Slider 1: Left Motor (Heavy / Low Freq) -> strong_magnitude (0..255)
+        const uint8_t strongU8 =
+            static_cast<uint8_t>(std::clamp(std::round(mRumbleStrongIntensity[slot] * 255.0f), 0.0f, 255.0f));
+        ImGui::TextColored(kTextColorWhite, "Left Motor (Heavy / Low Freq)");
+        ImGui::SameLine();
+        DrawRightAlignedText(kTextColorCyan, "%.0f%% (%u/255)",
+                             static_cast<double>(mRumbleStrongIntensity[slot] * 100.0f), strongU8);
+
+        float strongPct = mRumbleStrongIntensity[slot] * 100.0f;
+        ImGui::SetNextItemWidth(-1.0f);
+        if (ImGui::SliderFloat("##rumble_left_motor", &strongPct, 0.0f, 100.0f, "")) {
+            mRumbleStrongIntensity[slot] = std::clamp(strongPct / 100.0f, 0.0f, 1.0f);
+        }
+
+        ImGui::Spacing();
+
+        // Slider 2: Right Motor (Light / High Freq) -> weak_magnitude (0..255)
+        const uint8_t weakU8 =
+            static_cast<uint8_t>(std::clamp(std::round(mRumbleWeakIntensity[slot] * 255.0f), 0.0f, 255.0f));
+        ImGui::TextColored(kTextColorWhite, "Right Motor (Light / High Freq)");
+        ImGui::SameLine();
+        DrawRightAlignedText(kTextColorCyan, "%.0f%% (%u/255)",
+                             static_cast<double>(mRumbleWeakIntensity[slot] * 100.0f), weakU8);
+
+        float weakPct = mRumbleWeakIntensity[slot] * 100.0f;
+        ImGui::SetNextItemWidth(-1.0f);
+        if (ImGui::SliderFloat("##rumble_right_motor", &weakPct, 0.0f, 100.0f, "")) {
+            mRumbleWeakIntensity[slot] = std::clamp(weakPct / 100.0f, 0.0f, 1.0f);
+        }
+
+        ImGui::Spacing();
+
+        // Slider 3: Duration (50 ms .. 5000 ms)
+        const uint16_t durationMs =
+            static_cast<uint16_t>(std::clamp(std::round(mRumbleDurationMs[slot]), 50.0f, 5000.0f));
+        ImGui::TextColored(kTextColorWhite, "Duration");
+        ImGui::SameLine();
+        DrawRightAlignedText(kTextColorCyan, "%u ms (%.1fs)", durationMs, static_cast<double>(durationMs) / 1000.0);
+
+        ImGui::SetNextItemWidth(-1.0f);
+        if (ImGui::SliderFloat("##rumble_duration", &mRumbleDurationMs[slot], 50.0f, 5000.0f, "")) {
+            mRumbleDurationMs[slot] = std::clamp(std::round(mRumbleDurationMs[slot] / 10.0f) * 10.0f, 50.0f, 5000.0f);
+        }
+
+        ImGui::Spacing();
+        ImGui::Spacing();
+
+        // Bottom Action Buttons: "Test Rumble" (left half) and "Stop Rumble" (right half)
+        const float availW = ImGui::GetContentRegionAvail().x;
+        constexpr float kBtnGap = 14.0f;
+        constexpr float kBtnHeight = 36.0f;
+        const float halfBtnW = std::max(120.0f, (availW - kBtnGap) * 0.5f);
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 18.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+
+        // 1. Test Rumble Button
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.16f, 0.36f, 0.62f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.22f, 0.45f, 0.75f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.12f, 0.28f, 0.50f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.32f, 0.62f, 0.95f, 1.0f));
+        if (ImGui::Button("    Test Rumble", ImVec2(halfBtnW, kBtnHeight)) && snap.has_rumble) {
+            const uint8_t curWeak =
+                static_cast<uint8_t>(std::clamp(std::round(mRumbleWeakIntensity[slot] * 255.0f), 0.0f, 255.0f));
+            const uint8_t curStrong =
+                static_cast<uint8_t>(std::clamp(std::round(mRumbleStrongIntensity[slot] * 255.0f), 0.0f, 255.0f));
+            const uint16_t curDur =
+                static_cast<uint16_t>(std::clamp(std::round(mRumbleDurationMs[slot]), 50.0f, 5000.0f));
+            posix_imgui_request_rumble(slot, 0, curDur, curWeak, curStrong);
+        }
+        {
+            // Draw small vector vibrator icon to the left of "Test Rumble"
+            const ImVec2 bMin = ImGui::GetItemRectMin();
+            const ImVec2 bMax = ImGui::GetItemRectMax();
+            const float textW = ImGui::CalcTextSize("    Test Rumble").x;
+            const float iconCx = (bMin.x + bMax.x - textW) * 0.5f + 6.0f;
+            const float iconCy = (bMin.y + bMax.y) * 0.5f;
+            const ImU32 iconCol = IM_COL32(235, 245, 255, 255);
+            drawList->AddRect(ImVec2(iconCx - 4.0f, iconCy - 6.0f), ImVec2(iconCx + 4.0f, iconCy + 6.0f), iconCol, 1.5f,
+                              0, 1.5f);
+            drawList->AddLine(ImVec2(iconCx - 7.0f, iconCy - 4.0f), ImVec2(iconCx - 7.0f, iconCy + 4.0f), iconCol,
+                              1.5f);
+            drawList->AddLine(ImVec2(iconCx + 7.0f, iconCy - 4.0f), ImVec2(iconCx + 7.0f, iconCy + 4.0f), iconCol,
+                              1.5f);
+        }
+        ImGui::PopStyleColor(4);
+
+        ImGui::SameLine(0.0f, kBtnGap);
+
+        // 2. Stop Rumble Button
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.13f, 0.14f, 0.18f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.24f, 0.14f, 0.16f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.32f, 0.14f, 0.16f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.38f, 0.28f, 0.32f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.98f, 0.38f, 0.38f, 1.0f));
+        if (ImGui::Button("    Stop Rumble", ImVec2(halfBtnW, kBtnHeight)) && snap.has_rumble) {
+            mTriggerRumbleActive[slot] = false;
+            posix_imgui_request_rumble(slot, 0, 0, 0, 0);
+        }
+        {
+            // Draw small vector stop square to the left of "Stop Rumble"
+            const ImVec2 bMin = ImGui::GetItemRectMin();
+            const ImVec2 bMax = ImGui::GetItemRectMax();
+            const float textW = ImGui::CalcTextSize("    Stop Rumble").x;
+            const float iconCx = (bMin.x + bMax.x - textW) * 0.5f + 6.0f;
+            const float iconCy = (bMin.y + bMax.y) * 0.5f;
+            drawList->AddRectFilled(ImVec2(iconCx - 4.5f, iconCy - 4.5f), ImVec2(iconCx + 4.5f, iconCy + 4.5f),
+                                    IM_COL32(245, 85, 85, 255), 1.5f);
+        }
+        ImGui::PopStyleColor(5);
+        ImGui::PopStyleVar(2);
     }
-
-    ImGui::TextColored(kTextColorGreen, "Dual-motor rumble supported (`play_dual_rumble`)");
-
-    VibrationParameters("Start Delay (ms):", "delay", kVibrationDelayMin, kVibrationDelayMax, kVibrationDelayStep,
-                        &mRumbleDelayMs[slot]);
-    VibrationParameters("Duration (ms):", "dur", kVibrationDurationMin, kVibrationDurationMax, kVibrationDurationStep,
-                        &mRumbleDurationMs[slot]);
-    VibrationParameters("Weak Motor Intensity:", "weak", kVibrationIntensityMin, kVibrationIntensityMax,
-                        kVibrationIntensityStep, &mRumbleWeakIntensity[slot]);
-    VibrationParameters("Strong Motor Intensity:", "strong", kVibrationIntensityMin, kVibrationIntensityMax,
-                        kVibrationIntensityStep, &mRumbleStrongIntensity[slot]);
+    ImGui::EndChild();
 
     ImGui::Spacing();
-    ImGui::Separator();
+
+    // ========================================================================
+    // Card 2: Preset Waveforms
+    // ========================================================================
+    if (ImGui::BeginChild("##rumble_presets_card", ImVec2(0.0f, 108.0f), ImGuiChildFlags_Borders,
+                          ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
+        ImGui::TextColored(kTextColorWhite, "Preset Waveforms");
+        ImGui::TextColored(kTextColorGrey,
+                           "Quickly trigger pre-calibrated vibration patterns to verify dual-motor separation.");
+        ImGui::Spacing();
+
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 8.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(12.0f, 6.0f));
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.14f, 0.16f, 0.21f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.25f, 0.34f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.16f, 0.36f, 0.62f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.28f, 0.32f, 0.42f, 1.0f));
+
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        auto drawPlayTriangleOnLastButton = [&]() {
+            const ImVec2 bMin = ImGui::GetItemRectMin();
+            const ImVec2 bMax = ImGui::GetItemRectMax();
+            const float cx = bMin.x + 14.0f;
+            const float cy = (bMin.y + bMax.y) * 0.5f;
+            drawList->AddTriangleFilled(ImVec2(cx - 3.0f, cy - 4.5f), ImVec2(cx - 3.0f, cy + 4.5f),
+                                        ImVec2(cx + 4.5f, cy), IM_COL32(195, 205, 225, 255));
+        };
+
+        auto triggerPreset = [&](float durationMs, float strongNorm, float weakNorm) {
+            mRumbleDurationMs[slot] = durationMs;
+            mRumbleStrongIntensity[slot] = strongNorm;
+            mRumbleWeakIntensity[slot] = weakNorm;
+            if (snap.has_rumble) {
+                const uint8_t weakVal = static_cast<uint8_t>(std::clamp(std::round(weakNorm * 255.0f), 0.0f, 255.0f));
+                const uint8_t strongVal =
+                    static_cast<uint8_t>(std::clamp(std::round(strongNorm * 255.0f), 0.0f, 255.0f));
+                posix_imgui_request_rumble(slot, 0, static_cast<uint16_t>(durationMs), weakVal, strongVal);
+            }
+        };
+
+        if (ImGui::Button("   Pulse (300ms)")) {
+            triggerPreset(300.0f, 0.80f, 0.80f);
+        }
+        drawPlayTriangleOnLastButton();
+
+        ImGui::SameLine(0.0f, 10.0f);
+        if (ImGui::Button("   Heavy Rumble (1.5s)")) {
+            triggerPreset(1500.0f, 1.00f, 0.30f);
+        }
+        drawPlayTriangleOnLastButton();
+
+        ImGui::SameLine(0.0f, 10.0f);
+        if (ImGui::Button("   Light Buzz (800ms)")) {
+            triggerPreset(800.0f, 0.0f, 0.65f);
+        }
+        drawPlayTriangleOnLastButton();
+
+        ImGui::SameLine(0.0f, 10.0f);
+        if (ImGui::Button("Left Motor Only")) {
+            triggerPreset(1000.0f, 1.00f, 0.0f);
+        }
+
+        ImGui::SameLine(0.0f, 10.0f);
+        if (ImGui::Button("Right Motor Only")) {
+            triggerPreset(1000.0f, 0.0f, 1.00f);
+        }
+
+        ImGui::PopStyleColor(4);
+        ImGui::PopStyleVar(3);
+    }
+    ImGui::EndChild();
+
     ImGui::Spacing();
 
-    const uint16_t delayMs = static_cast<uint16_t>(std::clamp(mRumbleDelayMs[slot], 0.0f, 1000.0f));
-    const uint16_t durationMs = static_cast<uint16_t>(std::clamp(mRumbleDurationMs[slot], 0.0f, 2000.0f));
-    const uint8_t weakU8 =
-        static_cast<uint8_t>(std::clamp(std::round(mRumbleWeakIntensity[slot] * 255.0f), 0.0f, 255.0f));
-    const uint8_t strongU8 =
-        static_cast<uint8_t>(std::clamp(std::round(mRumbleStrongIntensity[slot] * 255.0f), 0.0f, 255.0f));
+    // ========================================================================
+    // Card 3: Trigger Rumble Mode
+    // ========================================================================
+    const float card3Height = mTriggerRumbleEnabled[slot] ? 86.0f : 68.0f;
+    if (ImGui::BeginChild("##rumble_trigger_mode_card", ImVec2(0.0f, card3Height), ImGuiChildFlags_Borders,
+                          ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
+        if (ImGui::BeginTable("##trigger_rumble_table", 2, ImGuiTableFlags_SizingStretchProp)) {
+            ImGui::TableSetupColumn("##trigger_rumble_desc", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("##trigger_rumble_toggle_col", ImGuiTableColumnFlags_WidthFixed, 64.0f);
+            ImGui::TableNextRow();
 
-    if (ImGui::Button("  Vibrate  ")) {
-        posix_imgui_request_rumble(slot, delayMs, durationMs, weakU8, strongU8);
-    }
-    ImGui::SameLine(0.0f, 16.0f);
-    if (ImGui::Button("  Stop Rumble (0, 0)  ")) {
-        posix_imgui_request_rumble(slot, 0, 0, 0, 0);
-    }
+            ImGui::TableNextColumn();
+            ImGui::TextColored(kTextColorWhite, "Trigger Rumble Mode");
+            ImGui::TextColored(kTextColorGrey,
+                               "Dynamically pulse haptics proportional to analog trigger pressure (LT/RT).");
+            if (mTriggerRumbleEnabled[slot]) {
+                const uni_gamepad_t& gp = snap.controller.gamepad;
+                const float l2Norm = NormalizeTriggerAxis(gp.brake, (gp.buttons & BUTTON_TRIGGER_L) != 0);
+                const float r2Norm = NormalizeTriggerAxis(gp.throttle, (gp.buttons & BUTTON_TRIGGER_R) != 0);
+                const uint8_t l2U8 = static_cast<uint8_t>(std::clamp(std::round(l2Norm * 255.0f), 0.0f, 255.0f));
+                const uint8_t r2U8 = static_cast<uint8_t>(std::clamp(std::round(r2Norm * 255.0f), 0.0f, 255.0f));
+                ImGui::TextColored(
+                    kTextColorCyan,
+                    "Live LT -> Left Motor: %3.0f%% (%3u/255)   |   RT -> Right Motor: %3.0f%% (%3u/255)",
+                    static_cast<double>(l2Norm * 100.0f), l2U8, static_cast<double>(r2Norm * 100.0f), r2U8);
+            }
 
-    ImGui::Spacing();
-    ImGui::TextColored(kTextColorGrey, "Quick Presets:");
-    ImGui::SameLine();
-    if (ImGui::Button("Light Tap (150ms)")) {
-        mRumbleDelayMs[slot] = 0.0f;
-        mRumbleDurationMs[slot] = 150.0f;
-        mRumbleWeakIntensity[slot] = 0.35f;
-        mRumbleStrongIntensity[slot] = 0.0f;
-        posix_imgui_request_rumble(slot, 0, 150, 90, 0);
+            ImGui::TableNextColumn();
+            ImGui::Dummy(ImVec2(0.0f, 8.0f));
+            if (DrawToggleSwitch("##trigger_rumble_switch", &mTriggerRumbleEnabled[slot])) {
+                if (!mTriggerRumbleEnabled[slot] && mTriggerRumbleActive[slot]) {
+                    posix_imgui_request_rumble(slot, 0, 0, 0, 0);
+                    mTriggerRumbleActive[slot] = false;
+                    mLastTriggerStrongU8[slot] = 0;
+                    mLastTriggerWeakU8[slot] = 0;
+                }
+            }
+
+            ImGui::EndTable();
+        }
     }
-    ImGui::SameLine();
-    if (ImGui::Button("Heavy Pulse (600ms)")) {
-        mRumbleDelayMs[slot] = 0.0f;
-        mRumbleDurationMs[slot] = 600.0f;
-        mRumbleWeakIntensity[slot] = 0.80f;
-        mRumbleStrongIntensity[slot] = 1.00f;
-        posix_imgui_request_rumble(slot, 0, 600, 204, 255);
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Delayed Pulse (+250ms, 300ms)")) {
-        mRumbleDelayMs[slot] = 250.0f;
-        mRumbleDurationMs[slot] = 300.0f;
-        mRumbleWeakIntensity[slot] = 0.70f;
-        mRumbleStrongIntensity[slot] = 0.70f;
-        posix_imgui_request_rumble(slot, 250, 300, 178, 178);
-    }
+    ImGui::EndChild();
+
+    ImGui::PopStyleColor(2);
+    ImGui::PopStyleVar(1);
 }
 
 void DemoScene::RenderPanel_MotionTab(int slot, const ControllerSnapshot& snap) {

@@ -20,10 +20,14 @@ interactive tabs per controller:
    an interactive **`Radial Deadzone`** (`0%..35%`) slider, and a 4-button
    **`Action Buttons`** diamond displaying both Xbox/Switch letters and
    vector-drawn PlayStation symbols (`△`, `□`, `○`, `×`).
-2. **Rumble:** Configurable start delay (`0..1000 ms`), duration (`0..2000
-    ms`), and weak/strong motor intensities (`0.00..1.00` -> `0..255`) with **Vibrate**, **Stop Rumble**, and one-click
-   haptic presets wired to
-   `d->report_parser.play_dual_rumble`.
+2. **Rumble:** Three-card Force Feedback dashboard featuring **Dual-Motor Force
+   Amplitude** sliders (`Left Motor (Heavy / Low Freq)` `0..255`, `Right Motor
+   (Light / High Freq)` `0..255`, and `Duration` `50..5000 ms`) with **Test
+   Rumble** and **Stop Rumble** action buttons, **Preset Waveforms** (`Pulse
+   (300ms)`, `Heavy Rumble (1.5s)`, `Light Buzz (800ms)`, `Left Motor Only`,
+   `Right Motor Only`), and a live **Trigger Rumble Mode** toggle that
+   dynamically pulses dual-motor haptics proportional to `LT / L2` and `RT / R2`
+   analog trigger pressure.
 3. **IMU:** Real-time 6-axis motion visualization featuring a 2D circular
    bullseye radar widget for the **Accelerometer** (`m/s²` and raw `accel[0..2]`
    readouts) and three circular compass/needle dials (`X`, `Y`, `Z`) for the
