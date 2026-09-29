@@ -46,13 +46,13 @@ set(srcs
          "uni_version.c"
          "uni_virtual_device.c")
 
- if(CONFIG_IDF_TARGET_ESP32 OR PICO_SDK_VERSION_STRING OR BLUEPAD32_TARGET_POSIX)
+if(CONFIG_SOC_BT_CLASSIC_SUPPORTED OR PICO_SDK_VERSION_STRING OR BLUEPAD32_TARGET_POSIX)
     # Bluetooth Classic files used by:
-    # - ESP32
+    # - ESP32 dual-mode targets (ESP32, ESP32-S31)
     # - Pico W
     # - Linux (assuming BT dongle supports BR/EDR)
     list(APPEND srcs
-         # BR/EDR code only gets compiled on ESP32
+         # BR/EDR code only gets compiled on targets with Classic BT support
          "bt/uni_bt_bredr.c"
          "bt/uni_bt_sdp.c")
 endif()
