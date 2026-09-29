@@ -102,8 +102,8 @@ Each active controller returned by `bp32.connected_controllers` exposes normaliz
 | `gp.brake`, `gp.throttle` | `int` (`0..1023`) | Analog left trigger (`L2`) and right trigger (`R2`). |
 | `gp.buttons` | `int` (`uint16`) | Face, shoulder, and thumb-click bitmask (`0x0001`=A, `0x0002`=B, `0x0004`=X, `0x0008`=Y, `0x0010`=L1, `0x0020`=R1, `0x0040`=L2, `0x0080`=R2, `0x0100`=ThumbL, `0x0200`=ThumbR). |
 | `gp.misc_buttons` | `int` (`uint8`) | System button bitmask (`0x01`=System/Home, `0x02`=Select/Share, `0x04`=Start/Options, `0x08`=Capture). |
-| `gp.gyro` | `(int, int, int)` | 3-axis gyroscope tuple `(gx, gy, gz)`. |
-| `gp.accel` | `(int, int, int)` | 3-axis accelerometer tuple `(ax, ay, az)`. |
+| `gp.gyro` | `(float, float, float)` | 3-axis gyroscope angular velocity tuple `(gx, gy, gz)` in **`rad/s`** (canonical Y-up frame: `X`=pitch, `Y`=yaw, `Z`=roll). |
+| `gp.accel` | `(float, float, float)` | 3-axis linear acceleration tuple `(ax, ay, az)` in **`m/s²`** (canonical Y-up frame: `X`=right, `Y`=up `+9.81 m/s²` at rest, `Z`=back). |
 | `gp.set_player_leds(mask)` | Method | Sets the 4-bit player indicator LED mask (`0x00..0x0F`). |
 | `gp.set_lightbar_color(r, g, b)` | Method | Sets the RGB lightbar color (`0..255` per channel) on DualShock 4 / DualSense. |
 | `gp.play_dual_rumble(...)` | Method | Triggers dual-motor haptic vibration (`delayed_start_ms`, `duration_ms`, `weak_magnitude`, `strong_magnitude`). |

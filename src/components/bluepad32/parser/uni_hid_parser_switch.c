@@ -20,6 +20,7 @@
 
 #include "bt/uni_bt_conn.h"
 #include "controller/uni_controller.h"
+#include "controller/uni_gamepad.h"
 #include "hid_usage.h"
 #include "parser/uni_hid_parser_rumble.h"
 #include "uni_common.h"
@@ -45,12 +46,18 @@ static const uint16_t SWITCH_FACTORY_STICK_CAL_DATA_ADDR_RIGHT = 0x6046;
 static const uint16_t SWITCH_USER_STICK_CAL_DATA_ADDR_LEFT = 0x8010;
 static const uint16_t SWITCH_USER_STICK_CAL_DATA_ADDR_RIGHT = 0x801B;
 
-// Constants taken from Linux kernel / Nintendo Rev.Eng doc
+// Constants taken from Linux kernel (hid-nintendo.c) / Nintendo Switch Reverse Engineering doc:
+// - Factory SPI flash `cal_accel.scale` (~16384 = 0x4000) is the count span for 4.0g (`SWITCH_ACCEL_CALIB_G`)
+//   at 4096 LSB/g (`SWITCH_ACCEL_RES_PER_G`) in the LSM6DS3H +/-8g range.
+// - Factory SPI flash `cal_gyro.scale - cal_gyro.offset` (~13371) is the count span for 936.0 deg/s
+//   (`SWITCH_GYRO_CALIB_SPEED_DEG_S`, ~14.285 LSB/(deg/s)) in the LSM6DS3H +/-2000 dps range.
 static const int16_t DEFAULT_ACCEL_OFFSET = 0;
 static const int16_t DEFAULT_ACCEL_SCALE = 16384;
 static const int16_t DEFAULT_GYRO_OFFSET = 0;
 static const int16_t DEFAULT_GYRO_SCALE = 13371;
-#define SWITCH_IMU_PREC_RANGE_SCALE 1000
+#define SWITCH_ACCEL_CALIB_G 4.0f
+#define SWITCH_ACCEL_RES_PER_G 4096.0f
+#define SWITCH_GYRO_CALIB_SPEED_DEG_S 936.0f
 
 #define SWITCH_FACTORY_IMU_CAL_DATA_SIZE 24
 static const uint16_t SWITCH_FACTORY_IMU_CAL_DATA_ADDR = 0x6020;
@@ -819,30 +826,47 @@ static void parse_imu(uni_hid_device_t* d, const struct switch_imu_data_s* r) {
     switch_instance_t* ins = get_switch_instance(d);
     uni_controller_t* ctl = &d->controller;
 
-    int accel[3];
-    int gyro[3];
+    float accel_mps2[3];
+    float gyro_rads[3];
 
+    // Convert raw 16-bit signed sensor deltas into m/s^2 and rad/s.
+    // Third-party/clone controllers may reply with all-zero SPI flash calibration data
+    // (`imu_cal_*_divisor[i] == 0`), in which case we fall back to the nominal hardware
+    // sensitivities (`SWITCH_ACCEL_RES_PER_G` = 4096 LSB/g and `DEFAULT_GYRO_SCALE` = 13371 LSB per 936 deg/s).
     for (int i = 0; i < 3; i++) {
-        if (ins->imu_cal_accel_divisor[i] == 0)
-            accel[i] = r->accel[i];
-        else
-            accel[i] = (r->accel[i] * ins->cal_accel.scale[i]) / ins->imu_cal_accel_divisor[i];
-        gyro[i] = mult_frac((SWITCH_IMU_PREC_RANGE_SCALE * (r->gyro[i] - ins->cal_gyro.offset[i])),
-                            ins->cal_gyro.scale[i], ins->imu_cal_gyro_divisor[i]);
+        const float raw_accel = (float)(r->accel[i] - ins->cal_accel.offset[i]);
+        if (ins->imu_cal_accel_divisor[i] == 0) {
+            accel_mps2[i] = (raw_accel / SWITCH_ACCEL_RES_PER_G) * UNI_STANDARD_GRAVITY;
+        } else {
+            accel_mps2[i] =
+                (raw_accel * (SWITCH_ACCEL_CALIB_G / (float)ins->imu_cal_accel_divisor[i])) * UNI_STANDARD_GRAVITY;
+        }
+
+        const float raw_gyro = (float)(r->gyro[i] - ins->cal_gyro.offset[i]);
+        if (ins->imu_cal_gyro_divisor[i] == 0) {
+            gyro_rads[i] = (raw_gyro * (SWITCH_GYRO_CALIB_SPEED_DEG_S / (float)DEFAULT_GYRO_SCALE)) * UNI_DEG_TO_RAD;
+        } else {
+            gyro_rads[i] =
+                (raw_gyro * (SWITCH_GYRO_CALIB_SPEED_DEG_S / (float)ins->imu_cal_gyro_divisor[i])) * UNI_DEG_TO_RAD;
+        }
     }
 
-    // Right joycon has Y and Z axes negated.
+    // Right Joy-Con physical IMU mounting has Y and Z axes inverted relative to Left Joy-Con / Pro Controller.
     if (ins->controller_type == SWITCH_CONTROLLER_TYPE_JCR) {
-        accel[1] = -accel[1];
-        accel[2] = -accel[2];
-        gyro[1] = -gyro[1];
-        gyro[2] = -gyro[2];
+        accel_mps2[1] = -accel_mps2[1];
+        accel_mps2[2] = -accel_mps2[2];
+        gyro_rads[1] = -gyro_rads[1];
+        gyro_rads[2] = -gyro_rads[2];
     }
 
-    for (int i = 0; i < 3; i++) {
-        ctl->gamepad.accel[i] = accel[i];
-        ctl->gamepad.gyro[i] = gyro[i];
-    }
+    // Map Switch native frame (X=Forward, Y=Left, Z=Up) to canonical Y-up frame (X=Right, Y=Up, Z=Back).
+    ctl->gamepad.accel[0] = -accel_mps2[1];
+    ctl->gamepad.accel[1] = accel_mps2[2];
+    ctl->gamepad.accel[2] = -accel_mps2[0];
+
+    ctl->gamepad.gyro[0] = -gyro_rads[1];
+    ctl->gamepad.gyro[1] = gyro_rads[2];
+    ctl->gamepad.gyro[2] = -gyro_rads[0];
 }
 
 // Process 0x30 input report: SWITCH_INPUT_IMU_DATA
@@ -882,8 +906,7 @@ static void parse_report_30(struct uni_hid_device_s* d, const uint8_t* report, i
     // (enough for the 3-byte header + 9-byte `switch_buttons_s`), verify that the report
     // contains the full 48-byte `3 + sizeof(struct switch_report_30_s)` payload before
     // dereferencing `r->imu[2]` (bytes 36..47) to prevent out-of-bounds reads on short/clone packets.
-    if (ins->mode == SWITCH_MODE_IMU && len >= (int)(3 + sizeof(struct switch_report_30_s)) &&
-        ins->imu_cal_gyro_divisor[0] != 0)
+    if (ins->mode == SWITCH_MODE_IMU && len >= (int)(3 + sizeof(struct switch_report_30_s)))
         parse_imu(d, &r->imu[2]);
 }
 

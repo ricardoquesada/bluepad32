@@ -15,6 +15,7 @@
 #include <stdint.h>
 
 #include "bt/uni_bt_defines.h"
+#include "controller/uni_gamepad.h"
 #include "hid_usage.h"
 #include "uni_config.h"
 #include "uni_hid_device.h"
@@ -471,20 +472,22 @@ static void ds4_parse_input_report_11(uni_hid_device_t* d, const ds4_input_repor
     ctl->gamepad.brake = r->brake * 4;
     ctl->gamepad.throttle = r->throttle * 4;
 
-    // Gyro
+    // Gyro: DS4 native axes already match the canonical right-handed Y-up frame (X=pitch, Y=yaw, Z=roll).
+    // Factory calibration normalizes raw counts to (1 / DS4_GYRO_RES_PER_DEG_S) deg/s, which we scale to rad/s.
     for (size_t i = 0; i < ARRAY_SIZE(r->gyro); i++) {
         int32_t raw_data = (int16_t)r->gyro[i];
         int32_t calib_data =
             mult_frac(ins->gyro_calib_data[i].sens_numer, raw_data, ins->gyro_calib_data[i].sens_denom);
-        ctl->gamepad.gyro[i] = calib_data;
+        ctl->gamepad.gyro[i] = (float)calib_data * (UNI_DEG_TO_RAD / (float)DS4_GYRO_RES_PER_DEG_S);
     }
 
-    // Accel
+    // Accel: Subtract per-axis zero-g factory bias before scaling to (1 / DS4_ACC_RES_PER_G) g,
+    // then convert to canonical Y-up linear acceleration in m/s^2 (X=right, Y=up, Z=back).
     for (size_t i = 0; i < ARRAY_SIZE(r->accel); i++) {
         int32_t raw_data = (int16_t)r->accel[i];
-        int32_t calib_data =
-            mult_frac(ins->accel_calib_data[i].sens_numer, raw_data, ins->accel_calib_data[i].sens_denom);
-        ctl->gamepad.accel[i] = calib_data;
+        int32_t calib_data = mult_frac(ins->accel_calib_data[i].sens_numer, raw_data - ins->accel_calib_data[i].bias,
+                                       ins->accel_calib_data[i].sens_denom);
+        ctl->gamepad.accel[i] = (float)calib_data * (UNI_STANDARD_GRAVITY / (float)DS4_ACC_RES_PER_G);
     }
 
     // Value goes from 0 to 10. Make it from 0 to 250.

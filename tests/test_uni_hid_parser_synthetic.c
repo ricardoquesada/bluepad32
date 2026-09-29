@@ -14,6 +14,7 @@
  */
 
 #include <assert.h>
+#include <math.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -102,6 +103,20 @@
 
 #define EXPECT_EQ(expected, actual) ASSERT_EQ(expected, actual)
 #define EXPECT_NE(not_expected, actual) ASSERT_NE(not_expected, actual)
+
+// UBSan-safe floating-point assertion macro for normalized IMU telemetry (`m/s^2` and `rad/s`).
+// Avoids `ASSERT_EQ` integer truncation and `ASSERT_NE` negative-float-to-`uintptr_t` undefined behavior.
+#define EXPECT_FLOAT_NEAR(expected, actual, tol)                                                               \
+    do {                                                                                                       \
+        double _exp = (double)(expected);                                                                      \
+        double _act = (double)(actual);                                                                        \
+        double _tol = (double)(tol);                                                                           \
+        if (fabs(_exp - _act) > _tol) {                                                                        \
+            fprintf(stderr, "EXPECT_FLOAT_NEAR failed at %s:%d: expected %.6f +/- %.6f, got %.6f\n", __FILE__, \
+                    __LINE__, _exp, _tol, _act);                                                               \
+            abort();                                                                                           \
+        }                                                                                                      \
+    } while (0)
 
 #define EXPECT_TRUE(cond)                                                                    \
     do {                                                                                     \
@@ -488,10 +503,10 @@ TEST(hid_parser_ds3_valid_and_short) {
     report[19] = 255;  // r2_analog -> 1020
 
     // Accelerometer & gyroscope (big-endian 10-bit values at bytes 41..48, centered at 511):
-    //   accel_x (41..42) = 611 (0x0263) -> accel[0] = 611 - 511 = +100
-    //   accel_y (43..44) = 461 (0x01cd) -> accel[2] = 511 - 461 = +50 (Y/Z swapped and inverted)
-    //   accel_z (45..46) = 398 (0x018e) -> accel[1] = 511 - 398 = +113 (+1G vertical)
-    //   gyro_x  (47..48) = 536 (0x0218) -> gyro[0]  = 536 - 511 = +25
+    //   accel_x (41..42) = 611 (0x0263) -> raw_ax = 611 - 511 = +100 -> 100 * (9.80665 / 113) m/s^2
+    //   accel_y (43..44) = 461 (0x01cd) -> raw_az = 511 - 461 = +50  -> 50 * (9.80665 / 113) m/s^2
+    //   accel_z (45..46) = 398 (0x018e) -> raw_ay = 511 - 398 = +113 -> +1g = +9.80665 m/s^2
+    //   gyro_x  (47..48) = 536 (0x0218) -> raw_gy = 536 - 511 = +25  -> gyro[1] (yaw) = 25 * (deg_to_rad / (100/123))
     report[41] = 0x02;
     report[42] = 0x63;
     report[43] = 0x01;
@@ -509,12 +524,12 @@ TEST(hid_parser_ds3_valid_and_short) {
     EXPECT_EQ(-508, d.controller.gamepad.axis_y);
     EXPECT_EQ(512, d.controller.gamepad.brake);
     EXPECT_EQ(1020, d.controller.gamepad.throttle);
-    EXPECT_EQ(100, d.controller.gamepad.accel[0]);
-    EXPECT_EQ(113, d.controller.gamepad.accel[1]);
-    EXPECT_EQ(50, d.controller.gamepad.accel[2]);
-    EXPECT_EQ(25, d.controller.gamepad.gyro[0]);
-    EXPECT_EQ(0, d.controller.gamepad.gyro[1]);
-    EXPECT_EQ(0, d.controller.gamepad.gyro[2]);
+    EXPECT_FLOAT_NEAR(100.0f * (UNI_STANDARD_GRAVITY / 113.0f), d.controller.gamepad.accel[0], 1e-3f);
+    EXPECT_FLOAT_NEAR(113.0f * (UNI_STANDARD_GRAVITY / 113.0f), d.controller.gamepad.accel[1], 1e-3f);
+    EXPECT_FLOAT_NEAR(50.0f * (UNI_STANDARD_GRAVITY / 113.0f), d.controller.gamepad.accel[2], 1e-3f);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.gyro[0], 1e-5f);
+    EXPECT_FLOAT_NEAR(25.0f * (UNI_DEG_TO_RAD / (100.0f / 123.0f)), d.controller.gamepad.gyro[1], 1e-3f);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.gyro[2], 1e-5f);
 
     // Battery and name matching checks.
     EXPECT_TRUE(uni_hid_parser_ds3_does_name_match(&d, "PLAYSTATION(R)3 Controller"));
@@ -528,10 +543,12 @@ TEST(hid_parser_ds3_valid_and_short) {
     // Partial reports (30 <= len < 49) parse buttons/axes/battery but skip IMU bytes safely.
     feed_input_report(&d, report, 35);
     EXPECT_EQ(BUTTON_THUMB_L | BUTTON_SHOULDER_L | BUTTON_A | BUTTON_X, d.controller.gamepad.buttons);
-    EXPECT_EQ(0, d.controller.gamepad.accel[0]);
-    EXPECT_EQ(0, d.controller.gamepad.accel[1]);
-    EXPECT_EQ(0, d.controller.gamepad.accel[2]);
-    EXPECT_EQ(0, d.controller.gamepad.gyro[0]);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[0], 1e-5f);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[1], 1e-5f);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[2], 1e-5f);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.gyro[0], 1e-5f);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.gyro[1], 1e-5f);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.gyro[2], 1e-5f);
 
     // Short reports (< 30 bytes) and wrong report ID must be safely ignored.
     feed_input_report(&d, report, 0);
@@ -653,10 +670,14 @@ TEST(hid_parser_switch_reports_and_imu_bounds) {
     EXPECT_EQ(DPAD_DOWN | DPAD_RIGHT, d.controller.gamepad.dpad);
     EXPECT_EQ(BUTTON_X | BUTTON_B | BUTTON_SHOULDER_R, d.controller.gamepad.buttons);
     EXPECT_EQ(MISC_BUTTON_START | MISC_BUTTON_SYSTEM, d.controller.gamepad.misc_buttons);
-    EXPECT_EQ(0, d.controller.gamepad.accel[0]);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[0], 1e-5f);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[1], 1e-5f);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[2], 1e-5f);
     feed_input_report(&d, r30_short, 20);
     EXPECT_EQ(DPAD_DOWN | DPAD_RIGHT, d.controller.gamepad.dpad);
-    EXPECT_EQ(0, d.controller.gamepad.accel[0]);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[0], 1e-5f);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[1], 1e-5f);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[2], 1e-5f);
     free(r30_short);
 
     // Test 2: Full 49-byte Report 0x30 (includes 3 IMU frames; imu[2] is parsed).
@@ -664,12 +685,15 @@ TEST(hid_parser_switch_reports_and_imu_bounds) {
     memset(r30_full, 0, sizeof(r30_full));
     r30_full[0] = 0x30;
     r30_full[3] = 0x04;  // B -> BUTTON_A
-    // Populate imu[2] at offset 13 + 24 = 37..48
+    // Populate imu[2] at offset 13 + 24 = 37..48: r->imu[2].accel[0] = 0x0110 (+272) -> maps to canonical Z
+    // (-accel_mps2[0])
     r30_full[37] = 0x10;
     r30_full[38] = 0x01;
     feed_input_report(&d, r30_full, sizeof(r30_full));
     EXPECT_EQ(BUTTON_A, d.controller.gamepad.buttons);
-    EXPECT_NE(0, d.controller.gamepad.accel[0]);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[0], 1e-4f);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[1], 1e-4f);
+    EXPECT_FLOAT_NEAR(-272.0f * (4.0f / 16384.0f) * UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[2], 1e-3f);
 
     // Test 3: Report 0x3F (12-byte standard HID mode report) and short 0x3F guard.
     memset(&d.controller.gamepad, 0, sizeof(d.controller.gamepad));
@@ -1207,7 +1231,7 @@ TEST(hid_parser_8bitdo_icade_nimbus_ouya) {
     EXPECT_EQ(DPAD_UP, d.controller.gamepad.dpad);
     EXPECT_EQ(MISC_BUTTON_SYSTEM, d.controller.gamepad.misc_buttons);
 
-    // 5. Sony PS Move (0x054c:0x03d5)
+    // 5. Sony PS Move (0x054c:0x03d5, ZCM1 offset-binary uint16 - 0x8000)
     setup_synthetic_device(&d, 0x054c, 0x03d5);
     ASSERT_EQ(CONTROLLER_TYPE_PSMoveController, d.controller_type);
     uint8_t psmove_rpt[49];
@@ -1218,9 +1242,17 @@ TEST(hid_parser_8bitdo_icade_nimbus_ouya) {
     psmove_rpt[5] = 200;    // Trigger -> throttle = 200 * 4 = 800
     psmove_rpt[12] = 0x05;  // Battery max (5 * 51 = 255)
     psmove_rpt[13] = 0x34;
-    psmove_rpt[14] = 0x12;  // accel_x = 0x1234
+    psmove_rpt[14] = 0x12;  // accel_x = 0x1234 (4660 - 32768 = -28108 counts)
+    psmove_rpt[15] = 0x00;
+    psmove_rpt[16] = 0x80;  // accel_y = 0x8000 (0 counts)
+    psmove_rpt[17] = 0x00;
+    psmove_rpt[18] = 0x90;  // accel_z = 0x9000 (+4096 counts = +1g)
     psmove_rpt[25] = 0x78;
-    psmove_rpt[26] = 0x56;  // gyro_x = 0x5678
+    psmove_rpt[26] = 0x56;  // gyro_x = 0x5678 (22136 - 32768 = -10632 counts)
+    psmove_rpt[27] = 0x00;
+    psmove_rpt[28] = 0x80;  // gyro_y = 0x8000 (0 counts)
+    psmove_rpt[29] = 0x00;
+    psmove_rpt[30] = 0x80;  // gyro_z = 0x8000 (0 counts)
     // Truncated report (< 39 bytes) must be rejected:
     feed_input_report(&d, psmove_rpt, 10);
     EXPECT_EQ(0, d.controller.gamepad.buttons);
@@ -1229,8 +1261,10 @@ TEST(hid_parser_8bitdo_icade_nimbus_ouya) {
     EXPECT_EQ(MISC_BUTTON_SELECT, d.controller.gamepad.misc_buttons);
     EXPECT_EQ(800, d.controller.gamepad.throttle);
     EXPECT_EQ(255, d.controller.battery);
-    EXPECT_EQ(0x1234, d.controller.gamepad.accel[0]);
-    EXPECT_EQ(0x5678, d.controller.gamepad.gyro[0]);
+    EXPECT_FLOAT_NEAR(-28108.0f * (UNI_STANDARD_GRAVITY / 4096.0f), d.controller.gamepad.accel[0], 1e-2f);
+    EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[1], 1e-3f);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[2], 1e-4f);
+    EXPECT_FLOAT_NEAR(-10632.0f * (UNI_DEG_TO_RAD / 16.4f), d.controller.gamepad.gyro[0], 1e-2f);
 }
 
 // ============================================================================
@@ -2220,6 +2254,336 @@ TEST(controller_list_uniqueness_and_table_driven_lookup_b6_phase4) {
     EXPECT_EQ(uni_hid_parser_xboxone_setup, d.report_parser.setup);
 }
 
+// ============================================================================
+// 23. Cross-Vendor Canonical IMU Units (m/s^2, rad/s) & Y-Up Coordinate Frame
+// ============================================================================
+static void write_le16(uint8_t* dst, int16_t val) {
+    uint16_t u = (uint16_t)val;
+    dst[0] = (uint8_t)(u & 0xff);
+    dst[1] = (uint8_t)((u >> 8) & 0xff);
+}
+
+TEST(imu_cross_vendor_canonical_units_and_axes) {
+    uni_hid_device_t d;
+
+    // 1. DualShock 3 (0x054c:0x0268): resting +1g on Y, +123 deg/s yaw on gyro[1]
+    {
+        setup_synthetic_device(&d, 0x054c, 0x0268);
+        uint8_t rpt[49];
+        memset(rpt, 0, sizeof(rpt));
+        rpt[0] = 0x01;
+        // accel_x = 511 (0x01ff BE), accel_y = 511 (0x01ff BE), accel_z = 398 (0x018e BE -> 511 - 398 = +113 = +1g)
+        rpt[41] = 0x01;
+        rpt[42] = 0xff;
+        rpt[43] = 0x01;
+        rpt[44] = 0xff;
+        rpt[45] = 0x01;
+        rpt[46] = 0x8e;
+        // gyro_x = 611 (0x0263 BE -> 611 - 511 = +100 counts = +123 deg/s yaw)
+        rpt[47] = 0x02;
+        rpt[48] = 0x63;
+
+        feed_input_report(&d, rpt, sizeof(rpt));
+        EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[0], 1e-3f);
+        EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[1], 1e-3f);
+        EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[2], 1e-3f);
+        EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.gyro[0], 1e-5f);
+        EXPECT_FLOAT_NEAR(123.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[1], 1e-3f);
+        EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.gyro[2], 1e-5f);
+    }
+
+    // 2. DualShock 4 (0x054c:0x09cc): non-zero factory accel bias subtraction & SI scaling
+    {
+        setup_synthetic_device(&d, 0x054c, 0x09cc);
+        uint8_t cal[37];
+        memset(cal, 0, sizeof(cal));
+        cal[0] = 0x02;
+        // gyro_pitch/yaw/roll_plus = 10000, minus = -10000, speed_plus = 500, speed_minus = 500 (20 LSB/(deg/s))
+        write_le16(&cal[7], 10000);
+        write_le16(&cal[9], 10000);
+        write_le16(&cal[11], 10000);
+        write_le16(&cal[13], -10000);
+        write_le16(&cal[15], -10000);
+        write_le16(&cal[17], -10000);
+        write_le16(&cal[19], 500);
+        write_le16(&cal[21], 500);
+        // acc_x: [+4196, -3996] -> range_2g=8192, bias=+100
+        // acc_y: [+4096, -4096] -> range_2g=8192, bias=0
+        // acc_z: [+3896, -4296] -> range_2g=8192, bias=-200
+        write_le16(&cal[23], 4196);
+        write_le16(&cal[25], -3996);
+        write_le16(&cal[27], 4096);
+        write_le16(&cal[29], -4096);
+        write_le16(&cal[31], 3896);
+        write_le16(&cal[33], -4296);
+        feed_feature_report(&d, cal, sizeof(cal));
+
+        uint8_t rpt[78];
+        memset(rpt, 0, sizeof(rpt));
+        rpt[0] = 0x11;
+        // gyro[0..2] at [15..20]: {+2000, -2000, +1000} -> {+100 deg/s, -100 deg/s, +50 deg/s}
+        write_le16(&rpt[15], 2000);
+        write_le16(&rpt[17], -2000);
+        write_le16(&rpt[19], 1000);
+        // accel[0..2] at [21..26]: {+100 (bias), +4096 (+1g), -200 (bias)}
+        write_le16(&rpt[21], 100);
+        write_le16(&rpt[23], 4096);
+        write_le16(&rpt[25], -200);
+
+        feed_input_report(&d, rpt, sizeof(rpt));
+        EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[0], 1e-3f);
+        EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[1], 1e-3f);
+        EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[2], 1e-3f);
+        EXPECT_FLOAT_NEAR(100.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[0], 1e-3f);
+        EXPECT_FLOAT_NEAR(-100.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[1], 1e-3f);
+        EXPECT_FLOAT_NEAR(50.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[2], 1e-3f);
+    }
+
+    // 3. DualSense (0x054c:0x0ce6): non-zero factory accel bias subtraction & SI scaling
+    {
+        setup_synthetic_device(&d, 0x054c, 0x0ce6);
+        uint8_t feat_09[20] = {0x09};
+        uint8_t feat_20[64] = {0x20};
+        uint8_t cal[41];
+        memset(cal, 0, sizeof(cal));
+        cal[0] = 0x05;
+        // Note DS5 alternates plus/minus per axis at [7..18]:
+        write_le16(&cal[7], 10000);
+        write_le16(&cal[9], -10000);
+        write_le16(&cal[11], 10000);
+        write_le16(&cal[13], -10000);
+        write_le16(&cal[15], 10000);
+        write_le16(&cal[17], -10000);
+        write_le16(&cal[19], 500);
+        write_le16(&cal[21], 500);
+        write_le16(&cal[23], 4196);
+        write_le16(&cal[25], -3996);
+        write_le16(&cal[27], 4096);
+        write_le16(&cal[29], -4096);
+        write_le16(&cal[31], 3896);
+        write_le16(&cal[33], -4296);
+
+        feed_feature_report(&d, feat_09, sizeof(feat_09));
+        feed_feature_report(&d, feat_20, sizeof(feat_20));
+        feed_feature_report(&d, cal, sizeof(cal));
+
+        uint8_t rpt[78];
+        memset(rpt, 0, sizeof(rpt));
+        rpt[0] = 0x31;
+        // gyro[0..2] at [17..22]: {+2000, -2000, +1000}
+        write_le16(&rpt[17], 2000);
+        write_le16(&rpt[19], -2000);
+        write_le16(&rpt[21], 1000);
+        // accel[0..2] at [23..28]: {+100 (bias), +4096 (+1g), -200 (bias)}
+        write_le16(&rpt[23], 100);
+        write_le16(&rpt[25], 4096);
+        write_le16(&rpt[27], -200);
+
+        feed_input_report(&d, rpt, sizeof(rpt));
+        EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[0], 1e-3f);
+        EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[1], 1e-3f);
+        EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[2], 1e-3f);
+        EXPECT_FLOAT_NEAR(100.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[0], 1e-3f);
+        EXPECT_FLOAT_NEAR(-100.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[1], 1e-3f);
+        EXPECT_FLOAT_NEAR(50.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[2], 1e-3f);
+    }
+
+    // 4. Switch Pro Controller (0x057e:0x2009, default calibration): Z-up to Y-up mapping
+    {
+        setup_synthetic_device(&d, 0x057e, 0x2009);
+        uint8_t r21[48];
+        memset(r21, 0, sizeof(r21));
+        r21[0] = 0x21;
+        r21[3] = 0x08;
+        r21[13] = 0x80;
+        r21[17] = 0x03;  // SWITCH_CONTROLLER_TYPE_PRO
+        const uint8_t subcmds[] = {0x02, 0x10, 0x10, 0x10, 0x03, 0x40, 0x30};
+        for (size_t i = 0; i < ARRAY_SIZE(subcmds); i++) {
+            r21[14] = subcmds[i];
+            feed_input_report(&d, r21, sizeof(r21));
+        }
+
+        uint8_t r30[49];
+        memset(r30, 0, sizeof(r30));
+        r30[0] = 0x30;
+        // imu[2] at [37..48]:
+        // accel[0] (Fwd) = -4096 (-1g -> canonical +Z = +9.80665)
+        // accel[1] (Left) = -2048 (-0.5g -> canonical +X = +4.903325)
+        // accel[2] (Up) = +4096 (+1g -> canonical +Y = +9.80665)
+        write_le16(&r30[37], -4096);
+        write_le16(&r30[39], -2048);
+        write_le16(&r30[41], 4096);
+        // gyro[0] (Roll) = -13371, gyro[1] (Pitch) = -13371, gyro[2] (Yaw) = +13371 -> all +936 deg/s in canonical
+        // frame
+        write_le16(&r30[43], -13371);
+        write_le16(&r30[45], -13371);
+        write_le16(&r30[47], 13371);
+
+        feed_input_report(&d, r30, sizeof(r30));
+        EXPECT_FLOAT_NEAR(0.5f * UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[0], 1e-2f);
+        EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[1], 1e-2f);
+        EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[2], 1e-2f);
+        EXPECT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[0], 1e-2f);
+        EXPECT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[1], 1e-2f);
+        EXPECT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[2], 1e-2f);
+    }
+
+    // 5. Switch Joy-Con Right (0x057e:0x2007, SWITCH_CONTROLLER_TYPE_JCR = 2): Y/Z negation before canonical rotation
+    {
+        setup_synthetic_device(&d, 0x057e, 0x2007);
+        uint8_t r21[48];
+        memset(r21, 0, sizeof(r21));
+        r21[0] = 0x21;
+        r21[3] = 0x08;
+        r21[13] = 0x80;
+        r21[17] = 0x02;  // SWITCH_CONTROLLER_TYPE_JCR
+        const uint8_t subcmds[] = {0x02, 0x10, 0x10, 0x10, 0x03, 0x40, 0x30};
+        for (size_t i = 0; i < ARRAY_SIZE(subcmds); i++) {
+            r21[14] = subcmds[i];
+            feed_input_report(&d, r21, sizeof(r21));
+        }
+
+        uint8_t r30[49];
+        memset(r30, 0, sizeof(r30));
+        r30[0] = 0x30;
+        // On JCR, hardware Y and Z are negated before (-ay, +az, -ax):
+        // accel[0]=0, accel[1]=+4096, accel[2]=-4096 -> canonical X = +9.80665, Y = +9.80665, Z = 0
+        write_le16(&r30[37], 0);
+        write_le16(&r30[39], 4096);
+        write_le16(&r30[41], -4096);
+        write_le16(&r30[43], 0);
+        write_le16(&r30[45], 13371);
+        write_le16(&r30[47], -13371);
+
+        feed_input_report(&d, r30, sizeof(r30));
+        EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[0], 1e-2f);
+        EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[1], 1e-2f);
+        EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[2], 1e-2f);
+        EXPECT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[0], 1e-2f);
+        EXPECT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[1], 1e-2f);
+        EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.gyro[2], 1e-2f);
+    }
+
+    // 6. Switch Clone with All-Zero SPI IMU Calibration (imu_cal_accel_divisor == 0 && imu_cal_gyro_divisor == 0)
+    {
+        setup_synthetic_device(&d, 0x057e, 0x2009);
+        uint8_t r21[48];
+        memset(r21, 0, sizeof(r21));
+        r21[0] = 0x21;
+        r21[3] = 0x08;
+        r21[13] = 0x80;
+        r21[17] = 0x03;
+
+        r21[14] = 0x02;  // SUBCMD_REQ_DEV_INFO
+        feed_input_report(&d, r21, sizeof(r21));
+        r21[14] = 0x10;  // factory stick cal
+        feed_input_report(&d, r21, sizeof(r21));
+        r21[14] = 0x10;  // user stick cal
+        feed_input_report(&d, r21, sizeof(r21));
+
+        // STATE_READ_FACTORY_IMU_CALIBRATION: feed mem_len = 24 at r21[19] with all-zero payload r21[20..43]
+        r21[14] = 0x10;
+        r21[19] = 24;
+        feed_input_report(&d, r21, sizeof(r21));
+        r21[19] = 0;
+
+        r21[14] = 0x03;
+        feed_input_report(&d, r21, sizeof(r21));
+        r21[14] = 0x40;
+        feed_input_report(&d, r21, sizeof(r21));
+        r21[14] = 0x30;
+        feed_input_report(&d, r21, sizeof(r21));
+
+        uint8_t r30[49];
+        memset(r30, 0, sizeof(r30));
+        r30[0] = 0x30;
+        write_le16(&r30[41], 4096);   // accel[2] (Up) = +4096 -> canonical Y = +9.80665
+        write_le16(&r30[47], 13371);  // gyro[2] (Yaw) = +13371 -> canonical Y = +936 deg/s
+
+        feed_input_report(&d, r30, sizeof(r30));
+        EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[0], 1e-2f);
+        EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[1], 1e-2f);
+        EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[2], 1e-2f);
+        EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.gyro[0], 1e-2f);
+        EXPECT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[1], 1e-2f);
+        EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.gyro[2], 1e-2f);
+    }
+
+    // 7. Wii Remote (0x057e:0x0306): Report 0x31 (DRM_KA) resting +1g and tilted
+    {
+        setup_synthetic_device(&d, 0x057e, 0x0306);
+        // Resting flat face-up: x = 0x200 (0x80<<2), y = 0x200 (0x80<<2), z = 0x200 + 104 = 616 = 0x9a<<2
+        uint8_t drm_ka_rest[6] = {0x31, 0x00, 0x00, 0x80, 0x80, 0x9a};
+        feed_input_report(&d, drm_ka_rest, sizeof(drm_ka_rest));
+        EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[0], 1e-3f);
+        EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[1], 1e-3f);
+        EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[2], 1e-3f);
+        EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.gyro[0], 1e-5f);
+        EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.gyro[1], 1e-5f);
+        EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.gyro[2], 1e-5f);
+
+        // Tilted: x = 0x200 - 104 = 408 (0x66<<2 -> sx=-104 -> canonical X=+1g),
+        //         y = 0x200 - 52 = 460 (0x73<<2 -> sy=-52 -> canonical Z=+0.5g),
+        //         z = 0x200 + 104 = 616 (0x9a<<2 -> sz=+104 -> canonical Y=+1g)
+        uint8_t drm_ka_tilt[6] = {0x31, 0x00, 0x00, 0x66, 0x73, 0x9a};
+        feed_input_report(&d, drm_ka_tilt, sizeof(drm_ka_tilt));
+        EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[0], 1e-3f);
+        EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[1], 1e-3f);
+        EXPECT_FLOAT_NEAR(0.5f * UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[2], 1e-3f);
+    }
+
+    // 8. PS Move ZCM1 (0x054c:0x03d5, PS3 offset-binary uint16 - 0x8000)
+    {
+        setup_synthetic_device(&d, 0x054c, 0x03d5);
+        uint8_t rpt[49];
+        memset(rpt, 0, sizeof(rpt));
+        rpt[0] = 0x01;
+        // accel_x = 0x8000 (0), accel_y = 0x7000 (-4096 -> canonical Z = +1g), accel_z = 0x9000 (+4096 -> canonical Y =
+        // +1g)
+        write_le16(&rpt[13], (int16_t)0x8000);
+        write_le16(&rpt[15], (int16_t)0x7000);
+        write_le16(&rpt[17], (int16_t)0x9000);
+        // gyro_x = 0x8000 + 1640 (+100 deg/s), gyro_y = 0x8000 - 820 (-50 deg/s -> canonical Z = +50 deg/s),
+        // gyro_z = 0x8000 + 3280 (+200 deg/s -> canonical Y = +200 deg/s)
+        write_le16(&rpt[25], (int16_t)(0x8000 + 1640));
+        write_le16(&rpt[27], (int16_t)(0x8000 - 820));
+        write_le16(&rpt[29], (int16_t)(0x8000 + 3280));
+
+        feed_input_report(&d, rpt, sizeof(rpt));
+        EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[0], 1e-3f);
+        EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[1], 1e-3f);
+        EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[2], 1e-3f);
+        EXPECT_FLOAT_NEAR(100.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[0], 1e-3f);
+        EXPECT_FLOAT_NEAR(200.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[1], 1e-3f);
+        EXPECT_FLOAT_NEAR(50.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[2], 1e-3f);
+    }
+
+    // 9. PS Move ZCM2 (0x054c:0x0c5e, PS4 signed 16-bit two's complement)
+    {
+        setup_synthetic_device(&d, 0x054c, 0x0c5e);
+        uint8_t rpt[49];
+        memset(rpt, 0, sizeof(rpt));
+        rpt[0] = 0x01;
+        // accel_x = +4096 (+1g), accel_y = +4096 (canonical Z = -ay = -1g), accel_z = +4096 (canonical Y = +az = +1g)
+        write_le16(&rpt[13], 4096);
+        write_le16(&rpt[15], 4096);
+        write_le16(&rpt[17], 4096);
+        // gyro_x = -1640 (-100 deg/s), gyro_y = +1640 (canonical Z = -gy = -100 deg/s), gyro_z = +1640 (canonical Y =
+        // +100 deg/s)
+        write_le16(&rpt[25], -1640);
+        write_le16(&rpt[27], 1640);
+        write_le16(&rpt[29], 1640);
+
+        feed_input_report(&d, rpt, sizeof(rpt));
+        EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[0], 1e-3f);
+        EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[1], 1e-3f);
+        EXPECT_FLOAT_NEAR(-UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[2], 1e-3f);
+        EXPECT_FLOAT_NEAR(-100.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[0], 1e-3f);
+        EXPECT_FLOAT_NEAR(100.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[1], 1e-3f);
+        EXPECT_FLOAT_NEAR(-100.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[2], 1e-3f);
+    }
+}
+
 int main(int argc, char** argv) {
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
@@ -2254,7 +2618,8 @@ int main(int argc, char** argv) {
     RUN_TEST(wii_set_led_preserves_rumble_bit_b4);
     RUN_TEST(wii_balance_board_zero_and_inverted_calibration_guards_b6);
     RUN_TEST(controller_list_uniqueness_and_table_driven_lookup_b6_phase4);
+    RUN_TEST(imu_cross_vendor_canonical_units_and_axes);
 
-    printf("All 22 synthetic HID parser test suites passed!\n");
+    printf("All 23 synthetic HID parser test suites passed!\n");
     return 0;
 }

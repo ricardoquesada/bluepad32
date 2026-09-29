@@ -114,6 +114,16 @@ typedef enum {
     GAMEPAD_SEAT_AB_MASK = (GAMEPAD_SEAT_A | GAMEPAD_SEAT_B),
 } uni_gamepad_seat_t;
 
+// Standard gravity in m/s^2 and degrees-to-radians conversion factor for IMU normalization.
+// All IMU-capable HID parsers scale their raw or factory-calibrated sensor counts into
+// physical SI units (m/s^2 for linear acceleration and rad/s for angular velocity)
+// within a canonical right-handed Y-up coordinate frame:
+//   - X ([0]): Right (+accel when tilted right-side down) / Pitch (+gyro around X)
+//   - Y ([1]): Up (+9.80665 m/s^2 normal reaction when resting flat face-up) / Yaw (+gyro around Y)
+//   - Z ([2]): Back/Toward Player (+accel when tilted nose-up) / Roll (+gyro around Z)
+#define UNI_STANDARD_GRAVITY 9.80665f
+#define UNI_DEG_TO_RAD 0.017453292519943295f
+
 // uni_gamepad_t is a virtual gamepad.
 // Different parsers should populate this virtual gamepad accordingly.
 // For example, the virtual gamepad doesn't have a Hat, but has a D-pad.
@@ -136,8 +146,8 @@ typedef enum {
 //  d-pad                              buttons: A,B,X,Y,
 //  L-joypad (axis: -512, 511)         R-joypad (axis: -512, 511)
 //  axis-L button                      axis-R button
-//  Gyro: is measured in degress/second
-//  Accelerometer: is measured in "G"s
+//  Gyro: [0]=X (pitch), [1]=Y (yaw), [2]=Z (roll) in radians/second (rad/s)
+//  Accelerometer: [0]=X (right), [1]=Y (up), [2]=Z (back) in meters/second^2 (m/s^2)
 
 typedef struct {
     // Usage Page: 0x01 (Generic Desktop Controls)
@@ -157,8 +167,10 @@ typedef struct {
     // Misc buttons (from 0x0c (Consumer) and others)
     uint8_t misc_buttons;
 
-    int32_t gyro[3];
-    int32_t accel[3];
+    // 3-axis gyroscope angular velocity [X=pitch, Y=yaw, Z=roll] in radians/second (rad/s).
+    float gyro[3];
+    // 3-axis linear acceleration (including gravity) [X=right, Y=up, Z=back] in meters/second^2 (m/s^2).
+    float accel[3];
 } uni_gamepad_t;
 
 // Represents the mapping. Each entry contains the new button to be used,

@@ -90,9 +90,10 @@ typedef struct __attribute__((packed)) {
     // Misc buttons (from 0x0c (Consumer) and others)
     uint8_t misc_buttons;
 
-    // Gyro / Accel
-    int32_t gyro[3];
-    int32_t accel[3];
+    // Normalized 3-axis IMU telemetry in canonical Y-up frame:
+    // gyro[3] in rad/s (X=pitch, Y=yaw, Z=roll), accel[3] in m/s^2 (X=right, Y=up, Z=back).
+    float gyro[3];
+    float accel[3];
 } nina_gamepad_t;
 
 typedef struct __attribute__((packed)) {

@@ -9,7 +9,9 @@
 //   remapping, and retro joystick/balance-board converters.
 
 #include <assert.h>
+#include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <btstack.h>
@@ -25,6 +27,19 @@
 #include "uni_hid_device.h"
 #include "uni_joystick.h"
 #include "uni_property.h"
+
+// Floating-point comparison macro for normalized IMU telemetry (`m/s^2` and `rad/s`).
+#define EXPECT_FLOAT_NEAR(expected, actual, tol)                                                               \
+    do {                                                                                                       \
+        double _exp = (double)(expected);                                                                      \
+        double _act = (double)(actual);                                                                        \
+        double _tol = (double)(tol);                                                                           \
+        if (fabs(_exp - _act) > _tol) {                                                                        \
+            fprintf(stderr, "EXPECT_FLOAT_NEAR failed at %s:%d: expected %.6f +/- %.6f, got %.6f\n", __FILE__, \
+                    __LINE__, _exp, _tol, _act);                                                               \
+            abort();                                                                                           \
+        }                                                                                                      \
+    } while (0)
 
 //
 // Tests
@@ -284,12 +299,24 @@ static void test_gamepad_remap(void) {
     gp.axis_ry = -100;
     gp.brake = 400;
     gp.throttle = 800;
+    gp.accel[0] = -1.25f;
+    gp.accel[1] = 9.80665f;
+    gp.accel[2] = 3.5f;
+    gp.gyro[0] = 0.25f;
+    gp.gyro[1] = -1.5f;
+    gp.gyro[2] = 0.75f;
 
     // 1. XBOX (identity mapping)
     uni_gamepad_set_mappings_type(UNI_GAMEPAD_MAPPINGS_TYPE_XBOX);
     assert(uni_gamepad_get_mappings_type() == UNI_GAMEPAD_MAPPINGS_TYPE_XBOX);
     uni_gamepad_t xbox_gp = uni_gamepad_remap(&gp);
     assert(memcmp(&xbox_gp, &gp, sizeof(gp)) == 0);
+    EXPECT_FLOAT_NEAR(-1.25f, xbox_gp.accel[0], 1e-5f);
+    EXPECT_FLOAT_NEAR(9.80665f, xbox_gp.accel[1], 1e-5f);
+    EXPECT_FLOAT_NEAR(3.5f, xbox_gp.accel[2], 1e-5f);
+    EXPECT_FLOAT_NEAR(0.25f, xbox_gp.gyro[0], 1e-5f);
+    EXPECT_FLOAT_NEAR(-1.5f, xbox_gp.gyro[1], 1e-5f);
+    EXPECT_FLOAT_NEAR(0.75f, xbox_gp.gyro[2], 1e-5f);
 
     // 2. SWITCH (swaps A <-> B and X <-> Y)
     uni_gamepad_set_mappings_type(UNI_GAMEPAD_MAPPINGS_TYPE_SWITCH);
@@ -297,6 +324,12 @@ static void test_gamepad_remap(void) {
     assert(switch_gp.buttons == (BUTTON_B | BUTTON_Y | BUTTON_SHOULDER_L));
     assert(switch_gp.axis_x == 200);
     assert(switch_gp.axis_y == -300);
+    EXPECT_FLOAT_NEAR(-1.25f, switch_gp.accel[0], 1e-5f);
+    EXPECT_FLOAT_NEAR(9.80665f, switch_gp.accel[1], 1e-5f);
+    EXPECT_FLOAT_NEAR(3.5f, switch_gp.accel[2], 1e-5f);
+    EXPECT_FLOAT_NEAR(0.25f, switch_gp.gyro[0], 1e-5f);
+    EXPECT_FLOAT_NEAR(-1.5f, switch_gp.gyro[1], 1e-5f);
+    EXPECT_FLOAT_NEAR(0.75f, switch_gp.gyro[2], 1e-5f);
 
     // 3. CUSTOM (invert axes, swap pedals, remap buttons/dpad)
     uni_gamepad_mappings_t custom = GAMEPAD_DEFAULT_MAPPINGS;
@@ -316,6 +349,12 @@ static void test_gamepad_remap(void) {
     assert(custom_gp.axis_y == 300);
     assert(custom_gp.brake == 800);
     assert(custom_gp.throttle == 400);
+    EXPECT_FLOAT_NEAR(-1.25f, custom_gp.accel[0], 1e-5f);
+    EXPECT_FLOAT_NEAR(9.80665f, custom_gp.accel[1], 1e-5f);
+    EXPECT_FLOAT_NEAR(3.5f, custom_gp.accel[2], 1e-5f);
+    EXPECT_FLOAT_NEAR(0.25f, custom_gp.gyro[0], 1e-5f);
+    EXPECT_FLOAT_NEAR(-1.5f, custom_gp.gyro[1], 1e-5f);
+    EXPECT_FLOAT_NEAR(0.75f, custom_gp.gyro[2], 1e-5f);
 
     // Restore default
     uni_gamepad_set_mappings_type(UNI_GAMEPAD_MAPPINGS_TYPE_XBOX);
@@ -323,7 +362,7 @@ static void test_gamepad_remap(void) {
 }
 
 static void test_joystick_converters(void) {
-    printf("Testing uni_joystick converters (gamepad, twinstick, keyboard, balance board)...\n");
+    printf("Testing uni_joystick converters (gamepad, twinstick, keyboard, balance board, wii accel)...\n");
 
     // 1. Single joy from gamepad (use_two_buttons = 0 vs 1)
     uni_gamepad_t gp = {0};
@@ -420,6 +459,44 @@ static void test_joystick_converters(void) {
         uni_joy_to_single_joy_from_balance_board(&bb, &bb_state, &bb_joy);
     }
     assert(bb_state.fire_state == UNI_BALANCE_BOARD_STATE_RESET);
+
+    // 5. Wii Steering Wheel accelerometer converter (uni_joy_to_single_from_wii_accel)
+    uni_gamepad_t wii_gp = {0};
+    uni_joystick_t wii_joy = {0};
+
+    // 5a. Resting wheel deadzone (|sx| < 2.45f): accelerometer reading disabled
+    wii_gp.accel[0] = -1.50f;  // sx = -gp.accel[0] = +1.50f < 2.45f
+    wii_gp.accel[2] = -6.00f;  // sy = -gp.accel[2] = +6.00f
+    wii_gp.dpad = DPAD_UP;
+    wii_gp.buttons = BUTTON_X;
+    uni_joy_to_single_from_wii_accel(&wii_gp, &wii_joy);
+    assert(wii_joy.left == 0);
+    assert(wii_joy.right == 0);
+    assert(wii_joy.up == 0);
+    assert(wii_joy.down == 0);
+    assert(wii_joy.fire == 0);
+
+    // 5b. Active wheel upright + steer left (sx = -9.80665f < -2.45f, sy = +5.0f > +2.45f)
+    memset(&wii_gp, 0, sizeof(wii_gp));
+    wii_gp.accel[0] = UNI_STANDARD_GRAVITY;  // sx = -9.80665f
+    wii_gp.accel[2] = -5.0f;                 // sy = +5.0f > 2.45f
+    wii_gp.buttons = BUTTON_B | BUTTON_X;    // Throttle + Fire
+    uni_joy_to_single_from_wii_accel(&wii_gp, &wii_joy);
+    assert(wii_joy.left == 1);
+    assert(wii_joy.right == 0);
+    assert(wii_joy.up != 0);
+    assert(wii_joy.fire == 1);
+
+    // 5c. Active wheel upright + steer right (sx = -9.80665f < -2.45f, sy = -5.0f < -2.45f)
+    memset(&wii_gp, 0, sizeof(wii_gp));
+    wii_gp.accel[0] = UNI_STANDARD_GRAVITY;  // sx = -9.80665f
+    wii_gp.accel[2] = 5.0f;                  // sy = -5.0f < -2.45f
+    wii_gp.buttons = BUTTON_A;               // Brake
+    uni_joy_to_single_from_wii_accel(&wii_gp, &wii_joy);
+    assert(wii_joy.right == 1);
+    assert(wii_joy.left == 0);
+    assert(wii_joy.down != 0);
+    assert(wii_joy.fire == 0);
 
     printf("PASS\n");
 }

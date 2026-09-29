@@ -34,6 +34,7 @@
  */
 
 #include <unistd.h>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -58,6 +59,19 @@ int g_tests_failed = 0;
             g_tests_failed++;                                                                          \
             return;                                                                                    \
         }                                                                                              \
+    } while (0)
+
+#define TEST_ASSERT_FLOAT_NEAR(expected, actual, tol)                                                                  \
+    do {                                                                                                               \
+        double _exp = static_cast<double>(expected);                                                                   \
+        double _act = static_cast<double>(actual);                                                                     \
+        double _tol = static_cast<double>(tol);                                                                        \
+        if (std::fabs(_exp - _act) > _tol) {                                                                           \
+            std::fprintf(stderr, "  [FAIL] %s:%d: Expected %.6f +/- %.6f, got %.6f\n", __FILE__, __LINE__, _exp, _tol, \
+                         _act);                                                                                        \
+            g_tests_failed++;                                                                                          \
+            return;                                                                                                    \
+        }                                                                                                              \
     } while (0)
 
 #define RUN_TEST(fn)                           \
@@ -423,12 +437,12 @@ void test_on_controller_data_updates_snapshot_and_delta_ms() {
     ctl2.gamepad.axis_ry = -512;
     ctl2.gamepad.brake = 900;
     ctl2.gamepad.throttle = 1023;
-    ctl2.gamepad.accel[0] = 100;
-    ctl2.gamepad.accel[1] = -200;
-    ctl2.gamepad.accel[2] = 980;
-    ctl2.gamepad.gyro[0] = 15;
-    ctl2.gamepad.gyro[1] = -25;
-    ctl2.gamepad.gyro[2] = 35;
+    ctl2.gamepad.accel[0] = -1.25f;
+    ctl2.gamepad.accel[1] = UNI_STANDARD_GRAVITY;
+    ctl2.gamepad.accel[2] = 0.5f;
+    ctl2.gamepad.gyro[0] = -0.75f;
+    ctl2.gamepad.gyro[1] = 1.5f;
+    ctl2.gamepad.gyro[2] = -0.125f;
     d0.conn.rssi = 215;
     plat->on_controller_data(&d0, &ctl2);
 
@@ -443,12 +457,12 @@ void test_on_controller_data_updates_snapshot_and_delta_ms() {
     TEST_ASSERT(snapshots[0].controller.gamepad.axis_ry == -512);
     TEST_ASSERT(snapshots[0].controller.gamepad.brake == 900);
     TEST_ASSERT(snapshots[0].controller.gamepad.throttle == 1023);
-    TEST_ASSERT(snapshots[0].controller.gamepad.accel[0] == 100);
-    TEST_ASSERT(snapshots[0].controller.gamepad.accel[1] == -200);
-    TEST_ASSERT(snapshots[0].controller.gamepad.accel[2] == 980);
-    TEST_ASSERT(snapshots[0].controller.gamepad.gyro[0] == 15);
-    TEST_ASSERT(snapshots[0].controller.gamepad.gyro[1] == -25);
-    TEST_ASSERT(snapshots[0].controller.gamepad.gyro[2] == 35);
+    TEST_ASSERT_FLOAT_NEAR(-1.25f, snapshots[0].controller.gamepad.accel[0], 1e-5f);
+    TEST_ASSERT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, snapshots[0].controller.gamepad.accel[1], 1e-5f);
+    TEST_ASSERT_FLOAT_NEAR(0.5f, snapshots[0].controller.gamepad.accel[2], 1e-5f);
+    TEST_ASSERT_FLOAT_NEAR(-0.75f, snapshots[0].controller.gamepad.gyro[0], 1e-5f);
+    TEST_ASSERT_FLOAT_NEAR(1.5f, snapshots[0].controller.gamepad.gyro[1], 1e-5f);
+    TEST_ASSERT_FLOAT_NEAR(-0.125f, snapshots[0].controller.gamepad.gyro[2], 1e-5f);
     TEST_ASSERT(snapshots[0].report_delta_ms >= 4);
 }
 

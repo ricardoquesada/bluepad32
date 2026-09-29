@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include "controller/uni_controller.h"
+#include "controller/uni_gamepad.h"
 #include "hid_usage.h"
 #include "uni_config.h"
 #include "uni_hid_device.h"
@@ -20,6 +21,12 @@
 
 #define ZCM1_PID 0x03d5
 #define ZCM2_PID 0x0c5e
+
+// PS Move IMU hardware sensitivities:
+// - Accelerometer: 4096 LSB/g across both ZCM1 (PS3) and ZCM2 (PS4) revisions.
+// - Gyroscope: ~16.4 LSB/(deg/s) (~7500 counts at 80 rpm = 480 deg/s).
+#define PSMOVE_ACCEL_RES_PER_G 4096.0f
+#define PSMOVE_GYRO_RES_PER_DEG_S 16.4f
 
 // Required steps to determine what kind of extensions are supported.
 typedef enum psmove_fsm {
@@ -42,6 +49,16 @@ typedef struct psmove_instance_s {
     uint8_t rumble_magnitude;
 } psmove_instance_t;
 _Static_assert(sizeof(psmove_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "PSMove intance too big");
+
+// Decode a 16-bit raw IMU sensor word according to hardware revision:
+// - ZCM2 (PS4 Move, PID 0x0c5e): signed 16-bit two's complement (int16_t).
+// - ZCM1 (PS3 Move, PID 0x03d5): unsigned 16-bit offset-binary centered at 0x8000.
+static int32_t psmove_decode_sensor(const psmove_instance_t* ins, uint16_t raw) {
+    if (ins->model == PSMOVE_MODEL_ZCM2) {
+        return (int32_t)(int16_t)raw;
+    }
+    return (int32_t)raw - 0x8000;
+}
 
 // As defined here:
 // https://github.com/thp/psmoveapi/blob/master/src/psmove.c#L123
@@ -178,13 +195,23 @@ void uni_hid_parser_psmove_parse_input_report(uni_hid_device_t* d, const uint8_t
 
     ctl->gamepad.throttle = r->trigger * 4;
 
-    ctl->gamepad.accel[0] = r->accel_x;
-    ctl->gamepad.accel[1] = r->accel_y;
-    ctl->gamepad.accel[2] = r->accel_z;
+    const psmove_instance_t* ins = get_psmove_instance(d);
+    const int32_t ax = psmove_decode_sensor(ins, r->accel_x);
+    const int32_t ay = psmove_decode_sensor(ins, r->accel_y);
+    const int32_t az = psmove_decode_sensor(ins, r->accel_z);
 
-    ctl->gamepad.gyro[0] = r->gyro_x;
-    ctl->gamepad.gyro[1] = r->gyro_y;
-    ctl->gamepad.gyro[2] = r->gyro_z;
+    const int32_t gx = psmove_decode_sensor(ins, r->gyro_x);
+    const int32_t gy = psmove_decode_sensor(ins, r->gyro_y);
+    const int32_t gz = psmove_decode_sensor(ins, r->gyro_z);
+
+    // Map PS Move frame (X=Right, Y=Forward along wand, Z=Up through face buttons) to canonical Y-up frame.
+    ctl->gamepad.accel[0] = (float)ax * (UNI_STANDARD_GRAVITY / PSMOVE_ACCEL_RES_PER_G);
+    ctl->gamepad.accel[1] = (float)az * (UNI_STANDARD_GRAVITY / PSMOVE_ACCEL_RES_PER_G);
+    ctl->gamepad.accel[2] = (float)(-ay) * (UNI_STANDARD_GRAVITY / PSMOVE_ACCEL_RES_PER_G);
+
+    ctl->gamepad.gyro[0] = (float)gx * (UNI_DEG_TO_RAD / PSMOVE_GYRO_RES_PER_DEG_S);
+    ctl->gamepad.gyro[1] = (float)gz * (UNI_DEG_TO_RAD / PSMOVE_GYRO_RES_PER_DEG_S);
+    ctl->gamepad.gyro[2] = (float)(-gy) * (UNI_DEG_TO_RAD / PSMOVE_GYRO_RES_PER_DEG_S);
 
     if (r->battery <= 5)
         ctl->battery = r->battery * 51;

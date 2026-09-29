@@ -200,6 +200,12 @@ uni_gamepad_t uni_gamepad_remap(const uni_gamepad_t* gp) {
     new_gp.brake = get_mappings_value_for_pedal(map.brake, gp);
     new_gp.throttle = get_mappings_value_for_pedal(map.throttle, gp);
 
+    // Preserve normalized IMU telemetry (rad/s and m/s^2) across custom button/axis remappings.
+    for (int i = 0; i < 3; i++) {
+        new_gp.gyro[i] = gp->gyro[i];
+        new_gp.accel[i] = gp->accel[i];
+    }
+
     return new_gp;
 }
 
@@ -220,7 +226,7 @@ void uni_gamepad_dump(const uni_gamepad_t* gp) {
     // Don't add "\n"
     logi(
         "dpad=0x%02x, x=%4d, y=%4d, rx=%4d, ry=%4d, brake=%4d, throttle=%4d, buttons=0x%04x, misc=0x%02x, "
-        "gyro=%7d,%7d,%7d accel=%7d,%7d,%7d",
+        "gyro=%7.2f,%7.2f,%7.2f accel=%7.2f,%7.2f,%7.2f",
         gp->dpad,                                          // dpad
         gp->axis_x, gp->axis_y, gp->axis_rx, gp->axis_ry,  // axis
         gp->brake, gp->throttle,                           // brake/gas

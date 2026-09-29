@@ -20,6 +20,7 @@
 #include "parser/uni_hid_parser_wii.h"
 
 #include "controller/uni_controller.h"
+#include "controller/uni_gamepad.h"
 #include "hid_usage.h"
 #include "parser/uni_hid_parser_rumble.h"
 #include "uni_common.h"
@@ -33,6 +34,9 @@ static const uint32_t WII_DUMP_ROM_DATA_ADDR_END = 0x1700;
 #endif  // ENABLE_EEPROM_DUMP
 
 #define DRM_KEE_BATTERY_MASK GENMASK(6, 4)
+
+// Wiimote ADXL330 10-bit accelerometer sensitivity (~104 LSB/g around midpoint 0x200).
+#define WII_ACCEL_RES_PER_G 104.0f
 
 // Taken from Linux kernel: hid-wiimote.h
 enum wiiproto_reqs {
@@ -571,18 +575,19 @@ static void process_drm_ka(uni_hid_device_t* d, const uint8_t* report, uint16_t 
     uint16_t y = (report[4] << 2) | ((report[2] >> 4) & 0x2);
     uint16_t z = (report[5] << 2) | ((report[2] >> 5) & 0x2);
 
-    int16_t sx = x - 0x200;
-    int16_t sy = y - 0x200;
-    int16_t sz = z - 0x200;
+    int32_t sx = (int32_t)x - 0x200;
+    int32_t sy = (int32_t)y - 0x200;
+    int32_t sz = (int32_t)z - 0x200;
 
     // printf_hexdump(report, len);
     // logi("Wii: x=%d, y=%d, z=%d\n", sx, sy, sz);
 
     uni_controller_t* ctl = &d->controller;
 
-    ctl->gamepad.accel[0] = sx;
-    ctl->gamepad.accel[1] = sy;
-    ctl->gamepad.accel[2] = sz;
+    // Map Wiimote native frame (X=Left, Y=Forward, Z=Up) to canonical Y-up frame (X=Right, Y=Up, Z=Back).
+    ctl->gamepad.accel[0] = (float)(-sx) * (UNI_STANDARD_GRAVITY / WII_ACCEL_RES_PER_G);
+    ctl->gamepad.accel[1] = (float)sz * (UNI_STANDARD_GRAVITY / WII_ACCEL_RES_PER_G);
+    ctl->gamepad.accel[2] = (float)(-sy) * (UNI_STANDARD_GRAVITY / WII_ACCEL_RES_PER_G);
 
     // Dpad works as dpad, useful to navigate menus.
     ctl->gamepad.dpad |= (report[1] & 0x01) ? DPAD_DOWN : 0;

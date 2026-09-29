@@ -157,7 +157,7 @@ Bluepad32 normalizes all gamepad layouts to a canonical Xbox/Nintendo/PlayStatio
 | **Face Buttons** | `ctl->a()`, `ctl->b()`, `ctl->x()`, `ctl->y()`, `ctl->buttons()` | Positional helpers (`a()`=Bottom/Cross, `b()`=Right/Circle, `x()`=Left/Square, `y()`=Top/Triangle) or raw `BUTTON_A`..`BUTTON_THUMB_R` bitmask. |
 | **Shoulder & Stick Clicks** | `ctl->l1()`, `ctl->r1()`, `ctl->l2()`, `ctl->r2()`, `ctl->thumbL()`, `ctl->thumbR()` | `bool` digital state for bumpers, digital triggers, and L3/R3 clicks. |
 | **Misc / System Buttons** | `ctl->miscSystem()`, `ctl->miscSelect()`, `ctl->miscStart()`, `ctl->miscCapture()`, `ctl->miscButtons()` | `MISC_BUTTON_SYSTEM` (`0x01`), `MISC_BUTTON_SELECT` (`0x02`), `MISC_BUTTON_START` (`0x04`), `MISC_BUTTON_CAPTURE` (`0x08`). |
-| **Gyroscope & Accelerometer** | `ctl->gyroX()`, `ctl->gyroY()`, `ctl->gyroZ()`, `ctl->accelX()`, `ctl->accelY()`, `ctl->accelZ()` | `int32_t` 3-axis angular velocity and linear acceleration (supported on DS4, DualSense, Switch Pro/Joy-Con, Wii). |
+| **Gyroscope & Accelerometer** | `ctl->gyroX()`, `ctl->gyroY()`, `ctl->gyroZ()`, `ctl->accelX()`, `ctl->accelY()`, `ctl->accelZ()` | 3-axis angular velocity in **`rad/s`** (`X`=pitch, `Y`=yaw, `Z`=roll) and linear acceleration in **`m/s²`** (`X`=right, `Y`=up `+9.81 m/s²` at rest, `Z`=back) in the canonical right-handed Y-up coordinate frame (supported on DS3, DS4, DualSense, PS Move, Switch Pro/Joy-Con, Wii). |
 
 ### 3.3 Mouse, Keyboard & Wii Balance Board
 

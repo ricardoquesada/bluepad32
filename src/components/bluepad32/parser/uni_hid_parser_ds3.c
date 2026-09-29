@@ -29,6 +29,7 @@ limitations under the License.
 #include <string.h>
 
 #include "controller/uni_controller.h"
+#include "controller/uni_gamepad.h"
 #include "hid_usage.h"
 #include "uni_config.h"
 #include "uni_hid_device.h"
@@ -37,6 +38,12 @@ limitations under the License.
 static const uint16_t DUALSHOCK3_VID = 0x054c;  // Sony
 static const uint16_t DUALSHOCK3_PID = 0x0268;  // DualShock 3
 // static const uint16_t PS3NAV_PID = 0x042f;      // PS3 Navigation Controller
+
+// Sixaxis / DualShock 3 IMU hardware sensitivities:
+// Accelerometer: 10-bit unsigned (0..1023, centered at 511), ~113 LSB/g.
+// Gyroscope: 10-bit unsigned (0..1023, centered at 511), single-axis yaw rate sensor (~123 deg/s per 100 LSB).
+#define DS3_ACCEL_RES_PER_G 113.0f
+#define DS3_GYRO_RES_PER_DEG_S (100.0f / 123.0f)
 
 // Required steps to determine what kind of extensions are supported.
 typedef enum ds3_fsm {
@@ -241,13 +248,20 @@ void uni_hid_parser_ds3_parse_input_report(uni_hid_device_t* d, const uint8_t* r
     // in big-endian byte order (MSByte first).
     // Reference: Linux kernel drivers/hid/hid-sony.c (sixaxis_raw_event)
     if (len >= sizeof(ds3_input_report_t)) {
-        ctl->gamepad.accel[0] = (int32_t)btstack_flip_16(r->accel_x) - 511;
-        // Y and Z are swapped and inverted
-        ctl->gamepad.accel[1] = 511 - (int32_t)btstack_flip_16(r->accel_z);
-        ctl->gamepad.accel[2] = 511 - (int32_t)btstack_flip_16(r->accel_y);
+        const int32_t raw_ax = (int32_t)btstack_flip_16(r->accel_x) - 511;
+        // Y and Z are swapped and inverted to match the canonical Y-up coordinate frame.
+        const int32_t raw_ay = 511 - (int32_t)btstack_flip_16(r->accel_z);
+        const int32_t raw_az = 511 - (int32_t)btstack_flip_16(r->accel_y);
 
-        // DS3 only has a 1-axis gyroscope
-        ctl->gamepad.gyro[0] = (int32_t)btstack_flip_16(r->gyro_x) - 511;
+        ctl->gamepad.accel[0] = (float)raw_ax * (UNI_STANDARD_GRAVITY / DS3_ACCEL_RES_PER_G);
+        ctl->gamepad.accel[1] = (float)raw_ay * (UNI_STANDARD_GRAVITY / DS3_ACCEL_RES_PER_G);
+        ctl->gamepad.accel[2] = (float)raw_az * (UNI_STANDARD_GRAVITY / DS3_ACCEL_RES_PER_G);
+
+        // DS3 only has a 1-axis yaw gyroscope (rotation around the vertical Y axis).
+        const int32_t raw_gy = (int32_t)btstack_flip_16(r->gyro_x) - 511;
+        ctl->gamepad.gyro[0] = 0.0f;
+        ctl->gamepad.gyro[1] = (float)raw_gy * (UNI_DEG_TO_RAD / DS3_GYRO_RES_PER_DEG_S);
+        ctl->gamepad.gyro[2] = 0.0f;
     }
 }
 

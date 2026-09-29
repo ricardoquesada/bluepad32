@@ -134,27 +134,12 @@ const char* SubtypeToString(uni_controller_subtype_t subtype) {
     }
 }
 
+// Conversion constants between Bluepad32's canonical SI IMU telemetry (`m/s^2`, `rad/s`)
+// and secondary UI display units (`g`, `deg/s`, and integrated dial angles in degrees).
 constexpr float kPi = 3.14159265358979323846f;
 constexpr float kDegToRad = kPi / 180.0f;
-constexpr float kGravityMps2 = 9.80665f;
-
-float AccelCountsPerG(uint16_t vendor_id) {
-    // Sony DualShock 4 / DualSense parsers normalize 1g to 8192 counts;
-    // Nintendo Switch parsers normalize 1g to ~4096 counts.
-    if (vendor_id == 0x057e) {
-        return 4096.0f;
-    }
-    return 8192.0f;
-}
-
-float GyroCountsPerDegPerSec(uint16_t vendor_id) {
-    // Sony DualShock 4 / DualSense parsers use 1024 counts per deg/s;
-    // Nintendo Switch parser uses 1000 counts per deg/s.
-    if (vendor_id == 0x057e) {
-        return 1000.0f;
-    }
-    return 1024.0f;
-}
+constexpr float kRadToDeg = 180.0f / kPi;
+constexpr float kGravityMps2 = UNI_STANDARD_GRAVITY;
 
 void DrawTextCenteredInColumn(float colStartX, float colWidth, const ImVec4& color, const char* fmt, ...) {
     char buf[128];
@@ -522,16 +507,15 @@ void DemoScene::UpdateImuHistory(int slot, const ControllerSnapshot& snap) {
     }
     mLastImuTimestampUs[slot] = snap.last_report_timestamp_us;
 
-    const float gyroScale = GyroCountsPerDegPerSec(snap.vendor_id);
     const size_t idx = mImuHistoryOffset[slot];
     for (size_t axis = 0; axis < kMotionAxisCount; ++axis) {
-        const float rawGyro = static_cast<float>(snap.controller.gamepad.gyro[axis]);
-        const float rawAccel = static_cast<float>(snap.controller.gamepad.accel[axis]);
-        mGyroHistory[slot][axis][idx] = rawGyro;
-        mAccelHistory[slot][axis][idx] = rawAccel;
+        const float gyroRadS = snap.controller.gamepad.gyro[axis];
+        const float accelMps2 = snap.controller.gamepad.accel[axis];
+        mGyroHistory[slot][axis][idx] = gyroRadS;
+        mAccelHistory[slot][axis][idx] = accelMps2;
 
         if (dt_sec > 0.0f && dt_sec <= 0.5f) {
-            const float degPerSec = rawGyro / gyroScale;
+            const float degPerSec = gyroRadS * kRadToDeg;
             // Integrate angular rate into [-180, +180] degree dial angle
             mGyroAngleDeg[slot][axis] = std::remainder(mGyroAngleDeg[slot][axis] + degPerSec * dt_sec, 360.0f);
         }
@@ -1571,18 +1555,16 @@ void DemoScene::RenderPanel_MotionTab(int slot, const ControllerSnapshot& snap) 
     }
 
     const uni_gamepad_t& gp = snap.controller.gamepad;
-    const float accelScale = AccelCountsPerG(snap.vendor_id);
-    const float gyroScale = GyroCountsPerDegPerSec(snap.vendor_id);
 
-    float accelG[3] = {};
     float accelMps2[3] = {};
-    float gyroDegS[3] = {};
+    float accelG[3] = {};
     float gyroRadS[3] = {};
+    float gyroDegS[3] = {};
     for (int axis = 0; axis < 3; ++axis) {
-        accelG[axis] = static_cast<float>(gp.accel[axis]) / accelScale;
-        accelMps2[axis] = accelG[axis] * kGravityMps2;
-        gyroDegS[axis] = static_cast<float>(gp.gyro[axis]) / gyroScale;
-        gyroRadS[axis] = gyroDegS[axis] * kDegToRad;
+        accelMps2[axis] = gp.accel[axis];
+        accelG[axis] = accelMps2[axis] / kGravityMps2;
+        gyroRadS[axis] = gp.gyro[axis];
+        gyroDegS[axis] = gyroRadS[axis] * kRadToDeg;
     }
 
     ImGui::Spacing();
@@ -1628,11 +1610,9 @@ void DemoScene::RenderPanel_MotionTab(int slot, const ControllerSnapshot& snap) 
             drawList->AddLine(ImVec2(center.x, center.y - kBullseyeRadius),
                               ImVec2(center.x, center.y + kBullseyeRadius), IM_COL32(95, 110, 130, 150), 1.0f);
 
-            // Map in-plane tilt axes to 2D radar dot:
-            // Sony DS4/DualSense (0x054c) uses Y as vertical gravity (+1g at rest) and X/Z as horizontal plane;
-            // Nintendo Switch / other controllers use Z as vertical gravity and X/Y as horizontal plane.
+            // Map canonical Y-up horizontal tilt plane (X = right, Z = back) to 2D radar dot:
             float nx = accelG[0];
-            float ny = (snap.vendor_id == 0x054c) ? accelG[2] : accelG[1];
+            float ny = accelG[2];
             const float mag = std::hypot(nx, ny);
             if (mag > 1.0f) {
                 nx /= mag;
@@ -1658,7 +1638,8 @@ void DemoScene::RenderPanel_MotionTab(int slot, const ControllerSnapshot& snap) 
                     DrawTextCenteredInColumn(subStartX, subWidth, kTextColorGrey, "%s", kAxisLabels[axis]);
                     DrawTextCenteredInColumn(subStartX, subWidth, kTextColorWhite, "%+0.2f",
                                              static_cast<double>(accelMps2[axis]));
-                    DrawTextCenteredInColumn(subStartX, subWidth, kTextColorGrey, "(%d)", gp.accel[axis]);
+                    DrawTextCenteredInColumn(subStartX, subWidth, kTextColorGrey, "(%+0.2f g)",
+                                             static_cast<double>(accelG[axis]));
                 }
                 ImGui::EndTable();
             }
@@ -1734,7 +1715,8 @@ void DemoScene::RenderPanel_MotionTab(int slot, const ControllerSnapshot& snap) 
                                              static_cast<double>(angleDeg));
                     DrawTextCenteredInColumn(subStartX, subWidth, kTextColorWhite, "%s  %+0.2f", kAxisLabels[axis],
                                              static_cast<double>(gyroRadS[axis]));
-                    DrawTextCenteredInColumn(subStartX, subWidth, kTextColorGrey, "(%d)", gp.gyro[axis]);
+                    DrawTextCenteredInColumn(subStartX, subWidth, kTextColorGrey, "(%+0.1f\xC2\xB0/s)",
+                                             static_cast<double>(gyroDegS[axis]));
                 }
                 ImGui::EndTable();
             }
@@ -1760,21 +1742,21 @@ void DemoScene::RenderPanel_MotionTab(int slot, const ControllerSnapshot& snap) 
     if (ImGui::BeginTable("##imuplots", 2, ImGuiTableFlags_SizingStretchSame)) {
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::Text("Accelerometer (X / Y / Z)");
-        ImGui::PlotLines("Accel X", mAccelHistory[slot][0], histCount, histOffset, nullptr, -8192.0f, 8192.0f,
+        ImGui::Text("Accelerometer (X / Y / Z, m/s\xC2\xB2)");
+        ImGui::PlotLines("Accel X", mAccelHistory[slot][0], histCount, histOffset, nullptr, -20.0f, 20.0f,
                          ImVec2(0.0f, 55.0f));
-        ImGui::PlotLines("Accel Y", mAccelHistory[slot][1], histCount, histOffset, nullptr, -8192.0f, 8192.0f,
+        ImGui::PlotLines("Accel Y", mAccelHistory[slot][1], histCount, histOffset, nullptr, -20.0f, 20.0f,
                          ImVec2(0.0f, 55.0f));
-        ImGui::PlotLines("Accel Z", mAccelHistory[slot][2], histCount, histOffset, nullptr, -8192.0f, 8192.0f,
+        ImGui::PlotLines("Accel Z", mAccelHistory[slot][2], histCount, histOffset, nullptr, -20.0f, 20.0f,
                          ImVec2(0.0f, 55.0f));
 
         ImGui::TableNextColumn();
-        ImGui::Text("Gyroscope (X / Y / Z)");
-        ImGui::PlotLines("Gyro X", mGyroHistory[slot][0], histCount, histOffset, nullptr, -2048.0f, 2048.0f,
+        ImGui::Text("Gyroscope (X / Y / Z, rad/s)");
+        ImGui::PlotLines("Gyro X", mGyroHistory[slot][0], histCount, histOffset, nullptr, -10.0f, 10.0f,
                          ImVec2(0.0f, 55.0f));
-        ImGui::PlotLines("Gyro Y", mGyroHistory[slot][1], histCount, histOffset, nullptr, -2048.0f, 2048.0f,
+        ImGui::PlotLines("Gyro Y", mGyroHistory[slot][1], histCount, histOffset, nullptr, -10.0f, 10.0f,
                          ImVec2(0.0f, 55.0f));
-        ImGui::PlotLines("Gyro Z", mGyroHistory[slot][2], histCount, histOffset, nullptr, -2048.0f, 2048.0f,
+        ImGui::PlotLines("Gyro Z", mGyroHistory[slot][2], histCount, histOffset, nullptr, -10.0f, 10.0f,
                          ImVec2(0.0f, 55.0f));
         ImGui::EndTable();
     }
