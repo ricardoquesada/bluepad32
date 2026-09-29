@@ -487,6 +487,20 @@ TEST(hid_parser_ds3_valid_and_short) {
     report[18] = 128;  // l2_analog -> 512
     report[19] = 255;  // r2_analog -> 1020
 
+    // Accelerometer & gyroscope (big-endian 10-bit values at bytes 41..48, centered at 511):
+    //   accel_x (41..42) = 611 (0x0263) -> accel[0] = 611 - 511 = +100
+    //   accel_y (43..44) = 461 (0x01cd) -> accel[2] = 511 - 461 = +50 (Y/Z swapped and inverted)
+    //   accel_z (45..46) = 398 (0x018e) -> accel[1] = 511 - 398 = +113 (+1G vertical)
+    //   gyro_x  (47..48) = 536 (0x0218) -> gyro[0]  = 536 - 511 = +25
+    report[41] = 0x02;
+    report[42] = 0x63;
+    report[43] = 0x01;
+    report[44] = 0xcd;
+    report[45] = 0x01;
+    report[46] = 0x8e;
+    report[47] = 0x02;
+    report[48] = 0x18;
+
     feed_input_report(&d, report, sizeof(report));
     EXPECT_EQ(DPAD_UP, d.controller.gamepad.dpad);
     EXPECT_EQ(BUTTON_THUMB_L | BUTTON_SHOULDER_L | BUTTON_A | BUTTON_X, d.controller.gamepad.buttons);
@@ -495,6 +509,12 @@ TEST(hid_parser_ds3_valid_and_short) {
     EXPECT_EQ(-508, d.controller.gamepad.axis_y);
     EXPECT_EQ(512, d.controller.gamepad.brake);
     EXPECT_EQ(1020, d.controller.gamepad.throttle);
+    EXPECT_EQ(100, d.controller.gamepad.accel[0]);
+    EXPECT_EQ(113, d.controller.gamepad.accel[1]);
+    EXPECT_EQ(50, d.controller.gamepad.accel[2]);
+    EXPECT_EQ(25, d.controller.gamepad.gyro[0]);
+    EXPECT_EQ(0, d.controller.gamepad.gyro[1]);
+    EXPECT_EQ(0, d.controller.gamepad.gyro[2]);
 
     // Battery and name matching checks.
     EXPECT_TRUE(uni_hid_parser_ds3_does_name_match(&d, "PLAYSTATION(R)3 Controller"));
@@ -504,6 +524,14 @@ TEST(hid_parser_ds3_valid_and_short) {
     report[30] = 0xEE;  // Charging -> 255
     feed_input_report(&d, report, sizeof(report));
     EXPECT_EQ(255, d.controller.battery);
+
+    // Partial reports (30 <= len < 49) parse buttons/axes/battery but skip IMU bytes safely.
+    feed_input_report(&d, report, 35);
+    EXPECT_EQ(BUTTON_THUMB_L | BUTTON_SHOULDER_L | BUTTON_A | BUTTON_X, d.controller.gamepad.buttons);
+    EXPECT_EQ(0, d.controller.gamepad.accel[0]);
+    EXPECT_EQ(0, d.controller.gamepad.accel[1]);
+    EXPECT_EQ(0, d.controller.gamepad.accel[2]);
+    EXPECT_EQ(0, d.controller.gamepad.gyro[0]);
 
     // Short reports (< 30 bytes) and wrong report ID must be safely ignored.
     feed_input_report(&d, report, 0);

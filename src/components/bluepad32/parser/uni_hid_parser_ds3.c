@@ -119,6 +119,7 @@ typedef struct __attribute((packed)) {
     uint16_t accel_z;
     uint16_t gyro_x;
 } ds3_input_report_t;
+_Static_assert(sizeof(ds3_input_report_t) == 49, "Invalid DS3 input report size");
 
 static ds3_instance_t* get_ds3_instance(uni_hid_device_t* d);
 static void ds3_update_led(uni_hid_device_t* d, uint8_t player_leds);
@@ -151,7 +152,7 @@ void uni_hid_parser_ds3_parse_input_report(uni_hid_device_t* d, const uint8_t* r
         return;
     }
 
-    ds3_input_report_t* r = (ds3_input_report_t*)report;
+    const ds3_input_report_t* r = (const ds3_input_report_t*)report;
 
     if (r->report_id != 0x01) {
         loge("ds3: Unexpected report_id, got: 0x%02x, want: 0x01\n", r->report_id);
@@ -234,6 +235,20 @@ void uni_hid_parser_ds3_parse_input_report(uni_hid_device_t* d, const uint8_t* r
         ctl->gamepad.buttons |= BUTTON_X;  // North
     if (r->buttons[2] & 0x01)
         ctl->gamepad.misc_buttons |= MISC_BUTTON_SYSTEM;  // PS
+
+    // Accelerometer and Gyroscope (bytes 41..48 in the full 49-byte report).
+    // Sixaxis/DS3 reports 10-bit unsigned values (0..1023, centered at 511)
+    // in big-endian byte order (MSByte first).
+    // Reference: Linux kernel drivers/hid/hid-sony.c (sixaxis_raw_event)
+    if (len >= sizeof(ds3_input_report_t)) {
+        ctl->gamepad.accel[0] = (int32_t)btstack_flip_16(r->accel_x) - 511;
+        // Y and Z are swapped and inverted
+        ctl->gamepad.accel[1] = 511 - (int32_t)btstack_flip_16(r->accel_z);
+        ctl->gamepad.accel[2] = 511 - (int32_t)btstack_flip_16(r->accel_y);
+
+        // DS3 only has a 1-axis gyroscope
+        ctl->gamepad.gyro[0] = (int32_t)btstack_flip_16(r->gyro_x) - 511;
+    }
 }
 
 void uni_hid_parser_ds3_set_player_leds(uni_hid_device_t* d, uint8_t leds) {
