@@ -67,11 +67,7 @@ Non-comprehensive list of supported Bluetooth gamepads their protocols:
 
 The Pico W and ESP32 family of processors. But only the ones that support Bluetooth.
 
-For ESP32, Bluepad32 can run in:
-
-- the main processor, like in the [Espressif ESP32-DevKitC][espressif_esp32_devkitc]
-- or in coprocessor modules, like [Adafruit AirLift][airlift] modules, or [Arduino NINA-W102 based][nina_module]
-  boards.
+For ESP32, Bluepad32 can run in the main processor, like in the [Espressif ESP32-DevKitC][espressif_esp32_devkitc].
 
 If you want to know whether a certain ESP32-based board is supported, it is safe to assume
 that if the board is supported by regular Arduino, then it is supported by Bluepad32.
@@ -81,10 +77,6 @@ that if the board is supported by regular Arduino, then it is supported by Bluep
 [esp32_family]: https://www.espressif.com/en/products/modules
 
 [espressif_esp32_devkitc]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/hw-reference/esp32/get-started-devkitc.html
-
-[airlift]: https://www.adafruit.com/product/4201
-
-[nina_module]: https://store.arduino.cc/products/arduino-nano-rp2040-connect
 
 ## How to pair just one controller to one particular board?
 

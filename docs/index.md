@@ -15,7 +15,7 @@ In other words, it allows you to control a robot using a DualSense controller.
 
 * Supports most, if not all, modern Bluetooth gamepads, mice and keyboards
 * Supports ESP32 and Pico W family of microcontrollers
-* Supported APIs: ESP-IDF, Pico-SDK, Arduino and CircuitPython
+* Supported APIs: ESP-IDF, Pico-SDK and Arduino
 * Fast (very low latency)
 * Small footprint
 * Uses only one core (CPU0)

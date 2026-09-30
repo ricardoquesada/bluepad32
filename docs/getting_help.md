@@ -27,13 +27,10 @@ Add the following info:
 Bluepad32 supports different platforms, like:
 
 * Arduino IDE for ESP32 modules
-* Arduino IDE for NINA coprocessors, like the Arduino Nano RP2040 Connect
 * Arduino + ESP-IDF
-* CircuitPython for AirLift coprocessors
 * ESP-IDF
 * Pico SDK
 * Unijoysticle
-* MightyMiggy
 
 So, provide the platform you are using, and the version. And also which Bluepad32 version!
 

@@ -44,7 +44,6 @@ typedef enum {
     CONTROLLER_SUBTYPE_WIIMOTE_UDRAW_TABLET,
 
     // Each gamepad should have its own range; this is to have binary compatibility
-    // E.g: NINA users might depend on some hardcoded values
     CONTROLLER_SUBTYPE_EXAMPLE_OF_NEW_GAMEPAD = 20,
 
 } uni_controller_subtype_t;

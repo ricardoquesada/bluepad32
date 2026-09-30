@@ -3,38 +3,38 @@
 Bluepad32 is a modular, portable Bluetooth HID Host firmware component written in C99 on top of the [BTstack][btstack] Bluetooth stack. It is architected so that the core Bluetooth protocol handling, HID descriptor/report parsing, and controller normalization remain 100% decoupled from target hardware, real-time operating systems, and host interfaces (retro consoles, Arduino, SPI co-processors, or POSIX desktops).
 
 ```
-  ┌──────────────┐ ┌──────────┐ ┌──────────┐ ┌─────────────┐ ┌──────────┐
-  │              │ │  NINA /  │ │          │ │             │ │          │
-  │ Unijoysticle │ │  AirLift │ │ Arduino  │ │ MightyMiggy │ │ Custom   │      Platforms
-  │              │ │          │ │          │ │             │ │          │
-  └────────┬─────┘ └────┬─────┘ └────┬─────┘ └─────┬───────┘ └───┬──────┘
-           │            │            │             │             │
-           │            │            │             │             │
-      ┌────▼────────────▼────────────▼─────────────▼─────────────▼─┐
-      │                                                            │
-      │                                                            │
-      │                                                            │           Firmware
-      │                          Bluepad32                         │
-  ┌───┤                                                            │
-  │   │                                                            │
-  │   │                                                            │
-  │   └─────┬──────────────────┬──────────────┬─────────────────┬──┘
-  │         │                  │              │                 │
-  │         │                  │              │                 │
-  │         │   ┌──────────────▼────────────┐ │                 │
-  │         │   │                           │ │                 │
-  │         │   │           BTstack         ├─┼──────────────┐  │              Bluetooth Stack
-  │         │   │                           │ │              │  │
-  │         │   └────┬──────┬─────────┬─────┘ │              │  │
-  │         │        │      │         │       │              │  │
-  │         │        │      │         │       │              │  │
-  │      ┌──▼────────▼───┐  │         │       │              │  │
-  │      │               │  │         │       │              │  │
-  │      │   FreeRTOS    │  │         │       │              │  │
-  │      │               │  │         │       │              │  │
-  │      └──────┬────────┘  │         │       │              │  │
-  │             │           │         │       │              │  │
-┌─▼─────────────▼───────────▼─┐ ┌─────▼───────▼──┐ ┌─────────▼──▼──────────┐
+  ┌──────────────┐ ┌──────────┐ ┌──────────┐
+  │              │ │          │ │          │
+  │ Unijoysticle │ │ Arduino  │ │ Custom   │      Platforms
+  │              │ │          │ │          │
+  └────────┬─────┘ └────┬─────┘ └───┬──────┘
+           │            │           │
+           │            │           │
+      ┌────▼────────────▼───────────▼───────┐
+      │                                     │
+      │                                     │
+      │                                     │           Firmware
+      │              Bluepad32              │
+  ┌───┤                                     │
+  │   │                                     │
+  │   │                                     │
+  │   └─────┬──────────────────┬────────────┘
+  │         │                  │
+  │         │                  │
+  │         │   ┌──────────────▼────────────┐
+  │         │   │                           │
+  │         │   │           BTstack         ├───────────────┐    Bluetooth Stack
+  │         │   │                           │               │
+  │         │   └────┬──────┬─────────┬─────┘               │
+  │         │        │      │         │                     │
+  │         │        │      │         │                     │
+  │      ┌──▼────────▼───┐  │         │                     │
+  │      │               │  │         │                     │
+  │      │   FreeRTOS    │  │         │                     │
+  │      │               │  │         │                     │
+  │      └──────┬────────┘  │         │                     │
+  │             │           │         │                     │
+┌─▼─────────────▼───────────▼─┐ ┌─────▼──────────┐ ┌────────▼──────────────┐
 │                             │ │                │ │                       │
 │            ESP-IDF          │ │    Pico SDK    │ │    Posix / libusb     │    Operating System
 │                             │ │                │ │                       │
@@ -61,7 +61,7 @@ Within `src/components/bluepad32/`, the firmware is organized into six strictly 
 ```mermaid
 flowchart TB
     subgraph Tier3["Tier 3: Target Platform & Application Interface"]
-        PLAT["platform/ (uni_platform.h)<br/>Unijoysticle, MightyMiggy, NINA/AirLift, Arduino, Custom"]
+        PLAT["platform/ (uni_platform.h)<br/>Unijoysticle, Arduino, Custom"]
     end
 
     subgraph Tier2["Tier 2: HID Core, Report Parsing & Controller Normalization"]
@@ -189,7 +189,7 @@ flowchart LR
 
 Neither BTstack nor Bluepad32 is re-entrant or internally mutex-locked. All Bluetooth packet processing, timer expirations, HID parsing, and platform callbacks execute sequentially on a single **BTstack Run-Loop Thread** (Core 0 task on ESP32, main run loop on Pico W and POSIX).
 
-To allow external threads (such as an Arduino `loop()` running on ESP32 Core 1, a FreeRTOS worker task, or an SPI interrupt handler in NINA/AirLift) to invoke Bluetooth operations safely without data races:
+To allow external threads (such as an Arduino `loop()` running on ESP32 Core 1 or a FreeRTOS worker task) to invoke Bluetooth operations safely without data races:
 
 1. **`*_safe` Asynchronous Dispatch**: Functions suffixed with `_safe` (e.g., `uni_bt_start_scanning_and_autoconnect_safe()`, `uni_bt_del_keys_safe()`, `uni_bt_disconnect_device_safe()`) do **not** touch BTstack state directly.
 2. **Pre-Allocated Registration Ring Buffer (`CMD_CALLBACK_MAX = 8`)**:

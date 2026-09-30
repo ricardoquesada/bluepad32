@@ -76,12 +76,12 @@ jobs:
       shell: bash
       run: cd external/btstack && git apply ../patches/*.patch
 
-    - name: Build src/ CI platforms (unijoysticle, mightymiggy, nina, airlift)
+    - name: Build src/ CI platforms (unijoysticle)
       shell: bash
       working-directory: ${{ github.workspace }}/src
       run: |
         . $IDF_PATH/export.sh
-        for plat in plat_unijoysticle plat_mightymiggy plat_nina plat_airlift; do
+        for plat in plat_unijoysticle; do
           idf.py -B "build_${plat}" -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.${plat}" build
         done
 

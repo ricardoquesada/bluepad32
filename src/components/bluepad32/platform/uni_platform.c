@@ -7,8 +7,6 @@
 #include "sdkconfig.h"
 
 #include "platform/uni_platform_custom.h"
-#include "platform/uni_platform_mightymiggy.h"
-#include "platform/uni_platform_nina.h"
 #include "uni_log.h"
 
 #ifdef CONFIG_BLUEPAD32_PLATFORM_UNIJOYSTICLE
@@ -27,12 +25,6 @@ void uni_platform_init(int argc, const char** argv) {
 
 #ifdef CONFIG_BLUEPAD32_PLATFORM_UNIJOYSTICLE
     platform_ = uni_platform_unijoysticle_create();
-#elif defined(CONFIG_BLUEPAD32_PLATFORM_AIRLIFT)
-    platform_ = uni_platform_airlift_create();
-#elif defined(CONFIG_BLUEPAD32_PLATFORM_MIGHTYMIGGY)
-    platform_ = uni_platform_mightymiggy_create();
-#elif defined(CONFIG_BLUEPAD32_PLATFORM_NINA)
-    platform_ = uni_platform_nina_create();
 #elif defined(CONFIG_BLUEPAD32_PLATFORM_CUSTOM)
     if (!platform_) {
         while (1)

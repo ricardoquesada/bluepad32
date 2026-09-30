@@ -16,11 +16,6 @@ extern "C" {
 #ifdef ESP_PLATFORM
 #include <driver/gpio.h>
 
-// The inconsistency between read/write with uint8_t / uint16_t is to be
-// compatible with NINA protocol which has this inconsistency.
-int uni_gpio_analog_write(gpio_num_t pin, uint8_t value);
-uint16_t uni_gpio_analog_read(gpio_num_t pin);
-
 void uni_gpio_register_cmds(void);
 
 // Safe version of gpio_set_level.

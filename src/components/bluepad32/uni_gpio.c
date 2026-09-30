@@ -28,19 +28,6 @@ static struct {
     struct arg_end* end;
 } gpio_set_args;
 
-int uni_gpio_analog_write(gpio_num_t pin, uint8_t value) {
-    ARG_UNUSED(pin);
-    ARG_UNUSED(value);
-
-    return 1;
-}
-
-uint16_t uni_gpio_analog_read(gpio_num_t pin) {
-    ARG_UNUSED(pin);
-
-    return 0;
-}
-
 static int cmd_gpio_get(int argc, char** argv) {
     int gpio_num, value;
 

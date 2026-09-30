@@ -162,7 +162,7 @@ struct uni_hid_device_s {
     uint8_t parser_data[HID_DEVICE_MAX_PARSER_DATA] __attribute__((aligned(sizeof(void*))));
 
     /**
-     * @brief Bytes reserved to different platforms (e.g., C64 or Airlift per-device state).
+     * @brief Bytes reserved to different platforms (e.g., C64 or custom per-device state).
      */
     uint8_t platform_data[HID_DEVICE_MAX_PLATFORM_DATA] __attribute__((aligned(sizeof(void*))));
 };

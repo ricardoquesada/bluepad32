@@ -14,7 +14,7 @@ class Distro:
         if platform == "all":
             # "arduino" platform is not added since it doesn't make sense to
             # have a prebuilt firmware for Arduino.
-            self._platforms = ("unijoysticle", "airlift", "mightymiggy", "nina")
+            self._platforms = ("unijoysticle",)
         else:
             self._platforms = (platform,)
 
@@ -135,7 +135,7 @@ $ %(prog)s --set-version v2.0.0 unijoysticle
 
     parser.add_argument(
         "platform",
-        choices=["all", "unijoysticle", "airlift", "mightymiggy", "nina"],
+        choices=["all", "unijoysticle"],
         help="Platform to build for",
     )
 

@@ -3,7 +3,6 @@
 The Bluepad32 Arduino API (`<Bluepad32.h>`) provides an idiomatic, event-driven C++ interface for reading Bluetooth gamepads, mice, keyboards, and Wii Balance Boards on:
 
 - **[ESP32 / ESP32-S3 / ESP32-C3 boards](../plat_arduino/)** (via the *ESP32 + Bluepad32* Arduino board package or ESP-IDF + Arduino template)
-- **[Arduino NINA-W10 co-processor boards](../plat_nina/)** (Arduino Nano RP2040 Connect, Nano 33 IoT, MKR WiFi 1010, UNO WiFi Rev.2)
 
 ---
 

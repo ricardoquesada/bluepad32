@@ -59,20 +59,17 @@ body:
       options:
         - Arduino IDE
         - Arduino ESP-IDF
-        - Arduino + NINA
-        - CircuitPython + AirLift
         - ESP-IDF
         - Pico SDK
         - Posic (Linux, macOS)
         - Unijoysticle
-        - MightyMiggy
         - Other
   - type: textarea
     id: platforms-custom
     attributes:
       label: Platform version
       description: Which Platform version?
-      value: "E.g: Arduino IDE 2.1.0, or ESP-IDF v4.4.4, or CircuitPython 8.0.0, etc."
+      value: "E.g: Arduino IDE 2.1.0, or ESP-IDF v5.5, etc."
   - type: textarea
     id: controller
     attributes:

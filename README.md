@@ -21,21 +21,10 @@ Choose your target platform:
 |-------------------------------------|-------------------------------------------------------------------|---------------------------|-----------------------------------------------------------------------------------------------------------|
 | Arduino IDE                         | [![Watch the video][youtube_image]](https://youtu.be/0jnY-XXiD8Q) | [Doc][plat_arduino]       | [Controller for Tello drone][tello]                                                                       |
 | Arduino using ESP-IDF toolchain     | [Template project][esp-idf-bluepad32-arduino]                     | [Doc][plat_arduino]       | [Lego Robot][esp32_example] ([video][esp32_video]), [gbaHD Shield][esp32_example2] (a GameBoy consolizer) |
-| Arduino + NINA coprocessor          | [Arduino Library][bp32-arduino]                                   | [Doc][plat_nina]          | [Philips CD-i meets Bluetooth][nina_example]                                                              |
-| CircuitPython + AirLift coprocessor | [CircuitPython Library][bp32-circuitpython]                       | [Doc][plat_airlift]       | [Quico console][airlift_example], Controlling 4 servos ([video][airlift_video])                           |
 | Pico W                              | [Pico W example][pico-w-example]                                  | [Doc][plat_picow_picosdk] | [Pico Switch][pico_switch], [PicoNtrol][pico_ntrol]                                                       |
 | ESP-IDF                             | [ESP32 example][esp32-example]                                    | [Doc][plat_esp32_espidf]  | [OGX-Wireless-Lite][ogx_wireless_lite]                                                                    |
 | Posix (Linux, macOS)                | [Posix example][posix-example]                                    | [Doc][plat_custom]        |                                                                                                           |
 | Unijoysticle                        | [Unijoysticle2][unijoysticle2]                                    | [Doc][plat_unijoysticle]  |                                                                                                           |
-| MightyMiggy                         | [Unijoysticle for Amiga][unijoysticle_sukko]                      | [Doc][plat_mightymiggy]   |                                                                                                           |
-
-[airlift_example]: https://gitlab.com/ricardoquesada/quico
-
-[airlift_video]: https://twitter.com/makermelissa/status/1482596378282913793
-
-[bp32-arduino]: https://github.com/ricardoquesada/bluepad32-arduino
-
-[bp32-circuitpython]: https://github.com/ricardoquesada/bluepad32-circuitpython
 
 [esp-idf-bluepad32-arduino]: https://github.com/ricardoquesada/esp-idf-arduino-bluepad32-template
 
@@ -45,25 +34,17 @@ Choose your target platform:
 
 [esp32_video]: https://www.instagram.com/p/Ca7T6twKZ0B/
 
-[nina_example]: https://eyskens.me/cd-i-meets-bluetooth/
-
 [ogx_wireless_lite]: https://github.com/wiredopposite/OGX-Wireless-Lite
 
 [pico_ntrol]: https://github.com/ShadeReogen/PicoNtrol
 
 [pico_switch]: https://github.com/juan518munoz/PicoSwitch-WirelessGamepadAdapter
 
-[plat_airlift]: https://bluepad32.readthedocs.io/en/latest/plat_airlift
-
 [plat_arduino]: https://bluepad32.readthedocs.io/en/latest/plat_arduino
 
 [plat_custom]: https://bluepad32.readthedocs.io/en/latest/adding_new_platform
 
 [plat_esp32_espidf]: https://bluepad32.readthedocs.io/en/latest/plat_esp32
-
-[plat_mightymiggy]: https://bluepad32.readthedocs.io/en/latest/plat_mightymiggy
-
-[plat_nina]: https://bluepad32.readthedocs.io/en/latest/plat_nina
 
 [plat_unijoysticle]: https://bluepad32.readthedocs.io/en/latest/plat_unijoysticle
 
@@ -73,15 +54,13 @@ Choose your target platform:
 
 [unijoysticle2]: https://retro.moe/unijoysticle2/
 
-[unijoysticle_sukko]: https://gitlab.com/SukkoPera/unijoysticle2
-
 [youtube_image]: https://lh3.googleusercontent.com/pw/AJFCJaXiDBy3NcQBBB-WFFVCsvYBs8szExsYQVwG5qqBTtKofjzZtJv_6GSL7_LfYRiypF1K0jjjgziXJuxAhoEawvzV84hlbmVTrGeXQYpVnpILZwWkbFi-ccX4lEzEbYXX-UbsEzpHLhO8qGVuwxOl7I_h1Q=-no?authuser=0
 
 ## Features
 
 * Supports most, if not all, modern Bluetooth gamepads, mice and keyboards (see below)
 * Supports ESP32 and Pico W families
-* Supported APIs: ESP-IDF, Pico-SDK, Arduino and CircuitPython
+* Supported APIs: ESP-IDF, Pico-SDK and Arduino
 * Fast (very low latency)
 * Small footprint
 * Uses only one core (CPU0). The remaining one is free to use.
@@ -125,7 +104,7 @@ See: [Supported gamepads][gamepads], [supported mice][mice] and [supported keybo
 
 ## Pre-compiled binaries
 
-Download pre-compiled binaries for Unijoysticle, Nina, AirLift, MightyMiggy:
+Download pre-compiled binaries for Unijoysticle:
 
 * https://github.com/ricardoquesada/bluepad32/releases
 

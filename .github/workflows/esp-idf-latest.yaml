@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [plat_unijoysticle, plat_mightymiggy, plat_nina, plat_airlift]
+        platform: [plat_unijoysticle]
 
     steps:
     - name: Checkout repo

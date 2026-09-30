@@ -2,7 +2,7 @@
 
 !!! Note
 
-    Only valid for Arduino NINA, Adafruit AirLift, Unijoysticle and MightyMiggy boards.
+    Only valid for Unijoysticle boards.
 
 If you only want to flash the latest firmware version without downloading the toolchain + sources you should do:
 
@@ -71,10 +71,6 @@ Parameters:
 - And then click "START"
 
 # Compiling + flashing firmware
-
-!!! Note
-
-    Although Bluepad32 works both with ESP-IDF 5.x, NINA and MightyMiggy require ESP-IDF v4.4.
 
 ## For Windows
 
