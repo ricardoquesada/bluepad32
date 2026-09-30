@@ -48,9 +48,17 @@
 - Colin Luoma:
     - Allowlist works Ok on Pico W by adding "string" support to properties.
 - Lauri Sovinen:
-    - Add dependencie in esp32 builder
-- Daniel
+    - Add dependency in esp32 builder
+- Daniel:
     - Update supported mouse documentation
+- ajgrah2000:
+    - Increased main task stack size for ESP32-C6 during Xbox connection
+- Diego Parrilla:
+    - Allow BLE HID devices without Device Information Service (DIS)
+- Lauri Gates:
+    - Added `USB_SERIAL_JTAG` primary console support for ESP32 REPL
+- Matt Hills:
+    - Added Nintendo Switch Online NES Controller support for Switch parser
 
 ## People who contributed with ideas and/or testing
 

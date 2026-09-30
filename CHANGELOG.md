@@ -4,20 +4,148 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [4.2.1] - 2025-??-??
-## Changed
-- Pico W: Recommends Pico SDK 2.1.1 or newer which fixed nasty bug triggered by Bluepad32. See:
-  [Pico SDK #2157][picosdk#2157] and [Pico SDK #2165][picosdk#2165]
-- BTstack: Updated to 1.7.0 tag (latest master branch)
-  - Updated build system to support new BTstack integration
+## [5.0.0] - 2026-??-??
+### New
+- ESP32: Added support for ESP32-C5 and newer ESP32 chips via
+  `CONFIG_SOC_BT_CLASSIC_SUPPORTED` and `CONFIG_SOC_BLE_SUPPORTED` capability
+  macros.
+- ESP32 Console: Added support for `USB_SERIAL_JTAG` as a primary console for
+  the REPL in addition to `UART`. Fixes [Github Issue #209][github_issue_209]
+  ([PR #210][github_pr_210], [PR #211][github_pr_211]).
+- ESP-IDF: Added support for ESP-IDF v5.5 and v6.1.
+- Pico W: Added support for Pico SDK 2.2.
+- DualShock 3: Added 3-axis accelerometer and gyroscope support to the
+  DualShock 3 (`SIXAXIS`) parser.
+- Switch: Added support for Nintendo Switch Online NES Controllers (Left `0x09`
+  and Right `0x0a`) ([PR #206][github_pr_206]).
+- BLE: Allow HID devices that do not expose the Device Information Service
+  (DIS, `0x180A`) to connect via `UNI_HID_DEVICE_ALLOW_NO_DIS`
+  ([PR #199][github_pr_199]).
+- Examples: Added `examples/posix_imgui`, a desktop controller tester and
+  diagnostic application built with Dear ImGui, GLFW, and OpenGL3 (featuring
+  vector controller visualization, dual-motor and trigger rumble testing,
+  circular IMU bullseye and gyroscope dials, live telemetry plots, LED/lightbar
+  controls, and persisted UI preferences).
+- Posix Example: Added `--ble` / `-b 0|1` command-line option to enable or
+  disable BLE connections at startup.
+- Tests & CI: Added host CTest unit test suite (`tests/`) with AddressSanitizer
+  and UndefinedBehaviorSanitizer (`ASan`/`UBSan`) covering `uni_hid_device`,
+  `uni_hid_parser` (including synthetic reports and fuzzing across all 16
+  controller parsers), BTstack packet handlers, SDP, BLE advertisements, rumble
+  timers, TLV properties, and Wii Balance Board, plus GitHub Actions CI and
+  upstream SDK canary workflows.
 
-## Fixed
-- Pico W: Able to store string properties, meaning that allowlist works as expected [Github Issue #160][github_issue_160]
-- uni_hid_device: Fix possible overflow when parsing HID descriptor.
+### Changed
+- IMU Telemetry: Standardized `uni_gamepad_t::accel[3]` and
+  `uni_gamepad_t::gyro[3]` across all 6 IMU-capable parsers (DualShock 3,
+  DualShock 4, DualSense, Switch, Wii, PS Move) to `float` in physical SI units
+  (`m/s^2` for accelerometer and `rad/s` for gyroscope) using a canonical
+  right-handed Y-up coordinate frame (`+X` right/pitch, `+Y` up/yaw, `+Z`
+  back/roll).
+- BTstack: Updated to v1.8.2+ (`master` branch)
+  - Updated build system to support the new BTstack integration
+    (`btstack_integrate.py` is no longer required).
+  - Fixes a libusb kernel panic on macOS Tahoe when using the POSIX client and
+    resolves ESP32-C6 issues.
+- BLE: Disabled LE Secure Connections by default to improve compatibility with
+  BLE controllers that fail key exchange.
+- ESP-IDF: Dropped support for ESP-IDF v4.4.
+- ESP32:
+  - Only the active ESP32 platform (`CONFIG_BLUEPAD32_PLATFORM_*`) is compiled
+    in `CMakeLists.txt`.
+  - Migrated `uni_mouse_quadrature` hardware timers to `gptimer`
+    (`esp_driver_gptimer`).
+  - Increased default main task stack size
+    (`CONFIG_ESP_MAIN_TASK_STACK_SIZE=5120`) for ESP-IDF v5.3+ / v5.5+. Fixes
+    [Github Issue #143][github_issue_143].
+  - Updated `cmd_system` component to the latest ESP-IDF version.
+- Pico W: Recommends Pico SDK 2.1.1 or newer which fixed a nasty bug triggered
+  by Bluepad32. See: [Pico SDK #2157][picosdk#2157] and
+  [Pico SDK #2165][picosdk#2165].
+- Properties: Unified `uni_property_pico.c` and `uni_property_posix.c` into a
+  shared BTstack TLV backend (`arch/uni_property_btstack_tlv.c`) with support
+  for `UNI_PROPERTY_TYPE_STRING` and `UNI_PROPERTY_TYPE_FLOAT`.
+- Rumble: Consolidated delayed-start and duration timers across all 8
+  rumble-capable parsers (DS3, DS4, DualSense, PS Move, Switch, Wii, Xbox One,
+  Stadia) into a shared `uni_hid_parser_rumble` subsystem with deterministic
+  timer teardown on disconnect.
+- Core: Standardized device index types to `int32_t`, updated
+  `UNI_PLATFORM_STRUCT_VERSION`, and replaced `switch(controller_type)` with
+  table-driven parser lookup.
+- Documentation: Expanded `docs/architecture.md`, `uni_hid_device.h` API docs,
+  `docs/supported_mice.md` ([PR #179][github_pr_179]), and the Arduino,
+  CircuitPython, and Raw programmer's guides.
+
+### Fixed
+- BTstack v1.8.2+: Restored BR/EDR SSP auto-accept
+  (`gap_ssp_set_auto_accept(true)`) and 7-byte minimum encryption key size
+  (`gap_set_required_encryption_key_size(7)`) so SSP "Just Works" controllers
+  (such as DualSense and Switch Pro Controller) do not fail authentication with
+  `ERROR_CODE_PIN_OR_KEY_MISSING`.
+- DualSense:
+  - Fixed `uni_hid_parser_ds5_set_player_leds()` to decode the 4-bit
+    `uni_gamepad_seat_t` bitmask (`0x00..0x0f`) into Sony's symmetric 5-LED
+    player patterns instead of indexing by `value % 5`.
+  - Fixed unsigned underflow in adaptive trigger helpers when strength or
+    amplitude is `0`.
+- Steam Controller:
+  - Moved parser state from global variables to a per-device instance struct.
+    Fixes [Github Issue #181][github_issue_181].
+  - Resolved GATT connection handle properly during BLE service and
+    characteristic discovery so BLE Steam Controller connects and initializes
+    reliably.
+  - Fixed `stick_x` byte offset (`report[20..21]` instead of `report[19..20]`)
+    and signed `int16_t` negation overflow.
+- Switch: Guarded `parse_imu()` and `mult_frac()` against division-by-zero when
+  IMU calibration divisors are zero, and validated minimum input report
+  lengths.
+- Wii Balance Board: Fixed swapped default move/fire threshold constants
+  (`move=1500`, `fire=5000`), guarded calibration interpolation against
+  zero/inverted dividers, and decoupled Balance Board from ESP-IDF console
+  headers.
+- Pico W:
+  - Able to store string properties, meaning that allowlist works as expected.
+    Fixes [Github Issue #160][github_issue_160] ([PR #161][github_pr_161]).
+  - Dynamically query `btstack_tlv_get_instance()` on property access to
+    prevent early-boot NULL dereference before `HCI_STATE_WORKING`.
+  - Fixed possible compile issue when using Pico SDK 1.5.1.
+- Posix Example: Fixed uninitialized `tlv_context` pointer passed to BTstack
+  TLV link-key and LE device DB setup.
+- ESP32 Example: Fixed build issue in `cmd_system` ([PR #165][github_pr_165]).
+- Bluetooth & Core:
+  - Fixed `uni_bt_set_gap_security_level()` and
+    `uni_bt_get_gap_security_level()` to read/write `val.u8` instead of
+    `val.u32`, and ordered pointer-sized `str` first in `uni_property_value_t`
+    for 64-bit zero-initialization.
+  - Prevented `update_allowlist_from_property()` from overwriting stored
+    TLV/NVS allowlist entries on startup, and improved string safety with
+    `snprintf`.
+  - Hardened SDP query abort lifecycle (`uni_bt_sdp_query_abort()`), BLE
+    advertisement bounds parsing, and BLE DIS PnP ID ATT status checks.
+  - Hardened `uni_circular_buffer` bounds and `uni_hid_device` virtual child
+    and timer teardown lifecycle, and removed unintended
+    `uni_property_dump_all()` call when pressing the misc button.
+- HID Parsers:
+  - Fixed possible buffer overflow when setting HID descriptor in
+    `uni_hid_device`.
+  - Guarded against division-by-zero when logical axis/pedal range is `<= 0`
+    and normalized signed pedal logical ranges (`min < 0`) to `0..1020`.
+  - Validated input/feature report buffer lengths across DS4, DualSense, Atari,
+    and Keyboard (`parse_jx_05`) parsers.
 
 [picosdk#2157]: https://github.com/raspberrypi/pico-sdk/pull/2157
 [picosdk#2165]: https://github.com/raspberrypi/pico-sdk/pull/2165
+[github_issue_143]: https://github.com/ricardoquesada/bluepad32/pull/143
 [github_issue_160]: https://github.com/ricardoquesada/bluepad32/issues/160
+[github_pr_161]: https://github.com/ricardoquesada/bluepad32/pull/161
+[github_pr_165]: https://github.com/ricardoquesada/bluepad32/pull/165
+[github_pr_179]: https://github.com/ricardoquesada/bluepad32/pull/179
+[github_issue_181]: https://github.com/ricardoquesada/bluepad32/issues/181
+[github_pr_199]: https://github.com/ricardoquesada/bluepad32/pull/199
+[github_pr_206]: https://github.com/ricardoquesada/bluepad32/pull/206
+[github_issue_209]: https://github.com/ricardoquesada/bluepad32/issues/209
+[github_pr_210]: https://github.com/ricardoquesada/bluepad32/pull/210
+[github_pr_211]: https://github.com/ricardoquesada/bluepad32/pull/211
 
 ## [4.2.0] - 2025-01-03
 ### New
