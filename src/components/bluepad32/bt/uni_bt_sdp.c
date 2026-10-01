@@ -98,14 +98,19 @@ void uni_handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel, uint
     }
 
     switch (hci_event_packet_get_type(packet)) {
-        case SDP_EVENT_QUERY_ATTRIBUTE_VALUE:
+        case SDP_EVENT_QUERY_ATTRIBUTE_VALUE: {
             // Guard against oversized SDP attributes exceeding MAX_ATTRIBUTE_VALUE_SIZE (512 bytes)
-            // before writing the streamed byte at its reported offset.
-            if (sdp_event_query_attribute_byte_get_attribute_length(packet) <= sdp_attribute_value_buffer_size) {
-                sdp_attribute_value[sdp_event_query_attribute_byte_get_data_offset(packet)] =
-                    sdp_event_query_attribute_byte_get_data(packet);
-                if ((uint16_t)(sdp_event_query_attribute_byte_get_data_offset(packet) + 1) ==
-                    sdp_event_query_attribute_byte_get_attribute_length(packet)) {
+            // and malformed data_offset >= attr_len before writing the streamed byte.
+            uint16_t attr_len = sdp_event_query_attribute_byte_get_attribute_length(packet);
+            uint16_t data_offset = sdp_event_query_attribute_byte_get_data_offset(packet);
+            if (attr_len <= sdp_attribute_value_buffer_size) {
+                if (data_offset >= attr_len) {
+                    loge("SDP attribute value data offset out of bounds: offset %u, attr_len %u\n", data_offset,
+                         attr_len);
+                    break;
+                }
+                sdp_attribute_value[data_offset] = sdp_event_query_attribute_byte_get_data(packet);
+                if ((uint16_t)(data_offset + 1) == attr_len) {
                     switch (sdp_event_query_attribute_byte_get_attribute_id(packet)) {
                         case BLUETOOTH_ATTRIBUTE_HID_DESCRIPTOR_LIST:
                             for (des_iterator_init(&attribute_list_it, sdp_attribute_value);
@@ -132,9 +137,10 @@ void uni_handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel, uint
                 }
             } else {
                 loge("SDP attribute value buffer size exceeded: available %d, required %d\n",
-                     sdp_attribute_value_buffer_size, sdp_event_query_attribute_byte_get_attribute_length(packet));
+                     sdp_attribute_value_buffer_size, attr_len);
             }
             break;
+        }
         case SDP_EVENT_QUERY_COMPLETE:
             uni_bt_sdp_query_end(sdp_device);
             break;
@@ -159,14 +165,19 @@ void uni_handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, uint
     }
 
     switch (hci_event_packet_get_type(packet)) {
-        case SDP_EVENT_QUERY_ATTRIBUTE_VALUE:
+        case SDP_EVENT_QUERY_ATTRIBUTE_VALUE: {
             // Guard against oversized SDP attributes exceeding MAX_ATTRIBUTE_VALUE_SIZE (512 bytes)
-            // before writing the streamed byte at its reported offset.
-            if (sdp_event_query_attribute_byte_get_attribute_length(packet) <= sdp_attribute_value_buffer_size) {
-                sdp_attribute_value[sdp_event_query_attribute_byte_get_data_offset(packet)] =
-                    sdp_event_query_attribute_byte_get_data(packet);
-                if ((uint16_t)(sdp_event_query_attribute_byte_get_data_offset(packet) + 1) ==
-                    sdp_event_query_attribute_byte_get_attribute_length(packet)) {
+            // and malformed data_offset >= attr_len before writing the streamed byte.
+            uint16_t attr_len = sdp_event_query_attribute_byte_get_attribute_length(packet);
+            uint16_t data_offset = sdp_event_query_attribute_byte_get_data_offset(packet);
+            if (attr_len <= sdp_attribute_value_buffer_size) {
+                if (data_offset >= attr_len) {
+                    loge("SDP attribute value data offset out of bounds: offset %u, attr_len %u\n", data_offset,
+                         attr_len);
+                    break;
+                }
+                sdp_attribute_value[data_offset] = sdp_event_query_attribute_byte_get_data(packet);
+                if ((uint16_t)(data_offset + 1) == attr_len) {
                     switch (sdp_event_query_attribute_byte_get_attribute_id(packet)) {
                         case BLUETOOTH_ATTRIBUTE_VENDOR_ID:
                             if (de_element_get_uint16(sdp_attribute_value, &id16))
@@ -187,9 +198,10 @@ void uni_handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, uint
                 }
             } else {
                 loge("SDP attribute value buffer size exceeded: available %d, required %d\n",
-                     sdp_attribute_value_buffer_size, sdp_event_query_attribute_byte_get_attribute_length(packet));
+                     sdp_attribute_value_buffer_size, attr_len);
             }
             break;
+        }
         case SDP_EVENT_QUERY_COMPLETE:
             logi("Vendor ID: 0x%04x - Product ID: 0x%04x\n", uni_hid_device_get_vendor_id(sdp_device),
                  uni_hid_device_get_product_id(sdp_device));
@@ -312,7 +324,7 @@ void uni_bt_sdp_query_start_hid_descriptor(uni_hid_device_t* d) {
     }
 }
 
-void uni_bt_sdp_server_init() {
+void uni_bt_sdp_server_init(void) {
     // Only initialize the SDP record. Just needed for DualShock/DualSense to have
     // a successful reconnecting.
     sdp_init();

@@ -114,8 +114,8 @@ void uni_joy_to_single_from_wii_accel(const uni_gamepad_t* gp, uni_joystick_t* o
 
         // Button "1" is Brake (down), and button "2" is Throttle (up)
         // Buttons "1" and "2" can override values from Dpad.
-        out_joy->down |= (gp->buttons & BUTTON_A) ? DPAD_DOWN : 0;
-        out_joy->up |= (gp->buttons & BUTTON_B) ? DPAD_UP : 0;
+        out_joy->down |= (gp->buttons & BUTTON_A) ? 1 : 0;
+        out_joy->up |= (gp->buttons & BUTTON_B) ? 1 : 0;
 
         // Either "A" or "trigger" is used as fire
         out_joy->fire = (gp->buttons & BUTTON_X) ? 1 : 0;
@@ -320,7 +320,7 @@ void uni_joy_to_single_joy_from_balance_board(const uni_balance_board_t* bb,
                 break;
             }
             if (bb->tl >= UNI_BALANCE_BOARD_IDLE_THRESHOLD || bb->tr >= UNI_BALANCE_BOARD_IDLE_THRESHOLD ||
-                bb->bl > UNI_BALANCE_BOARD_IDLE_THRESHOLD || bb->br >= UNI_BALANCE_BOARD_IDLE_THRESHOLD) {
+                bb->bl >= UNI_BALANCE_BOARD_IDLE_THRESHOLD || bb->br >= UNI_BALANCE_BOARD_IDLE_THRESHOLD) {
                 bb_state->fire_state = UNI_BALANCE_BOARD_STATE_RESET;
                 bb_state->fire_counter = 0;
             }

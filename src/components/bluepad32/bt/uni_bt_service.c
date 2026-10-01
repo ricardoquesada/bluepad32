@@ -86,7 +86,7 @@ static uint16_t uni_att_read_callback(hci_con_handle_t conn_handle,
 static client_connection_t* connection_for_conn_handle(hci_con_handle_t conn_handle);
 static bool next_notify_device(void);
 static void notify_client(void);
-static void maybe_notify_client();
+static void maybe_notify_client(void);
 
 static bool is_notify_client_valid(void) {
     return ((client_connections[notification_connection_idx].connection_handle != HCI_CON_HANDLE_INVALID) &&
@@ -176,6 +176,10 @@ static int uni_att_write_callback(hci_con_handle_t con_handle,
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_CLIENT_CONFIGURATION_HANDLE: {
             // Notify connected devices
+            if (buffer_size < 2)
+                return ATT_ERROR_INVALID_ATTRIBUTE_VALUE_LENGTH;
+            if (offset != 0)
+                return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             ctx = connection_for_conn_handle(con_handle);
             if (!ctx)
                 return ATT_ERROR_REQUEST_NOT_SUPPORTED;
@@ -195,7 +199,7 @@ static int uni_att_write_callback(hci_con_handle_t con_handle,
                 return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             uint8_t type = buffer[0];
             if (type >= UNI_GAMEPAD_MAPPINGS_TYPE_COUNT)
-                return 0;
+                return ATT_ERROR_VALUE_NOT_ALLOWED;
             uni_gamepad_set_mappings_type(type);
             break;
         }
@@ -393,7 +397,6 @@ static void uni_att_packet_handler(uint8_t packet_type, uint16_t channel, uint8_
                 break;
             break;
         case ATT_EVENT_CAN_SEND_NOW:
-            printf_hexdump(packet, size);
             notify_client();
             break;
         case ATT_EVENT_DISCONNECTED:
@@ -459,7 +462,7 @@ void uni_bt_service_init(void) {
     gap_advertisements_enable(true);
 }
 
-bool uni_bt_service_is_enabled() {
+bool uni_bt_service_is_enabled(void) {
     return service_enabled;
 }
 
@@ -488,7 +491,7 @@ void uni_bt_service_on_device_ready(const uni_hid_device_t* d) {
 
     // Update the things that could have changed from "on_device_connected" callback.
     compact_devices[idx].controller_subtype = d->controller_subtype;
-    compact_devices[idx].state = d->conn.connected;
+    compact_devices[idx].state = d->conn.state;
 
     maybe_notify_client();
 }

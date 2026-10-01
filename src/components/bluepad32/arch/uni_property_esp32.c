@@ -19,7 +19,6 @@ static const char* STORAGE_NAMESPACE = "bp32";
 void uni_property_set_with_property(const uni_property_t* p, uni_property_value_t value) {
     nvs_handle_t nvs_handle;
     esp_err_t err;
-    uint32_t* float_alias;
 
     if (!p) {
         loge("Cannot set invalid property\n");
@@ -46,10 +45,14 @@ void uni_property_set_with_property(const uni_property_t* p, uni_property_value_
             err = nvs_set_u32(nvs_handle, p->name, value.u32);
             break;
         case UNI_PROPERTY_TYPE_FLOAT:
-            float_alias = (uint32_t*)&value.f32;
-            err = nvs_set_u32(nvs_handle, p->name, *float_alias);
+            err = nvs_set_u32(nvs_handle, p->name, value.u32);
             break;
         case UNI_PROPERTY_TYPE_STRING:
+            if (!value.str) {
+                loge("uni_property_set_with_property: NULL string for %s\n", p->name);
+                err = ESP_ERR_INVALID_ARG;
+                break;
+            }
             err = nvs_set_str(nvs_handle, p->name, value.str);
             break;
         default:
@@ -102,7 +105,7 @@ uni_property_value_t uni_property_get_with_property(const uni_property_t* p) {
             err = nvs_get_u32(nvs_handle, p->name, &ret.u32);
             break;
         case UNI_PROPERTY_TYPE_FLOAT:
-            err = nvs_get_u32(nvs_handle, p->name, (uint32_t*)&ret.f32);
+            err = nvs_get_u32(nvs_handle, p->name, &ret.u32);
             break;
         case UNI_PROPERTY_TYPE_STRING:
             ret.str = str_ret;
@@ -126,7 +129,7 @@ uni_property_value_t uni_property_get_with_property(const uni_property_t* p) {
     return ret;
 }
 
-void uni_property_init() {
+void uni_property_init(void) {
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         logi("Erasing flash\n");
@@ -134,4 +137,5 @@ void uni_property_init() {
         err = nvs_flash_init();
     }
     ESP_ERROR_CHECK(err);
+    uni_property_init_debug();
 }

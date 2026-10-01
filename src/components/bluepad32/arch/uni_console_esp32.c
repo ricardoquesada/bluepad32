@@ -184,7 +184,7 @@ static void print_mouse_scale(void) {
 
     // ets_printf() doesn't support "%f"
     sprintf(buf, "%f\n", scale);
-    logi(buf);
+    logi("%s", buf);
 }
 
 static int mouse_scale(int argc, char** argv) {
@@ -246,8 +246,8 @@ static int gap_periodic_inquiry(int argc, char** argv) {
     max = gap_periodic_inquiry_args.max->ival[0];
     min = gap_periodic_inquiry_args.min->ival[0];
     len = gap_periodic_inquiry_args.len->ival[0];
-    uni_bt_set_gap_max_peridic_length(max);
-    uni_bt_set_gap_min_peridic_length(min);
+    uni_bt_set_gap_max_periodic_length(max);
+    uni_bt_set_gap_min_periodic_length(min);
     uni_bt_set_gap_inquiry_length(len);
     logi("Done. Restart required. Type 'restart' + Enter\n");
     return 0;
@@ -439,7 +439,7 @@ static int getprop(int argc, char** argv) {
 
 #ifdef CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
 
-static void register_bluepad32() {
+static void register_bluepad32(void) {
     mouse_scale_args.value = arg_dbl1(NULL, NULL, "<value>", "Global mouse scale factor. Higher means faster");
     mouse_scale_args.end = arg_end(2);
 

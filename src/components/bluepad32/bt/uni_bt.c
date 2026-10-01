@@ -224,7 +224,7 @@ static void cmd_callback(void* context) {
             break;
     }
 }
-static btstack_context_callback_registration_t* get_next_callback_registration() {
+static btstack_context_callback_registration_t* get_next_callback_registration(void) {
     cmd_callback_idx = (cmd_callback_idx + 1) % CMD_CALLBACK_MAX;
     return &cmd_callback_registration[cmd_callback_idx];
 }
@@ -262,14 +262,14 @@ void uni_bt_enable_new_connections_safe(bool enabled) {
         uni_bt_stop_scanning_safe();
 }
 
-void uni_bt_start_scanning_and_autoconnect_safe() {
+void uni_bt_start_scanning_and_autoconnect_safe(void) {
     btstack_context_callback_registration_t* cmd = get_next_callback_registration();
     cmd->callback = &cmd_callback;
     cmd->context = (void*)CMD_BT_START_SCANNING;
     btstack_run_loop_execute_on_main_thread(cmd);
 }
 
-void uni_bt_stop_scanning_safe() {
+void uni_bt_stop_scanning_safe(void) {
     btstack_context_callback_registration_t* cmd = get_next_callback_registration();
     cmd->callback = &cmd_callback;
     cmd->context = (void*)CMD_BT_STOP_SCANNING;
@@ -307,7 +307,7 @@ bool uni_bt_incoming_connections_is_allowed(void) {
     return bt_allow_incoming_connections;
 }
 
-void uni_bt_dump_devices_safe() {
+void uni_bt_dump_devices_safe(void) {
     btstack_context_callback_registration_t* cmd = get_next_callback_registration();
     cmd->callback = &cmd_callback;
     cmd->context = (void*)CMD_DUMP_DEVICES;
@@ -547,7 +547,7 @@ void uni_bt_set_gap_security_level(int gap) {
     uni_property_set(UNI_PROPERTY_IDX_GAP_LEVEL, val);
 }
 
-int uni_bt_get_gap_security_level() {
+int uni_bt_get_gap_security_level(void) {
     uni_property_value_t val = {0};
 
     val = uni_property_get(UNI_PROPERTY_IDX_GAP_LEVEL);
@@ -568,7 +568,7 @@ int uni_bt_get_gap_inquiry_length(void) {
     return val.u8;
 }
 
-void uni_bt_set_gap_max_peridic_length(int len) {
+void uni_bt_set_gap_max_periodic_length(int len) {
     uni_property_value_t val;
 
     val.u8 = len;
@@ -582,7 +582,7 @@ int uni_bt_get_gap_max_periodic_length(void) {
     return val.u8;
 }
 
-void uni_bt_set_gap_min_peridic_length(int len) {
+void uni_bt_set_gap_min_periodic_length(int len) {
     uni_property_value_t val;
 
     val.u8 = len;

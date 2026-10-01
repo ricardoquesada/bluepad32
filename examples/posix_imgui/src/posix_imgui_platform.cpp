@@ -419,7 +419,7 @@ void posix_imgui_on_init_complete(void) {
     }
 
     // Enforce the platform's virtual-device state (disabled by default) regardless of
-    // any stale property persisted in `/tmp/bp32_property.tvl`.
+    // any stale property persisted in `/tmp/bp32_property.tlv`.
     uni_virtual_device_set_enabled(g_virtual_devices_enabled.load());
 
     uni_property_dump_all();

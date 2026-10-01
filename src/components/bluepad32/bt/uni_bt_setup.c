@@ -125,7 +125,7 @@ void uni_bt_setup_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t*
     }
 }
 
-bool uni_bt_setup_is_ready() {
+bool uni_bt_setup_is_ready(void) {
     return setup_state == SETUP_STATE_READY;
 }
 
@@ -169,7 +169,7 @@ int uni_bt_setup(void) {
     // Turn on the device
     int err = hci_power_control(HCI_POWER_ON);
     if (err != 0) {
-        loge("Failed to power on HCI, err = %x#\n", err);
+        loge("Failed to power on HCI, err = %#x\n", err);
         return UNI_ERROR_INIT_FAILED;
     }
 

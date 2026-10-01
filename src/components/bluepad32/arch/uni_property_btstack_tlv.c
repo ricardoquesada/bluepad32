@@ -12,13 +12,14 @@
 #include <btstack_util.h>
 #ifdef CONFIG_TARGET_POSIX
 #include <btstack_tlv_posix.h>
+#include <stdlib.h>
 #endif
 
 #include "uni_common.h"
 #include "uni_log.h"
 
 #ifdef CONFIG_TARGET_POSIX
-#define TLV_DB_PATH_PREFIX "/tmp/bp32_property.tvl"
+#define TLV_DB_PATH_PREFIX "/tmp/bp32_property.tlv"
 static btstack_tlv_posix_t tlv_context;
 #endif
 
@@ -172,8 +173,12 @@ void uni_property_init(void) {
 #ifdef CONFIG_TARGET_POSIX
     tlv_handle_t tlv = get_tlv();
     if (!tlv.impl || !tlv.context) {
-        logi("uni_property TLV path: %s\n", TLV_DB_PATH_PREFIX);
-        const btstack_tlv_t* tlv_impl = btstack_tlv_posix_init_instance(&tlv_context, TLV_DB_PATH_PREFIX);
+        const char* tlv_path = getenv("BLUEPAD32_TLV_PATH");
+        if (!tlv_path || tlv_path[0] == '\0') {
+            tlv_path = TLV_DB_PATH_PREFIX;
+        }
+        logi("uni_property TLV path: %s\n", tlv_path);
+        const btstack_tlv_t* tlv_impl = btstack_tlv_posix_init_instance(&tlv_context, tlv_path);
         btstack_tlv_set_instance(tlv_impl, &tlv_context);
     }
 #else
