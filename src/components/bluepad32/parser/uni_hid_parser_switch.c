@@ -23,6 +23,7 @@
 #include "controller/uni_gamepad.h"
 #include "hid_usage.h"
 #include "parser/uni_hid_parser_rumble.h"
+#include "sdkconfig.h"
 #include "uni_common.h"
 #include "uni_hid_device.h"
 #include "uni_log.h"
@@ -66,6 +67,10 @@ static const uint16_t SWITCH_FACTORY_IMU_CAL_DATA_ADDR = 0x6020;
 // Each setup request is resent if its reply doesn't arrive in time, and skipped after the last retry.
 #define SWITCH_SETUP_STEP_TIMEOUT_MS 1000
 #define SWITCH_SETUP_STEP_RETRIES 2
+// Only one Switch pad runs its setup at a time; the others wait, checking again every SWITCH_SETUP_DEFER_MS.
+// A setup running for longer than SWITCH_SETUP_EXCLUSIVE_MS no longer blocks the others.
+#define SWITCH_SETUP_DEFER_MS 100
+#define SWITCH_SETUP_EXCLUSIVE_MS 5000
 #if ENABLE_SPI_FLASH_DUMP
 static const uint32_t SWITCH_DUMP_ROM_DATA_ADDR_START = 0x20000;
 static const uint32_t SWITCH_DUMP_ROM_DATA_ADDR_END = 0x30000;
@@ -143,6 +148,7 @@ typedef struct switch_instance_s {
     btstack_timer_source_t setup_timer;
     uint8_t setup_step_retries;  // Resends of the current setup step
     uint32_t pending_spi_addr;   // Address of the last SPI flash read request, to drop stale replies
+    uint32_t setup_start_ms;     // When this pad's setup started (left STATE_SETUP)
 
     enum switch_state state;
     enum switch_flags mode;
@@ -408,6 +414,40 @@ static void switch_fsm_resend_current_step(uni_hid_device_t* d) {
     switch_setup_arm_step_timer(d);
 }
 
+// Whether another Switch pad is running its setup. When two pads (e.g. both Joy-Cons) reconnect at the same
+// time, their interleaved subcommand traffic made one setup time out and leave the pad connected but never ready.
+static bool switch_setup_busy_by_other(const uni_hid_device_t* d) {
+    const uint32_t now = btstack_run_loop_get_time_ms();
+    for (int32_t i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
+        uni_hid_device_t* other = uni_hid_device_get_instance_for_idx(i);
+        if (other == NULL || other == d || other->report_parser.setup != uni_hid_parser_switch_setup)
+            continue;
+        const switch_instance_t* oins = get_switch_instance(other);
+        if (oins->state > STATE_SETUP && oins->state < STATE_READY &&
+            now - oins->setup_start_ms < SWITCH_SETUP_EXCLUSIVE_MS)
+            return true;
+    }
+    return false;
+}
+
+static void switch_setup_start(uni_hid_device_t* d) {
+    switch_instance_t* ins = get_switch_instance(d);
+    ins->setup_start_ms = btstack_run_loop_get_time_ms();
+    process_fsm(d);
+}
+
+// setup_timer is not used yet while the setup waits for its turn: reuse it.
+static void switch_setup_defer_callback(btstack_timer_source_t* ts) {
+    uni_hid_device_t* d = btstack_run_loop_get_timer_context(ts);
+    if (switch_setup_busy_by_other(d)) {
+        btstack_run_loop_set_timer(ts, SWITCH_SETUP_DEFER_MS);
+        btstack_run_loop_add_timer(ts);
+        return;
+    }
+    logi("Switch: starting deferred setup\n");
+    switch_setup_start(d);
+}
+
 void uni_hid_parser_switch_setup(struct uni_hid_device_s* d) {
     switch_instance_t* ins = get_switch_instance(d);
 
@@ -451,7 +491,15 @@ void uni_hid_parser_switch_setup(struct uni_hid_device_s* d) {
     memset(ctl, 0, sizeof(*ctl));
     ctl->klass = UNI_CONTROLLER_CLASS_GAMEPAD;
 
-    process_fsm(d);
+    if (switch_setup_busy_by_other(d)) {
+        logi("Switch: another Switch pad is in setup, deferring this one\n");
+        btstack_run_loop_set_timer_context(&ins->setup_timer, d);
+        btstack_run_loop_set_timer_handler(&ins->setup_timer, &switch_setup_defer_callback);
+        btstack_run_loop_set_timer(&ins->setup_timer, SWITCH_SETUP_DEFER_MS);
+        btstack_run_loop_add_timer(&ins->setup_timer);
+        return;
+    }
+    switch_setup_start(d);
 }
 
 void uni_hid_parser_switch_deinit(struct uni_hid_device_s* d) {
@@ -835,6 +883,10 @@ static void process_input_subcmd_reply(struct uni_hid_device_s* d, const uint8_t
     // During setup only the reply to the pending request may advance the FSM. A late reply to a
     // retried or skipped request would otherwise advance it twice and desync the whole setup.
     switch_instance_t* ins = get_switch_instance(d);
+    if (ins->state == STATE_SETUP) {
+        // Setup not started yet (waiting for another pad): nothing may advance it.
+        return;
+    }
     if (ins->state > STATE_SETUP && ins->state < STATE_READY) {
         const uint8_t expected = switch_expected_subcmd(ins->state);
         bool stale = expected != 0 && r->subcmd_id != expected;

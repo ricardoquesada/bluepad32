@@ -3026,6 +3026,90 @@ TEST(parser_switch_setup_stale_replies_and_step_retries) {
     d.conn.interrupt_cid = 0;
 }
 
+// ============================================================================
+// 29. Switch Parser: Only One Pad Runs Its Setup at a Time
+// ============================================================================
+// The device's timer that is not its connection_timer: the Switch setup_timer.
+static btstack_timer_source_t* find_switch_setup_timer(uni_hid_device_t* d) {
+    for (btstack_linked_item_t* it = btstack_run_loop_base_timers; it != NULL; it = it->next) {
+        btstack_timer_source_t* ts = (btstack_timer_source_t*)it;
+        if (ts->context == d && ts != &d->connection_timer)
+            return ts;
+    }
+    return NULL;
+}
+
+static uni_hid_device_t* create_switch_device(bd_addr_t addr, uint16_t pid) {
+    uni_hid_device_t* d = uni_hid_device_create(addr);
+    if (d == NULL)
+        return NULL;
+    uni_hid_device_set_vendor_id(d, 0x057e);
+    uni_hid_device_set_product_id(d, pid);
+    uni_hid_device_guess_controller_type_from_pid_vid(d);
+    d->conn.interrupt_cid = 0x0041;
+    return d;
+}
+
+TEST(parser_switch_setup_one_pad_at_a_time) {
+    btstack_run_loop_base_timers = NULL;
+    uni_hid_device_setup();
+
+    bd_addr_t addr_l = {0x70, 0x00, 0x00, 0x00, 0x00, 0x11};
+    bd_addr_t addr_r = {0x70, 0x00, 0x00, 0x00, 0x00, 0x12};
+    uni_hid_device_t* d_l = create_switch_device(addr_l, 0x2006);
+    uni_hid_device_t* d_r = create_switch_device(addr_r, 0x2007);
+    ASSERT_NE(NULL, d_l);
+    ASSERT_NE(NULL, d_r);
+    ASSERT_EQ(CONTROLLER_TYPE_SwitchJoyConLeft, d_l->controller_type);
+    ASSERT_EQ(CONTROLLER_TYPE_SwitchJoyConRight, d_r->controller_type);
+
+    // 1. Both Joy-Cons connect together: the first one starts its setup, the second one waits.
+    d_l->report_parser.setup(d_l);
+    d_r->report_parser.setup(d_r);
+    EXPECT_EQ(0x02, pop_switch_subcmd(d_l));  // SUBCMD_REQ_DEV_INFO
+    EXPECT_EQ(-1, pop_switch_subcmd(d_r));
+
+    // 2. A subcommand reply can't start the waiting setup.
+    uint8_t r21[48];
+    memset(r21, 0, sizeof(r21));
+    r21[0] = 0x21;
+    r21[13] = 0x80;
+    r21[14] = 0x02;
+    r21[17] = 0x02;  // SWITCH_CONTROLLER_TYPE_JCR
+    feed_input_report(d_r, r21, sizeof(r21));
+    EXPECT_EQ(-1, pop_switch_subcmd(d_r));
+
+    // 3. While the first setup runs, the second one keeps waiting.
+    btstack_timer_source_t* ts_r = find_switch_setup_timer(d_r);
+    ASSERT_NE(NULL, ts_r);
+    btstack_run_loop_remove_timer(ts_r);
+    ts_r->process(ts_r);
+    EXPECT_EQ(-1, pop_switch_subcmd(d_r));
+    EXPECT_EQ(ts_r, find_switch_setup_timer(d_r));
+
+    // 4. Once the first pad is ready, the second one starts its setup.
+    r21[17] = 0x01;  // SWITCH_CONTROLLER_TYPE_JCL
+    const uint8_t subcmds[] = {0x02, 0x10, 0x10, 0x10, 0x03, 0x40, 0x48, 0x30};
+    const uint32_t spi_addrs[] = {0, 0x603d, 0x8010, 0x6020, 0, 0, 0, 0};
+    for (size_t i = 0; i < ARRAY_SIZE(subcmds); i++) {
+        r21[14] = subcmds[i];
+        if (subcmds[i] == 0x10)
+            set_switch_spi_reply_addr(r21, spi_addrs[i]);
+        feed_input_report(d_l, r21, sizeof(r21));
+    }
+    EXPECT_EQ(NULL, find_switch_setup_timer(d_l));
+    btstack_run_loop_remove_timer(ts_r);
+    ts_r->process(ts_r);
+    EXPECT_EQ(0x02, pop_switch_subcmd(d_r));  // SUBCMD_REQ_DEV_INFO
+
+    // 5. Deleting a waiting or running pad leaves no timer behind.
+    d_r->conn.interrupt_cid = 0;
+    d_l->conn.interrupt_cid = 0;
+    uni_hid_device_delete(d_r);
+    uni_hid_device_delete(d_l);
+    EXPECT_EQ(NULL, btstack_run_loop_base_timers);
+}
+
 int main(int argc, char** argv) {
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
@@ -3068,6 +3152,7 @@ int main(int argc, char** argv) {
     RUN_TEST(parser_switch_rumble_intensity_tracks_magnitude);
     RUN_TEST(parser_switch_setup_enables_vibration);
     RUN_TEST(parser_switch_setup_stale_replies_and_step_retries);
+    RUN_TEST(parser_switch_setup_one_pad_at_a_time);
 
     return test_summary();
 }
