@@ -45,6 +45,7 @@ add_compile_definitions(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
 # note: this must happen before project()
 include_directories(SYSTEM ${BTSTACK_ROOT}/src)
 include(btstack_import.cmake)
+target_compile_options(btstack PRIVATE -Wno-error)
 
 enable_testing()
 

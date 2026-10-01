@@ -58,6 +58,7 @@ if(NOT GLFW_FOUND)
 endif()
 
 if(GLFW_FOUND)
+    link_directories(${GLFW_LIBRARY_DIRS})
     set(GLFW_LINK_TARGET ${GLFW_LIBRARIES})
     set(GLFW_INC_DIRS ${GLFW_INCLUDE_DIRS})
 elseif(glfw3_FOUND)

@@ -32,6 +32,7 @@ endif()
 # initialize the SDK based on PICO_SDK_PATH
 # note: this must happen before project()
 include(btstack_import.cmake)
+target_compile_options(btstack PRIVATE -Wno-error)
 
 add_executable(${PROJECT_NAME}
 		src/main.c
