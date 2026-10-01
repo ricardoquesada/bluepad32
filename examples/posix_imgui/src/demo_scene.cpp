@@ -872,10 +872,7 @@ void DemoScene::RenderControllerTabs() {
                     ImGui::Spacing();
                     ImGui::TextColored(kTextColorGrey, "Slot #%d (Seat %c): Not connected", slot + 1, 'A' + slot);
                     ImGui::Spacing();
-                    ImGui::TextWrapped(
-                        "Place a Bluetooth controller (DualSense, DualShock 4, DualShock 3, "
-                        "Xbox Wireless Controller, Nintendo Switch Pro Controller, Joy-Con, "
-                        "Wiimote, 8BitDo, etc.) into pairing mode to connect automatically.");
+                    ImGui::TextWrapped("Place a Bluetooth gamepad into pairing mode to connect automatically.");
                 }
                 ImGui::EndTabItem();
             } else {
