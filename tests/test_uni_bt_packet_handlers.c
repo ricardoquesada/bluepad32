@@ -22,8 +22,10 @@
  *  5. `TEST(bt_sdp_pid_and_hid_query_result_chunks_and_truncation)`: Uses
  *     `uni_bt_sdp_set_device_for_test()`, `uni_handle_sdp_pid_query_result()`, and
  *     `uni_handle_sdp_hid_query_result()` to feed multi-chunk DES (`0x0201` VID, `0x0202` PID,
- *     `0x0206` HID descriptor list) and an adversarial `> 512`-byte oversized HID descriptor
- *     stream verifying truncation/rejection without overflow.
+ *     `0x0206` HID descriptor list) across TC-1 through TC-6, verifying bounded DES iteration
+ *     (`sdp_des_iterator_init_safe()` and `sdp_des_iterator_get_element_len_safe()` across
+ *     BTstack 1.6.2 and 1.8.2+), rejection of truncated/trailing/non-DES outer and inner
+ *     elements without out-of-bounds reads, and `> 512`-byte oversized stream rejection.
  *  6. `TEST(bt_le_adv_report_64byte_name_overflow_regression)`: Synthesizes
  *     `GAP_EVENT_ADVERTISING_REPORT` with Appearance `0x03C4` (Gamepad), non-HID Appearance
  *     `0x0040` (Phone), and a 100-byte oversized `BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME`
@@ -651,6 +653,22 @@ static void stream_sdp_attribute_bytes(void (*handler)(uint8_t, uint16_t, uint8_
     }
 }
 
+/**
+ * @brief Verify two-phase SDP attribute streaming and bounded DES iteration (TC-1 through TC-6).
+ *
+ * Exercises `uni_handle_sdp_pid_query_result()` and `uni_handle_sdp_hid_query_result()` across:
+ *  - **TC-1:** Valid nested `DE_DES -> DE_DES -> DE_STRING` HID report descriptor extraction.
+ *  - **TC-2a/2b/2c:** Outer `sdp_des_iterator_init_safe()` rejection on truncated outer `DE_DES`,
+ *    trailing bytes after outer `DE_DES`, and non-`DE_DES` outer elements (`DE_NIL`, `DE_UINT16`).
+ *  - **TC-3:** Outer loop `sdp_des_iterator_get_element_len_safe() == 0` `break` guard when a
+ *    child `DE_DES` header exceeds the remaining outer sequence length (protecting BTstack 1.6.2's
+ *    unbounded `des_iterator_get_type()` and `des_iterator_next()`).
+ *  - **TC-4:** Inner loop `sdp_des_iterator_get_element_len_safe() == 0` `break` guard when a
+ *    child `DE_STRING` header exceeds the remaining inner sequence length.
+ *  - **TC-5:** Outer loop `des_iterator_get_type() != DE_DES` `continue` path skipping a leading
+ *    `DE_UINT8` sibling before extracting a valid inner `DE_DES`.
+ *  - **TC-6:** Rejection of `> 512`-byte oversized attribute streams and out-of-bounds `data_offset`.
+ */
 TEST(bt_sdp_pid_and_hid_query_result_chunks_and_truncation) {
     reset_test_fixture();
 
@@ -677,7 +695,8 @@ TEST(bt_sdp_pid_and_hid_query_result_chunks_and_truncation) {
     uni_handle_sdp_pid_query_result(HCI_EVENT_PACKET, 0, sdp_complete_pkt, sizeof(sdp_complete_pkt));
     EXPECT_EQ(CONTROLLER_TYPE_PS4Controller, d->controller_type);
 
-    // 2. Stream BLUETOOTH_ATTRIBUTE_HID_DESCRIPTOR_LIST (0x0206) as a nested DES -> DES -> DE_STRING.
+    // 2. TC-1: Stream valid BLUETOOTH_ATTRIBUTE_HID_DESCRIPTOR_LIST (0x0206) as a nested
+    //    DE_DES -> DE_DES -> DE_STRING (with leading DE_UINT8(0x22) report descriptor type).
     static const uint8_t sample_hid_desc[] = {
         0x05, 0x01,        // Usage Page (Generic Desktop)
         0x09, 0x05,        // Usage (Game Pad)
@@ -705,7 +724,83 @@ TEST(bt_sdp_pid_and_hid_query_result_chunks_and_truncation) {
     EXPECT_EQ((int)sizeof(sample_hid_desc), d->hid_descriptor_len);
     EXPECT_EQ(0, memcmp(d->hid_descriptor, sample_hid_desc, sizeof(sample_hid_desc)));
 
-    // 3. Adversarial > 512-byte (600-byte) SDP attribute value stream:
+    // 3. TC-2a: Outer DES length mismatch — truncated outer DES
+    //    (de_get_len_safe(sdp_attribute_value, attr_len) == 0 != attr_len).
+    //    Header 0x35, 0x10 claims 2 + 16 = 18 bytes, but attr_len is only 6.
+    const uint8_t truncated_outer_des[] = {0x35, 0x10, 0x35, 0x02, 0x08, 0x22};
+    stream_sdp_attribute_bytes(uni_handle_sdp_hid_query_result, 2, BLUETOOTH_ATTRIBUTE_HID_DESCRIPTOR_LIST,
+                               truncated_outer_des, sizeof(truncated_outer_des));
+    EXPECT_EQ((int)sizeof(sample_hid_desc), d->hid_descriptor_len);
+    EXPECT_EQ(0, memcmp(d->hid_descriptor, sample_hid_desc, sizeof(sample_hid_desc)));
+
+    // 4. TC-2b: Outer DES length mismatch — trailing bytes after outer DES
+    //    (de_get_len_safe(sdp_attribute_value, attr_len) < attr_len).
+    //    Header 0x35, 0x02 claims 2 + 2 = 4 bytes, but attr_len is 6.
+    const uint8_t trailing_bytes_outer_des[] = {0x35, 0x02, 0x08, 0x22, 0x00, 0x00};
+    stream_sdp_attribute_bytes(uni_handle_sdp_hid_query_result, 3, BLUETOOTH_ATTRIBUTE_HID_DESCRIPTOR_LIST,
+                               trailing_bytes_outer_des, sizeof(trailing_bytes_outer_des));
+    EXPECT_EQ((int)sizeof(sample_hid_desc), d->hid_descriptor_len);
+    EXPECT_EQ(0, memcmp(d->hid_descriptor, sample_hid_desc, sizeof(sample_hid_desc)));
+
+    // 5. TC-2c: Outer element is not a DE_DES (both DE_NIL length mismatch and valid DE_UINT16
+    //    where de_get_len_safe(buf, 3) == 3 passes but des_iterator_init() returns false).
+    const uint8_t malformed_non_des[] = {0x00, 0x00, 0x00, 0x00};
+    stream_sdp_attribute_bytes(uni_handle_sdp_hid_query_result, 4, BLUETOOTH_ATTRIBUTE_HID_DESCRIPTOR_LIST,
+                               malformed_non_des, sizeof(malformed_non_des));
+    EXPECT_EQ((int)sizeof(sample_hid_desc), d->hid_descriptor_len);
+
+    const uint8_t non_des_uint16[] = {0x09, 0x12, 0x34};
+    stream_sdp_attribute_bytes(uni_handle_sdp_hid_query_result, 5, BLUETOOTH_ATTRIBUTE_HID_DESCRIPTOR_LIST,
+                               non_des_uint16, sizeof(non_des_uint16));
+    EXPECT_EQ((int)sizeof(sample_hid_desc), d->hid_descriptor_len);
+    EXPECT_EQ(0, memcmp(d->hid_descriptor, sample_hid_desc, sizeof(sample_hid_desc)));
+
+    // 6. TC-3: Outer DES with truncated child DE_DES element
+    //    (sdp_des_iterator_get_element_len_safe(&attribute_list_it) == 0 -> break).
+    //    Outer DE_DES (0x35, 0x04) has valid total length 6, but child DE_DES at offset 2
+    //    (0x35, 0x10) claims 18 bytes when only 4 bytes remain in the outer sequence.
+    const uint8_t outer_des_truncated_child[] = {0x35, 0x04, 0x35, 0x10, 0x08, 0x22};
+    stream_sdp_attribute_bytes(uni_handle_sdp_hid_query_result, 6, BLUETOOTH_ATTRIBUTE_HID_DESCRIPTOR_LIST,
+                               outer_des_truncated_child, sizeof(outer_des_truncated_child));
+    EXPECT_EQ((int)sizeof(sample_hid_desc), d->hid_descriptor_len);
+    EXPECT_EQ(0, memcmp(d->hid_descriptor, sample_hid_desc, sizeof(sample_hid_desc)));
+
+    // 7. TC-4: Inner DES with truncated child DE_STRING element
+    //    (sdp_des_iterator_get_element_len_safe(&additional_des_it) == 0 -> break).
+    //    Outer DE_DES (0x35, 0x06) has valid length 8; inner DE_DES (0x35, 0x04) has valid length 6
+    //    containing a valid DE_UINT8 (0x08, 0x22) followed by a truncated DE_STRING (0x25, 0x20)
+    //    claiming 2 + 32 = 34 bytes when only 2 bytes remain in the inner sequence.
+    const uint8_t inner_des_truncated_string[] = {0x35, 0x06, 0x35, 0x04, 0x08, 0x22, 0x25, 0x20};
+    stream_sdp_attribute_bytes(uni_handle_sdp_hid_query_result, 7, BLUETOOTH_ATTRIBUTE_HID_DESCRIPTOR_LIST,
+                               inner_des_truncated_string, sizeof(inner_des_truncated_string));
+    EXPECT_EQ((int)sizeof(sample_hid_desc), d->hid_descriptor_len);
+    EXPECT_EQ(0, memcmp(d->hid_descriptor, sample_hid_desc, sizeof(sample_hid_desc)));
+
+    // 8. TC-5: Outer DES with a leading non-DE_DES sibling (DE_UINT8) followed by a valid inner DE_DES.
+    //    Verifies outer loop `des_iterator_get_type(&attribute_list_it) != DE_DES` `continue` branch
+    //    advances cleanly to the valid inner DE_DES and extracts `alt_hid_desc`.
+    static const uint8_t alt_hid_desc[] = {0x05, 0x01, 0x09, 0x04, 0xa1, 0x01, 0xc0};
+    uint8_t des_buf_sibling[64];
+    de_create_sequence(des_buf_sibling);
+    de_add_number(des_buf_sibling, DE_UINT, DE_SIZE_8, 0x01);  // Leading non-DE_DES outer sibling
+    uint8_t* sub_seq_sibling = de_push_sequence(des_buf_sibling);
+    de_add_number(sub_seq_sibling, DE_UINT, DE_SIZE_8, 0x22);
+    de_add_data(sub_seq_sibling, DE_STRING, sizeof(alt_hid_desc), (uint8_t*)alt_hid_desc);
+    de_pop_sequence(des_buf_sibling, sub_seq_sibling);
+    uint16_t des_sibling_len = (uint16_t)de_get_len(des_buf_sibling);
+
+    stream_sdp_attribute_bytes(uni_handle_sdp_hid_query_result, 8, BLUETOOTH_ATTRIBUTE_HID_DESCRIPTOR_LIST,
+                               des_buf_sibling, des_sibling_len);
+    EXPECT_EQ((int)sizeof(alt_hid_desc), d->hid_descriptor_len);
+    EXPECT_EQ(0, memcmp(d->hid_descriptor, alt_hid_desc, sizeof(alt_hid_desc)));
+
+    // Restore sample_hid_desc before TC-6 oversized stream checks.
+    stream_sdp_attribute_bytes(uni_handle_sdp_hid_query_result, 9, BLUETOOTH_ATTRIBUTE_HID_DESCRIPTOR_LIST, des_buf,
+                               des_len);
+    EXPECT_EQ((int)sizeof(sample_hid_desc), d->hid_descriptor_len);
+    EXPECT_EQ(0, memcmp(d->hid_descriptor, sample_hid_desc, sizeof(sample_hid_desc)));
+
+    // 9. TC-6: Adversarial > 512-byte (600-byte) SDP attribute value stream & out-of-bounds data_offset guards:
     //    Verify uni_handle_sdp_hid_query_result and uni_handle_sdp_pid_query_result reject
     //    oversized attribute_length (> MAX_ATTRIBUTE_VALUE_SIZE == 512) without buffer overflow,
     //    and verify uni_hid_device_set_hid_descriptor truncates > 512-byte descriptors to 512 bytes.
@@ -713,23 +808,16 @@ TEST(bt_sdp_pid_and_hid_query_result_chunks_and_truncation) {
     ASSERT_NE(NULL, oversized_stream);
     memset(oversized_stream, 0xaa, 600);
 
-    stream_sdp_attribute_bytes(uni_handle_sdp_hid_query_result, 2, BLUETOOTH_ATTRIBUTE_HID_DESCRIPTOR_LIST,
+    stream_sdp_attribute_bytes(uni_handle_sdp_hid_query_result, 10, BLUETOOTH_ATTRIBUTE_HID_DESCRIPTOR_LIST,
                                oversized_stream, 600);
-    stream_sdp_attribute_bytes(uni_handle_sdp_pid_query_result, 2, BLUETOOTH_ATTRIBUTE_VENDOR_ID, oversized_stream,
+    stream_sdp_attribute_bytes(uni_handle_sdp_pid_query_result, 10, BLUETOOTH_ATTRIBUTE_VENDOR_ID, oversized_stream,
                                600);
     // Previous valid HID descriptor and VID must remain intact.
     EXPECT_EQ((int)sizeof(sample_hid_desc), d->hid_descriptor_len);
+    EXPECT_EQ(0, memcmp(d->hid_descriptor, sample_hid_desc, sizeof(sample_hid_desc)));
     EXPECT_EQ(0x054c, uni_hid_device_get_vendor_id(d));
 
-    // 4. Malformed non-DES HID descriptor list & out-of-bounds data_offset regression checks:
-    //    Verify corrupted DES headers do not dereference uninitialized des_iterator_t state,
-    //    and out-of-bounds data_offset packets (both attr_len == 0 and attr_len > 0) are rejected.
-    const uint8_t malformed_non_des[] = {0x00, 0x00, 0x00, 0x00};
-    stream_sdp_attribute_bytes(uni_handle_sdp_hid_query_result, 3, BLUETOOTH_ATTRIBUTE_HID_DESCRIPTOR_LIST,
-                               malformed_non_des, sizeof(malformed_non_des));
-    EXPECT_EQ((int)sizeof(sample_hid_desc), d->hid_descriptor_len);
-
-    uint8_t oob_pkt[11] = {SDP_EVENT_QUERY_ATTRIBUTE_VALUE, 9, 0x03, 0x00, 0x06, 0x02, 0x00, 0x00, 0x00, 0x02, 0xff};
+    uint8_t oob_pkt[11] = {SDP_EVENT_QUERY_ATTRIBUTE_VALUE, 9, 0x0a, 0x00, 0x06, 0x02, 0x00, 0x00, 0x00, 0x02, 0xff};
     // Case A: attr_len == 0, data_offset == 512 (0x0200) -> rejected.
     uni_handle_sdp_hid_query_result(HCI_EVENT_PACKET, 0, oob_pkt, sizeof(oob_pkt));
     // Case B: attr_len == 4, data_offset == 4 -> rejected.

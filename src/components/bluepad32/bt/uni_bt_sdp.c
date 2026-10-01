@@ -45,6 +45,21 @@
  *   - hid_device_test.c
  */
 
+/**
+ * @file uni_bt_sdp.c
+ * @brief Bluetooth Classic (BR/EDR) Service Discovery Protocol (SDP) client and server integration.
+ *
+ * Manages sequential SDP client queries for newly connected BR/EDR HID devices:
+ *  1. Queries PnP Information (`BLUETOOTH_SERVICE_CLASS_PNP_INFORMATION`, `0x1200`) to resolve
+ *     Vendor ID (`0x0201`) and Product ID (`0x0202`) and infer the controller type.
+ *  2. If the controller requires a HID report descriptor, queries the Human Interface Device
+ *     service (`BLUETOOTH_SERVICE_CLASS_HUMAN_INTERFACE_DEVICE_SERVICE`, `0x1124`) to stream and
+ *     parse `BLUETOOTH_ATTRIBUTE_HID_DESCRIPTOR_LIST` (`0x0206`).
+ *
+ * Also registers a minimal Device ID SDP server record required by DualShock 4 and DualSense
+ * controllers during reconnection.
+ */
+
 #include "bt/uni_bt_sdp.h"
 
 #include <btstack.h>
@@ -116,33 +131,104 @@ static bool sdp_accumulate_attribute_byte(const uint8_t* packet, uint16_t* out_a
 }
 
 /**
+ * @brief Initialize a Data Element Sequence (DES) iterator with strict bounds validation.
+ *
+ * Provides a version-agnostic replacement for `des_iterator_init_with_len()` (which was
+ * added in BTstack 1.8.2 and is absent from the BTstack 1.6.2 release bundled in `pico-sdk`).
+ * In BTstack 1.6.2, `des_iterator_init()` sets `it->length = de_get_len(element)` without
+ * checking buffer bounds. This helper first verifies that `element` is non-empty and its
+ * total encoded byte length matches `element_size` via `de_get_len_safe()` (available since
+ * BTstack 1.1) before delegating to `des_iterator_init()`.
+ *
+ * @param it           Pointer to the `des_iterator_t` to initialize.
+ * @param element      Pointer to the candidate `DE_DES` buffer.
+ * @param element_size Total available byte length of `element` (guaranteed `<= 512`, fitting
+ *                     within both BTstack 1.6.2's `uint16_t` and 1.8.2+'s `uint32_t` fields).
+ * @return `true` if `element` is a valid `DE_DES` whose encoded length equals `element_size`;
+ *         `false` if `element` is `NULL`, empty, truncated, has trailing bytes, or is not `DE_DES`.
+ */
+static bool sdp_des_iterator_init_safe(des_iterator_t* it, uint8_t* element, uint32_t element_size) {
+    // Reject NULL or zero-length buffers before calling de_get_len_safe(): de_get_len_safe(buf, 0)
+    // returns 0, which would otherwise satisfy `0 == element_size` and fall through to
+    // des_iterator_init(), dereferencing element[0] out of bounds.
+    if (element == NULL || element_size == 0) {
+        return false;
+    }
+    // Require exact length match: rejects both truncated elements (de_get_len_safe() == 0)
+    // and elements followed by unparsed trailing bytes (de_get_len_safe() < element_size).
+    if (de_get_len_safe(element, element_size) != element_size) {
+        return false;
+    }
+    return des_iterator_init(it, element);
+}
+
+/**
+ * @brief Return the bounds-checked byte length of the current element in a DES iterator.
+ *
+ * Provides a version-agnostic replacement for `des_iterator_get_element_len()` (added in
+ * BTstack 1.8.2 and absent from Pico SDK's BTstack 1.6.2). In BTstack 1.6.2,
+ * `des_iterator_has_more()` only checks `it->pos < it->length`, and `des_iterator_get_type()`,
+ * `des_iterator_get_element()`, and `des_iterator_next()` index `&it->element[it->pos]`
+ * without verifying that the child element fits within the remaining `it->length - it->pos`
+ * bytes.
+ *
+ * @note Accesses `it->pos`, `it->length`, and `&it->element[it->pos]` directly rather than
+ *       calling BTstack's `des_iterator_*` getters because those C APIs take a non-`const`
+ *       `des_iterator_t*` and would violate `-Werror=discarded-qualifiers`.
+ *
+ * @param it Pointer to the active `des_iterator_t`.
+ * @return Validated byte length of the current child element, or `0` if the iterator is
+ *         exhausted or the current child element header/payload exceeds `it->length - it->pos`.
+ */
+static uint32_t sdp_des_iterator_get_element_len_safe(const des_iterator_t* it) {
+    if (it->pos >= it->length) {
+        return 0;
+    }
+    return de_get_len_safe(&it->element[it->pos], it->length - it->pos);
+}
+
+/**
  * @brief Parse a completed `BLUETOOTH_ATTRIBUTE_HID_DESCRIPTOR_LIST` (`0x0206`) Data Element Sequence.
  *
- * Validates both outer and inner Data Element Sequences with `des_iterator_init_with_len()`
- * before extracting the `DE_STRING` HID report descriptor payload.
+ * Expects a nested `DE_DES -> DE_DES -> (DE_UINT8, DE_STRING)` structure where the inner
+ * `DE_STRING` holds the raw HID report descriptor. Validates both outer and inner sequences
+ * with `sdp_des_iterator_init_safe()` and checks each child element's bounds at the start of
+ * every loop iteration via `sdp_des_iterator_get_element_len_safe()` for compatibility with
+ * both Pico SDK's BTstack 1.6.2 and BTstack 1.8.2+.
  *
  * @param attr_len Total encoded byte length of the attribute in `sdp_attribute_value`.
  */
 static void parse_sdp_hid_descriptor_list(uint16_t attr_len) {
     des_iterator_t attribute_list_it;
-    if (!des_iterator_init_with_len(&attribute_list_it, sdp_attribute_value, attr_len)) {
+    if (!sdp_des_iterator_init_safe(&attribute_list_it, sdp_attribute_value, attr_len)) {
         loge("Invalid SDP HID descriptor list DES (attr_len=%u)\n", attr_len);
         return;
     }
 
     for (; des_iterator_has_more(&attribute_list_it); des_iterator_next(&attribute_list_it)) {
+        uint32_t des_element_len = sdp_des_iterator_get_element_len_safe(&attribute_list_it);
+        if (des_element_len == 0) {
+            // Must break (never continue): in BTstack 1.6.2, continue would run the loop
+            // increment des_iterator_next(), performing an unbounded de_get_len() read on
+            // the truncated child element at attribute_list_it.pos.
+            break;
+        }
         if (des_iterator_get_type(&attribute_list_it) != DE_DES) {
             continue;
         }
         uint8_t* des_element = des_iterator_get_element(&attribute_list_it);
-        uint32_t des_element_len = des_iterator_get_element_len(&attribute_list_it);
 
         des_iterator_t additional_des_it;
-        if (!des_iterator_init_with_len(&additional_des_it, des_element, des_element_len)) {
+        if (!sdp_des_iterator_init_safe(&additional_des_it, des_element, des_element_len)) {
             continue;
         }
 
         for (; des_iterator_has_more(&additional_des_it); des_iterator_next(&additional_des_it)) {
+            if (sdp_des_iterator_get_element_len_safe(&additional_des_it) == 0) {
+                // Must break (never continue) to prevent BTstack 1.6.2's des_iterator_next()
+                // from reading past the end of the inner DE_DES on a truncated child element.
+                break;
+            }
             if (des_iterator_get_type(&additional_des_it) != DE_STRING) {
                 continue;
             }
