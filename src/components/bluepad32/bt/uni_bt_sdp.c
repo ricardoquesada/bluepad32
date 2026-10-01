@@ -79,6 +79,119 @@ static void sdp_query_timeout(btstack_timer_source_t* ts);
 // SDP Server
 static uint8_t device_id_sdp_service_buffer[100];
 
+/**
+ * @brief Accumulate a single streamed byte from an `SDP_EVENT_QUERY_ATTRIBUTE_VALUE` packet.
+ *
+ * BTstack's `sdp_parser_process_byte()` streams each attribute value in two phases:
+ *  1. `GET_ATTRIBUTE_VALUE_LENGTH`: While reading the 1-to-5 byte Data Element (DE) header
+ *     (`data_offset` in `0 .. header_size - 1`), `sdp_parser_emit_value_byte()` is invoked
+ *     before `de_state_size()` computes `sdp_parser_attribute_value_size`. Consequently,
+ *     `attr_len` is `0` for all DE header bytes.
+ *  2. `GET_ATTRIBUTE_VALUE`: Once the DE header is complete, `attr_len` reports the full
+ *     attribute length (`header_size + de_size > 0`) for all payload bytes.
+ *
+ * @param packet       Pointer to the `SDP_EVENT_QUERY_ATTRIBUTE_VALUE` HCI event packet.
+ * @param out_attr_len Output pointer receiving `attr_len` when the final byte is stored.
+ * @return `true` when the final byte of the attribute (`data_offset + 1 == attr_len`) has
+ *         been stored in `sdp_attribute_value` and is ready to parse; `false` otherwise.
+ */
+static bool sdp_accumulate_attribute_byte(const uint8_t* packet, uint16_t* out_attr_len) {
+    uint16_t attr_len = sdp_event_query_attribute_byte_get_attribute_length(packet);
+    uint16_t data_offset = sdp_event_query_attribute_byte_get_data_offset(packet);
+
+    if (attr_len > sdp_attribute_value_buffer_size) {
+        loge("SDP attribute value buffer size exceeded: available %u, required %u\n", sdp_attribute_value_buffer_size,
+             attr_len);
+        return false;
+    }
+
+    if (data_offset >= sdp_attribute_value_buffer_size || (attr_len > 0 && data_offset >= attr_len)) {
+        loge("SDP attribute value data offset out of bounds: offset %u, attr_len %u\n", data_offset, attr_len);
+        return false;
+    }
+
+    sdp_attribute_value[data_offset] = sdp_event_query_attribute_byte_get_data(packet);
+    *out_attr_len = attr_len;
+    return attr_len > 0 && (uint16_t)(data_offset + 1) == attr_len;
+}
+
+/**
+ * @brief Parse a completed `BLUETOOTH_ATTRIBUTE_HID_DESCRIPTOR_LIST` (`0x0206`) Data Element Sequence.
+ *
+ * Validates both outer and inner Data Element Sequences with `des_iterator_init_with_len()`
+ * before extracting the `DE_STRING` HID report descriptor payload.
+ *
+ * @param attr_len Total encoded byte length of the attribute in `sdp_attribute_value`.
+ */
+static void parse_sdp_hid_descriptor_list(uint16_t attr_len) {
+    des_iterator_t attribute_list_it;
+    if (!des_iterator_init_with_len(&attribute_list_it, sdp_attribute_value, attr_len)) {
+        loge("Invalid SDP HID descriptor list DES (attr_len=%u)\n", attr_len);
+        return;
+    }
+
+    for (; des_iterator_has_more(&attribute_list_it); des_iterator_next(&attribute_list_it)) {
+        if (des_iterator_get_type(&attribute_list_it) != DE_DES) {
+            continue;
+        }
+        uint8_t* des_element = des_iterator_get_element(&attribute_list_it);
+        uint32_t des_element_len = des_iterator_get_element_len(&attribute_list_it);
+
+        des_iterator_t additional_des_it;
+        if (!des_iterator_init_with_len(&additional_des_it, des_element, des_element_len)) {
+            continue;
+        }
+
+        for (; des_iterator_has_more(&additional_des_it); des_iterator_next(&additional_des_it)) {
+            if (des_iterator_get_type(&additional_des_it) != DE_STRING) {
+                continue;
+            }
+            uint8_t* element = des_iterator_get_element(&additional_des_it);
+            const uint8_t* descriptor = de_get_string(element);
+            if (descriptor == NULL) {
+                continue;
+            }
+            int descriptor_len = (int)de_get_data_size(element);
+            logi("SDP HID Descriptor (%d):\n", descriptor_len);
+            uni_hid_device_set_hid_descriptor(sdp_device, descriptor, descriptor_len);
+            printf_hexdump(descriptor, descriptor_len);
+        }
+    }
+}
+
+/**
+ * @brief Parse a completed PnP Information attribute (`BLUETOOTH_ATTRIBUTE_VENDOR_ID` or `PRODUCT_ID`).
+ *
+ * @param attr_id  SDP attribute identifier (`0x0201` or `0x0202`).
+ * @param attr_len Total encoded byte length of the attribute in `sdp_attribute_value`.
+ */
+static void parse_sdp_pnp_attribute(uint16_t attr_id, uint16_t attr_len) {
+    uint16_t id16 = 0;
+    bool valid_uint16 = (de_get_len_safe(sdp_attribute_value, attr_len) == attr_len) &&
+                        de_element_get_uint16(sdp_attribute_value, &id16);
+
+    switch (attr_id) {
+        case BLUETOOTH_ATTRIBUTE_VENDOR_ID:
+            if (valid_uint16) {
+                uni_hid_device_set_vendor_id(sdp_device, id16);
+            } else {
+                loge("Error getting vendor id\n");
+            }
+            break;
+
+        case BLUETOOTH_ATTRIBUTE_PRODUCT_ID:
+            if (valid_uint16) {
+                uni_hid_device_set_product_id(sdp_device, id16);
+            } else {
+                loge("Error getting product id\n");
+            }
+            break;
+
+        default:
+            break;
+    }
+}
+
 // HID results: HID descriptor, PSM interrupt, PSM control, etc.
 // Exposed with non-static linkage so Layer 2 packet-handler unit tests can feed
 // synthetic SDP_EVENT_QUERY_ATTRIBUTE_VALUE / SDP_EVENT_QUERY_COMPLETE byte streams directly.
@@ -87,11 +200,6 @@ void uni_handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel, uint
     ARG_UNUSED(channel);
     ARG_UNUSED(size);
 
-    des_iterator_t attribute_list_it;
-    des_iterator_t additional_des_it;
-    uint8_t* des_element;
-    uint8_t* element;
-
     if (sdp_device == NULL) {
         loge("ERROR: uni_handle_sdp_hid_query_result. SDP device = NULL\n");
         return;
@@ -99,45 +207,12 @@ void uni_handle_sdp_hid_query_result(uint8_t packet_type, uint16_t channel, uint
 
     switch (hci_event_packet_get_type(packet)) {
         case SDP_EVENT_QUERY_ATTRIBUTE_VALUE: {
-            // Guard against oversized SDP attributes exceeding MAX_ATTRIBUTE_VALUE_SIZE (512 bytes)
-            // and malformed data_offset >= attr_len before writing the streamed byte.
-            uint16_t attr_len = sdp_event_query_attribute_byte_get_attribute_length(packet);
-            uint16_t data_offset = sdp_event_query_attribute_byte_get_data_offset(packet);
-            if (attr_len <= sdp_attribute_value_buffer_size) {
-                if (data_offset >= attr_len) {
-                    loge("SDP attribute value data offset out of bounds: offset %u, attr_len %u\n", data_offset,
-                         attr_len);
-                    break;
-                }
-                sdp_attribute_value[data_offset] = sdp_event_query_attribute_byte_get_data(packet);
-                if ((uint16_t)(data_offset + 1) == attr_len) {
-                    switch (sdp_event_query_attribute_byte_get_attribute_id(packet)) {
-                        case BLUETOOTH_ATTRIBUTE_HID_DESCRIPTOR_LIST:
-                            for (des_iterator_init(&attribute_list_it, sdp_attribute_value);
-                                 des_iterator_has_more(&attribute_list_it); des_iterator_next(&attribute_list_it)) {
-                                if (des_iterator_get_type(&attribute_list_it) != DE_DES)
-                                    continue;
-                                des_element = des_iterator_get_element(&attribute_list_it);
-                                for (des_iterator_init(&additional_des_it, des_element);
-                                     des_iterator_has_more(&additional_des_it); des_iterator_next(&additional_des_it)) {
-                                    if (des_iterator_get_type(&additional_des_it) != DE_STRING)
-                                        continue;
-                                    element = des_iterator_get_element(&additional_des_it);
-                                    const uint8_t* descriptor = de_get_string(element);
-                                    int descriptor_len = de_get_data_size(element);
-                                    logi("SDP HID Descriptor (%d):\n", descriptor_len);
-                                    uni_hid_device_set_hid_descriptor(sdp_device, descriptor, descriptor_len);
-                                    printf_hexdump(descriptor, descriptor_len);
-                                }
-                            }
-                            break;
-                        default:
-                            break;
-                    }
-                }
-            } else {
-                loge("SDP attribute value buffer size exceeded: available %d, required %d\n",
-                     sdp_attribute_value_buffer_size, attr_len);
+            uint16_t attr_len = 0;
+            if (!sdp_accumulate_attribute_byte(packet, &attr_len)) {
+                break;
+            }
+            if (sdp_event_query_attribute_byte_get_attribute_id(packet) == BLUETOOTH_ATTRIBUTE_HID_DESCRIPTOR_LIST) {
+                parse_sdp_hid_descriptor_list(attr_len);
             }
             break;
         }
@@ -157,8 +232,6 @@ void uni_handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, uint
     ARG_UNUSED(channel);
     ARG_UNUSED(size);
 
-    uint16_t id16;
-
     if (sdp_device == NULL) {
         loge("ERROR: uni_handle_sdp_pid_query_result. SDP device = NULL\n");
         return;
@@ -166,40 +239,11 @@ void uni_handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, uint
 
     switch (hci_event_packet_get_type(packet)) {
         case SDP_EVENT_QUERY_ATTRIBUTE_VALUE: {
-            // Guard against oversized SDP attributes exceeding MAX_ATTRIBUTE_VALUE_SIZE (512 bytes)
-            // and malformed data_offset >= attr_len before writing the streamed byte.
-            uint16_t attr_len = sdp_event_query_attribute_byte_get_attribute_length(packet);
-            uint16_t data_offset = sdp_event_query_attribute_byte_get_data_offset(packet);
-            if (attr_len <= sdp_attribute_value_buffer_size) {
-                if (data_offset >= attr_len) {
-                    loge("SDP attribute value data offset out of bounds: offset %u, attr_len %u\n", data_offset,
-                         attr_len);
-                    break;
-                }
-                sdp_attribute_value[data_offset] = sdp_event_query_attribute_byte_get_data(packet);
-                if ((uint16_t)(data_offset + 1) == attr_len) {
-                    switch (sdp_event_query_attribute_byte_get_attribute_id(packet)) {
-                        case BLUETOOTH_ATTRIBUTE_VENDOR_ID:
-                            if (de_element_get_uint16(sdp_attribute_value, &id16))
-                                uni_hid_device_set_vendor_id(sdp_device, id16);
-                            else
-                                loge("Error getting vendor id\n");
-                            break;
-
-                        case BLUETOOTH_ATTRIBUTE_PRODUCT_ID:
-                            if (de_element_get_uint16(sdp_attribute_value, &id16))
-                                uni_hid_device_set_product_id(sdp_device, id16);
-                            else
-                                loge("Error getting product id\n");
-                            break;
-                        default:
-                            break;
-                    }
-                }
-            } else {
-                loge("SDP attribute value buffer size exceeded: available %d, required %d\n",
-                     sdp_attribute_value_buffer_size, attr_len);
+            uint16_t attr_len = 0;
+            if (!sdp_accumulate_attribute_byte(packet, &attr_len)) {
+                break;
             }
+            parse_sdp_pnp_attribute(sdp_event_query_attribute_byte_get_attribute_id(packet), attr_len);
             break;
         }
         case SDP_EVENT_QUERY_COMPLETE:
@@ -210,7 +254,6 @@ void uni_handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, uint
             uni_bt_bredr_process_fsm(sdp_device);
             break;
         default:
-            // TODO: xxx
             logd("TODO: uni_handle_sdp_pid_query_result. switch->default triggered\n");
             break;
     }
