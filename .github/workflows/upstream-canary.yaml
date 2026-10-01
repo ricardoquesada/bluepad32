@@ -45,7 +45,7 @@ jobs:
     - name: Run CTest contract suite against upstream BTstack
       shell: bash
       working-directory: ${{ github.workspace }}/tests/build
-      run: ctest --output-on-failure -V
+      run: ctest --output-on-failure -V --parallel 4
 
     - name: Configure and build POSIX example
       shell: bash
@@ -85,12 +85,12 @@ jobs:
           idf.py -B "build_${plat}" -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.${plat}" build
         done
 
-    - name: Build examples/esp32 across targets (esp32, esp32s3, esp32c3)
+    - name: Build examples/esp32 across targets (esp32, esp32s3, esp32c3, esp32c5, esp32c6, esp32h2)
       shell: bash
       working-directory: ${{ github.workspace }}/examples/esp32
       run: |
         . $IDF_PATH/export.sh
-        for target in esp32 esp32s3 esp32c3; do
+        for target in esp32 esp32s3 esp32c3 esp32c5 esp32c6 esp32h2; do
           rm -rf build sdkconfig
           idf.py set-target "${target}"
           idf.py build
@@ -128,6 +128,7 @@ jobs:
     - name: Configure and build Pico W example (${{ matrix.board }})
       shell: bash
       run: |
+        rm -rf "${{ github.workspace }}/examples/pico_w/build"
         mkdir -p "${{ github.workspace }}/examples/pico_w/build"
         cd "${{ github.workspace }}/examples/pico_w/build"
         PICO_SDK_PATH=../../../pico-sdk cmake .. -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=${{ matrix.board }}

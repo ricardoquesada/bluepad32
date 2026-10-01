@@ -6,16 +6,24 @@ on:
   pull_request:
     branches: [ main, develop ]
 
-env:
-  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
-  BUILD_TYPE: Debug
-
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            cc: gcc
+            build_type: Debug
+          - os: ubuntu-latest
+            cc: clang
+            build_type: Debug
+          - os: ubuntu-latest
+            cc: gcc
+            build_type: Release
+          - os: macos-latest
+            cc: clang
+            build_type: Debug
 
     runs-on: ${{ matrix.os }}
 
@@ -31,22 +39,37 @@ jobs:
 
     - name: Install dependencies (Linux)
       if: runner.os == 'Linux'
-      run: sudo apt-get update && sudo apt-get -y install tzdata make pkg-config libusb-1.0-0-dev clang cmake
+      run: sudo apt-get update && sudo apt-get -y install tzdata make pkg-config libusb-1.0-0-dev libglfw3-dev libsdl2-dev clang gcc g++ cmake
 
     - name: Install dependencies (macOS)
       if: runner.os == 'macOS'
-      run: brew install pkg-config libusb cmake
+      run: brew install pkg-config libusb glfw sdl2 cmake
 
     - name: Configure and build unit tests (ASan + UBSan)
       shell: bash
       run: |
-        cmake -S "${{ github.workspace }}/tests" -B "${{ github.workspace }}/tests/build" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DENABLE_SANITIZERS=ON
-        cmake --build "${{ github.workspace }}/tests/build" --config $BUILD_TYPE --parallel
+        cmake -S "${{ github.workspace }}/tests" -B "${{ github.workspace }}/tests/build" \
+          -DCMAKE_C_COMPILER=${{ matrix.cc }} \
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+          -DENABLE_SANITIZERS=ON
+        cmake --build "${{ github.workspace }}/tests/build" --config ${{ matrix.build_type }} --parallel
 
-    - name: Run unit tests via CTest
+    - name: Run unit tests via CTest (Linux)
+      if: runner.os == 'Linux'
       shell: bash
       working-directory: ${{ github.workspace }}/tests/build
-      run: ctest --output-on-failure -V
+      env:
+        ASAN_OPTIONS: "detect_leaks=1:strict_string_checks=1"
+        UBSAN_OPTIONS: "print_stacktrace=1:halt_on_error=1"
+      run: ctest --output-on-failure -V --parallel 4
+
+    - name: Run unit tests via CTest (macOS)
+      if: runner.os == 'macOS'
+      shell: bash
+      working-directory: ${{ github.workspace }}/tests/build
+      env:
+        UBSAN_OPTIONS: "print_stacktrace=1:halt_on_error=1"
+      run: ctest --output-on-failure -V --parallel 4
 
     - name: Create POSIX example build folder
       shell: bash
@@ -58,10 +81,27 @@ jobs:
     - name: Configure POSIX example CMake
       shell: bash
       working-directory: ${{ github.workspace }}/examples/posix/build
-      run: cmake .. -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+      run: cmake .. -DCMAKE_C_COMPILER=${{ matrix.cc }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
 
     - name: Build POSIX example
       working-directory: ${{ github.workspace }}/examples/posix/build
       shell: bash
-      run: cmake --build . --config $BUILD_TYPE --parallel
+      run: cmake --build . --config ${{ matrix.build_type }} --parallel
+
+    - name: Checkout Dear ImGui
+      shell: bash
+      run: |
+        if [ ! -d "${{ github.workspace }}/external/imgui" ]; then
+          git clone --depth 1 https://github.com/ocornut/imgui.git "${{ github.workspace }}/external/imgui"
+        fi
+
+    - name: Configure, build, and test POSIX Dear ImGui example
+      shell: bash
+      run: |
+        rm -rf "${{ github.workspace }}/examples/posix_imgui/build"
+        cmake -S "${{ github.workspace }}/examples/posix_imgui" -B "${{ github.workspace }}/examples/posix_imgui/build" \
+          -DCMAKE_C_COMPILER=${{ matrix.cc }} \
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+        cmake --build "${{ github.workspace }}/examples/posix_imgui/build" --config ${{ matrix.build_type }} --parallel
+        ctest --test-dir "${{ github.workspace }}/examples/posix_imgui/build" --output-on-failure -V
 

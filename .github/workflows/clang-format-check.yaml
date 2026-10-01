@@ -16,8 +16,10 @@ jobs:
             exclude: 'src/components/(cmd_nvs|cmd_system)'
           - check: 'examples'
             exclude: 'btstack_config.h'
+          - check: 'tests'
+            exclude: '^$'
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Run clang-format style check for C/C++/Protobuf programs.
       uses: jidicula/clang-format-action@v4.18.0
       with:

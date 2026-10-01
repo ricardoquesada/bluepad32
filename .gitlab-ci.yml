@@ -5,16 +5,21 @@ unit_test_posix:
   image: ubuntu:24.04
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
+    ASAN_OPTIONS: "detect_leaks=1:strict_string_checks=1"
+    UBSAN_OPTIONS: "print_stacktrace=1:halt_on_error=1"
   stage: build
   before_script:
     - export DEBIAN_FRONTEND=noninteractive
     - apt-get update
-    - apt-get -y install tzdata git clang make cmake pkg-config libusb-1.0-0-dev
+    - apt-get -y install tzdata git clang gcc make cmake pkg-config libusb-1.0-0-dev
     - cd external/btstack && git apply ../patches/*.patch && cd ../..
   script:
-    - cmake -S tests -B tests/build -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON
-    - cmake --build tests/build --parallel
-    - ctest --test-dir tests/build --output-on-failure -V
+    - cmake -S tests -B tests/build_debug -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON
+    - cmake --build tests/build_debug --parallel
+    - ctest --test-dir tests/build_debug --output-on-failure -V --parallel 4
+    - cmake -S tests -B tests/build_release -DCMAKE_C_COMPILER=gcc -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZERS=ON
+    - cmake --build tests/build_release --parallel
+    - ctest --test-dir tests/build_release --output-on-failure -V --parallel 4
 
 build-debian-linux-gcc:
   image: gcc
@@ -25,9 +30,10 @@ build-debian-linux-gcc:
     - export DEBIAN_FRONTEND=noninteractive
     - apt update
     - apt -y install tzdata
-    - apt -y install make cmake pkg-config libusb-1.0-0-dev
+    - apt -y install git make cmake pkg-config libusb-1.0-0-dev
+    - cd external/btstack && git apply ../patches/*.patch && cd ../..
   script:
-    - cd examples/posix && mkdir build && cd build && cmake .. && CC=gcc make -j
+    - cd examples/posix && mkdir build && cd build && cmake .. -DCMAKE_C_COMPILER=gcc && make -j
 
 build-debian-linux-clang:
   image: gcc
@@ -39,9 +45,10 @@ build-debian-linux-clang:
     - apt update
     - apt -y install tzdata
     - apt -y install clang
-    - apt -y install make cmake pkg-config libusb-1.0-0-dev
+    - apt -y install git make cmake pkg-config libusb-1.0-0-dev
+    - cd external/btstack && git apply ../patches/*.patch && cd ../..
   script:
-    - cd examples/posix && mkdir build && cd build && cmake .. && CC=clang make -j
+    - cd examples/posix && mkdir build && cd build && cmake .. -DCMAKE_C_COMPILER=clang && make -j
 
 build-esp-idf-5.5:
   image: espressif/idf:release-v5.5
