@@ -104,6 +104,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Switch: Guarded `parse_imu()` and `mult_frac()` against division-by-zero when
   IMU calibration divisors are zero, and validated minimum input report
   lengths.
+- Switch: Rumble strength follows the requested magnitude. The magnitude was
+  encoded as a frequency with a fixed amplitude, so any rumble felt about the
+  same; now the frequency is fixed (320 Hz) and the magnitude sets the amplitude
+  (capped at 800 of 1003, as DS4Windows does).
 - Switch: Fixed Joy-Con rumble. Setup now enables vibration (subcommand
   `0x48`); Joy-Cons ignore rumble until it is enabled.
 - Wii Balance Board: Fixed swapped default move/fire threshold constants

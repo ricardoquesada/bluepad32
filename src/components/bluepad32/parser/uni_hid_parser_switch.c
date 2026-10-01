@@ -1274,6 +1274,16 @@ static struct switch_rumble_amp_data find_rumble_amp(uint16_t amp) {
     return rumble_amps[i];
 }
 
+// Rumble keeps a fixed frequency (320 Hz) in both bands and maps the 0..255 magnitude onto the amplitude
+// table, capped at 800 of its maximum 1003. Same approach as DS4Windows (SwitchProDevice.PrepareRumbleData,
+// AMP_LIMIT_MAX).
+#define SWITCH_RUMBLE_FREQ_HZ 320
+#define SWITCH_RUMBLE_AMP_MAX 800
+
+static uint16_t switch_rumble_magnitude_to_amp(uint8_t magnitude) {
+    return (uint16_t)((magnitude * SWITCH_RUMBLE_AMP_MAX) / 255);
+}
+
 static void switch_encode_rumble(uint8_t* data, uint16_t freq_low, uint16_t freq_high, uint16_t amp) {
     struct switch_rumble_freq_data freq_data_low;
     struct switch_rumble_freq_data freq_data_high;
@@ -1423,8 +1433,10 @@ static uni_rumble_result_t switch_rumble_start(struct uni_hid_device_s* d,
     struct switch_subcmd_request req = {
         .report_id = OUTPUT_RUMBLE_ONLY,
     };
-    switch_encode_rumble(req.rumble_left, weak_magnitude << 2, weak_magnitude, 500);
-    switch_encode_rumble(req.rumble_right, strong_magnitude << 2, strong_magnitude, 500);
+    switch_encode_rumble(req.rumble_left, SWITCH_RUMBLE_FREQ_HZ, SWITCH_RUMBLE_FREQ_HZ,
+                         switch_rumble_magnitude_to_amp(weak_magnitude));
+    switch_encode_rumble(req.rumble_right, SWITCH_RUMBLE_FREQ_HZ, SWITCH_RUMBLE_FREQ_HZ,
+                         switch_rumble_magnitude_to_amp(strong_magnitude));
 
     // Rumble request don't include the last byte of "switch_subcmd_request": subcmd_id
     send_subcmd(d, &req, sizeof(req) - 1);

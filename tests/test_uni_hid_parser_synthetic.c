@@ -2832,6 +2832,45 @@ TEST(parser_wii_bounds_underflow_and_classic_rx_bit0_regression) {
 }
 
 // ============================================================================
+// 30. Switch Parser: Rumble Intensity Follows the Requested Magnitude
+// ============================================================================
+TEST(parser_switch_rumble_intensity_tracks_magnitude) {
+    uni_hid_device_t d;
+    setup_synthetic_device(&d, 0x057e, 0x2009);
+    ASSERT_EQ(CONTROLLER_TYPE_SwitchProController, d.controller_type);
+    d.conn.interrupt_cid = 0x0041;
+
+    // Rumble-only report (0x10): [1] = report id, [3..6] = left (weak), [7..10] = right (strong).
+    // Encoded amplitudes: high band in [i+1] bits 1-7, low band in [i+2] bit 0 + [i+3].
+    const uint8_t magnitudes[] = {0x20, 0x80, 0xff};
+    int prev_amp_hi = -1;
+    for (size_t i = 0; i < ARRAY_SIZE(magnitudes); i++) {
+        uni_circular_buffer_reset(&d.outgoing_buffer);
+        d.report_parser.play_dual_rumble(&d, 0, 500, magnitudes[i], magnitudes[i]);
+        int16_t cid = 0;
+        void* data = NULL;
+        int len = 0;
+        ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d.outgoing_buffer, &cid, &data, &len));
+        ASSERT_EQ(11, len);
+        const uint8_t* out = (const uint8_t*)data;
+        EXPECT_EQ(0x10, out[1]);
+        for (int side = 3; side <= 7; side += 4) {
+            // Fixed 320 Hz in both bands: high-band code 0x0001, low-band code 0x60.
+            EXPECT_EQ(0x00, out[side]);
+            EXPECT_EQ(0x01, out[side + 1] & 0x01);
+            EXPECT_EQ(0x60, out[side + 2] & 0x7f);
+        }
+        // Both motors got the same magnitude, so the same amplitude.
+        EXPECT_EQ(out[4], out[8]);
+        EXPECT_EQ(out[6], out[10]);
+        // Amplitude grows with the magnitude, and stays below the table's maximum (0xc8 high-band code).
+        const int amp_hi = out[4] & 0xfe;
+        EXPECT_TRUE(amp_hi > prev_amp_hi);
+        EXPECT_TRUE(amp_hi < 0xc8);
+        prev_amp_hi = amp_hi;
+    }
+
+    d.report_parser.play_dual_rumble(&d, 0, 0, 0, 0);
 // 27. Switch Parser: Setup Enables Vibration (Subcommand 0x48)
 // ============================================================================
 TEST(parser_switch_setup_enables_vibration) {
@@ -2916,6 +2955,7 @@ int main(int argc, char** argv) {
     RUN_TEST(parser_wii_truncated_reports_and_classic_rx_bit_packing_regression);
     RUN_TEST(parser_wii_bounds_underflow_and_classic_rx_bit0_regression);
     RUN_TEST(parser_ds4_ds5_empty_report_and_ds5_usb_report_0x01);
+    RUN_TEST(parser_switch_rumble_intensity_tracks_magnitude);
     RUN_TEST(parser_switch_setup_enables_vibration);
 
     return test_summary();
