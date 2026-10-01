@@ -13,7 +13,6 @@
  * in `arrControllers[]` (`uni_controller_list.h`).
  */
 
-#include <assert.h>
 #include <math.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -59,6 +58,7 @@
 #include "parser/uni_hid_parser_xboxone.h"
 #include "platform/uni_platform.h"
 #include "sdkconfig.h"
+#include "test_check.h"
 #include "uni_circular_buffer.h"
 #include "uni_common.h"
 #include "uni_config.h"
@@ -70,73 +70,6 @@
 
 // Must be included after controller/uni_controller_type.h
 #include "controller/uni_controller_list.h"
-
-// Lightweight test macros matching the Bluepad32 test harness style and exact TEST(...) names.
-#define TEST(name) static void test_##name(void)
-#define RUN_TEST(name)                   \
-    do {                                 \
-        printf("Running " #name "... "); \
-        fflush(stdout);                  \
-        test_##name();                   \
-        printf("PASS\n");                \
-    } while (0)
-
-#define ASSERT_EQ(expected, actual)                                                                                  \
-    do {                                                                                                             \
-        long long _exp = (long long)(expected);                                                                      \
-        long long _act = (long long)(actual);                                                                        \
-        if (_exp != _act) {                                                                                          \
-            fprintf(stderr, "ASSERT_EQ failed at %s:%d: expected %lld, got %lld\n", __FILE__, __LINE__, _exp, _act); \
-            abort();                                                                                                 \
-        }                                                                                                            \
-    } while (0)
-
-#define ASSERT_NE(not_expected, actual)                                                                    \
-    do {                                                                                                   \
-        long long _nexp = (long long)(uintptr_t)(not_expected);                                            \
-        long long _act = (long long)(uintptr_t)(actual);                                                   \
-        if (_nexp == _act) {                                                                               \
-            fprintf(stderr, "ASSERT_NE failed at %s:%d: got unexpected %lld\n", __FILE__, __LINE__, _act); \
-            abort();                                                                                       \
-        }                                                                                                  \
-    } while (0)
-
-#define EXPECT_EQ(expected, actual) ASSERT_EQ(expected, actual)
-#define EXPECT_NE(not_expected, actual) ASSERT_NE(not_expected, actual)
-
-// UBSan-safe floating-point assertion macro for normalized IMU telemetry (`m/s^2` and `rad/s`).
-// Avoids `ASSERT_EQ` integer truncation and `ASSERT_NE` negative-float-to-`uintptr_t` undefined behavior.
-#define EXPECT_FLOAT_NEAR(expected, actual, tol)                                                               \
-    do {                                                                                                       \
-        double _exp = (double)(expected);                                                                      \
-        double _act = (double)(actual);                                                                        \
-        double _tol = (double)(tol);                                                                           \
-        if (fabs(_exp - _act) > _tol) {                                                                        \
-            fprintf(stderr, "EXPECT_FLOAT_NEAR failed at %s:%d: expected %.6f +/- %.6f, got %.6f\n", __FILE__, \
-                    __LINE__, _exp, _tol, _act);                                                               \
-            abort();                                                                                           \
-        }                                                                                                      \
-    } while (0)
-
-#define EXPECT_TRUE(cond)                                                                    \
-    do {                                                                                     \
-        if (!(cond)) {                                                                       \
-            fprintf(stderr, "EXPECT_TRUE failed at %s:%d: %s\n", __FILE__, __LINE__, #cond); \
-            abort();                                                                         \
-        }                                                                                    \
-    } while (0)
-
-#define EXPECT_FALSE(cond) EXPECT_TRUE(!(cond))
-
-#define EXPECT_GT(val1, val2)                                                                           \
-    do {                                                                                                \
-        long long _v1 = (long long)(val1);                                                              \
-        long long _v2 = (long long)(val2);                                                              \
-        if (!(_v1 > _v2)) {                                                                             \
-            fprintf(stderr, "EXPECT_GT failed at %s:%d: %lld <= %lld\n", __FILE__, __LINE__, _v1, _v2); \
-            abort();                                                                                    \
-        }                                                                                               \
-    } while (0)
 
 // Toggleable log silencer so the 480+ controller PRNG fuzz sweep does not flood stdout.
 static bool g_silence_logs = true;
@@ -2584,6 +2517,312 @@ TEST(imu_cross_vendor_canonical_units_and_axes) {
     }
 }
 
+// ============================================================================
+// 24. Switch Parser: SPI Bounds & Zero-Span Stick Calibration Regression
+// ============================================================================
+TEST(parser_switch_spi_bounds_and_zero_span_calibration_regression) {
+    uni_hid_device_t d;
+
+    // 1. Sub-test 3: process_input_subcmd_reply (len < 15) & process_reply_req_dev_info (len < 18):
+    setup_synthetic_device(&d, 0x057e, 0x2009);
+    ASSERT_EQ(CONTROLLER_TYPE_SwitchProController, d.controller_type);
+
+    // 1a. Exact-size 12-byte heap report 0x21 (< sizeof(struct switch_report_21_s) == 15):
+    uint8_t* r21_12 = (uint8_t*)malloc(12);
+    ASSERT_NE(NULL, r21_12);
+    memset(r21_12, 0, 12);
+    r21_12[0] = 0x21;
+    feed_input_report(&d, r21_12, 12);
+    free(r21_12);
+
+    // 1b. Exact-size 16-byte heap report 0x21 with SUBCMD_REQ_DEV_INFO (0x02), len = 16 < 18:
+    uint8_t* r21_16 = (uint8_t*)malloc(16);
+    ASSERT_NE(NULL, r21_16);
+    memset(r21_16, 0, 16);
+    r21_16[0] = 0x21;
+    r21_16[13] = 0x80;
+    r21_16[14] = 0x02;  // SUBCMD_REQ_DEV_INFO
+    r21_16[15] = 0x99;  // Would be firmware_version_hi if not rejected
+    feed_input_report(&d, r21_16, 16);
+    free(r21_16);
+
+    // 2. Sub-test 1: process_reply_spi_flash_read header (< 20B) & mem_len OOB (20 + mem_len > len):
+    setup_synthetic_device(&d, 0x057e, 0x2009);
+    uint8_t dev_info[18];
+    memset(dev_info, 0, sizeof(dev_info));
+    dev_info[0] = 0x21;
+    dev_info[13] = 0x80;
+    dev_info[14] = 0x02;  // SUBCMD_REQ_DEV_INFO
+    dev_info[17] = 0x03;  // SWITCH_CONTROLLER_TYPE_PRO
+    feed_input_report(&d, dev_info, sizeof(dev_info));
+
+    // 2a. Exact-size 19-byte heap report 0x21 with SUBCMD_SPI_FLASH_READ (0x10), len = 19 < 20:
+    uint8_t* spi_19 = (uint8_t*)malloc(19);
+    ASSERT_NE(NULL, spi_19);
+    memset(spi_19, 0, 19);
+    spi_19[0] = 0x21;
+    spi_19[13] = 0x80;
+    spi_19[14] = 0x10;  // SUBCMD_SPI_FLASH_READ
+    feed_input_report(&d, spi_19, 19);
+    free(spi_19);
+
+    // 2b. Re-init to STATE_READ_FACTORY_STICK_CALIBRATION and feed exact-size 22-byte heap report
+    //     claiming mem_len = 24 (20 + 24 = 44 > 22): must be rejected without reading past byte 21!
+    setup_synthetic_device(&d, 0x057e, 0x2009);
+    feed_input_report(&d, dev_info, sizeof(dev_info));
+    uint8_t* spi_oob = (uint8_t*)malloc(22);
+    ASSERT_NE(NULL, spi_oob);
+    memset(spi_oob, 0, 22);
+    spi_oob[0] = 0x21;
+    spi_oob[13] = 0x80;
+    spi_oob[14] = 0x10;  // SUBCMD_SPI_FLASH_READ
+    spi_oob[19] = 24;    // mem_len = 24 > 22 - 20
+    feed_input_report(&d, spi_oob, 22);
+    free(spi_oob);
+
+    // 3. Sub-test 2: process_reply_read_spi_user_stick_calibration mem_len < 2 and mem_len < 22:
+    // Case A: State is now STATE_READ_USER_STICK_CALIBRATION; feed 21-byte packet with mem_len = 1 (< 2):
+    uint8_t* user_cal_1 = (uint8_t*)malloc(21);
+    ASSERT_NE(NULL, user_cal_1);
+    memset(user_cal_1, 0, 21);
+    user_cal_1[0] = 0x21;
+    user_cal_1[13] = 0x80;
+    user_cal_1[14] = 0x10;  // SUBCMD_SPI_FLASH_READ
+    user_cal_1[19] = 1;     // mem_len = 1 < 2
+    user_cal_1[20] = 0xb2;
+    feed_input_report(&d, user_cal_1, 21);
+    free(user_cal_1);
+
+    // Case B: Re-advance to STATE_READ_USER_STICK_CALIBRATION and feed 38-byte packet with mem_len = 18 (< 22):
+    setup_synthetic_device(&d, 0x057e, 0x2009);
+    feed_input_report(&d, dev_info, sizeof(dev_info));
+    uint8_t fac_cal_zero[38];
+    memset(fac_cal_zero, 0, sizeof(fac_cal_zero));
+    fac_cal_zero[0] = 0x21;
+    fac_cal_zero[13] = 0x80;
+    fac_cal_zero[14] = 0x10;  // SUBCMD_SPI_FLASH_READ (factory stick cal, 18 bytes of zeros -> zero-span cal!)
+    fac_cal_zero[19] = 18;
+    feed_input_report(&d, fac_cal_zero, sizeof(fac_cal_zero));
+
+    uint8_t* user_cal_18 = (uint8_t*)malloc(38);
+    ASSERT_NE(NULL, user_cal_18);
+    memset(user_cal_18, 0, 38);
+    user_cal_18[0] = 0x21;
+    user_cal_18[13] = 0x80;
+    user_cal_18[14] = 0x10;  // SUBCMD_SPI_FLASH_READ (user stick cal)
+    user_cal_18[19] = 18;    // mem_len = 18 < 22 (SWITCH_USER_STICK_CAL_DATA_SIZE * 2)
+    user_cal_18[20] = 0xb2;
+    user_cal_18[21] = 0xa1;
+    feed_input_report(&d, user_cal_18, 38);
+    free(user_cal_18);
+
+    // 4. Sub-test 4: Zero-span stick calibration (min == center == max == 0 from fac_cal_zero above):
+    // Finish walking FSM (FACTORY_IMU_CAL -> SET_FULL_REPORT -> ENABLE_IMU -> UPDATE_LED -> STATE_READY):
+    uint8_t r21_step[48];
+    memset(r21_step, 0, sizeof(r21_step));
+    r21_step[0] = 0x21;
+    r21_step[13] = 0x80;
+    r21_step[14] = 0x10;  // FACTORY_IMU_CAL
+    feed_input_report(&d, r21_step, sizeof(r21_step));
+    r21_step[14] = 0x03;  // SET_REPORT_MODE
+    feed_input_report(&d, r21_step, sizeof(r21_step));
+    r21_step[14] = 0x40;  // ENABLE_IMU
+    feed_input_report(&d, r21_step, sizeof(r21_step));
+    r21_step[14] = 0x30;  // SET_PLAYER_LEDS -> STATE_READY
+    feed_input_report(&d, r21_step, sizeof(r21_step));
+
+    // Feed Report 0x30 with both positive (> center=0) and zero (<= center=0) 12-bit stick values:
+    uint8_t r30_zero_span[12];
+    memset(r30_zero_span, 0, sizeof(r30_zero_span));
+    r30_zero_span[0] = 0x30;
+    // Left stick: lx = 0x800 (> 0), ly = 0x000 (<= 0)
+    r30_zero_span[6] = 0x00;
+    r30_zero_span[7] = 0x08;
+    r30_zero_span[8] = 0x00;
+    // Right stick: rx = 0x000 (<= 0), ry = 0x800 (> 0)
+    r30_zero_span[9] = 0x00;
+    r30_zero_span[10] = 0x00;
+    r30_zero_span[11] = 0x80;
+    feed_input_report(&d, r30_zero_span, sizeof(r30_zero_span));
+    EXPECT_EQ(0, d.controller.gamepad.axis_x);
+    EXPECT_EQ(0, d.controller.gamepad.axis_y);
+    EXPECT_EQ(0, d.controller.gamepad.axis_rx);
+    EXPECT_EQ(0, d.controller.gamepad.axis_ry);
+}
+
+// ============================================================================
+// 25. Wii Parser: Truncated Reports (0x22, 0x34) & Classic Controller rx Bit 0
+// ============================================================================
+TEST(parser_wii_truncated_reports_and_classic_rx_bit_packing_regression) {
+    uni_hid_device_t d;
+    setup_synthetic_device(&d, 0x057e, 0x0306);
+    ASSERT_EQ(CONTROLLER_TYPE_WiiController, d.controller_type);
+
+    // 1. Sub-test 1: process_req_return (0x22) with len = 3 < 5 in exact-size heap buffer:
+    uint8_t* short_22 = (uint8_t*)malloc(3);
+    ASSERT_NE(NULL, short_22);
+    short_22[0] = 0x22;
+    short_22[1] = 0x00;
+    short_22[2] = 0x00;
+    feed_input_report(&d, short_22, 3);
+    free(short_22);
+
+    // 2. Sub-test 2: process_drm_kee (0x34) with len = 2 < 14 in exact-size heap buffer:
+    // Walk Wii extension FSM to WII_EXT_BALANCE_BOARD so process_drm_kee would reach process_balance_board
+    // if not rejected at entry by `if (len < 14)`:
+    uint8_t status_ext[7] = {0x20, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00};
+    feed_input_report(&d, status_ext, sizeof(status_ext));
+    uint8_t ack_wmem[5] = {0x22, 0x00, 0x00, 0x16, 0x00};
+    feed_input_report(&d, ack_wmem, sizeof(ack_wmem));
+    feed_input_report(&d, ack_wmem, sizeof(ack_wmem));
+    uint8_t read_bb_id[22] = {
+        0x21, 0x00, 0x00, 0x50, 0x00, 0xfa, 0x00, 0x00, 0xa4, 0x20, 0x04, 0x02,
+    };
+    feed_input_report(&d, read_bb_id, sizeof(read_bb_id));
+
+    uint8_t* short_34 = (uint8_t*)malloc(2);
+    ASSERT_NE(NULL, short_34);
+    short_34[0] = 0x34;
+    short_34[1] = 0x00;
+    feed_input_report(&d, short_34, 2);
+    free(short_34);
+
+    // 3. Sub-test 3: Classic Controller 5-bit rx LSB extraction in process_drm_e (report 0x3d, 22 bytes):
+    setup_synthetic_device(&d, 0x057e, 0x0306);
+    feed_input_report(&d, status_ext, sizeof(status_ext));
+    feed_input_report(&d, ack_wmem, sizeof(ack_wmem));
+    feed_input_report(&d, ack_wmem, sizeof(ack_wmem));
+    uint8_t read_classic_id[22] = {
+        0x21, 0x00, 0x00, 0x50, 0x00, 0xfa, 0x00, 0x00, 0xa4, 0x20, 0x01, 0x01,
+    };
+    feed_input_report(&d, read_classic_id, sizeof(read_classic_id));
+    EXPECT_EQ(CONTROLLER_SUBTYPE_WII_CLASSIC, d.controller_subtype);
+
+    // Payload A: rx[4:3]=2 (data[0]=0x80|32), rx[2:1]=0 (data[1]=0x00|32), rx[0]=0 (data[2]=0x00|16) -> rx=16 -> 0
+    uint8_t drm_e[22];
+    memset(drm_e, 0, sizeof(drm_e));
+    drm_e[0] = 0x3d;
+    drm_e[1] = 0x80 | 32;  // data[0]: rx[4:3]=2, lx=32
+    drm_e[2] = 0x00 | 32;  // data[1]: rx[2:1]=0, ly=32
+    drm_e[3] = 0x00 | 16;  // data[2]: rx[0]=0, ry=16
+    drm_e[5] = 0xff;       // data[4]: no buttons pressed (active-low)
+    drm_e[6] = 0xff;       // data[5]: no buttons pressed (active-low)
+    feed_input_report(&d, drm_e, sizeof(drm_e));
+    EXPECT_EQ(0, d.controller.gamepad.axis_rx);
+
+    // Payload B: toggle ONLY bit 7 of data[2] (drm_e[3] |= 0x80) so rx[0]=1 -> rx=17 -> axis_rx = +32 (> 0):
+    drm_e[3] = 0x80 | 16;
+    feed_input_report(&d, drm_e, sizeof(drm_e));
+    EXPECT_EQ(32, d.controller.gamepad.axis_rx);
+    EXPECT_GT(d.controller.gamepad.axis_rx, 0);
+}
+
+// ============================================================================
+// 26. DS4 & DS5 Parser: Empty Report Guards & Report 0x01 / 0x31 Handling
+// ============================================================================
+TEST(parser_ds4_ds5_empty_report_and_ds5_usb_report_0x01) {
+    uni_hid_device_t ds4;
+    setup_synthetic_device(&ds4, 0x054c, 0x09cc);
+    ASSERT_EQ(CONTROLLER_TYPE_PS4Controller, ds4.controller_type);
+
+    uni_hid_device_t ds5;
+    setup_synthetic_device(&ds5, 0x054c, 0x0ce6);
+    ASSERT_EQ(CONTROLLER_TYPE_PS5Controller, ds5.controller_type);
+
+    // Walk DS5 feature handshake so DS5 is in DS5_STATE_READY:
+    uint8_t feat_09[20] = {0x09};
+    uint8_t feat_20[64] = {0x20};
+    uint8_t feat_05[41] = {0x05};
+    feed_feature_report(&ds5, feat_09, sizeof(feat_09));
+    feed_feature_report(&ds5, feat_20, sizeof(feat_20));
+    feed_feature_report(&ds5, feat_05, sizeof(feat_05));
+
+    // 1. Empty (len == 0) reports on DS4 and DS5 must return immediately without reading report[0]:
+    uint8_t dummy = 0x11;
+    feed_input_report(&ds4, &dummy, 0);
+    EXPECT_EQ(0, ds4.controller.gamepad.buttons);
+    feed_input_report(&ds5, &dummy, 0);
+    EXPECT_EQ(0, ds5.controller.gamepad.buttons);
+
+    // 2. DS4 Report 0x01: exact-size 9-byte heap report (rejected) vs valid 10-byte report (parsed):
+    uint8_t* ds4_r01_short = (uint8_t*)malloc(9);
+    ASSERT_NE(NULL, ds4_r01_short);
+    memset(ds4_r01_short, 0, 9);
+    ds4_r01_short[0] = 0x01;
+    ds4_r01_short[5] = 0x20;  // Would set BUTTON_A if not rejected
+    feed_input_report(&ds4, ds4_r01_short, 9);
+    EXPECT_EQ(0, ds4.controller.gamepad.buttons);
+    free(ds4_r01_short);
+
+    uint8_t ds4_r01_valid[10] = {
+        0x01,         // report_id = 0x01
+        0x00,         // x = 0 -> (0 - 127) * 4 = -508
+        0xff,         // y = 255 -> (255 - 127) * 4 = +512
+        0x7f,         // rx = 127 -> 0
+        0x7f,         // ry = 127 -> 0
+        0x04 | 0x20,  // D-pad Down (4) | Cross (BUTTON_A)
+        0x01 | 0x40,  // L1 (BUTTON_SHOULDER_L) | L3 (BUTTON_THUMB_L)
+        0x01,         // PS (MISC_BUTTON_SYSTEM)
+        200,          // brake = 200 * 4 = 800
+        100,          // throttle = 100 * 4 = 400
+    };
+    feed_input_report(&ds4, ds4_r01_valid, sizeof(ds4_r01_valid));
+    EXPECT_EQ(-508, ds4.controller.gamepad.axis_x);
+    EXPECT_EQ(512, ds4.controller.gamepad.axis_y);
+    EXPECT_EQ(0, ds4.controller.gamepad.axis_rx);
+    EXPECT_EQ(0, ds4.controller.gamepad.axis_ry);
+    EXPECT_EQ(DPAD_DOWN, ds4.controller.gamepad.dpad);
+    EXPECT_EQ(BUTTON_A | BUTTON_SHOULDER_L | BUTTON_THUMB_L, ds4.controller.gamepad.buttons);
+    EXPECT_EQ(MISC_BUTTON_SYSTEM, ds4.controller.gamepad.misc_buttons);
+    EXPECT_EQ(800, ds4.controller.gamepad.brake);
+    EXPECT_EQ(400, ds4.controller.gamepad.throttle);
+
+    // 3. DS5 Report 0x01 (unhandled USB report ID on BT parser) and truncated 0x31 (len = 32 < 78):
+    uint8_t* ds5_r01 = (uint8_t*)malloc(32);
+    ASSERT_NE(NULL, ds5_r01);
+    memset(ds5_r01, 0xff, 32);
+    ds5_r01[0] = 0x01;
+    feed_input_report(&ds5, ds5_r01, 32);
+    EXPECT_EQ(0, ds5.controller.gamepad.buttons);
+    ds5_r01[0] = 0x31;
+    feed_input_report(&ds5, ds5_r01, 32);
+    EXPECT_EQ(0, ds5.controller.gamepad.buttons);
+    free(ds5_r01);
+
+    // 4. Valid 78-byte DS5 Report 0x31 with sticks, triggers, D-pad, buttons, misc, and battery:
+    uint8_t ds5_bt[78];
+    memset(ds5_bt, 0, sizeof(ds5_bt));
+    ds5_bt[0] = 0x31;
+    ds5_bt[1] = 0x02;
+    ds5_bt[2] = 0x00;                // x = 0 -> (0 - 127) * 4 = -508
+    ds5_bt[3] = 0xff;                // y = 255 -> (255 - 127) * 4 = +512
+    ds5_bt[4] = 0xff;                // rx = 255 -> +512
+    ds5_bt[5] = 0x00;                // ry = 0 -> -508
+    ds5_bt[6] = 0x40;                // brake = 64 -> 64 * 4 = 256
+    ds5_bt[7] = 0x80;                // throttle = 128 -> 128 * 4 = 512
+    ds5_bt[9] = 0x00 | 0x20 | 0x80;  // hat=0 (DPAD_UP) | Cross(BUTTON_A) | Triangle(BUTTON_Y)
+    ds5_bt[10] = 0x01 | 0x20;        // L1(BUTTON_SHOULDER_L) | Options(MISC_BUTTON_START)
+    ds5_bt[11] = 0x01 | 0x04;        // PS(MISC_BUTTON_SYSTEM) | Mute(MISC_BUTTON_CAPTURE)
+    ds5_bt[34] = 0x80;               // Touch point 0 inactive (bit 7 set)
+    ds5_bt[43] = 0x80;               // Touch point 1 inactive (bit 7 set)
+    ds5_bt[54] = 0x05;               // status[0] low nibble = 5 -> battery = 5 * 25 + 1 = 126
+    feed_input_report(&ds5, ds5_bt, sizeof(ds5_bt));
+    EXPECT_EQ(-508, ds5.controller.gamepad.axis_x);
+    EXPECT_EQ(512, ds5.controller.gamepad.axis_y);
+    EXPECT_EQ(512, ds5.controller.gamepad.axis_rx);
+    EXPECT_EQ(-508, ds5.controller.gamepad.axis_ry);
+    EXPECT_EQ(256, ds5.controller.gamepad.brake);
+    EXPECT_EQ(512, ds5.controller.gamepad.throttle);
+    EXPECT_EQ(DPAD_UP, ds5.controller.gamepad.dpad);
+    EXPECT_EQ(BUTTON_A | BUTTON_Y | BUTTON_SHOULDER_L, ds5.controller.gamepad.buttons);
+    EXPECT_EQ(MISC_BUTTON_START | MISC_BUTTON_SYSTEM | MISC_BUTTON_CAPTURE, ds5.controller.gamepad.misc_buttons);
+    EXPECT_EQ(126, ds5.controller.battery);
+}
+
+TEST(parser_wii_bounds_underflow_and_classic_rx_bit0_regression) {
+    test_parser_wii_truncated_reports_and_classic_rx_bit_packing_regression();
+}
+
 int main(int argc, char** argv) {
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
@@ -2619,7 +2858,10 @@ int main(int argc, char** argv) {
     RUN_TEST(wii_balance_board_zero_and_inverted_calibration_guards_b6);
     RUN_TEST(controller_list_uniqueness_and_table_driven_lookup_b6_phase4);
     RUN_TEST(imu_cross_vendor_canonical_units_and_axes);
+    RUN_TEST(parser_switch_spi_bounds_and_zero_span_calibration_regression);
+    RUN_TEST(parser_wii_truncated_reports_and_classic_rx_bit_packing_regression);
+    RUN_TEST(parser_wii_bounds_underflow_and_classic_rx_bit0_regression);
+    RUN_TEST(parser_ds4_ds5_empty_report_and_ds5_usb_report_0x01);
 
-    printf("All 23 synthetic HID parser test suites passed!\n");
-    return 0;
+    return test_summary();
 }

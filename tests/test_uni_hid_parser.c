@@ -8,7 +8,6 @@
 //   truncation bounds, DualSense adaptive trigger underflow protection, gamepad
 //   remapping, and retro joystick/balance-board converters.
 
-#include <assert.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,28 +23,16 @@
 #include "parser/uni_hid_parser.h"
 #include "parser/uni_hid_parser_ds4.h"
 #include "parser/uni_hid_parser_ds5.h"
+#include "test_check.h"
 #include "uni_hid_device.h"
 #include "uni_joystick.h"
 #include "uni_property.h"
-
-// Floating-point comparison macro for normalized IMU telemetry (`m/s^2` and `rad/s`).
-#define EXPECT_FLOAT_NEAR(expected, actual, tol)                                                               \
-    do {                                                                                                       \
-        double _exp = (double)(expected);                                                                      \
-        double _act = (double)(actual);                                                                        \
-        double _tol = (double)(tol);                                                                           \
-        if (fabs(_exp - _act) > _tol) {                                                                        \
-            fprintf(stderr, "EXPECT_FLOAT_NEAR failed at %s:%d: expected %.6f +/- %.6f, got %.6f\n", __FILE__, \
-                    __LINE__, _exp, _tol, _act);                                                               \
-            abort();                                                                                           \
-        }                                                                                                      \
-    } while (0)
 
 //
 // Tests
 //
 
-static void test_process_axis(void) {
+TEST(process_axis) {
     printf("Testing uni_hid_parser_process_axis...\n");
     hid_globals_t globals = {0};
     globals.logical_minimum = 0;
@@ -56,22 +43,22 @@ static void test_process_axis(void) {
 
     // Test center
     val = uni_hid_parser_process_axis(&globals, 128);
-    assert(val == 0);
+    EXPECT_EQ(val, 0);
 
     // Test min
     val = uni_hid_parser_process_axis(&globals, 0);
-    assert(val == -512);
+    EXPECT_EQ(val, -512);
 
     // Test max
     val = uni_hid_parser_process_axis(&globals, 255);
-    assert(val == 508);
+    EXPECT_EQ(val, 508);
 
     // Test logical_maximum == -1 case (unsigned byte treated as signed in descriptor)
     globals.logical_maximum = -1;
     globals.report_size = 8;
     // Should behave like 0..255
     val = uni_hid_parser_process_axis(&globals, 128);
-    assert(val == 0);
+    EXPECT_EQ(val, 0);
 
     // Test signed 8-bit range: -128 to 127
     globals.logical_minimum = -128;
@@ -79,16 +66,16 @@ static void test_process_axis(void) {
 
     // Center (0)
     val = uni_hid_parser_process_axis(&globals, 0);
-    assert(val == 0);
+    EXPECT_EQ(val, 0);
 
     // Min (-128)
     val = uni_hid_parser_process_axis(&globals, (uint32_t)-128);
-    assert(val == -512);
+    EXPECT_EQ(val, -512);
 
     printf("PASS\n");
 }
 
-static void test_process_pedal(void) {
+TEST(process_pedal) {
     printf("Testing uni_hid_parser_process_pedal...\n");
     hid_globals_t globals = {0};
     globals.logical_minimum = 0;
@@ -99,55 +86,55 @@ static void test_process_pedal(void) {
 
     // Min
     val = uni_hid_parser_process_pedal(&globals, 0);
-    assert(val == 0);
+    EXPECT_EQ(val, 0);
 
     // Max
     val = uni_hid_parser_process_pedal(&globals, 255);
-    assert(val == 1020);
+    EXPECT_EQ(val, 1020);
 
     // Mid
     val = uni_hid_parser_process_pedal(&globals, 128);
-    assert(val == 512);
+    EXPECT_EQ(val, 512);
 
     printf("PASS\n");
 }
 
-static void test_hat_to_dpad(void) {
+TEST(hat_to_dpad) {
     printf("Testing uni_hid_parser_hat_to_dpad...\n");
-    assert(uni_hid_parser_hat_to_dpad(0) == DPAD_UP);
-    assert(uni_hid_parser_hat_to_dpad(1) == (DPAD_UP | DPAD_RIGHT));
-    assert(uni_hid_parser_hat_to_dpad(2) == DPAD_RIGHT);
-    assert(uni_hid_parser_hat_to_dpad(3) == (DPAD_RIGHT | DPAD_DOWN));
-    assert(uni_hid_parser_hat_to_dpad(4) == DPAD_DOWN);
-    assert(uni_hid_parser_hat_to_dpad(5) == (DPAD_DOWN | DPAD_LEFT));
-    assert(uni_hid_parser_hat_to_dpad(6) == DPAD_LEFT);
-    assert(uni_hid_parser_hat_to_dpad(7) == (DPAD_LEFT | DPAD_UP));
-    assert(uni_hid_parser_hat_to_dpad(8) == 0);     // Center
-    assert(uni_hid_parser_hat_to_dpad(0xFF) == 0);  // Null
+    EXPECT_EQ(uni_hid_parser_hat_to_dpad(0), DPAD_UP);
+    EXPECT_EQ(uni_hid_parser_hat_to_dpad(1), (DPAD_UP | DPAD_RIGHT));
+    EXPECT_EQ(uni_hid_parser_hat_to_dpad(2), DPAD_RIGHT);
+    EXPECT_EQ(uni_hid_parser_hat_to_dpad(3), (DPAD_RIGHT | DPAD_DOWN));
+    EXPECT_EQ(uni_hid_parser_hat_to_dpad(4), DPAD_DOWN);
+    EXPECT_EQ(uni_hid_parser_hat_to_dpad(5), (DPAD_DOWN | DPAD_LEFT));
+    EXPECT_EQ(uni_hid_parser_hat_to_dpad(6), DPAD_LEFT);
+    EXPECT_EQ(uni_hid_parser_hat_to_dpad(7), (DPAD_LEFT | DPAD_UP));
+    EXPECT_EQ(uni_hid_parser_hat_to_dpad(8), 0);     // Center
+    EXPECT_EQ(uni_hid_parser_hat_to_dpad(0xFF), 0);  // Null
     printf("PASS\n");
 }
 
-static void test_process_dpad(void) {
+TEST(process_dpad) {
     printf("Testing uni_hid_parser_process_dpad...\n");
     uint8_t dpad = 0;
 
     uni_hid_parser_process_dpad(HID_USAGE_DPAD_UP, 1, &dpad);
-    assert(dpad == DPAD_UP);
+    EXPECT_EQ(dpad, DPAD_UP);
 
     uni_hid_parser_process_dpad(HID_USAGE_DPAD_DOWN, 1, &dpad);
-    assert(dpad == (DPAD_UP | DPAD_DOWN));  // Both set now
+    EXPECT_EQ(dpad, (DPAD_UP | DPAD_DOWN));  // Both set now
 
     uni_hid_parser_process_dpad(HID_USAGE_DPAD_UP, 0, &dpad);
-    assert(dpad == DPAD_DOWN);
+    EXPECT_EQ(dpad, DPAD_DOWN);
 
     // Unsupported usage
     uni_hid_parser_process_dpad(0x9999, 1, &dpad);
-    assert(dpad == DPAD_DOWN);  // Should be unchanged
+    EXPECT_EQ(dpad, DPAD_DOWN);  // Should be unchanged
 
     printf("PASS\n");
 }
 
-static void test_div_by_zero_guard(void) {
+TEST(div_by_zero_guard) {
     printf("Testing range <= 0 division-by-zero guards...\n");
     hid_globals_t globals = {0};
 
@@ -155,19 +142,19 @@ static void test_div_by_zero_guard(void) {
     globals.logical_minimum = 10;
     globals.logical_maximum = 9;
     globals.report_size = 8;
-    assert(uni_hid_parser_process_axis(&globals, 10) == 0);
-    assert(uni_hid_parser_process_pedal(&globals, 10) == 0);
+    EXPECT_EQ(uni_hid_parser_process_axis(&globals, 10), 0);
+    EXPECT_EQ(uni_hid_parser_process_pedal(&globals, 10), 0);
 
     // range < 0 (min = 100, max = 0 -> range = -99)
     globals.logical_minimum = 100;
     globals.logical_maximum = 0;
-    assert(uni_hid_parser_process_axis(&globals, 50) == 0);
-    assert(uni_hid_parser_process_pedal(&globals, 50) == 0);
+    EXPECT_EQ(uni_hid_parser_process_axis(&globals, 50), 0);
+    EXPECT_EQ(uni_hid_parser_process_pedal(&globals, 50), 0);
 
     printf("PASS\n");
 }
 
-static void test_signed_pedal_normalization(void) {
+TEST(signed_pedal_normalization) {
     printf("Testing signed pedal normalization (min = -128, max = 127)...\n");
     hid_globals_t globals = {0};
     globals.logical_minimum = -128;
@@ -175,23 +162,23 @@ static void test_signed_pedal_normalization(void) {
     globals.report_size = 8;
 
     // Min (-128) -> 0
-    assert(uni_hid_parser_process_pedal(&globals, (uint32_t)-128) == 0);
+    EXPECT_EQ(uni_hid_parser_process_pedal(&globals, (uint32_t)-128), 0);
     // Mid (0) -> 512
-    assert(uni_hid_parser_process_pedal(&globals, 0) == 512);
+    EXPECT_EQ(uni_hid_parser_process_pedal(&globals, 0), 512);
     // Max (127) -> 1020
-    assert(uni_hid_parser_process_pedal(&globals, 127) == 1020);
+    EXPECT_EQ(uni_hid_parser_process_pedal(&globals, 127), 1020);
 
     // Verify unsigned range (0..255) remains unchanged
     globals.logical_minimum = 0;
     globals.logical_maximum = 255;
-    assert(uni_hid_parser_process_pedal(&globals, 0) == 0);
-    assert(uni_hid_parser_process_pedal(&globals, 128) == 512);
-    assert(uni_hid_parser_process_pedal(&globals, 255) == 1020);
+    EXPECT_EQ(uni_hid_parser_process_pedal(&globals, 0), 0);
+    EXPECT_EQ(uni_hid_parser_process_pedal(&globals, 128), 512);
+    EXPECT_EQ(uni_hid_parser_process_pedal(&globals, 255), 1020);
 
     printf("PASS\n");
 }
 
-static void test_ds4_ds5_feature_report_bounds(void) {
+TEST(ds4_ds5_feature_report_bounds) {
     printf("Testing DS4 & DS5 feature report bounds protection...\n");
     uni_hid_device_t d = {0};
     uint8_t baseline_parser_data[HID_DEVICE_MAX_PARSER_DATA];
@@ -220,7 +207,7 @@ static void test_ds4_ds5_feature_report_bounds(void) {
     uni_hid_parser_ds5_parse_feature_report(&d, short_ds5_fw, sizeof(short_ds5_fw));
 
     // Verify none of the truncated reports modified d.parser_data
-    assert(memcmp(d.parser_data, baseline_parser_data, sizeof(baseline_parser_data)) == 0);
+    EXPECT_EQ(memcmp(d.parser_data, baseline_parser_data, sizeof(baseline_parser_data)), 0);
 
     // Valid-length DS4 firmware version report (49 bytes) with non-null-terminated string_date/string_time
     uint8_t valid_ds4_fw[49];
@@ -245,49 +232,49 @@ static void test_ds4_ds5_feature_report_bounds(void) {
     printf("PASS\n");
 }
 
-static void test_ds5_adaptive_triggers(void) {
+TEST(ds5_adaptive_triggers) {
     printf("Testing DS5 adaptive trigger strength == 0 & amplitude == 0 guards...\n");
     ds5_adaptive_trigger_effect_t off_ref = ds5_new_adaptive_trigger_effect_off();
-    assert(off_ref.effect == 0x05);
+    EXPECT_EQ(off_ref.effect, 0x05);
 
     // strength == 0 or amplitude == 0 should return OFF (0x05), NOT underflow (0 - 1)
     ds5_adaptive_trigger_effect_t fb_zero = ds5_new_adaptive_trigger_effect_feedback(3, 0);
-    assert(memcmp(&fb_zero, &off_ref, sizeof(off_ref)) == 0);
+    EXPECT_EQ(memcmp(&fb_zero, &off_ref, sizeof(off_ref)), 0);
 
     ds5_adaptive_trigger_effect_t wp_zero = ds5_new_adaptive_trigger_effect_weapon(2, 5, 0);
-    assert(memcmp(&wp_zero, &off_ref, sizeof(off_ref)) == 0);
+    EXPECT_EQ(memcmp(&wp_zero, &off_ref, sizeof(off_ref)), 0);
 
     ds5_adaptive_trigger_effect_t vb_zero = ds5_new_adaptive_trigger_effect_vibration(3, 0, 60);
-    assert(memcmp(&vb_zero, &off_ref, sizeof(off_ref)) == 0);
+    EXPECT_EQ(memcmp(&vb_zero, &off_ref, sizeof(off_ref)), 0);
 
     // Valid non-zero parameters
     ds5_adaptive_trigger_effect_t fb_valid = ds5_new_adaptive_trigger_effect_feedback(2, 4);
-    assert(fb_valid.effect == 0x21);
-    assert(fb_valid.data[0] == 0xFC);  // zones 2..7 set in low byte
-    assert(fb_valid.data[1] == 0x03);  // zones 8..9 set in high byte
+    EXPECT_EQ(fb_valid.effect, 0x21);
+    EXPECT_EQ(fb_valid.data[0], 0xFC);  // zones 2..7 set in low byte
+    EXPECT_EQ(fb_valid.data[1], 0x03);  // zones 8..9 set in high byte
 
     ds5_adaptive_trigger_effect_t wp_valid = ds5_new_adaptive_trigger_effect_weapon(2, 5, 6);
-    assert(wp_valid.effect == 0x25);
-    assert(wp_valid.data[0] == ((1 << 2) | (1 << 5)));
-    assert(wp_valid.data[2] == 5);  // strength - 1
+    EXPECT_EQ(wp_valid.effect, 0x25);
+    EXPECT_EQ(wp_valid.data[0], ((1 << 2) | (1 << 5)));
+    EXPECT_EQ(wp_valid.data[2], 5);  // strength - 1
 
     ds5_adaptive_trigger_effect_t vb_valid = ds5_new_adaptive_trigger_effect_vibration(1, 5, 40);
-    assert(vb_valid.effect == 0x26);
-    assert(vb_valid.data[8] == 40);
+    EXPECT_EQ(vb_valid.effect, 0x26);
+    EXPECT_EQ(vb_valid.data[8], 40);
 
     // Out-of-bounds parameters should return INVALID (0x00)
-    assert(ds5_new_adaptive_trigger_effect_feedback(10, 4).effect == 0x00);
-    assert(ds5_new_adaptive_trigger_effect_feedback(2, 9).effect == 0x00);
-    assert(ds5_new_adaptive_trigger_effect_weapon(1, 5, 4).effect == 0x00);
-    assert(ds5_new_adaptive_trigger_effect_weapon(4, 4, 4).effect == 0x00);
-    assert(ds5_new_adaptive_trigger_effect_weapon(2, 5, 9).effect == 0x00);
-    assert(ds5_new_adaptive_trigger_effect_vibration(10, 4, 30).effect == 0x00);
-    assert(ds5_new_adaptive_trigger_effect_vibration(2, 9, 30).effect == 0x00);
+    EXPECT_EQ(ds5_new_adaptive_trigger_effect_feedback(10, 4).effect, 0x00);
+    EXPECT_EQ(ds5_new_adaptive_trigger_effect_feedback(2, 9).effect, 0x00);
+    EXPECT_EQ(ds5_new_adaptive_trigger_effect_weapon(1, 5, 4).effect, 0x00);
+    EXPECT_EQ(ds5_new_adaptive_trigger_effect_weapon(4, 4, 4).effect, 0x00);
+    EXPECT_EQ(ds5_new_adaptive_trigger_effect_weapon(2, 5, 9).effect, 0x00);
+    EXPECT_EQ(ds5_new_adaptive_trigger_effect_vibration(10, 4, 30).effect, 0x00);
+    EXPECT_EQ(ds5_new_adaptive_trigger_effect_vibration(2, 9, 30).effect, 0x00);
 
     printf("PASS\n");
 }
 
-static void test_gamepad_remap(void) {
+TEST(gamepad_remap) {
     printf("Testing uni_gamepad_remap (XBOX, SWITCH, CUSTOM)...\n");
     uni_gamepad_t gp = {0};
     gp.dpad = DPAD_UP | DPAD_LEFT;
@@ -308,28 +295,28 @@ static void test_gamepad_remap(void) {
 
     // 1. XBOX (identity mapping)
     uni_gamepad_set_mappings_type(UNI_GAMEPAD_MAPPINGS_TYPE_XBOX);
-    assert(uni_gamepad_get_mappings_type() == UNI_GAMEPAD_MAPPINGS_TYPE_XBOX);
+    EXPECT_EQ(uni_gamepad_get_mappings_type(), UNI_GAMEPAD_MAPPINGS_TYPE_XBOX);
     uni_gamepad_t xbox_gp = uni_gamepad_remap(&gp);
-    assert(memcmp(&xbox_gp, &gp, sizeof(gp)) == 0);
-    EXPECT_FLOAT_NEAR(-1.25f, xbox_gp.accel[0], 1e-5f);
-    EXPECT_FLOAT_NEAR(9.80665f, xbox_gp.accel[1], 1e-5f);
-    EXPECT_FLOAT_NEAR(3.5f, xbox_gp.accel[2], 1e-5f);
-    EXPECT_FLOAT_NEAR(0.25f, xbox_gp.gyro[0], 1e-5f);
-    EXPECT_FLOAT_NEAR(-1.5f, xbox_gp.gyro[1], 1e-5f);
-    EXPECT_FLOAT_NEAR(0.75f, xbox_gp.gyro[2], 1e-5f);
+    EXPECT_EQ(memcmp(&xbox_gp, &gp, sizeof(gp)), 0);
+    EXPECT_FLOAT_NEAR(xbox_gp.accel[0], -1.25f, 1e-5f);
+    EXPECT_FLOAT_NEAR(xbox_gp.accel[1], 9.80665f, 1e-5f);
+    EXPECT_FLOAT_NEAR(xbox_gp.accel[2], 3.5f, 1e-5f);
+    EXPECT_FLOAT_NEAR(xbox_gp.gyro[0], 0.25f, 1e-5f);
+    EXPECT_FLOAT_NEAR(xbox_gp.gyro[1], -1.5f, 1e-5f);
+    EXPECT_FLOAT_NEAR(xbox_gp.gyro[2], 0.75f, 1e-5f);
 
     // 2. SWITCH (swaps A <-> B and X <-> Y)
     uni_gamepad_set_mappings_type(UNI_GAMEPAD_MAPPINGS_TYPE_SWITCH);
     uni_gamepad_t switch_gp = uni_gamepad_remap(&gp);
-    assert(switch_gp.buttons == (BUTTON_B | BUTTON_Y | BUTTON_SHOULDER_L));
-    assert(switch_gp.axis_x == 200);
-    assert(switch_gp.axis_y == -300);
-    EXPECT_FLOAT_NEAR(-1.25f, switch_gp.accel[0], 1e-5f);
-    EXPECT_FLOAT_NEAR(9.80665f, switch_gp.accel[1], 1e-5f);
-    EXPECT_FLOAT_NEAR(3.5f, switch_gp.accel[2], 1e-5f);
-    EXPECT_FLOAT_NEAR(0.25f, switch_gp.gyro[0], 1e-5f);
-    EXPECT_FLOAT_NEAR(-1.5f, switch_gp.gyro[1], 1e-5f);
-    EXPECT_FLOAT_NEAR(0.75f, switch_gp.gyro[2], 1e-5f);
+    EXPECT_EQ(switch_gp.buttons, (BUTTON_B | BUTTON_Y | BUTTON_SHOULDER_L));
+    EXPECT_EQ(switch_gp.axis_x, 200);
+    EXPECT_EQ(switch_gp.axis_y, -300);
+    EXPECT_FLOAT_NEAR(switch_gp.accel[0], -1.25f, 1e-5f);
+    EXPECT_FLOAT_NEAR(switch_gp.accel[1], 9.80665f, 1e-5f);
+    EXPECT_FLOAT_NEAR(switch_gp.accel[2], 3.5f, 1e-5f);
+    EXPECT_FLOAT_NEAR(switch_gp.gyro[0], 0.25f, 1e-5f);
+    EXPECT_FLOAT_NEAR(switch_gp.gyro[1], -1.5f, 1e-5f);
+    EXPECT_FLOAT_NEAR(switch_gp.gyro[2], 0.75f, 1e-5f);
 
     // 3. CUSTOM (invert axes, swap pedals, remap buttons/dpad)
     uni_gamepad_mappings_t custom = GAMEPAD_DEFAULT_MAPPINGS;
@@ -340,28 +327,28 @@ static void test_gamepad_remap(void) {
     custom.brake = UNI_GAMEPAD_MAPPINGS_PEDAL_THROTTLE;
     custom.throttle = UNI_GAMEPAD_MAPPINGS_PEDAL_BRAKE;
     uni_gamepad_set_mappings(&custom);
-    assert(uni_gamepad_get_mappings_type() == UNI_GAMEPAD_MAPPINGS_TYPE_CUSTOM);
+    EXPECT_EQ(uni_gamepad_get_mappings_type(), UNI_GAMEPAD_MAPPINGS_TYPE_CUSTOM);
 
     uni_gamepad_t custom_gp = uni_gamepad_remap(&gp);
-    assert((custom_gp.dpad & DPAD_DOWN) != 0);
-    assert((custom_gp.buttons & BUTTON_Y) != 0);
-    assert(custom_gp.axis_x == -200);
-    assert(custom_gp.axis_y == 300);
-    assert(custom_gp.brake == 800);
-    assert(custom_gp.throttle == 400);
-    EXPECT_FLOAT_NEAR(-1.25f, custom_gp.accel[0], 1e-5f);
-    EXPECT_FLOAT_NEAR(9.80665f, custom_gp.accel[1], 1e-5f);
-    EXPECT_FLOAT_NEAR(3.5f, custom_gp.accel[2], 1e-5f);
-    EXPECT_FLOAT_NEAR(0.25f, custom_gp.gyro[0], 1e-5f);
-    EXPECT_FLOAT_NEAR(-1.5f, custom_gp.gyro[1], 1e-5f);
-    EXPECT_FLOAT_NEAR(0.75f, custom_gp.gyro[2], 1e-5f);
+    EXPECT_NE(custom_gp.dpad & DPAD_DOWN, 0);
+    EXPECT_NE(custom_gp.buttons & BUTTON_Y, 0);
+    EXPECT_EQ(custom_gp.axis_x, -200);
+    EXPECT_EQ(custom_gp.axis_y, 300);
+    EXPECT_EQ(custom_gp.brake, 800);
+    EXPECT_EQ(custom_gp.throttle, 400);
+    EXPECT_FLOAT_NEAR(custom_gp.accel[0], -1.25f, 1e-5f);
+    EXPECT_FLOAT_NEAR(custom_gp.accel[1], 9.80665f, 1e-5f);
+    EXPECT_FLOAT_NEAR(custom_gp.accel[2], 3.5f, 1e-5f);
+    EXPECT_FLOAT_NEAR(custom_gp.gyro[0], 0.25f, 1e-5f);
+    EXPECT_FLOAT_NEAR(custom_gp.gyro[1], -1.5f, 1e-5f);
+    EXPECT_FLOAT_NEAR(custom_gp.gyro[2], 0.75f, 1e-5f);
 
     // Restore default
     uni_gamepad_set_mappings_type(UNI_GAMEPAD_MAPPINGS_TYPE_XBOX);
     printf("PASS\n");
 }
 
-static void test_joystick_converters(void) {
+TEST(joystick_converters) {
     printf("Testing uni_joystick converters (gamepad, twinstick, keyboard, balance board, wii accel)...\n");
 
     // 1. Single joy from gamepad (use_two_buttons = 0 vs 1)
@@ -372,17 +359,17 @@ static void test_joystick_converters(void) {
 
     uni_joystick_t joy_c64 = {0};
     uni_joy_to_single_joy_from_gamepad(&gp, &joy_c64, 0);
-    assert(joy_c64.fire == 1);
-    assert(joy_c64.up == 1);  // BUTTON_B maps to jump (up) when use_two_buttons == 0
-    assert(joy_c64.left == 1);
-    assert(joy_c64.down == 1);
-    assert(joy_c64.button3 == 1);
-    assert(joy_c64.auto_fire == 1);
+    EXPECT_EQ(joy_c64.fire, 1);
+    EXPECT_EQ(joy_c64.up, 1);  // BUTTON_B maps to jump (up) when use_two_buttons == 0
+    EXPECT_EQ(joy_c64.left, 1);
+    EXPECT_EQ(joy_c64.down, 1);
+    EXPECT_EQ(joy_c64.button3, 1);
+    EXPECT_EQ(joy_c64.auto_fire, 1);
 
     uni_joystick_t joy_msx = {0};
     uni_joy_to_single_joy_from_gamepad(&gp, &joy_msx, 1);
-    assert(joy_msx.up == 0);
-    assert(joy_msx.button2 == 1);  // BUTTON_B maps to button2 when use_two_buttons == 1
+    EXPECT_EQ(joy_msx.up, 0);
+    EXPECT_EQ(joy_msx.button2, 1);  // BUTTON_B maps to button2 when use_two_buttons == 1
 
     // 2. TwinStick from gamepad
     uni_gamepad_t ts_gp = {0};
@@ -392,12 +379,12 @@ static void test_joystick_converters(void) {
     uni_joystick_t joy1 = {0};
     uni_joystick_t joy2 = {0};
     uni_joy_to_twinstick_from_gamepad(&ts_gp, &joy1, &joy2);
-    assert(joy2.fire == 1);
-    assert(joy2.right == 1);
-    assert(joy2.auto_fire == 1);
-    assert(joy1.fire == 1);
-    assert(joy1.up == 1);
-    assert(joy1.auto_fire == 1);
+    EXPECT_EQ(joy2.fire, 1);
+    EXPECT_EQ(joy2.right, 1);
+    EXPECT_EQ(joy2.auto_fire, 1);
+    EXPECT_EQ(joy1.fire, 1);
+    EXPECT_EQ(joy1.up, 1);
+    EXPECT_EQ(joy1.auto_fire, 1);
 
     // 3. Keyboard single joy & twinstick
     uni_keyboard_t kb = {0};
@@ -410,19 +397,19 @@ static void test_joystick_converters(void) {
 
     uni_joystick_t kb_single = {0};
     uni_joy_to_single_joy_from_keyboard(&kb, &kb_single);
-    assert(kb_single.up == 1);
-    assert(kb_single.fire == 1);
-    assert(kb_single.button2 == 1);
-    assert(kb_single.button3 == 1);  // From LEFT_SHIFT
+    EXPECT_EQ(kb_single.up, 1);
+    EXPECT_EQ(kb_single.fire, 1);
+    EXPECT_EQ(kb_single.button2, 1);
+    EXPECT_EQ(kb_single.button3, 1);  // From LEFT_SHIFT
 
     uni_joystick_t kb_ts1 = {0};
     uni_joystick_t kb_ts2 = {0};
     uni_joy_to_twinstick_from_keyboard(&kb, &kb_ts1, &kb_ts2);
     // In twinstick: out_joy2 receives arrows/right-modifiers, out_joy1 receives WASD/QER
-    assert(kb_ts2.up == 1);
-    assert(kb_ts2.fire == 1);  // From RIGHT_ALT
-    assert(kb_ts1.up == 1);    // From W
-    assert(kb_ts1.fire == 1);  // From E
+    EXPECT_EQ(kb_ts2.up, 1);
+    EXPECT_EQ(kb_ts2.fire, 1);  // From RIGHT_ALT
+    EXPECT_EQ(kb_ts1.up, 1);    // From W
+    EXPECT_EQ(kb_ts1.fire, 1);  // From E
 
     // 4. Balance board state machine (RESET -> THRESHOLD -> IN_AIR -> FIRE -> RESET)
     uni_balance_board_t bb = {0};
@@ -435,7 +422,7 @@ static void test_joystick_converters(void) {
     bb.bl = 0;
     bb.br = 0;
     uni_joy_to_single_joy_from_balance_board(&bb, &bb_state, &bb_joy);
-    assert(bb_state.fire_state == UNI_BALANCE_BOARD_STATE_THRESHOLD);
+    EXPECT_EQ(bb_state.fire_state, UNI_BALANCE_BOARD_STATE_THRESHOLD);
 
     // Transition THRESHOLD -> IN_AIR (all sensors < 1600)
     bb.tl = 100;
@@ -443,22 +430,22 @@ static void test_joystick_converters(void) {
     bb.bl = 100;
     bb.br = 100;
     uni_joy_to_single_joy_from_balance_board(&bb, &bb_state, &bb_joy);
-    assert(bb_state.fire_state == UNI_BALANCE_BOARD_STATE_IN_AIR);
+    EXPECT_EQ(bb_state.fire_state, UNI_BALANCE_BOARD_STATE_IN_AIR);
 
     // Stay in air for 3 frames (fire_counter > 2 triggers FIRE)
     for (int i = 0; i < 3; i++) {
         memset(&bb_joy, 0, sizeof(bb_joy));
         uni_joy_to_single_joy_from_balance_board(&bb, &bb_state, &bb_joy);
     }
-    assert(bb_state.fire_state == UNI_BALANCE_BOARD_STATE_FIRE);
-    assert(bb_joy.fire == 1);
+    EXPECT_EQ(bb_state.fire_state, UNI_BALANCE_BOARD_STATE_FIRE);
+    EXPECT_EQ(bb_joy.fire, 1);
 
     // Maintain FIRE for 11 frames until it resets to UNI_BALANCE_BOARD_STATE_RESET
     for (int i = 0; i < 11; i++) {
         memset(&bb_joy, 0, sizeof(bb_joy));
         uni_joy_to_single_joy_from_balance_board(&bb, &bb_state, &bb_joy);
     }
-    assert(bb_state.fire_state == UNI_BALANCE_BOARD_STATE_RESET);
+    EXPECT_EQ(bb_state.fire_state, UNI_BALANCE_BOARD_STATE_RESET);
 
     // 5. Wii Steering Wheel accelerometer converter (uni_joy_to_single_from_wii_accel)
     uni_gamepad_t wii_gp = {0};
@@ -470,33 +457,53 @@ static void test_joystick_converters(void) {
     wii_gp.dpad = DPAD_UP;
     wii_gp.buttons = BUTTON_X;
     uni_joy_to_single_from_wii_accel(&wii_gp, &wii_joy);
-    assert(wii_joy.left == 0);
-    assert(wii_joy.right == 0);
-    assert(wii_joy.up == 0);
-    assert(wii_joy.down == 0);
-    assert(wii_joy.fire == 0);
+    EXPECT_EQ(wii_joy.left, 0);
+    EXPECT_EQ(wii_joy.right, 0);
+    EXPECT_EQ(wii_joy.up, 0);
+    EXPECT_EQ(wii_joy.down, 0);
+    EXPECT_EQ(wii_joy.fire, 0);
 
     // 5b. Active wheel upright + steer left (sx = -9.80665f < -2.45f, sy = +5.0f > +2.45f)
     memset(&wii_gp, 0, sizeof(wii_gp));
+    memset(&wii_joy, 0, sizeof(wii_joy));
     wii_gp.accel[0] = UNI_STANDARD_GRAVITY;  // sx = -9.80665f
     wii_gp.accel[2] = -5.0f;                 // sy = +5.0f > 2.45f
     wii_gp.buttons = BUTTON_B | BUTTON_X;    // Throttle + Fire
     uni_joy_to_single_from_wii_accel(&wii_gp, &wii_joy);
-    assert(wii_joy.left == 1);
-    assert(wii_joy.right == 0);
-    assert(wii_joy.up != 0);
-    assert(wii_joy.fire == 1);
+    EXPECT_EQ(wii_joy.left, 1);
+    EXPECT_EQ(wii_joy.right, 0);
+    EXPECT_EQ(wii_joy.up, 1);
+    EXPECT_EQ(wii_joy.fire, 1);
 
     // 5c. Active wheel upright + steer right (sx = -9.80665f < -2.45f, sy = -5.0f < -2.45f)
     memset(&wii_gp, 0, sizeof(wii_gp));
+    memset(&wii_joy, 0, sizeof(wii_joy));
     wii_gp.accel[0] = UNI_STANDARD_GRAVITY;  // sx = -9.80665f
     wii_gp.accel[2] = 5.0f;                  // sy = -5.0f < -2.45f
     wii_gp.buttons = BUTTON_A;               // Brake
     uni_joy_to_single_from_wii_accel(&wii_gp, &wii_joy);
-    assert(wii_joy.right == 1);
-    assert(wii_joy.left == 0);
-    assert(wii_joy.down != 0);
-    assert(wii_joy.fire == 0);
+    EXPECT_EQ(wii_joy.right, 1);
+    EXPECT_EQ(wii_joy.left, 0);
+    EXPECT_EQ(wii_joy.down, 1);
+    EXPECT_EQ(wii_joy.fire, 0);
+
+    // 5d. Explicit Section 3.7.1 check: gp.accel[0] = -5.0f with BUTTON_A vs BUTTON_B
+    // verifies 1-bit bitfield out_joy->down == 1 and out_joy->up == 1 (not truncated to 0).
+    memset(&wii_gp, 0, sizeof(wii_gp));
+    memset(&wii_joy, 0, sizeof(wii_joy));
+    wii_gp.accel[0] = -5.0f;
+    wii_gp.buttons = BUTTON_A;
+    uni_joy_to_single_from_wii_accel(&wii_gp, &wii_joy);
+    EXPECT_EQ(wii_joy.down, 1);
+    EXPECT_EQ(wii_joy.up, 0);
+
+    memset(&wii_gp, 0, sizeof(wii_gp));
+    memset(&wii_joy, 0, sizeof(wii_joy));
+    wii_gp.accel[0] = -5.0f;
+    wii_gp.buttons = BUTTON_B;
+    uni_joy_to_single_from_wii_accel(&wii_gp, &wii_joy);
+    EXPECT_EQ(wii_joy.up, 1);
+    EXPECT_EQ(wii_joy.down, 0);
 
     printf("PASS\n");
 }
@@ -510,18 +517,17 @@ int main(int argc, char** argv) {
     uni_property_init();
     uni_balance_board_init();
 
-    test_process_axis();
-    test_process_pedal();
-    test_hat_to_dpad();
-    test_process_dpad();
+    RUN_TEST(process_axis);
+    RUN_TEST(process_pedal);
+    RUN_TEST(hat_to_dpad);
+    RUN_TEST(process_dpad);
 
-    test_div_by_zero_guard();
-    test_signed_pedal_normalization();
-    test_ds4_ds5_feature_report_bounds();
-    test_ds5_adaptive_triggers();
-    test_gamepad_remap();
-    test_joystick_converters();
+    RUN_TEST(div_by_zero_guard);
+    RUN_TEST(signed_pedal_normalization);
+    RUN_TEST(ds4_ds5_feature_report_bounds);
+    RUN_TEST(ds5_adaptive_triggers);
+    RUN_TEST(gamepad_remap);
+    RUN_TEST(joystick_converters);
 
-    printf("All uni_hid_parser tests passed!\n");
-    return 0;
+    return test_summary();
 }

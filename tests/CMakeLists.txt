@@ -43,6 +43,7 @@ add_compile_definitions(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
 
 # initialize the SDK based on PICO_SDK_PATH
 # note: this must happen before project()
+include_directories(SYSTEM ${BTSTACK_ROOT}/src)
 include(btstack_import.cmake)
 
 enable_testing()
@@ -60,6 +61,13 @@ macro(register_bluepad32_test target_name source_file)
         .
         ${BLUEPAD32_ROOT}/src/components/bluepad32/include)
 
+    target_compile_options(${target_name} PRIVATE
+        -Wall
+        -Wextra
+        -Wstrict-prototypes
+        -Werror
+    )
+
     target_link_libraries(${target_name}
         bluepad32
         btstack
@@ -67,6 +75,9 @@ macro(register_bluepad32_test target_name source_file)
     )
 
     add_test(NAME ${target_name} COMMAND ${target_name})
+    set_tests_properties(${target_name} PROPERTIES
+        ENVIRONMENT "BLUEPAD32_TLV_PATH=${CMAKE_CURRENT_BINARY_DIR}/${target_name}.tlv"
+    )
 endmacro()
 
 register_bluepad32_test(test_uni_hid_device test_uni_hid_device.c)
@@ -76,3 +87,10 @@ register_bluepad32_test(test_uni_bt_packet_handlers test_uni_bt_packet_handlers.
 register_bluepad32_test(test_uni_property_and_bb test_uni_property_and_bb.c)
 
 add_subdirectory(${BLUEPAD32_ROOT}/src/components/bluepad32 libbluepad32)
+target_compile_options(bluepad32 PRIVATE
+    -Wall
+    -Wextra
+    -Wno-sign-compare
+    -Wstrict-prototypes
+    -Werror
+)
