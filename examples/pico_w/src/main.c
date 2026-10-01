@@ -16,7 +16,7 @@
 // Defined in my_platform.c
 struct uni_platform* get_my_platform(void);
 
-int main() {
+int main(void) {
     stdio_init_all();
 
     // initialize CYW43 driver architecture (will enable BT if/because CYW43_ENABLE_BLUETOOTH == 1)

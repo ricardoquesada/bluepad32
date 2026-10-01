@@ -30,7 +30,6 @@ typedef struct posix_instance_s {
 // Declarations
 static void trigger_event_on_gamepad(uni_hid_device_t* d);
 static posix_instance_t* get_posix_instance(uni_hid_device_t* d);
-struct uni_platform* uni_platform_custom_create(void);
 
 static ds5_adaptive_trigger_effect_t next_trigger_adaptive_effect(int* trigger_effect_index) {
     ds5_adaptive_trigger_effect_t ret;

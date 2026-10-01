@@ -11,9 +11,6 @@
 
 #include "sdkconfig.h"
 
-// Defined in my_platform.c
-struct uni_platform* get_my_platform(void);
-
 int app_main(void) {
     // hci_dump_open(NULL, HCI_DUMP_STDOUT);
 
