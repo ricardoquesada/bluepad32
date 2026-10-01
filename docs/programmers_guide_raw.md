@@ -1,18 +1,20 @@
 # Programmer's Guide: Raw API
 
-Valid when using Pico-SDK, ESP-IDF, or POSIX directly. If your project is based on any of these examples, then you are
-using the "Raw API":
+Valid when using Pico-SDK, ESP-IDF, or POSIX directly. If your project is based
+on any of these examples, then you are using the "Raw API":
 
 - [ESP32 example][esp32_example] (uses "Raw API")
 - [Pico W example][picow_example] (uses "Raw API")
 - [Posix example][posix_example] (uses "Raw API")
+- [Posix ImGui Diagnostic Suite][posix_imgui_example] (uses "Raw API")
 
 ## Multithreading
 
 !!! note "TL;DR"
 
     Bluepad32 / BTstack are **NOT** multithreaded.
-    Only call Bluepad32 and BTstack APIs from the BTstack thread, or use the designated `*_safe` cross-thread wrappers.
+    Only call Bluepad32 and BTstack APIs from the BTstack thread, or use the
+    designated `*_safe` cross-thread wrappers.
 
 ### What's safe to call from BTstack thread
 
@@ -20,21 +22,32 @@ The BTstack thread (or BTstack task) is where BTstack and Bluepad32 run.
 
 The Bluepad32 and BTstack *callbacks* run in the BTstack thread. E.g.:
 
-- Bluepad32 platform callbacks like: `platform.on_controller_data()`, `platform.on_device_connected()`, `platform.on_device_ready()`, `platform.on_device_disconnected()`, or `platform.on_init_complete()`
-- BTstack callbacks like the packet handlers (`l2cap_packet_handler()`) or `btstack_run_loop_execute_on_main_thread()` callbacks
+- Bluepad32 platform callbacks like: `platform.on_controller_data()`,
+  `platform.on_device_connected()`, `platform.on_device_ready()`,
+  `platform.on_device_disconnected()`, or `platform.on_init_complete()`
+- BTstack callbacks like the packet handlers (`l2cap_packet_handler()`) or
+  `btstack_run_loop_execute_on_main_thread()` callbacks
 
-It is safe to call any Bluepad32 API (functions starting with the `uni_` prefix, including `*_unsafe` functions)
-or any BTstack API (functions starting with the `btstack_`, `gap_`, `hci_`, `l2cap_`, or `gatt_` prefixes) from any of the above-mentioned callbacks.
+It is safe to call any Bluepad32 API (functions starting with the `uni_` prefix,
+including `*_unsafe` functions) or any BTstack API (functions starting with the
+`btstack_`, `gap_`, `hci_`, `l2cap_`, or `gatt_` prefixes) from any of the
+above-mentioned callbacks.
 
 ### What's safe to call from anywhere
 
-- BTstack's `btstack_run_loop_execute_on_main_thread()`: schedules a `btstack_context_callback_registration_t` callback to run sequentially on the BTstack thread.
-- Bluepad32's functions that have the `_safe` suffix, such as `uni_bt_start_scanning_and_autoconnect_safe()`, `uni_bt_stop_scanning_safe()`, `uni_bt_del_keys_safe()`, or `uni_bt_disconnect_device_safe()`.
-- Stateless/atomic query helpers and pure data-conversion utilities documented in the reference table below.
+- BTstack's `btstack_run_loop_execute_on_main_thread()`: schedules a
+  `btstack_context_callback_registration_t` callback to run sequentially on the
+  BTstack thread.
+- Bluepad32's functions that have the `_safe` suffix, such as
+  `uni_bt_start_scanning_and_autoconnect_safe()`, `uni_bt_stop_scanning_safe()`,
+  `uni_bt_del_keys_safe()`, or `uni_bt_disconnect_device_safe()`.
+- Stateless/atomic query helpers and pure data-conversion utilities documented
+  in the reference table below.
 
 ### Bluepad32 API & Thread Safety (`*_safe` vs `*_unsafe`)
 
-Bluepad32 provides explicit `_safe` and `_unsafe` variants for Bluetooth management operations in `bt/uni_bt.h`:
+Bluepad32 provides explicit `_safe` and `_unsafe` variants for Bluetooth
+management operations in `bt/uni_bt.h`:
 
 | Operation / Purpose | Cross-Thread Safe API (Any FreeRTOS Task / Core / ISR Context) | BTstack-Thread Only API (Platform Callbacks / Run-Loop Context) | Notes & Implementation Semantics |
 | :--- | :--- | :--- | :--- |
@@ -53,25 +66,37 @@ Bluepad32 provides explicit `_safe` and `_unsafe` variants for Bluetooth managem
 
 #### The `CMD_CALLBACK_MAX = 8` Ring-Buffer Constraint
 
-Internally, every `uni_bt_*_safe()` function allocates a `btstack_context_callback_registration_t` entry from a static 8-slot circular array (`cmd_callback_registration[CMD_CALLBACK_MAX]` where `CMD_CALLBACK_MAX = 8` in `src/components/bluepad32/bt/uni_bt.c`) and schedules it via `btstack_run_loop_execute_on_main_thread()`.
+Internally, every `uni_bt_*_safe()` function allocates a
+`btstack_context_callback_registration_t` entry from a static 8-slot circular
+array (`cmd_callback_registration[CMD_CALLBACK_MAX]` where
+`CMD_CALLBACK_MAX = 8` in `src/components/bluepad32/bt/uni_bt.c`) and schedules
+it via `btstack_run_loop_execute_on_main_thread()`.
 
 !!! warning "Do not burst more than 8 `_safe()` calls per BTstack run-loop tick"
 
-    Because BTstack links `btstack_context_callback_registration_t` structs into an intrusive singly-linked list until the BTstack thread drains the queue, calling `uni_bt_*_safe()` more than **8 times** before the BTstack thread executes a run-loop iteration will wrap `cmd_callback_idx` around the ring buffer and overwrite a pending registration node. Always coalesce or rate-limit external task commands to fewer than 8 pending calls per frame.
+    Because BTstack links `btstack_context_callback_registration_t` structs into
+    an intrusive singly-linked list until the BTstack thread drains the queue,
+    calling `uni_bt_*_safe()` more than **8 times** before the BTstack thread
+    executes a run-loop iteration will wrap `cmd_callback_idx` around the ring
+    buffer and overwrite a pending registration node. Always coalesce or
+    rate-limit external task commands to fewer than 8 pending calls per frame.
 
 ### What's NOT safe to call from anywhere
 
 Any function not listed in the cross-thread column above.
 
-If your code is **NOT** running in the BTstack thread, do not call `uni_hid_device_*`, `uni_bt_*_unsafe`, `d->report_parser.*`, or raw BTstack functions directly. Instead, use the `_safe` wrapper or schedule your callback with `btstack_run_loop_execute_on_main_thread()`.
+If your code is **NOT** running in the BTstack thread, do not call
+`uni_hid_device_*`, `uni_bt_*_unsafe`, `d->report_parser.*`, or raw BTstack
+functions directly. Instead, use the `_safe` wrapper or schedule your callback
+with `btstack_run_loop_execute_on_main_thread()`.
 
 ### Details
 
 - Bluepad32 is NOT multithreaded.
 - BTstack (Bluetooth stack used by Bluepad32) is NOT multithreaded.
 
-If you call any Bluepad32 or BTstack function from a different core or different task other than the BTstack thread,
-your program:
+If you call any Bluepad32 or BTstack function from a different core or different
+task other than the BTstack thread, your program:
 
 - might crash at random places (very likely)
 - might not do what you want
@@ -80,16 +105,19 @@ your program:
 From [BTstack documentation][btstack_multithreading]
 
 > BTstack is not thread-safe, but you're using a multi-threading OS.
-> Any function that is called from BTstack, e.g., packet handlers, can directly call into BTstack without issues.
-> For other situations, you need to provide some general 'do BTstack tasks' function and trigger BTstack to execute
-> it on its own thread. To call a function from the BTstack thread, you can
-> use `btstack_run_loop_execute_on_main_thread()`
-> allows to directly schedule a function callback, i.e. 'do BTstack tasks' function, from the BTstack thread.
-> The called function should check if there are any pending BTstack tasks and execute them.
+> Any function that is called from BTstack, e.g., packet handlers, can directly
+> call into BTstack without issues. For other situations, you need to provide
+> some general 'do BTstack tasks' function and trigger BTstack to execute it on
+> its own thread. To call a function from the BTstack thread, you can use
+> `btstack_run_loop_execute_on_main_thread()` allows to directly schedule a
+> function callback, i.e. 'do BTstack tasks' function, from the BTstack thread.
+> The called function should check if there are any pending BTstack tasks and
+> execute them.
 
 ### Example
 
-Let's say that you want to enable rumble from a function that is NOT running on the BTstack thread (task).
+Let's say that you want to enable rumble from a function that is NOT running on
+the BTstack thread (task).
 
 ```c
 static btstack_context_callback_registration_t callback_registration;
@@ -129,26 +157,118 @@ void my_task() {
 [picow_example]: https://github.com/ricardoquesada/bluepad32/tree/main/examples/pico_w
 
 [posix_example]: https://github.com/ricardoquesada/bluepad32/tree/main/examples/posix
+[posix_imgui_example]: https://github.com/ricardoquesada/bluepad32/tree/main/examples/posix_imgui
+
+## Bluepad32 Gamepad & Controller Data Structures
+
+Bluepad32 parses inputs into standardized C structs. The root struct is
+`uni_controller_t`, which contains the device class and a union of specific
+device types.
+
+```c
+typedef struct {
+    uni_controller_class_t klass;
+    union {
+        uni_gamepad_t gamepad;
+        uni_mouse_t mouse;
+        uni_balance_board_t balance_board;
+        uni_keyboard_t keyboard;
+    };
+    uint8_t battery;  // 0: battery report not available, 1: empty, 255: full
+} uni_controller_t;
+```
+
+For gamepads, `uni_gamepad_t` contains buttons, axes, triggers, and IMU data
+(gyro/accel).
+
+```c
+typedef struct {
+    // Usage Page: 0x01 (Generic Desktop Controls)
+    uint8_t dpad;
+    int32_t axis_x;
+    int32_t axis_y;
+    int32_t axis_rx;
+    int32_t axis_ry;
+
+    // Usage Page: 0x02 (Sim controls)
+    int32_t brake;
+    int32_t throttle;
+
+    // Usage Page: 0x09 (Button)
+    uint16_t buttons;
+
+    // Misc buttons (from 0x0c (Consumer) and others)
+    uint8_t misc_buttons;
+
+    // 3-axis gyroscope angular velocity [X=pitch, Y=yaw, Z=roll] in radians/second (rad/s).
+    float gyro[3];
+    // 3-axis linear acceleration (including gravity) [X=right, Y=up, Z=back] in meters/second^2 (m/s^2).
+    float accel[3];
+} uni_gamepad_t;
+```
+
+For the Nintendo Wii Balance Board:
+
+```c
+typedef struct {
+    uint16_t tr;      // Top right
+    uint16_t br;      // Bottom right
+    uint16_t tl;      // Top left
+    uint16_t bl;      // Bottom left
+    int temperature;  // Temperature
+} uni_balance_board_t;
+```
+
+## v5.0.0 SI IMU Units & Coordinate System
+
+Starting with Bluepad32 **v5.0.0**, all raw IMU telemetry data from gamepads
+(DualSense, DualShock 4, Nintendo Switch Pro/Joy-Cons, PS3, etc.) is
+automatically calibrated and converted into standard physics SI units (`float`):
+
+* **Linear Acceleration (`accel`)**: Measured in **m/s²**. Includes gravity
+  (e.g. `+9.80665` on the Y axis when resting flat face-up).
+* **Angular Velocity (`gyro`)**: Measured in **rad/s**.
+
+Bluepad32 v5.0.0 maps all vendor-specific IMU axes to a canonical
+**right-handed Y-up** coordinate system:
+* **+X Axis**: Points to the right of the controller.
+* **+Y Axis**: Points up (out of the face buttons).
+* **+Z Axis**: Points backward, towards the player.
+
+### v4.x -> v5.0.0 IMU Migration Table
+
+| Property | v4.x Type | v4.x Unit | v5.0.0 Type | v5.0.0 Unit |
+| :--- | :--- | :--- | :--- | :--- |
+| `accel[3]` | `int32_t` | Raw vendor ADC counts | `float` | **m/s²** |
+| `gyro[3]` | `int32_t` | Raw vendor ADC counts | `float` | **rad/s** |
+
+If you were manually dividing raw units in v4.x, you should remove those
+conversion factors in v5.0.0.
 
 ## BTstack / Bluepad32 callbacks
 
 !!! note "TL;DR"
 
-    Don't call `printf()` / `logi()` or any other "expensive" function from the BTstack thread.
+    Don't call `printf()` / `logi()` or any other "expensive" function from the
+    BTstack thread.
 
-Do not execute expensive functions from any of the BTstack / Bluepad32 callbacks. They run on the BTstack thread,
-and you should return as fast as possible from those functions.
+Do not execute expensive functions from any of the BTstack / Bluepad32
+callbacks. They run on the BTstack thread, and you should return as fast as
+possible from those functions.
 
 Best practices:
 
 1. Don't call `printf()` / `logi()` that frequent from those calls.
-   Ok to have them for debug purposes, but remove them once you know your code works Ok.
+   Ok to have them for debug purposes, but remove them once you know your code
+   works Ok.
 2. Return as fast as possible. Don't do "expensive" operations there.
-3. If you need to do an expensive operation, offload it to a different thread. See the next section.
+3. If you need to do an expensive operation, offload it to a different thread.
+   See the next section.
 
 ### Offloading expensive operation to a different task
 
-There are different communication channels to connect two tasks. A simple and effective way to do it is by using a queue.
+There are different communication channels to connect two tasks. A simple and
+effective way to do it is by using a queue.
 
 ```mermaid
 sequenceDiagram

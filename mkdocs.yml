@@ -2,14 +2,14 @@ site_name: Bluepad32
 site_url: https://retro.moe/
 site_author: Ricardo Quesada
 site_description: >-
-  A Bluetooth controller "host" for the ESP32, ESP32-S3, ESP32-C3, Raspberry Pi Pico W and Posix (Linux, macOS).
+  A Bluetooth controller "host" for the ESP32, ESP32-S3, ESP32-C3, ESP32-C5, ESP32-C6, ESP32-H2, Raspberry Pi Pico W, Pico 2 W, and Posix (Linux, macOS).
   Add Bluetooth gamepad, mouse and keyboard support to your projects easily.
   In other words, it allows you to control a robot using a DualSense controller.
 
 repo_url: https://github.com/ricardoquesada/bluepad32
 repo_name: ricardoquesada/bluepad32
 
-copyright: Copyright &copy; 2019-2024 Ricardo Quesada & contributors
+copyright: Copyright &copy; 2018-2026 Ricardo Quesada & contributors
 
 edit_uri: blob/develop/docs
 
@@ -25,30 +25,30 @@ nav:
   - Getting Started: getting_started.md
   - Getting Help: getting_help.md
   - Controllers:
-    - supported_gamepads.md
-    - supported_mice.md
-    - supported_keyboards.md
-    - 'How to pair a DualShock3': pair_ds3.md
+      - supported_gamepads.md
+      - supported_mice.md
+      - supported_keyboards.md
+      - "How to pair a DualShock3": pair_ds3.md
   - Platforms:
-    - 'Arduino + ESP32 board': plat_arduino.md
-    - 'ESP32 + ESP-IDF (raw API)': plat_esp32.md
-    - 'Pico W + Pico SDK (raw API)': plat_picow.md
-    - 'Unijoysticle board': plat_unijoysticle.md
+      - "Arduino + ESP32 board": plat_arduino.md
+      - "ESP32 + ESP-IDF (raw API)": plat_esp32.md
+      - "Pico W + Pico SDK (raw API)": plat_picow.md
+      - "Unijoysticle board": plat_unijoysticle.md
   - "Programmer's Guide":
-    - 'Raw API': programmers_guide_raw.md
-    - 'Arduino API': programmers_guide_arduino.md
+      - "Raw API": programmers_guide_raw.md
+      - "Arduino API": programmers_guide_arduino.md
   - Developer Notes:
-    - 'Flashing firmware': firmware_setup.md
-    - adding_new_platform.md
-    - 'Architecture': architecture.md
-    - developer_notes.md
-    - 'Issue Tracker': https://github.com/ricardoquesada/bluepad32/issues
+      - "Flashing firmware": firmware_setup.md
+      - adding_new_platform.md
+      - "Architecture": architecture.md
+      - developer_notes.md
+      - "Issue Tracker": https://github.com/ricardoquesada/bluepad32/issues
   - About:
-    - Authors: authors.md
-    - license.md
-    - 'Contributing': contributing.md
-    - 'Release Notes': release_notes.md
-    - FAQ.md
+      - Authors: authors.md
+      - license.md
+      - "Contributing": contributing.md
+      - "Release Notes": release_notes.md
+      - FAQ.md
 
 theme:
   name: material
@@ -94,4 +94,3 @@ markdown_extensions:
 plugins:
   - include-markdown
   - search
-

@@ -6,19 +6,23 @@
 
     Answer: ESP32-S3 and ESP32-C3 don't support "Bluetooth Classic" protocol.
 
-The only ESP32 chip that supports "Bluetooth Classic" (AKA BR/EDR) is the original ESP32.
-ESP32-S3, ESP32-C3, ESP32-C6 and ESP32-H2 don't support it.
+The only ESP32 chip that supports "Bluetooth Classic" (AKA BR/EDR) is the
+original ESP32. ESP32-S3, ESP32-C3, ESP32-C5, ESP32-C6 and ESP32-H2 don't
+support it.
 
-Controllers like Switch, Wii, DualSense, DualShock, etc. only talk "BR/EDR" (as opposed to BLE).
-You will need a chip that talks BR/EDR, like the original ESP32 or Pico-W to use DualShock, Switch, etc.
+Controllers like Switch, Wii, DualSense, DualShock, etc. only talk "BR/EDR" (as
+opposed to BLE). You will need a chip that talks BR/EDR, like the original
+ESP32 or Pico-W to use DualShock, Switch, etc.
 
-Matrix of supported controllers / chips (might be outdated, [see here for up-to-date list][supported_gamepads])
+Matrix of supported controllers / chips (might be outdated,
+[see here for up-to-date list][supported_gamepads])
 
 | Chip     | BR/EDR           | BLE              |
 |----------|------------------|------------------|
 | ESP32    | :material-check: | :material-check: |
 | ESP32-S3 |                  | :material-check: |
 | ESP32-C3 |                  | :material-check: |
+| ESP32-C5 |                  | :material-check: |
 | ESP32-C6 |                  | :material-check: |
 | ESP32-H2 |                  | :material-check: |
 | Pico W   | :material-check: | :material-check: |
@@ -47,7 +51,8 @@ Non-comprehensive list of supported Bluetooth gamepads their protocols:
 | Nimbus                  | :material-check:     |                      |
 | OUYA 1st gen            | :material-check:     |                      |
 
-*: Xbox Controller Firmware v3.x and v4.x use BR/EDR. Firmware v5.x and later use BLE.
+*: Xbox Controller Firmware v3.x and v4.x use BR/EDR. Firmware v5.x and later
+use BLE.
 
 **: Requires [Steam Controller Bluetooth firmware update][steam_instructions]
 
@@ -65,12 +70,15 @@ Non-comprehensive list of supported Bluetooth gamepads their protocols:
 
     Answer: [Pico W][pico_w] and [ESP32-family][esp32_family]
 
-The Pico W and ESP32 family of processors. But only the ones that support Bluetooth.
+The Pico W and ESP32 family of processors. But only the ones that support
+Bluetooth.
 
-For ESP32, Bluepad32 can run in the main processor, like in the [Espressif ESP32-DevKitC][espressif_esp32_devkitc].
+For ESP32, Bluepad32 can run in the main processor, like in the
+[Espressif ESP32-DevKitC][espressif_esp32_devkitc].
 
-If you want to know whether a certain ESP32-based board is supported, it is safe to assume
-that if the board is supported by regular Arduino, then it is supported by Bluepad32.
+If you want to know whether a certain ESP32-based board is supported, it is safe
+to assume that if the board is supported by regular Arduino, then it is
+supported by Bluepad32.
 
 [pico_w]: https://www.raspberrypi.com/documentation/microcontrollers/raspberry-pi-pico.html
 
@@ -85,7 +93,8 @@ that if the board is supported by regular Arduino, then it is supported by Bluep
     Answer: Use BT allowlist.
 
 Scenario: You want to control eight robots, each with one controller.
-Controller A should only control robot A, controller B should only control robot B, and so on.
+Controller A should only control robot A, controller B should only control
+robot B, and so on.
 
 There are two ways to do it:
 
@@ -98,7 +107,8 @@ One way to do it is by using the `uni_bt_allowlist` API.
 
 The most important APIs are:
 
-- `bool uni_bt_allowlist_add_addr(bd_addr_t addr);`: add BT address to the allowlist
+- `bool uni_bt_allowlist_add_addr(bd_addr_t addr);`: add BT address to the
+  allowlist
 - `void uni_bt_allowlist_set_enabled(bool enabled);`: enables the allowlist.
 
 To see the rest of the APIs see: [uni_bt_allowlist.h]
@@ -137,8 +147,9 @@ void setup() {
 
 !!! Note
 
-    The USB console is ONLY avaialble in the [Arduino ESP-IDF Template][arduino_esp_idf_template] project,
-    in the [ESP-IDF raw API][esp_idf_raw], and in [Unijoysticle][unijoysticle].
+    The USB console is ONLY available in the
+    [Arduino ESP-IDF Template][arduino_esp_idf_template] project, in the
+    [ESP-IDF raw API][esp_idf_raw], and in [Unijoysticle][unijoysticle_doc].
 
 To access the USB Console, use your favorite serial terminal a do:
 
@@ -157,8 +168,8 @@ bp32> help
 The allowlist commands are:
 
 - `allowlist_list`: List allowlist addresses
-- `allowlist_add <bt addr`: Add address to the allowlist
-- `allowlist_remove <bt addr`: Remove address from the allowlist
+- `allowlist_add <bt addr>`: Add address to the allowlist
+- `allowlist_remove <bt addr>`: Remove address from the allowlist
 - `allowlist_enable <0 | 1 >`: Whether allowlist should be enforced
 
 See video for further details:
@@ -166,13 +177,14 @@ See video for further details:
 [![asciicast](https://asciinema.org/a/649043.svg)](https://asciinema.org/a/649043)
 
 Values are stored in Non-Volatile-Storage (NVS).
-This means that if you reset the ESP32, the allowlist entries, and whether it is enabled will persist the reset.
+This means that if you reset the ESP32, the allowlist entries, and whether it is
+enabled will persist the reset.
 
 [arduino_esp_idf_template]: https://bluepad32.readthedocs.io/en/latest/plat_arduino/#option-b-use-esp-idf-template-project
 
 [esp_idf_raw]: https://github.com/ricardoquesada/bluepad32/tree/main/examples/esp32
 
-[unijoysticle]: https://bluepad32.readthedocs.io/en/latest/plat_unijoysticle/
+[unijoysticle_doc]: https://bluepad32.readthedocs.io/en/latest/plat_unijoysticle/
 
 
 [uni_bt_allowlist.h]: https://github.com/ricardoquesada/bluepad32/blob/main/src/components/bluepad32/include/bt/uni_bt_allowlist.h
@@ -184,15 +196,16 @@ This means that if you reset the ESP32, the allowlist entries, and whether it is
     Answer: Add a "if don't receive data in 5 seconds, disconnect"
 
 Let's assume that you are controlling a car with the gamepad.
-If the car goes too far away, it won't receive gamepad data because Bluetooth was not designed a long-range protocol."
+If the car goes too far away, it won't receive gamepad data because Bluetooth
+was not designed a long-range protocol."
 
 | BR/EDR           | BLE             |
 |------------------|-----------------|
 | up to 100 meters | up to 50 meters |
 
-So when the car is outside the range, it won't even receive a "disconnect" event.
-Eventually, the Bluetooth stack will figure out that the connection was disconnected and will close it
-But it might take up to 20 seconds or more.
+So when the car is outside the range, it won't even receive a "disconnect"
+event. Eventually, the Bluetooth stack will figure out that the connection was
+disconnected and will close it. But it might take up to 20 seconds or more.
 
 So, in your code you should do something like the following:
 
@@ -245,17 +258,21 @@ First of all, double-check that the controller is not already supported:
 * [Supported mice][supported_mice] :material-mouse:
 * [Supported keyboards][supported_keyboards] :material-keyboard:
 
-If it is not there, and you want us to support it, contact us (Send us a Private Message in
-[Discord][discord_server] :simple-discord:, or [file a feature request][github_bug] :simple-github:).
+If it is not there, and you want us to support it, contact us (Send us a Private
+Message in [Discord][discord_server] :simple-discord:, or
+[file a feature request][github_bug] :simple-github:).
 
 The way it works is:
 
-* You send us a link to the controller that is not supported, like the Amazon or AliExpress link.
-* You send us via [PayPal][paypal] :simple-paypal:, [Ko-fi][kofi] :simple-kofi:, [Venmo][venmo] :simple-venmo:, or even
-  an Amazon gift card, the cost of the gamepad + shipping to the US.
+* You send us a link to the controller that is not supported, like the Amazon or
+  AliExpress link.
+* You send us via [PayPal][paypal] :simple-paypal:, [Ko-fi][kofi] :simple-kofi:,
+  [Venmo][venmo] :simple-venmo:, or even an Amazon gift card, the cost of the
+  gamepad + shipping to the US.
 * We purchase it, and we will do our best to support it.
   But we don't guarantee anything.
-  So many things can go wrong, especially with low-cost clones where many features are not implemented.
+  So many things can go wrong, especially with low-cost clones where many
+  features are not implemented.
 
 [discord_server]: https://discord.gg/r5aMn6Cw5q
 
@@ -267,13 +284,7 @@ The way it works is:
 
 [supported_gamepads]: ../supported_gamepads/
 
-[supported_gamepads]: ../supported_gamepads/
-
 [supported_keyboards]: ../supported_keyboards/
-
-[supported_keyboards]: ../supported_keyboards/
-
-[supported_mice]: ../supported_mice/
 
 [supported_mice]: ../supported_mice/
 
@@ -285,14 +296,16 @@ The way it works is:
 
     Answer: Legacy
 
-The [Unijoysticle2][unijoysticle2] project included both the hardware and the firmware.
-In November 2020 I decided to port the Unijoysticle firmware to Adafruit AirLift module.
+The [Unijoysticle2][unijoysticle2] project included both the hardware and the
+firmware. In November 2020 I decided to port the Unijoysticle firmware to
+Adafruit AirLift module.
 
-During the port and I had the decouple the firmware from the Unijoysticle2 hardware: I had re-design the architecture,
-but to avoid too many changes I decided to keep using the old `uni` prefix.
+During the port and I had the decouple the firmware from the Unijoysticle2
+hardware: I had re-design the architecture, but to avoid too many changes I
+decided to keep using the old `uni` prefix.
 
-The Bluepad32 Arduino API does NOT use the `uni` prefix since I created it from scratch, without the need to maintain
-backward compatibility.
+The Bluepad32 Arduino API does NOT use the `uni` prefix since I created it from
+scratch, without the need to maintain backward compatibility.
 
 ## Why is BTstack being used as the Bluetooth stack?
 
@@ -300,8 +313,8 @@ backward compatibility.
 
     Answer: There were no alternatives back in 2019
 
-When I started Bluepad32 back in January 2019, there was no Bluetooth Classic (BR/EDR) implementation available for
-ESP32.
+When I started Bluepad32 back in January 2019, there was no Bluetooth Classic
+(BR/EDR) implementation available for ESP32.
 
 I had two options:
 
@@ -310,8 +323,10 @@ I had two options:
 
 I decided to use BTstack. It turned out to be a good decision:
 
-- Pico W uses BTstack, so porting Bluepad32 to Pico W was fairly straight-forward.
-- It supports Posix systems: Beneficial when adding support for a new controller.
+- Pico W uses BTstack, so porting Bluepad32 to Pico W was fairly
+  straight-forward.
+- It supports Posix systems: Beneficial when adding support for a new
+  controller.
 
 [btstack]: https://github.com/bluekitchen/btstack
 
@@ -321,13 +336,15 @@ I decided to use BTstack. It turned out to be a good decision:
 
     Answer: The one that makes you more productive.
 
-Use the one that makes you more productive. Sometimes it is the one that you are more familiar with.
+Use the one that makes you more productive. Sometimes it is the one that you are
+more familiar with.
 
 Some options are:
 
-* [Arduino IDE][arduino_ide]: good if you are already familiar with Arduino ecosystem.
-* [Visual Studio Code][vscode]: good as a generic code editor. Requires to install different plugins to have a good C /
-  C++ experience.
+* [Arduino IDE][arduino_ide]: good if you are already familiar with Arduino
+  ecosystem.
+* [Visual Studio Code][vscode]: good as a generic code editor. Requires to
+  install different plugins to have a good C / C++ experience.
 * [CLion][clion]: good for advanced C / C++ users.
 
 For me, the best one by far is [CLion][clion]. But your mileage may vary.
@@ -342,13 +359,18 @@ For me, the best one by far is [CLion][clion]. But your mileage may vary.
 
 ???+ note "TL;DR"
 
-    Answer: 2019, although the original project started in 2016, and it was renamed to Bluepad32 in 2020.
+    Answer: 2019, although the original project started in 2016, and it was
+    renamed to Bluepad32 in 2020.
 
-- Started [Unijoysticle][unijoysticle] project (WiFi gamepad for Commodore 64): [2016-03-28][uni1_first_commit]
-- Decided to support Bluetooth in late 2018, the first commit was: [2019-01-02][fw_first_commit]
-- Created Unijoysticle2 repo: [2019-02-06][fw_uni2_repo] (copied files from Unijoysticle repo)
+- Started [Unijoysticle][unijoysticle] project (WiFi gamepad for Commodore 64):
+  [2016-03-28][uni1_first_commit]
+- Decided to support Bluetooth in late 2018, the first commit was:
+  [2019-01-02][fw_first_commit]
+- Created Unijoysticle2 repo: [2019-02-06][fw_uni2_repo] (copied files from
+  Unijoysticle repo)
 - First public release of the firmware v0.1.0: [2019-04-27][fw_first_release]
-- Renamed firmware to Bluepad32: [November 2020][fw_as_bluepad32] (hardware was still called Unijoysticle2)
+- Renamed firmware to Bluepad32: [November 2020][fw_as_bluepad32] (hardware was
+  still called Unijoysticle2)
 
 ```mermaid
 timeline

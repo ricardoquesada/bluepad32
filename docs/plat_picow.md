@@ -14,11 +14,12 @@
 
 ### 1. Download Pico SDK
 
-You need to install Pico SDK. The instructions are different for Linux/macOS and Windows.
+You need to install Pico SDK. The instructions are different for Linux/macOS
+and Windows.
 
-=== "Pico SDK for Linux / macOS"
+=== "macOS"
 
-Recommended: Use Pico SDK v2.1.1 or newer.
+    Recommended: Use Pico SDK v2.3.0+ or newer.
 
     Clone Pico SDK from Github: <https://github.com/raspberrypi/pico-sdk>
 
@@ -39,7 +40,30 @@ Recommended: Use Pico SDK v2.1.1 or newer.
     export PICO_SDK_PATH=$HOME/pico/pico-sdk/
     ```
 
-=== "Pico SDK for Windows"
+=== "Linux"
+
+    Recommended: Use Pico SDK v2.3.0+ or newer.
+
+    Clone Pico SDK from Github: <https://github.com/raspberrypi/pico-sdk>
+
+    ```sh
+    # Optionally create a destination folder
+    mkdir ~/pico && cd ~/pico
+
+    # Clone it from Github
+    git clone https://github.com/raspberrypi/pico-sdk.git --branch master
+    cd pico-sdk
+    git submodule update --init
+    ```
+
+    And set `PICO_SDK_PATH` to the correct path:
+
+    ```
+    # set PICO_SDK_PATH to the correct path
+    export PICO_SDK_PATH=$HOME/pico/pico-sdk/
+    ```
+
+=== "Windows"
 
     Follow these instructions
 
@@ -47,30 +71,29 @@ Recommended: Use Pico SDK v2.1.1 or newer.
 
 ### 2. Clone Bluepad32 GitHub repo
 
-   ```sh
-   git clone --recursive https://github.com/ricardoquesada/bluepad32.git
-   ```
+```sh
+git clone --recursive https://github.com/ricardoquesada/bluepad32.git
+```
 
 ### 3. Patch BTstack
 
-   ```sh
-   cd ${BLUEPAD32_SRC}/external/btstack
-   git apply ../patches/*.patch
-   ```
+```sh
+cd ${BLUEPAD32_SRC}/external/btstack
+git apply ../patches/*.patch
+```
 
 ### 4. Modify example
 
 Go to example folder:
 
-   ```sh
-   # ${BLUEPAD32} represents the folder where Bluepad32 Github repo was cloned
-   cd ${BLUEPAD32}/examples/pico_w
-   ```
+```sh
+# ${BLUEPAD32} represents the folder where Bluepad32 Github repo was cloned
+cd ${BLUEPAD32}/examples/pico_w
+```
 
 Customize `src/my_platform.c` file to your needs:
 
 - [my_platform.c](https://github.com/ricardoquesada/bluepad32/blob/main/examples/pico_w/src/my_platform.c)
-
 
 ### 5. Build it
 
@@ -85,8 +108,8 @@ make -j
 
 ### 6. Flash it
 
-Copy `build/bluepad32_picow_example_app.uf2` to Pico W.
+Copy `build/bluepad32_picow_example_app.uf2` to Pico W / Pico 2 W.
 
 Use this guide if you are not sure how to do it:
 
-* <https://projects.raspberrypi.org/en/projects/get-started-pico-w/>
+- <https://projects.raspberrypi.org/en/projects/get-started-pico-w/>

@@ -1,19 +1,28 @@
 # Programmer's Guide: Arduino API
 
-The Bluepad32 Arduino API (`<Bluepad32.h>`) provides an idiomatic, event-driven C++ interface for reading Bluetooth gamepads, mice, keyboards, and Wii Balance Boards on:
+The Bluepad32 Arduino API (`<Bluepad32.h>`) provides an idiomatic, event-driven
+C++ interface for reading Bluetooth gamepads, mice, keyboards, and Wii Balance
+Boards on:
 
-- **[ESP32 / ESP32-S3 / ESP32-C3 boards](../plat_arduino/)** (via the *ESP32 + Bluepad32* Arduino board package or ESP-IDF + Arduino template)
+- **[ESP32 / ESP32-S3 / ESP32-C3 boards](../plat_arduino/)** (via the
+  *ESP32 + Bluepad32* Arduino board package or ESP-IDF + Arduino template)
 
 ---
 
 ## 1. Execution Model & Lifecycle (`BP32`)
 
-On ESP32, the Bluetooth stack (BTstack + Bluepad32 core) runs asynchronously on **Core 0**, while your Arduino `setup()` and `loop()` functions run on **Core 1**. The global `BP32` singleton bridges both cores safely:
+On ESP32, the Bluetooth stack (BTstack + Bluepad32 core) runs asynchronously on
+**Core 0**, while your Arduino `setup()` and `loop()` functions run on
+**Core 1**. The global `BP32` singleton bridges both cores safely:
 
 1. **`BP32.setup(&onConnectedController, &onDisconnectedController)`**:
-   Registers your connection and disconnection callbacks and initializes the Bluetooth host controller. Call this once inside `setup()`.
+   Registers your connection and disconnection callbacks and initializes the
+   Bluetooth host controller. Call this once inside `setup()`.
 2. **`BP32.update()`**:
-   Synchronizes the latest controller states from the Bluepad32 core and fires connection/disconnection callbacks when devices join or leave. Call this once per frame inside `loop()`, and check its boolean return value (`true` if new controller data arrived since the last call).
+   Synchronizes the latest controller states from the Bluepad32 core and fires
+   connection/disconnection callbacks when devices join or leave. Call this once
+   per frame inside `loop()`, and check its boolean return value (`true` if new
+   controller data arrived since the last call).
 
 ```mermaid
 sequenceDiagram
@@ -141,11 +150,12 @@ void loop() {
 | `ctl->isBalanceBoard()` | `bool` | `true` if the device is a Nintendo Wii Balance Board. |
 | `ctl->getModelName()` | `String` | Human-readable controller model (e.g., `"DualSense"`, `"Switch Pro"`). |
 | `ctl->getProperties()` | `ControllerProperties` | Struct containing `vendor_id`, `product_id`, `btaddr[6]`, `type`, `subtype`, and capability `flags`. |
-| `ctl->battery()` | `uint8_t` | Battery level (`0` = empty, `254` = full, `255` = battery reporting unavailable). |
+| `ctl->battery()` | `uint8_t` | Battery level (`0`: battery report not available, `1`: empty, `255`: full). |
 
 ### 3.2 Gamepad Axes, Pedals, Buttons & IMU
 
-Bluepad32 normalizes all gamepad layouts to a canonical Xbox/Nintendo/PlayStation positional layout regardless of vendor:
+Bluepad32 normalizes all gamepad layouts to a canonical
+Xbox/Nintendo/PlayStation positional layout regardless of vendor:
 
 | Category | Method(s) | Range / Bitmask Constants |
 | :--- | :--- | :--- |
@@ -161,13 +171,19 @@ Bluepad32 normalizes all gamepad layouts to a canonical Xbox/Nintendo/PlayStatio
 ### 3.3 Mouse, Keyboard & Wii Balance Board
 
 - **Mouse (`ctl->isMouse()`)**:
-  - `ctl->deltaX()`, `ctl->deltaY()`: Relative cursor movement since last report (`int32_t`).
+  - `ctl->deltaX()`, `ctl->deltaY()`: Relative cursor movement since last report
+    (`int32_t`).
   - `ctl->scrollWheel()`: Vertical scroll wheel step (`int8_t`).
-  - `ctl->buttons()`: Mouse button bitmask (`BUTTON_A` = Left click, `BUTTON_B` = Right click, `BUTTON_X` = Middle click).
+  - `ctl->buttons()`: Mouse button bitmask (`BUTTON_A` = Left click,
+    `BUTTON_B` = Right click, `BUTTON_X` = Middle click).
 - **Keyboard (`ctl->isKeyboard()`)**:
-  - `ctl->isKeyPressed(KeyboardKey key)`: Checks if a specific USB HID keycode (e.g. `Keyboard_A`, `Keyboard_Spacebar`, `Keyboard_LeftShift`) is currently held down.
+  - `ctl->isKeyPressed(KeyboardKey key)`: Checks if a specific USB HID keycode
+    (e.g. `Keyboard_A`, `Keyboard_Spacebar`, `Keyboard_LeftShift`) is currently
+    held down.
 - **Wii Balance Board (`ctl->isBalanceBoard()`)**:
-  - `ctl->topRight()`, `ctl->bottomRight()`, `ctl->topLeft()`, `ctl->bottomLeft()`: Calibrated load sensor readings (`uint16_t`, in grams/100g units).
+  - `ctl->topRight()`, `ctl->bottomRight()`, `ctl->topLeft()`,
+    `ctl->bottomLeft()`: Calibrated load sensor readings (`uint16_t`, in
+    grams/100g units).
   - `ctl->temperature()`: Internal board temperature reading (`int`).
 
 ---
@@ -191,8 +207,11 @@ Bluepad32 normalizes all gamepad layouts to a canonical Xbox/Nintendo/PlayStatio
   ```cpp
   ctl->setColorLED(0, 128, 255); // Red, Green, Blue (0..255)
   ```
-- **Sony DualSense Adaptive Triggers (ESP-IDF + Arduino Template / Raw Parser Integration)**:
-  When targeting ESP-IDF + Arduino on ESP32, DualSense adaptive trigger resistance effects (`feedback`, `weapon`, `vibration`, `off`) can be applied to the left (`L2`) and right (`R2`) triggers via `uni_hid_parser_ds5.h`:
+- **Sony DualSense Adaptive Triggers (ESP-IDF + Arduino Template / Raw Parser
+  Integration)**:
+  When targeting ESP-IDF + Arduino on ESP32, DualSense adaptive trigger
+  resistance effects (`feedback`, `weapon`, `vibration`, `off`) can be applied
+  to the left (`L2`) and right (`R2`) triggers via `uni_hid_parser_ds5.h`:
   ```cpp
   #include "parser/uni_hid_parser_ds5.h"
 

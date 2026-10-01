@@ -4,8 +4,6 @@
 
 [Supported gamepads]:https://lh3.googleusercontent.com/pw/AMWts8BB7wT51jpn3HxWHuZLiEM2lX05gmTDsnldHszkXuYqxbowNvtxPtpbHh3CNjv1OBzeyadZjNLNBgE4w2tl2WmP8M9gGBCfWhzmZGQnHBlERSoy5W2dj6-EYmT84yteKTFjp4Jz2H3DgByFiKXaxfFC2g=-no
 
-# Supported gamepads
-
 List of supported gamepads with supported features, known bugs, etc.
 
 ## Sony DualSense (PS5)
@@ -18,9 +16,11 @@ Supported "extra features":
 |------------------|------------------|------------------|--------------------------|----------------------|--------------------------|
 | :material-check: | :material-check: | :material-check: | :material-check:         | :material-check:     | :material-check:         |
 
-- Pair instructions: While pressing and holding the Create button, press and hold the PS button until the
-  light bar blinks ([Sony official instructions][dualsense_pair_instructions]).
+- Pair instructions: While pressing and holding the Create button, press and
+  hold the PS button until the light bar blinks
+  ([Sony official instructions][dualsense_pair_instructions]).
 - Protocol: BR/EDR
+- Supported models: DualSense (`054c:0ce6`), DualSense Edge (`054c:0df2`)
 
 [dualsense]: https://lh3.googleusercontent.com/pw/ACtC-3d1CVA-e5srBTDhTD6D-3BSWYi7MncfECPj_9bQJfcGOAKIHrP6g6Ha7xAD0trE59eN-Qv_U33MklCFPskPWRLjfFI4ITHEol8RAmTYNHFNrA-gwhoXEn2ks_M7UDDbxiKhNdaPNXexxgj5zzOtpBjiyw=-no
 
@@ -38,8 +38,9 @@ Supported "extra features":
 
 - Supports both the 2013 (CUH-ZCT1) and 2016 (CUH-ZCT2) editions
 - Some clones are known to work Ok
-- Pair instructions: While pressing and holding the SHARE button, press and hold the PS Button until the
-  light bar flashes ([Sony official instructions][dualshock4_pair_instructions]).
+- Pair instructions: While pressing and holding the SHARE button, press and
+  hold the PS Button until the light bar flashes
+  ([Sony official instructions][dualshock4_pair_instructions]).
 - Protocol: BR/EDR
 
 [dualshock_4]: https://lh3.googleusercontent.com/_0sAxKXbSkk4g8rWJzTNxAirz2hD632jW4TGjGVOwjoac8sD4AfiN9PA1HdGWhm_ujcVygDlEG-LENPemF7IyFhqVsHgVHfCMVeFVjBbeDl-fUUjdMbRYAE8FiKdyWM_UBNUNmVy9Ro=-no
@@ -52,9 +53,9 @@ Supported "extra features":
 
 Supported "extra features":
 
-| Rumble           | Gyro / Accelerometer |
-|------------------|----------------------|
-| :material-check: | :material-check:     |
+| Rumble           | Player LEDs      | Gyro / Accelerometer |
+|------------------|------------------|----------------------|
+| :material-check: | :material-check: | :material-check:     |
 
 - Requires that the [DS3 is manually paired][pair_ds3] to the device.
 - Some clones are known to work Ok
@@ -104,7 +105,8 @@ Supported "extra features":
 
 [![Switch JoyCon][switch_joycon_img]][switch_joycon]
 
-Both Left and Right JoyCon are supported.
+- Supported models: Left/Right Joy-Cons, Nintendo Switch Online NES Controllers
+  (Left `0x09` and Right `0x0a`)
 
 Supported "extra features":
 
@@ -112,7 +114,8 @@ Supported "extra features":
 |------------------|----------------------|-----------------------|
 | :material-check: | :material-check:     | Sideways (horizontal) |
 
-- Each JoyCon represents one gamepad. Cannot be used as a single/combined gamepad.
+- Each JoyCon represents one gamepad. Cannot be used as a single/combined
+  gamepad.
 - Some clones are known to work Ok
 - Protocol: BR/EDR
 
@@ -164,7 +167,8 @@ Supported "extra features":
 
 ### Wheel mode (Accelerometer)
 
-- Enter this mode by pressing "A" (A == accelerometer, easy to remember) while connecting or reconnecting.
+- Enter this mode by pressing "A" (A == accelerometer, easy to remember) while
+  connecting or reconnecting.
 - Rotate left/right for left/right movements
 - Use D-pad for up/down movements
 - Button "A" for fire.
@@ -200,8 +204,9 @@ Wii Remote can also be used, but both of them control the same joystick.
 
 ### Nunchuk as second joystick
 
-To control both Commodore joysticks (useful when in *Unijoysticle Enhanced mode*), you
-have to press the "+" button in the Wii Remote while connecting or reconnecting.
+To control both Commodore joysticks (useful when in *Unijoysticle Enhanced
+mode*), you have to press the "+" button in the Wii Remote while connecting or
+reconnecting.
 
 - Enter this mode by pressing button "+" while connecting or reconnecting.
 - Use Nunchuk joystick for "right" movement.
@@ -217,13 +222,19 @@ have to press the "+" button in the Wii Remote while connecting or reconnecting.
 
 ![wii_classic_controller][wii_classic_controller_img]
 
-A Nintendo Classic Controller or Classic Controller Pro can be used when it is attached
-to the Wii Remote. When attached, the Wii Remote will be "disabled" and only the
-Classic Controller can be used.
+A Nintendo Classic Controller or Classic Controller Pro can be used when it is
+attached to the Wii Remote. When attached, the Wii Remote will be "disabled"
+and only the Classic Controller can be used.
 
 - LEDs: supported
 
 [wii_classic_controller_img]: https://lh3.googleusercontent.com/nX-CyjcmorkW90mP8RybO_pJ7ezM4EJk1tsqkz8HAuLkHBAasccZzq5h-A74Ez-h7Zmv5hpsuBu5n66EeThwRUnLTIu8ffk2MstEMBjHiGrcNoyq-XAC9zeh97Kz8GDBDLqmujmm2J0=-no
+
+## Nintendo Wii Remote + uDraw Tablet
+
+A Nintendo Wii uDraw GameTablet can be used when it is attached to the Wii
+Remote.
+- Protocol: BR/EDR
 
 ## Nintendo Wii Balance Board
 
@@ -234,6 +245,7 @@ Classic Controller can be used.
 - Supports the 4 corners
 - Supports temperature
 - Protocol: BR/EDR
+- Supported models: Wii Balance Board (`057e:0306`)
 
 [balance_board_img]: https://lh3.googleusercontent.com/pw/AMWts8A_VYYwZteJp4zrYRuvmYeVQrGFB14g7p7SzPRLPaCmENNA2kF5ylG-MZDOPrf5FAWXGd5oN--BxQ0viilUtZOpr4v0p0ELZLWXM064Z78_QlGW65Ks5N1yyOwUf4SmSRRCQHhezKKX5HyklUtlAsw9TA=-no?authuser=0
 
@@ -248,8 +260,10 @@ Supported "extra features":
 | :material-check: | :material-check: |
 
 - This is the "2 button" model
-- Must be the *model 1708* (released in 2016) and not earlier. *Model 1797* should work.
-- Supports Xbox Controller firmware: v3.1 (BR/EDR), v4.8 (BR/EDR), v5.15 or newer (BLE)
+- Must be the *model 1708* (released in 2016) and not earlier. *Model 1797*
+  should work.
+- Supports Xbox Controller firmware: v3.1 (BR/EDR), v4.8 (BR/EDR), v5.15 or
+  newer (BLE)
     - Instructions to [update Xbox firmware][xbox_instructions_update],
       to [revert Xbox firmware][xbox_instructions_revert]
 - Pair instructions: Same as model "1914", see below.
@@ -283,7 +297,8 @@ Supported "extra features":
 - Pair instructions:
     - Turn on your controller by pressing the Xbox button.
     - Press the controller’s Pair button for 3 seconds and release.
-    - Done. Bluepad32 will connect to it once it receives the "advertisement" broadcast message.
+    - Done. Bluepad32 will connect to it once it receives the "advertisement"
+      broadcast message.
 - Protocol: BLE
 
 [xbox_1914_ebay]: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw=xbox+wireless+controller+1914&_sacat=0
@@ -300,7 +315,8 @@ Supported "extra features":
 - Pair instructions:
     - Press "pair" button at the back of the controller.
     - Wait until Xbox logo blinks
-    - Done. Bluepad32 will connect to it once it receives the "advertisement" broadcast message.
+    - Done. Bluepad32 will connect to it once it receives the "advertisement"
+      broadcast message.
 - Protocol: BLE
 
 [xbox_adaptive_site]: https://www.xbox.com/en-US/accessories/controllers/xbox-adaptive-controller
@@ -311,8 +327,9 @@ Supported "extra features":
 
 ![Android][android_gamepad]
 
-- Tested
-  with: [ASUS][15], [Moga Pro 2][16], [Amazon Fire TV gamepads][17], [SteelSeries Status Duo][stratus_duo], [DIY ESP32 gamepad][diy_esp32_gamepad]
+- Tested with: [ASUS][15], [Moga Pro 2][16], [Amazon Fire TV gamepads][17],
+  [SteelSeries Status Duo][stratus_duo],
+  [DIY ESP32 gamepad][diy_esp32_gamepad]
 - Protocol: Depends on the gamepad. Most use BR/EDR. Only a few use BLE.
 
 [android_gamepad]: https://lh3.googleusercontent.com/S3H1pEGYGT5aVTwF3ySWHF7vqbonDYR0UxOLJBxFe5At6Q4AP_4TQUCaNOiEXD22U4H3C0lVP1E3m26H3QM4rIbgp1wysbQoSt1NpD61snlWES5N5zGUgx20c2sfFCKZL4w_Gl66Y1s=-no
@@ -398,10 +415,11 @@ Supported "extra features":
 | Zero 2       |                  |                  |                      |
 | NES30        |                  |                  |                      |
 
-- Tested
-  with: [8BitDo SN30 Pro][8bitdo_sn30_pro], [8BitDo Pro 2][8bitdo_pro_2] [8BitDo Arcade Stick][8bitdo_arcade_stick],
-  [8BitDo Lite][8bitdo_lite], [8BitDo NES30][8bitdo_nes30], [8BitDo M30][8bitdo_m30],
-  [8BitDo Zero 2][8bitdo_zero2], [8BitDo Ultimate Controller][8bitdo_ultimate]
+- Tested with: [8BitDo SN30 Pro][8bitdo_sn30_pro],
+  [8BitDo Pro 2][8bitdo_pro_2], [8BitDo Arcade Stick][8bitdo_arcade_stick],
+  [8BitDo Lite][8bitdo_lite], [8BitDo NES30][8bitdo_nes30],
+  [8BitDo M30][8bitdo_m30], [8BitDo Zero 2][8bitdo_zero2],
+  [8BitDo Ultimate Controller][8bitdo_ultimate]
 - All 8BitDo modes are supported: *Switch*, *Android*, *Windows* and *macOS*.
 - Protocol: BR/EDR
 
@@ -473,7 +491,8 @@ Supported "extra features":
 Collection of misc controllers.
 
 - Only the emulation modes that are known to work are listed.
-- If more than one emulation mode is supported, it is listed right below, using an empty "Model" name.
+- If more than one emulation mode is supported, it is listed right below, using
+  an empty "Model" name.
 
 | Model                                     | Emulation        | Protocol | Rumble           | Lightbar         | Player LEDs      | Gyro / Accelerometer | Notes                                      |
 |-------------------------------------------|------------------|----------|------------------|------------------|------------------|----------------------|--------------------------------------------|
@@ -502,15 +521,16 @@ Collection of misc controllers.
 
 ## Bluetooth gamepads and their protocol
 
-Most gamepads, as of 2024, use BR/EDR (AKA Bluetooth Classic). Only a few use BLE.
-Worth noting is that BR/EDR is only supported on ESP32, Pico W and Pico 2 W, but **NOT** in ESP32-S3 / ESP32-C3 /
-ESP32-C6 / ESP32-H2.
+Most gamepads, as of 2024, use BR/EDR (AKA Bluetooth Classic). Only a few use
+BLE. Worth noting is that BR/EDR is only supported on ESP32, Pico W and
+Pico 2 W, but **NOT** in ESP32-S3 / ESP32-C3 / ESP32-C5 / ESP32-C6 / ESP32-H2.
 
 | Chip     | BR/EDR           | BLE              |
 |----------|------------------|------------------|
 | ESP32    | :material-check: | :material-check: |
 | ESP32-S3 |                  | :material-check: |
 | ESP32-C3 |                  | :material-check: |
+| ESP32-C5 |                  | :material-check: |
 | ESP32-C6 |                  | :material-check: |
 | ESP32-H2 |                  | :material-check: |
 | Pico W   | :material-check: | :material-check: |
@@ -539,7 +559,8 @@ Non-comprehensive list of supported Bluetooth gamepads their protocols:
 | Nimbus                  | :material-check:     |                      |
 | OUYA 1st gen            | :material-check:     |                      |
 
-*: Xbox Controller Firmware v3.x and v4.x use BR/EDR. Firmware v5.x and later use BLE.
+*: Xbox Controller Firmware v3.x and v4.x use BR/EDR. Firmware v5.x and later
+use BLE.
 
 **: Requires [Steam Controller Bluetooth firmware update][steam_instructions]
 

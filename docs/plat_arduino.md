@@ -2,13 +2,16 @@
 
 ## Supported boards
 
-It works on **any ESP32 / ESP32-S3 / ESP32-C3 module** where the [Arduino Core for ESP32][arduino-core] runs.
-In other words, if you already have Arduino working on a ESP32 / ESP32-S3 / ESP32-C3 module, you can have Bluepad32
-running on it as well.
+It works on **any ESP32 / ESP32-S3 / ESP32-C3 / ESP32-C5 / ESP32-C6 / ESP32-H2
+module** where the [Arduino Core for ESP32][arduino-core] runs. In other words,
+if you already have Arduino working on an ESP32 / ESP32-S3 / ESP32-C3 /
+ESP32-C5 / ESP32-C6 / ESP32-H2 module, you can have Bluepad32 running on it as
+well.
 
 !!! Bug
 
-    No output in certain ESP32-S3 boards like [Arduino Nano ESP32][arduino_nano_esp32] or [Lolin S3 Mini][lolin_s3_mini] ?
+    No output in certain ESP32-S3 boards like
+    [Arduino Nano ESP32][arduino_nano_esp32] or [Lolin S3 Mini][lolin_s3_mini] ?
 
     Read [Github issue #65][github_issue_65] to see how to enable it.
 
@@ -50,11 +53,13 @@ These two boards must be added to Arduino IDE.
 
 ![arduino-board-manager][arduino-board-manager]
 
-* Official ESP32 package: `https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json`
+* Official ESP32 package:
+  `https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json`
 * "Bluepad32 + ESP32"
   package: `https://raw.githubusercontent.com/ricardoquesada/esp32-arduino-lib-builder/master/bluepad32_files/package_esp32_bluepad32_index.json`
 
-If you don't know how to add a board, then read [Add or Remove 3rd party boards in Board Manager][arduino_3rd_party_board]
+If you don't know how to add a board, then read
+[Add or Remove 3rd party boards in Board Manager][arduino_3rd_party_board]
 
 ### 2. Install ESP32 and Bluepad32 files
 
@@ -118,7 +123,8 @@ To install and use ESP-IDF you have two options:
 1. Open Visual Studio Code, select the PlatformIO plugin
 2. Click on "Pick a folder", a select the recently cloned "my_project" folder
 
-That's it. The PlatformIO will download the ESP-IDF toolchain and its dependencies.
+That's it. The PlatformIO will download the ESP-IDF toolchain and its
+dependencies.
 
 It might take a few minutes to download all dependencies. Be patient.
 
@@ -126,7 +132,8 @@ It might take a few minutes to download all dependencies. Be patient.
 
 After all dependencies were installed:
 
-1. Click on one of the pre-created boards, like *esp32-s3-devkit-1*. Or edit `platformio.ini` file, and add your own.
+1. Click on one of the pre-created boards, like *esp32-s3-devkit-1*. Or edit
+   `platformio.ini` file, and add your own.
 2. Click on *build*
 
 ![monitor_project][pio_monitor_project]
@@ -134,7 +141,8 @@ After all dependencies were installed:
 Finally, click on "Upload and Monitor":
 
 * It will upload your sketch
-* And will enter into "monitor" mode: You can see and use the console. Try typing `help` on the console.
+* And will enter into "monitor" mode: You can see and use the console. Try
+  typing `help` on the console.
 
 
 [pio_open_project]: https://lh3.googleusercontent.com/pw/ABLVV85JEEjjsQqcCcfZUclYF1ItYSHPmpzP0SC4VH9Ypqp05r2ixlv9C2xv4p-r6fW_CyCNa8ylmeSjyUg_K2Sp-XUXQRTYO_6HvhQXcXxTZXgQvvNBqA8JaerwCB1UODkXgYa_6ONT19KTO52OMs0eOOeeMg=-no-gm?authuser=0

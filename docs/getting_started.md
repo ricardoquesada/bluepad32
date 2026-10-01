@@ -2,7 +2,8 @@
 
 <img src="https://github.com/ricardoquesada/bluepad32/blob/main/docs/images/bluepad32-logo.png?raw=true" alt="drawing" width="400"/>
 
-Bluepad32 supports different IDEs, and different microcontrollers. These are the options:
+Bluepad32 supports different IDEs, and different microcontrollers. These are
+the options:
 
 | IDE / MCU              | ESP32 family     | Pico W           |
 |------------------------|------------------|------------------|
@@ -18,12 +19,14 @@ Choose the right one depending on your knowledge, devkit board and requirements:
     For Arduino developers, there are two options.
 
     * [Arduino IDE with an ESP32 devkit][plat_arduino]
-    * [Arduino Core with an ESP32 devkit using ESP-IDF toolchain][plat_arduino] (supports PlatformIO)
+    * [Arduino Core with an ESP32 devkit using ESP-IDF toolchain][plat_arduino]
+      (supports PlatformIO)
 
 === "ESP-IDF"
 
-    * Works with ESP32 microcontrollers: ESP32, ESP32-S3, ESP32-C3, ESP32-C5, ESP32-C6, ESP32-H2
-    * Works both with ESP-IDF v5.X
+    * Works with ESP32 microcontrollers: ESP32, ESP32-S3, ESP32-C3, ESP32-C5,
+      ESP32-C6, ESP32-H2
+    * Works with ESP-IDF v5.5.x+
     * Uses the ESP-IDF SDK
     * Can be used with PlatformIO
     * Detailed info here: [Bluepad32 for ESP32 + ESP-IDF][plat_esp32_espidf]
@@ -42,7 +45,7 @@ Choose the right one depending on your knowledge, devkit board and requirements:
 | Arduino Core                        | [Template project][esp-idf-bluepad32-arduino]                     | [Doc][plat_arduino]       | [Lego Robot][esp32_example] ([video][esp32_video]), [gbaHD Shield][esp32_example2] (a GameBoy consolizer) | :material-check: | Very easy to debug, console, Arduino libraries, ESP-IDF, PlatformIO |
 | Pico W                              | [Pico W example][pico-w-example]                                  | [Doc][plat_picow_picosdk] | [Pico Switch][pico_switch], [PicoNtrol][pico_ntrol]                                                       | :material-check: | Very easy to debug, for advanced developers, Pico SDK               |
 | ESP-IDF                             | [ESP32 example][esp32-example]                                    | [Doc][plat_esp32_espidf]  | [OGX-Wireless-Lite][ogx_wireless_lite]                                                                    | :material-check: | Very easy to debug, for advanced developers, ESP-IDF, PlatformIO    |
-| Posix (Linux, macOS)                | [Posix example][posix-example]                                    | [Doc][plat_custom]        |                                                                                                           | :material-check: | Very easy to debug, useful for quick development                    | 
+| Posix (Linux, macOS)                | [Posix example][posix-example], [Posix ImGui][posix-imgui-example]| [Doc][plat_custom]        |                                                                                                           | :material-check: | Very easy to debug, useful for quick development                    | 
 
 [amazon_esp32_c3_devkit]: https://www.amazon.com/s?k=esp32-c3+devkit
 
@@ -87,6 +90,7 @@ Choose the right one depending on your knowledge, devkit board and requirements:
 [plat_unijoysticle]: ../plat_unijoysticle
 
 [posix-example]: https://github.com/ricardoquesada/bluepad32/tree/main/examples/posix
+[posix-imgui-example]: https://github.com/ricardoquesada/bluepad32/tree/main/examples/posix_imgui
 
 [tello]: https://github.com/jsolderitsch/ESP32Controller
 

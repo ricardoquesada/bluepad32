@@ -66,7 +66,8 @@ The list of **tested** mice is this one:
 [![Logitech M535][logitech_m535_photo]][logitech_m535_link]
 
 * Supports: movement; left, middle & right click
-* Purchase link (It seems that M336/M337/M535 are the same mice, just with different model name):
+* Purchase link (It seems that M336/M337/M535 are the same mice, just with
+  different model name):
     * M535: [Amazon][logitech_m535_link]
     * M337: [Amazon][logitech_m337_link]
     * M336: [NewEgg][logitech_m336_link]
@@ -131,7 +132,7 @@ The list of **tested** mice is this one:
 ## Steelseries Rival 3 Wireless
 
 * Protocol: BLE and BR/EDR 
-* Purchase link: Steelseries_rival_3_link
+* Purchase link: [SteelSeries][Steelseries_rival_3_link]
 
 [Steelseries_rival_3_link]: https://steelseries.com/gaming-mice/rival-3
 
@@ -166,7 +167,8 @@ The list of **tested** mice is this one:
 
 * Supports: movement; left, middle & right click
 * Purchase link: [Amazon][adesso_imouse_m300_link]
-* Bugs: Lag from "resting" mode to "moving" move. Seems to be a mouse-specific problem, not related to Bluepad32.
+* Bugs: Lag from "resting" mode to "moving" move. Seems to be a mouse-specific
+  problem, not related to Bluepad32.
 * Protocol: BR/EDR
 
 [adesso_imouse_m300_photo]: https://lh3.googleusercontent.com/pw/AM-JKLX_jhwfDQIeBdwFqGBt8h9AlP6MpiInG2Yreox0ADkvUmYIFC8x3ftoIVr7_JFk4OolkA7x50WyUyhteh_4sImUiwX18dmiB1hoO7FSJzAgJtC1V9uNlOzKKvask6lzEMIuVzdnfTgUe-OoyhZRyXcfaA=-no

@@ -6,8 +6,8 @@
 <img src="https://github.com/ricardoquesada/bluepad32/blob/develop/docs/images/bluepad32_logo_ok_280.png?raw=true" alt="drawing" width="216"/>
 </p>
 
-A Bluetooth controller "host" for the ESP32, ESP32-S3, ESP32-C3, ESP32-C6, ESP32-H2, Raspberry Pi Pico W, Pico 2 W, and
-Posix (Linux, macOS).
+A Bluetooth controller "host" for the ESP32, ESP32-S3, ESP32-C3, ESP32-C5,
+ESP32-C6, ESP32-H2, Raspberry Pi Pico W, Pico 2 W, and Posix (Linux, macOS).
 
 Add Bluetooth gamepad, mouse and keyboard support to your projects easily.
 
@@ -23,7 +23,7 @@ Choose your target platform:
 | Arduino using ESP-IDF toolchain     | [Template project][esp-idf-bluepad32-arduino]                     | [Doc][plat_arduino]       | [Lego Robot][esp32_example] ([video][esp32_video]), [gbaHD Shield][esp32_example2] (a GameBoy consolizer) |
 | Pico W                              | [Pico W example][pico-w-example]                                  | [Doc][plat_picow_picosdk] | [Pico Switch][pico_switch], [PicoNtrol][pico_ntrol]                                                       |
 | ESP-IDF                             | [ESP32 example][esp32-example]                                    | [Doc][plat_esp32_espidf]  | [OGX-Wireless-Lite][ogx_wireless_lite]                                                                    |
-| Posix (Linux, macOS)                | [Posix example][posix-example]                                    | [Doc][plat_custom]        |                                                                                                           |
+| Posix (Linux, macOS)                | [Posix example][posix-example], [Posix ImGui][posix-imgui-example]| [Doc][plat_custom]        |                                                                                                           |
 | Unijoysticle                        | [Unijoysticle2][unijoysticle2]                                    | [Doc][plat_unijoysticle]  |                                                                                                           |
 
 [esp-idf-bluepad32-arduino]: https://github.com/ricardoquesada/esp-idf-arduino-bluepad32-template
@@ -58,7 +58,8 @@ Choose your target platform:
 
 ## Features
 
-* Supports most, if not all, modern Bluetooth gamepads, mice and keyboards (see below)
+* Supports most, if not all, modern Bluetooth gamepads, mice and keyboards
+  (see below)
 * Supports ESP32 and Pico W families
 * Supported APIs: ESP-IDF, Pico-SDK and Arduino
 * Fast (very low latency)
@@ -91,10 +92,12 @@ Choose your target platform:
 * Keyboards
 * And more
 
-NOTE: Original **ESP32**, **Pico W** and **Pico 2 W** support all listed controllers. **ESP32-S3**, **ESP32-C3**,
-**ESP32-C6** and **ESP32-H2** only support a subset.
+NOTE: Original **ESP32**, **Pico W** and **Pico 2 W** support all listed
+controllers. **ESP32-S3**, **ESP32-C3**, **ESP32-C5**, **ESP32-C6** and
+**ESP32-H2** only support a subset.
 
-See: [Supported gamepads][gamepads], [supported mice][mice] and [supported keyboards][keyboards]
+See: [Supported gamepads][gamepads], [supported mice][mice] and
+[supported keyboards][keyboards]
 
 [gamepads]: https://bluepad32.readthedocs.io/en/latest/supported_gamepads/
 
@@ -112,9 +115,11 @@ Download pre-compiled binaries for Unijoysticle:
 
 See the examples folder which includes examples for:
 
-* [Bluepad32 for ESP32][esp32-example] (ESP32, ESP32-S3, ESP32-C3, ESP32-C6 and ESP32-H2)
+* [Bluepad32 for ESP32][esp32-example] (ESP32, ESP32-S3, ESP32-C3, ESP32-C5,
+  ESP32-C6 and ESP32-H2)
 * [Bluepad32 for Pico W][pico-w-example] (Pico W and Pico 2 W)
 * [Bluepad32 for Posix (Linux, macOS)][posix-example]
+* [Bluepad32 Posix ImGui Diagnostic Suite][posix-imgui-example]
 
 Arduino examples are in:
 
@@ -126,6 +131,7 @@ Arduino examples are in:
 [pico-w-example]: examples/pico_w/
 
 [posix-example]: examples/posix
+[posix-imgui-example]: examples/posix_imgui
 
 [arduino-ide-example]: https://www.youtube.com/watch?v=0jnY-XXiD8Q
 
@@ -134,6 +140,7 @@ Arduino examples are in:
 ## Support
 
 * [Documentation][docs] [![Documentation Status](https://readthedocs.org/projects/bluepad32/badge/?version=latest)](https://bluepad32.readthedocs.io/?badge=latest)
+  * [Linux / macOS (POSIX)](docs/plat_posix.md)
 * [Discord][discord] [![discord](https://img.shields.io/discord/775177861665521725.svg)](https://discord.gg/r5aMn6Cw5q)
 
 [docs]: https://bluepad32.readthedocs.io/
@@ -144,15 +151,18 @@ Arduino examples are in:
 
 Bluepad32 is open source, [licensed under Apache 2][apache2].
 
-However, Bluepad32 depends on the great [BTstack library][btstack-github]. Which is free to use for
-open source projects. But commercial for closed-source projects.
+However, Bluepad32 depends on the great [BTstack library][btstack-github].
+Which is free to use for open source projects. But commercial for closed-source
+projects.
 
 If you are developing a commercial product for:
 
 - ESP32: [You should contact BTstack people][btstack-homepage].
-- Pico W: [You are already covered by Raspberry Pi License][rpi-btstack-license].
+- Pico W:
+  [You are already covered by Raspberry Pi License][rpi-btstack-license].
 
-Notice: I’m not affiliated with BTstack people. They are super friendly and willing to help.
+Notice: I’m not affiliated with BTstack people. They are super friendly and
+willing to help.
 
 [btstack-github]: https://github.com/bluekitchen/btstack
 

@@ -32,3 +32,33 @@ Here is a detailed list of how you can contribute to the project:
 [kofi]: https://ko-fi.com/ricardoquesada
 
 [venmo]: https://account.venmo.com/u/Ricardo-Quesada
+
+## Running the Unit Tests
+
+Bluepad32 uses `ctest` for its host testing suite. Before submitting a pull
+request, run the tests:
+
+```sh
+# Build and run the core tests
+cmake -S tests -B tests/build
+cmake --build tests/build
+ctest --test-dir tests/build --output-on-failure -V
+
+# Build and run the examples/posix_imgui diagnostic suite
+git clone --depth 1 https://github.com/ocornut/imgui.git external/imgui
+cmake -S examples/posix_imgui -B examples/posix_imgui/build
+cmake --build examples/posix_imgui/build
+ctest --test-dir examples/posix_imgui/build --output-on-failure -V
+```
+
+## Code Formatting
+
+Bluepad32 enforces `clang-format` on all C and C++ source code. Please format
+your code before creating a pull request:
+
+```sh
+find src/components/bluepad32 examples tests \
+    \( -name '*.c' -o -name '*.h' -o -name '*.cpp' \) \
+    ! -name 'btstack_config.h' \
+    -exec clang-format -i {} +
+```
