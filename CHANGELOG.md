@@ -104,6 +104,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Switch: Guarded `parse_imu()` and `mult_frac()` against division-by-zero when
   IMU calibration divisors are zero, and validated minimum input report
   lengths.
+- Switch: Fixed Joy-Con rumble. Setup now enables vibration (subcommand
+  `0x48`); Joy-Cons ignore rumble until it is enabled.
 - Wii Balance Board: Fixed swapped default move/fire threshold constants
   (`move=1500`, `fire=5000`), guarded calibration interpolation against
   zero/inverted dividers, and decoupled Balance Board from ESP-IDF console

@@ -78,6 +78,7 @@ enum switch_state {
     STATE_READ_FACTORY_IMU_CALIBRATION,    // Factory IMU calibration info
     STATE_SET_FULL_REPORT,                 // Request report 0x30
     STATE_ENABLE_IMU,                      // Enable/Disable gyro/accel
+    STATE_ENABLE_VIBRATION,                // Enable rumble (Joy-Cons ignore rumble until enabled)
     STATE_DUMP_FLASH,                      // Dump SPI Flash memory
     STATE_UPDATE_LED,                      // Update LEDs
     STATE_READY,                           // Gamepad setup ready!
@@ -119,6 +120,7 @@ enum switch_subcmd {
     SUBCMD_SPI_FLASH_READ = 0x10,
     SUBCMD_SET_PLAYER_LEDS = 0x30,
     SUBCMD_ENABLE_IMU = 0x40,
+    SUBCMD_ENABLE_VIBRATION = 0x48,
 };
 
 // Calibration values for a stick.
@@ -314,6 +316,7 @@ static void fsm_read_user_stick_calibration(struct uni_hid_device_s* d);
 static void fsm_read_factory_imu_calibration(struct uni_hid_device_s* d);
 static void fsm_set_full_report(struct uni_hid_device_s* d);
 static void fsm_enable_imu(struct uni_hid_device_s* d);
+static void fsm_enable_vibration(struct uni_hid_device_s* d);
 static void fsm_update_led(struct uni_hid_device_s* d);
 static void fsm_ready(struct uni_hid_device_s* d);
 static void process_reply_read_spi_dump(struct uni_hid_device_s* d, const uint8_t* data, int len);
@@ -454,6 +457,10 @@ static void process_fsm(struct uni_hid_device_s* d) {
             break;
         case STATE_ENABLE_IMU:
             logd("STATE_ENABLE_IMU\n");
+            fsm_enable_vibration(d);
+            break;
+        case STATE_ENABLE_VIBRATION:
+            logd("STATE_ENABLE_VIBRATION\n");
             fsm_dump_rom(d);
             break;
         case STATE_DUMP_FLASH:
@@ -770,6 +777,9 @@ static void process_input_subcmd_reply(struct uni_hid_device_s* d, const uint8_t
             break;
         case SUBCMD_ENABLE_IMU:
             process_reply_enable_imu(d, r, len);
+            break;
+        case SUBCMD_ENABLE_VIBRATION:
+            // Nothing to parse: the ack bit is already checked above.
             break;
         default:
             loge("Switch: Error, unexpected subcmd_id=0x%02x in report 0x21\n", r->subcmd_id);
@@ -1207,6 +1217,18 @@ static void fsm_enable_imu(struct uni_hid_device_s* d) {
     req->report_id = 0x01;  // 0x01 for sub commands
     req->subcmd_id = SUBCMD_ENABLE_IMU;
     req->data[0] = (ins->mode == SWITCH_MODE_IMU);
+    send_subcmd(d, req, sizeof(out));
+}
+
+static void fsm_enable_vibration(struct uni_hid_device_s* d) {
+    switch_instance_t* ins = get_switch_instance(d);
+    ins->state = STATE_ENABLE_VIBRATION;
+
+    uint8_t out[sizeof(struct switch_subcmd_request) + 1] = {0};
+    struct switch_subcmd_request* req = (struct switch_subcmd_request*)&out[0];
+    req->report_id = 0x01;  // 0x01 for sub commands
+    req->subcmd_id = SUBCMD_ENABLE_VIBRATION;
+    req->data[0] = 0x01;  // enable
     send_subcmd(d, req, sizeof(out));
 }
 
