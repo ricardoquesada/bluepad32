@@ -60,7 +60,6 @@ jobs:
       fail-fast: false
       matrix:
         idf_image:
-          - espressif/idf:release-v5.4
           - espressif/idf:release-v5.5
           - espressif/idf:latest
     container:
