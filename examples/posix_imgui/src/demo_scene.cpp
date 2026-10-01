@@ -1273,8 +1273,9 @@ void DemoScene::RenderPanel_InfoTab(int slot, const ControllerSnapshot& snap) {
             ImGui::TextColored(kTextColorGrey, "Not available (raw=%u)", battery);
         } else {
             const float frac = std::clamp(static_cast<float>(battery) / 254.0f, 0.0f, 1.0f);
+            const unsigned int pct = static_cast<unsigned int>(std::round(frac * 100.0f));
             char overlay[64];
-            std::snprintf(overlay, sizeof(overlay), "%.0f%% (%u / 254)", static_cast<double>(frac * 100.0f), battery);
+            std::snprintf(overlay, sizeof(overlay), "%u%% (%u / 254)", pct, static_cast<unsigned int>(battery));
             ImGui::SetNextItemWidth(220.0f * s);
             ImGui::ProgressBar(frac, ImVec2(220.0f * s, 0.0f), overlay);
         }
@@ -1829,11 +1830,17 @@ void DemoScene::RenderPanel_LightsTab(int slot, const ControllerSnapshot& snap) 
         ImGui::AlignTextToFramePadding();
         ImGui::Text("Raw 4-Bit LED Mask:");
         ImGui::SameLine();
+        static constexpr std::array<const char*, 4> kLedBitLabels = {
+            "LED 1 (Bit 0)",
+            "LED 2 (Bit 1)",
+            "LED 3 (Bit 2)",
+            "LED 4 (Bit 3)",
+        };
+        static_assert(kLedBitLabels.size() == std::tuple_size_v<decltype(slot_state.player_led_bits)>);
+
         uint8_t rawMask = 0;
         for (size_t b = 0; b < slot_state.player_led_bits.size(); ++b) {
-            char cbLabel[32];
-            std::snprintf(cbLabel, sizeof(cbLabel), "LED %zu (Bit %zu)", b + 1, b);
-            ImGui::Checkbox(cbLabel, &slot_state.player_led_bits[b]);
+            ImGui::Checkbox(kLedBitLabels[b], &slot_state.player_led_bits[b]);
             if (slot_state.player_led_bits[b]) {
                 rawMask |= static_cast<uint8_t>(1u << b);
             }
@@ -1846,10 +1853,14 @@ void DemoScene::RenderPanel_LightsTab(int slot, const ControllerSnapshot& snap) 
         ImGui::AlignTextToFramePadding();
         ImGui::TextColored(kTextColorGrey, "Quick Presets:");
         ImGui::SameLine();
+        static constexpr std::array<const char*, 4> kSeatPresetLabels = {
+            "Seat #1",
+            "Seat #2",
+            "Seat #3",
+            "Seat #4",
+        };
         for (int p = 1; p <= 4; ++p) {
-            char btnLabel[24];
-            std::snprintf(btnLabel, sizeof(btnLabel), "Seat #%d", p);
-            if (ImGui::Button(btnLabel)) {
+            if (ImGui::Button(kSeatPresetLabels[static_cast<size_t>(p - 1)])) {
                 slot_state.player_led_index = p;
                 const uint8_t mask = static_cast<uint8_t>(1u << (p - 1));
                 for (size_t b = 0; b < slot_state.player_led_bits.size(); ++b) {
