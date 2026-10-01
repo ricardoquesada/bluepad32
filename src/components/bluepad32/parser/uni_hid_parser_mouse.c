@@ -127,7 +127,7 @@ void uni_hid_parser_mouse_setup(uni_hid_device_t* d) {
     logi("mouse: vid=0x%04x, pid=0x%04x, name='%s' uses scale:", d->vendor_id, d->product_id, d->name);
     // ets_printf() doesn't support "%f"
     sprintf(buf, "%f\n", ins->scale);
-    logi(buf);
+    logi("%s", buf);
 
     uni_hid_device_set_ready_complete(d);
 }
@@ -283,5 +283,5 @@ void uni_hid_parser_mouse_device_dump(struct uni_hid_device_s* d) {
     mouse_instance_t* ins = get_mouse_instance(d);
     // ets_printf() doesn't support "%f"
     sprintf(buf, "\tmouse: scale=%f\n", ins->scale);
-    logi(buf);
+    logi("%s", buf);
 }

@@ -9,6 +9,7 @@
 #include "platform/uni_platform_unijoysticle_c64.h"
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <sys/cdefs.h>
 
 #include <argtable3/argtable3.h>
@@ -75,11 +76,16 @@ static const struct uni_platform_unijoysticle_gpio_config gpio_config_univ2c64 =
 
 // Keep them in the order of the defines
 static const char* c64_pot_modes[] = {
-    "invalid",   // UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_INVALID,
+    "invalid",   // UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_INVALID
     "3buttons",  // UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_3BUTTONS
     "5buttons",  // UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_5BUTTONS
     "rumble",    // UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_RUMBLE
+    "paddle",    // UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_PADDLE
 };
+_Static_assert(ARRAY_SIZE(c64_pot_modes) == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_COUNT,
+               "c64_pot_modes size mismatch");
+_Static_assert(UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_COUNT <= 0xff,
+               "uni_platform_unijoysticle_c64_pot_mode_t must fit in uint8_t");
 
 // Globals to the file (RAM)
 static EventGroupHandle_t _sync_irq_group;
@@ -91,7 +97,7 @@ static struct {
     struct arg_end* end;
 } c64_pot_mode_args;
 
-static btstack_context_callback_registration_t syncirq_callback_registration;
+static btstack_context_callback_registration_t syncirq_callback_registration[UNI_PLATFORM_UNIJOYSTICLE_SYNC_IRQ_MAX];
 
 //
 // Helpers
@@ -113,7 +119,7 @@ static int get_c64_pot_mode_from_nvs(void) {
 }
 
 static void enable_rumble_callback(void* context) {
-    int seat = (int)context;
+    int seat = (int)(uintptr_t)context;
     uni_hid_device_t* d;
 
     for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
@@ -131,6 +137,7 @@ static void enable_rumble_callback(void* context) {
 }
 
 _Noreturn static void sync_irq_event_task(void* arg) {
+    ARG_UNUSED(arg);
     // timeout of 100s
     const TickType_t xTicksToWait = pdMS_TO_TICKS(100000);
     while (1) {
@@ -145,22 +152,22 @@ _Noreturn static void sync_irq_event_task(void* arg) {
         // They should be considered "hi" events.
         if (bits & BIT(EVENT_SYNC_IRQ_0)) {
             // gpio_set_level(g_gpio_config->leds[LED_J1], 1);
-            syncirq_callback_registration.callback = &enable_rumble_callback;
-            syncirq_callback_registration.context = (void*)(GAMEPAD_SEAT_A);
-            btstack_run_loop_execute_on_main_thread(&syncirq_callback_registration);
+            syncirq_callback_registration[0].callback = &enable_rumble_callback;
+            syncirq_callback_registration[0].context = (void*)(uintptr_t)(GAMEPAD_SEAT_A);
+            btstack_run_loop_execute_on_main_thread(&syncirq_callback_registration[0]);
         }
 
         if (bits & BIT(EVENT_SYNC_IRQ_1)) {
             // gpio_set_level(g_gpio_config->leds[LED_J2], 1);
-            syncirq_callback_registration.callback = &enable_rumble_callback;
-            syncirq_callback_registration.context = (void*)(GAMEPAD_SEAT_B);
-            btstack_run_loop_execute_on_main_thread(&syncirq_callback_registration);
+            syncirq_callback_registration[1].callback = &enable_rumble_callback;
+            syncirq_callback_registration[1].context = (void*)(uintptr_t)(GAMEPAD_SEAT_B);
+            btstack_run_loop_execute_on_main_thread(&syncirq_callback_registration[1]);
         }
     }
 }
 
 static IRAM_ATTR void gpio_isr_handler_sync(void* arg) {
-    int sync_idx = (int)arg;
+    int sync_idx = (int)(uintptr_t)arg;
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
     xEventGroupSetBitsFromISR(_sync_irq_group, BIT(sync_idx), &xHigherPriorityTaskWoken);
@@ -168,15 +175,12 @@ static IRAM_ATTR void gpio_isr_handler_sync(void* arg) {
         portYIELD_FROM_ISR();
 }
 
-inline void delay_us(uint32_t delay) {
-#if ESP_IDF_VERSION_MAJOR == 4
-    ets_delay_us(delay);
-#else
+static inline void delay_us(uint32_t delay) {
     esp_rom_delay_us(delay);
-#endif
 }
 
 static IRAM_ATTR void gpio_isr_handler_paddle(void* arg) {
+    ARG_UNUSED(arg);
     // From:
     // https://github.com/LeifBloomquist/JoystickEmulator/blob/master/Arduino/PaddleEmulator/PaddleEmulator.ino
     gpio_set_level(GPIO_NUM_16, 1);
@@ -204,7 +208,7 @@ static IRAM_ATTR void gpio_isr_handler_paddle(void* arg) {
 static void print_c64_pot_mode(void) {
     int mode = get_c64_pot_mode_from_nvs();
 
-    if (mode >= UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_COUNT) {
+    if (mode < 0 || mode >= UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_COUNT) {
         logi("Invalid C64 Pot mode: %d\n", mode);
         return;
     }
@@ -251,7 +255,7 @@ static void set_pot_mode_from_cpu(void* m) {
     // The handler will be attached to the same CPU core that this function is running on."
 
     // Change C64 Pot mode
-    uni_platform_unijoysticle_c64_pot_mode_t mode = (uni_platform_unijoysticle_c64_pot_mode_t)m;
+    uni_platform_unijoysticle_c64_pot_mode_t mode = (uni_platform_unijoysticle_c64_pot_mode_t)(uintptr_t)m;
 
     if (_pot_mode == mode) {
         goto exit;
@@ -267,7 +271,6 @@ static void set_pot_mode_from_cpu(void* m) {
         if (_sync_task == NULL) {
             // Nothing to do. "rumble" was not initialized.
             goto exit;
-            return;
         }
         for (int i = 0; i < UNI_PLATFORM_UNIJOYSTICLE_SYNC_IRQ_MAX; i++) {
             int sync_irq = gpio_config_univ2c64.sync_irq[i];
@@ -291,10 +294,13 @@ static void set_pot_mode_from_cpu(void* m) {
         if (_sync_task != NULL) {
             // Nothing to do. "rumble" / "paddle" already enabled.
             goto exit;
-            return;
         }
 
-        _sync_irq_group = xEventGroupCreate();
+        if (_sync_irq_group == NULL) {
+            _sync_irq_group = xEventGroupCreate();
+        } else {
+            xEventGroupClearBits(_sync_irq_group, BIT(EVENT_SYNC_IRQ_0) | BIT(EVENT_SYNC_IRQ_1));
+        }
         xTaskCreatePinnedToCore(sync_irq_event_task, "bp.uni.sync_irq", 2048, NULL, TASK_SYNC_IRQ_PRIO, &_sync_task,
                                 POT_TASK_CPU);
 
@@ -313,7 +319,7 @@ static void set_pot_mode_from_cpu(void* m) {
             io_conf.pin_bit_mask = BIT64(gpio);
             ESP_ERROR_CHECK(gpio_config(&io_conf));
             // "i" must match EVENT_SYNC_IRQ_0, etc.
-            ESP_ERROR_CHECK(gpio_isr_handler_add(gpio, gpio_isr_handler_sync, (void*)i));
+            ESP_ERROR_CHECK(gpio_isr_handler_add(gpio, gpio_isr_handler_sync, (void*)(uintptr_t)i));
         }
     } else if (mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_PADDLE) {
         // Sync IRQs
@@ -331,7 +337,7 @@ static void set_pot_mode_from_cpu(void* m) {
             io_conf.pin_bit_mask = BIT64(gpio);
             ESP_ERROR_CHECK(gpio_config(&io_conf));
             // "i" must match EVENT_SYNC_IRQ_0, etc.
-            ESP_ERROR_CHECK(gpio_isr_handler_add(gpio, gpio_isr_handler_paddle, (void*)i));
+            ESP_ERROR_CHECK(gpio_isr_handler_add(gpio, gpio_isr_handler_paddle, (void*)(uintptr_t)i));
         }
     } else {
         loge("unijoysticle: unsupported gamepad mode: %d\n", mode);
@@ -343,12 +349,17 @@ exit:
 }
 
 void uni_platform_unijoysticle_c64_set_pot_mode(uni_platform_unijoysticle_c64_pot_mode_t mode) {
-    xTaskCreatePinnedToCore(set_pot_mode_from_cpu, "bp.uni.init_pot", 4096, (void*)mode, TASK_SYNC_IRQ_PRIO, NULL,
-                            POT_TASK_CPU);
+    xTaskCreatePinnedToCore(set_pot_mode_from_cpu, "bp.uni.init_pot", 4096, (void*)(uintptr_t)mode, TASK_SYNC_IRQ_PRIO,
+                            NULL, POT_TASK_CPU);
 }
 
 void uni_platform_unijoysticle_c64_version(void) {
-    logi("\tPot mode: %s\n", c64_pot_modes[get_c64_pot_mode_from_nvs()]);
+    int mode = get_c64_pot_mode_from_nvs();
+    if (mode < 0 || mode >= UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_COUNT) {
+        logi("\tPot mode: invalid (%d)\n", mode);
+        return;
+    }
+    logi("\tPot mode: %s\n", c64_pot_modes[mode]);
 }
 
 static void process_5button(uni_hid_device_t* d, uni_gamepad_seat_t seat, uint8_t misc_buttons) {
@@ -478,7 +489,7 @@ static bool process_gamepad_misc_buttons_c64(uni_hid_device_t* d, uni_gamepad_se
 }
 
 const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_c64_create_variant(void) {
-    const static struct uni_platform_unijoysticle_variant variant = {
+    static const struct uni_platform_unijoysticle_variant variant = {
         .name = "2 C64",
         .gpio_config = &gpio_config_univ2c64,
         .flags = 0, /* Quadrant mouse not supported*/

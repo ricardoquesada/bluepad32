@@ -10,6 +10,7 @@
 
 #include <math.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <string.h>
 #include <sys/cdefs.h>
 
@@ -43,7 +44,7 @@
 #define QUADRATURE_PHASES 4
 
 // Helper to pack port and encoder indexes into a single argument for a task.
-#define PACK_TIMER_ARG(port, encoder) ((void*)(((port) << 16) | (encoder)))
+#define PACK_TIMER_ARG(port, encoder) ((void*)(uintptr_t)(((uint32_t)(port) << 16) | (uint32_t)(encoder)))
 
 enum direction {
     PHASE_DIRECTION_NEG,
@@ -107,7 +108,7 @@ static void process_quadrature(struct quadrature_state* q) {
 
 // This function is the entry point for each of the timer tasks.
 static void timer_task(void* arg) {
-    uint32_t task_arg = (uint32_t)arg;
+    uint32_t task_arg = (uint32_t)(uintptr_t)arg;
     uint16_t port_idx = (task_arg >> 16);
     uint16_t encoder_idx = (task_arg & 0xffff);
 
@@ -120,7 +121,7 @@ static void timer_task(void* arg) {
 static bool IRAM_ATTR timer_handler(gptimer_handle_t timer, const gptimer_alarm_event_data_t* edata, void* user_ctx) {
     ARG_UNUSED(timer);
     ARG_UNUSED(edata);
-    uint32_t task_arg = (uint32_t)user_ctx;
+    uint32_t task_arg = (uint32_t)(uintptr_t)user_ctx;
     uint16_t port_idx = (task_arg >> 16);
     uint16_t encoder_idx = (task_arg & 0xffff);
 
@@ -216,7 +217,8 @@ static void process_update(struct quadrature_state* q, int32_t delta) {
         // smaller numbers make it slower, high number faster
         float max_ticks = 128 * TICKS_PER_80US;
         float delta_f = abs_delta;
-        float units_f = max_ticks / (delta_f * s_scale_factor);
+        float scale = (s_scale_factor > 0.0f) ? s_scale_factor : 1.0f;
+        float units_f = max_ticks / (delta_f * scale);
         if (units_f < TICKS_PER_80US)
             units_f = TICKS_PER_80US;
         count_value = roundf(units_f);
@@ -343,6 +345,10 @@ void uni_mouse_quadrature_update(int port_idx, int32_t dx, int32_t dy) {
 }
 
 void uni_mouse_quadrature_set_scale_factor(float scale) {
+    if (scale <= 0.0f) {
+        loge("%s: Invalid scale factor=%f, must be > 0\n", __func__, scale);
+        return;
+    }
     uni_property_value_t value;
     value.f32 = scale;
 
@@ -354,6 +360,6 @@ float uni_mouse_quadrature_get_scale_factor(void) {
     uni_property_value_t value;
 
     value = uni_property_get(UNI_PROPERTY_IDX_MOUSE_SCALE);
-    s_scale_factor = value.f32;
-    return value.f32;
+    s_scale_factor = (value.f32 > 0.0f) ? value.f32 : 1.0f;
+    return s_scale_factor;
 }

@@ -34,7 +34,7 @@ static const struct uni_platform_unijoysticle_gpio_config gpio_config_singleport
 //
 
 const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_singleport_create_variant(void) {
-    const static struct uni_platform_unijoysticle_variant variant = {
+    static const struct uni_platform_unijoysticle_variant variant = {
         .name = "2 singleport",
         .gpio_config = &gpio_config_singleport,
         .flags = UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRATURE_MOUSE,

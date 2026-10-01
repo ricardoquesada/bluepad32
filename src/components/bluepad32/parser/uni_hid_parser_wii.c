@@ -474,6 +474,7 @@ static void process_req_data(uni_hid_device_t* d, const uint8_t* report, uint16_
 static void process_req_return(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
     if (len < 5) {
         loge("Invalid len report for process_req_return: got %d, want >= 5\n", len);
+        return;
     }
     if (report[3] == WIIPROTO_REQ_WMEM) {
         wii_instance_t* ins = get_wii_instance(d);
@@ -788,6 +789,11 @@ static balance_board_t process_balance_board(uni_hid_device_t* d, const uint8_t*
 // Defined here:
 // http://wiibrew.org/wiki/Wiimote#0x34:_Core_Buttons_with_19_Extension_bytes
 static void process_drm_kee(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
+    if (len < 14) {
+        loge("wii remote drm_kee: invalid report len %d\n", len);
+        return;
+    }
+
     wii_instance_t* ins = get_wii_instance(d);
 
     if (ins->ext_type != WII_EXT_BALANCE_BOARD && ins->ext_type != WII_EXT_U_PRO_CONTROLLER) {
@@ -863,10 +869,6 @@ static void process_drm_kee(uni_hid_device_t* d, const uint8_t* report, uint16_t
      *   USB: 1 if not connected, 0 if connected
      *   BATTERY: battery capacity from 000 (empty) to 100 (full)
      */
-    if (len < 14) {
-        loge("wii remote drm_kee: invalid report len %d\n", len);
-        return;
-    }
     uni_controller_t* ctl = &d->controller;
     const uint8_t* data = &report[3];
 
@@ -947,7 +949,7 @@ static void process_drm_e(uni_hid_device_t* d, const uint8_t* report, uint16_t l
     // Axis
     int lx = data[0] & 0b00111111;
     int ly = data[1] & 0b00111111;
-    int rx = (data[0] & 0b11000000) >> 3 | (data[1] & 0b11000000) >> 5 | (data[0] & 0b10000000) >> 7;
+    int rx = (data[0] & 0b11000000) >> 3 | (data[1] & 0b11000000) >> 5 | (data[2] & 0b10000000) >> 7;
     int ry = data[2] & 0b00011111;
     // Left axis has 6 bit of resolution. While right axis has only 5 bits.
     lx -= 32;

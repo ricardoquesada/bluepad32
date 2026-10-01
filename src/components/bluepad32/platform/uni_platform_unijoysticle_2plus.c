@@ -31,7 +31,7 @@ static const struct uni_platform_unijoysticle_gpio_config gpio_config_plus = {
 //
 
 const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_2plus_create_variant(void) {
-    const static struct uni_platform_unijoysticle_variant variant = {
+    static const struct uni_platform_unijoysticle_variant variant = {
         .name = "2+",
         .gpio_config = &gpio_config_plus,
         .flags = UNI_PLATFORM_UNIJOYSTICLE_VARIANT_FLAG_QUADRATURE_MOUSE,

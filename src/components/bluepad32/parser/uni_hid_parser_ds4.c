@@ -500,6 +500,9 @@ static void ds4_parse_input_report_11(uni_hid_device_t* d, const ds4_input_repor
 }
 
 void uni_hid_parser_ds4_parse_input_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
+    if (!report || len < 1)
+        return;
+
     if (report[0] == 0x11 && len == 78) {
         const ds4_input_report_11_t* r = (ds4_input_report_11_t*)&report[3];
         ds4_parse_input_report_11(d, r);

@@ -562,6 +562,9 @@ void uni_hid_parser_ds5_parse_feature_report(uni_hid_device_t* d, const uint8_t*
 }
 
 void uni_hid_parser_ds5_parse_input_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
+    if (!report || len < 1)
+        return;
+
     ds5_instance_t* ins = get_ds5_instance(d);
 
     // Don't process reports until state is ready. Prevents possible div-by-0 on calibration

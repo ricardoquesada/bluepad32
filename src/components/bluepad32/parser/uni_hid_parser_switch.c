@@ -554,14 +554,18 @@ static void process_reply_read_spi_user_stick_calibration(struct uni_hid_device_
     bool process_left = false;
     bool process_right = false;
     uint8_t data_pointer = 2;
+    if (len < 2) {
+        loge("Switch: invalid spi user stick calibration len; got %d, wanted >= 2\n", len);
+        return;
+    }
     logi("Switch: Got magic bits 0x%02x 0x%02x\n", data[0], data[1]);
     if (ins->controller_type == SWITCH_CONTROLLER_TYPE_PRO) {
         // If data is longer than expected, we treat it as Ok.
         // Clones might report longer length.
         // See: https://github.com/ricardoquesada/bluepad32/issues/94
-        if (len < SWITCH_FACTORY_STICK_CAL_DATA_SIZE * 2) {
-            loge("Switch: invalid spi factory stick calibration len; got %d, wanted >= %d\n", len,
-                 SWITCH_FACTORY_STICK_CAL_DATA_SIZE * 2);
+        if (len < SWITCH_USER_STICK_CAL_DATA_SIZE * 2) {
+            loge("Switch: invalid spi user stick calibration len; got %d, wanted >= %d\n", len,
+                 SWITCH_USER_STICK_CAL_DATA_SIZE * 2);
             printf_hexdump(data, len);
             return;
         }
@@ -573,12 +577,12 @@ static void process_reply_read_spi_user_stick_calibration(struct uni_hid_device_
             process_right = true;
         }
     } else {
-        if (len < SWITCH_FACTORY_STICK_CAL_DATA_SIZE) {
+        if (len < SWITCH_USER_STICK_CAL_DATA_SIZE) {
             // If data is longer than expected, we treat it as Ok.
             // Clones might report longer length.
             // See: https://github.com/ricardoquesada/bluepad32/issues/94
-            loge("Switch: invalid spi factory stick calibration len; got %d, wanted >= %d\n", len,
-                 SWITCH_FACTORY_STICK_CAL_DATA_SIZE);
+            loge("Switch: invalid spi user stick calibration len; got %d, wanted >= %d\n", len,
+                 SWITCH_USER_STICK_CAL_DATA_SIZE);
             printf_hexdump(data, len);
             return;
         }
@@ -651,7 +655,10 @@ static void process_reply_read_spi_factory_imu_calibration(struct uni_hid_device
 
 // Reply to SUBCMD_REQ_DEV_INFO
 static void process_reply_req_dev_info(struct uni_hid_device_s* d, const struct switch_report_21_s* r, int len) {
-    ARG_UNUSED(len);
+    if (len < (int)(sizeof(*r) + 3)) {
+        loge("Switch: Invalid SUBCMD_REQ_DEV_INFO length, expected >= %zu, got: %d\n", sizeof(*r) + 3, len);
+        return;
+    }
     switch_instance_t* ins = get_switch_instance(d);
     if (ins->state > STATE_SETUP && ins->mode == SWITCH_MODE_NONE) {
         bool enable_imu;
@@ -685,11 +692,15 @@ static void process_reply_set_report_mode(struct uni_hid_device_s* d, const stru
 // Reply to SUBCMD_SPI_FLASH_READ
 static void process_reply_spi_flash_read(struct uni_hid_device_s* d, const struct switch_report_21_s* r, int len) {
     // +5 because it includes the address and size of the payload
-    if (len < sizeof(*r) + 5) {
-        loge("Switch: Invalid SPI flash read length, expected >= %d, got: %d\n", sizeof(*r) + 5, len);
+    if (len < (int)(sizeof(*r) + 5)) {
+        loge("Switch: Invalid SPI flash read length, expected >= %zu, got: %d\n", sizeof(*r) + 5, len);
         return;
     }
     int mem_len = r->data[4];
+    if (mem_len < 0 || sizeof(*r) + 5 + (size_t)mem_len > (size_t)len) {
+        loge("Switch: SPI flash read mem_len=%d exceeds packet len=%d\n", mem_len, len);
+        return;
+    }
     uint32_t addr = r->data[0] | r->data[1] << 8 | r->data[2] << 16 | r->data[3] << 24;
 
     logd("Switch: Reading from %#x, mem len=%d, struct size=%d, report size=%d\n", addr, mem_len, sizeof(*r), len);
@@ -735,6 +746,11 @@ static void process_input_subcmd_reply(struct uni_hid_device_s* d, const uint8_t
     // 21 D9 80 08 10 00 18 A8 78 F2 C7 70 0C 80 30 00 00 00 00 00 00 00 00 00
     // 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
     // 00
+    if (len < (int)sizeof(struct switch_report_21_s)) {
+        loge("Switch: Invalid subcommand reply length, expected >= %zu, got: %d\n", sizeof(struct switch_report_21_s),
+             len);
+        return;
+    }
     const struct switch_report_21_s* r = (const struct switch_report_21_s*)report;
     if ((r->ack & 0b10000000) == 0) {
         loge("Switch: Error, subcommand id=0x%02x was not successful.\n", r->subcmd_id);
@@ -1345,9 +1361,13 @@ static void send_subcmd(uni_hid_device_t* d, struct switch_subcmd_request* r, in
 static int32_t calibrate_axis(int32_t v, switch_cal_stick_t cal) {
     int32_t ret;
     if (v > cal.center) {
+        if (cal.max <= cal.center)
+            return 0;
         ret = (v - cal.center) * AXIS_NORMALIZE_RANGE / 2;
         ret /= (cal.max - cal.center);
     } else {
+        if (cal.center <= cal.min)
+            return 0;
         ret = (cal.center - v) * -AXIS_NORMALIZE_RANGE / 2;
         ret /= (cal.center - cal.min);
     }
@@ -1389,7 +1409,7 @@ static uni_rumble_result_t switch_rumble_start(struct uni_hid_device_s* d,
     return UNI_RUMBLE_OK;
 }
 
-void switch_setup_timeout_callback(btstack_timer_source_t* ts) {
+static void switch_setup_timeout_callback(btstack_timer_source_t* ts) {
     uni_hid_device_t* d = btstack_run_loop_get_timer_context(ts);
     switch_instance_t* ins = get_switch_instance(d);
     logi("Switch: setup timer timeout, failed state: 0x%02x\n", ins->state);

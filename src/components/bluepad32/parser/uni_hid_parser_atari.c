@@ -25,7 +25,7 @@ static void atari_parse_report_id_01(struct uni_hid_device_s* d, const uint8_t* 
     // Report example:
     // 01 00 00 FF 03
     if (len != sizeof(atari_input_report_01_t)) {
-        logi("Atari: Unexpected report len = %d\n", len);
+        logi("Atari: Unexpected report len = %u\n", len);
         return;
     }
 
@@ -108,6 +108,6 @@ void uni_hid_parser_atari_parse_input_report(struct uni_hid_device_s* d, const u
             break;
 
         default:
-            logi("Atari: Unknown report id = %x#\n", report[0]);
+            logi("Atari: Unknown report id = %#x\n", report[0]);
     }
 }

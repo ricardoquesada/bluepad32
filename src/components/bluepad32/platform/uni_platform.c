@@ -6,7 +6,6 @@
 
 #include "sdkconfig.h"
 
-#include "platform/uni_platform_custom.h"
 #include "uni_log.h"
 
 #ifdef CONFIG_BLUEPAD32_PLATFORM_UNIJOYSTICLE
