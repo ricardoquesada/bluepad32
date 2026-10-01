@@ -2,11 +2,11 @@
 # Build Configuration for Bluepad32 POSIX Dear ImGui Controller Tester
 # ==============================================================================
 #
-# This CMakeLists.txt configures a hybrid C11 / C++17 build producing:
+# This CMakeLists.txt configures a hybrid C11 / C++23 build producing:
 #   1. `btstack` (C11 static library via btstack_import.cmake using POSIX + libusb-1.0)
 #   2. `bluepad32` (C11 static library from src/components/bluepad32 with custom platform)
 #   3. `glfw` (System libglfw3 if installed, or GLFW 3.4 static library via FetchContent)
-#   4. `imgui` (C++17 static library from external/imgui + GLFW/OpenGL3 backends)
+#   4. `imgui` (C++23 static library from external/imgui + GLFW/OpenGL3 backends)
 #   5. `bluepad32_posix_imgui_example_app` (Main desktop GUI controller tester)
 #   6. `test_posix_imgui` (Headless CTest unit test suite)
 #
@@ -22,9 +22,14 @@
 cmake_minimum_required(VERSION 3.14)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+# Why: `btstack` and `bluepad32` are C11 libraries, whereas Dear ImGui, the desktop
+# application, and the unit test suite use ISO C++23 (`std::span`, `std::variant`,
+# `std::numbers`, NSDMI) with GNU extensions disabled for strict portability.
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 project(bluepad32_posix_imgui_example_app C CXX ASM)
 
@@ -98,15 +103,21 @@ target_include_directories(imgui PUBLIC
     ${IMGUI_ROOT}/backends
     ${GLFW_INC_DIRS}
 )
+# Expose Dear ImGui's internal ImVec2/ImVec4 arithmetic operators (+, -, *) to all
+# downstream C++23 targets without per-translation-unit #define ordering hazards.
+target_compile_definitions(imgui PUBLIC IMGUI_DEFINE_MATH_OPERATORS)
 target_link_libraries(imgui PUBLIC
     ${GLFW_LINK_TARGET}
     OpenGL::GL
 )
 
-# Headless automated unit test target (Layer 2 verification via CTest)
+# Headless automated unit test target (Layer 2 verification via CTest).
+# Includes `src/demo_scene.cpp` so Suite G can exercise `DemoScene::DoFrame()` and
+# `ControllerSlotUiState` lifecycle headlessly without an active GLFW/OpenGL window.
 enable_testing()
 add_executable(test_posix_imgui
     src/test_posix_imgui.cpp
+    src/demo_scene.cpp
     src/posix_imgui_platform.cpp
 )
 target_include_directories(test_posix_imgui PRIVATE

@@ -24,16 +24,17 @@
  *      `uni_platform_set_custom()` + `uni_init()`.
  *   3. GLFW + OpenGL3 + Dear ImGui Initialization (Thread 1 / Main Thread):
  *      Creates the desktop window, OpenGL 3.0+ context, and Dear ImGui context (with
+ *      `io.IniFilename = nullptr` to prevent `imgui.ini` working-directory pollution and
  *      `ImGuiConfigFlags_NavEnableGamepad` deliberately omitted so gamepad buttons never
- *      steal ImGui widget focus), and uploads all 44 controller PNG sprites via
- *      `DemoScene::OnCreate()`.
+ *      steal ImGui widget focus), managed by an RAII `ScopedGuiContext` guard.
  *   4. Background BTstack Worker Thread (Thread 2):
  *      Spawns `bt_thread` running `btstack_run_loop_execute()`.
  *   5. Clean Asynchronous Teardown:
  *      On window close or `Ctrl-C` (`SIGINT`), signals the BTstack thread via
  *      `posix_imgui_request_shutdown()`, powers down HCI (`HCI_POWER_OFF`) or triggers
- *      immediate run-loop exit if no dongle was initialized, joins `bt_thread`, unloads
- *      OpenGL textures, and destroys the Dear ImGui and GLFW contexts cleanly.
+ *      immediate run-loop exit if no dongle was initialized, waits on a condition variable
+ *      for bounded exit, joins `bt_thread`, and destroys the Dear ImGui and GLFW contexts
+ *      deterministically via `ScopedGuiContext`.
  */
 
 #define BTSTACK_FILE__ "main.cpp"
@@ -46,10 +47,12 @@
 
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <mutex>
 #include <thread>
 
 extern "C" {
@@ -110,14 +113,53 @@ btstack_packet_callback_registration_t hci_event_callback_registration = {};
 std::atomic<bool> shutdown_triggered{false};
 std::atomic<bool> g_should_quit{false};
 std::atomic<bool> g_glfw_initialized{false};
-std::atomic<bool> g_bt_thread_exited{false};
 
+std::mutex g_bt_exit_mutex;
+std::condition_variable g_bt_exit_cv;
+bool g_bt_thread_exited = false;
+
+/**
+ * @brief RAII guard for the GLFW window, OpenGL context, and Dear ImGui context.
+ *
+ * Declared on the stack BEFORE `DemoScene` and `bt_thread` so that C++ reverse
+ * destruction order guarantees `bt_thread` is joined before `g_glfw_initialized`
+ * is cleared and the ImGui/GLFW contexts are destroyed.
+ */
+struct ScopedGuiContext {
+    GLFWwindow* window = nullptr;
+    bool imgui_initialized = false;
+
+    ScopedGuiContext() = default;
+    ScopedGuiContext(const ScopedGuiContext&) = delete;
+    ScopedGuiContext& operator=(const ScopedGuiContext&) = delete;
+
+    ~ScopedGuiContext() {
+        // Why reverse teardown order matters:
+        //   1. ImGui OpenGL3 and GLFW backends must shut down while the GLFW window and
+        //      OpenGL context are still current.
+        //   2. `g_glfw_initialized` must be cleared before `glfwTerminate()` so an
+        //      asynchronous `SIGINT` arriving during teardown never calls `glfwPostEmptyEvent()`.
+        if (imgui_initialized) {
+            ImGui_ImplOpenGL3_Shutdown();
+            ImGui_ImplGlfw_Shutdown();
+            ImGui::DestroyContext();
+        }
+        g_glfw_initialized.store(false);
+        if (window != nullptr) {
+            glfwDestroyWindow(window);
+        }
+        glfwTerminate();
+    }
+};
+
+/// Initializes and registers the POSIX file-backed Tag-Length-Value (TLV) bonding database.
 void create_instance_tlv() {
     tlv_impl = btstack_tlv_posix_init_instance(&tlv_context, tlv_db_path);
     btstack_tlv_set_instance(tlv_impl, &tlv_context);
     tlv_context_ptr = &tlv_context;
 }
 
+/// Retrieves the active BTstack TLV instance, creating it lazily if not yet initialized.
 void get_or_create_instance_tlv() {
     void* raw_ctx = nullptr;
     btstack_tlv_get_instance(&tlv_impl, &raw_ctx);
@@ -127,6 +169,7 @@ void get_or_create_instance_tlv() {
     }
 }
 
+/// Logs local Bluetooth controller HCI/LMP version details and configures Zephyr chipset support if detected.
 void local_version_information_handler(uint8_t* packet) {
     std::printf("Local version information:\n");
     uint16_t hci_version = packet[6];
@@ -270,6 +313,7 @@ void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint
     }
 }
 
+/// Handles `SIGINT` (`Ctrl-C`) via BTstack's signal pipe callback, waking both BTstack and GLFW.
 void sigint_handler() {
     std::printf("CTRL-C - SIGINT received, shutting down...\n");
     log_info("sigint_handler: shutting down");
@@ -282,6 +326,7 @@ void sigint_handler() {
     }
 }
 
+/// Logs GLFW error codes and diagnostic descriptions to `stderr`.
 void glfw_error_callback(int error, const char* description) {
     std::fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
@@ -309,6 +354,7 @@ const char* const kOptionArgName[] = {
     "", "LOGFILE", "", "USBPATH", "0|1", "", "",
 };
 
+/// Prints CLI usage and supported flags to `stdout`.
 void usage(const char* name) {
     std::printf("usage:\n\t%s [options]\n", name);
     std::printf("valid options:\n");
@@ -320,6 +366,7 @@ void usage(const char* name) {
 
 }  // namespace
 
+/// Stub implementation of BTstack's board LED toggle hook (unused on desktop POSIX targets).
 extern "C" void hal_led_toggle(void) {
     // No-op on POSIX ImGui desktop target.
 }
@@ -436,6 +483,7 @@ int main(int argc, const char* argv[]) {
         return EXIT_FAILURE;
     }
     g_glfw_initialized.store(true);
+    ScopedGuiContext gui_guard;
 
 #if defined(__APPLE__)
     const char* glsl_version = "#version 150";
@@ -461,16 +509,18 @@ int main(int argc, const char* argv[]) {
                                           "Bluepad32 POSIX Controller Tester", nullptr, nullptr);
     if (window == nullptr) {
         std::fprintf(stderr, "Failed to create GLFW window.\n");
-        g_glfw_initialized.store(false);
-        glfwTerminate();
         return EXIT_FAILURE;
     }
+    gui_guard.window = window;
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
+    // Disable imgui.ini persistence so this fixed-viewport utility never reads or writes
+    // an imgui.ini file in the user's current working directory.
+    io.IniFilename = nullptr;
     // Enable keyboard navigation, but explicitly DO NOT enable ImGuiConfigFlags_NavEnableGamepad
     // so gamepad buttons/sticks never hijack Dear ImGui focus or tabs during controller testing.
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
@@ -482,13 +532,18 @@ int main(int argc, const char* argv[]) {
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
+    gui_guard.imgui_initialized = true;
 
     DemoScene demo_scene;
 
     // 4. Spawn the BTstack worker thread
     std::thread bt_thread([]() {
         btstack_run_loop_execute();
-        g_bt_thread_exited.store(true);
+        {
+            std::scoped_lock lock(g_bt_exit_mutex);
+            g_bt_thread_exited = true;
+        }
+        g_bt_exit_cv.notify_all();
     });
 
     // 5. Main GLFW + Dear ImGui render loop
@@ -523,25 +578,22 @@ int main(int argc, const char* argv[]) {
     shutdown_triggered.store(true);
     posix_imgui_request_shutdown();
 
-    constexpr int kMaxWaitIterations = 150;  // 150 * 10ms = 1500ms bounded wait
-    for (int i = 0; i < kMaxWaitIterations && !g_bt_thread_exited.load(); ++i) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
-    if (!g_bt_thread_exited.load()) {
-        btstack_run_loop_trigger_exit();
+    // Why `std::condition_variable::wait_for`:
+    //   Wakes the main thread in sub-millisecond time as soon as `btstack_run_loop_execute()`
+    //   returns after `HCI_STATE_OFF`, while still bounding worst-case shutdown wait to 1500ms
+    //   and forcing `btstack_run_loop_trigger_exit()` if a USB HCI controller stalls during power-down.
+    {
+        std::unique_lock lock(g_bt_exit_mutex);
+        const bool exited =
+            g_bt_exit_cv.wait_for(lock, std::chrono::milliseconds(1500), [] { return g_bt_thread_exited; });
+        if (!exited) {
+            btstack_run_loop_trigger_exit();
+        }
     }
     if (bt_thread.joinable()) {
         bt_thread.join();
     }
 
-    // 7. Tear down Dear ImGui and GLFW
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
-
-    g_glfw_initialized.store(false);
-    glfwDestroyWindow(window);
-    glfwTerminate();
-
+    // 7. Dear ImGui and GLFW contexts are torn down deterministically by `gui_guard` (ScopedGuiContext).
     return EXIT_SUCCESS;
 }

@@ -29,10 +29,11 @@
 
 #pragma once
 
-// Standard C/C++ headers MUST be included outside and before `extern "C"` so C++
+// Standard C++ headers MUST be included outside and before `extern "C"` so C++
 // standard library declarations are never trapped inside C linkage.
-#include <stdbool.h>
 #include <cstdint>
+#include <span>
+#include <type_traits>
 
 extern "C" {
 #include <uni.h>
@@ -44,8 +45,8 @@ constexpr int kMaxControllers = CONFIG_BLUEPAD32_MAX_DEVICES;  // 4
 /**
  * @brief Visual face-button layout classification for the 2D gamepad canvas.
  *
- * Determines which face-button textures are enabled and how physical button bitmasks
- * map to the North/South/East/West quad positions in `ControllerUIData::ConfigureButtonLayout()`.
+ * Determines how physical button bitmasks map to the North/South/East/West face-button
+ * labels and positions in the Controls tab.
  */
 enum ControllerLayoutType {
     /// Xbox / Generic layout: A (South), B (East), X (West), Y (North).
@@ -97,9 +98,13 @@ struct ControllerSnapshot {
 
     // Live telemetry updated in on_controller_data()
     uni_controller_t controller;        ///< Latest parsed Bluepad32 controller state (buttons, axes, IMU, battery).
-    uint64_t last_report_timestamp_us;  ///< Monotonic timestamp (`CLOCK_MONOTONIC`, microseconds) of latest report.
+    uint64_t last_report_timestamp_us;  ///< Monotonic timestamp (`std::chrono::steady_clock`, microseconds) of latest
+                                        ///< report.
     uint32_t report_delta_ms;           ///< Elapsed milliseconds between the two most recent input reports.
 };
+
+// Ensure ControllerSnapshot remains trivially copyable for fast cross-thread snapshot copies.
+static_assert(std::is_trivially_copyable_v<ControllerSnapshot>, "ControllerSnapshot must remain trivially copyable.");
 
 /**
  * @brief Bitmask flags selecting which physical Bluetooth input device categories are
@@ -123,7 +128,7 @@ enum PosixImguiDeviceTypeFlags : uint32_t {
  *
  * @return Non-null pointer to the static `uni_platform` struct.
  */
-struct uni_platform* get_posix_imgui_platform(void);
+[[nodiscard]] struct uni_platform* get_posix_imgui_platform(void);
 
 /**
  * @brief Retrieves the `posix_imgui_instance_t` embedded in `d->platform_data`.
@@ -131,23 +136,40 @@ struct uni_platform* get_posix_imgui_platform(void);
  * @param d Pointer to a Bluepad32 `uni_hid_device_t` instance (must not be null).
  * @return Pointer to the per-device `posix_imgui_instance_t`.
  */
-posix_imgui_instance_t* get_posix_imgui_instance(uni_hid_device_t* d);
+[[nodiscard]] posix_imgui_instance_t* get_posix_imgui_instance(uni_hid_device_t* d);
 
 /**
- * @brief Thread-safe snapshot reader called by the Dear ImGui UI thread (Thread 1) each frame.
+ * @brief Thread-safe C++23 `std::span` snapshot reader called by the Dear ImGui UI thread (Thread 1).
  *
  * Copies all `kMaxControllers` slots under `g_state_mutex`. If a controller completed
  * `on_device_ready()` since the previous call to `posix_imgui_get_snapshots()`, writes its
  * slot index (`0..3`) to `*newly_connected_slot` and resets the internal latch to `-1`
  * so the UI tab bar can auto-select the newly connected controller for one frame.
  *
+ * Why two overloads exist:
+ *   This fixed-extent `std::span<ControllerSnapshot, kMaxControllers>` overload provides
+ *   compile-time bounds safety for `std::array` callers and supplies the default
+ *   `newly_connected_slot = nullptr` parameter. The companion pointer overload below
+ *   omits the default parameter so single-argument calls never suffer overload ambiguity,
+ *   while still allowing callers to pass `out_snapshots = nullptr` when only polling
+ *   `newly_connected_slot`.
+ *
  * Example:
  * @code
- * ControllerSnapshot snapshots[kMaxControllers];
+ * std::array<ControllerSnapshot, kMaxControllers> snapshots{};
  * int new_slot = -1;
- * posix_imgui_get_snapshots(snapshots, &new_slot);
- * // If new_slot == 2, Controller #3 just connected prior to this frame.
+ * posix_imgui_get_snapshots(std::span{snapshots}, &new_slot);
  * @endcode
+ *
+ * @param[out] out_snapshots        Fixed-extent `std::span` of `kMaxControllers` elements.
+ * @param[out] newly_connected_slot Receives the newly connected slot (`0..3`) or `-1` (may be null).
+ */
+void posix_imgui_get_snapshots(std::span<ControllerSnapshot, kMaxControllers> out_snapshots,
+                               int* newly_connected_slot = nullptr);
+
+/**
+ * @brief Thread-safe pointer/array snapshot reader overload (supports `out_snapshots == nullptr`
+ *        when only polling `newly_connected_slot`).
  *
  * @param[out] out_snapshots        Destination array of size `kMaxControllers` (may be null).
  * @param[out] newly_connected_slot Receives the newly connected slot (`0..3`) or `-1` (may be null).
@@ -157,7 +179,7 @@ void posix_imgui_get_snapshots(ControllerSnapshot out_snapshots[kMaxControllers]
 /**
  * @brief Enqueues an asynchronous dual-motor rumble command from the UI thread (Thread 1).
  *
- * Thread-safe and non-blocking. Appends a `CMD_RUMBLE` entry under `g_cmd_mutex` and
+ * Thread-safe and non-blocking. Appends a `RumbleCmd` entry under `g_cmd_mutex` and
  * wakes the BTstack run loop via `btstack_run_loop_execute_on_main_thread()`. Pass
  * `duration_ms = 0`, `weak_magnitude = 0`, `strong_magnitude = 0` to stop active vibration.
  *
@@ -201,7 +223,7 @@ void posix_imgui_request_lightbar_color(int slot, uint8_t r, uint8_t g, uint8_t 
  * @brief Enables or disables virtual child devices (e.g., DualSense / DualShock 4 touchpad mouse).
  *
  * Thread-safe and non-blocking. Updates the atomic virtual-device flag and enqueues a
- * `CMD_SET_VIRTUAL_DEVICES` command on the BTstack thread that calls
+ * `SetVirtualDevicesCmd` command on the BTstack thread that calls
  * `uni_virtual_device_set_enabled(enabled)`. When disabled (`false`), any currently
  * connected virtual child devices are immediately disconnected and removed from their slots.
  *
@@ -212,9 +234,11 @@ void posix_imgui_request_set_virtual_devices_enabled(bool enabled);
 /**
  * @brief Returns whether virtual child devices are currently enabled (default: `false`).
  *
- * Thread-safe (reads an `std::atomic<bool>`).
+ * Thread-safe (reads an `std::atomic<bool>` with `std::memory_order_acquire`).
+ *
+ * @return True if virtual child devices are enabled; false otherwise.
  */
-bool posix_imgui_is_virtual_devices_enabled(void);
+[[nodiscard]] bool posix_imgui_is_virtual_devices_enabled(void);
 
 /**
  * @brief Updates the bitmask of physical Bluetooth input device categories (`PosixImguiDeviceTypeFlags`)
@@ -222,7 +246,7 @@ bool posix_imgui_is_virtual_devices_enabled(void);
  *
  * Thread-safe and non-blocking. Updates the atomic filter bitmask used by
  * `on_device_discovered()` and `on_device_ready()`, and enqueues a
- * `CMD_SET_ALLOWED_DEVICE_TYPES` command on the BTstack thread that immediately
+ * `SetAllowedDeviceTypesCmd` command on the BTstack thread that immediately
  * disconnects any currently connected physical devices belonging to a disabled category.
  *
  * @param allowed_types_mask Bitwise OR of `PosixImguiDeviceTypeFlags` (default: `POSIX_IMGUI_DEVICE_TYPE_DEFAULT`).
@@ -232,14 +256,16 @@ void posix_imgui_request_set_allowed_device_types(uint32_t allowed_types_mask);
 /**
  * @brief Returns the current bitmask of allowed physical input device categories.
  *
- * Thread-safe (reads an `std::atomic<uint32_t>`).
+ * Thread-safe (reads an `std::atomic<uint32_t>` with `std::memory_order_acquire`).
+ *
+ * @return Bitwise OR of currently enabled `PosixImguiDeviceTypeFlags`.
  */
-uint32_t posix_imgui_get_allowed_device_types(void);
+[[nodiscard]] uint32_t posix_imgui_get_allowed_device_types(void);
 
 /**
  * @brief Requests a clean asynchronous shutdown of the BTstack run loop from any thread.
  *
- * Sets an atomic shutdown flag and enqueues a `CMD_SHUTDOWN` command on the BTstack thread
+ * Sets an atomic shutdown flag and enqueues a `ShutdownCmd` command on the BTstack thread
  * that powers down HCI (`hci_power_control(HCI_POWER_OFF)`) or exits the run loop immediately
  * if HCI is not active.
  */
@@ -248,9 +274,11 @@ void posix_imgui_request_shutdown(void);
 /**
  * @brief Returns true if `posix_imgui_request_shutdown()` has been invoked.
  *
- * Thread-safe (reads an `std::atomic<bool>`).
+ * Thread-safe (reads an `std::atomic<bool>` with `std::memory_order_acquire`).
+ *
+ * @return True if shutdown has been requested; false otherwise.
  */
-bool posix_imgui_is_shutdown_requested(void);
+[[nodiscard]] bool posix_imgui_is_shutdown_requested(void);
 
 /**
  * @brief Resets all internal slot tables, snapshots, and command queues for headless unit tests.

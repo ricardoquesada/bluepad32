@@ -12,15 +12,13 @@
  *   2. Dear ImGui `1.93.0 WIP` Font Scaling (`RenderPreferences`):
  *      Reads and writes `ImGui::GetStyle().FontScaleMain` rather than the deprecated
  *      `ImGui::GetIO().FontGlobalScale`.
- *   3. Post-Canvas Cursor Anchoring (`RenderPanel_ControlsTab`):
- *      Because `ControllerUIUtil::Thumbstick()` calls `ImGui::SetCursorPos()` at a Y
- *      coordinate offset by `rightStickValues.y`, moving the right analog stick vertically
- *      leaves the Dear ImGui layout cursor at a variable Y offset. Before rendering the
- *      live numeric telemetry bar below the controller sprites, `RenderPanel_ControlsTab()`
- *      explicitly anchors `ImGui::SetCursorPos()` at `mControllerPanelBaseY + 250.0f * mControllerPanelScale`
- *      so subsequent text never jitters vertically when the right thumbstick is deflected.
+ *   3. DPI- & Font-Scale-Aware Card Layout (`RenderPanel_ControlsTab`, `RenderPanel_VibrationTab`,
+ *      `RenderPanel_MotionTab`):
+ *      All child cards use `ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY` with
+ *      `ImVec2(0.0f, 0.0f)` and scale custom `ImDrawList` vector geometry proportionally via
+ *      `UiScale() = ImGui::GetFontSize() / 13.0f` so widgets never clip across `0.50x..4.00x`.
  *   4. Packet-Driven IMU Ring Buffer (`UpdateImuHistory`):
- *      Advances the 240-sample circular buffers (`mAccelHistory`, `mGyroHistory`) only
+ *      Advances the 240-sample circular buffers (`accel_history`, `gyro_history`) only
  *      when `snap.last_report_timestamp_us` changes, ensuring plots reflect genuine
  *      Bluetooth HID input reports rather than 60 Hz frame duplicates.
  */
@@ -28,14 +26,18 @@
 #include "demo_scene.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
+#include <numbers>
+#include <span>
 
 namespace {
 
-constexpr const char* kControllerTabNames[kMaxControllers] = {
+/// Display labels for the 4 top-level controller seat tabs (`#1..#4`).
+constexpr std::array<const char*, kMaxControllers> kControllerTabNames = {
     " Controller #1 ",
     " Controller #2 ",
     " Controller #3 ",
@@ -52,6 +54,27 @@ constexpr float kFontScaleMin = 0.50f;
 constexpr float kFontScaleMax = 4.00f;
 constexpr float kFontScaleStep = 0.25f;
 
+/**
+ * @brief Returns the active UI scale multiplier relative to Dear ImGui's 13px baseline font.
+ *
+ * Why `ImGui::GetFontSize() / 13.0f`:
+ *   Dear ImGui's default ProggyClean font measures 13px at `1.0x` scale. Dividing the
+ *   current effective font size (which incorporates both monitor DPI `style.FontScaleDpi`
+ *   and user preference `style.FontScaleMain`) by `13.0f` yields a single proportional
+ *   multiplier so all custom `ImDrawList` vector geometry and fixed column widths scale
+ *   cohesively across `0.50x..4.00x`.
+ */
+[[nodiscard]] float UiScale() noexcept {
+    return ImGui::GetFontSize() / 13.0f;
+}
+
+/**
+ * @brief Renders `printf`-formatted colored text right-aligned within the current content region.
+ *
+ * Note: `IM_FMTARGS(2)` is placed on the forward declaration because Clang/GCC require
+ * `__attribute__((format(printf, ...)))` on declarations rather than function definitions.
+ */
+void DrawRightAlignedText(const ImVec4& color, const char* fmt, ...) IM_FMTARGS(2);
 void DrawRightAlignedText(const ImVec4& color, const char* fmt, ...) {
     char buf[128];
     va_list args;
@@ -67,14 +90,22 @@ void DrawRightAlignedText(const ImVec4& color, const char* fmt, ...) {
     ImGui::TextColored(color, "%s", buf);
 }
 
+/**
+ * @brief Renders a custom `ImDrawList` pill toggle switch scaled by `UiScale()`.
+ *
+ * @param strId     Unique Dear ImGui widget ID string.
+ * @param[in,out] v Pointer to the boolean state toggled when clicked.
+ * @return True on the frame the switch is clicked; false otherwise.
+ */
 bool DrawToggleSwitch(const char* strId, bool* v) {
     ImDrawList* drawList = ImGui::GetWindowDrawList();
     const ImVec2 p = ImGui::GetCursorScreenPos();
-    constexpr float kHeight = 26.0f;
-    constexpr float kWidth = 48.0f;
-    constexpr float kRadius = kHeight * 0.5f;
+    const float s = UiScale();
+    const float height = 26.0f * s;
+    const float width = 48.0f * s;
+    const float radius = height * 0.5f;
 
-    ImGui::InvisibleButton(strId, ImVec2(kWidth, kHeight));
+    ImGui::InvisibleButton(strId, ImVec2(width, height));
     const bool clicked = ImGui::IsItemClicked();
     if (clicked) {
         *v = !*v;
@@ -86,15 +117,17 @@ bool DrawToggleSwitch(const char* strId, bool* v) {
     const ImU32 borderCol = *v ? IM_COL32(110, 205, 255, 255) : IM_COL32(110, 118, 135, 255);
     const ImU32 knobCol = *v ? IM_COL32(255, 255, 255, 255) : IM_COL32(190, 196, 210, 255);
 
-    drawList->AddRectFilled(p, ImVec2(p.x + kWidth, p.y + kHeight), bgCol, kRadius);
-    drawList->AddRect(p, ImVec2(p.x + kWidth, p.y + kHeight), borderCol, kRadius, 0, 1.5f);
+    const ImVec2 maxPos = p + ImVec2(width, height);
+    drawList->AddRectFilled(p, maxPos, bgCol, radius);
+    drawList->AddRect(p, maxPos, borderCol, radius, 0, 1.5f * s);
 
-    const float knobX = *v ? (p.x + kWidth - kRadius) : (p.x + kRadius);
-    drawList->AddCircleFilled(ImVec2(knobX, p.y + kRadius), kRadius - 3.5f, knobCol, 24);
+    const float knobX = *v ? (p.x + width - radius) : (p.x + radius);
+    drawList->AddCircleFilled(ImVec2(knobX, p.y + radius), std::max(1.0f, radius - 3.5f * s), knobCol, 24);
     return clicked;
 }
 
-const char* LayoutTypeToString(ControllerLayoutType layout) {
+/// Returns a human-readable description of a controller's face-button layout family.
+[[nodiscard]] const char* LayoutTypeToString(ControllerLayoutType layout) noexcept {
     switch (layout) {
         case CONTROLLER_LAYOUT_STANDARD:
             return "Standard (Xbox: A=South, B=East, X=West, Y=North)";
@@ -107,7 +140,8 @@ const char* LayoutTypeToString(ControllerLayoutType layout) {
     }
 }
 
-const char* SubtypeToString(uni_controller_subtype_t subtype) {
+/// Returns a human-readable description of a Bluepad32 controller subtype.
+[[nodiscard]] const char* SubtypeToString(uni_controller_subtype_t subtype) noexcept {
     switch (subtype) {
         case CONTROLLER_SUBTYPE_NONE:
             return "None (Default)";
@@ -136,11 +170,12 @@ const char* SubtypeToString(uni_controller_subtype_t subtype) {
 
 // Conversion constants between Bluepad32's canonical SI IMU telemetry (`m/s^2`, `rad/s`)
 // and secondary UI display units (`g`, `deg/s`, and integrated dial angles in degrees).
-constexpr float kPi = 3.14159265358979323846f;
-constexpr float kDegToRad = kPi / 180.0f;
-constexpr float kRadToDeg = 180.0f / kPi;
+constexpr float kDegToRad = std::numbers::pi_v<float> / 180.0f;
+constexpr float kRadToDeg = 180.0f / std::numbers::pi_v<float>;
 constexpr float kGravityMps2 = UNI_STANDARD_GRAVITY;
 
+/// Renders `printf`-formatted colored text horizontally centered within `[colStartX, colStartX + colWidth]`.
+void DrawTextCenteredInColumn(float colStartX, float colWidth, const ImVec4& color, const char* fmt, ...) IM_FMTARGS(4);
 void DrawTextCenteredInColumn(float colStartX, float colWidth, const ImVec4& color, const char* fmt, ...) {
     char buf[128];
     va_list args;
@@ -153,56 +188,71 @@ void DrawTextCenteredInColumn(float colStartX, float colWidth, const ImVec4& col
     ImGui::TextColored(color, "%s", buf);
 }
 
-void ApplyRadialDeadzone(int32_t rawX, int32_t rawY, float deadzone, float* outX, float* outY) {
-    float nx = std::clamp(static_cast<float>(rawX) / (rawX < 0 ? 512.0f : 511.0f), -1.0f, 1.0f);
-    float ny = std::clamp(static_cast<float>(rawY) / (rawY < 0 ? 512.0f : 511.0f), -1.0f, 1.0f);
+/**
+ * @brief Normalizes raw Bluepad32 stick axes (`[-512, +511]`) into `[-1.0, +1.0]` and applies
+ *        a radial center deadzone.
+ *
+ * @param rawX     Raw horizontal axis value in `[-512, +511]`.
+ * @param rawY     Raw vertical axis value in `[-512, +511]`.
+ * @param deadzone Radial deadzone threshold in `[0.0, 0.35]`.
+ * @return Normalized `(x, y)` deflection vector, or `(0.0f, 0.0f)` if inside `deadzone`.
+ */
+[[nodiscard]] ImVec2 ApplyRadialDeadzone(int32_t rawX, int32_t rawY, float deadzone) noexcept {
+    const float nx = std::clamp(static_cast<float>(rawX) / (rawX < 0 ? 512.0f : 511.0f), -1.0f, 1.0f);
+    const float ny = std::clamp(static_cast<float>(rawY) / (rawY < 0 ? 512.0f : 511.0f), -1.0f, 1.0f);
     const float mag = std::hypot(nx, ny);
     if (deadzone > 0.0f && mag < deadzone) {
-        *outX = 0.0f;
-        *outY = 0.0f;
-        return;
+        return ImVec2(0.0f, 0.0f);
     }
-    *outX = nx;
-    *outY = ny;
+    return ImVec2(nx, ny);
 }
 
-float NormalizeTriggerAxis(int32_t raw_trigger, bool digital_fallback) {
+/**
+ * @brief Normalizes a raw Bluepad32 trigger axis (`[0, 1023]`) to `[0.0, 1.0]`, falling back
+ *        to digital trigger button state (`1.0f` when pressed) if the analog axis is zero.
+ */
+[[nodiscard]] float NormalizeTriggerAxis(int32_t raw_trigger, bool digital_fallback) noexcept {
     if (raw_trigger > 0) {
         return std::clamp(static_cast<float>(raw_trigger) / 1023.0f, 0.0f, 1.0f);
     }
     return digital_fallback ? 1.0f : 0.0f;
 }
 
+/// Draws a rounded vector pill badge for shoulder bumpers, navigation buttons, and extra buttons.
 void DrawVectorButtonBadge(ImDrawList* drawList,
                            ImVec2 minPos,
                            ImVec2 size,
                            const char* primaryText,
                            const char* subText,
                            bool active) {
-    const ImVec2 maxPos(minPos.x + size.x, minPos.y + size.y);
+    const float s = UiScale();
+    const ImVec2 maxPos = minPos + size;
     const ImU32 fillCol = active ? IM_COL32(45, 130, 225, 255) : IM_COL32(36, 42, 54, 255);
     const ImU32 borderCol = active ? IM_COL32(120, 220, 255, 255) : IM_COL32(120, 135, 158, 200);
-    const float borderThick = active ? 2.0f : 1.3f;
+    const float borderThick = (active ? 2.0f : 1.3f) * s;
+    const float rounding = 6.0f * s;
 
-    drawList->AddRectFilled(minPos, maxPos, fillCol, 6.0f);
-    drawList->AddRect(minPos, maxPos, borderCol, 6.0f, 0, borderThick);
+    drawList->AddRectFilled(minPos, maxPos, fillCol, rounding);
+    drawList->AddRect(minPos, maxPos, borderCol, rounding, 0, borderThick);
 
     if (subText == nullptr) {
         const ImVec2 pSz = ImGui::CalcTextSize(primaryText);
-        const ImVec2 pPos(minPos.x + (size.x - pSz.x) * 0.5f, minPos.y + (size.y - pSz.y) * 0.5f);
+        const ImVec2 pPos = minPos + (size - pSz) * 0.5f;
         drawList->AddText(pPos, IM_COL32(255, 255, 255, 255), primaryText);
     } else {
         const ImVec2 pSz = ImGui::CalcTextSize(primaryText);
         const ImVec2 sSz = ImGui::CalcTextSize(subText);
-        const float totalH = pSz.y + sSz.y + 1.0f;
+        const float lineGap = 1.0f * s;
+        const float totalH = pSz.y + sSz.y + lineGap;
         const float startY = minPos.y + (size.y - totalH) * 0.5f;
         drawList->AddText(ImVec2(minPos.x + (size.x - pSz.x) * 0.5f, startY), IM_COL32(255, 255, 255, 255),
                           primaryText);
-        drawList->AddText(ImVec2(minPos.x + (size.x - sSz.x) * 0.5f, startY + pSz.y + 1.0f),
+        drawList->AddText(ImVec2(minPos.x + (size.x - sSz.x) * 0.5f, startY + pSz.y + lineGap),
                           active ? IM_COL32(235, 248, 255, 255) : IM_COL32(150, 165, 185, 230), subText);
     }
 }
 
+/// Draws a circular analog thumbstick gate, deadzone ring, crosshairs, and deflection puck.
 void DrawStickWellWidget(const char* title,
                          int32_t rawX,
                          int32_t rawY,
@@ -215,32 +265,33 @@ void DrawStickWellWidget(const char* title,
     DrawTextCenteredInColumn(colStartX, colWidth, thumbPressed ? kTextColorCyan : kTextColorWhite, "%s", title);
     ImGui::Spacing();
 
-    constexpr float kOuterRadius = 46.0f;
-    constexpr float kInnerRadius = 40.0f;
-    constexpr float kDiameter = kOuterRadius * 2.0f;
+    const float s = UiScale();
+    const float outerRadius = 46.0f * s;
+    const float innerRadius = 40.0f * s;
+    const float diameter = outerRadius * 2.0f;
 
-    ImGui::SetCursorPosX(colStartX + std::max(0.0f, (colWidth - kDiameter) * 0.5f));
+    ImGui::SetCursorPosX(colStartX + std::max(0.0f, (colWidth - diameter) * 0.5f));
     const ImVec2 canvasMin = ImGui::GetCursorScreenPos();
-    ImGui::Dummy(ImVec2(kDiameter, kDiameter));
+    ImGui::Dummy(ImVec2(diameter, diameter));
 
-    const ImVec2 center(canvasMin.x + kOuterRadius, canvasMin.y + kOuterRadius);
+    const ImVec2 center = canvasMin + ImVec2(outerRadius, outerRadius);
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
     // Circular well backdrop and dual concentric boundary rings
-    drawList->AddCircleFilled(center, kOuterRadius, IM_COL32(20, 24, 32, 230), 64);
-    drawList->AddCircle(center, kOuterRadius, thumbPressed ? IM_COL32(90, 225, 255, 255) : IM_COL32(140, 155, 180, 200),
-                        64, thumbPressed ? 2.4f : 1.5f);
-    drawList->AddCircle(center, kInnerRadius, IM_COL32(105, 120, 145, 170), 64, 1.2f);
+    drawList->AddCircleFilled(center, outerRadius, IM_COL32(20, 24, 32, 230), 64);
+    drawList->AddCircle(center, outerRadius, thumbPressed ? IM_COL32(90, 225, 255, 255) : IM_COL32(140, 155, 180, 200),
+                        64, (thumbPressed ? 2.4f : 1.5f) * s);
+    drawList->AddCircle(center, innerRadius, IM_COL32(105, 120, 145, 170), 64, 1.2f * s);
 
     if (deadzone > 0.005f) {
-        drawList->AddCircle(center, kInnerRadius * deadzone, IM_COL32(90, 105, 125, 100), 48, 1.0f);
+        drawList->AddCircle(center, innerRadius * deadzone, IM_COL32(90, 105, 125, 100), 48, 1.0f * s);
     }
 
     // Crosshairs
-    drawList->AddLine(ImVec2(center.x - kInnerRadius, center.y), ImVec2(center.x + kInnerRadius, center.y),
-                      IM_COL32(90, 105, 125, 140), 1.0f);
-    drawList->AddLine(ImVec2(center.x, center.y - kInnerRadius), ImVec2(center.x, center.y + kInnerRadius),
-                      IM_COL32(90, 105, 125, 140), 1.0f);
+    drawList->AddLine(center - ImVec2(innerRadius, 0.0f), center + ImVec2(innerRadius, 0.0f),
+                      IM_COL32(90, 105, 125, 140), 1.0f * s);
+    drawList->AddLine(center - ImVec2(0.0f, innerRadius), center + ImVec2(0.0f, innerRadius),
+                      IM_COL32(90, 105, 125, 140), 1.0f * s);
 
     // Clamp visual puck position to the circular gate
     float clampedX = normX;
@@ -251,14 +302,14 @@ void DrawStickWellWidget(const char* title,
         clampedY /= mag;
     }
 
-    const float maxTravel = kInnerRadius - 7.0f;
-    const ImVec2 puckPos(center.x + clampedX * maxTravel, center.y + clampedY * maxTravel);
+    const float maxTravel = innerRadius - 7.0f * s;
+    const ImVec2 puckPos = center + ImVec2(clampedX, clampedY) * maxTravel;
 
-    drawList->AddLine(center, puckPos, IM_COL32(70, 160, 240, 110), 1.5f);
-    drawList->AddCircleFilled(puckPos, 7.5f, thumbPressed ? IM_COL32(70, 210, 255, 255) : IM_COL32(55, 110, 195, 255),
-                              24);
-    drawList->AddCircle(puckPos, 7.5f, IM_COL32(190, 230, 255, 230), 24, 1.2f);
-    drawList->AddCircleFilled(puckPos, 2.2f, IM_COL32(255, 255, 255, 255), 12);
+    drawList->AddLine(center, puckPos, IM_COL32(70, 160, 240, 110), 1.5f * s);
+    drawList->AddCircleFilled(puckPos, 7.5f * s,
+                              thumbPressed ? IM_COL32(70, 210, 255, 255) : IM_COL32(55, 110, 195, 255), 24);
+    drawList->AddCircle(puckPos, 7.5f * s, IM_COL32(190, 230, 255, 230), 24, 1.2f * s);
+    drawList->AddCircleFilled(puckPos, 2.2f * s, IM_COL32(255, 255, 255, 255), 12);
 
     ImGui::Spacing();
     DrawTextCenteredInColumn(colStartX, colWidth, kTextColorGrey, "X: %+0.2f   Y: %+0.2f", static_cast<double>(normX),
@@ -266,31 +317,34 @@ void DrawStickWellWidget(const char* title,
     DrawTextCenteredInColumn(colStartX, colWidth, kTextColorGrey, "(%d, %d)", rawX, rawY);
 }
 
+/// Draws a 5-cell directional pad cross widget with directional chevron icons.
 void DrawDPadCrossWidget(uint8_t dpad) {
     const float colStartX = ImGui::GetCursorPosX();
     const float colWidth = ImGui::GetContentRegionAvail().x;
     DrawTextCenteredInColumn(colStartX, colWidth, kTextColorWhite, "D-Pad");
     ImGui::Spacing();
 
-    constexpr float kCellSize = 30.0f;
-    constexpr float kStep = 34.0f;
-    constexpr float kCanvasSize = kStep * 2.0f + kCellSize + 4.0f;
+    const float s = UiScale();
+    const float cellSize = 30.0f * s;
+    const float step = 34.0f * s;
+    const float canvasSize = step * 2.0f + cellSize + 4.0f * s;
 
-    ImGui::SetCursorPosX(colStartX + std::max(0.0f, (colWidth - kCanvasSize) * 0.5f));
+    ImGui::SetCursorPosX(colStartX + std::max(0.0f, (colWidth - canvasSize) * 0.5f));
     const ImVec2 canvasMin = ImGui::GetCursorScreenPos();
-    ImGui::Dummy(ImVec2(kCanvasSize, kCanvasSize));
+    ImGui::Dummy(ImVec2(canvasSize, canvasSize));
 
-    const ImVec2 center(canvasMin.x + kCanvasSize * 0.5f, canvasMin.y + kCanvasSize * 0.5f);
+    const ImVec2 center = canvasMin + ImVec2(canvasSize * 0.5f, canvasSize * 0.5f);
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
     auto drawCell = [&](float cx, float cy, bool active, bool isCenter) {
-        const ImVec2 cMin(cx - kCellSize * 0.5f, cy - kCellSize * 0.5f);
-        const ImVec2 cMax(cx + kCellSize * 0.5f, cy + kCellSize * 0.5f);
+        const ImVec2 halfCell(cellSize * 0.5f, cellSize * 0.5f);
+        const ImVec2 cMin = ImVec2(cx, cy) - halfCell;
+        const ImVec2 cMax = ImVec2(cx, cy) + halfCell;
         const ImU32 fillCol =
             isCenter ? IM_COL32(30, 35, 45, 255) : (active ? IM_COL32(45, 130, 225, 255) : IM_COL32(38, 44, 56, 255));
         const ImU32 borderCol = active ? IM_COL32(120, 220, 255, 255) : IM_COL32(120, 135, 158, 190);
-        drawList->AddRectFilled(cMin, cMax, fillCol, 5.0f);
-        drawList->AddRect(cMin, cMax, borderCol, 5.0f, 0, active ? 2.0f : 1.2f);
+        drawList->AddRectFilled(cMin, cMax, fillCol, 5.0f * s);
+        drawList->AddRect(cMin, cMax, borderCol, 5.0f * s, 0, (active ? 2.0f : 1.2f) * s);
     };
 
     const bool up = (dpad & DPAD_UP) != 0;
@@ -301,191 +355,171 @@ void DrawDPadCrossWidget(uint8_t dpad) {
     // Up cell + chevron ^
     {
         const float cx = center.x;
-        const float cy = center.y - kStep;
+        const float cy = center.y - step;
         drawCell(cx, cy, up, false);
         const ImU32 iconCol = up ? IM_COL32(255, 255, 255, 255) : IM_COL32(185, 198, 215, 230);
-        drawList->AddLine(ImVec2(cx - 5.0f, cy + 2.5f), ImVec2(cx, cy - 3.0f), iconCol, 2.0f);
-        drawList->AddLine(ImVec2(cx, cy - 3.0f), ImVec2(cx + 5.0f, cy + 2.5f), iconCol, 2.0f);
+        drawList->AddLine(ImVec2(cx - 5.0f * s, cy + 2.5f * s), ImVec2(cx, cy - 3.0f * s), iconCol, 2.0f * s);
+        drawList->AddLine(ImVec2(cx, cy - 3.0f * s), ImVec2(cx + 5.0f * s, cy + 2.5f * s), iconCol, 2.0f * s);
     }
     // Left cell + chevron <
     {
-        const float cx = center.x - kStep;
+        const float cx = center.x - step;
         const float cy = center.y;
         drawCell(cx, cy, left, false);
         const ImU32 iconCol = left ? IM_COL32(255, 255, 255, 255) : IM_COL32(185, 198, 215, 230);
-        drawList->AddLine(ImVec2(cx + 2.5f, cy - 5.0f), ImVec2(cx - 3.0f, cy), iconCol, 2.0f);
-        drawList->AddLine(ImVec2(cx - 3.0f, cy), ImVec2(cx + 2.5f, cy + 5.0f), iconCol, 2.0f);
+        drawList->AddLine(ImVec2(cx + 2.5f * s, cy - 5.0f * s), ImVec2(cx - 3.0f * s, cy), iconCol, 2.0f * s);
+        drawList->AddLine(ImVec2(cx - 3.0f * s, cy), ImVec2(cx + 2.5f * s, cy + 5.0f * s), iconCol, 2.0f * s);
     }
     // Center neutral cell
     {
         drawCell(center.x, center.y, false, true);
-        drawList->AddCircleFilled(center, 4.5f, IM_COL32(115, 130, 150, 160), 16);
+        drawList->AddCircleFilled(center, 4.5f * s, IM_COL32(115, 130, 150, 160), 16);
     }
     // Right cell + chevron >
     {
-        const float cx = center.x + kStep;
+        const float cx = center.x + step;
         const float cy = center.y;
         drawCell(cx, cy, right, false);
         const ImU32 iconCol = right ? IM_COL32(255, 255, 255, 255) : IM_COL32(185, 198, 215, 230);
-        drawList->AddLine(ImVec2(cx - 2.5f, cy - 5.0f), ImVec2(cx + 3.0f, cy), iconCol, 2.0f);
-        drawList->AddLine(ImVec2(cx + 3.0f, cy), ImVec2(cx - 2.5f, cy + 5.0f), iconCol, 2.0f);
+        drawList->AddLine(ImVec2(cx - 2.5f * s, cy - 5.0f * s), ImVec2(cx + 3.0f * s, cy), iconCol, 2.0f * s);
+        drawList->AddLine(ImVec2(cx + 3.0f * s, cy), ImVec2(cx - 2.5f * s, cy + 5.0f * s), iconCol, 2.0f * s);
     }
     // Down cell + chevron v
     {
         const float cx = center.x;
-        const float cy = center.y + kStep;
+        const float cy = center.y + step;
         drawCell(cx, cy, down, false);
         const ImU32 iconCol = down ? IM_COL32(255, 255, 255, 255) : IM_COL32(185, 198, 215, 230);
-        drawList->AddLine(ImVec2(cx - 5.0f, cy - 2.5f), ImVec2(cx, cy + 3.0f), iconCol, 2.0f);
-        drawList->AddLine(ImVec2(cx, cy + 3.0f), ImVec2(cx + 5.0f, cy - 2.5f), iconCol, 2.0f);
+        drawList->AddLine(ImVec2(cx - 5.0f * s, cy - 2.5f * s), ImVec2(cx, cy + 3.0f * s), iconCol, 2.0f * s);
+        drawList->AddLine(ImVec2(cx, cy + 3.0f * s), ImVec2(cx + 5.0f * s, cy - 2.5f * s), iconCol, 2.0f * s);
     }
 }
 
+/// Geometric PlayStation face-button sub-icons rendered beneath the primary letter label.
 enum class PlayStationShape { kTriangle, kSquare, kCircle, kCross };
 
+/// Draws the 4-button North/South/East/West action diamond, adapting letter labels to `layout`.
 void DrawActionButtonsDiamondWidget(uint16_t buttons, ControllerLayoutType layout) {
     const float colStartX = ImGui::GetCursorPosX();
     const float colWidth = ImGui::GetContentRegionAvail().x;
     DrawTextCenteredInColumn(colStartX, colWidth, kTextColorWhite, "Action Buttons");
     ImGui::Spacing();
 
-    constexpr float kBtnRadius = 19.0f;
-    constexpr float kStep = 33.0f;
-    constexpr float kCanvasSize = (kStep + kBtnRadius) * 2.0f + 8.0f;
+    const float s = UiScale();
+    const float btnRadius = 19.0f * s;
+    const float step = 33.0f * s;
+    const float canvasSize = (step + btnRadius) * 2.0f + 8.0f * s;
 
-    ImGui::SetCursorPosX(colStartX + std::max(0.0f, (colWidth - kCanvasSize) * 0.5f));
+    ImGui::SetCursorPosX(colStartX + std::max(0.0f, (colWidth - canvasSize) * 0.5f));
     const ImVec2 canvasMin = ImGui::GetCursorScreenPos();
-    ImGui::Dummy(ImVec2(kCanvasSize, kCanvasSize));
+    ImGui::Dummy(ImVec2(canvasSize, canvasSize));
 
-    const ImVec2 center(canvasMin.x + kCanvasSize * 0.5f, canvasMin.y + kCanvasSize * 0.5f);
+    const ImVec2 center = canvasMin + ImVec2(canvasSize * 0.5f, canvasSize * 0.5f);
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
     auto drawFaceButton = [&](float bx, float by, const char* letter, PlayStationShape shape, bool active) {
         const ImVec2 bCenter(bx, by);
         const ImU32 fillCol = active ? IM_COL32(45, 130, 225, 255) : IM_COL32(38, 44, 56, 255);
         const ImU32 borderCol = active ? IM_COL32(120, 220, 255, 255) : IM_COL32(130, 145, 168, 210);
-        drawList->AddCircleFilled(bCenter, kBtnRadius, fillCol, 32);
-        drawList->AddCircle(bCenter, kBtnRadius, borderCol, 32, active ? 2.2f : 1.4f);
+        drawList->AddCircleFilled(bCenter, btnRadius, fillCol, 32);
+        drawList->AddCircle(bCenter, btnRadius, borderCol, 32, (active ? 2.2f : 1.4f) * s);
 
         const ImVec2 lSz = ImGui::CalcTextSize(letter);
-        drawList->AddText(ImVec2(bx - lSz.x * 0.5f, by - lSz.y + 1.0f), IM_COL32(255, 255, 255, 255), letter);
+        drawList->AddText(ImVec2(bx - lSz.x * 0.5f, by - lSz.y + 1.0f * s), IM_COL32(255, 255, 255, 255), letter);
 
-        const float sy = by + 7.5f;
+        const float sy = by + 7.5f * s;
         const ImU32 shapeCol = active ? IM_COL32(240, 250, 255, 255) : IM_COL32(150, 168, 190, 220);
         switch (shape) {
             case PlayStationShape::kTriangle:
-                drawList->AddTriangle(ImVec2(bx, sy - 3.8f), ImVec2(bx - 4.0f, sy + 3.2f), ImVec2(bx + 4.0f, sy + 3.2f),
-                                      shapeCol, 1.3f);
+                drawList->AddTriangle(ImVec2(bx, sy - 3.8f * s), ImVec2(bx - 4.0f * s, sy + 3.2f * s),
+                                      ImVec2(bx + 4.0f * s, sy + 3.2f * s), shapeCol, 1.3f * s);
                 break;
             case PlayStationShape::kSquare:
-                drawList->AddRect(ImVec2(bx - 3.5f, sy - 3.5f), ImVec2(bx + 3.5f, sy + 3.5f), shapeCol, 0.0f, 0, 1.3f);
+                drawList->AddRect(ImVec2(bx - 3.5f * s, sy - 3.5f * s), ImVec2(bx + 3.5f * s, sy + 3.5f * s), shapeCol,
+                                  0.0f, 0, 1.3f * s);
                 break;
             case PlayStationShape::kCircle:
-                drawList->AddCircle(ImVec2(bx, sy), 3.7f, shapeCol, 20, 1.3f);
+                drawList->AddCircle(ImVec2(bx, sy), 3.7f * s, shapeCol, 20, 1.3f * s);
                 break;
             case PlayStationShape::kCross:
-                drawList->AddLine(ImVec2(bx - 3.3f, sy - 3.3f), ImVec2(bx + 3.3f, sy + 3.3f), shapeCol, 1.4f);
-                drawList->AddLine(ImVec2(bx + 3.3f, sy - 3.3f), ImVec2(bx - 3.3f, sy + 3.3f), shapeCol, 1.4f);
+                drawList->AddLine(ImVec2(bx - 3.3f * s, sy - 3.3f * s), ImVec2(bx + 3.3f * s, sy + 3.3f * s), shapeCol,
+                                  1.4f * s);
+                drawList->AddLine(ImVec2(bx + 3.3f * s, sy - 3.3f * s), ImVec2(bx - 3.3f * s, sy + 3.3f * s), shapeCol,
+                                  1.4f * s);
                 break;
         }
     };
 
     const bool isNintendo = (layout == CONTROLLER_LAYOUT_REVERSE);
     // North (Y on Xbox / X on Switch, Triangle on PS)
-    drawFaceButton(center.x, center.y - kStep, isNintendo ? "X" : "Y", PlayStationShape::kTriangle,
+    drawFaceButton(center.x, center.y - step, isNintendo ? "X" : "Y", PlayStationShape::kTriangle,
                    (buttons & BUTTON_Y) != 0);
     // West (X on Xbox / Y on Switch, Square on PS)
-    drawFaceButton(center.x - kStep, center.y, isNintendo ? "Y" : "X", PlayStationShape::kSquare,
+    drawFaceButton(center.x - step, center.y, isNintendo ? "Y" : "X", PlayStationShape::kSquare,
                    (buttons & BUTTON_X) != 0);
     // East (B on Xbox / A on Switch, Circle on PS)
-    drawFaceButton(center.x + kStep, center.y, isNintendo ? "A" : "B", PlayStationShape::kCircle,
+    drawFaceButton(center.x + step, center.y, isNintendo ? "A" : "B", PlayStationShape::kCircle,
                    (buttons & BUTTON_B) != 0);
     // South (A on Xbox / B on Switch, Cross on PS)
-    drawFaceButton(center.x, center.y + kStep, isNintendo ? "B" : "A", PlayStationShape::kCross,
+    drawFaceButton(center.x, center.y + step, isNintendo ? "B" : "A", PlayStationShape::kCross,
                    (buttons & BUTTON_A) != 0);
 }
 
 }  // namespace
 
+void DemoScene::ControllerSlotUiState::ResetForSlot(int slot) noexcept {
+    // Why `*this = ControllerSlotUiState{}`:
+    //   Re-applies all C++23 Non-Static Data Member Initializers (NSDMI) in a single
+    //   aggregate assignment, then customizes the default Player Indicator LED bitmask
+    //   for `slot` (`#1..#4`) so no stale rumble, LED, or IMU state from a previously
+    //   disconnected controller bleeds into a newly connected controller.
+    *this = ControllerSlotUiState{};
+    if (slot >= 0 && slot < kMaxControllers) {
+        player_led_index = slot + 1;
+        for (int b = 0; b < 4; ++b) {
+            player_led_bits[static_cast<size_t>(b)] = (b == slot);
+        }
+    }
+    std::snprintf(last_detected_input.data(), last_detected_input.size(), "None");
+}
+
 DemoScene::DemoScene()
-    : mSnapshots{},
-      mPrevConnected{false, false, false, false},
-      mMostRecentConnectedSlot(-1),
-      mCurrentControllerSlot(0),
-      mActiveControllerPanelTab(0),
-      mFontScale(1.0f),
-      mRadialDeadzone(0.10f),
-      mDontTrimDeadzone(false),
-      mPreferencesActive(false),
-      mVirtualDevicesEnabled(posix_imgui_is_virtual_devices_enabled()),
+    : mVirtualDevicesEnabled(posix_imgui_is_virtual_devices_enabled()),
       mAutoAcceptGamepads((posix_imgui_get_allowed_device_types() & POSIX_IMGUI_DEVICE_TYPE_GAMEPAD) != 0),
       mAutoAcceptMice((posix_imgui_get_allowed_device_types() & POSIX_IMGUI_DEVICE_TYPE_MOUSE) != 0),
-      mAutoAcceptKeyboards((posix_imgui_get_allowed_device_types() & POSIX_IMGUI_DEVICE_TYPE_KEYBOARD) != 0),
-      mLastDetectedInput{},
-      mPrevButtons{},
-      mPrevDpad{},
-      mPrevMiscButtons{},
-      mPrevL2Active{},
-      mPrevR2Active{},
-      mPrevLeftStickActive{},
-      mPrevRightStickActive{},
-      mRumbleDurationMs{},
-      mRumbleWeakIntensity{},
-      mRumbleStrongIntensity{},
-      mTriggerRumbleEnabled{},
-      mTriggerRumbleActive{},
-      mLastTriggerRumbleTimeSec{},
-      mLastTriggerStrongU8{},
-      mLastTriggerWeakU8{},
-      mGyroHistory{},
-      mAccelHistory{},
-      mGyroAngleDeg{},
-      mImuHistoryOffset{},
-      mLastImuTimestampUs{},
-      mImuPlotPaused(false),
-      mPlayerLedIndex{},
-      mPlayerLedBits{},
-      mRgbColor{},
-      mRgbLiveUpdate{},
-      mBrightnessPercent{} {
+      mAutoAcceptKeyboards((posix_imgui_get_allowed_device_types() & POSIX_IMGUI_DEVICE_TYPE_KEYBOARD) != 0) {
     for (int i = 0; i < kMaxControllers; ++i) {
-        std::snprintf(mLastDetectedInput[i], sizeof(mLastDetectedInput[i]), "None");
-
-        // Default Rumble parameters matching Force Feedback card:
-        // Left Motor (Heavy / Low Freq) = 80% (204/255), Right Motor (Light / High Freq) = 40% (102/255),
-        // Duration = 1000 ms (1.0s).
-        mRumbleDurationMs[i] = 1000.0f;
-        mRumbleStrongIntensity[i] = 0.80f;
-        mRumbleWeakIntensity[i] = 0.40f;
-        mTriggerRumbleEnabled[i] = false;
-        mTriggerRumbleActive[i] = false;
-        mLastTriggerRumbleTimeSec[i] = 0.0;
-        mLastTriggerStrongU8[i] = 0;
-        mLastTriggerWeakU8[i] = 0;
-
-        mPlayerLedIndex[i] = i + 1;
-        for (int b = 0; b < 4; ++b) {
-            mPlayerLedBits[i][b] = (b == i);
-        }
-
-        // Default RGB lightbar color: PlayStation Blue
-        mRgbColor[i][0] = 0.0f;
-        mRgbColor[i][1] = 0.25f;
-        mRgbColor[i][2] = 1.0f;
-        mRgbLiveUpdate[i] = false;
-
-        mBrightnessPercent[i] = 100;
+        mSlots[static_cast<size_t>(i)].ResetForSlot(i);
     }
 }
 
 DemoScene::~DemoScene() = default;
 
+void DemoScene::SelectCategoryTabForTest(int tab_index) noexcept {
+    mRequestedCategoryTabForTest = tab_index;
+}
+
+void DemoScene::SetPreferencesActiveForTest(bool active) noexcept {
+    mPreferencesActive = active;
+}
+
+const DemoScene::ControllerSlotUiState& DemoScene::GetSlotStateForTest(int slot) const noexcept {
+    const int clamped = (slot >= 0 && slot < kMaxControllers) ? slot : 0;
+    return mSlots[static_cast<size_t>(clamped)];
+}
+
+DemoScene::ControllerSlotUiState& DemoScene::MutateSlotStateForTest(int slot) noexcept {
+    const int clamped = (slot >= 0 && slot < kMaxControllers) ? slot : 0;
+    return mSlots[static_cast<size_t>(clamped)];
+}
+
 void DemoScene::UpdateImuHistory(int slot, const ControllerSnapshot& snap) {
     if (slot < 0 || slot >= kMaxControllers) {
         return;
     }
+    ControllerSlotUiState& slot_state = mSlots[static_cast<size_t>(slot)];
     if (!snap.connected) {
-        if (mPrevConnected[slot]) {
+        if (slot_state.prev_connected) {
             ClearImuHistory(slot);
         }
         return;
@@ -495,68 +529,71 @@ void DemoScene::UpdateImuHistory(int slot, const ControllerSnapshot& snap) {
     }
     // Only record a new sample when `last_report_timestamp_us` advances so a controller
     // reporting at e.g. 30 Hz is not duplicated across consecutive 60 Hz UI frames.
-    if (snap.last_report_timestamp_us == 0 || snap.last_report_timestamp_us == mLastImuTimestampUs[slot]) {
+    if (snap.last_report_timestamp_us == 0 || snap.last_report_timestamp_us == slot_state.last_imu_timestamp_us) {
         return;
     }
 
     float dt_sec = 0.0f;
-    if (mLastImuTimestampUs[slot] > 0 && snap.last_report_timestamp_us > mLastImuTimestampUs[slot]) {
-        dt_sec = static_cast<float>(snap.last_report_timestamp_us - mLastImuTimestampUs[slot]) * 1e-6f;
+    if (slot_state.last_imu_timestamp_us > 0 && snap.last_report_timestamp_us > slot_state.last_imu_timestamp_us) {
+        dt_sec = static_cast<float>(snap.last_report_timestamp_us - slot_state.last_imu_timestamp_us) * 1e-6f;
     } else if (snap.report_delta_ms > 0 && snap.report_delta_ms <= 500) {
         dt_sec = static_cast<float>(snap.report_delta_ms) * 1e-3f;
     }
-    mLastImuTimestampUs[slot] = snap.last_report_timestamp_us;
+    slot_state.last_imu_timestamp_us = snap.last_report_timestamp_us;
 
-    const size_t idx = mImuHistoryOffset[slot];
+    const size_t idx = slot_state.imu_history_offset;
     for (size_t axis = 0; axis < kMotionAxisCount; ++axis) {
         const float gyroRadS = snap.controller.gamepad.gyro[axis];
         const float accelMps2 = snap.controller.gamepad.accel[axis];
-        mGyroHistory[slot][axis][idx] = gyroRadS;
-        mAccelHistory[slot][axis][idx] = accelMps2;
+        slot_state.gyro_history[axis][idx] = gyroRadS;
+        slot_state.accel_history[axis][idx] = accelMps2;
 
         if (dt_sec > 0.0f && dt_sec <= 0.5f) {
             const float degPerSec = gyroRadS * kRadToDeg;
             // Integrate angular rate into [-180, +180] degree dial angle
-            mGyroAngleDeg[slot][axis] = std::remainder(mGyroAngleDeg[slot][axis] + degPerSec * dt_sec, 360.0f);
+            slot_state.gyro_angle_deg[axis] =
+                std::remainder(slot_state.gyro_angle_deg[axis] + degPerSec * dt_sec, 360.0f);
         }
     }
-    mImuHistoryOffset[slot] = (idx + 1) % kImuHistoryLen;
+    slot_state.imu_history_offset = (idx + 1) % kImuHistoryLen;
 }
 
 void DemoScene::ClearImuHistory(int slot) {
     if (slot < 0 || slot >= kMaxControllers) {
         return;
     }
-    std::memset(mGyroHistory[slot], 0, sizeof(mGyroHistory[slot]));
-    std::memset(mAccelHistory[slot], 0, sizeof(mAccelHistory[slot]));
-    std::memset(mGyroAngleDeg[slot], 0, sizeof(mGyroAngleDeg[slot]));
-    mImuHistoryOffset[slot] = 0;
-    mLastImuTimestampUs[slot] = 0;
+    ControllerSlotUiState& slot_state = mSlots[static_cast<size_t>(slot)];
+    slot_state.gyro_history = {};
+    slot_state.accel_history = {};
+    slot_state.gyro_angle_deg = {};
+    slot_state.imu_history_offset = 0;
+    slot_state.last_imu_timestamp_us = 0;
 }
 
 void DemoScene::UpdateLastDetectedInput(int slot, const ControllerSnapshot& snap) {
     if (slot < 0 || slot >= kMaxControllers) {
         return;
     }
+    ControllerSlotUiState& slot_state = mSlots[static_cast<size_t>(slot)];
     if (!snap.connected) {
-        std::snprintf(mLastDetectedInput[slot], sizeof(mLastDetectedInput[slot]), "None");
-        mPrevButtons[slot] = 0;
-        mPrevDpad[slot] = 0;
-        mPrevMiscButtons[slot] = 0;
-        mPrevL2Active[slot] = false;
-        mPrevR2Active[slot] = false;
-        mPrevLeftStickActive[slot] = false;
-        mPrevRightStickActive[slot] = false;
+        std::snprintf(slot_state.last_detected_input.data(), slot_state.last_detected_input.size(), "None");
+        slot_state.prev_buttons = 0;
+        slot_state.prev_dpad = 0;
+        slot_state.prev_misc_buttons = 0;
+        slot_state.prev_l2_active = false;
+        slot_state.prev_r2_active = false;
+        slot_state.prev_left_stick_active = false;
+        slot_state.prev_right_stick_active = false;
         return;
     }
 
     const uni_gamepad_t& gp = snap.controller.gamepad;
-    const uint16_t newBtns = static_cast<uint16_t>(gp.buttons & ~mPrevButtons[slot]);
-    const uint8_t newDpad = static_cast<uint8_t>(gp.dpad & ~mPrevDpad[slot]);
-    const uint8_t newMisc = static_cast<uint8_t>(gp.misc_buttons & ~mPrevMiscButtons[slot]);
+    const uint16_t newBtns = static_cast<uint16_t>(gp.buttons & ~slot_state.prev_buttons);
+    const uint8_t newDpad = static_cast<uint8_t>(gp.dpad & ~slot_state.prev_dpad);
+    const uint8_t newMisc = static_cast<uint8_t>(gp.misc_buttons & ~slot_state.prev_misc_buttons);
 
     auto setDetected = [&](const char* label) {
-        std::snprintf(mLastDetectedInput[slot], sizeof(mLastDetectedInput[slot]), "%s", label);
+        std::snprintf(slot_state.last_detected_input.data(), slot_state.last_detected_input.size(), "%s", label);
     };
 
     if (newDpad & DPAD_UP) {
@@ -606,45 +643,45 @@ void DemoScene::UpdateLastDetectedInput(int slot, const ControllerSnapshot& snap
     const float r2Val = NormalizeTriggerAxis(gp.throttle, (gp.buttons & BUTTON_TRIGGER_R) != 0);
     const bool l2Active = (l2Val > 0.15f);
     const bool r2Active = (r2Val > 0.15f);
-    if (l2Active && !mPrevL2Active[slot]) {
+    if (l2Active && !slot_state.prev_l2_active) {
         setDetected("LT / L2");
     }
-    if (r2Active && !mPrevR2Active[slot]) {
+    if (r2Active && !slot_state.prev_r2_active) {
         setDetected("RT / R2");
     }
 
     const float effectiveDeadzone = mDontTrimDeadzone ? 0.0f : std::max(0.15f, mRadialDeadzone);
-    float lx = 0.0f, ly = 0.0f, rx = 0.0f, ry = 0.0f;
-    ApplyRadialDeadzone(gp.axis_x, gp.axis_y, effectiveDeadzone, &lx, &ly);
-    ApplyRadialDeadzone(gp.axis_rx, gp.axis_ry, effectiveDeadzone, &rx, &ry);
-    const bool leftActive = (std::hypot(lx, ly) > effectiveDeadzone);
-    const bool rightActive = (std::hypot(rx, ry) > effectiveDeadzone);
-    if (leftActive && !mPrevLeftStickActive[slot]) {
+    const ImVec2 leftStick = ApplyRadialDeadzone(gp.axis_x, gp.axis_y, effectiveDeadzone);
+    const ImVec2 rightStick = ApplyRadialDeadzone(gp.axis_rx, gp.axis_ry, effectiveDeadzone);
+    const bool leftActive = (std::hypot(leftStick.x, leftStick.y) > effectiveDeadzone);
+    const bool rightActive = (std::hypot(rightStick.x, rightStick.y) > effectiveDeadzone);
+    if (leftActive && !slot_state.prev_left_stick_active) {
         setDetected("Left Stick");
     }
-    if (rightActive && !mPrevRightStickActive[slot]) {
+    if (rightActive && !slot_state.prev_right_stick_active) {
         setDetected("Right Stick");
     }
 
-    mPrevButtons[slot] = gp.buttons;
-    mPrevDpad[slot] = gp.dpad;
-    mPrevMiscButtons[slot] = gp.misc_buttons;
-    mPrevL2Active[slot] = l2Active;
-    mPrevR2Active[slot] = r2Active;
-    mPrevLeftStickActive[slot] = leftActive;
-    mPrevRightStickActive[slot] = rightActive;
+    slot_state.prev_buttons = gp.buttons;
+    slot_state.prev_dpad = gp.dpad;
+    slot_state.prev_misc_buttons = gp.misc_buttons;
+    slot_state.prev_l2_active = l2Active;
+    slot_state.prev_r2_active = r2Active;
+    slot_state.prev_left_stick_active = leftActive;
+    slot_state.prev_right_stick_active = rightActive;
 }
 
 void DemoScene::UpdateTriggerRumble(int slot, const ControllerSnapshot& snap) {
     if (slot < 0 || slot >= kMaxControllers) {
         return;
     }
-    if (!snap.connected || !snap.has_rumble || !mTriggerRumbleEnabled[slot]) {
-        if (mTriggerRumbleActive[slot]) {
+    ControllerSlotUiState& slot_state = mSlots[static_cast<size_t>(slot)];
+    if (!snap.connected || !snap.has_rumble || !slot_state.trigger_rumble_enabled) {
+        if (slot_state.trigger_rumble_active) {
             posix_imgui_request_rumble(slot, 0, 0, 0, 0);
-            mTriggerRumbleActive[slot] = false;
-            mLastTriggerStrongU8[slot] = 0;
-            mLastTriggerWeakU8[slot] = 0;
+            slot_state.trigger_rumble_active = false;
+            slot_state.last_trigger_strong_u8 = 0;
+            slot_state.last_trigger_weak_u8 = 0;
         }
         return;
     }
@@ -660,89 +697,92 @@ void DemoScene::UpdateTriggerRumble(int slot, const ControllerSnapshot& snap) {
     const uint8_t weakU8 = static_cast<uint8_t>(std::clamp(std::round(weakNorm * 255.0f), 0.0f, 255.0f));
 
     if (strongU8 == 0 && weakU8 == 0) {
-        if (mTriggerRumbleActive[slot]) {
+        if (slot_state.trigger_rumble_active) {
             posix_imgui_request_rumble(slot, 0, 0, 0, 0);
-            mTriggerRumbleActive[slot] = false;
-            mLastTriggerStrongU8[slot] = 0;
-            mLastTriggerWeakU8[slot] = 0;
+            slot_state.trigger_rumble_active = false;
+            slot_state.last_trigger_strong_u8 = 0;
+            slot_state.last_trigger_weak_u8 = 0;
         }
         return;
     }
 
     // Reflect live trigger pressure on the Rumble tab sliders while Trigger Rumble Mode is active
-    mRumbleStrongIntensity[slot] = strongNorm;
-    mRumbleWeakIntensity[slot] = weakNorm;
+    slot_state.rumble_strong_intensity = strongNorm;
+    slot_state.rumble_weak_intensity = weakNorm;
 
     const double nowSec = ImGui::GetTime();
-    const double elapsedSec = nowSec - mLastTriggerRumbleTimeSec[slot];
-    const int deltaStrong = std::abs(static_cast<int>(strongU8) - static_cast<int>(mLastTriggerStrongU8[slot]));
-    const int deltaWeak = std::abs(static_cast<int>(weakU8) - static_cast<int>(mLastTriggerWeakU8[slot]));
+    const double elapsedSec = nowSec - slot_state.last_trigger_rumble_time_sec;
+    const int deltaStrong = std::abs(static_cast<int>(strongU8) - static_cast<int>(slot_state.last_trigger_strong_u8));
+    const int deltaWeak = std::abs(static_cast<int>(weakU8) - static_cast<int>(slot_state.last_trigger_weak_u8));
 
     // Rate-limit Bluetooth HID output reports:
     //   - Dispatch immediately when transitioning from idle -> active
     //   - Dispatch at up to 20 Hz (50ms) when trigger pressure changes by >= 8 counts
     //   - Sustain at 8 Hz (125ms) with a 200ms pulse window while held steady
-    if (!mTriggerRumbleActive[slot] || (elapsedSec >= 0.05 && (deltaStrong >= 8 || deltaWeak >= 8)) ||
+    if (!slot_state.trigger_rumble_active || (elapsedSec >= 0.05 && (deltaStrong >= 8 || deltaWeak >= 8)) ||
         elapsedSec >= 0.125) {
         posix_imgui_request_rumble(slot, 0, 200, weakU8, strongU8);
-        mTriggerRumbleActive[slot] = true;
-        mLastTriggerRumbleTimeSec[slot] = nowSec;
-        mLastTriggerStrongU8[slot] = strongU8;
-        mLastTriggerWeakU8[slot] = weakU8;
+        slot_state.trigger_rumble_active = true;
+        slot_state.last_trigger_rumble_time_sec = nowSec;
+        slot_state.last_trigger_strong_u8 = strongU8;
+        slot_state.last_trigger_weak_u8 = weakU8;
     }
 }
 
 void DemoScene::DoFrame() {
     int newly_connected = -1;
-    posix_imgui_get_snapshots(mSnapshots, &newly_connected);
+    posix_imgui_get_snapshots(std::span{mSnapshots}, &newly_connected);
     if (newly_connected >= 0 && newly_connected < kMaxControllers) {
         mMostRecentConnectedSlot = newly_connected;
     }
 
     for (int i = 0; i < kMaxControllers; ++i) {
-        if (!mPrevConnected[i] && mSnapshots[i].connected && !mSnapshots[i].is_virtual_device) {
-            mMostRecentConnectedSlot = i;
+        const auto slot_idx = static_cast<size_t>(i);
+        // Why `ResetForSlot(i)` runs BEFORE `UpdateImuHistory` / `UpdateLastDetectedInput`:
+        //   When a slot transitions from disconnected to connected (`!prev_connected && connected`),
+        //   resetting the slot's UI state first ensures any initial input report already present
+        //   in `mSnapshots[slot_idx]` on the connection frame is recorded into fresh buffers.
+        if (!mSlots[slot_idx].prev_connected && mSnapshots[slot_idx].connected) {
+            mSlots[slot_idx].ResetForSlot(i);
+            if (!mSnapshots[slot_idx].is_virtual_device) {
+                mMostRecentConnectedSlot = i;
+            }
         }
-        UpdateImuHistory(i, mSnapshots[i]);
-        UpdateLastDetectedInput(i, mSnapshots[i]);
-        UpdateTriggerRumble(i, mSnapshots[i]);
-        mPrevConnected[i] = mSnapshots[i].connected;
+        UpdateImuHistory(i, mSnapshots[slot_idx]);
+        UpdateLastDetectedInput(i, mSnapshots[slot_idx]);
+        UpdateTriggerRumble(i, mSnapshots[slot_idx]);
+        mSlots[slot_idx].prev_connected = mSnapshots[slot_idx].connected;
     }
 
-    SetupUIWindow();
-
-    if (!RenderPreferences()) {
-        ImGui::SameLine(0.0f, 24.0f);
-        RenderStatusBar();
-        ImGui::Separator();
-        RenderControllerTabs();
+    // Balance `PushStyleVar`/`PopStyleVar` and `Begin`/`End` within `DoFrame()` (and always
+    // call `ImGui::End()` regardless of `ImGui::Begin()`'s return value, per Dear ImGui contract).
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->WorkPos);
+    ImGui::SetNextWindowSize(viewport->WorkSize);
+    constexpr ImGuiWindowFlags kWindowFlags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse |
+                                              ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings;
+    ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, 20.0f);
+    if (ImGui::Begin("Bluepad32 POSIX Controller Tester (Dear ImGui)", nullptr, kWindowFlags)) {
+        if (!RenderPreferences()) {
+            ImGui::SameLine(0.0f, 24.0f);
+            RenderStatusBar();
+            ImGui::Separator();
+            RenderControllerTabs();
+        }
     }
-
     ImGui::End();
     ImGui::PopStyleVar();
 }
 
-void DemoScene::SetupUIWindow() {
-    ImGuiIO& io = ImGui::GetIO();
-    ImVec2 windowPosition(0.0f, 0.0f);
-    ImVec2 minWindowSize(io.DisplaySize.x, io.DisplaySize.y);
-    ImVec2 maxWindowSize = io.DisplaySize;
-    ImGui::SetNextWindowPos(windowPosition);
-    ImGui::SetNextWindowSizeConstraints(minWindowSize, maxWindowSize, nullptr, nullptr);
-    ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove |
-                                   ImGuiWindowFlags_NoSavedSettings;
-    ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, 20.0f);
-    ImGui::Begin("Bluepad32 POSIX Controller Tester (Dear ImGui)", nullptr, windowFlags);
-}
-
 void DemoScene::RenderStatusBar() {
     int connected_count = 0;
-    for (int i = 0; i < kMaxControllers; ++i) {
-        if (mSnapshots[i].connected) {
+    for (const ControllerSnapshot& snap : mSnapshots) {
+        if (snap.connected) {
             connected_count++;
         }
     }
 
+    ImGui::AlignTextToFramePadding();
     if (connected_count > 0) {
         ImGui::TextColored(kTextColorGreen, "Connected Controllers: %d / %d", connected_count, kMaxControllers);
     } else {
@@ -778,8 +818,9 @@ bool DemoScene::RenderPreferences() {
     ImGui::Separator();
 
     ImGui::Spacing();
+    ImGui::AlignTextToFramePadding();
     ImGui::Text("Font scale:");
-    ImGui::SameLine(180.0f);
+    ImGui::SameLine(180.0f * UiScale());
     if (ImGui::Button(" - ##font")) {
         mFontScale = std::max(kFontScaleMin, mFontScale - kFontScaleStep);
         style.FontScaleMain = mFontScale;
@@ -792,7 +833,7 @@ bool DemoScene::RenderPreferences() {
         style.FontScaleMain = mFontScale;
     }
     ImGui::SameLine(0.0f, 16.0f);
-    ImGui::SetNextItemWidth(180.0f);
+    ImGui::SetNextItemWidth(180.0f * UiScale());
     if (ImGui::SliderFloat("##font_slider", &mFontScale, kFontScaleMin, kFontScaleMax, "%.2fx")) {
         style.FontScaleMain = mFontScale;
     }
@@ -850,6 +891,7 @@ bool DemoScene::RenderPreferences() {
 void DemoScene::RenderControllerTabs() {
     if (ImGui::BeginTabBar("ControllerTabBar", ImGuiTabBarFlags_NoTooltip)) {
         for (int slot = 0; slot < kMaxControllers; ++slot) {
+            const auto slot_idx = static_cast<size_t>(slot);
             ImGuiTabItemFlags tabItemFlags = ImGuiTabItemFlags_None;
             // Auto-focus a newly connected controller tab for a single frame, then clear
             // `mMostRecentConnectedSlot` so the user can freely switch tabs afterward.
@@ -858,16 +900,16 @@ void DemoScene::RenderControllerTabs() {
                 mMostRecentConnectedSlot = -1;
             }
 
-            const bool isConnected = mSnapshots[slot].connected;
+            const bool isConnected = mSnapshots[slot_idx].connected;
             const ImVec4 tabTextColor = isConnected ? kTextColorWhite : kTextColorGrey;
 
             ImGui::PushStyleColor(ImGuiCol_Text, tabTextColor);
-            if (ImGui::BeginTabItem(kControllerTabNames[slot], nullptr, tabItemFlags)) {
+            if (ImGui::BeginTabItem(kControllerTabNames[slot_idx], nullptr, tabItemFlags)) {
                 mCurrentControllerSlot = slot;
                 ImGui::PopStyleColor(1);
 
                 if (isConnected) {
-                    RenderPanel(slot, mSnapshots[slot]);
+                    RenderPanel(slot, mSnapshots[slot_idx]);
                 } else {
                     ImGui::Spacing();
                     ImGui::TextColored(kTextColorGrey, "Slot #%d (Seat %c): Not connected", slot + 1, 'A' + slot);
@@ -884,6 +926,10 @@ void DemoScene::RenderControllerTabs() {
 }
 
 void DemoScene::RenderPanel(int slot, const ControllerSnapshot& snap) {
+    // Push `slot` onto the Dear ImGui ID stack so child windows, sliders, and buttons
+    // never collide across controller slots (`#1..#4`).
+    ImGui::PushID(slot);
+
     const char* displayName = (snap.name[0] != '\0') ? snap.name : snap.model_name;
     ImGui::TextColored(kTextColorGreen, "[Seat #%d] %s%s", slot + 1, displayName,
                        snap.is_virtual_device ? " [Virtual Device]" : "");
@@ -898,19 +944,24 @@ void DemoScene::RenderPanel(int slot, const ControllerSnapshot& snap) {
             void (DemoScene::*renderFn)(int, const ControllerSnapshot&);
         };
 
-        const CategoryTab kTabs[] = {
+        constexpr std::array<CategoryTab, 5> kTabs = {{
             {0, " Controls ", &DemoScene::RenderPanel_ControlsTab},
             {1, " Rumble ", &DemoScene::RenderPanel_VibrationTab},
             {2, " IMU ", &DemoScene::RenderPanel_MotionTab},
             {3, " Lights ", &DemoScene::RenderPanel_LightsTab},
             {4, " Info ", &DemoScene::RenderPanel_InfoTab},
-        };
+        }};
 
         for (const CategoryTab& tab : kTabs) {
+            ImGuiTabItemFlags tabFlags = ImGuiTabItemFlags_None;
+            if (mRequestedCategoryTabForTest == tab.index) {
+                tabFlags |= ImGuiTabItemFlags_SetSelected;
+                mRequestedCategoryTabForTest = -1;
+            }
             const bool isActive = (mActiveControllerPanelTab == tab.index);
             const ImVec4 tabColor = isActive ? kTextColorWhite : kTextColorGrey;
             ImGui::PushStyleColor(ImGuiCol_Text, tabColor);
-            if (ImGui::BeginTabItem(tab.title, nullptr, ImGuiTabItemFlags_None)) {
+            if (ImGui::BeginTabItem(tab.title, nullptr, tabFlags)) {
                 mActiveControllerPanelTab = tab.index;
                 ImGui::PopStyleColor(1);
                 (this->*tab.renderFn)(slot, snap);
@@ -922,18 +973,18 @@ void DemoScene::RenderPanel(int slot, const ControllerSnapshot& snap) {
 
         ImGui::EndTabBar();
     }
+
+    ImGui::PopID();
 }
 
 void DemoScene::RenderPanel_ControlsTab(int slot, const ControllerSnapshot& snap) {
+    const ControllerSlotUiState& slot_state = mSlots[static_cast<size_t>(slot)];
     const uni_gamepad_t& gp = snap.controller.gamepad;
     const float effectiveDeadzone = mDontTrimDeadzone ? 0.0f : mRadialDeadzone;
+    const float s = UiScale();
 
-    float leftX = 0.0f;
-    float leftY = 0.0f;
-    float rightX = 0.0f;
-    float rightY = 0.0f;
-    ApplyRadialDeadzone(gp.axis_x, gp.axis_y, effectiveDeadzone, &leftX, &leftY);
-    ApplyRadialDeadzone(gp.axis_rx, gp.axis_ry, effectiveDeadzone, &rightX, &rightY);
+    const ImVec2 leftStick = ApplyRadialDeadzone(gp.axis_x, gp.axis_y, effectiveDeadzone);
+    const ImVec2 rightStick = ApplyRadialDeadzone(gp.axis_rx, gp.axis_ry, effectiveDeadzone);
 
     const float l2Val = NormalizeTriggerAxis(gp.brake, (gp.buttons & BUTTON_TRIGGER_L) != 0);
     const float r2Val = NormalizeTriggerAxis(gp.throttle, (gp.buttons & BUTTON_TRIGGER_R) != 0);
@@ -942,11 +993,14 @@ void DemoScene::RenderPanel_ControlsTab(int slot, const ControllerSnapshot& snap
     const bool l3Active = (gp.buttons & BUTTON_THUMB_L) != 0;
     const bool r3Active = (gp.buttons & BUTTON_THUMB_R) != 0;
 
-    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 8.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 8.0f * s);
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.11f, 0.13f, 0.17f, 0.92f));
     ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.26f, 0.30f, 0.38f, 0.75f));
 
     ImGui::Spacing();
+
+    constexpr ImGuiChildFlags kCardChildFlags = ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY;
+    constexpr ImGuiWindowFlags kCardWindowFlags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
 
     // ========================================================================
     // 1. Top Row: LT / L2 Trigger Card  |  LB/L1 & RB/R1  |  RT / R2 Trigger Card
@@ -958,24 +1012,24 @@ void DemoScene::RenderPanel_ControlsTab(int slot, const ControllerSnapshot& snap
         ImGui::TableNextRow();
 
         auto renderTriggerCard = [&](const char* childId, const char* label, float normVal, int32_t rawVal) {
-            if (ImGui::BeginChild(childId, ImVec2(0.0f, 74.0f), ImGuiChildFlags_Borders,
-                                  ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
+            if (ImGui::BeginChild(childId, ImVec2(0.0f, 0.0f), kCardChildFlags, kCardWindowFlags)) {
                 ImGui::TextColored(normVal > 0.01f ? kTextColorCyan : kTextColorWhite, "%s", label);
 
-                const float barWidth = std::max(40.0f, ImGui::GetContentRegionAvail().x);
-                constexpr float kBarHeight = 13.0f;
+                const float barWidth = std::max(40.0f * s, ImGui::GetContentRegionAvail().x);
+                const float barHeight = 13.0f * s;
+                const float barRounding = 6.5f * s;
                 const ImVec2 barMin = ImGui::GetCursorScreenPos();
-                const ImVec2 barMax(barMin.x + barWidth, barMin.y + kBarHeight);
-                ImGui::Dummy(ImVec2(barWidth, kBarHeight));
+                const ImVec2 barMax = barMin + ImVec2(barWidth, barHeight);
+                ImGui::Dummy(ImVec2(barWidth, barHeight));
 
                 ImDrawList* drawList = ImGui::GetWindowDrawList();
-                drawList->AddRectFilled(barMin, barMax, IM_COL32(20, 24, 32, 255), 6.5f);
+                drawList->AddRectFilled(barMin, barMax, IM_COL32(20, 24, 32, 255), barRounding);
                 if (normVal > 0.002f) {
-                    const float fillW = std::max(kBarHeight, barWidth * std::clamp(normVal, 0.0f, 1.0f));
+                    const float fillW = std::max(barHeight, barWidth * std::clamp(normVal, 0.0f, 1.0f));
                     drawList->AddRectFilled(barMin, ImVec2(barMin.x + fillW, barMax.y), IM_COL32(55, 150, 245, 255),
-                                            6.5f);
+                                            barRounding);
                 }
-                drawList->AddRect(barMin, barMax, IM_COL32(120, 135, 158, 200), 6.5f, 0, 1.2f);
+                drawList->AddRect(barMin, barMax, IM_COL32(120, 135, 158, 200), barRounding, 0, 1.2f * s);
 
                 const float cStartX = ImGui::GetCursorPosX();
                 const float cWidth = ImGui::GetContentRegionAvail().x;
@@ -994,20 +1048,20 @@ void DemoScene::RenderPanel_ControlsTab(int slot, const ControllerSnapshot& snap
         {
             const float colStartX = ImGui::GetCursorPosX();
             const float colWidth = ImGui::GetContentRegionAvail().x;
-            constexpr float kPillW = 66.0f;
-            constexpr float kPillH = 34.0f;
-            constexpr float kPillGap = 10.0f;
-            constexpr float kTotalW = kPillW * 2.0f + kPillGap;
+            const float pillW = 66.0f * s;
+            const float pillH = 34.0f * s;
+            const float pillGap = 10.0f * s;
+            const float totalW = pillW * 2.0f + pillGap;
 
-            ImGui::Dummy(ImVec2(0.0f, 16.0f));
-            ImGui::SetCursorPosX(colStartX + std::max(0.0f, (colWidth - kTotalW) * 0.5f));
+            ImGui::Dummy(ImVec2(0.0f, 16.0f * s));
+            ImGui::SetCursorPosX(colStartX + std::max(0.0f, (colWidth - totalW) * 0.5f));
             const ImVec2 rowMin = ImGui::GetCursorScreenPos();
-            ImGui::Dummy(ImVec2(kTotalW, kPillH));
+            ImGui::Dummy(ImVec2(totalW, pillH));
 
             ImDrawList* drawList = ImGui::GetWindowDrawList();
-            DrawVectorButtonBadge(drawList, rowMin, ImVec2(kPillW, kPillH), "LB / L1", nullptr, l1Active);
-            DrawVectorButtonBadge(drawList, ImVec2(rowMin.x + kPillW + kPillGap, rowMin.y), ImVec2(kPillW, kPillH),
-                                  "RB / R1", nullptr, r1Active);
+            DrawVectorButtonBadge(drawList, rowMin, ImVec2(pillW, pillH), "LB / L1", nullptr, l1Active);
+            DrawVectorButtonBadge(drawList, rowMin + ImVec2(pillW + pillGap, 0.0f), ImVec2(pillW, pillH), "RB / R1",
+                                  nullptr, r1Active);
         }
 
         // Right Trigger (RT / R2)
@@ -1033,16 +1087,15 @@ void DemoScene::RenderPanel_ControlsTab(int slot, const ControllerSnapshot& snap
         // --------------------------------------------------------------------
         ImGui::TableNextColumn();
         {
-            if (ImGui::BeginChild("##left_stick_card", ImVec2(0.0f, 172.0f), ImGuiChildFlags_Borders,
-                                  ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
-                DrawStickWellWidget("Left Stick (L3)", gp.axis_x, gp.axis_y, leftX, leftY, effectiveDeadzone, l3Active);
+            if (ImGui::BeginChild("##left_stick_card", ImVec2(0.0f, 0.0f), kCardChildFlags, kCardWindowFlags)) {
+                DrawStickWellWidget("Left Stick (L3)", gp.axis_x, gp.axis_y, leftStick.x, leftStick.y,
+                                    effectiveDeadzone, l3Active);
             }
             ImGui::EndChild();
 
             ImGui::Spacing();
 
-            if (ImGui::BeginChild("##dpad_card", ImVec2(0.0f, 162.0f), ImGuiChildFlags_Borders,
-                                  ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
+            if (ImGui::BeginChild("##dpad_card", ImVec2(0.0f, 0.0f), kCardChildFlags, kCardWindowFlags)) {
                 DrawDPadCrossWidget(gp.dpad);
             }
             ImGui::EndChild();
@@ -1054,60 +1107,57 @@ void DemoScene::RenderPanel_ControlsTab(int slot, const ControllerSnapshot& snap
         ImGui::TableNextColumn();
         {
             // Card 2A: Navigation Buttons (Select/Share, Mode/Guide/PS, Start/Options)
-            if (ImGui::BeginChild("##nav_buttons_card", ImVec2(0.0f, 80.0f), ImGuiChildFlags_Borders,
-                                  ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
+            if (ImGui::BeginChild("##nav_buttons_card", ImVec2(0.0f, 0.0f), kCardChildFlags, kCardWindowFlags)) {
                 const float colStartX = ImGui::GetCursorPosX();
                 const float colWidth = ImGui::GetContentRegionAvail().x;
                 DrawTextCenteredInColumn(colStartX, colWidth, kTextColorWhite, "Navigation Buttons");
                 ImGui::Spacing();
 
-                constexpr float kBtnW = 74.0f;
-                constexpr float kBtnH = 38.0f;
-                constexpr float kGap = 10.0f;
-                constexpr float kRowW = kBtnW * 3.0f + kGap * 2.0f;
+                const float btnW = 74.0f * s;
+                const float btnH = 38.0f * s;
+                const float gap = 10.0f * s;
+                const float rowW = btnW * 3.0f + gap * 2.0f;
 
-                ImGui::SetCursorPosX(colStartX + std::max(0.0f, (colWidth - kRowW) * 0.5f));
+                ImGui::SetCursorPosX(colStartX + std::max(0.0f, (colWidth - rowW) * 0.5f));
                 const ImVec2 rowMin = ImGui::GetCursorScreenPos();
-                ImGui::Dummy(ImVec2(kRowW, kBtnH));
+                ImGui::Dummy(ImVec2(rowW, btnH));
 
                 ImDrawList* drawList = ImGui::GetWindowDrawList();
-                DrawVectorButtonBadge(drawList, rowMin, ImVec2(kBtnW, kBtnH), "Select", "Share",
+                DrawVectorButtonBadge(drawList, rowMin, ImVec2(btnW, btnH), "Select", "Share",
                                       (gp.misc_buttons & MISC_BUTTON_SELECT) != 0);
-                DrawVectorButtonBadge(drawList, ImVec2(rowMin.x + kBtnW + kGap, rowMin.y), ImVec2(kBtnW, kBtnH), "Mode",
+                DrawVectorButtonBadge(drawList, rowMin + ImVec2(btnW + gap, 0.0f), ImVec2(btnW, btnH), "Mode",
                                       "Guide / PS", (gp.misc_buttons & MISC_BUTTON_SYSTEM) != 0);
-                DrawVectorButtonBadge(drawList, ImVec2(rowMin.x + (kBtnW + kGap) * 2.0f, rowMin.y),
-                                      ImVec2(kBtnW, kBtnH), "Start", "Options",
-                                      (gp.misc_buttons & MISC_BUTTON_START) != 0);
+                DrawVectorButtonBadge(drawList, rowMin + ImVec2((btnW + gap) * 2.0f, 0.0f), ImVec2(btnW, btnH), "Start",
+                                      "Options", (gp.misc_buttons & MISC_BUTTON_START) != 0);
             }
             ImGui::EndChild();
 
             ImGui::Spacing();
 
             // Card 2B: Extra Buttons (Capture, L3, R3, plus live hex bitmasks)
-            if (ImGui::BeginChild("##extra_buttons_card", ImVec2(0.0f, 114.0f), ImGuiChildFlags_Borders,
-                                  ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
+            if (ImGui::BeginChild("##extra_buttons_card", ImVec2(0.0f, 0.0f), kCardChildFlags, kCardWindowFlags)) {
                 const float colStartX = ImGui::GetCursorPosX();
                 const float colWidth = ImGui::GetContentRegionAvail().x;
                 DrawTextCenteredInColumn(colStartX, colWidth, kTextColorWhite, "Extra Buttons");
                 DrawTextCenteredInColumn(colStartX, colWidth, kTextColorGrey, "Auxiliary, thumb-click & bitmask keys");
                 ImGui::Spacing();
 
-                constexpr float kBtnW = 74.0f;
-                constexpr float kBtnH = 36.0f;
-                constexpr float kGap = 10.0f;
-                constexpr float kRowW = kBtnW * 3.0f + kGap * 2.0f;
+                const float btnW = 74.0f * s;
+                const float btnH = 36.0f * s;
+                const float gap = 10.0f * s;
+                const float rowW = btnW * 3.0f + gap * 2.0f;
 
-                ImGui::SetCursorPosX(colStartX + std::max(0.0f, (colWidth - kRowW) * 0.5f));
+                ImGui::SetCursorPosX(colStartX + std::max(0.0f, (colWidth - rowW) * 0.5f));
                 const ImVec2 rowMin = ImGui::GetCursorScreenPos();
-                ImGui::Dummy(ImVec2(kRowW, kBtnH));
+                ImGui::Dummy(ImVec2(rowW, btnH));
 
                 ImDrawList* drawList = ImGui::GetWindowDrawList();
-                DrawVectorButtonBadge(drawList, rowMin, ImVec2(kBtnW, kBtnH), "Capture", "Mute / Share",
+                DrawVectorButtonBadge(drawList, rowMin, ImVec2(btnW, btnH), "Capture", "Mute / Share",
                                       (gp.misc_buttons & MISC_BUTTON_CAPTURE) != 0);
-                DrawVectorButtonBadge(drawList, ImVec2(rowMin.x + kBtnW + kGap, rowMin.y), ImVec2(kBtnW, kBtnH), "L3",
+                DrawVectorButtonBadge(drawList, rowMin + ImVec2(btnW + gap, 0.0f), ImVec2(btnW, btnH), "L3",
                                       "Left Stick", l3Active);
-                DrawVectorButtonBadge(drawList, ImVec2(rowMin.x + (kBtnW + kGap) * 2.0f, rowMin.y),
-                                      ImVec2(kBtnW, kBtnH), "R3", "Right Stick", r3Active);
+                DrawVectorButtonBadge(drawList, rowMin + ImVec2((btnW + gap) * 2.0f, 0.0f), ImVec2(btnW, btnH), "R3",
+                                      "Right Stick", r3Active);
 
                 ImGui::Spacing();
                 DrawTextCenteredInColumn(colStartX, colWidth, kTextColorGrey,
@@ -1119,30 +1169,21 @@ void DemoScene::RenderPanel_ControlsTab(int slot, const ControllerSnapshot& snap
             ImGui::Spacing();
 
             // Card 2C: LAST DETECTED INPUT
-            if (ImGui::BeginChild("##last_detected_card", ImVec2(0.0f, 62.0f), ImGuiChildFlags_Borders,
-                                  ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
+            if (ImGui::BeginChild("##last_detected_card", ImVec2(0.0f, 0.0f), kCardChildFlags, kCardWindowFlags)) {
                 ImGui::TextColored(kTextColorGrey, "LAST DETECTED INPUT");
-                ImGui::Indent(8.0f);
-                ImGui::TextColored(kTextColorCyan, "%s", mLastDetectedInput[slot]);
-                ImGui::Unindent(8.0f);
+                ImGui::Indent(8.0f * s);
+                ImGui::TextColored(kTextColorCyan, "%s", slot_state.last_detected_input.data());
+                ImGui::Unindent(8.0f * s);
             }
             ImGui::EndChild();
 
             ImGui::Spacing();
 
             // Card 2D: Radial Deadzone Slider (0% .. 35%)
-            if (ImGui::BeginChild("##radial_deadzone_card", ImVec2(0.0f, 66.0f), ImGuiChildFlags_Borders,
-                                  ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
+            if (ImGui::BeginChild("##radial_deadzone_card", ImVec2(0.0f, 0.0f), kCardChildFlags, kCardWindowFlags)) {
                 ImGui::TextColored(kTextColorWhite, "Radial Deadzone");
                 ImGui::SameLine();
-                char pctBuf[32];
-                std::snprintf(pctBuf, sizeof(pctBuf), "%.0f%%", static_cast<double>(effectiveDeadzone * 100.0f));
-                const float pctW = ImGui::CalcTextSize(pctBuf).x;
-                const float availW = ImGui::GetContentRegionAvail().x;
-                if (availW > pctW) {
-                    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + availW - pctW);
-                }
-                ImGui::TextColored(kTextColorCyan, "%s", pctBuf);
+                DrawRightAlignedText(kTextColorCyan, "%.0f%%", static_cast<double>(effectiveDeadzone * 100.0f));
 
                 float deadzonePct = effectiveDeadzone * 100.0f;
                 ImGui::SetNextItemWidth(-1.0f);
@@ -1159,18 +1200,16 @@ void DemoScene::RenderPanel_ControlsTab(int slot, const ControllerSnapshot& snap
         // --------------------------------------------------------------------
         ImGui::TableNextColumn();
         {
-            if (ImGui::BeginChild("##action_buttons_card", ImVec2(0.0f, 162.0f), ImGuiChildFlags_Borders,
-                                  ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
+            if (ImGui::BeginChild("##action_buttons_card", ImVec2(0.0f, 0.0f), kCardChildFlags, kCardWindowFlags)) {
                 DrawActionButtonsDiamondWidget(gp.buttons, snap.layout);
             }
             ImGui::EndChild();
 
             ImGui::Spacing();
 
-            if (ImGui::BeginChild("##right_stick_card", ImVec2(0.0f, 172.0f), ImGuiChildFlags_Borders,
-                                  ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
-                DrawStickWellWidget("Right Stick (R3)", gp.axis_rx, gp.axis_ry, rightX, rightY, effectiveDeadzone,
-                                    r3Active);
+            if (ImGui::BeginChild("##right_stick_card", ImVec2(0.0f, 0.0f), kCardChildFlags, kCardWindowFlags)) {
+                DrawStickWellWidget("Right Stick (R3)", gp.axis_rx, gp.axis_ry, rightStick.x, rightStick.y,
+                                    effectiveDeadzone, r3Active);
             }
             ImGui::EndChild();
         }
@@ -1183,13 +1222,14 @@ void DemoScene::RenderPanel_ControlsTab(int slot, const ControllerSnapshot& snap
 }
 
 void DemoScene::RenderPanel_InfoTab(int slot, const ControllerSnapshot& snap) {
+    const float s = UiScale();
     ImGui::Spacing();
     ImGui::TextColored(kTextColorCyan, "Hardware & Bluetooth Link Diagnostics");
     ImGui::Separator();
 
     if (ImGui::BeginTable("##infotable", 2,
                           ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit)) {
-        ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed, 240.0f);
+        ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed, 240.0f * s);
         ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 
         auto addRow = [](const char* label, const char* fmt, ...) {
@@ -1235,8 +1275,8 @@ void DemoScene::RenderPanel_InfoTab(int slot, const ControllerSnapshot& snap) {
             const float frac = std::clamp(static_cast<float>(battery) / 254.0f, 0.0f, 1.0f);
             char overlay[64];
             std::snprintf(overlay, sizeof(overlay), "%.0f%% (%u / 254)", static_cast<double>(frac * 100.0f), battery);
-            ImGui::SetNextItemWidth(220.0f);
-            ImGui::ProgressBar(frac, ImVec2(220.0f, 0.0f), overlay);
+            ImGui::SetNextItemWidth(220.0f * s);
+            ImGui::ProgressBar(frac, ImVec2(220.0f * s, 0.0f), overlay);
         }
 
         ImGui::EndTable();
@@ -1258,39 +1298,43 @@ void DemoScene::RenderPanel_InfoTab(int slot, const ControllerSnapshot& snap) {
 }
 
 void DemoScene::RenderPanel_VibrationTab(int slot, const ControllerSnapshot& snap) {
+    ControllerSlotUiState& slot_state = mSlots[static_cast<size_t>(slot)];
+    const float s = UiScale();
+
     ImGui::Spacing();
-    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 8.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 8.0f * s);
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.10f, 0.11f, 0.14f, 1.0f));
     ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.22f, 0.25f, 0.32f, 1.0f));
+
+    constexpr ImGuiChildFlags kCardChildFlags = ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY;
+    constexpr ImGuiWindowFlags kCardWindowFlags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
 
     // ========================================================================
     // Card 1: Dual-Motor Force Amplitude
     // ========================================================================
-    const float card1Height = snap.has_rumble ? 258.0f : 282.0f;
-    if (ImGui::BeginChild("##rumble_amplitude_card", ImVec2(0.0f, card1Height), ImGuiChildFlags_Borders,
-                          ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
+    if (ImGui::BeginChild("##rumble_amplitude_card", ImVec2(0.0f, 0.0f), kCardChildFlags, kCardWindowFlags)) {
         ImGui::TextColored(kTextColorWhite, "Dual-Motor Force Amplitude");
         ImGui::SameLine();
 
-        const char* statusLabel = !snap.has_rumble             ? "No Vibrator"
-                                  : mTriggerRumbleActive[slot] ? "Trigger Haptics Active"
-                                                               : "Vibrator Ready";
-        const ImVec4 statusColor = !snap.has_rumble             ? kTextColorYellow
-                                   : mTriggerRumbleActive[slot] ? kTextColorCyan
-                                                                : kTextColorGreen;
-        const ImU32 dotColor = !snap.has_rumble             ? IM_COL32(255, 215, 50, 255)
-                               : mTriggerRumbleActive[slot] ? IM_COL32(75, 215, 255, 255)
-                                                            : IM_COL32(65, 225, 110, 255);
+        const char* statusLabel = !snap.has_rumble                   ? "No Vibrator"
+                                  : slot_state.trigger_rumble_active ? "Trigger Haptics Active"
+                                                                     : "Vibrator Ready";
+        const ImVec4 statusColor = !snap.has_rumble                   ? kTextColorYellow
+                                   : slot_state.trigger_rumble_active ? kTextColorCyan
+                                                                      : kTextColorGreen;
+        const ImU32 dotColor = !snap.has_rumble                   ? IM_COL32(255, 215, 50, 255)
+                               : slot_state.trigger_rumble_active ? IM_COL32(75, 215, 255, 255)
+                                                                  : IM_COL32(65, 225, 110, 255);
 
         const float statusTextW = ImGui::CalcTextSize(statusLabel).x;
         const float availHeaderW = ImGui::GetContentRegionAvail().x;
-        if (availHeaderW > statusTextW + 16.0f) {
+        if (availHeaderW > statusTextW + 16.0f * s) {
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() + availHeaderW - statusTextW);
         }
         const ImVec2 statusScreenPos = ImGui::GetCursorScreenPos();
         ImGui::GetWindowDrawList()->AddCircleFilled(
-            ImVec2(statusScreenPos.x - 10.0f, statusScreenPos.y + ImGui::GetTextLineHeight() * 0.5f), 4.0f, dotColor,
-            16);
+            ImVec2(statusScreenPos.x - 10.0f * s, statusScreenPos.y + ImGui::GetTextLineHeight() * 0.5f), 4.0f * s,
+            dotColor, 16);
         ImGui::TextColored(statusColor, "%s", statusLabel);
 
         if (!snap.has_rumble) {
@@ -1303,46 +1347,47 @@ void DemoScene::RenderPanel_VibrationTab(int slot, const ControllerSnapshot& sna
 
         // Slider 1: Left Motor (Heavy / Low Freq) -> strong_magnitude (0..255)
         const uint8_t strongU8 =
-            static_cast<uint8_t>(std::clamp(std::round(mRumbleStrongIntensity[slot] * 255.0f), 0.0f, 255.0f));
+            static_cast<uint8_t>(std::clamp(std::round(slot_state.rumble_strong_intensity * 255.0f), 0.0f, 255.0f));
         ImGui::TextColored(kTextColorWhite, "Left Motor (Heavy / Low Freq)");
         ImGui::SameLine();
         DrawRightAlignedText(kTextColorCyan, "%.0f%% (%u/255)",
-                             static_cast<double>(mRumbleStrongIntensity[slot] * 100.0f), strongU8);
+                             static_cast<double>(slot_state.rumble_strong_intensity * 100.0f), strongU8);
 
-        float strongPct = mRumbleStrongIntensity[slot] * 100.0f;
+        float strongPct = slot_state.rumble_strong_intensity * 100.0f;
         ImGui::SetNextItemWidth(-1.0f);
         if (ImGui::SliderFloat("##rumble_left_motor", &strongPct, 0.0f, 100.0f, "")) {
-            mRumbleStrongIntensity[slot] = std::clamp(strongPct / 100.0f, 0.0f, 1.0f);
+            slot_state.rumble_strong_intensity = std::clamp(strongPct / 100.0f, 0.0f, 1.0f);
         }
 
         ImGui::Spacing();
 
         // Slider 2: Right Motor (Light / High Freq) -> weak_magnitude (0..255)
         const uint8_t weakU8 =
-            static_cast<uint8_t>(std::clamp(std::round(mRumbleWeakIntensity[slot] * 255.0f), 0.0f, 255.0f));
+            static_cast<uint8_t>(std::clamp(std::round(slot_state.rumble_weak_intensity * 255.0f), 0.0f, 255.0f));
         ImGui::TextColored(kTextColorWhite, "Right Motor (Light / High Freq)");
         ImGui::SameLine();
         DrawRightAlignedText(kTextColorCyan, "%.0f%% (%u/255)",
-                             static_cast<double>(mRumbleWeakIntensity[slot] * 100.0f), weakU8);
+                             static_cast<double>(slot_state.rumble_weak_intensity * 100.0f), weakU8);
 
-        float weakPct = mRumbleWeakIntensity[slot] * 100.0f;
+        float weakPct = slot_state.rumble_weak_intensity * 100.0f;
         ImGui::SetNextItemWidth(-1.0f);
         if (ImGui::SliderFloat("##rumble_right_motor", &weakPct, 0.0f, 100.0f, "")) {
-            mRumbleWeakIntensity[slot] = std::clamp(weakPct / 100.0f, 0.0f, 1.0f);
+            slot_state.rumble_weak_intensity = std::clamp(weakPct / 100.0f, 0.0f, 1.0f);
         }
 
         ImGui::Spacing();
 
         // Slider 3: Duration (50 ms .. 5000 ms)
         const uint16_t durationMs =
-            static_cast<uint16_t>(std::clamp(std::round(mRumbleDurationMs[slot]), 50.0f, 5000.0f));
+            static_cast<uint16_t>(std::clamp(std::round(slot_state.rumble_duration_ms), 50.0f, 5000.0f));
         ImGui::TextColored(kTextColorWhite, "Duration");
         ImGui::SameLine();
         DrawRightAlignedText(kTextColorCyan, "%u ms (%.1fs)", durationMs, static_cast<double>(durationMs) / 1000.0);
 
         ImGui::SetNextItemWidth(-1.0f);
-        if (ImGui::SliderFloat("##rumble_duration", &mRumbleDurationMs[slot], 50.0f, 5000.0f, "")) {
-            mRumbleDurationMs[slot] = std::clamp(std::round(mRumbleDurationMs[slot] / 10.0f) * 10.0f, 50.0f, 5000.0f);
+        if (ImGui::SliderFloat("##rumble_duration", &slot_state.rumble_duration_ms, 50.0f, 5000.0f, "")) {
+            slot_state.rumble_duration_ms =
+                std::clamp(std::round(slot_state.rumble_duration_ms / 10.0f) * 10.0f, 50.0f, 5000.0f);
         }
 
         ImGui::Spacing();
@@ -1350,12 +1395,12 @@ void DemoScene::RenderPanel_VibrationTab(int slot, const ControllerSnapshot& sna
 
         // Bottom Action Buttons: "Test Rumble" (left half) and "Stop Rumble" (right half)
         const float availW = ImGui::GetContentRegionAvail().x;
-        constexpr float kBtnGap = 14.0f;
-        constexpr float kBtnHeight = 36.0f;
-        const float halfBtnW = std::max(120.0f, (availW - kBtnGap) * 0.5f);
+        const float btnGap = 14.0f * s;
+        const float btnHeight = 36.0f * s;
+        const float halfBtnW = std::max(120.0f * s, (availW - btnGap) * 0.5f);
         ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 18.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 18.0f * s);
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
 
         // 1. Test Rumble Button
@@ -1363,13 +1408,13 @@ void DemoScene::RenderPanel_VibrationTab(int slot, const ControllerSnapshot& sna
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.22f, 0.45f, 0.75f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.12f, 0.28f, 0.50f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.32f, 0.62f, 0.95f, 1.0f));
-        if (ImGui::Button("    Test Rumble", ImVec2(halfBtnW, kBtnHeight)) && snap.has_rumble) {
+        if (ImGui::Button("    Test Rumble", ImVec2(halfBtnW, btnHeight)) && snap.has_rumble) {
             const uint8_t curWeak =
-                static_cast<uint8_t>(std::clamp(std::round(mRumbleWeakIntensity[slot] * 255.0f), 0.0f, 255.0f));
+                static_cast<uint8_t>(std::clamp(std::round(slot_state.rumble_weak_intensity * 255.0f), 0.0f, 255.0f));
             const uint8_t curStrong =
-                static_cast<uint8_t>(std::clamp(std::round(mRumbleStrongIntensity[slot] * 255.0f), 0.0f, 255.0f));
+                static_cast<uint8_t>(std::clamp(std::round(slot_state.rumble_strong_intensity * 255.0f), 0.0f, 255.0f));
             const uint16_t curDur =
-                static_cast<uint16_t>(std::clamp(std::round(mRumbleDurationMs[slot]), 50.0f, 5000.0f));
+                static_cast<uint16_t>(std::clamp(std::round(slot_state.rumble_duration_ms), 50.0f, 5000.0f));
             posix_imgui_request_rumble(slot, 0, curDur, curWeak, curStrong);
         }
         {
@@ -1377,19 +1422,19 @@ void DemoScene::RenderPanel_VibrationTab(int slot, const ControllerSnapshot& sna
             const ImVec2 bMin = ImGui::GetItemRectMin();
             const ImVec2 bMax = ImGui::GetItemRectMax();
             const float textW = ImGui::CalcTextSize("    Test Rumble").x;
-            const float iconCx = (bMin.x + bMax.x - textW) * 0.5f + 6.0f;
+            const float iconCx = (bMin.x + bMax.x - textW) * 0.5f + 6.0f * s;
             const float iconCy = (bMin.y + bMax.y) * 0.5f;
             const ImU32 iconCol = IM_COL32(235, 245, 255, 255);
-            drawList->AddRect(ImVec2(iconCx - 4.0f, iconCy - 6.0f), ImVec2(iconCx + 4.0f, iconCy + 6.0f), iconCol, 1.5f,
-                              0, 1.5f);
-            drawList->AddLine(ImVec2(iconCx - 7.0f, iconCy - 4.0f), ImVec2(iconCx - 7.0f, iconCy + 4.0f), iconCol,
-                              1.5f);
-            drawList->AddLine(ImVec2(iconCx + 7.0f, iconCy - 4.0f), ImVec2(iconCx + 7.0f, iconCy + 4.0f), iconCol,
-                              1.5f);
+            drawList->AddRect(ImVec2(iconCx - 4.0f * s, iconCy - 6.0f * s),
+                              ImVec2(iconCx + 4.0f * s, iconCy + 6.0f * s), iconCol, 1.5f * s, 0, 1.5f * s);
+            drawList->AddLine(ImVec2(iconCx - 7.0f * s, iconCy - 4.0f * s),
+                              ImVec2(iconCx - 7.0f * s, iconCy + 4.0f * s), iconCol, 1.5f * s);
+            drawList->AddLine(ImVec2(iconCx + 7.0f * s, iconCy - 4.0f * s),
+                              ImVec2(iconCx + 7.0f * s, iconCy + 4.0f * s), iconCol, 1.5f * s);
         }
         ImGui::PopStyleColor(4);
 
-        ImGui::SameLine(0.0f, kBtnGap);
+        ImGui::SameLine(0.0f, btnGap);
 
         // 2. Stop Rumble Button
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.13f, 0.14f, 0.18f, 1.0f));
@@ -1397,8 +1442,8 @@ void DemoScene::RenderPanel_VibrationTab(int slot, const ControllerSnapshot& sna
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.32f, 0.14f, 0.16f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.38f, 0.28f, 0.32f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.98f, 0.38f, 0.38f, 1.0f));
-        if (ImGui::Button("    Stop Rumble", ImVec2(halfBtnW, kBtnHeight)) && snap.has_rumble) {
-            mTriggerRumbleActive[slot] = false;
+        if (ImGui::Button("    Stop Rumble", ImVec2(halfBtnW, btnHeight)) && snap.has_rumble) {
+            slot_state.trigger_rumble_active = false;
             posix_imgui_request_rumble(slot, 0, 0, 0, 0);
         }
         {
@@ -1406,10 +1451,10 @@ void DemoScene::RenderPanel_VibrationTab(int slot, const ControllerSnapshot& sna
             const ImVec2 bMin = ImGui::GetItemRectMin();
             const ImVec2 bMax = ImGui::GetItemRectMax();
             const float textW = ImGui::CalcTextSize("    Stop Rumble").x;
-            const float iconCx = (bMin.x + bMax.x - textW) * 0.5f + 6.0f;
+            const float iconCx = (bMin.x + bMax.x - textW) * 0.5f + 6.0f * s;
             const float iconCy = (bMin.y + bMax.y) * 0.5f;
-            drawList->AddRectFilled(ImVec2(iconCx - 4.5f, iconCy - 4.5f), ImVec2(iconCx + 4.5f, iconCy + 4.5f),
-                                    IM_COL32(245, 85, 85, 255), 1.5f);
+            drawList->AddRectFilled(ImVec2(iconCx - 4.5f * s, iconCy - 4.5f * s),
+                                    ImVec2(iconCx + 4.5f * s, iconCy + 4.5f * s), IM_COL32(245, 85, 85, 255), 1.5f * s);
         }
         ImGui::PopStyleColor(5);
         ImGui::PopStyleVar(2);
@@ -1421,16 +1466,15 @@ void DemoScene::RenderPanel_VibrationTab(int slot, const ControllerSnapshot& sna
     // ========================================================================
     // Card 2: Preset Waveforms
     // ========================================================================
-    if (ImGui::BeginChild("##rumble_presets_card", ImVec2(0.0f, 108.0f), ImGuiChildFlags_Borders,
-                          ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
+    if (ImGui::BeginChild("##rumble_presets_card", ImVec2(0.0f, 0.0f), kCardChildFlags, kCardWindowFlags)) {
         ImGui::TextColored(kTextColorWhite, "Preset Waveforms");
         ImGui::TextColored(kTextColorGrey,
                            "Quickly trigger pre-calibrated vibration patterns to verify dual-motor separation.");
         ImGui::Spacing();
 
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 8.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 8.0f * s);
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(12.0f, 6.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(12.0f * s, 6.0f * s));
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.14f, 0.16f, 0.21f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.25f, 0.34f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.16f, 0.36f, 0.62f, 1.0f));
@@ -1440,16 +1484,16 @@ void DemoScene::RenderPanel_VibrationTab(int slot, const ControllerSnapshot& sna
         auto drawPlayTriangleOnLastButton = [&]() {
             const ImVec2 bMin = ImGui::GetItemRectMin();
             const ImVec2 bMax = ImGui::GetItemRectMax();
-            const float cx = bMin.x + 14.0f;
+            const float cx = bMin.x + 14.0f * s;
             const float cy = (bMin.y + bMax.y) * 0.5f;
-            drawList->AddTriangleFilled(ImVec2(cx - 3.0f, cy - 4.5f), ImVec2(cx - 3.0f, cy + 4.5f),
-                                        ImVec2(cx + 4.5f, cy), IM_COL32(195, 205, 225, 255));
+            drawList->AddTriangleFilled(ImVec2(cx - 3.0f * s, cy - 4.5f * s), ImVec2(cx - 3.0f * s, cy + 4.5f * s),
+                                        ImVec2(cx + 4.5f * s, cy), IM_COL32(195, 205, 225, 255));
         };
 
         auto triggerPreset = [&](float durationMs, float strongNorm, float weakNorm) {
-            mRumbleDurationMs[slot] = durationMs;
-            mRumbleStrongIntensity[slot] = strongNorm;
-            mRumbleWeakIntensity[slot] = weakNorm;
+            slot_state.rumble_duration_ms = durationMs;
+            slot_state.rumble_strong_intensity = strongNorm;
+            slot_state.rumble_weak_intensity = weakNorm;
             if (snap.has_rumble) {
                 const uint8_t weakVal = static_cast<uint8_t>(std::clamp(std::round(weakNorm * 255.0f), 0.0f, 255.0f));
                 const uint8_t strongVal =
@@ -1463,24 +1507,24 @@ void DemoScene::RenderPanel_VibrationTab(int slot, const ControllerSnapshot& sna
         }
         drawPlayTriangleOnLastButton();
 
-        ImGui::SameLine(0.0f, 10.0f);
+        ImGui::SameLine(0.0f, 10.0f * s);
         if (ImGui::Button("   Heavy Rumble (1.5s)")) {
             triggerPreset(1500.0f, 1.00f, 0.30f);
         }
         drawPlayTriangleOnLastButton();
 
-        ImGui::SameLine(0.0f, 10.0f);
+        ImGui::SameLine(0.0f, 10.0f * s);
         if (ImGui::Button("   Light Buzz (800ms)")) {
             triggerPreset(800.0f, 0.0f, 0.65f);
         }
         drawPlayTriangleOnLastButton();
 
-        ImGui::SameLine(0.0f, 10.0f);
+        ImGui::SameLine(0.0f, 10.0f * s);
         if (ImGui::Button("Left Motor Only")) {
             triggerPreset(1000.0f, 1.00f, 0.0f);
         }
 
-        ImGui::SameLine(0.0f, 10.0f);
+        ImGui::SameLine(0.0f, 10.0f * s);
         if (ImGui::Button("Right Motor Only")) {
             triggerPreset(1000.0f, 0.0f, 1.00f);
         }
@@ -1495,19 +1539,17 @@ void DemoScene::RenderPanel_VibrationTab(int slot, const ControllerSnapshot& sna
     // ========================================================================
     // Card 3: Trigger Rumble Mode
     // ========================================================================
-    const float card3Height = mTriggerRumbleEnabled[slot] ? 86.0f : 68.0f;
-    if (ImGui::BeginChild("##rumble_trigger_mode_card", ImVec2(0.0f, card3Height), ImGuiChildFlags_Borders,
-                          ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
+    if (ImGui::BeginChild("##rumble_trigger_mode_card", ImVec2(0.0f, 0.0f), kCardChildFlags, kCardWindowFlags)) {
         if (ImGui::BeginTable("##trigger_rumble_table", 2, ImGuiTableFlags_SizingStretchProp)) {
             ImGui::TableSetupColumn("##trigger_rumble_desc", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("##trigger_rumble_toggle_col", ImGuiTableColumnFlags_WidthFixed, 64.0f);
+            ImGui::TableSetupColumn("##trigger_rumble_toggle_col", ImGuiTableColumnFlags_WidthFixed, 64.0f * s);
             ImGui::TableNextRow();
 
             ImGui::TableNextColumn();
             ImGui::TextColored(kTextColorWhite, "Trigger Rumble Mode");
             ImGui::TextColored(kTextColorGrey,
                                "Dynamically pulse haptics proportional to analog trigger pressure (LT/RT).");
-            if (mTriggerRumbleEnabled[slot]) {
+            if (slot_state.trigger_rumble_enabled) {
                 const uni_gamepad_t& gp = snap.controller.gamepad;
                 const float l2Norm = NormalizeTriggerAxis(gp.brake, (gp.buttons & BUTTON_TRIGGER_L) != 0);
                 const float r2Norm = NormalizeTriggerAxis(gp.throttle, (gp.buttons & BUTTON_TRIGGER_R) != 0);
@@ -1520,13 +1562,13 @@ void DemoScene::RenderPanel_VibrationTab(int slot, const ControllerSnapshot& sna
             }
 
             ImGui::TableNextColumn();
-            ImGui::Dummy(ImVec2(0.0f, 8.0f));
-            if (DrawToggleSwitch("##trigger_rumble_switch", &mTriggerRumbleEnabled[slot])) {
-                if (!mTriggerRumbleEnabled[slot] && mTriggerRumbleActive[slot]) {
+            ImGui::Dummy(ImVec2(0.0f, 8.0f * s));
+            if (DrawToggleSwitch("##trigger_rumble_switch", &slot_state.trigger_rumble_enabled)) {
+                if (!slot_state.trigger_rumble_enabled && slot_state.trigger_rumble_active) {
                     posix_imgui_request_rumble(slot, 0, 0, 0, 0);
-                    mTriggerRumbleActive[slot] = false;
-                    mLastTriggerStrongU8[slot] = 0;
-                    mLastTriggerWeakU8[slot] = 0;
+                    slot_state.trigger_rumble_active = false;
+                    slot_state.last_trigger_strong_u8 = 0;
+                    slot_state.last_trigger_weak_u8 = 0;
                 }
             }
 
@@ -1540,6 +1582,9 @@ void DemoScene::RenderPanel_VibrationTab(int slot, const ControllerSnapshot& sna
 }
 
 void DemoScene::RenderPanel_MotionTab(int slot, const ControllerSnapshot& snap) {
+    ControllerSlotUiState& slot_state = mSlots[static_cast<size_t>(slot)];
+    const float s = UiScale();
+
     ImGui::Spacing();
     ImGui::TextColored(kTextColorCyan, "6-Axis Inertial Measurement Unit (Accelerometer & Gyroscope)");
     ImGui::Separator();
@@ -1553,16 +1598,18 @@ void DemoScene::RenderPanel_MotionTab(int slot, const ControllerSnapshot& snap) 
 
     const uni_gamepad_t& gp = snap.controller.gamepad;
 
-    float accelMps2[3] = {};
-    float accelG[3] = {};
-    float gyroRadS[3] = {};
-    float gyroDegS[3] = {};
-    for (int axis = 0; axis < 3; ++axis) {
+    std::array<float, kMotionAxisCount> accelMps2{};
+    std::array<float, kMotionAxisCount> accelG{};
+    std::array<float, kMotionAxisCount> gyroRadS{};
+    std::array<float, kMotionAxisCount> gyroDegS{};
+    for (size_t axis = 0; axis < kMotionAxisCount; ++axis) {
         accelMps2[axis] = gp.accel[axis];
         accelG[axis] = accelMps2[axis] / kGravityMps2;
         gyroRadS[axis] = gp.gyro[axis];
         gyroDegS[axis] = gyroRadS[axis] * kRadToDeg;
     }
+
+    constexpr std::array<const char*, kMotionAxisCount> kAxisLabels = {"X", "Y", "Z"};
 
     ImGui::Spacing();
     if (ImGui::BeginTable(
@@ -1583,29 +1630,29 @@ void DemoScene::RenderPanel_MotionTab(int slot, const ControllerSnapshot& snap) 
 
             const float colStartX = ImGui::GetCursorPosX();
             const float colWidth = ImGui::GetContentRegionAvail().x;
-            constexpr float kBullseyeRadius = 56.0f;
-            constexpr float kBullseyeDiameter = kBullseyeRadius * 2.0f;
+            const float bullseyeRadius = 56.0f * s;
+            const float bullseyeDiameter = bullseyeRadius * 2.0f;
 
-            ImGui::SetCursorPosX(colStartX + std::max(0.0f, (colWidth - kBullseyeDiameter) * 0.5f));
+            ImGui::SetCursorPosX(colStartX + std::max(0.0f, (colWidth - bullseyeDiameter) * 0.5f));
             const ImVec2 canvasMin = ImGui::GetCursorScreenPos();
-            ImGui::Dummy(ImVec2(kBullseyeDiameter, kBullseyeDiameter));
+            ImGui::Dummy(ImVec2(bullseyeDiameter, bullseyeDiameter));
 
-            const ImVec2 center(canvasMin.x + kBullseyeRadius, canvasMin.y + kBullseyeRadius);
+            const ImVec2 center = canvasMin + ImVec2(bullseyeRadius, bullseyeRadius);
             ImDrawList* drawList = ImGui::GetWindowDrawList();
 
             // Subtle dark circular backdrop
-            drawList->AddCircleFilled(center, kBullseyeRadius, IM_COL32(22, 26, 34, 220), 64);
+            drawList->AddCircleFilled(center, bullseyeRadius, IM_COL32(22, 26, 34, 220), 64);
 
             // Three concentric target rings (r/3, 2r/3, r)
-            drawList->AddCircle(center, kBullseyeRadius * (1.0f / 3.0f), IM_COL32(95, 110, 130, 130), 48, 1.2f);
-            drawList->AddCircle(center, kBullseyeRadius * (2.0f / 3.0f), IM_COL32(95, 110, 130, 150), 64, 1.2f);
-            drawList->AddCircle(center, kBullseyeRadius, IM_COL32(150, 170, 195, 220), 64, 1.8f);
+            drawList->AddCircle(center, bullseyeRadius * (1.0f / 3.0f), IM_COL32(95, 110, 130, 130), 48, 1.2f * s);
+            drawList->AddCircle(center, bullseyeRadius * (2.0f / 3.0f), IM_COL32(95, 110, 130, 150), 64, 1.2f * s);
+            drawList->AddCircle(center, bullseyeRadius, IM_COL32(150, 170, 195, 220), 64, 1.8f * s);
 
             // Crosshair lines through center
-            drawList->AddLine(ImVec2(center.x - kBullseyeRadius, center.y),
-                              ImVec2(center.x + kBullseyeRadius, center.y), IM_COL32(95, 110, 130, 150), 1.0f);
-            drawList->AddLine(ImVec2(center.x, center.y - kBullseyeRadius),
-                              ImVec2(center.x, center.y + kBullseyeRadius), IM_COL32(95, 110, 130, 150), 1.0f);
+            drawList->AddLine(center - ImVec2(bullseyeRadius, 0.0f), center + ImVec2(bullseyeRadius, 0.0f),
+                              IM_COL32(95, 110, 130, 150), 1.0f * s);
+            drawList->AddLine(center - ImVec2(0.0f, bullseyeRadius), center + ImVec2(0.0f, bullseyeRadius),
+                              IM_COL32(95, 110, 130, 150), 1.0f * s);
 
             // Map canonical Y-up horizontal tilt plane (X = right, Z = back) to 2D radar dot:
             float nx = accelG[0];
@@ -1616,19 +1663,18 @@ void DemoScene::RenderPanel_MotionTab(int slot, const ControllerSnapshot& snap) 
                 ny /= mag;
             }
 
-            const float maxDotOffset = kBullseyeRadius - 7.0f;
-            const ImVec2 dotPos(center.x + nx * maxDotOffset, center.y - ny * maxDotOffset);
+            const float maxDotOffset = bullseyeRadius - 7.0f * s;
+            const ImVec2 dotPos = center + ImVec2(nx * maxDotOffset, -ny * maxDotOffset);
 
-            drawList->AddLine(center, dotPos, IM_COL32(80, 200, 255, 110), 1.5f);
-            drawList->AddCircleFilled(dotPos, 8.0f, IM_COL32(80, 215, 255, 70), 24);
-            drawList->AddCircleFilled(dotPos, 5.5f, IM_COL32(90, 220, 255, 255), 24);
-            drawList->AddCircle(dotPos, 5.5f, IM_COL32(230, 250, 255, 220), 24, 1.2f);
+            drawList->AddLine(center, dotPos, IM_COL32(80, 200, 255, 110), 1.5f * s);
+            drawList->AddCircleFilled(dotPos, 8.0f * s, IM_COL32(80, 215, 255, 70), 24);
+            drawList->AddCircleFilled(dotPos, 5.5f * s, IM_COL32(90, 220, 255, 255), 24);
+            drawList->AddCircle(dotPos, 5.5f * s, IM_COL32(230, 250, 255, 220), 24, 1.2f * s);
 
             ImGui::Spacing();
             if (ImGui::BeginTable("##accel_xyz_readouts", 3, ImGuiTableFlags_SizingStretchSame)) {
-                const char* kAxisLabels[3] = {"X", "Y", "Z"};
                 ImGui::TableNextRow();
-                for (int axis = 0; axis < 3; ++axis) {
+                for (size_t axis = 0; axis < kMotionAxisCount; ++axis) {
                     ImGui::TableNextColumn();
                     const float subStartX = ImGui::GetCursorPosX();
                     const float subWidth = ImGui::GetContentRegionAvail().x;
@@ -1649,63 +1695,59 @@ void DemoScene::RenderPanel_MotionTab(int slot, const ControllerSnapshot& snap) 
         {
             ImGui::TextColored(kTextColorWhite, "Gyroscope");
             ImGui::SameLine();
-            const float resetBtnWidth = 68.0f;
+            const float resetBtnWidth = 68.0f * s;
             const float availRight = ImGui::GetContentRegionAvail().x;
             if (availRight > resetBtnWidth) {
                 ImGui::SetCursorPosX(ImGui::GetCursorPosX() + availRight - resetBtnWidth);
             }
             if (ImGui::SmallButton(" Reset ")) {
-                std::memset(mGyroAngleDeg[slot], 0, sizeof(mGyroAngleDeg[slot]));
+                slot_state.gyro_angle_deg = {};
             }
             ImGui::TextColored(kTextColorGrey, "Rotation angle & speed (rad/s)");
             ImGui::Spacing();
 
             if (ImGui::BeginTable("##gyro_dials_table", 3, ImGuiTableFlags_SizingStretchSame)) {
-                const char* kAxisLabels[3] = {"X", "Y", "Z"};
                 ImGui::TableNextRow();
-                for (int axis = 0; axis < 3; ++axis) {
+                for (size_t axis = 0; axis < kMotionAxisCount; ++axis) {
                     ImGui::TableNextColumn();
                     const float subStartX = ImGui::GetCursorPosX();
                     const float subWidth = ImGui::GetContentRegionAvail().x;
-                    constexpr float kDialRadius = 46.0f;
-                    constexpr float kDialDiameter = kDialRadius * 2.0f;
+                    const float dialRadius = 46.0f * s;
+                    const float dialDiameter = dialRadius * 2.0f;
 
-                    ImGui::SetCursorPosX(subStartX + std::max(0.0f, (subWidth - kDialDiameter) * 0.5f));
+                    ImGui::SetCursorPosX(subStartX + std::max(0.0f, (subWidth - dialDiameter) * 0.5f));
                     const ImVec2 dialMin = ImGui::GetCursorScreenPos();
-                    ImGui::Dummy(ImVec2(kDialDiameter, kDialDiameter));
+                    ImGui::Dummy(ImVec2(dialDiameter, dialDiameter));
 
-                    const ImVec2 dialCenter(dialMin.x + kDialRadius, dialMin.y + kDialRadius);
+                    const ImVec2 dialCenter = dialMin + ImVec2(dialRadius, dialRadius);
                     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
                     // Dial background and outer ring
-                    drawList->AddCircleFilled(dialCenter, kDialRadius, IM_COL32(22, 26, 34, 220), 64);
-                    drawList->AddCircle(dialCenter, kDialRadius, IM_COL32(150, 170, 195, 220), 64, 1.8f);
+                    drawList->AddCircleFilled(dialCenter, dialRadius, IM_COL32(22, 26, 34, 220), 64);
+                    drawList->AddCircle(dialCenter, dialRadius, IM_COL32(150, 170, 195, 220), 64, 1.8f * s);
 
                     // Minor 3/6/9-o'clock reference ticks
-                    drawList->AddLine(ImVec2(dialCenter.x + kDialRadius - 5.0f, dialCenter.y),
-                                      ImVec2(dialCenter.x + kDialRadius, dialCenter.y), IM_COL32(95, 110, 130, 160),
-                                      1.2f);
-                    drawList->AddLine(ImVec2(dialCenter.x - kDialRadius, dialCenter.y),
-                                      ImVec2(dialCenter.x - kDialRadius + 5.0f, dialCenter.y),
-                                      IM_COL32(95, 110, 130, 160), 1.2f);
-                    drawList->AddLine(ImVec2(dialCenter.x, dialCenter.y + kDialRadius - 5.0f),
-                                      ImVec2(dialCenter.x, dialCenter.y + kDialRadius), IM_COL32(95, 110, 130, 160),
-                                      1.2f);
+                    drawList->AddLine(dialCenter + ImVec2(dialRadius - 5.0f * s, 0.0f),
+                                      dialCenter + ImVec2(dialRadius, 0.0f), IM_COL32(95, 110, 130, 160), 1.2f * s);
+                    drawList->AddLine(dialCenter - ImVec2(dialRadius, 0.0f),
+                                      dialCenter - ImVec2(dialRadius - 5.0f * s, 0.0f), IM_COL32(95, 110, 130, 160),
+                                      1.2f * s);
+                    drawList->AddLine(dialCenter + ImVec2(0.0f, dialRadius - 5.0f * s),
+                                      dialCenter + ImVec2(0.0f, dialRadius), IM_COL32(95, 110, 130, 160), 1.2f * s);
 
                     // Prominent 12-o'clock zero-degree reference tick
-                    drawList->AddLine(ImVec2(dialCenter.x, dialCenter.y - kDialRadius),
-                                      ImVec2(dialCenter.x, dialCenter.y - kDialRadius + 8.0f),
-                                      IM_COL32(220, 230, 245, 240), 2.0f);
+                    drawList->AddLine(dialCenter - ImVec2(0.0f, dialRadius),
+                                      dialCenter - ImVec2(0.0f, dialRadius - 8.0f * s), IM_COL32(220, 230, 245, 240),
+                                      2.0f * s);
 
                     // Rotating needle showing integrated rotation angle in degrees
-                    const float angleDeg = mGyroAngleDeg[slot][axis];
+                    const float angleDeg = slot_state.gyro_angle_deg[axis];
                     const float angleRad = angleDeg * kDegToRad;
-                    const float needleLen = kDialRadius - 8.0f;
-                    const ImVec2 needleTip(dialCenter.x + std::sin(angleRad) * needleLen,
-                                           dialCenter.y - std::cos(angleRad) * needleLen);
+                    const float needleLen = dialRadius - 8.0f * s;
+                    const ImVec2 needleTip = dialCenter + ImVec2(std::sin(angleRad), -std::cos(angleRad)) * needleLen;
 
-                    drawList->AddLine(dialCenter, needleTip, IM_COL32(90, 220, 255, 255), 2.4f);
-                    drawList->AddCircleFilled(dialCenter, 4.0f, IM_COL32(220, 230, 245, 255), 16);
+                    drawList->AddLine(dialCenter, needleTip, IM_COL32(90, 220, 255, 255), 2.4f * s);
+                    drawList->AddCircleFilled(dialCenter, 4.0f * s, IM_COL32(220, 230, 245, 255), 16);
 
                     ImGui::Spacing();
                     DrawTextCenteredInColumn(subStartX, subWidth, kTextColorWhite, "%.0f\xC2\xB0",
@@ -1732,7 +1774,8 @@ void DemoScene::RenderPanel_MotionTab(int slot, const ControllerSnapshot& snap) 
     }
 
     const int histCount = static_cast<int>(kImuHistoryLen);
-    const int histOffset = static_cast<int>(mImuHistoryOffset[slot]);
+    const int histOffset = static_cast<int>(slot_state.imu_history_offset);
+    const float plotHeight = 55.0f * s;
 
     ImGui::Spacing();
     ImGui::TextColored(kTextColorCyan, "Live History Plots (240 samples)");
@@ -1740,26 +1783,29 @@ void DemoScene::RenderPanel_MotionTab(int slot, const ControllerSnapshot& snap) 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
         ImGui::Text("Accelerometer (X / Y / Z, m/s\xC2\xB2)");
-        ImGui::PlotLines("Accel X", mAccelHistory[slot][0], histCount, histOffset, nullptr, -20.0f, 20.0f,
-                         ImVec2(0.0f, 55.0f));
-        ImGui::PlotLines("Accel Y", mAccelHistory[slot][1], histCount, histOffset, nullptr, -20.0f, 20.0f,
-                         ImVec2(0.0f, 55.0f));
-        ImGui::PlotLines("Accel Z", mAccelHistory[slot][2], histCount, histOffset, nullptr, -20.0f, 20.0f,
-                         ImVec2(0.0f, 55.0f));
+        ImGui::PlotLines("Accel X", slot_state.accel_history[0].data(), histCount, histOffset, nullptr, -20.0f, 20.0f,
+                         ImVec2(0.0f, plotHeight));
+        ImGui::PlotLines("Accel Y", slot_state.accel_history[1].data(), histCount, histOffset, nullptr, -20.0f, 20.0f,
+                         ImVec2(0.0f, plotHeight));
+        ImGui::PlotLines("Accel Z", slot_state.accel_history[2].data(), histCount, histOffset, nullptr, -20.0f, 20.0f,
+                         ImVec2(0.0f, plotHeight));
 
         ImGui::TableNextColumn();
         ImGui::Text("Gyroscope (X / Y / Z, rad/s)");
-        ImGui::PlotLines("Gyro X", mGyroHistory[slot][0], histCount, histOffset, nullptr, -10.0f, 10.0f,
-                         ImVec2(0.0f, 55.0f));
-        ImGui::PlotLines("Gyro Y", mGyroHistory[slot][1], histCount, histOffset, nullptr, -10.0f, 10.0f,
-                         ImVec2(0.0f, 55.0f));
-        ImGui::PlotLines("Gyro Z", mGyroHistory[slot][2], histCount, histOffset, nullptr, -10.0f, 10.0f,
-                         ImVec2(0.0f, 55.0f));
+        ImGui::PlotLines("Gyro X", slot_state.gyro_history[0].data(), histCount, histOffset, nullptr, -10.0f, 10.0f,
+                         ImVec2(0.0f, plotHeight));
+        ImGui::PlotLines("Gyro Y", slot_state.gyro_history[1].data(), histCount, histOffset, nullptr, -10.0f, 10.0f,
+                         ImVec2(0.0f, plotHeight));
+        ImGui::PlotLines("Gyro Z", slot_state.gyro_history[2].data(), histCount, histOffset, nullptr, -10.0f, 10.0f,
+                         ImVec2(0.0f, plotHeight));
         ImGui::EndTable();
     }
 }
 
 void DemoScene::RenderPanel_LightsTab(int slot, const ControllerSnapshot& snap) {
+    ControllerSlotUiState& slot_state = mSlots[static_cast<size_t>(slot)];
+    const float s = UiScale();
+
     ImGui::Spacing();
 
     // ------------------------------------------------------------------------
@@ -1768,26 +1814,27 @@ void DemoScene::RenderPanel_LightsTab(int slot, const ControllerSnapshot& snap) 
     ImGui::TextColored(kTextColorCyan, "1. Player Indicator Lights (`set_player_leds`)");
     ImGui::Separator();
     if (snap.has_player_leds) {
-        ImGui::SetNextItemWidth(180.0f);
-        ImGui::SliderInt("Player Index (1..4)", &mPlayerLedIndex[slot], 1, 4);
+        ImGui::SetNextItemWidth(180.0f * s);
+        ImGui::SliderInt("Player Index (1..4)", &slot_state.player_led_index, 1, 4);
         ImGui::SameLine();
         if (ImGui::Button("Set Player Index Light")) {
-            const uint8_t mask = static_cast<uint8_t>(1u << (mPlayerLedIndex[slot] - 1));
-            for (int b = 0; b < 4; ++b) {
-                mPlayerLedBits[slot][b] = ((mask & (1u << b)) != 0);
+            const uint8_t mask = static_cast<uint8_t>(1u << (slot_state.player_led_index - 1));
+            for (size_t b = 0; b < slot_state.player_led_bits.size(); ++b) {
+                slot_state.player_led_bits[b] = ((mask & (1u << b)) != 0);
             }
             posix_imgui_request_player_leds(slot, mask);
         }
 
         ImGui::Spacing();
+        ImGui::AlignTextToFramePadding();
         ImGui::Text("Raw 4-Bit LED Mask:");
         ImGui::SameLine();
         uint8_t rawMask = 0;
-        for (int b = 0; b < 4; ++b) {
+        for (size_t b = 0; b < slot_state.player_led_bits.size(); ++b) {
             char cbLabel[32];
-            std::snprintf(cbLabel, sizeof(cbLabel), "LED %d (Bit %d)", b + 1, b);
-            ImGui::Checkbox(cbLabel, &mPlayerLedBits[slot][b]);
-            if (mPlayerLedBits[slot][b]) {
+            std::snprintf(cbLabel, sizeof(cbLabel), "LED %zu (Bit %zu)", b + 1, b);
+            ImGui::Checkbox(cbLabel, &slot_state.player_led_bits[b]);
+            if (slot_state.player_led_bits[b]) {
                 rawMask |= static_cast<uint8_t>(1u << b);
             }
             ImGui::SameLine();
@@ -1796,25 +1843,24 @@ void DemoScene::RenderPanel_LightsTab(int slot, const ControllerSnapshot& snap) 
             posix_imgui_request_player_leds(slot, rawMask);
         }
 
+        ImGui::AlignTextToFramePadding();
         ImGui::TextColored(kTextColorGrey, "Quick Presets:");
         ImGui::SameLine();
         for (int p = 1; p <= 4; ++p) {
             char btnLabel[24];
             std::snprintf(btnLabel, sizeof(btnLabel), "Seat #%d", p);
             if (ImGui::Button(btnLabel)) {
-                mPlayerLedIndex[slot] = p;
+                slot_state.player_led_index = p;
                 const uint8_t mask = static_cast<uint8_t>(1u << (p - 1));
-                for (int b = 0; b < 4; ++b) {
-                    mPlayerLedBits[slot][b] = (b == (p - 1));
+                for (size_t b = 0; b < slot_state.player_led_bits.size(); ++b) {
+                    slot_state.player_led_bits[b] = (static_cast<int>(b) == (p - 1));
                 }
                 posix_imgui_request_player_leds(slot, mask);
             }
             ImGui::SameLine();
         }
         if (ImGui::Button("All Off (0x0)")) {
-            for (int b = 0; b < 4; ++b) {
-                mPlayerLedBits[slot][b] = false;
-            }
+            slot_state.player_led_bits.fill(false);
             posix_imgui_request_player_leds(slot, 0x00);
         }
     } else {
@@ -1830,17 +1876,20 @@ void DemoScene::RenderPanel_LightsTab(int slot, const ControllerSnapshot& snap) 
     ImGui::TextColored(kTextColorCyan, "2. RGB Lightbar (`set_lightbar_color`)");
     ImGui::Separator();
     if (snap.has_rgb_led) {
-        ImGui::SetNextItemWidth(260.0f);
-        const bool colorChanged = ImGui::ColorEdit3("LightColor", mRgbColor[slot]);
+        ImGui::SetNextItemWidth(260.0f * s);
+        const bool colorChanged = ImGui::ColorEdit3("LightColor", slot_state.rgb_color.data());
         ImGui::SameLine();
-        if (ImGui::Button("Set Light Color") || (colorChanged && mRgbLiveUpdate[slot])) {
-            const uint8_t r = static_cast<uint8_t>(std::clamp(std::round(mRgbColor[slot][0] * 255.0f), 0.0f, 255.0f));
-            const uint8_t g = static_cast<uint8_t>(std::clamp(std::round(mRgbColor[slot][1] * 255.0f), 0.0f, 255.0f));
-            const uint8_t b = static_cast<uint8_t>(std::clamp(std::round(mRgbColor[slot][2] * 255.0f), 0.0f, 255.0f));
+        if (ImGui::Button("Set Light Color") || (colorChanged && slot_state.rgb_live_update)) {
+            const uint8_t r =
+                static_cast<uint8_t>(std::clamp(std::round(slot_state.rgb_color[0] * 255.0f), 0.0f, 255.0f));
+            const uint8_t g =
+                static_cast<uint8_t>(std::clamp(std::round(slot_state.rgb_color[1] * 255.0f), 0.0f, 255.0f));
+            const uint8_t b =
+                static_cast<uint8_t>(std::clamp(std::round(slot_state.rgb_color[2] * 255.0f), 0.0f, 255.0f));
             posix_imgui_request_lightbar_color(slot, r, g, b);
         }
         ImGui::SameLine();
-        ImGui::Checkbox("Live update on drag", &mRgbLiveUpdate[slot]);
+        ImGui::Checkbox("Live update on drag", &slot_state.rgb_live_update);
 
         struct ColorSwatch {
             const char* name;
@@ -1848,20 +1897,23 @@ void DemoScene::RenderPanel_LightsTab(int slot, const ControllerSnapshot& snap) 
             float g;
             float b;
         };
-        const ColorSwatch kSwatches[] = {
-            {"PS Blue", 0.00f, 0.25f, 1.00f}, {"Red", 1.00f, 0.00f, 0.00f},   {"Green", 0.00f, 1.00f, 0.00f},
-            {"Amber", 1.00f, 0.60f, 0.00f},   {"White", 1.00f, 1.00f, 1.00f}, {"Off", 0.00f, 0.00f, 0.00f},
-        };
+        constexpr std::array<ColorSwatch, 6> kSwatches = {{
+            {"PS Blue", 0.00f, 0.25f, 1.00f},
+            {"Red", 1.00f, 0.00f, 0.00f},
+            {"Green", 0.00f, 1.00f, 0.00f},
+            {"Amber", 1.00f, 0.60f, 0.00f},
+            {"White", 1.00f, 1.00f, 1.00f},
+            {"Off", 0.00f, 0.00f, 0.00f},
+        }};
+        ImGui::AlignTextToFramePadding();
         ImGui::TextColored(kTextColorGrey, "Swatches:");
         ImGui::SameLine();
-        for (size_t i = 0; i < sizeof(kSwatches) / sizeof(kSwatches[0]); ++i) {
+        for (size_t i = 0; i < kSwatches.size(); ++i) {
             if (i > 0) {
                 ImGui::SameLine();
             }
             if (ImGui::Button(kSwatches[i].name)) {
-                mRgbColor[slot][0] = kSwatches[i].r;
-                mRgbColor[slot][1] = kSwatches[i].g;
-                mRgbColor[slot][2] = kSwatches[i].b;
+                slot_state.rgb_color = {kSwatches[i].r, kSwatches[i].g, kSwatches[i].b};
                 posix_imgui_request_lightbar_color(slot, static_cast<uint8_t>(std::round(kSwatches[i].r * 255.0f)),
                                                    static_cast<uint8_t>(std::round(kSwatches[i].g * 255.0f)),
                                                    static_cast<uint8_t>(std::round(kSwatches[i].b * 255.0f)));
@@ -1883,8 +1935,8 @@ void DemoScene::RenderPanel_LightsTab(int slot, const ControllerSnapshot& snap) 
         ImGui::TextColored(kTextColorGrey, "No brightness light present on %s.", snap.model_name);
     }
     ImGui::BeginDisabled(true);
-    ImGui::SetNextItemWidth(220.0f);
-    ImGui::SliderInt("LED Brightness (%)", &mBrightnessPercent[slot], 0, 100, "%d%%");
+    ImGui::SetNextItemWidth(220.0f * s);
+    ImGui::SliderInt("LED Brightness (%)", &slot_state.brightness_percent, 0, 100, "%d%%");
     ImGui::SameLine();
     ImGui::Button("Set Brightness Light");
     ImGui::EndDisabled();

@@ -25,12 +25,15 @@
 
 #include "posix_imgui_platform.h"
 
+#include <algorithm>
+#include <array>
 #include <atomic>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <ctime>
 #include <mutex>
+#include <variant>
 #include <vector>
 
 // BTstack and Bluepad32 C headers must be wrapped inside `extern "C"` after all C++
@@ -43,37 +46,68 @@ extern "C" {
 
 namespace {
 
-enum CommandType {
-    CMD_RUMBLE = 0,
-    CMD_PLAYER_LEDS,
-    CMD_LIGHTBAR_COLOR,
-    CMD_SET_VIRTUAL_DEVICES,
-    CMD_SET_ALLOWED_DEVICE_TYPES,
-    CMD_SHUTDOWN,
+/// Command payload requesting dual-motor force-feedback vibration on `slot`.
+struct RumbleCmd {
+    int slot;                  ///< Target controller slot index in `[0, kMaxControllers - 1]`.
+    uint16_t start_delay_ms;   ///< Delay before starting vibration in milliseconds.
+    uint16_t duration_ms;      ///< Vibration duration in milliseconds (`0` stops vibration).
+    uint8_t weak_magnitude;    ///< High-frequency (right) motor intensity (`0..255`).
+    uint8_t strong_magnitude;  ///< Low-frequency (left) motor intensity (`0..255`).
 };
 
-struct ControllerCommand {
-    CommandType type;
-    int slot;
-    uint16_t start_delay_ms;
-    uint16_t duration_ms;
-    uint8_t weak_magnitude;
-    uint8_t strong_magnitude;
-    uint8_t leds_bitmask;
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
-    bool virtual_devices_enabled;
-    uint32_t allowed_device_types_mask;
+/// Command payload requesting a 4-bit Player Indicator LED bitmask update on `slot`.
+struct PlayerLedsCmd {
+    int slot;              ///< Target controller slot index in `[0, kMaxControllers - 1]`.
+    uint8_t leds_bitmask;  ///< Masked 4-bit LED bitmask (`0x00..0x0f`).
 };
 
-int g_enhanced_mode = 0;
-int g_delete_keys = 0;
+/// Command payload requesting an RGB lightbar color update on `slot`.
+struct LightbarColorCmd {
+    int slot;   ///< Target controller slot index in `[0, kMaxControllers - 1]`.
+    uint8_t r;  ///< Red channel intensity (`0..255`).
+    uint8_t g;  ///< Green channel intensity (`0..255`).
+    uint8_t b;  ///< Blue channel intensity (`0..255`).
+};
+
+/// Command payload enabling or disabling virtual child devices (e.g., DS4/DS5 touchpad mouse).
+struct SetVirtualDevicesCmd {
+    bool enabled;  ///< True to enable virtual child devices; false to disable and disconnect them.
+};
+
+/// Command payload updating the bitmask of auto-accepted physical Bluetooth device categories.
+struct SetAllowedDeviceTypesCmd {
+    uint32_t allowed_types_mask;  ///< Bitwise OR of `PosixImguiDeviceTypeFlags`.
+};
+
+/// Command payload requesting an orderly BTstack HCI power-down and run-loop exit.
+struct ShutdownCmd {};
+
+/**
+ * @brief Strongly-typed UI-to-BTstack command variant.
+ *
+ * Why `std::variant` + `std::visit`:
+ *   Replaces a C-style `enum CommandType` + fat struct so that unrelated command parameters
+ *   cannot be accidentally read, and guarantees at compile time that `process_pending_commands()`
+ *   exhaustively handles every command alternative.
+ */
+using ControllerCommand = std::
+    variant<RumbleCmd, PlayerLedsCmd, LightbarColorCmd, SetVirtualDevicesCmd, SetAllowedDeviceTypesCmd, ShutdownCmd>;
+
+/// C++23 overload-set helper for dispatching `std::variant` alternatives via `std::visit`.
+template <class... Ts>
+struct Overloaded : Ts... {
+    using Ts::operator()...;
+};
+
+int g_enhanced_mode = 0;  ///< Non-zero when `-e` / `--enhanced` CLI flag is passed.
+int g_delete_keys = 0;    ///< Non-zero when `-d` / `--delete` CLI flag is passed.
+/// True after `posix_imgui_init()` runs; false in headless unit tests where `hci_init()` is omitted.
+bool g_hci_initialized = false;
 
 // Guarded by `g_state_mutex`.
 std::mutex g_state_mutex;
-uni_hid_device_t* g_devices[kMaxControllers] = {nullptr};
-ControllerSnapshot g_snapshots[kMaxControllers] = {};
+std::array<uni_hid_device_t*, kMaxControllers> g_devices{};
+std::array<ControllerSnapshot, kMaxControllers> g_snapshots{};
 int g_most_recent_connected_slot = -1;
 
 // Guarded by `g_cmd_mutex`.
@@ -91,8 +125,13 @@ std::atomic<uint32_t> g_allowed_device_types_mask{POSIX_IMGUI_DEVICE_TYPE_DEFAUL
 
 void posix_imgui_on_device_disconnected(uni_hid_device_t* d);
 
-// Maps a Bluetooth Class of Device (CoD) value to `PosixImguiDeviceTypeFlags`.
-uint32_t classify_cod_device_types(uint32_t cod) {
+/**
+ * @brief Maps a Bluetooth Class of Device (CoD) value to `PosixImguiDeviceTypeFlags`.
+ *
+ * @param cod 24-bit Bluetooth Class of Device bitfield.
+ * @return Bitwise OR of matching `PosixImguiDeviceTypeFlags` (defaults to `GAMEPAD` for non-peripheral CoDs).
+ */
+[[nodiscard]] uint32_t classify_cod_device_types(uint32_t cod) {
     if ((cod & UNI_BT_COD_MAJOR_MASK) == UNI_BT_COD_MAJOR_PERIPHERAL) {
         const uint32_t minor_cod = cod & UNI_BT_COD_MINOR_MASK;
         uint32_t flags = POSIX_IMGUI_DEVICE_TYPE_NONE;
@@ -113,8 +152,13 @@ uint32_t classify_cod_device_types(uint32_t cod) {
     return POSIX_IMGUI_DEVICE_TYPE_GAMEPAD;
 }
 
-// Classifies a physical `uni_hid_device_t` into one or more `PosixImguiDeviceTypeFlags`.
-uint32_t classify_physical_device_types(const uni_hid_device_t* d) {
+/**
+ * @brief Classifies a physical `uni_hid_device_t` into one or more `PosixImguiDeviceTypeFlags`.
+ *
+ * @param d Pointer to the Bluepad32 HID device (may be null).
+ * @return Bitwise OR of `PosixImguiDeviceTypeFlags` represented by `d`.
+ */
+[[nodiscard]] uint32_t classify_physical_device_types(const uni_hid_device_t* d) {
     if (d == nullptr) {
         return POSIX_IMGUI_DEVICE_TYPE_NONE;
     }
@@ -137,8 +181,12 @@ uint32_t classify_physical_device_types(const uni_hid_device_t* d) {
     return classify_cod_device_types(d->cod);
 }
 
-// Safely reclaims platform slot(s), disconnects, and deletes a device (and any virtual child)
-// on the BTstack thread without holding `g_state_mutex`.
+/**
+ * @brief Reclaims platform slot(s), disconnects, and deletes a device (and any virtual child)
+ *        on the BTstack thread without holding `g_state_mutex`.
+ *
+ * @param d Pointer to the device to disconnect and delete (may be null).
+ */
 void disconnect_and_delete_device(uni_hid_device_t* d) {
     if (d == nullptr) {
         return;
@@ -167,8 +215,14 @@ void disconnect_and_delete_device(uni_hid_device_t* d) {
     }
 }
 
-// Maps a Bluepad32 controller model to its physical face-button layout family.
-ControllerLayoutType classify_controller_layout(uni_controller_type_t type) {
+/**
+ * @brief Maps a Bluepad32 controller model to its physical face-button layout family.
+ *
+ * @param type Bluepad32 controller model identifier.
+ * @return `CONTROLLER_LAYOUT_SHAPES` (PlayStation), `CONTROLLER_LAYOUT_REVERSE` (Switch),
+ *         or `CONTROLLER_LAYOUT_STANDARD` (Xbox/Generic).
+ */
+[[nodiscard]] ControllerLayoutType classify_controller_layout(uni_controller_type_t type) {
     switch (type) {
         case CONTROLLER_TYPE_PS3Controller:
         case CONTROLLER_TYPE_PS4Controller:
@@ -190,8 +244,13 @@ ControllerLayoutType classify_controller_layout(uni_controller_type_t type) {
     }
 }
 
-// Returns true if the controller family reports 6-axis IMU (accelerometer/gyroscope) data.
-bool has_imu_support(uni_controller_type_t type) {
+/**
+ * @brief Returns true if the controller family reports 6-axis IMU (accelerometer/gyroscope) data.
+ *
+ * @param type Bluepad32 controller model identifier.
+ * @return True if 6-axis IMU telemetry is supported; false otherwise.
+ */
+[[nodiscard]] bool has_imu_support(uni_controller_type_t type) {
     switch (type) {
         case CONTROLLER_TYPE_PS3Controller:
         case CONTROLLER_TYPE_PS4Controller:
@@ -206,6 +265,34 @@ bool has_imu_support(uni_controller_type_t type) {
         default:
             return false;
     }
+}
+
+/**
+ * @brief Looks up the active `uni_hid_device_t*` for `slot`, verifying bounds and `DEVICE_READY` state.
+ *
+ * @param slot Controller slot index in `[0, kMaxControllers - 1]`.
+ * @return Pointer to the ready `uni_hid_device_t` in `slot`, or `nullptr` if out-of-bounds or disconnected.
+ */
+[[nodiscard]] uni_hid_device_t* lookup_ready_device_for_slot(int slot) {
+    if (slot < 0 || slot >= kMaxControllers) {
+        return nullptr;
+    }
+
+    uni_hid_device_t* d = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(g_state_mutex);
+        d = g_devices[static_cast<size_t>(slot)];
+    }
+
+    // Dangling-Pointer Guard: Both `posix_imgui_on_device_disconnected()` and
+    // `process_pending_commands()` run on the single BTstack thread. Checking
+    // `d != nullptr` and `UNI_BT_CONN_STATE_DEVICE_READY` ensures that if a device
+    // disconnected while a UI command was in flight in `g_cmd_queue`, the stale
+    // command is safely discarded.
+    if (d == nullptr || uni_bt_conn_get_state(&d->conn) != UNI_BT_CONN_STATE_DEVICE_READY) {
+        return nullptr;
+    }
+    return d;
 }
 
 /**
@@ -226,136 +313,115 @@ void process_pending_commands(void* context) {
     }
 
     for (const ControllerCommand& cmd : local_cmds) {
-        if (cmd.type == CMD_SHUTDOWN) {
-            g_shutdown_requested.store(true);
-            // Why: If no USB Bluetooth dongle is attached, BTstack remains in
-            // `HCI_STATE_INITIALIZING` polling libusb timers and never transitions
-            // through `HCI_STATE_HALTING -> HCI_STATE_OFF` on its own. Triggering
-            // run-loop exit directly when in `HCI_STATE_OFF` or `HCI_STATE_INITIALIZING`
-            // guarantees `bt_thread.join()` never hangs on window close.
-            HCI_STATE state = hci_get_state();
-            if (state == HCI_STATE_OFF || state == HCI_STATE_INITIALIZING) {
-                if (state == HCI_STATE_INITIALIZING) {
-                    hci_power_control(HCI_POWER_OFF);
-                }
-                btstack_run_loop_trigger_exit();
-            } else {
-                hci_power_control(HCI_POWER_OFF);
-            }
-            continue;
-        }
+        std::visit(Overloaded{
+                       [](const RumbleCmd& c) {
+                           uni_hid_device_t* d = lookup_ready_device_for_slot(c.slot);
+                           if (d != nullptr && d->report_parser.play_dual_rumble != nullptr) {
+                               d->report_parser.play_dual_rumble(d, c.start_delay_ms, c.duration_ms, c.weak_magnitude,
+                                                                 c.strong_magnitude);
+                           }
+                       },
+                       [](const PlayerLedsCmd& c) {
+                           uni_hid_device_t* d = lookup_ready_device_for_slot(c.slot);
+                           if (d != nullptr && d->report_parser.set_player_leds != nullptr) {
+                               d->report_parser.set_player_leds(d, c.leds_bitmask);
+                           }
+                       },
+                       [](const LightbarColorCmd& c) {
+                           uni_hid_device_t* d = lookup_ready_device_for_slot(c.slot);
+                           if (d != nullptr && d->report_parser.set_lightbar_color != nullptr) {
+                               d->report_parser.set_lightbar_color(d, c.r, c.g, c.b);
+                           }
+                       },
+                       [](const SetVirtualDevicesCmd& c) {
+                           g_virtual_devices_enabled.store(c.enabled, std::memory_order_release);
+                           uni_virtual_device_set_enabled(c.enabled);
 
-        if (cmd.type == CMD_SET_VIRTUAL_DEVICES) {
-            g_virtual_devices_enabled.store(cmd.virtual_devices_enabled);
-            uni_virtual_device_set_enabled(cmd.virtual_devices_enabled);
+                           if (!c.enabled) {
+                               std::vector<uni_hid_device_t*> virtual_to_disconnect;
+                               {
+                                   std::lock_guard<std::mutex> lock(g_state_mutex);
+                                   for (uni_hid_device_t* dev : g_devices) {
+                                       if (dev != nullptr && uni_hid_device_is_virtual_device(dev)) {
+                                           virtual_to_disconnect.push_back(dev);
+                                       }
+                                   }
+                               }
+                               for (uni_hid_device_t* dev : virtual_to_disconnect) {
+                                   disconnect_and_delete_device(dev);
+                               }
+                           } else {
+                               // If a DualShock 4 or DualSense is already connected in Bluepad32's device pool
+                               // without a virtual child, spawn its virtual touchpad mouse immediately.
+                               std::vector<uni_hid_device_t*> parents_needing_virtual;
+                               {
+                                   std::lock_guard<std::mutex> lock(g_state_mutex);
+                                   for (uni_hid_device_t* dev : g_devices) {
+                                       if (dev != nullptr && !uni_hid_device_is_virtual_device(dev) &&
+                                           dev->child == nullptr && uni_hid_device_get_idx_for_instance(dev) >= 0 &&
+                                           (dev->controller_type == CONTROLLER_TYPE_PS4Controller ||
+                                            dev->controller_type == CONTROLLER_TYPE_PS5Controller)) {
+                                           parents_needing_virtual.push_back(dev);
+                                       }
+                                   }
+                               }
+                               for (uni_hid_device_t* parent : parents_needing_virtual) {
+                                   uni_hid_device_t* child = uni_hid_device_create_virtual(parent);
+                                   if (child != nullptr) {
+                                       uni_hid_device_set_cod(child,
+                                                              UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE);
+                                       uni_hid_device_connect(child);
+                                       if (!uni_hid_device_set_ready_complete(child)) {
+                                           parent->child = nullptr;
+                                       }
+                                   }
+                               }
+                           }
+                       },
+                       [](const SetAllowedDeviceTypesCmd& c) {
+                           g_allowed_device_types_mask.store(c.allowed_types_mask, std::memory_order_release);
 
-            if (!cmd.virtual_devices_enabled) {
-                std::vector<uni_hid_device_t*> virtual_to_disconnect;
-                {
-                    std::lock_guard<std::mutex> lock(g_state_mutex);
-                    for (int i = 0; i < kMaxControllers; ++i) {
-                        uni_hid_device_t* dev = g_devices[i];
-                        if (dev != nullptr && uni_hid_device_is_virtual_device(dev)) {
-                            virtual_to_disconnect.push_back(dev);
-                        }
-                    }
-                }
-                for (uni_hid_device_t* dev : virtual_to_disconnect) {
-                    disconnect_and_delete_device(dev);
-                }
-            } else {
-                // If a DualShock 4 or DualSense is already connected in Bluepad32's device pool
-                // without a virtual child, spawn its virtual touchpad mouse immediately.
-                std::vector<uni_hid_device_t*> parents_needing_virtual;
-                {
-                    std::lock_guard<std::mutex> lock(g_state_mutex);
-                    for (int i = 0; i < kMaxControllers; ++i) {
-                        uni_hid_device_t* dev = g_devices[i];
-                        if (dev != nullptr && !uni_hid_device_is_virtual_device(dev) && dev->child == nullptr &&
-                            uni_hid_device_get_idx_for_instance(dev) >= 0 &&
-                            (dev->controller_type == CONTROLLER_TYPE_PS4Controller ||
-                             dev->controller_type == CONTROLLER_TYPE_PS5Controller)) {
-                            parents_needing_virtual.push_back(dev);
-                        }
-                    }
-                }
-                for (uni_hid_device_t* parent : parents_needing_virtual) {
-                    uni_hid_device_t* child = uni_hid_device_create_virtual(parent);
-                    if (child != nullptr) {
-                        uni_hid_device_set_cod(child, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE);
-                        uni_hid_device_connect(child);
-                        if (!uni_hid_device_set_ready_complete(child)) {
-                            parent->child = nullptr;
-                        }
-                    }
-                }
-            }
-            continue;
-        }
-
-        if (cmd.type == CMD_SET_ALLOWED_DEVICE_TYPES) {
-            g_allowed_device_types_mask.store(cmd.allowed_device_types_mask);
-
-            std::vector<uni_hid_device_t*> disallowed_to_disconnect;
-            {
-                std::lock_guard<std::mutex> lock(g_state_mutex);
-                for (int i = 0; i < kMaxControllers; ++i) {
-                    uni_hid_device_t* dev = g_devices[i];
-                    if (dev != nullptr && !uni_hid_device_is_virtual_device(dev)) {
-                        const uint32_t dev_types = classify_physical_device_types(dev);
-                        if ((dev_types & cmd.allowed_device_types_mask) == 0) {
-                            disallowed_to_disconnect.push_back(dev);
-                        }
-                    }
-                }
-            }
-            for (uni_hid_device_t* dev : disallowed_to_disconnect) {
-                disconnect_and_delete_device(dev);
-            }
-            continue;
-        }
-
-        if (cmd.slot < 0 || cmd.slot >= kMaxControllers) {
-            continue;
-        }
-
-        uni_hid_device_t* d = nullptr;
-        {
-            std::lock_guard<std::mutex> lock(g_state_mutex);
-            d = g_devices[cmd.slot];
-        }
-
-        // Dangling-Pointer Guard: Both `posix_imgui_on_device_disconnected()` and
-        // `process_pending_commands()` run on the single BTstack thread. Checking
-        // `d != nullptr` and `UNI_BT_CONN_STATE_DEVICE_READY` ensures that if a device
-        // disconnected while a UI command was in flight in `g_cmd_queue`, the stale
-        // command is safely discarded.
-        if (d == nullptr || uni_bt_conn_get_state(&d->conn) != UNI_BT_CONN_STATE_DEVICE_READY) {
-            continue;
-        }
-
-        switch (cmd.type) {
-            case CMD_RUMBLE:
-                if (d->report_parser.play_dual_rumble != nullptr) {
-                    d->report_parser.play_dual_rumble(d, cmd.start_delay_ms, cmd.duration_ms, cmd.weak_magnitude,
-                                                      cmd.strong_magnitude);
-                }
-                break;
-            case CMD_PLAYER_LEDS:
-                if (d->report_parser.set_player_leds != nullptr) {
-                    d->report_parser.set_player_leds(d, cmd.leds_bitmask);
-                }
-                break;
-            case CMD_LIGHTBAR_COLOR:
-                if (d->report_parser.set_lightbar_color != nullptr) {
-                    d->report_parser.set_lightbar_color(d, cmd.r, cmd.g, cmd.b);
-                }
-                break;
-            case CMD_SET_VIRTUAL_DEVICES:
-            case CMD_SET_ALLOWED_DEVICE_TYPES:
-            case CMD_SHUTDOWN:
-                break;
-        }
+                           std::vector<uni_hid_device_t*> disallowed_to_disconnect;
+                           {
+                               std::lock_guard<std::mutex> lock(g_state_mutex);
+                               for (uni_hid_device_t* dev : g_devices) {
+                                   if (dev != nullptr && !uni_hid_device_is_virtual_device(dev)) {
+                                       const uint32_t dev_types = classify_physical_device_types(dev);
+                                       if ((dev_types & c.allowed_types_mask) == 0) {
+                                           disallowed_to_disconnect.push_back(dev);
+                                       }
+                                   }
+                               }
+                           }
+                           for (uni_hid_device_t* dev : disallowed_to_disconnect) {
+                               disconnect_and_delete_device(dev);
+                           }
+                       },
+                       [](const ShutdownCmd&) {
+                           g_shutdown_requested.store(true, std::memory_order_release);
+                           // Guard against headless unit tests where `hci_init()` was not called
+                           // (`hci_stack` is NULL inside BTstack).
+                           if (!g_hci_initialized) {
+                               btstack_run_loop_trigger_exit();
+                               return;
+                           }
+                           // Why: If no USB Bluetooth dongle is attached, BTstack remains in
+                           // `HCI_STATE_INITIALIZING` polling libusb timers and never transitions
+                           // through `HCI_STATE_HALTING -> HCI_STATE_OFF` on its own. Triggering
+                           // run-loop exit directly when in `HCI_STATE_OFF` or `HCI_STATE_INITIALIZING`
+                           // guarantees `bt_thread.join()` never hangs on window close.
+                           HCI_STATE state = hci_get_state();
+                           if (state == HCI_STATE_OFF || state == HCI_STATE_INITIALIZING) {
+                               if (state == HCI_STATE_INITIALIZING) {
+                                   hci_power_control(HCI_POWER_OFF);
+                               }
+                               btstack_run_loop_trigger_exit();
+                           } else {
+                               hci_power_control(HCI_POWER_OFF);
+                           }
+                       },
+                   },
+                   cmd);
     }
 }
 
@@ -386,8 +452,11 @@ void enqueue_command(const ControllerCommand& cmd) {
 // ============================================================================
 // uni_platform Callbacks (Executed on Thread 2: BTstack Run-Loop Thread)
 // ============================================================================
+
+/// Initializes Bluepad32 platform options (`--enhanced`, `--delete`, `--ble`) during `uni_init()`.
 void posix_imgui_init(int argc, const char** argv) {
     logi("posix_imgui: init()\n");
+    g_hci_initialized = true;
     bool ble_enabled = true;
 
     for (int i = 1; i < argc && argv != nullptr; i++) {
@@ -409,6 +478,7 @@ void posix_imgui_init(int argc, const char** argv) {
     uni_gamepad_set_mappings_type(UNI_GAMEPAD_MAPPINGS_TYPE_XBOX);
 }
 
+/// Invoked by Bluepad32 once Bluetooth initialization completes; starts scanning and auto-connect.
 void posix_imgui_on_init_complete(void) {
     logi("posix_imgui: on_init_complete()\n");
 
@@ -420,7 +490,7 @@ void posix_imgui_on_init_complete(void) {
 
     // Enforce the platform's virtual-device state (disabled by default) regardless of
     // any stale property persisted in `/tmp/bp32_property.tlv`.
-    uni_virtual_device_set_enabled(g_virtual_devices_enabled.load());
+    uni_virtual_device_set_enabled(g_virtual_devices_enabled.load(std::memory_order_acquire));
 
     uni_property_dump_all();
 
@@ -428,10 +498,11 @@ void posix_imgui_on_init_complete(void) {
     uni_bt_allow_incoming_connections(true);
 }
 
+/// Filters newly discovered Bluetooth devices against `g_allowed_device_types_mask`.
 uni_error_t posix_imgui_on_device_discovered(bd_addr_t addr, const char* name, uint16_t cod, uint8_t rssi) {
     (void)rssi;
     const uint32_t device_types = classify_cod_device_types(cod);
-    const uint32_t allowed_mask = g_allowed_device_types_mask.load();
+    const uint32_t allowed_mask = g_allowed_device_types_mask.load(std::memory_order_acquire);
     if ((device_types & allowed_mask) == 0) {
         logi("posix_imgui: ignoring discovered device %s ('%s', cod=%#x, types=%#x, allowed=%#x)\n",
              bd_addr_to_str(addr), name ? name : "", cod, device_types, allowed_mask);
@@ -440,6 +511,7 @@ uni_error_t posix_imgui_on_device_discovered(bd_addr_t addr, const char* name, u
     return UNI_ERROR_SUCCESS;
 }
 
+/// Initializes per-device `platform_data` (`slot = -1`, `gamepad_seat = GAMEPAD_SEAT_NONE`) upon connection.
 void posix_imgui_on_device_connected(uni_hid_device_t* d) {
     logi("posix_imgui: device connected: %p\n", static_cast<void*>(d));
     if (d == nullptr) {
@@ -455,6 +527,7 @@ void posix_imgui_on_device_connected(uni_hid_device_t* d) {
     ins->gamepad_seat = GAMEPAD_SEAT_NONE;
 }
 
+/// Reclaims the controller slot and clears its `ControllerSnapshot` when a device disconnects.
 void posix_imgui_on_device_disconnected(uni_hid_device_t* d) {
     logi("posix_imgui: device disconnected: %p\n", static_cast<void*>(d));
     if (d == nullptr) {
@@ -466,17 +539,17 @@ void posix_imgui_on_device_disconnected(uni_hid_device_t* d) {
         // Verify BOTH valid slot bounds AND pointer identity (`g_devices[ins->slot] == d`)
         // before reclaiming the slot so a pre-ready or rejected device never clobbers an
         // active controller's slot.
-        if (ins->slot >= 0 && ins->slot < kMaxControllers && g_devices[ins->slot] == d) {
-            int slot = ins->slot;
-            g_devices[slot] = nullptr;
-            std::memset(&g_snapshots[slot], 0, sizeof(g_snapshots[slot]));
-            g_snapshots[slot].connected = false;
+        if (ins->slot >= 0 && ins->slot < kMaxControllers && g_devices[static_cast<size_t>(ins->slot)] == d) {
+            const auto slot_idx = static_cast<size_t>(ins->slot);
+            g_devices[slot_idx] = nullptr;
+            g_snapshots[slot_idx] = ControllerSnapshot{};
         }
         ins->slot = -1;
         ins->gamepad_seat = GAMEPAD_SEAT_NONE;
     }
 }
 
+/// Assigns the lowest free slot (`0..3`), populates capability metadata, and sets initial player LEDs.
 uni_error_t posix_imgui_on_device_ready(uni_hid_device_t* d) {
     logi("posix_imgui: device ready: %p\n", static_cast<void*>(d));
     if (d == nullptr) {
@@ -487,7 +560,7 @@ uni_error_t posix_imgui_on_device_ready(uni_hid_device_t* d) {
     const bool is_virtual = uni_hid_device_is_virtual_device(d);
 
     if (is_virtual) {
-        if (!g_virtual_devices_enabled.load()) {
+        if (!g_virtual_devices_enabled.load(std::memory_order_acquire)) {
             ins->slot = -1;
             ins->gamepad_seat = GAMEPAD_SEAT_NONE;
             logi("posix_imgui: rejecting virtual device %p (virtual devices disabled)\n", static_cast<void*>(d));
@@ -495,7 +568,7 @@ uni_error_t posix_imgui_on_device_ready(uni_hid_device_t* d) {
         }
     } else {
         const uint32_t device_types = classify_physical_device_types(d);
-        const uint32_t allowed_mask = g_allowed_device_types_mask.load();
+        const uint32_t allowed_mask = g_allowed_device_types_mask.load(std::memory_order_acquire);
         if ((device_types & allowed_mask) == 0) {
             ins->slot = -1;
             ins->gamepad_seat = GAMEPAD_SEAT_NONE;
@@ -510,7 +583,7 @@ uni_error_t posix_imgui_on_device_ready(uni_hid_device_t* d) {
     {
         std::lock_guard<std::mutex> lock(g_state_mutex);
         for (int i = 0; i < kMaxControllers; ++i) {
-            if (g_devices[i] == nullptr) {
+            if (g_devices[static_cast<size_t>(i)] == nullptr) {
                 assigned_slot = i;
                 break;
             }
@@ -523,12 +596,13 @@ uni_error_t posix_imgui_on_device_ready(uni_hid_device_t* d) {
             return UNI_ERROR_NO_SLOTS;
         }
 
+        const auto slot_idx = static_cast<size_t>(assigned_slot);
         ins->slot = assigned_slot;
         ins->gamepad_seat = static_cast<uni_gamepad_seat_t>(BIT(assigned_slot));
-        g_devices[assigned_slot] = d;
+        g_devices[slot_idx] = d;
 
-        ControllerSnapshot& snap = g_snapshots[assigned_slot];
-        std::memset(&snap, 0, sizeof(snap));
+        ControllerSnapshot& snap = g_snapshots[slot_idx];
+        snap = ControllerSnapshot{};
         snap.connected = true;
         snap.vendor_id = d->vendor_id;
         snap.product_id = d->product_id;
@@ -571,6 +645,7 @@ uni_error_t posix_imgui_on_device_ready(uni_hid_device_t* d) {
     return UNI_ERROR_SUCCESS;
 }
 
+/// Copies the latest parsed `uni_controller_t` report and monotonic timestamp into `g_snapshots[slot]`.
 void posix_imgui_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl) {
     if (d == nullptr || ctl == nullptr) {
         return;
@@ -578,13 +653,13 @@ void posix_imgui_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl) 
 
     posix_imgui_instance_t* ins = get_posix_imgui_instance(d);
 
-    struct timespec ts{};
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    uint64_t now_us = static_cast<uint64_t>(ts.tv_sec) * 1000000ULL + static_cast<uint64_t>(ts.tv_nsec) / 1000ULL;
+    const auto now_us = static_cast<uint64_t>(
+        std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch())
+            .count());
 
     std::lock_guard<std::mutex> lock(g_state_mutex);
-    if (ins->slot >= 0 && ins->slot < kMaxControllers && g_devices[ins->slot] == d) {
-        ControllerSnapshot& snap = g_snapshots[ins->slot];
+    if (ins->slot >= 0 && ins->slot < kMaxControllers && g_devices[static_cast<size_t>(ins->slot)] == d) {
+        ControllerSnapshot& snap = g_snapshots[static_cast<size_t>(ins->slot)];
         if (snap.last_report_timestamp_us != 0 && now_us >= snap.last_report_timestamp_us) {
             snap.report_delta_ms = static_cast<uint32_t>((now_us - snap.last_report_timestamp_us) / 1000ULL);
         }
@@ -595,11 +670,13 @@ void posix_imgui_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl) 
     }
 }
 
+/// Returns custom platform properties (none overridden; returns `nullptr`).
 const uni_property_t* posix_imgui_get_property(uni_property_idx_t idx) {
     ARG_UNUSED(idx);
     return nullptr;
 }
 
+/// Logs out-of-band Bluepad32 platform events (e.g., system button press or scanning toggle).
 void posix_imgui_on_oob_event(uni_platform_oob_event_t event, void* data) {
     switch (event) {
         case UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON:
@@ -642,7 +719,7 @@ struct uni_platform* get_posix_imgui_platform(void) {
 void posix_imgui_get_snapshots(ControllerSnapshot out_snapshots[kMaxControllers], int* newly_connected_slot) {
     std::lock_guard<std::mutex> lock(g_state_mutex);
     if (out_snapshots != nullptr) {
-        std::memcpy(out_snapshots, g_snapshots, sizeof(g_snapshots));
+        std::copy(g_snapshots.begin(), g_snapshots.end(), out_snapshots);
     }
     if (newly_connected_slot != nullptr) {
         *newly_connected_slot = g_most_recent_connected_slot;
@@ -650,84 +727,77 @@ void posix_imgui_get_snapshots(ControllerSnapshot out_snapshots[kMaxControllers]
     }
 }
 
+void posix_imgui_get_snapshots(std::span<ControllerSnapshot, kMaxControllers> out_snapshots,
+                               int* newly_connected_slot) {
+    posix_imgui_get_snapshots(out_snapshots.data(), newly_connected_slot);
+}
+
 void posix_imgui_request_rumble(int slot,
                                 uint16_t start_delay_ms,
                                 uint16_t duration_ms,
                                 uint8_t weak_magnitude,
                                 uint8_t strong_magnitude) {
-    ControllerCommand cmd{};
-    cmd.type = CMD_RUMBLE;
-    cmd.slot = slot;
-    cmd.start_delay_ms = start_delay_ms;
-    cmd.duration_ms = duration_ms;
-    cmd.weak_magnitude = weak_magnitude;
-    cmd.strong_magnitude = strong_magnitude;
-    enqueue_command(cmd);
+    enqueue_command(RumbleCmd{
+        .slot = slot,
+        .start_delay_ms = start_delay_ms,
+        .duration_ms = duration_ms,
+        .weak_magnitude = weak_magnitude,
+        .strong_magnitude = strong_magnitude,
+    });
 }
 
 void posix_imgui_request_player_leds(int slot, uint8_t leds_bitmask) {
-    ControllerCommand cmd{};
-    cmd.type = CMD_PLAYER_LEDS;
-    cmd.slot = slot;
-    cmd.leds_bitmask = static_cast<uint8_t>(leds_bitmask & 0x0f);
-    enqueue_command(cmd);
+    enqueue_command(PlayerLedsCmd{
+        .slot = slot,
+        .leds_bitmask = static_cast<uint8_t>(leds_bitmask & 0x0f),
+    });
 }
 
 void posix_imgui_request_lightbar_color(int slot, uint8_t r, uint8_t g, uint8_t b) {
-    ControllerCommand cmd{};
-    cmd.type = CMD_LIGHTBAR_COLOR;
-    cmd.slot = slot;
-    cmd.r = r;
-    cmd.g = g;
-    cmd.b = b;
-    enqueue_command(cmd);
+    enqueue_command(LightbarColorCmd{
+        .slot = slot,
+        .r = r,
+        .g = g,
+        .b = b,
+    });
 }
 
 void posix_imgui_request_set_virtual_devices_enabled(bool enabled) {
-    g_virtual_devices_enabled.store(enabled);
-    ControllerCommand cmd{};
-    cmd.type = CMD_SET_VIRTUAL_DEVICES;
-    cmd.slot = -1;
-    cmd.virtual_devices_enabled = enabled;
-    enqueue_command(cmd);
+    g_virtual_devices_enabled.store(enabled, std::memory_order_release);
+    enqueue_command(SetVirtualDevicesCmd{
+        .enabled = enabled,
+    });
 }
 
 bool posix_imgui_is_virtual_devices_enabled(void) {
-    return g_virtual_devices_enabled.load();
+    return g_virtual_devices_enabled.load(std::memory_order_acquire);
 }
 
 void posix_imgui_request_set_allowed_device_types(uint32_t allowed_types_mask) {
-    g_allowed_device_types_mask.store(allowed_types_mask);
-    ControllerCommand cmd{};
-    cmd.type = CMD_SET_ALLOWED_DEVICE_TYPES;
-    cmd.slot = -1;
-    cmd.allowed_device_types_mask = allowed_types_mask;
-    enqueue_command(cmd);
+    g_allowed_device_types_mask.store(allowed_types_mask, std::memory_order_release);
+    enqueue_command(SetAllowedDeviceTypesCmd{
+        .allowed_types_mask = allowed_types_mask,
+    });
 }
 
 uint32_t posix_imgui_get_allowed_device_types(void) {
-    return g_allowed_device_types_mask.load();
+    return g_allowed_device_types_mask.load(std::memory_order_acquire);
 }
 
 void posix_imgui_request_shutdown(void) {
-    g_shutdown_requested.store(true);
-    ControllerCommand cmd{};
-    cmd.type = CMD_SHUTDOWN;
-    cmd.slot = -1;
-    enqueue_command(cmd);
+    g_shutdown_requested.store(true, std::memory_order_release);
+    enqueue_command(ShutdownCmd{});
 }
 
 bool posix_imgui_is_shutdown_requested(void) {
-    return g_shutdown_requested.load();
+    return g_shutdown_requested.load(std::memory_order_acquire);
 }
 
 void posix_imgui_reset_for_test(void) {
     {
         std::lock_guard<std::mutex> lock(g_state_mutex);
-        for (int i = 0; i < kMaxControllers; ++i) {
-            g_devices[i] = nullptr;
-        }
-        std::memset(g_snapshots, 0, sizeof(g_snapshots));
+        g_devices.fill(nullptr);
+        g_snapshots.fill(ControllerSnapshot{});
         g_most_recent_connected_slot = -1;
     }
     {
@@ -736,9 +806,10 @@ void posix_imgui_reset_for_test(void) {
         g_cmd_wakeup_pending = false;
     }
     btstack_run_loop_base_execute_callbacks();
-    g_shutdown_requested.store(false);
-    g_virtual_devices_enabled.store(false);
-    g_allowed_device_types_mask.store(POSIX_IMGUI_DEVICE_TYPE_DEFAULT);
+    g_hci_initialized = false;
+    g_shutdown_requested.store(false, std::memory_order_release);
+    g_virtual_devices_enabled.store(false, std::memory_order_release);
+    g_allowed_device_types_mask.store(POSIX_IMGUI_DEVICE_TYPE_DEFAULT, std::memory_order_release);
     uni_virtual_device_set_enabled(false);
 }
 
