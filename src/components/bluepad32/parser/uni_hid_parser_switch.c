@@ -63,7 +63,9 @@ static const int16_t DEFAULT_GYRO_SCALE = 13371;
 static const uint16_t SWITCH_FACTORY_IMU_CAL_DATA_ADDR = 0x6020;
 
 #define SWITCH_DUMP_ROM_DATA_SIZE 24  // Max size is 24
-#define SWITCH_SETUP_TIMEOUT_MS 800
+// Each setup request is resent if its reply doesn't arrive in time, and skipped after the last retry.
+#define SWITCH_SETUP_STEP_TIMEOUT_MS 1000
+#define SWITCH_SETUP_STEP_RETRIES 2
 #if ENABLE_SPI_FLASH_DUMP
 static const uint32_t SWITCH_DUMP_ROM_DATA_ADDR_START = 0x20000;
 static const uint32_t SWITCH_DUMP_ROM_DATA_ADDR_END = 0x30000;
@@ -139,6 +141,8 @@ typedef struct switch_cal_imu_s {
 // switch_instance_t represents data used by the Switch driver instance.
 typedef struct switch_instance_s {
     btstack_timer_source_t setup_timer;
+    uint8_t setup_step_retries;  // Resends of the current setup step
+    uint32_t pending_spi_addr;   // Address of the last SPI flash read request, to drop stale replies
 
     enum switch_state state;
     enum switch_flags mode;
@@ -339,6 +343,71 @@ static uni_rumble_result_t switch_rumble_stop(struct uni_hid_device_s* d);
 static void switch_setup_timeout_callback(btstack_timer_source_t* ts);
 static void parse_stick_calibration(switch_cal_stick_t* x, switch_cal_stick_t* y, const uint8_t* data, bool is_left);
 
+static void switch_setup_arm_step_timer(uni_hid_device_t* d) {
+    switch_instance_t* ins = get_switch_instance(d);
+    btstack_run_loop_remove_timer(&ins->setup_timer);
+    btstack_run_loop_set_timer(&ins->setup_timer, SWITCH_SETUP_STEP_TIMEOUT_MS);
+    btstack_run_loop_add_timer(&ins->setup_timer);
+}
+
+// Subcommand whose 0x21 reply advances the FSM from the given state (0 = none).
+static uint8_t switch_expected_subcmd(enum switch_state state) {
+    switch (state) {
+        case STATE_REQ_DEV_INFO:
+            return SUBCMD_REQ_DEV_INFO;
+        case STATE_READ_FACTORY_STICK_CALIBRATION:
+        case STATE_READ_USER_STICK_CALIBRATION:
+        case STATE_READ_FACTORY_IMU_CALIBRATION:
+        case STATE_DUMP_FLASH:
+            return SUBCMD_SPI_FLASH_READ;
+        case STATE_SET_FULL_REPORT:
+            return SUBCMD_SET_REPORT_MODE;
+        case STATE_ENABLE_IMU:
+            return SUBCMD_ENABLE_IMU;
+        case STATE_ENABLE_VIBRATION:
+            return SUBCMD_ENABLE_VIBRATION;
+        case STATE_UPDATE_LED:
+            return SUBCMD_SET_PLAYER_LEDS;
+        default:
+            return 0;
+    }
+}
+
+// Resend the request of the current setup step (after a lost reply).
+static void switch_fsm_resend_current_step(uni_hid_device_t* d) {
+    switch_instance_t* ins = get_switch_instance(d);
+    switch (ins->state) {
+        case STATE_REQ_DEV_INFO:
+            fsm_request_device_info(d);
+            break;
+        case STATE_READ_FACTORY_STICK_CALIBRATION:
+            fsm_read_factory_stick_calibration(d);
+            break;
+        case STATE_READ_USER_STICK_CALIBRATION:
+            fsm_read_user_stick_calibration(d);
+            break;
+        case STATE_READ_FACTORY_IMU_CALIBRATION:
+            fsm_read_factory_imu_calibration(d);
+            break;
+        case STATE_SET_FULL_REPORT:
+            fsm_set_full_report(d);
+            break;
+        case STATE_ENABLE_IMU:
+            fsm_enable_imu(d);
+            break;
+        case STATE_ENABLE_VIBRATION:
+            fsm_enable_vibration(d);
+            break;
+        case STATE_UPDATE_LED:
+            fsm_update_led(d);
+            break;
+        default:
+            process_fsm(d);
+            return;
+    }
+    switch_setup_arm_step_timer(d);
+}
+
 void uni_hid_parser_switch_setup(struct uni_hid_device_s* d) {
     switch_instance_t* ins = get_switch_instance(d);
 
@@ -430,8 +499,7 @@ static void process_fsm(struct uni_hid_device_s* d) {
             logd("STATE_SETUP\n");
             btstack_run_loop_set_timer_context(&ins->setup_timer, d);
             btstack_run_loop_set_timer_handler(&ins->setup_timer, &switch_setup_timeout_callback);
-            btstack_run_loop_set_timer(&ins->setup_timer, SWITCH_SETUP_TIMEOUT_MS);
-            btstack_run_loop_add_timer(&ins->setup_timer);
+            ins->setup_step_retries = 0;
 
             fsm_request_device_info(d);
             break;
@@ -478,6 +546,10 @@ static void process_fsm(struct uni_hid_device_s* d) {
         default:
             loge("Switch: unexpected state: 0x%02x\n", ins->mode);
     }
+
+    // Re-arm the timeout after every setup request, so a lost reply can't stall the setup.
+    if (ins->state > STATE_SETUP && ins->state < STATE_READY)
+        switch_setup_arm_step_timer(d);
 }
 
 static void process_reply_read_spi_dump(struct uni_hid_device_s* d, const uint8_t* data, int len) {
@@ -759,6 +831,24 @@ static void process_input_subcmd_reply(struct uni_hid_device_s* d, const uint8_t
         return;
     }
     const struct switch_report_21_s* r = (const struct switch_report_21_s*)report;
+
+    // During setup only the reply to the pending request may advance the FSM. A late reply to a
+    // retried or skipped request would otherwise advance it twice and desync the whole setup.
+    switch_instance_t* ins = get_switch_instance(d);
+    if (ins->state > STATE_SETUP && ins->state < STATE_READY) {
+        const uint8_t expected = switch_expected_subcmd(ins->state);
+        bool stale = expected != 0 && r->subcmd_id != expected;
+        if (!stale && r->subcmd_id == SUBCMD_SPI_FLASH_READ && len >= (int)(sizeof(*r) + 5)) {
+            const uint32_t addr = r->data[0] | r->data[1] << 8 | r->data[2] << 16 | (uint32_t)r->data[3] << 24;
+            stale = addr != ins->pending_spi_addr;
+        }
+        if (stale) {
+            logi("Switch: ignoring stale reply subcmd=0x%02x in setup state 0x%02x\n", r->subcmd_id, ins->state);
+            return;
+        }
+        ins->setup_step_retries = 0;
+    }
+
     if ((r->ack & 0b10000000) == 0) {
         loge("Switch: Error, subcommand id=0x%02x was not successful.\n", r->subcmd_id);
     }
@@ -1383,6 +1473,9 @@ static void set_led(uni_hid_device_t* d, uint8_t leds) {
 
 static void send_subcmd(uni_hid_device_t* d, struct switch_subcmd_request* r, int len) {
     static uint8_t packet_num = 0;
+    if (r->report_id == OUTPUT_RUMBLE_AND_SUBCMD && r->subcmd_id == SUBCMD_SPI_FLASH_READ)
+        get_switch_instance(d)->pending_spi_addr =
+            r->data[0] | r->data[1] << 8 | r->data[2] << 16 | (uint32_t)r->data[3] << 24;
     r->packet_num = packet_num++;
     if (packet_num > 0x0f)
         packet_num = 0;
@@ -1446,7 +1539,17 @@ static uni_rumble_result_t switch_rumble_start(struct uni_hid_device_s* d,
 static void switch_setup_timeout_callback(btstack_timer_source_t* ts) {
     uni_hid_device_t* d = btstack_run_loop_get_timer_context(ts);
     switch_instance_t* ins = get_switch_instance(d);
-    logi("Switch: setup timer timeout, failed state: 0x%02x\n", ins->state);
+    if (ins->state <= STATE_SETUP || ins->state >= STATE_READY)
+        return;
+    if (ins->setup_step_retries < SWITCH_SETUP_STEP_RETRIES) {
+        ins->setup_step_retries++;
+        logi("Switch: setup step timeout, state: 0x%02x, retry %d\n", ins->state, ins->setup_step_retries);
+        switch_fsm_resend_current_step(d);
+        return;
+    }
+    // Some third-party pads never answer certain subcommands: skip the step.
+    logi("Switch: setup timer timeout, failed state: 0x%02x (skipping step)\n", ins->state);
+    ins->setup_step_retries = 0;
     process_fsm(d);
 }
 

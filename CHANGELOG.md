@@ -116,6 +116,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (capped at 800 of 1003, as DS4Windows does).
 - Switch: Fixed Joy-Con rumble. Setup now enables vibration (subcommand
   `0x48`); Joy-Cons ignore rumble until it is enabled.
+- Switch: Setup no longer stalls or desyncs when a subcommand reply is lost or
+  late. Each setup step has its own timeout and is resent up to 2 times before
+  it is skipped, and replies that don't match the pending request are ignored.
 - Wii Balance Board: Fixed swapped default move/fire threshold constants
   (`move=1500`, `fire=5000`), guarded calibration interpolation against
   zero/inverted dividers, and decoupled Balance Board from ESP-IDF console
