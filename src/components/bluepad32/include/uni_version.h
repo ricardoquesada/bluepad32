@@ -12,8 +12,8 @@
 
 #include "uni_btstack_version_compat.h"
 
-#if defined(BTSTACK_VERSION_MAJOR) && !BTSTACK_VERSION_AT_LEAST(1, 8, 0)
-#error "Bluepad32 requires BTstack >= 1.8.0. Please run: git submodule update --init --recursive"
+#if defined(BTSTACK_VERSION_MAJOR) && !BTSTACK_VERSION_AT_LEAST(1, 6, 2)
+#error "Bluepad32 requires BTstack >= 1.6.2. Please run: git submodule update --init --recursive"
 #endif
 
 #ifdef __cplusplus

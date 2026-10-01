@@ -1697,7 +1697,7 @@ TEST(bt_le_connection_and_hids_failure_resumes_scanning) {
 
     // Enable BLE scanning synchronously so `is_scanning == true` inside `uni_bt_le.c`.
     uni_bt_le_set_enabled(true);
-    uni_bt_enable_new_connections_unsafe(true);
+    uni_bt_start_scanning_and_autoconnect_unsafe();
     EXPECT_TRUE(uni_bt_is_scanning());
 
     // Sub-test 1: HCI_SUBEVENT_LE_CONNECTION_COMPLETE with error status 0x3e
@@ -1770,7 +1770,7 @@ TEST(bt_le_connection_and_hids_failure_resumes_scanning) {
     uint8_t disc_pkt[6] = {HCI_EVENT_DISCONNECTION_COMPLETE, 4, 0x00, 0x41, 0x00, 0x13};
     uni_bt_packet_handler(HCI_EVENT_PACKET, 0, disc_pkt, sizeof(disc_pkt));
     EXPECT_EQ(NULL, uni_hid_device_get_instance_for_address(peer_addr2));
-    uni_bt_enable_new_connections_unsafe(false);
+    uni_bt_stop_scanning_unsafe();
 }
 
 // ============================================================================
