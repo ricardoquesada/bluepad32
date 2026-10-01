@@ -108,6 +108,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   encoded as a frequency with a fixed amplitude, so any rumble felt about the
   same; now the frequency is fixed (320 Hz) and the magnitude sets the amplitude
   (capped at 800 of 1003, as DS4Windows does).
+- Switch: Fixed Joy-Con rumble. Setup now enables vibration (subcommand
+  `0x48`); Joy-Cons ignore rumble until it is enabled.
 - Wii Balance Board: Fixed swapped default move/fire threshold constants
   (`move=1500`, `fire=5000`), guarded calibration interpolation against
   zero/inverted dividers, and decoupled Balance Board from ESP-IDF console

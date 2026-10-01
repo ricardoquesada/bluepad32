@@ -587,6 +587,9 @@ TEST(hid_parser_switch_reports_and_imu_bounds) {
     r21[14] = 0x40;  // SUBCMD_ENABLE_IMU
     feed_input_report(&d, r21, sizeof(r21));
 
+    r21[14] = 0x48;  // SUBCMD_ENABLE_VIBRATION
+    feed_input_report(&d, r21, sizeof(r21));
+
     r21[14] = 0x30;  // SUBCMD_SET_PLAYER_LEDS -> transitions to STATE_READY!
     feed_input_report(&d, r21, sizeof(r21));
 
@@ -2330,7 +2333,7 @@ TEST(imu_cross_vendor_canonical_units_and_axes) {
         r21[3] = 0x08;
         r21[13] = 0x80;
         r21[17] = 0x03;  // SWITCH_CONTROLLER_TYPE_PRO
-        const uint8_t subcmds[] = {0x02, 0x10, 0x10, 0x10, 0x03, 0x40, 0x30};
+        const uint8_t subcmds[] = {0x02, 0x10, 0x10, 0x10, 0x03, 0x40, 0x48, 0x30};
         for (size_t i = 0; i < ARRAY_SIZE(subcmds); i++) {
             r21[14] = subcmds[i];
             feed_input_report(&d, r21, sizeof(r21));
@@ -2370,7 +2373,7 @@ TEST(imu_cross_vendor_canonical_units_and_axes) {
         r21[3] = 0x08;
         r21[13] = 0x80;
         r21[17] = 0x02;  // SWITCH_CONTROLLER_TYPE_JCR
-        const uint8_t subcmds[] = {0x02, 0x10, 0x10, 0x10, 0x03, 0x40, 0x30};
+        const uint8_t subcmds[] = {0x02, 0x10, 0x10, 0x10, 0x03, 0x40, 0x48, 0x30};
         for (size_t i = 0; i < ARRAY_SIZE(subcmds); i++) {
             r21[14] = subcmds[i];
             feed_input_report(&d, r21, sizeof(r21));
@@ -2423,6 +2426,8 @@ TEST(imu_cross_vendor_canonical_units_and_axes) {
         r21[14] = 0x03;
         feed_input_report(&d, r21, sizeof(r21));
         r21[14] = 0x40;
+        feed_input_report(&d, r21, sizeof(r21));
+        r21[14] = 0x48;
         feed_input_report(&d, r21, sizeof(r21));
         r21[14] = 0x30;
         feed_input_report(&d, r21, sizeof(r21));
@@ -2617,7 +2622,8 @@ TEST(parser_switch_spi_bounds_and_zero_span_calibration_regression) {
     free(user_cal_18);
 
     // 4. Sub-test 4: Zero-span stick calibration (min == center == max == 0 from fac_cal_zero above):
-    // Finish walking FSM (FACTORY_IMU_CAL -> SET_FULL_REPORT -> ENABLE_IMU -> UPDATE_LED -> STATE_READY):
+    // Finish walking FSM (FACTORY_IMU_CAL -> SET_FULL_REPORT -> ENABLE_IMU -> ENABLE_VIBRATION -> UPDATE_LED ->
+    // STATE_READY):
     uint8_t r21_step[48];
     memset(r21_step, 0, sizeof(r21_step));
     r21_step[0] = 0x21;
@@ -2627,6 +2633,8 @@ TEST(parser_switch_spi_bounds_and_zero_span_calibration_regression) {
     r21_step[14] = 0x03;  // SET_REPORT_MODE
     feed_input_report(&d, r21_step, sizeof(r21_step));
     r21_step[14] = 0x40;  // ENABLE_IMU
+    feed_input_report(&d, r21_step, sizeof(r21_step));
+    r21_step[14] = 0x48;  // ENABLE_VIBRATION
     feed_input_report(&d, r21_step, sizeof(r21_step));
     r21_step[14] = 0x30;  // SET_PLAYER_LEDS -> STATE_READY
     feed_input_report(&d, r21_step, sizeof(r21_step));
@@ -2863,6 +2871,47 @@ TEST(parser_switch_rumble_intensity_tracks_magnitude) {
     }
 
     d.report_parser.play_dual_rumble(&d, 0, 0, 0, 0);
+// 27. Switch Parser: Setup Enables Vibration (Subcommand 0x48)
+// ============================================================================
+TEST(parser_switch_setup_enables_vibration) {
+    uni_hid_device_t d;
+    setup_synthetic_device(&d, 0x057e, 0x2006);  // Joy-Con (L)
+    ASSERT_EQ(CONTROLLER_TYPE_SwitchJoyConLeft, d.controller_type);
+    d.conn.interrupt_cid = 0x0041;
+
+    uint8_t r21[48];
+    memset(r21, 0, sizeof(r21));
+    r21[0] = 0x21;
+    r21[13] = 0x80;  // ack bit
+    r21[17] = 0x01;  // SWITCH_CONTROLLER_TYPE_JCL
+    const uint8_t subcmds[] = {0x02, 0x10, 0x10, 0x10, 0x03};
+    for (size_t i = 0; i < ARRAY_SIZE(subcmds); i++) {
+        r21[14] = subcmds[i];
+        feed_input_report(&d, r21, sizeof(r21));
+    }
+
+    // The reply to SUBCMD_ENABLE_IMU must be followed by SUBCMD_ENABLE_VIBRATION (0x48) with arg 0x01.
+    uni_circular_buffer_reset(&d.outgoing_buffer);
+    r21[14] = 0x40;
+    feed_input_report(&d, r21, sizeof(r21));
+    int16_t cid = 0;
+    void* data = NULL;
+    int len = 0;
+    ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d.outgoing_buffer, &cid, &data, &len));
+    ASSERT_EQ(13, len);
+    const uint8_t* out = (const uint8_t*)data;
+    EXPECT_EQ(0x01, out[1]);   // OUTPUT_RUMBLE_AND_SUBCMD
+    EXPECT_EQ(0x48, out[11]);  // SUBCMD_ENABLE_VIBRATION
+    EXPECT_EQ(0x01, out[12]);  // enable
+
+    // The reply to 0x48 continues the setup: next request is SUBCMD_SET_PLAYER_LEDS.
+    uni_circular_buffer_reset(&d.outgoing_buffer);
+    r21[14] = 0x48;
+    feed_input_report(&d, r21, sizeof(r21));
+    ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d.outgoing_buffer, &cid, &data, &len));
+    out = (const uint8_t*)data;
+    EXPECT_EQ(0x30, out[11]);  // SUBCMD_SET_PLAYER_LEDS
+
     uni_circular_buffer_reset(&d.outgoing_buffer);
     d.conn.interrupt_cid = 0;
 }
@@ -2907,6 +2956,7 @@ int main(int argc, char** argv) {
     RUN_TEST(parser_wii_bounds_underflow_and_classic_rx_bit0_regression);
     RUN_TEST(parser_ds4_ds5_empty_report_and_ds5_usb_report_0x01);
     RUN_TEST(parser_switch_rumble_intensity_tracks_magnitude);
+    RUN_TEST(parser_switch_setup_enables_vibration);
 
     return test_summary();
 }

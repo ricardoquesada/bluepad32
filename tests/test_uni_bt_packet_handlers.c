@@ -624,19 +624,27 @@ TEST(bt_l2cap_incoming_connection_accept_and_decline) {
 
 /**
  * @brief Stream a multi-byte SDP Data Element byte-by-byte via `SDP_EVENT_QUERY_ATTRIBUTE_VALUE` (0x93).
+ *
+ * Faithfully reproduces BTstack's two-phase `sdp_parser_process_byte()` contract:
+ *  - During `GET_ATTRIBUTE_VALUE_LENGTH` (`offset < header_len`), `attribute_length` in the emitted
+ *    packet is `0` because `sdp_parser_emit_value_byte()` runs before `de_state_size()` computes
+ *    `sdp_parser_attribute_value_size`.
+ *  - During `GET_ATTRIBUTE_VALUE` (`offset >= header_len`), `attribute_length` equals `attribute_len`.
  */
 static void stream_sdp_attribute_bytes(void (*handler)(uint8_t, uint16_t, uint8_t*, uint16_t),
                                        uint16_t record_id,
                                        uint16_t attribute_id,
                                        const uint8_t* data,
                                        uint16_t attribute_len) {
+    uint32_t header_len = (attribute_len > 0) ? de_get_header_size(data) : 0;
     uint8_t pkt[11];
     pkt[0] = SDP_EVENT_QUERY_ATTRIBUTE_VALUE;
     pkt[1] = 9;
     little_endian_store_16(pkt, 2, record_id);
     little_endian_store_16(pkt, 4, attribute_id);
-    little_endian_store_16(pkt, 6, attribute_len);
     for (uint16_t offset = 0; offset < attribute_len; offset++) {
+        uint16_t reported_attr_len = (offset < header_len) ? 0 : attribute_len;
+        little_endian_store_16(pkt, 6, reported_attr_len);
         little_endian_store_16(pkt, 8, offset);
         pkt[10] = data[offset];
         handler(HCI_EVENT_PACKET, 0, pkt, sizeof(pkt));
@@ -712,6 +720,23 @@ TEST(bt_sdp_pid_and_hid_query_result_chunks_and_truncation) {
     // Previous valid HID descriptor and VID must remain intact.
     EXPECT_EQ((int)sizeof(sample_hid_desc), d->hid_descriptor_len);
     EXPECT_EQ(0x054c, uni_hid_device_get_vendor_id(d));
+
+    // 4. Malformed non-DES HID descriptor list & out-of-bounds data_offset regression checks:
+    //    Verify corrupted DES headers do not dereference uninitialized des_iterator_t state,
+    //    and out-of-bounds data_offset packets (both attr_len == 0 and attr_len > 0) are rejected.
+    const uint8_t malformed_non_des[] = {0x00, 0x00, 0x00, 0x00};
+    stream_sdp_attribute_bytes(uni_handle_sdp_hid_query_result, 3, BLUETOOTH_ATTRIBUTE_HID_DESCRIPTOR_LIST,
+                               malformed_non_des, sizeof(malformed_non_des));
+    EXPECT_EQ((int)sizeof(sample_hid_desc), d->hid_descriptor_len);
+
+    uint8_t oob_pkt[11] = {SDP_EVENT_QUERY_ATTRIBUTE_VALUE, 9, 0x03, 0x00, 0x06, 0x02, 0x00, 0x00, 0x00, 0x02, 0xff};
+    // Case A: attr_len == 0, data_offset == 512 (0x0200) -> rejected.
+    uni_handle_sdp_hid_query_result(HCI_EVENT_PACKET, 0, oob_pkt, sizeof(oob_pkt));
+    // Case B: attr_len == 4, data_offset == 4 -> rejected.
+    little_endian_store_16(oob_pkt, 6, 4);
+    little_endian_store_16(oob_pkt, 8, 4);
+    uni_handle_sdp_hid_query_result(HCI_EVENT_PACKET, 0, oob_pkt, sizeof(oob_pkt));
+    EXPECT_EQ((int)sizeof(sample_hid_desc), d->hid_descriptor_len);
 
     // Direct descriptor setter truncation check (> 512 bytes clamped to HID_MAX_DESCRIPTOR_LEN == 512).
     uni_hid_device_set_hid_descriptor(d, oversized_stream, 600);
