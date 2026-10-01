@@ -7,6 +7,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Forward declarations
 struct uni_hid_device_s;
 
@@ -91,5 +95,9 @@ int32_t uni_hid_parser_process_pedal(const hid_globals_t* globals, uint32_t valu
 uint8_t uni_hid_parser_process_hat(const hid_globals_t* globals, uint32_t value);
 void uni_hid_parser_process_dpad(uint16_t usage, uint32_t value, uint8_t* dpad);
 uint8_t uni_hid_parser_hat_to_dpad(uint8_t hat);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // UNI_HID_PARSER_H

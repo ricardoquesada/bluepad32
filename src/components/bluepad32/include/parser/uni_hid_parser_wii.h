@@ -10,6 +10,10 @@
 #include "parser/uni_hid_parser.h"
 #include "uni_common.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum wii_flags {
     WII_MODE_HORIZONTAL = 0,
     WII_MODE_VERTICAL = 1,
@@ -44,5 +48,9 @@ void uni_hid_parser_wii_device_dump(struct uni_hid_device_s* d);
 // Unique to Wii. Not part of the "hid_parser" interface
 void uni_hid_parser_wii_set_mode(struct uni_hid_device_s* d, wii_mode_t mode);
 void uni_hid_parser_wii_request_report_type(struct uni_hid_device_s* d, wii_report_type_t report_type);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // UNI_HID_PARSER_WII_H

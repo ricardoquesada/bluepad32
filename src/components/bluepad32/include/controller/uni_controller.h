@@ -5,10 +5,6 @@
 #ifndef UNI_CONTROLLER_H
 #define UNI_CONTROLLER_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdint.h>
 
 #include "controller/uni_balance_board.h"
@@ -17,6 +13,18 @@ extern "C" {
 #include "controller/uni_mouse.h"
 #include "uni_common.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**
+ * @file uni_controller.h
+ * @brief Unified controller data structures.
+ */
+
+/**
+ * @brief Controller class.
+ */
 typedef enum {
     // Order should not be changed.
     UNI_CONTROLLER_CLASS_NONE = 0,
@@ -28,6 +36,9 @@ typedef enum {
     UNI_CONTROLLER_CLASS_COUNT,
 } uni_controller_class_t;
 
+/**
+ * @brief Controller subtype, mainly used for Wii extensions.
+ */
 typedef enum {
     // Order should not be changed.
     // Unused entries should not be removed.
@@ -48,16 +59,21 @@ typedef enum {
 
 } uni_controller_subtype_t;
 
+/**
+ * @brief Battery status.
+ * Matches spec which says "Null values indicate unknown battery status".
+ */
 enum {
-    // Matches spec which says "Null values indicate unknown battery status"
     UNI_CONTROLLER_BATTERY_NOT_AVAILABLE = 0,
     UNI_CONTROLLER_BATTERY_EMPTY = 1,
     UNI_CONTROLLER_BATTERY_FULL = 255,
 };
 
-// Type that supports all kind of controllers.
-// Add a new type to the union if needed.
-// Common field, like "battery", should be placed outside the union.
+/**
+ * @brief Type that supports all kind of controllers.
+ * Add a new type to the union if needed.
+ * Common field, like "battery", should be placed outside the union.
+ */
 typedef struct {
     uni_controller_class_t klass;
     union {
@@ -66,9 +82,13 @@ typedef struct {
         uni_balance_board_t balance_board;
         uni_keyboard_t keyboard;
     };
-    uint8_t battery;  // 0=emtpy, 254=full, 255=battery report not available
+    uint8_t battery;  ///< 0: battery report not available, 1: empty, 255: full
 } uni_controller_t;
 
+/**
+ * @brief Dumps a controller state to the console.
+ * @param ctl Pointer to the controller state.
+ */
 void uni_controller_dump(const uni_controller_t* ctl);
 
 #ifdef __cplusplus

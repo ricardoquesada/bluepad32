@@ -5,12 +5,12 @@
 #ifndef UNI_BT_SETUP_H
 #define UNI_BT_SETUP_H
 
+#include <stdbool.h>
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <stdbool.h>
-#include <stdint.h>
 
 int uni_bt_setup(void);
 bool uni_bt_setup_is_ready(void);

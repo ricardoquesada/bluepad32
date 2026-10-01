@@ -5,15 +5,15 @@
 #ifndef UNI_LOG_H
 #define UNI_LOG_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdarg.h>
 #include <stdio.h>
 
 #include "sdkconfig.h"
 #include "uni_config.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void uni_log(const char* fmt, ...);
 

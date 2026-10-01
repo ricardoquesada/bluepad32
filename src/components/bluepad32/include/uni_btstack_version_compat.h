@@ -17,4 +17,18 @@
 #endif
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifndef BTSTACK_VERSION_AT_LEAST
+#define BTSTACK_VERSION_AT_LEAST(major, minor, patch)                                                              \
+    ((BTSTACK_VERSION_MAJOR > (major)) || (BTSTACK_VERSION_MAJOR == (major) && BTSTACK_VERSION_MINOR > (minor)) || \
+     (BTSTACK_VERSION_MAJOR == (major) && BTSTACK_VERSION_MINOR == (minor) && BTSTACK_VERSION_PATCH >= (patch)))
+#endif
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif  // UNI_BTSTACK_VERSION_COMPAT_H

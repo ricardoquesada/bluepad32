@@ -10,6 +10,10 @@
 
 #include "parser/uni_hid_parser.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct __attribute((packed)) {
     uint8_t effect;
     uint8_t data[10];
@@ -65,5 +69,9 @@ ds5_adaptive_trigger_effect_t ds5_new_adaptive_trigger_effect_vibration(uint8_t 
 void ds5_set_adaptive_trigger_effect(struct uni_hid_device_s* d,
                                      ds5_adaptive_trigger_type_t trigger_type,
                                      const ds5_adaptive_trigger_effect_t* effect);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // UNI_HID_PARSER_DS5_H

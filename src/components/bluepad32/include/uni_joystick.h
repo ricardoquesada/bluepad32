@@ -11,6 +11,15 @@
 #include "controller/uni_gamepad.h"
 #include "controller/uni_keyboard.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**
+ * @file uni_joystick.h
+ * @brief Joystick and Retro Console input mapping functions.
+ */
+
 // Valid for Amiga, Atari 8-bit, Atari St, C64 and others...
 typedef struct {
     uint8_t up;         // line 1 - Y2 for quad mouse
@@ -40,5 +49,9 @@ void uni_joy_to_twinstick_from_keyboard(const uni_keyboard_t* kb, uni_joystick_t
 void uni_joy_to_single_joy_from_balance_board(const uni_balance_board_t* bb,
                                               uni_balance_board_state_t* bb_state,
                                               uni_joystick_t* out_joy);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // UNI_JOYSTICK_H

@@ -13,6 +13,10 @@
 #include "platform/uni_platform.h"
 #include "uni_hid_device.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // How many Balance Board entries to store
 #define UNI_PLATFORM_UNIJOYSTICLE_BB_VALUES_ARRAY_COUNT 8
 
@@ -171,5 +175,9 @@ void uni_platform_unijoysticle_run_cmd(uni_platform_unijoysticle_cmd_t cmd);
 void uni_platform_unijoysticle_on_push_button_mode_pressed(int button_idx);
 void uni_platform_unijoysticle_on_push_button_swap_pressed(int button_idx);
 uni_platform_unijoysticle_instance_t* uni_platform_unijoysticle_get_instance(const uni_hid_device_t* d);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // UNI_PLATFORM_UNIJOYSTICLE_H

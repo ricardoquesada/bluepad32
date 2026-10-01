@@ -25,6 +25,14 @@ limitations under the License.
 #include "uni_hid_device.h"
 #include "uni_platform_unijoysticle.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_msx_create_variant(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // UNI_PLATFORM_UNIJOYSTICLE_MSX_H

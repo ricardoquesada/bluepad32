@@ -7,6 +7,12 @@
 
 #include "uni_platform.h"
 
-struct uni_platform* uni_platform_custom_create(void);
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // UNI_PLATFORM_CUSTOM_H

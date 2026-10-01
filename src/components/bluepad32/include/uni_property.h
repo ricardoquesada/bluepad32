@@ -10,6 +10,18 @@
 
 #include "uni_common.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**
+ * @file uni_property.h
+ * @brief Unified non-volatile property storage interface.
+ *
+ * Defines the keys and types for persistent device configuration (e.g. BT allowlists,
+ * thresholds, scanning options) and abstracts the underlying storage (NVS or BTstack TLV).
+ */
+
 // Bluepad32-global properties
 // Keep them sorted
 #define UNI_PROPERTY_NAME_ALLOWLIST_ENABLED "bp.bt.allow_en"
@@ -89,20 +101,76 @@ typedef struct {
     uni_property_flag_t flags;
 } uni_property_t;
 
+/**
+ * @brief Sets the value of a specific property.
+ *
+ * @param idx The index of the property to set.
+ * @param value The value to assign to the property.
+ */
 void uni_property_set(uni_property_idx_t idx, uni_property_value_t value);
+
+/**
+ * @brief Gets the value of a specific property.
+ *
+ * @param idx The index of the property to retrieve.
+ * @return The retrieved value, or the default value if the property is not found.
+ */
 uni_property_value_t uni_property_get(uni_property_idx_t idx);
+
+/**
+ * @brief Dumps all properties and their current values to the log.
+ */
 void uni_property_dump_all(void);
-__attribute__((deprecated("Use `uni_property_dump_all` instead"))) inline void uni_property_list_all(void) {
+__attribute__((deprecated("Use `uni_property_dump_all` instead"))) static inline void uni_property_list_all(void) {
     uni_property_dump_all();
 }
+
+/**
+ * @brief Dumps a specific property's details to the log.
+ *
+ * @param p Pointer to the property definition.
+ */
 void uni_property_dump_property(const uni_property_t* p);
+
+/**
+ * @brief Initializes the property debugging subsystem.
+ */
 void uni_property_init_debug(void);
+
+/**
+ * @brief Retrieves a property definition by its name.
+ *
+ * @param name The name of the property.
+ * @return Pointer to the property definition, or NULL if not found.
+ */
 const uni_property_t* uni_property_get_property_by_name(const char* name);
 
 // Architecture-specific storage backend interface (implemented by NVS on ESP32,
 // BTstack TLV on POSIX / Pico W, or in-memory storage).
+
+/**
+ * @brief Initializes the underlying architecture-specific storage backend.
+ */
 void uni_property_init(void);
+
+/**
+ * @brief Sets a property value directly using its property definition.
+ *
+ * @param p Pointer to the property definition.
+ * @param value The value to assign.
+ */
 void uni_property_set_with_property(const uni_property_t* p, uni_property_value_t value);
+
+/**
+ * @brief Gets a property value directly using its property definition.
+ *
+ * @param p Pointer to the property definition.
+ * @return The retrieved value, or the default value if not found.
+ */
 uni_property_value_t uni_property_get_with_property(const uni_property_t* p);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // UNI_PROPERTY_H

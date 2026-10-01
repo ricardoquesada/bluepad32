@@ -5,13 +5,13 @@
 #ifndef UNI_MOUSE_H
 #define UNI_MOUSE_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdint.h>
 
 #include "uni_common.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 enum {
     UNI_MOUSE_BUTTON_LEFT = BIT(0),

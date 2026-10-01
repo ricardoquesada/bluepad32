@@ -34,6 +34,10 @@
 #include "uni_circular_buffer.h"
 #include "uni_error.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define HID_MAX_NAME_LEN 240              ///< Max HID device name length.
 #define HID_MAX_DESCRIPTOR_LEN 512        ///< Max HID descriptor length.
 #define HID_DEVICE_MAX_PARSER_DATA 256    ///< Max size for parser-specific data.
@@ -111,10 +115,7 @@ struct uni_hid_device_s {
     uni_sdp_query_type_t sdp_query_type;
 
     // Channels
-    uint16_t hids_cid;  ///< BLE only: HID service channel ID.
-
-    // TODO: Create a union of gamepad/mouse/keyboard structs
-    // At the moment "mouse" reuses gamepad struct, but it is a hack.
+    uint16_t hids_cid;                            ///< BLE only: HID service channel ID.
     uni_controller_type_t controller_type;        ///< type of controller. E.g: DualShock4, Switch, etc.
     uni_controller_subtype_t controller_subtype;  ///< sub-type of controller attached, used for Wii mostly
     uni_controller_t controller;                  ///< Controller data (gamepad, mouse, etc.)
@@ -517,5 +518,9 @@ bool uni_hid_device_is_keyboard(const uni_hid_device_t* d);
  * @return true if it is a virtual device, false otherwise.
  */
 bool uni_hid_device_is_virtual_device(const uni_hid_device_t* d);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // UNI_HID_DEVICE_H

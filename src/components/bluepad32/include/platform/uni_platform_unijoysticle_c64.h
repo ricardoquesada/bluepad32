@@ -12,6 +12,10 @@
 #include "uni_hid_device.h"
 #include "uni_platform_unijoysticle.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum {
     UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_INVALID,   // Invalid
     UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_3BUTTONS,  // Pots are used for extra buttons
@@ -26,4 +30,9 @@ void uni_platform_unijoysticle_c64_set_pot_mode(uni_platform_unijoysticle_c64_po
 void uni_platform_unijoysticle_c64_set_pot_level(gpio_num_t gpio_num, uint8_t level);
 
 const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_c64_create_variant(void);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif  // UNI_PLATFORM_UNIJOYSTICLE_C64_H

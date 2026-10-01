@@ -26,6 +26,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 //-----------------------------------------------------------------------------
 // Purpose: Steam Controller models
 // WARNING: DO NOT RENUMBER EXISTING VALUES - STORED IN A DATABASE
@@ -124,5 +128,9 @@ const char* uni_guess_controller_name(uint16_t vid, uint16_t pid);
 #define CONTROLLER_TYPE_GenericKeyboard k_eControllertype_GenericKeyboard
 #define CONTROLLER_TYPE_GenericMouse k_eControllertype_GenericMouse
 // Bluepad32 end
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // UNI_CONTROLLER_TYPE_H

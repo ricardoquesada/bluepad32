@@ -9,6 +9,10 @@
 
 #include "parser/uni_hid_parser.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define UNI_HID_PARSER_STADIA_VID 0x18d1
 #define UNI_HID_PARSER_STADIA_PID 0x9400
 
@@ -18,5 +22,9 @@ void uni_hid_parser_stadia_play_dual_rumble(struct uni_hid_device_s* d,
                                             uint16_t duration_ms,
                                             uint8_t weak_magnitude,
                                             uint8_t strong_magnitude);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // UNI_HID_PARSER_STADIA_H

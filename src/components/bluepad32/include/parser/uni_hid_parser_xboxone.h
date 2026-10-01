@@ -10,6 +10,10 @@
 
 #include "parser/uni_hid_parser.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // For Xbox Wireless Controllers
 bool uni_hid_parser_xboxone_does_name_match(struct uni_hid_device_s* d, const char* name);
 void uni_hid_parser_xboxone_setup(struct uni_hid_device_s* d);
@@ -34,5 +38,9 @@ void xboxone_play_quad_rumble(struct uni_hid_device_s* d,
                               uint8_t trigger_right,
                               uint8_t weak_magnitude,
                               uint8_t strong_magnitude);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // UNI_HID_PARSER_XBOXONE_H

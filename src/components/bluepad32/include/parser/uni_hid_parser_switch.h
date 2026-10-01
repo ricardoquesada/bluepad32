@@ -10,6 +10,10 @@
 
 #include "parser/uni_hid_parser.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Nintendo Switch devices
 
 /** @brief Initialize the Nintendo Switch parser state machine, calibration defaults, and rumble callbacks. */
@@ -33,5 +37,9 @@ void uni_hid_parser_switch_play_dual_rumble(struct uni_hid_device_s* d,
                                             uint8_t strong_magnitude);
 bool uni_hid_parser_switch_does_name_match(struct uni_hid_device_s* d, const char* name);
 void uni_hid_parser_switch_device_dump(struct uni_hid_device_s* d);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // UNI_HID_PARSER_SWITCH_H

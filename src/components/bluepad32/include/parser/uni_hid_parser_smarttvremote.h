@@ -9,12 +9,20 @@
 
 #include "parser/uni_hid_parser.h"
 
-// Android devices
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// Smart TV Remote devices
 void uni_hid_parser_smarttvremote_init_report(struct uni_hid_device_s* d);
 void uni_hid_parser_smarttvremote_parse_usage(struct uni_hid_device_s* d,
                                               const hid_globals_t* globals,
                                               uint16_t usage_page,
                                               uint16_t usage,
                                               int32_t value);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // UNI_HID_PARSER_SMARTTVREMOTE_H

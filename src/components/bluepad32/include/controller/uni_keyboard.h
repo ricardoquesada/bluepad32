@@ -5,13 +5,13 @@
 #ifndef UNI_KEYBOARD_H
 #define UNI_KEYBOARD_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdint.h>
 
 #include "uni_common.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 // Array of pressed keys. Hardcode it at 10.
 // We expect that keyboards won't support more than 10 press keys at the same time,

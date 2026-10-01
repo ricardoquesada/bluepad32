@@ -5,17 +5,19 @@
 #ifndef UNI_GPIO_H
 #define UNI_GPIO_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdint.h>
 
 // Guard ESP-IDF GPIO types and helpers so this header can be safely included
 // in cross-platform translation units and host unit tests.
 #ifdef ESP_PLATFORM
 #include <driver/gpio.h>
+#endif  // ESP_PLATFORM
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifdef ESP_PLATFORM
 void uni_gpio_register_cmds(void);
 
 // Safe version of gpio_set_level.

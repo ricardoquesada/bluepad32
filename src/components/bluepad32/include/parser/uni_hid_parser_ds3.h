@@ -10,6 +10,10 @@
 
 #include "parser/uni_hid_parser.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // For DUALSHOCK 3 gamepads
 void uni_hid_parser_ds3_setup(struct uni_hid_device_s* d);
 void uni_hid_parser_ds3_init_report(struct uni_hid_device_s* d);
@@ -21,5 +25,9 @@ void uni_hid_parser_ds3_play_dual_rumble(struct uni_hid_device_s* d,
                                          uint8_t weak_magnitude,
                                          uint8_t strong_magnitude);
 bool uni_hid_parser_ds3_does_name_match(struct uni_hid_device_s* d, const char* name);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // UNI_HID_PARSER_DS3_H

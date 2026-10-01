@@ -5,13 +5,18 @@
 #ifndef UNI_GAMEPAD_H
 #define UNI_GAMEPAD_H
 
+#include <stdint.h>
+
+#include "uni_common.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include <stdint.h>
-
-#include "uni_common.h"
+/**
+ * @file uni_gamepad.h
+ * @brief Standardized gamepad models and mapping types.
+ */
 
 extern const int AXIS_NORMALIZE_RANGE;
 extern const int AXIS_THRESHOLD;
@@ -220,12 +225,42 @@ typedef struct {
 
 extern const uni_gamepad_mappings_t GAMEPAD_DEFAULT_MAPPINGS;
 
+/**
+ * @brief Dumps a gamepad state to the console.
+ * @param gp Pointer to the gamepad state.
+ */
 void uni_gamepad_dump(const uni_gamepad_t* gp);
 
+/**
+ * @brief Applies the current gamepad mappings to a gamepad state.
+ * @param gp Pointer to the input gamepad state.
+ * @return The remapped gamepad state.
+ */
 uni_gamepad_t uni_gamepad_remap(const uni_gamepad_t* gp);
+
+/**
+ * @brief Sets the user-defined gamepad mappings.
+ * @param mappings Pointer to the gamepad mappings.
+ */
 void uni_gamepad_set_mappings(const uni_gamepad_mappings_t* mappings);
+
+/**
+ * @brief Sets the gamepad mappings type.
+ * @param type The type of mappings to apply (e.g. Xbox or Switch layout).
+ */
 void uni_gamepad_set_mappings_type(uni_gamepad_mappings_type_t type);
+
+/**
+ * @brief Gets the current gamepad mappings type.
+ * @return The current gamepad mappings type.
+ */
 uni_gamepad_mappings_type_t uni_gamepad_get_mappings_type(void);
+
+/**
+ * @brief Retrieves the human-readable model name for a given mappings type.
+ * @param type The mappings type.
+ * @return A string representing the model name.
+ */
 const char* uni_gamepad_get_model_name(int type);
 
 #ifdef __cplusplus

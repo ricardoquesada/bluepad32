@@ -9,6 +9,10 @@
 
 #include "parser/uni_hid_parser.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Mouse devices
 void uni_hid_parser_mouse_setup(struct uni_hid_device_s* d);
 void uni_hid_parser_mouse_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len);
@@ -19,5 +23,9 @@ void uni_hid_parser_mouse_parse_usage(struct uni_hid_device_s* d,
                                       uint16_t usage,
                                       int32_t value);
 void uni_hid_parser_mouse_device_dump(struct uni_hid_device_s* d);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // UNI_HID_PARSER_MOUSE_H

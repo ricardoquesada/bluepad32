@@ -5,13 +5,13 @@
 #ifndef UNI_BT_SDP_H
 #define UNI_BT_SDP_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdint.h>
 
 #include "uni_hid_device.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  * @file uni_bt_sdp.h

@@ -5,10 +5,6 @@
 #ifndef UNI_BT_BREDR_H
 #define UNI_BT_BREDR_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <inttypes.h>
 #include <stdbool.h>
 
@@ -17,6 +13,10 @@ extern "C" {
 
 #include "bt/uni_bt_conn.h"
 #include "uni_hid_device.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void uni_bt_bredr_scan_start(void);
 void uni_bt_bredr_scan_stop(void);

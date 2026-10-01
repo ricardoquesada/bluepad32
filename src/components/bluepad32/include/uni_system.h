@@ -5,10 +5,18 @@
 #ifndef UNI_SYSTEM_H
 #define UNI_SYSTEM_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Interface
 // Each arch needs to implement these functions
 
 // Reboots the microcontroller
 void uni_system_reboot(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // UNI_SYSTEM_H

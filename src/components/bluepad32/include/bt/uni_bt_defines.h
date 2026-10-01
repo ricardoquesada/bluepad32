@@ -7,6 +7,10 @@
 
 #include "uni_common.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Bluetooth constants that are not defined in BTStack.
 
 // Class of Device constants taken from:
@@ -51,5 +55,9 @@
 
 // Taken from 7.1.19 Remote Name Request Command
 #define UNI_BT_CLOCK_OFFSET_VALID BIT(15)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* UNI_BT_DEFINES_H */

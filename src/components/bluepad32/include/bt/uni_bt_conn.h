@@ -10,6 +10,10 @@
 
 #include <btstack.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define UNI_BT_CONN_HANDLE_INVALID 0xffff
 
 typedef enum {
@@ -71,5 +75,9 @@ bool uni_bt_conn_is_incoming(const uni_bt_conn_t* conn);
 void uni_bt_conn_set_connected(uni_bt_conn_t* conn, bool connected);
 bool uni_bt_conn_is_connected(const uni_bt_conn_t* conn);
 void uni_bt_conn_disconnect(uni_bt_conn_t* conn);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // UNI_BT_CONN_H

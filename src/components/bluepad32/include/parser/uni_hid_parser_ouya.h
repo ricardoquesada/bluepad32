@@ -9,6 +9,10 @@
 
 #include "parser/uni_hid_parser.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // OUYA devices
 void uni_hid_parser_ouya_init_report(struct uni_hid_device_s* d);
 void uni_hid_parser_ouya_parse_usage(struct uni_hid_device_s* d,
@@ -17,5 +21,9 @@ void uni_hid_parser_ouya_parse_usage(struct uni_hid_device_s* d,
                                      uint16_t usage,
                                      int32_t value);
 void uni_hid_parser_ouya_set_player_leds(struct uni_hid_device_s* d, uint8_t leds);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // UNI_HID_PARSER_OUYA_H

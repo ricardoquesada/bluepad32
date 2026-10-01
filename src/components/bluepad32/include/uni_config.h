@@ -7,6 +7,10 @@
 
 #include "sdkconfig.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if defined(CONFIG_TARGET_POSIX) || defined(CONFIG_TARGET_PICO_W) || defined(CONFIG_SOC_BT_CLASSIC_SUPPORTED)
 #define UNI_ENABLE_BREDR 1
 #endif
@@ -21,5 +25,9 @@
 
 // For more configurations, please look at the Kconfig file, or just do:
 // "idf.py menuconfig" -> "Component config" -> "Bluepad32"
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // UNI_CONFIG_H

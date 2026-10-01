@@ -5,11 +5,11 @@
 #ifndef UNI_VIRTUAL_DEVICE_H
 #define UNI_VIRTUAL_DEVICE_H
 
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <stdbool.h>
 
 void uni_virtual_device_init(void);
 void uni_virtual_device_set_enabled(bool enabled);

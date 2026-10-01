@@ -9,9 +9,17 @@
 
 #include "parser/uni_hid_parser.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Atari VCS Modern Wireless controller / joystick.
 void uni_hid_parser_atari_setup(struct uni_hid_device_s* d);
 void uni_hid_parser_atari_init_report(struct uni_hid_device_s* d);
 void uni_hid_parser_atari_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // UNI_HID_PARSER_ATARI_H
