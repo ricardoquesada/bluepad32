@@ -3,8 +3,7 @@
 Desktop GUI controller tester for Bluepad32 on Linux and macOS, built with
 [Dear ImGui](https://github.com/ocornut/imgui), GLFW, and OpenGL3.
 
-<!-- TODO: Add screenshot here -->
-<!-- ![Screenshot](screenshot.png) -->
+![Screenshot](../../docs/images/bluepad32_posix_imgui_screenshot.png)
 
 ## Features
 
