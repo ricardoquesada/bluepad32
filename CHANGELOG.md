@@ -60,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Migrated `uni_mouse_quadrature` hardware timers to `gptimer`
     (`esp_driver_gptimer`).
   - Increased default main task stack size
-    (`CONFIG_ESP_MAIN_TASK_STACK_SIZE=5120`) for ESP-IDF v5.3+ / v5.5+. Fixes
+    (`CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192`) for ESP-IDF v5.3+ / v5.5+. Fixes
     [Github Issue #143][github_issue_143].
   - Updated `cmd_system` component to the latest ESP-IDF version.
 - Pico W: Recommends Pico SDK 2.1.1 or newer which fixed a nasty bug triggered
@@ -137,6 +137,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     and normalized signed pedal logical ranges (`min < 0`) to `0..1020`.
   - Validated input/feature report buffer lengths across DS4, DualSense, Atari,
     and Keyboard (`parse_jx_05`) parsers.
+  - Hardened BLE state machine to prevent permanent scanning stalls on
+    connection or HIDS GATT failures.
+  - Added strict OOB bounds checking to SDP query parsing.
+  - Switch parser: added calibration bounds checks and division-by-zero
+    prevention.
+  - Wii parser: added short report length bounds checking and fixed classic
+    controller right-stick decoding.
+  - Unijoysticle: added bounds checks on C64 pot modes, guarded autofire against
+    division-by-zero, and improved quadrature mouse scale checks.
+- Testing: Hardened CTest framework (`test_check.h`) to evaluate asserts
+  properly in Release builds (`-DNDEBUG`), fixed TLV concurrent testing issues,
+  and added regressions for out-of-bounds guards.
 
 [picosdk#2157]: https://github.com/raspberrypi/pico-sdk/pull/2157
 [picosdk#2165]: https://github.com/raspberrypi/pico-sdk/pull/2165

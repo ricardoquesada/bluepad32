@@ -8,6 +8,7 @@
 
 #include "bt/uni_bt_allowlist.h"
 #include "bt/uni_bt_setup.h"
+#include "controller/uni_balance_board.h"
 #include "platform/uni_platform.h"
 #include "uni_btstack_version_compat.h"
 #include "uni_config.h"
@@ -18,14 +19,11 @@
 #include "uni_version.h"
 #include "uni_virtual_device.h"
 
-// Move it uni_common.
-#define UNI_CONCAT (str1, str2) str1 str2
-
 int uni_init(int argc, const char** argv) {
     // Disable stdout buffering
     setbuf(stdout, NULL);
 
-    loge("Bluepad32 (C) 2016-2025 Ricardo Quesada and contributors.\n");
+    loge("Bluepad32 (C) 2016-2026 Ricardo Quesada and contributors.\n");
     loge("Version: v" UNI_VERSION_STRING "\n");
 
     // Honoring BTstack license
