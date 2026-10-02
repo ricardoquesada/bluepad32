@@ -117,6 +117,7 @@ enum {
 enum switch_subcmd {
     SUBCMD_REQ_DEV_INFO = 0x02,
     SUBCMD_SET_REPORT_MODE = 0x03,
+    SUBCMD_SET_HCI_STATE = 0x06,
     SUBCMD_SPI_FLASH_READ = 0x10,
     SUBCMD_SET_PLAYER_LEDS = 0x30,
     SUBCMD_ENABLE_IMU = 0x40,
@@ -781,6 +782,9 @@ static void process_input_subcmd_reply(struct uni_hid_device_s* d, const uint8_t
         case SUBCMD_ENABLE_VIBRATION:
             // Nothing to parse: the ack bit is already checked above.
             break;
+        case SUBCMD_SET_HCI_STATE:
+            // Reply to uni_hid_parser_switch_request_sleep(), if any: the pad is about to disconnect.
+            break;
         default:
             loge("Switch: Error, unexpected subcmd_id=0x%02x in report 0x21\n", r->subcmd_id);
             break;
@@ -1323,6 +1327,18 @@ void uni_hid_parser_switch_play_dual_rumble(struct uni_hid_device_s* d,
 
     uni_hid_parser_rumble_play_dual(d, start_delay_ms, duration_ms, weak_magnitude, strong_magnitude,
                                     switch_rumble_start, switch_rumble_stop);
+}
+
+void uni_hid_parser_switch_request_sleep(struct uni_hid_device_s* d) {
+    if (d == NULL || d->report_parser.setup != uni_hid_parser_switch_setup)
+        return;
+
+    uint8_t out[sizeof(struct switch_subcmd_request) + 1] = {0};
+    struct switch_subcmd_request* req = (struct switch_subcmd_request*)&out[0];
+    req->report_id = OUTPUT_RUMBLE_AND_SUBCMD;
+    req->subcmd_id = SUBCMD_SET_HCI_STATE;
+    req->data[0] = 0x00;  // Disconnect and enter sleep mode
+    send_subcmd(d, req, sizeof(out));
 }
 
 bool uni_hid_parser_switch_does_name_match(struct uni_hid_device_s* d, const char* name) {
