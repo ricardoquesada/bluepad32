@@ -52,6 +52,7 @@ enum {
 };
 
 #define MISC_BUTTON_DELAY_MS 200
+#define HID_MAX_OUTGOING_REPORT_LEN 128
 
 static uni_hid_device_t g_devices[CONFIG_BLUEPAD32_MAX_DEVICES];
 static const bd_addr_t zero_addr = {0, 0, 0, 0, 0, 0};
@@ -997,8 +998,7 @@ void uni_hid_device_send_report(uni_hid_device_t* d, uint16_t cid, const uint8_t
     int err = l2cap_send(cid, (uint8_t*)report, len);
     if (err != 0) {
         logd("Could not send report (error=0x%04x). Adding it to queue\n", err);
-        // uni_circular_buffer_put() takes an int16_t as len.
-        if (len > 32767) {
+        if (len > HID_MAX_OUTGOING_REPORT_LEN) {
             loge("ERROR: outgoing buffer: report is too big %d\n", len);
             return;
         }
@@ -1042,10 +1042,10 @@ void uni_hid_device_send_queued_reports(uni_hid_device_t* d) {
         return;
     }
 
-    void* data;
+    uint8_t data[HID_MAX_OUTGOING_REPORT_LEN];
     int data_len;
     int16_t cid;
-    if (uni_circular_buffer_get(&d->outgoing_buffer, &cid, &data, &data_len) != UNI_CIRCULAR_BUFFER_ERROR_OK) {
+    if (uni_circular_buffer_get(&d->outgoing_buffer, &cid, data, &data_len) != UNI_CIRCULAR_BUFFER_ERROR_OK) {
         loge("ERROR: could not get buffer from circular buffer.\n");
         return;
     }

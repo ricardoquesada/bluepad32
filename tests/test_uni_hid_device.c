@@ -107,21 +107,24 @@ struct uni_platform* uni_get_platform(void) {
 // uni_circular_buffer Tests
 // ============================================================================
 
+/**
+ * @brief Verifies initial empty state, NULL-pointer safety, and `uni_circular_buffer_reset()` behavior.
+ */
 TEST(circular_buffer_initial_and_reset_state) {
     printf("Testing uni_circular_buffer initial empty and reset state...\n");
     uni_circular_buffer_t buf = {0};
     int16_t cid = 0;
-    void* data = NULL;
+    uint8_t data[16] = {0};
     int len = -1;
 
     EXPECT_EQ(uni_circular_buffer_is_empty(&buf), 1);
     EXPECT_EQ(uni_circular_buffer_is_full(&buf), 0);
-    EXPECT_EQ(uni_circular_buffer_get(&buf, &cid, &data, &len), UNI_CIRCULAR_BUFFER_ERROR_BUFFER_EMPTY);
+    EXPECT_EQ(uni_circular_buffer_get(&buf, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_BUFFER_EMPTY);
 
     // Null buffer safety checks
     EXPECT_EQ(uni_circular_buffer_is_empty(NULL), 1);
     EXPECT_EQ(uni_circular_buffer_is_full(NULL), 0);
-    EXPECT_EQ(uni_circular_buffer_get(NULL, &cid, &data, &len), UNI_CIRCULAR_BUFFER_ERROR_BUFFER_EMPTY);
+    EXPECT_EQ(uni_circular_buffer_get(NULL, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_BUFFER_EMPTY);
     uni_circular_buffer_reset(NULL);
 
     uint8_t sample[4] = {1, 2, 3, 4};
@@ -134,113 +137,531 @@ TEST(circular_buffer_initial_and_reset_state) {
     printf("PASS\n");
 }
 
+/**
+ * @brief Verifies input/output argument guards and self-healing resets on corrupted ring/header states.
+ *
+ * Ensures that:
+ * 1. `NULL` buffer, `NULL` payload with `len > 0`, and negative `len` are rejected by `put()`.
+ * 2. `NULL` output pointers (`cid`, `data`, `len`) on a non-empty buffer return `ERROR_BUFFER_EMPTY`
+ *    without advancing `head_idx` or losing the queued packet.
+ * 3. `get()` self-heals the ring via `uni_circular_buffer_reset()` across all four corruption states:
+ *    truncated `< 4`-byte header, negative `data_len`, oversized `data_len > max_payload`, and truncated payload.
+ */
 TEST(circular_buffer_null_and_negative_length_guards) {
-    printf("Testing uni_circular_buffer null and negative length guards...\n");
-    uni_circular_buffer_t buf = {0};
+    printf("Testing uni_circular_buffer null, negative length, and corrupted header self-healing guards...\n");
+    uni_circular_buffer_t cb = {0};
     uint8_t payload[4] = {0xAA, 0xBB, 0xCC, 0xDD};
+    int16_t cid = 0;
+    uint8_t data[16] = {0};
+    int len = -1;
 
     EXPECT_EQ(uni_circular_buffer_put(NULL, 1, payload, 4), UNI_CIRCULAR_BUFFER_ERROR_BUFFER_TOO_BIG);
-    EXPECT_EQ(uni_circular_buffer_put(&buf, 1, NULL, 4), UNI_CIRCULAR_BUFFER_ERROR_BUFFER_TOO_BIG);
-    EXPECT_EQ(uni_circular_buffer_put(&buf, 1, payload, -1), UNI_CIRCULAR_BUFFER_ERROR_BUFFER_TOO_BIG);
-    EXPECT_EQ(uni_circular_buffer_put(&buf, 1, payload, -128), UNI_CIRCULAR_BUFFER_ERROR_BUFFER_TOO_BIG);
-    EXPECT_EQ(uni_circular_buffer_is_empty(&buf), 1);
+    EXPECT_EQ(uni_circular_buffer_put(&cb, 1, NULL, 4), UNI_CIRCULAR_BUFFER_ERROR_BUFFER_TOO_BIG);
+    EXPECT_EQ(uni_circular_buffer_put(&cb, 1, payload, -1), UNI_CIRCULAR_BUFFER_ERROR_BUFFER_TOO_BIG);
+    EXPECT_EQ(uni_circular_buffer_put(&cb, 1, payload, -128), UNI_CIRCULAR_BUFFER_ERROR_BUFFER_TOO_BIG);
+    EXPECT_EQ(uni_circular_buffer_is_empty(&cb), 1);
+
+    // Verify NULL output pointer guards on a non-empty buffer do not consume the queued packet
+    EXPECT_EQ(uni_circular_buffer_put(&cb, 0x2A, payload, (int)sizeof(payload)), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    EXPECT_EQ(uni_circular_buffer_is_empty(&cb), 0);
+    EXPECT_EQ(uni_circular_buffer_get(&cb, NULL, data, &len), UNI_CIRCULAR_BUFFER_ERROR_BUFFER_EMPTY);
+    EXPECT_EQ(uni_circular_buffer_get(&cb, &cid, NULL, &len), UNI_CIRCULAR_BUFFER_ERROR_BUFFER_EMPTY);
+    EXPECT_EQ(uni_circular_buffer_get(&cb, &cid, data, NULL), UNI_CIRCULAR_BUFFER_ERROR_BUFFER_EMPTY);
+    EXPECT_EQ(uni_circular_buffer_is_empty(&cb), 0);
+
+    // Queued packet must still be intact and dequeue cleanly
+    ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    EXPECT_EQ(cid, 0x2A);
+    EXPECT_EQ(len, (int)sizeof(payload));
+    EXPECT_EQ(memcmp(data, payload, sizeof(payload)), 0);
+    EXPECT_EQ(uni_circular_buffer_is_empty(&cb), 1);
+
+    // Verify self-healing reset across all 4 corrupted ring/header states:
+    struct {
+        int16_t cid;
+        int16_t data_len;
+    } corrupted_hdr;
+
+    // 1. Truncated header state (0 < used_bytes < UNI_CIRCULAR_BUFFER_HEADER_SIZE)
+    for (int16_t orphan_bytes = 1; orphan_bytes < UNI_CIRCULAR_BUFFER_HEADER_SIZE; orphan_bytes++) {
+        cb.head_idx = 0;
+        cb.tail_idx = orphan_bytes;
+        EXPECT_EQ(uni_circular_buffer_is_empty(&cb), 0);
+        EXPECT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_BUFFER_EMPTY);
+        EXPECT_EQ(cb.head_idx, 0);
+        EXPECT_EQ(cb.tail_idx, 0);
+        EXPECT_EQ(uni_circular_buffer_is_empty(&cb), 1);
+
+        EXPECT_EQ(uni_circular_buffer_put(&cb, 0x31, payload, (int)sizeof(payload)), UNI_CIRCULAR_BUFFER_ERROR_OK);
+        ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+        EXPECT_EQ(cid, 0x31);
+        EXPECT_EQ(len, (int)sizeof(payload));
+        EXPECT_EQ(memcmp(data, payload, sizeof(payload)), 0);
+        EXPECT_EQ(uni_circular_buffer_is_empty(&cb), 1);
+    }
+
+    // 2. Negative header.data_len (e.g., -1)
+    corrupted_hdr.cid = 0x55;
+    corrupted_hdr.data_len = -1;
+    memcpy(&cb.buffer[0], &corrupted_hdr, sizeof(corrupted_hdr));
+    cb.head_idx = 0;
+    cb.tail_idx = 8;
+    EXPECT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_BUFFER_EMPTY);
+    EXPECT_EQ(cb.head_idx, 0);
+    EXPECT_EQ(cb.tail_idx, 0);
+    EXPECT_EQ(uni_circular_buffer_is_empty(&cb), 1);
+    EXPECT_EQ(uni_circular_buffer_put(&cb, 0x32, payload, (int)sizeof(payload)), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    EXPECT_EQ(cid, 0x32);
+    EXPECT_EQ(len, (int)sizeof(payload));
+    EXPECT_EQ(memcmp(data, payload, sizeof(payload)), 0);
+
+    // 3. Oversized header.data_len (> max payload capacity of the ring buffer, e.g., UNI_CIRCULAR_BUFFER_SIZE)
+    corrupted_hdr.cid = 0x66;
+    corrupted_hdr.data_len = UNI_CIRCULAR_BUFFER_SIZE;
+    memcpy(&cb.buffer[0], &corrupted_hdr, sizeof(corrupted_hdr));
+    cb.head_idx = 0;
+    cb.tail_idx = 200;
+    EXPECT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_BUFFER_EMPTY);
+    EXPECT_EQ(cb.head_idx, 0);
+    EXPECT_EQ(cb.tail_idx, 0);
+    EXPECT_EQ(uni_circular_buffer_is_empty(&cb), 1);
+    EXPECT_EQ(uni_circular_buffer_put(&cb, 0x33, payload, (int)sizeof(payload)), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    EXPECT_EQ(cid, 0x33);
+    EXPECT_EQ(len, (int)sizeof(payload));
+    EXPECT_EQ(memcmp(data, payload, sizeof(payload)), 0);
+
+    // 4. Truncated payload (header.data_len == 50 when only 10 payload bytes follow)
+    corrupted_hdr.cid = 0x77;
+    corrupted_hdr.data_len = 50;
+    memcpy(&cb.buffer[0], &corrupted_hdr, sizeof(corrupted_hdr));
+    cb.head_idx = 0;
+    cb.tail_idx = (int16_t)(UNI_CIRCULAR_BUFFER_HEADER_SIZE + 10);
+    EXPECT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_BUFFER_EMPTY);
+    EXPECT_EQ(cb.head_idx, 0);
+    EXPECT_EQ(cb.tail_idx, 0);
+    EXPECT_EQ(uni_circular_buffer_is_empty(&cb), 1);
+    EXPECT_EQ(uni_circular_buffer_put(&cb, 0x34, payload, (int)sizeof(payload)), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    EXPECT_EQ(cid, 0x34);
+    EXPECT_EQ(len, (int)sizeof(payload));
+    EXPECT_EQ(memcmp(data, payload, sizeof(payload)), 0);
+    EXPECT_EQ(uni_circular_buffer_is_empty(&cb), 1);
+
     printf("PASS\n");
 }
 
+/**
+ * @brief Verifies zero-length packet (`data == NULL`, `len == 0`) round-trip without modifying destination buffer.
+ */
 TEST(circular_buffer_zero_length_packet) {
     printf("Testing uni_circular_buffer zero-length packet put/get...\n");
     uni_circular_buffer_t buf = {0};
     int16_t cid = 0;
-    void* data = NULL;
+    uint8_t data[4] = {0xDE, 0xAD, 0xBE, 0xEF};
+    const uint8_t expected_sentinel[4] = {0xDE, 0xAD, 0xBE, 0xEF};
     int len = -1;
 
     EXPECT_EQ(uni_circular_buffer_put(&buf, 0x42, NULL, 0), UNI_CIRCULAR_BUFFER_ERROR_OK);
     EXPECT_EQ(uni_circular_buffer_is_empty(&buf), 0);
-    EXPECT_EQ(uni_circular_buffer_get(&buf, &cid, &data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    EXPECT_EQ(uni_circular_buffer_get(&buf, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
     EXPECT_EQ(cid, 0x42);
     EXPECT_EQ(len, 0);
+    EXPECT_EQ(memcmp(data, expected_sentinel, sizeof(expected_sentinel)), 0);
     EXPECT_EQ(uni_circular_buffer_is_empty(&buf), 1);
     printf("PASS\n");
 }
 
+/**
+ * @brief Verifies exact maximum single-packet payload boundary
+ * (`UNI_CIRCULAR_BUFFER_SIZE - 1 - UNI_CIRCULAR_BUFFER_HEADER_SIZE == 4091` accepted, `4092` rejected).
+ */
 TEST(circular_buffer_exact_capacity_boundary) {
-    printf("Testing uni_circular_buffer exact 128-byte capacity boundary...\n");
+    printf("Testing uni_circular_buffer exact capacity boundary...\n");
     uni_circular_buffer_t buf = {0};
-    uint8_t pkt_128[UNI_CIRCULAR_BUFFER_DATA_SIZE];
-    uint8_t pkt_129[UNI_CIRCULAR_BUFFER_DATA_SIZE + 1];
+    enum {
+        MAX_PAYLOAD_SIZE = UNI_CIRCULAR_BUFFER_SIZE - 1 - UNI_CIRCULAR_BUFFER_HEADER_SIZE,
+    };
+    uint8_t pkt_max[MAX_PAYLOAD_SIZE];
+    uint8_t pkt_too_big[MAX_PAYLOAD_SIZE + 1];
+    uint8_t out_buf[MAX_PAYLOAD_SIZE];
     int16_t cid = 0;
-    void* data = NULL;
     int len = 0;
 
-    for (size_t i = 0; i < sizeof(pkt_128); i++) {
-        pkt_128[i] = (uint8_t)(i ^ 0x5A);
+    for (size_t i = 0; i < sizeof(pkt_max); i++) {
+        pkt_max[i] = (uint8_t)(i ^ 0x5A);
     }
-    memset(pkt_129, 0xFF, sizeof(pkt_129));
+    memset(pkt_too_big, 0xFF, sizeof(pkt_too_big));
+    memset(out_buf, 0, sizeof(out_buf));
 
-    // 129 bytes must be rejected
-    EXPECT_EQ(uni_circular_buffer_put(&buf, 0x77, pkt_129, (int)sizeof(pkt_129)),
+    // 4092 bytes (header + payload == 4096 > 4095 usable bytes) must be rejected with TOO_BIG
+    EXPECT_EQ(uni_circular_buffer_put(&buf, 0x77, pkt_too_big, (int)sizeof(pkt_too_big)),
               UNI_CIRCULAR_BUFFER_ERROR_BUFFER_TOO_BIG);
     EXPECT_EQ(uni_circular_buffer_is_empty(&buf), 1);
 
-    // Exact 128 bytes must succeed and round-trip identically
-    EXPECT_EQ(uni_circular_buffer_put(&buf, 0x77, pkt_128, (int)sizeof(pkt_128)), UNI_CIRCULAR_BUFFER_ERROR_OK);
-    ASSERT_EQ(uni_circular_buffer_get(&buf, &cid, &data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    // Exact 4091 bytes (header + payload == 4095 usable bytes) must succeed, fill the buffer, and round-trip
+    EXPECT_EQ(uni_circular_buffer_put(&buf, 0x77, pkt_max, (int)sizeof(pkt_max)), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    EXPECT_EQ(uni_circular_buffer_is_full(&buf), 1);
+    ASSERT_EQ(uni_circular_buffer_get(&buf, &cid, out_buf, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
     EXPECT_EQ(cid, 0x77);
-    EXPECT_EQ(len, UNI_CIRCULAR_BUFFER_DATA_SIZE);
-    ASSERT_TRUE(data != NULL);
-    EXPECT_EQ(memcmp(data, pkt_128, sizeof(pkt_128)), 0);
+    EXPECT_EQ(len, (int)sizeof(pkt_max));
+    EXPECT_EQ(memcmp(out_buf, pkt_max, sizeof(pkt_max)), 0);
+    EXPECT_EQ(uni_circular_buffer_is_empty(&buf), 1);
     printf("PASS\n");
 }
 
+/**
+ * @brief Verifies 1-byte packet saturation (`819` packets = `4,095` usable bytes) and FIFO wrap-around across `4095 ->
+ * 0`.
+ */
 TEST(circular_buffer_full_queue_and_wrap_around) {
     printf("Testing uni_circular_buffer full queue saturation and wrap-around...\n");
-    uni_circular_buffer_t buf = {0};
+    uni_circular_buffer_t cb = {0};
     int16_t cid = 0;
-    void* data = NULL;
+    uint8_t data[16] = {0};
     int len = 0;
 
-    // Enqueue UNI_CIRCULAR_BUFFER_SIZE - 1 (31) packets
-    for (int i = 0; i < UNI_CIRCULAR_BUFFER_SIZE - 1; i++) {
-        uint8_t val = (uint8_t)i;
-        EXPECT_EQ(uni_circular_buffer_put(&buf, (int16_t)(100 + i), &val, 1), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    // Each 1-byte packet occupies UNI_CIRCULAR_BUFFER_HEADER_SIZE (4) + 1 = 5 bytes.
+    // With 1 sentinel byte reserved out of 4096, 4095 / 5 = 819 packets saturate the buffer with 0 bytes free.
+    const int max_1b_packets = (UNI_CIRCULAR_BUFFER_SIZE - 1) / (UNI_CIRCULAR_BUFFER_HEADER_SIZE + 1);
+    const int wrap_packets = max_1b_packets / 2;
+    EXPECT_EQ(max_1b_packets, 819);
+    EXPECT_EQ(wrap_packets, 409);
+
+    for (int i = 0; i < max_1b_packets; i++) {
+        uint8_t val = (uint8_t)(i & 0xFF);
+        EXPECT_EQ(uni_circular_buffer_put(&cb, (int16_t)(100 + i), &val, 1), UNI_CIRCULAR_BUFFER_ERROR_OK);
     }
-    EXPECT_EQ(uni_circular_buffer_is_full(&buf), 1);
+    EXPECT_EQ(uni_circular_buffer_is_full(&cb), 1);
 
-    // 32nd put must return BUFFER_FULL
+    // 820th put (and even a 0-byte put) must return BUFFER_FULL
     uint8_t extra = 0xFF;
-    EXPECT_EQ(uni_circular_buffer_put(&buf, 999, &extra, 1), UNI_CIRCULAR_BUFFER_ERROR_BUFFER_FULL);
+    EXPECT_EQ(uni_circular_buffer_put(&cb, 999, &extra, 1), UNI_CIRCULAR_BUFFER_ERROR_BUFFER_FULL);
+    EXPECT_EQ(uni_circular_buffer_put(&cb, 999, NULL, 0), UNI_CIRCULAR_BUFFER_ERROR_BUFFER_FULL);
 
-    // Dequeue 16 packets
-    for (int i = 0; i < 16; i++) {
-        ASSERT_EQ(uni_circular_buffer_get(&buf, &cid, &data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    // Dequeue wrap_packets (409) packets
+    for (int i = 0; i < wrap_packets; i++) {
+        ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
         EXPECT_EQ(cid, (int16_t)(100 + i));
         EXPECT_EQ(len, 1);
-        ASSERT_TRUE(data != NULL);
-        EXPECT_EQ(*(uint8_t*)data, (uint8_t)i);
+        EXPECT_EQ(data[0], (uint8_t)(i & 0xFF));
     }
-    EXPECT_EQ(uni_circular_buffer_is_full(&buf), 0);
+    EXPECT_EQ(uni_circular_buffer_is_full(&cb), 0);
 
-    // Enqueue 16 more packets across the 31 -> 0 ring wrap boundary
-    for (int i = 0; i < 16; i++) {
-        uint8_t val = (uint8_t)(200 + i);
-        EXPECT_EQ(uni_circular_buffer_put(&buf, (int16_t)(300 + i), &val, 1), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    // Enqueue wrap_packets (409) more packets across the 4095 -> 0 ring wrap boundary.
+    // Use 2000 + i as the CID base so it does not collide with batch 1 (100..918).
+    for (int i = 0; i < wrap_packets; i++) {
+        uint8_t val = (uint8_t)((200 + i) & 0xFF);
+        EXPECT_EQ(uni_circular_buffer_put(&cb, (int16_t)(2000 + i), &val, 1), UNI_CIRCULAR_BUFFER_ERROR_OK);
     }
-    EXPECT_EQ(uni_circular_buffer_is_full(&buf), 1);
+    EXPECT_EQ(uni_circular_buffer_is_full(&cb), 1);
 
-    // Dequeue remaining 15 from first batch + 16 from second batch
-    for (int i = 16; i < UNI_CIRCULAR_BUFFER_SIZE - 1; i++) {
-        ASSERT_EQ(uni_circular_buffer_get(&buf, &cid, &data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    // Dequeue remaining 410 packets from first batch + 409 packets from second batch
+    for (int i = wrap_packets; i < max_1b_packets; i++) {
+        ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
         EXPECT_EQ(cid, (int16_t)(100 + i));
-        ASSERT_TRUE(data != NULL);
-        EXPECT_EQ(*(uint8_t*)data, (uint8_t)i);
+        EXPECT_EQ(len, 1);
+        EXPECT_EQ(data[0], (uint8_t)(i & 0xFF));
     }
-    for (int i = 0; i < 16; i++) {
-        ASSERT_EQ(uni_circular_buffer_get(&buf, &cid, &data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
-        EXPECT_EQ(cid, (int16_t)(300 + i));
-        ASSERT_TRUE(data != NULL);
-        EXPECT_EQ(*(uint8_t*)data, (uint8_t)(200 + i));
+    for (int i = 0; i < wrap_packets; i++) {
+        ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+        EXPECT_EQ(cid, (int16_t)(2000 + i));
+        EXPECT_EQ(len, 1);
+        EXPECT_EQ(data[0], (uint8_t)((200 + i) & 0xFF));
     }
-    EXPECT_EQ(uni_circular_buffer_is_empty(&buf), 1);
+    EXPECT_EQ(uni_circular_buffer_is_empty(&cb), 1);
+    printf("PASS\n");
+}
+
+/**
+ * @brief Verifies variable-length packet packing, Switch 11-byte rumble burst capacity (`273` packets),
+ * split header/payload wrap-around across all boundary offsets, and safe re-enqueue of dequeued `data`.
+ */
+TEST(circular_buffer_variable_length_and_wrap_around) {
+    printf("Testing uni_circular_buffer variable-length packets, Switch rumble burst, and split wrap-around...\n");
+    uni_circular_buffer_t cb = {0};
+    int16_t cid = 0;
+    uint8_t data[128] = {0};
+    int len = 0;
+
+    // ------------------------------------------------------------------------
+    // Stage 1: 128-byte packet saturation (31 packets = 4092 bytes, 3 free bytes < 4)
+    // ------------------------------------------------------------------------
+    enum {
+        TEST_PKT_128_LEN = 128,
+        MAX_PAYLOAD_SIZE = UNI_CIRCULAR_BUFFER_SIZE - 1 - UNI_CIRCULAR_BUFFER_HEADER_SIZE,
+    };
+    const int max_128b_packets = (UNI_CIRCULAR_BUFFER_SIZE - 1) / (UNI_CIRCULAR_BUFFER_HEADER_SIZE + TEST_PKT_128_LEN);
+    EXPECT_EQ(max_128b_packets, 31);
+
+    uint8_t pkt_128[TEST_PKT_128_LEN];
+    uint8_t pkt_too_big[MAX_PAYLOAD_SIZE + 1];
+    memset(pkt_too_big, 0xEE, sizeof(pkt_too_big));
+
+    for (int i = 0; i < max_128b_packets; i++) {
+        for (int j = 0; j < (int)sizeof(pkt_128); j++) {
+            pkt_128[j] = (uint8_t)((i * 17 + j) ^ 0x3C);
+        }
+        EXPECT_EQ(uni_circular_buffer_put(&cb, (int16_t)(500 + i), pkt_128, (int)sizeof(pkt_128)),
+                  UNI_CIRCULAR_BUFFER_ERROR_OK);
+    }
+    // 3 trailing free bytes remain (< UNI_CIRCULAR_BUFFER_HEADER_SIZE), so buffer must report full
+    EXPECT_EQ(uni_circular_buffer_is_full(&cb), 1);
+    EXPECT_EQ(uni_circular_buffer_put(&cb, 999, pkt_128, (int)sizeof(pkt_128)), UNI_CIRCULAR_BUFFER_ERROR_BUFFER_FULL);
+    EXPECT_EQ(uni_circular_buffer_put(&cb, 999, NULL, 0), UNI_CIRCULAR_BUFFER_ERROR_BUFFER_FULL);
+    // Packet exceeding total ring capacity must still return BUFFER_TOO_BIG even when buffer is full
+    EXPECT_EQ(uni_circular_buffer_put(&cb, 999, pkt_too_big, (int)sizeof(pkt_too_big)),
+              UNI_CIRCULAR_BUFFER_ERROR_BUFFER_TOO_BIG);
+
+    for (int i = 0; i < max_128b_packets; i++) {
+        uint8_t expected_128[TEST_PKT_128_LEN];
+        for (int j = 0; j < (int)sizeof(expected_128); j++) {
+            expected_128[j] = (uint8_t)((i * 17 + j) ^ 0x3C);
+        }
+        ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+        EXPECT_EQ(cid, (int16_t)(500 + i));
+        EXPECT_EQ(len, (int)sizeof(expected_128));
+        EXPECT_EQ(memcmp(data, expected_128, sizeof(expected_128)), 0);
+    }
+    EXPECT_EQ(uni_circular_buffer_is_empty(&cb), 1);
+
+    // ------------------------------------------------------------------------
+    // Stage 2: Nintendo Switch 11-byte rumble burst saturation (273 packets = 4095 bytes exact)
+    // ------------------------------------------------------------------------
+    uni_circular_buffer_reset(&cb);
+    const int switch_rumble_len = 11;
+    const int max_switch_packets =
+        (UNI_CIRCULAR_BUFFER_SIZE - 1) / (UNI_CIRCULAR_BUFFER_HEADER_SIZE + switch_rumble_len);
+    EXPECT_EQ(max_switch_packets, 273);
+
+    uint8_t rumble_pkt[11];
+    for (int i = 0; i < max_switch_packets; i++) {
+        for (int j = 0; j < (int)sizeof(rumble_pkt); j++) {
+            rumble_pkt[j] = (uint8_t)((i + j) ^ 0xA5);
+        }
+        EXPECT_EQ(uni_circular_buffer_put(&cb, (int16_t)(0x0040 + i), rumble_pkt, (int)sizeof(rumble_pkt)),
+                  UNI_CIRCULAR_BUFFER_ERROR_OK);
+    }
+    EXPECT_EQ(uni_circular_buffer_is_full(&cb), 1);
+    EXPECT_EQ(uni_circular_buffer_put(&cb, 0x0999, rumble_pkt, (int)sizeof(rumble_pkt)),
+              UNI_CIRCULAR_BUFFER_ERROR_BUFFER_FULL);
+    EXPECT_EQ(uni_circular_buffer_put(&cb, 0x0999, NULL, 0), UNI_CIRCULAR_BUFFER_ERROR_BUFFER_FULL);
+
+    for (int i = 0; i < max_switch_packets; i++) {
+        uint8_t expected_rumble[11];
+        for (int j = 0; j < (int)sizeof(expected_rumble); j++) {
+            expected_rumble[j] = (uint8_t)((i + j) ^ 0xA5);
+        }
+        ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+        EXPECT_EQ(cid, (int16_t)(0x0040 + i));
+        EXPECT_EQ(len, (int)sizeof(expected_rumble));
+        EXPECT_EQ(memcmp(data, expected_rumble, sizeof(expected_rumble)), 0);
+    }
+    EXPECT_EQ(uni_circular_buffer_is_empty(&cb), 1);
+
+    // ------------------------------------------------------------------------
+    // Stage 3: Split 4-byte header wrap-around across all 4 boundary offsets {4092, 4093, 4094, 4095}
+    //   - 4092: 4-byte header occupies [4092..4095], payload starts at [0]
+    //   - 4093: 4-byte header splits 3 bytes at [4093..4095] and 1 byte at [0]
+    //   - 4094: 4-byte header splits 2 bytes at [4094..4095] and 2 bytes at [0..1]
+    //   - 4095: 4-byte header splits 1 byte at [4095] and 3 bytes at [0..2]
+    // At each offset, enqueue and dequeue the mixed controller sequence:
+    //   Packet A: 11-byte Switch rumble report (cid = 0x1111)
+    //   Packet B: 0-byte empty payload packet (cid = 0x2222, data = NULL, len = 0)
+    //   Packet C: 3-byte Wii report (cid = 0x3333)
+    //   Packet D: 79-byte DualSense output report (cid = 0x4444)
+    // ------------------------------------------------------------------------
+    uint8_t pkt_a_switch[11];
+    uint8_t pkt_c_wii[3] = {0xA1, 0x11, 0x01};
+    uint8_t pkt_d_ds5[79];
+    for (int j = 0; j < (int)sizeof(pkt_a_switch); j++) {
+        pkt_a_switch[j] = (uint8_t)(0x10 + j);
+    }
+    for (int j = 0; j < (int)sizeof(pkt_d_ds5); j++) {
+        pkt_d_ds5[j] = (uint8_t)(0x40 + j);
+    }
+
+    for (int16_t start_offset = 4092; start_offset <= 4095; start_offset++) {
+        uni_circular_buffer_reset(&cb);
+        // Advance head_idx and tail_idx to 3960 (30 * 132 bytes)
+        for (int i = 0; i < 30; i++) {
+            ASSERT_EQ(uni_circular_buffer_put(&cb, 1, pkt_128, 128), UNI_CIRCULAR_BUFFER_ERROR_OK);
+            ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+        }
+        if (start_offset == 4092) {
+            // 3960 + (4 + 128) = 4092
+            ASSERT_EQ(uni_circular_buffer_put(&cb, 1, pkt_128, 128), UNI_CIRCULAR_BUFFER_ERROR_OK);
+            ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+        } else {
+            // 3960 + (4 + 60) = 4024, then + (4 + (start_offset - 4028)) = start_offset
+            ASSERT_EQ(uni_circular_buffer_put(&cb, 1, pkt_128, 60), UNI_CIRCULAR_BUFFER_ERROR_OK);
+            ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+            int remaining_payload = (int)start_offset - 4024 - UNI_CIRCULAR_BUFFER_HEADER_SIZE;
+            ASSERT_EQ(uni_circular_buffer_put(&cb, 1, pkt_128, remaining_payload), UNI_CIRCULAR_BUFFER_ERROR_OK);
+            ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+        }
+        EXPECT_EQ(cb.head_idx, start_offset);
+        EXPECT_EQ(cb.tail_idx, start_offset);
+
+        // Enqueue mixed controller packets A (11B), B (0B), C (3B), D (79B)
+        EXPECT_EQ(uni_circular_buffer_put(&cb, 0x1111, pkt_a_switch, (int)sizeof(pkt_a_switch)),
+                  UNI_CIRCULAR_BUFFER_ERROR_OK);
+        EXPECT_EQ(uni_circular_buffer_put(&cb, 0x2222, NULL, 0), UNI_CIRCULAR_BUFFER_ERROR_OK);
+        EXPECT_EQ(uni_circular_buffer_put(&cb, 0x3333, pkt_c_wii, (int)sizeof(pkt_c_wii)),
+                  UNI_CIRCULAR_BUFFER_ERROR_OK);
+        EXPECT_EQ(uni_circular_buffer_put(&cb, 0x4444, pkt_d_ds5, (int)sizeof(pkt_d_ds5)),
+                  UNI_CIRCULAR_BUFFER_ERROR_OK);
+
+        const int16_t expected_end_idx =
+            (int16_t)((start_offset + (4 + 11) + (4 + 0) + (4 + 3) + (4 + 79)) % UNI_CIRCULAR_BUFFER_SIZE);
+        EXPECT_EQ(cb.tail_idx, expected_end_idx);
+
+        // Dequeue Packet A (11-byte Switch rumble)
+        ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+        EXPECT_EQ(cid, 0x1111);
+        EXPECT_EQ(len, (int)sizeof(pkt_a_switch));
+        EXPECT_EQ(memcmp(data, pkt_a_switch, sizeof(pkt_a_switch)), 0);
+
+        // Dequeue Packet B (0-byte empty packet)
+        ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+        EXPECT_EQ(cid, 0x2222);
+        EXPECT_EQ(len, 0);
+
+        // Dequeue Packet C (3-byte Wii report)
+        ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+        EXPECT_EQ(cid, 0x3333);
+        EXPECT_EQ(len, (int)sizeof(pkt_c_wii));
+        EXPECT_EQ(memcmp(data, pkt_c_wii, sizeof(pkt_c_wii)), 0);
+
+        // Dequeue Packet D (79-byte DualSense report)
+        ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+        EXPECT_EQ(cid, 0x4444);
+        EXPECT_EQ(len, (int)sizeof(pkt_d_ds5));
+        EXPECT_EQ(memcmp(data, pkt_d_ds5, sizeof(pkt_d_ds5)), 0);
+
+        EXPECT_EQ(cb.head_idx, expected_end_idx);
+        EXPECT_EQ(uni_circular_buffer_is_empty(&cb), 1);
+    }
+
+    // ------------------------------------------------------------------------
+    // Stage 4: Split 11-byte payload wrap-around across index 4095 -> 0
+    // Advance head_idx and tail_idx to 4088:
+    //   30 * (4 + 128) = 3960 bytes
+    //   + 1 * (4 + 124) = 128 bytes (4088)
+    // At 4088, the 4-byte header sits at [4088..4091] and the 11-byte payload splits
+    // 4 bytes at [4092..4095] and 7 bytes at [0..6].
+    // ------------------------------------------------------------------------
+    uni_circular_buffer_reset(&cb);
+    for (int i = 0; i < 30; i++) {
+        ASSERT_EQ(uni_circular_buffer_put(&cb, 1, pkt_128, 128), UNI_CIRCULAR_BUFFER_ERROR_OK);
+        ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    }
+    ASSERT_EQ(uni_circular_buffer_put(&cb, 1, pkt_128, 124), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    EXPECT_EQ(cb.head_idx, 4088);
+    EXPECT_EQ(cb.tail_idx, 4088);
+
+    uint8_t split_payload_pkt[11];
+    for (int j = 0; j < (int)sizeof(split_payload_pkt); j++) {
+        split_payload_pkt[j] = (uint8_t)(0x80 + j);
+    }
+    EXPECT_EQ(uni_circular_buffer_put(&cb, 0x5678, split_payload_pkt, (int)sizeof(split_payload_pkt)),
+              UNI_CIRCULAR_BUFFER_ERROR_OK);
+    EXPECT_EQ(cb.tail_idx, 7);
+
+    ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    EXPECT_EQ(cid, 0x5678);
+    EXPECT_EQ(len, (int)sizeof(split_payload_pkt));
+    EXPECT_EQ(memcmp(data, split_payload_pkt, sizeof(split_payload_pkt)), 0);
+    EXPECT_EQ(cb.head_idx, 7);
+    EXPECT_EQ(uni_circular_buffer_is_empty(&cb), 1);
+
+    // ------------------------------------------------------------------------
+    // Stage 5: Safe re-enqueue of the caller's data buffer populated by uni_circular_buffer_get()
+    // back into uni_circular_buffer_put() across the 4095 -> 0 wrap boundary
+    // (simulating uni_hid_device_send_queued_reports() retry).
+    // ------------------------------------------------------------------------
+    uint8_t switch_pkt[11];
+    uint8_t ds5_pkt[79];
+    for (int j = 0; j < (int)sizeof(switch_pkt); j++) {
+        switch_pkt[j] = (uint8_t)(0xC0 + j);
+    }
+    for (int j = 0; j < (int)sizeof(ds5_pkt); j++) {
+        ds5_pkt[j] = (uint8_t)(0x30 + j);
+    }
+
+    // 5a: Advance head_idx and tail_idx to 4090 (30 * 132 + (4 + 126) = 4090) so the initial
+    // 11-byte Switch packet wraps across 4095 -> 0, then is dequeued into `data` and re-enqueued.
+    uni_circular_buffer_reset(&cb);
+    for (int i = 0; i < 30; i++) {
+        ASSERT_EQ(uni_circular_buffer_put(&cb, 1, pkt_128, 128), UNI_CIRCULAR_BUFFER_ERROR_OK);
+        ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    }
+    ASSERT_EQ(uni_circular_buffer_put(&cb, 1, pkt_128, 126), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    EXPECT_EQ(cb.head_idx, 4090);
+    EXPECT_EQ(cb.tail_idx, 4090);
+
+    EXPECT_EQ(uni_circular_buffer_put(&cb, 0x057e, switch_pkt, (int)sizeof(switch_pkt)), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    EXPECT_EQ(cb.tail_idx, 9);
+    EXPECT_EQ(uni_circular_buffer_put(&cb, 0x054c, ds5_pkt, (int)sizeof(ds5_pkt)), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    EXPECT_EQ(cb.tail_idx, 92);
+
+    // Dequeue the first packet into caller buffer `data`
+    ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    EXPECT_EQ(cid, 0x057e);
+    EXPECT_EQ(len, (int)sizeof(switch_pkt));
+    EXPECT_EQ(memcmp(data, switch_pkt, sizeof(switch_pkt)), 0);
+
+    // Re-enqueue using `data` populated by uni_circular_buffer_get()
+    EXPECT_EQ(uni_circular_buffer_put(&cb, cid, data, len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+
+    // Dequeue the 79-byte DualSense packet and verify integrity
+    ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    EXPECT_EQ(cid, 0x054c);
+    EXPECT_EQ(len, (int)sizeof(ds5_pkt));
+    EXPECT_EQ(memcmp(data, ds5_pkt, sizeof(ds5_pkt)), 0);
+
+    // Dequeue the re-enqueued 11-byte Switch packet and verify zero corruption
+    ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    EXPECT_EQ(cid, 0x057e);
+    EXPECT_EQ(len, (int)sizeof(switch_pkt));
+    EXPECT_EQ(memcmp(data, switch_pkt, sizeof(switch_pkt)), 0);
+    EXPECT_EQ(uni_circular_buffer_is_empty(&cb), 1);
+
+    // 5b: Position tail_idx at 4090 at the exact moment of re-enqueue (start at 3992, enqueue 15B + 83B -> 4090)
+    // so the re-enqueued copy out of `data` itself splits across 4095 -> 0 (2B at [4094..4095], 9B at [0..8]).
+    uni_circular_buffer_reset(&cb);
+    for (int i = 0; i < 30; i++) {
+        ASSERT_EQ(uni_circular_buffer_put(&cb, 1, pkt_128, 128), UNI_CIRCULAR_BUFFER_ERROR_OK);
+        ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    }
+    ASSERT_EQ(uni_circular_buffer_put(&cb, 1, pkt_128, 28), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    EXPECT_EQ(cb.head_idx, 3992);
+    EXPECT_EQ(cb.tail_idx, 3992);
+
+    EXPECT_EQ(uni_circular_buffer_put(&cb, 0x057e, switch_pkt, (int)sizeof(switch_pkt)), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    EXPECT_EQ(uni_circular_buffer_put(&cb, 0x054c, ds5_pkt, (int)sizeof(ds5_pkt)), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    EXPECT_EQ(cb.tail_idx, 4090);
+
+    ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    // Re-enqueue `data` at tail_idx == 4090 so the payload copy wraps across 4095 -> 0
+    EXPECT_EQ(uni_circular_buffer_put(&cb, cid, data, len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    EXPECT_EQ(cb.tail_idx, 9);
+
+    ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    EXPECT_EQ(cid, 0x054c);
+    EXPECT_EQ(len, (int)sizeof(ds5_pkt));
+    EXPECT_EQ(memcmp(data, ds5_pkt, sizeof(ds5_pkt)), 0);
+
+    ASSERT_EQ(uni_circular_buffer_get(&cb, &cid, data, &len), UNI_CIRCULAR_BUFFER_ERROR_OK);
+    EXPECT_EQ(cid, 0x057e);
+    EXPECT_EQ(len, (int)sizeof(switch_pkt));
+    EXPECT_EQ(memcmp(data, switch_pkt, sizeof(switch_pkt)), 0);
+    EXPECT_EQ(uni_circular_buffer_is_empty(&cb), 1);
+
     printf("PASS\n");
 }
 
@@ -643,6 +1064,8 @@ TEST(intrusive_timer_removal_on_delete) {
 TEST(hid_device_parser_and_platform_data_alignment_b6) {
     printf("Testing uni_hid_device parser_data and platform_data alignment and tail placement (B6)...\n");
     // Compile-time verification of pointer-width alignment (sizeof(void*)) and tail placement after parent/child.
+    _Static_assert(offsetof(uni_hid_device_t, outgoing_buffer.buffer) % sizeof(void*) == 0,
+                   "outgoing_buffer.buffer must be pointer-aligned");
     _Static_assert(offsetof(uni_hid_device_t, parser_data) % sizeof(void*) == 0, "parser_data must be pointer-aligned");
     _Static_assert(offsetof(uni_hid_device_t, platform_data) % sizeof(void*) == 0,
                    "platform_data must be pointer-aligned");
@@ -652,6 +1075,7 @@ TEST(hid_device_parser_and_platform_data_alignment_b6) {
                    "platform_data must be placed after parser_data at the tail of uni_hid_device_t");
 
     // Runtime verification of struct offsets and per-instance buffer alignment across the entire device pool.
+    EXPECT_EQ(offsetof(uni_hid_device_t, outgoing_buffer.buffer) % sizeof(void*), 0);
     EXPECT_EQ(offsetof(uni_hid_device_t, parser_data) % sizeof(void*), 0);
     EXPECT_EQ(offsetof(uni_hid_device_t, platform_data) % sizeof(void*), 0);
     EXPECT_TRUE(offsetof(uni_hid_device_t, parser_data) > offsetof(uni_hid_device_t, child));
@@ -662,6 +1086,7 @@ TEST(hid_device_parser_and_platform_data_alignment_b6) {
         bd_addr_t addr = {0x60, 0x00, 0x00, 0x00, 0x00, (uint8_t)(i + 1)};
         created[i] = uni_hid_device_create(addr);
         ASSERT_TRUE(created[i] != NULL);
+        EXPECT_EQ((uintptr_t)&created[i]->outgoing_buffer.buffer[0] % sizeof(void*), 0);
         EXPECT_EQ((uintptr_t)&created[i]->parser_data[0] % sizeof(void*), 0);
         EXPECT_EQ((uintptr_t)&created[i]->platform_data[0] % sizeof(void*), 0);
     }
@@ -733,6 +1158,7 @@ int main(int argc, char** argv) {
     RUN_TEST(circular_buffer_zero_length_packet);
     RUN_TEST(circular_buffer_exact_capacity_boundary);
     RUN_TEST(circular_buffer_full_queue_and_wrap_around);
+    RUN_TEST(circular_buffer_variable_length_and_wrap_around);
 
     // uni_bt_allowlist & uni_property_posix
     RUN_TEST(allowlist_zero_addr_rejection);

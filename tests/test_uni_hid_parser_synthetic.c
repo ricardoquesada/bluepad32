@@ -295,12 +295,10 @@ TEST(hid_parser_ds4_invalid_crc32_rejected) {
     d.report_parser.set_lightbar_color(&d, 0x12, 0x34, 0x56);
 
     int16_t cid = 0;
-    void* data = NULL;
+    uint8_t out_bytes[128];
     int data_len = 0;
-    ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d.outgoing_buffer, &cid, &data, &data_len));
+    ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d.outgoing_buffer, &cid, out_bytes, &data_len));
     ASSERT_EQ(79, data_len);
-
-    const uint8_t* out_bytes = (const uint8_t*)data;
     // Verify the generated CRC32 matches ~uni_crc32_le(0xffffffff, out_bytes, 75).
     uint32_t expected_crc = ~uni_crc32_le(0xffffffff, out_bytes, 75);
     uint32_t actual_crc = 0;
@@ -1667,11 +1665,10 @@ TEST(rumble_delayed_cancel_and_state_transitions_all_parsers_b4) {
 
         d_ds4.report_parser.set_lightbar_color(&d_ds4, 0x11, 0x22, 0x33);
         int16_t cid = 0;
-        void* data = NULL;
+        uint8_t rpt[128];
         int len = 0;
-        ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d_ds4.outgoing_buffer, &cid, &data, &len));
+        ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d_ds4.outgoing_buffer, &cid, rpt, &len));
         ASSERT_EQ(79, len);
-        const uint8_t* rpt = (const uint8_t*)data;
         // In ds4_output_report_t: [7]=motor_right, [8]=motor_left, [9]=led_red, [10]=led_green, [11]=led_blue
         EXPECT_EQ(0x55, rpt[7]);
         EXPECT_EQ(0xAA, rpt[8]);
@@ -1681,9 +1678,8 @@ TEST(rumble_delayed_cancel_and_state_transitions_all_parsers_b4) {
 
         // Now stop rumble and verify LED color is preserved while motors are zeroed.
         d_ds4.report_parser.play_dual_rumble(&d_ds4, 0, 0, 0, 0);
-        ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d_ds4.outgoing_buffer, &cid, &data, &len));
+        ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d_ds4.outgoing_buffer, &cid, rpt, &len));
         ASSERT_EQ(79, len);
-        rpt = (const uint8_t*)data;
         EXPECT_EQ(0x00, rpt[7]);
         EXPECT_EQ(0x00, rpt[8]);
         EXPECT_EQ(0x11, rpt[9]);
@@ -1704,11 +1700,10 @@ TEST(rumble_delayed_cancel_and_state_transitions_all_parsers_b4) {
 
         d_psm.report_parser.set_lightbar_color(&d_psm, 0xAA, 0xBB, 0xCC);
         int16_t cid = 0;
-        void* data = NULL;
+        uint8_t rpt[128];
         int len = 0;
-        ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d_psm.outgoing_buffer, &cid, &data, &len));
+        ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d_psm.outgoing_buffer, &cid, rpt, &len));
         ASSERT_EQ(10, len);
-        const uint8_t* rpt = (const uint8_t*)data;
         // In psmove_output_report_t: [3..5]=led_rgb, [7]=rumble
         EXPECT_EQ(0xAA, rpt[3]);
         EXPECT_EQ(0xBB, rpt[4]);
@@ -1719,8 +1714,7 @@ TEST(rumble_delayed_cancel_and_state_transitions_all_parsers_b4) {
         d_psm.report_parser.play_dual_rumble(&d_psm, 0, 0, 0, 0);
         uni_circular_buffer_reset(&d_psm.outgoing_buffer);
         d_psm.report_parser.set_lightbar_color(&d_psm, 0xAA, 0xBB, 0xCC);
-        ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d_psm.outgoing_buffer, &cid, &data, &len));
-        rpt = (const uint8_t*)data;
+        ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d_psm.outgoing_buffer, &cid, rpt, &len));
         EXPECT_EQ(0x00, rpt[7]);
     }
 }
@@ -1906,11 +1900,10 @@ TEST(wii_set_led_preserves_rumble_bit_b4) {
     //    Dequeue the 3-byte output report {0xa2, 0x11, led} and verify bit 0x01 is preserved!
     d.report_parser.set_player_leds(&d, 0x02);
     int16_t cid = 0;
-    void* data = NULL;
+    uint8_t rpt[128];
     int len = 0;
-    ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d.outgoing_buffer, &cid, &data, &len));
+    ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d.outgoing_buffer, &cid, rpt, &len));
     ASSERT_EQ(3, len);
-    const uint8_t* rpt = (const uint8_t*)data;
     EXPECT_EQ(0xa2, rpt[0]);
     EXPECT_EQ(0x11, rpt[1]);
     EXPECT_EQ(0x20 | 0x01, rpt[2]);
@@ -1921,9 +1914,8 @@ TEST(wii_set_led_preserves_rumble_bit_b4) {
     uni_circular_buffer_reset(&d.outgoing_buffer);
 
     d.report_parser.set_player_leds(&d, 0x02);
-    ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d.outgoing_buffer, &cid, &data, &len));
+    ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d.outgoing_buffer, &cid, rpt, &len));
     ASSERT_EQ(3, len);
-    rpt = (const uint8_t*)data;
     EXPECT_EQ(0xa2, rpt[0]);
     EXPECT_EQ(0x11, rpt[1]);
     EXPECT_EQ(0x20, rpt[2]);
@@ -2848,11 +2840,10 @@ TEST(parser_switch_rumble_intensity_tracks_magnitude) {
         uni_circular_buffer_reset(&d.outgoing_buffer);
         d.report_parser.play_dual_rumble(&d, 0, 500, magnitudes[i], magnitudes[i]);
         int16_t cid = 0;
-        void* data = NULL;
+        uint8_t out[128];
         int len = 0;
-        ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d.outgoing_buffer, &cid, &data, &len));
+        ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d.outgoing_buffer, &cid, out, &len));
         ASSERT_EQ(11, len);
-        const uint8_t* out = (const uint8_t*)data;
         EXPECT_EQ(0x10, out[1]);
         for (int side = 3; side <= 7; side += 4) {
             // Fixed 320 Hz in both bands: high-band code 0x0001, low-band code 0x60.
@@ -2900,11 +2891,10 @@ TEST(parser_switch_setup_enables_vibration) {
     r21[14] = 0x40;
     feed_input_report(&d, r21, sizeof(r21));
     int16_t cid = 0;
-    void* data = NULL;
+    uint8_t out[128];
     int len = 0;
-    ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d.outgoing_buffer, &cid, &data, &len));
+    ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d.outgoing_buffer, &cid, out, &len));
     ASSERT_EQ(13, len);
-    const uint8_t* out = (const uint8_t*)data;
     EXPECT_EQ(0x01, out[1]);   // OUTPUT_RUMBLE_AND_SUBCMD
     EXPECT_EQ(0x48, out[11]);  // SUBCMD_ENABLE_VIBRATION
     EXPECT_EQ(0x01, out[12]);  // enable
@@ -2913,8 +2903,7 @@ TEST(parser_switch_setup_enables_vibration) {
     uni_circular_buffer_reset(&d.outgoing_buffer);
     r21[14] = 0x48;
     feed_input_report(&d, r21, sizeof(r21));
-    ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d.outgoing_buffer, &cid, &data, &len));
-    out = (const uint8_t*)data;
+    ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d.outgoing_buffer, &cid, out, &len));
     EXPECT_EQ(0x30, out[11]);  // SUBCMD_SET_PLAYER_LEDS
 
     uni_circular_buffer_reset(&d.outgoing_buffer);

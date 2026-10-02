@@ -76,6 +76,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Core: Standardized device index types to `int32_t`, updated
   `UNI_PLATFORM_STRUCT_VERSION`, and replaced `switch(controller_type)` with
   table-driven parser lookup.
+- Circular Buffer: Refactored `uni_circular_buffer` into a variable-length
+  byte-stream ring buffer (`UNI_CIRCULAR_BUFFER_SIZE = 4096`) to prevent
+  dropping small packet bursts (such as Nintendo Switch rumble reports).
+  Removed `UNI_CIRCULAR_BUFFER_DATA_SIZE` and `uni_circular_buffer_data_t`, and
+  changed `uni_circular_buffer_get()` from `void** data` to caller-provided
+  `void* data`.
 - Documentation: Expanded `docs/architecture.md`, `uni_hid_device.h` API docs,
   `docs/supported_mice.md` ([PR #179][github_pr_179]), and the Arduino and Raw
   programmer's guides.

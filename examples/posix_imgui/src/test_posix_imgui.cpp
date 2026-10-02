@@ -579,15 +579,13 @@ bool dequeue_and_verify_ds5_led_report(uni_hid_device_t* d,
                                        uint8_t expected_player_leds,
                                        uint8_t* out_player_leds = nullptr) {
     int16_t cid = 0;
-    void* data = nullptr;
+    uint8_t report[128]{};
     int data_len = 0;
-    uint8_t rc = uni_circular_buffer_get(&d->outgoing_buffer, &cid, &data, &data_len);
-    if (rc != UNI_CIRCULAR_BUFFER_ERROR_OK || cid != static_cast<int16_t>(expected_cid) || data == nullptr ||
+    uint8_t rc = uni_circular_buffer_get(&d->outgoing_buffer, &cid, report, &data_len);
+    if (rc != UNI_CIRCULAR_BUFFER_ERROR_OK || cid != static_cast<int16_t>(expected_cid) ||
         data_len != kDs5OutputReportLen) {
         return false;
     }
-
-    const uint8_t* report = static_cast<const uint8_t*>(data);
 
     // Bluetooth HID Output header & DualSense protocol invariants:
     //   Byte 0: transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT = 0xa2
