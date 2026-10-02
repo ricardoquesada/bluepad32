@@ -38,6 +38,16 @@ void uni_hid_parser_switch_play_dual_rumble(struct uni_hid_device_s* d,
 bool uni_hid_parser_switch_does_name_match(struct uni_hid_device_s* d, const char* name);
 void uni_hid_parser_switch_device_dump(struct uni_hid_device_s* d);
 
+/**
+ * @brief Re-send a neutral (stop) rumble packet if no rumble is playing.
+ *
+ * A Switch pad keeps vibrating with the last rumble data it received, and rumble is stopped by a
+ * single packet. If that packet is dropped (e.g. full outgoing queue) the motors stay on. Calling
+ * this periodically while idle (e.g. once per second) stops such a stuck rumble.
+ * No-op for non-Switch devices, while rumble is playing or scheduled, and before setup is complete.
+ */
+void uni_hid_parser_switch_refresh_idle_rumble(struct uni_hid_device_s* d);
+
 #ifdef __cplusplus
 }
 #endif

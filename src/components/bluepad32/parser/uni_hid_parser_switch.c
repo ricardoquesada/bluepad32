@@ -1325,6 +1325,15 @@ void uni_hid_parser_switch_play_dual_rumble(struct uni_hid_device_s* d,
                                     switch_rumble_start, switch_rumble_stop);
 }
 
+void uni_hid_parser_switch_refresh_idle_rumble(struct uni_hid_device_s* d) {
+    if (d == NULL || d->report_parser.setup != uni_hid_parser_switch_setup)
+        return;
+    switch_instance_t* ins = get_switch_instance(d);
+    if (ins->state != STATE_READY || d->rumble.state != UNI_RUMBLE_STATE_DISABLED)
+        return;
+    switch_rumble_stop(d);
+}
+
 bool uni_hid_parser_switch_does_name_match(struct uni_hid_device_s* d, const char* name) {
     struct device_s {
         const char* name;
