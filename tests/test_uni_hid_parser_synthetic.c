@@ -2832,7 +2832,7 @@ TEST(parser_wii_bounds_underflow_and_classic_rx_bit0_regression) {
 }
 
 // ============================================================================
-// 30. Switch Parser: Rumble Intensity Follows the Requested Magnitude
+// 27. Switch Parser: Rumble Intensity Follows the Requested Magnitude
 // ============================================================================
 TEST(parser_switch_rumble_intensity_tracks_magnitude) {
     uni_hid_device_t d;
@@ -2871,92 +2871,97 @@ TEST(parser_switch_rumble_intensity_tracks_magnitude) {
     }
 
     d.report_parser.play_dual_rumble(&d, 0, 0, 0, 0);
-    // 27. Switch Parser: Setup Enables Vibration (Subcommand 0x48)
-    // ============================================================================
-    TEST(parser_switch_setup_enables_vibration) {
-        uni_hid_device_t d;
-        setup_synthetic_device(&d, 0x057e, 0x2006);  // Joy-Con (L)
-        ASSERT_EQ(CONTROLLER_TYPE_SwitchJoyConLeft, d.controller_type);
-        d.conn.interrupt_cid = 0x0041;
+    uni_circular_buffer_reset(&d.outgoing_buffer);
+    d.conn.interrupt_cid = 0;
+}
 
-        uint8_t r21[48];
-        memset(r21, 0, sizeof(r21));
-        r21[0] = 0x21;
-        r21[13] = 0x80;  // ack bit
-        r21[17] = 0x01;  // SWITCH_CONTROLLER_TYPE_JCL
-        const uint8_t subcmds[] = {0x02, 0x10, 0x10, 0x10, 0x03};
-        for (size_t i = 0; i < ARRAY_SIZE(subcmds); i++) {
-            r21[14] = subcmds[i];
-            feed_input_report(&d, r21, sizeof(r21));
-        }
+// ============================================================================
+// 28. Switch Parser: Setup Enables Vibration (Subcommand 0x48)
+// ============================================================================
+TEST(parser_switch_setup_enables_vibration) {
+    uni_hid_device_t d;
+    setup_synthetic_device(&d, 0x057e, 0x2006);  // Joy-Con (L)
+    ASSERT_EQ(CONTROLLER_TYPE_SwitchJoyConLeft, d.controller_type);
+    d.conn.interrupt_cid = 0x0041;
 
-        // The reply to SUBCMD_ENABLE_IMU must be followed by SUBCMD_ENABLE_VIBRATION (0x48) with arg 0x01.
-        uni_circular_buffer_reset(&d.outgoing_buffer);
-        r21[14] = 0x40;
+    uint8_t r21[48];
+    memset(r21, 0, sizeof(r21));
+    r21[0] = 0x21;
+    r21[13] = 0x80;  // ack bit
+    r21[17] = 0x01;  // SWITCH_CONTROLLER_TYPE_JCL
+    const uint8_t subcmds[] = {0x02, 0x10, 0x10, 0x10, 0x03};
+    for (size_t i = 0; i < ARRAY_SIZE(subcmds); i++) {
+        r21[14] = subcmds[i];
         feed_input_report(&d, r21, sizeof(r21));
-        int16_t cid = 0;
-        void* data = NULL;
-        int len = 0;
-        ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d.outgoing_buffer, &cid, &data, &len));
-        ASSERT_EQ(13, len);
-        const uint8_t* out = (const uint8_t*)data;
-        EXPECT_EQ(0x01, out[1]);   // OUTPUT_RUMBLE_AND_SUBCMD
-        EXPECT_EQ(0x48, out[11]);  // SUBCMD_ENABLE_VIBRATION
-        EXPECT_EQ(0x01, out[12]);  // enable
-
-        // The reply to 0x48 continues the setup: next request is SUBCMD_SET_PLAYER_LEDS.
-        uni_circular_buffer_reset(&d.outgoing_buffer);
-        r21[14] = 0x48;
-        feed_input_report(&d, r21, sizeof(r21));
-        ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d.outgoing_buffer, &cid, &data, &len));
-        out = (const uint8_t*)data;
-        EXPECT_EQ(0x30, out[11]);  // SUBCMD_SET_PLAYER_LEDS
-
-        uni_circular_buffer_reset(&d.outgoing_buffer);
-        d.conn.interrupt_cid = 0;
     }
 
-    int main(int argc, char** argv) {
-        ARG_UNUSED(argc);
-        ARG_UNUSED(argv);
+    // The reply to SUBCMD_ENABLE_IMU must be followed by SUBCMD_ENABLE_VIBRATION (0x48) with arg 0x01.
+    uni_circular_buffer_reset(&d.outgoing_buffer);
+    r21[14] = 0x40;
+    feed_input_report(&d, r21, sizeof(r21));
+    int16_t cid = 0;
+    void* data = NULL;
+    int len = 0;
+    ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d.outgoing_buffer, &cid, &data, &len));
+    ASSERT_EQ(13, len);
+    const uint8_t* out = (const uint8_t*)data;
+    EXPECT_EQ(0x01, out[1]);   // OUTPUT_RUMBLE_AND_SUBCMD
+    EXPECT_EQ(0x48, out[11]);  // SUBCMD_ENABLE_VIBRATION
+    EXPECT_EQ(0x01, out[12]);  // enable
 
-        btstack_memory_init();
-        btstack_run_loop_init(btstack_run_loop_posix_get_instance());
-        uni_property_init();
-        uni_virtual_device_init();
-        uni_virtual_device_set_enabled(true);
-        hci_init(&g_dummy_transport, NULL);
-        l2cap_init();
+    // The reply to 0x48 continues the setup: next request is SUBCMD_SET_PLAYER_LEDS.
+    uni_circular_buffer_reset(&d.outgoing_buffer);
+    r21[14] = 0x48;
+    feed_input_report(&d, r21, sizeof(r21));
+    ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d.outgoing_buffer, &cid, &data, &len));
+    out = (const uint8_t*)data;
+    EXPECT_EQ(0x30, out[11]);  // SUBCMD_SET_PLAYER_LEDS
 
-        RUN_TEST(hid_parser_ds4_valid_and_short);
-        RUN_TEST(hid_parser_ds4_invalid_crc32_rejected);
-        RUN_TEST(hid_parser_ds5_bt_and_usb);
-        RUN_TEST(hid_parser_ds3_valid_and_short);
-        RUN_TEST(hid_parser_xboxone_reports);
-        RUN_TEST(hid_parser_switch_reports_and_imu_bounds);
-        RUN_TEST(hid_parser_wii_core_and_nunchuk);
-        RUN_TEST(hid_parser_steam_offset_and_int16_min_regression);
-        RUN_TEST(hid_parser_atari_zero_len_and_oob_dpad_regression);
-        RUN_TEST(hid_parser_keyboard_standard_and_jx05_overflow_regression);
-        RUN_TEST(hid_parser_mouse_8byte_and_wheel);
-        RUN_TEST(hid_parser_stadia_and_smarttvremote);
-        RUN_TEST(hid_parser_8bitdo_icade_nimbus_ouya);
-        RUN_TEST(hid_parser_generic_descriptor_gamepad);
-        RUN_TEST(hid_parser_descriptor_malformed_and_deep_collection);
-        RUN_TEST(hid_parser_sweep_all_controllers_short_and_prng_fuzz);
-        RUN_TEST(rumble_and_switch_setup_timer_teardown_on_disconnect_and_resetup_b3);
-        RUN_TEST(rumble_delayed_cancel_and_state_transitions_all_parsers_b4);
-        RUN_TEST(rumble_ble_50ms_retry_xboxone_and_stadia_b4);
-        RUN_TEST(wii_set_led_preserves_rumble_bit_b4);
-        RUN_TEST(wii_balance_board_zero_and_inverted_calibration_guards_b6);
-        RUN_TEST(controller_list_uniqueness_and_table_driven_lookup_b6_phase4);
-        RUN_TEST(imu_cross_vendor_canonical_units_and_axes);
-        RUN_TEST(parser_switch_spi_bounds_and_zero_span_calibration_regression);
-        RUN_TEST(parser_wii_truncated_reports_and_classic_rx_bit_packing_regression);
-        RUN_TEST(parser_wii_bounds_underflow_and_classic_rx_bit0_regression);
-        RUN_TEST(parser_ds4_ds5_empty_report_and_ds5_usb_report_0x01);
-        RUN_TEST(parser_switch_rumble_intensity_tracks_magnitude);
-        RUN_TEST(parser_switch_setup_enables_vibration);
+    uni_circular_buffer_reset(&d.outgoing_buffer);
+    d.conn.interrupt_cid = 0;
+}
 
-        return test_summary();
-    }
+int main(int argc, char** argv) {
+    ARG_UNUSED(argc);
+    ARG_UNUSED(argv);
+
+    btstack_memory_init();
+    btstack_run_loop_init(btstack_run_loop_posix_get_instance());
+    uni_property_init();
+    uni_virtual_device_init();
+    uni_virtual_device_set_enabled(true);
+    hci_init(&g_dummy_transport, NULL);
+    l2cap_init();
+
+    RUN_TEST(hid_parser_ds4_valid_and_short);
+    RUN_TEST(hid_parser_ds4_invalid_crc32_rejected);
+    RUN_TEST(hid_parser_ds5_bt_and_usb);
+    RUN_TEST(hid_parser_ds3_valid_and_short);
+    RUN_TEST(hid_parser_xboxone_reports);
+    RUN_TEST(hid_parser_switch_reports_and_imu_bounds);
+    RUN_TEST(hid_parser_wii_core_and_nunchuk);
+    RUN_TEST(hid_parser_steam_offset_and_int16_min_regression);
+    RUN_TEST(hid_parser_atari_zero_len_and_oob_dpad_regression);
+    RUN_TEST(hid_parser_keyboard_standard_and_jx05_overflow_regression);
+    RUN_TEST(hid_parser_mouse_8byte_and_wheel);
+    RUN_TEST(hid_parser_stadia_and_smarttvremote);
+    RUN_TEST(hid_parser_8bitdo_icade_nimbus_ouya);
+    RUN_TEST(hid_parser_generic_descriptor_gamepad);
+    RUN_TEST(hid_parser_descriptor_malformed_and_deep_collection);
+    RUN_TEST(hid_parser_sweep_all_controllers_short_and_prng_fuzz);
+    RUN_TEST(rumble_and_switch_setup_timer_teardown_on_disconnect_and_resetup_b3);
+    RUN_TEST(rumble_delayed_cancel_and_state_transitions_all_parsers_b4);
+    RUN_TEST(rumble_ble_50ms_retry_xboxone_and_stadia_b4);
+    RUN_TEST(wii_set_led_preserves_rumble_bit_b4);
+    RUN_TEST(wii_balance_board_zero_and_inverted_calibration_guards_b6);
+    RUN_TEST(controller_list_uniqueness_and_table_driven_lookup_b6_phase4);
+    RUN_TEST(imu_cross_vendor_canonical_units_and_axes);
+    RUN_TEST(parser_switch_spi_bounds_and_zero_span_calibration_regression);
+    RUN_TEST(parser_wii_truncated_reports_and_classic_rx_bit_packing_regression);
+    RUN_TEST(parser_wii_bounds_underflow_and_classic_rx_bit0_regression);
+    RUN_TEST(parser_ds4_ds5_empty_report_and_ds5_usb_report_0x01);
+    RUN_TEST(parser_switch_rumble_intensity_tracks_magnitude);
+    RUN_TEST(parser_switch_setup_enables_vibration);
+
+    return test_summary();
+}
