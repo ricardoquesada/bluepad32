@@ -2826,40 +2826,76 @@ TEST(parser_wii_bounds_underflow_and_classic_rx_bit0_regression) {
 // ============================================================================
 // 27. Switch Parser: Rumble Intensity Follows the Requested Magnitude
 // ============================================================================
+// Sends one rumble request and returns the 11-byte rumble-only report (0x10): [1] = report id,
+// [3..6] = left actuator, [7..10] = right actuator.
+static const uint8_t* switch_rumble_report(uni_hid_device_t* d, uint8_t weak, uint8_t strong) {
+    uni_circular_buffer_reset(&d->outgoing_buffer);
+    d->report_parser.play_dual_rumble(d, 0, 500, weak, strong);
+    int16_t cid = 0;
+    static uint8_t data[128];  // returned to the caller, valid until the next call
+    int len = 0;
+    if (uni_circular_buffer_get(&d->outgoing_buffer, &cid, data, &len) != UNI_CIRCULAR_BUFFER_ERROR_OK || len != 11)
+        return NULL;
+    return data;
+}
+
 TEST(parser_switch_rumble_intensity_tracks_magnitude) {
     uni_hid_device_t d;
     setup_synthetic_device(&d, 0x057e, 0x2009);
     ASSERT_EQ(CONTROLLER_TYPE_SwitchProController, d.controller_type);
     d.conn.interrupt_cid = 0x0041;
 
-    // Rumble-only report (0x10): [1] = report id, [3..6] = left (weak), [7..10] = right (strong).
-    // Encoded amplitudes: high band in [i+1] bits 1-7, low band in [i+2] bit 0 + [i+3].
+    // Encoded amplitudes: high band in [i+1] bits 1-7 (weak), low band in [i+2] bit 7 + [i+3] (strong).
     const uint8_t magnitudes[] = {0x20, 0x80, 0xff};
-    int prev_amp_hi = -1;
+    int prev_hi = -1;
+    int prev_lo = -1;
     for (size_t i = 0; i < ARRAY_SIZE(magnitudes); i++) {
-        uni_circular_buffer_reset(&d.outgoing_buffer);
-        d.report_parser.play_dual_rumble(&d, 0, 500, magnitudes[i], magnitudes[i]);
-        int16_t cid = 0;
-        uint8_t out[128];
-        int len = 0;
-        ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d.outgoing_buffer, &cid, out, &len));
-        ASSERT_EQ(11, len);
+        const uint8_t* out = switch_rumble_report(&d, magnitudes[i], magnitudes[i]);
+        ASSERT_TRUE(out != NULL);
         EXPECT_EQ(0x10, out[1]);
         for (int side = 3; side <= 7; side += 4) {
-            // Fixed 320 Hz in both bands: high-band code 0x0001, low-band code 0x60.
-            EXPECT_EQ(0x00, out[side]);
-            EXPECT_EQ(0x01, out[side + 1] & 0x01);
-            EXPECT_EQ(0x60, out[side + 2] & 0x7f);
+            // Fixed ~150 Hz in both bands: high-band code 0x74, low-band code 0x3d.
+            EXPECT_EQ(0x74, out[side]);
+            EXPECT_EQ(0x00, out[side + 1] & 0x01);
+            EXPECT_EQ(0x3d, out[side + 2] & 0x7f);
         }
-        // Both motors got the same magnitude, so the same amplitude.
-        EXPECT_EQ(out[4], out[8]);
-        EXPECT_EQ(out[6], out[10]);
-        // Amplitude grows with the magnitude, and stays below the table's maximum (0xc8 high-band code).
-        const int amp_hi = out[4] & 0xfe;
-        EXPECT_TRUE(amp_hi > prev_amp_hi);
-        EXPECT_TRUE(amp_hi < 0xc8);
-        prev_amp_hi = amp_hi;
+        const int hi = out[4] & 0xfe;
+        const int lo = out[6] * 2 + (out[5] >> 7);
+        EXPECT_TRUE(hi > prev_hi);
+        EXPECT_TRUE(lo > prev_lo);
+        prev_hi = hi;
+        prev_lo = lo;
     }
+
+    d.report_parser.play_dual_rumble(&d, 0, 0, 0, 0);
+    uni_circular_buffer_reset(&d.outgoing_buffer);
+    d.conn.interrupt_cid = 0;
+}
+
+// A single Joy-Con only has one actuator: each side must carry both magnitudes, so a weak-only or
+// strong-only request still rumbles a lone left or right Joy-Con. Bytes match SDL's encoding.
+TEST(parser_switch_rumble_same_data_on_both_actuators) {
+    uni_hid_device_t d;
+    setup_synthetic_device(&d, 0x057e, 0x2009);
+    ASSERT_EQ(CONTROLLER_TYPE_SwitchProController, d.controller_type);
+    d.conn.interrupt_cid = 0x0041;
+
+    static const uint8_t weak_only[4] = {0x74, 0xc8, 0x3d, 0x40};
+    static const uint8_t strong_only[4] = {0x74, 0x00, 0x3d, 0x72};
+
+    const uint8_t* out = switch_rumble_report(&d, 0xff, 0x00);
+    ASSERT_TRUE(out != NULL);
+    EXPECT_EQ(0, memcmp(&out[3], weak_only, 4));
+    EXPECT_EQ(0, memcmp(&out[7], weak_only, 4));
+
+    out = switch_rumble_report(&d, 0x00, 0xff);
+    ASSERT_TRUE(out != NULL);
+    EXPECT_EQ(0, memcmp(&out[3], strong_only, 4));
+    EXPECT_EQ(0, memcmp(&out[7], strong_only, 4));
+
+    out = switch_rumble_report(&d, 0x5a, 0xaa);
+    ASSERT_TRUE(out != NULL);
+    EXPECT_EQ(0, memcmp(&out[3], &out[7], 4));
 
     d.report_parser.play_dual_rumble(&d, 0, 0, 0, 0);
     uni_circular_buffer_reset(&d.outgoing_buffer);
@@ -2950,6 +2986,7 @@ int main(int argc, char** argv) {
     RUN_TEST(parser_wii_bounds_underflow_and_classic_rx_bit0_regression);
     RUN_TEST(parser_ds4_ds5_empty_report_and_ds5_usb_report_0x01);
     RUN_TEST(parser_switch_rumble_intensity_tracks_magnitude);
+    RUN_TEST(parser_switch_rumble_same_data_on_both_actuators);
     RUN_TEST(parser_switch_setup_enables_vibration);
 
     return test_summary();
