@@ -42,6 +42,14 @@ bool uni_hid_parser_switch_does_name_match(struct uni_hid_device_s* d, const cha
  */
 int uni_hid_parser_switch_device_extra_info(const struct uni_hid_device_s* d, char* buf, size_t len);
 
+/**
+ * @brief Ask the pad to disconnect itself and go to sleep (subcommand 0x06, argument 0x00).
+ *
+ * Same as the console does when it turns the controllers off: the pad drops the link and powers
+ * down, and reconnects on its next button press. No-op for non-Switch devices.
+ */
+void uni_hid_parser_switch_request_sleep(struct uni_hid_device_s* d);
+
 #ifdef __cplusplus
 }
 #endif
