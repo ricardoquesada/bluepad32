@@ -117,6 +117,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   amplitude, at a fixed ~150 Hz, so a single Joy-Con rumbles for either one.
 - Switch: Fixed Joy-Con rumble. Setup now enables vibration (subcommand
   `0x48`); Joy-Cons ignore rumble until it is enabled.
+- Switch: Added `uni_hid_parser_switch_refresh_idle_rumble()`. A pad keeps
+  vibrating with the last rumble data it received, so a dropped "stop" packet
+  left the motors on; calling it periodically while idle re-sends the stop.
 - Wii Balance Board: Fixed swapped default move/fire threshold constants
   (`move=1500`, `fire=5000`), guarded calibration interpolation against
   zero/inverted dividers, and decoupled Balance Board from ESP-IDF console

@@ -2946,6 +2946,72 @@ TEST(parser_switch_setup_enables_vibration) {
     d.conn.interrupt_cid = 0;
 }
 
+// ============================================================================
+// 29. Switch Parser: Neutral Rumble Refresh While Idle
+// ============================================================================
+TEST(parser_switch_refresh_idle_rumble) {
+    uni_hid_device_t d;
+    setup_synthetic_device(&d, 0x057e, 0x2009);
+    ASSERT_EQ(CONTROLLER_TYPE_SwitchProController, d.controller_type);
+    d.conn.interrupt_cid = 0x0041;
+
+    // Before setup is complete: nothing is sent.
+    uni_circular_buffer_reset(&d.outgoing_buffer);
+    uni_hid_parser_switch_refresh_idle_rumble(&d);
+    EXPECT_EQ(1, uni_circular_buffer_is_empty(&d.outgoing_buffer));
+
+    // Walk the FSM to STATE_READY (SPI replies echo the requested address in data[0..3]).
+    uint8_t r21[48];
+    memset(r21, 0, sizeof(r21));
+    r21[0] = 0x21;
+    r21[13] = 0x80;
+    r21[17] = 0x03;  // SWITCH_CONTROLLER_TYPE_PRO
+    const uint8_t subcmds[] = {0x02, 0x10, 0x10, 0x10, 0x03, 0x40, 0x48, 0x30};
+    const uint16_t spi_addrs[] = {0, 0x603d, 0x8010, 0x6020, 0, 0, 0, 0};
+    for (size_t i = 0; i < ARRAY_SIZE(subcmds); i++) {
+        r21[14] = subcmds[i];
+        if (subcmds[i] == 0x10) {
+            r21[15] = spi_addrs[i] & 0xff;
+            r21[16] = spi_addrs[i] >> 8;
+            r21[17] = 0;
+        }
+        feed_input_report(&d, r21, sizeof(r21));
+    }
+
+    // Idle: a neutral rumble-only packet (0x10) is sent.
+    uni_circular_buffer_reset(&d.outgoing_buffer);
+    uni_hid_parser_switch_refresh_idle_rumble(&d);
+    int16_t cid = 0;
+    uint8_t data[128];
+    int len = 0;
+    ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d.outgoing_buffer, &cid, data, &len));
+    ASSERT_EQ(11, len);
+    const uint8_t* out = data;
+    const uint8_t neutral[4] = {0x00, 0x01, 0x40, 0x40};
+    EXPECT_EQ(0x10, out[1]);
+    EXPECT_EQ(0, memcmp(&out[3], neutral, sizeof(neutral)));
+    EXPECT_EQ(0, memcmp(&out[7], neutral, sizeof(neutral)));
+
+    // While rumble is playing: nothing is sent.
+    d.report_parser.play_dual_rumble(&d, 0, 500, 0x80, 0x80);
+    uni_circular_buffer_reset(&d.outgoing_buffer);
+    uni_hid_parser_switch_refresh_idle_rumble(&d);
+    EXPECT_EQ(1, uni_circular_buffer_is_empty(&d.outgoing_buffer));
+    d.report_parser.play_dual_rumble(&d, 0, 0, 0, 0);
+
+    // Non-Switch device: no-op.
+    uni_hid_device_t ds4;
+    setup_synthetic_device(&ds4, 0x054c, 0x09cc);
+    ds4.conn.interrupt_cid = 0x0041;
+    uni_circular_buffer_reset(&ds4.outgoing_buffer);
+    uni_hid_parser_switch_refresh_idle_rumble(&ds4);
+    EXPECT_EQ(1, uni_circular_buffer_is_empty(&ds4.outgoing_buffer));
+    ds4.conn.interrupt_cid = 0;
+
+    uni_circular_buffer_reset(&d.outgoing_buffer);
+    d.conn.interrupt_cid = 0;
+}
+
 int main(int argc, char** argv) {
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
@@ -2988,6 +3054,7 @@ int main(int argc, char** argv) {
     RUN_TEST(parser_switch_rumble_intensity_tracks_magnitude);
     RUN_TEST(parser_switch_rumble_same_data_on_both_actuators);
     RUN_TEST(parser_switch_setup_enables_vibration);
+    RUN_TEST(parser_switch_refresh_idle_rumble);
 
     return test_summary();
 }
