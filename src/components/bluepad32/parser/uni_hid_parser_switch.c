@@ -1274,29 +1274,26 @@ static struct switch_rumble_amp_data find_rumble_amp(uint16_t amp) {
     return rumble_amps[i];
 }
 
-// Rumble keeps a fixed frequency (320 Hz) in both bands and maps the 0..255 magnitude onto the amplitude
-// table, capped at 800 of its maximum 1003. Same approach as DS4Windows (SwitchProDevice.PrepareRumbleData,
-// AMP_LIMIT_MAX).
-#define SWITCH_RUMBLE_FREQ_HZ 320
-#define SWITCH_RUMBLE_AMP_MAX 800
+// Both actuators get the same rumble data, as SDL sends it (SDL_hidapi_switch.c,
+// HIDAPI_DriverSwitch_ActuallyRumbleJoystick): the weak magnitude sets the high-band amplitude and the
+// strong one the low-band amplitude, both bands at ~150 Hz. A single Joy-Con only has one actuator, so
+// each side must carry both magnitudes. The 0..255 magnitude maps onto the full amplitude table (0..1003).
+#define SWITCH_RUMBLE_FREQ_HZ 150
+#define SWITCH_RUMBLE_AMP_MAX 1003
 
 static uint16_t switch_rumble_magnitude_to_amp(uint8_t magnitude) {
     return (uint16_t)((magnitude * SWITCH_RUMBLE_AMP_MAX) / 255);
 }
 
-static void switch_encode_rumble(uint8_t* data, uint16_t freq_low, uint16_t freq_high, uint16_t amp) {
-    struct switch_rumble_freq_data freq_data_low;
-    struct switch_rumble_freq_data freq_data_high;
-    struct switch_rumble_amp_data amp_data;
+static void switch_encode_rumble(uint8_t* data, uint8_t weak_magnitude, uint8_t strong_magnitude) {
+    const struct switch_rumble_freq_data freq = find_rumble_freq(SWITCH_RUMBLE_FREQ_HZ);
+    const struct switch_rumble_amp_data high_amp = find_rumble_amp(switch_rumble_magnitude_to_amp(weak_magnitude));
+    const struct switch_rumble_amp_data low_amp = find_rumble_amp(switch_rumble_magnitude_to_amp(strong_magnitude));
 
-    freq_data_low = find_rumble_freq(freq_low);
-    freq_data_high = find_rumble_freq(freq_high);
-    amp_data = find_rumble_amp(amp);
-
-    data[0] = (freq_data_high.high >> 8) & 0xFF;
-    data[1] = (freq_data_high.high & 0xFF) + amp_data.high;
-    data[2] = freq_data_low.low + ((amp_data.low >> 8) & 0xFF);
-    data[3] = amp_data.low & 0xFF;
+    data[0] = (freq.high >> 8) & 0xFF;
+    data[1] = (freq.high & 0xFF) + high_amp.high;
+    data[2] = freq.low + ((low_amp.low >> 8) & 0xFF);
+    data[3] = low_amp.low & 0xFF;
 }
 
 void uni_hid_parser_switch_set_player_leds(uni_hid_device_t* d, uint8_t leds) {
@@ -1433,10 +1430,8 @@ static uni_rumble_result_t switch_rumble_start(struct uni_hid_device_s* d,
     struct switch_subcmd_request req = {
         .report_id = OUTPUT_RUMBLE_ONLY,
     };
-    switch_encode_rumble(req.rumble_left, SWITCH_RUMBLE_FREQ_HZ, SWITCH_RUMBLE_FREQ_HZ,
-                         switch_rumble_magnitude_to_amp(weak_magnitude));
-    switch_encode_rumble(req.rumble_right, SWITCH_RUMBLE_FREQ_HZ, SWITCH_RUMBLE_FREQ_HZ,
-                         switch_rumble_magnitude_to_amp(strong_magnitude));
+    switch_encode_rumble(req.rumble_left, weak_magnitude, strong_magnitude);
+    memcpy(req.rumble_right, req.rumble_left, sizeof(req.rumble_right));
 
     // Rumble request don't include the last byte of "switch_subcmd_request": subcmd_id
     send_subcmd(d, &req, sizeof(req) - 1);

@@ -112,8 +112,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lengths.
 - Switch: Rumble strength follows the requested magnitude. The magnitude was
   encoded as a frequency with a fixed amplitude, so any rumble felt about the
-  same; now the frequency is fixed (320 Hz) and the magnitude sets the amplitude
-  (capped at 800 of 1003, as DS4Windows does).
+  same. Both actuators now get the same data, as SDL sends it: the weak
+  magnitude sets the high-band amplitude and the strong one the low-band
+  amplitude, at a fixed ~150 Hz, so a single Joy-Con rumbles for either one.
 - Switch: Fixed Joy-Con rumble. Setup now enables vibration (subcommand
   `0x48`); Joy-Cons ignore rumble until it is enabled.
 - Wii Balance Board: Fixed swapped default move/fire threshold constants
