@@ -47,6 +47,7 @@ static struct {
     {CONTROLLER_TYPE_OUYAController, "OUYA"},
     {CONTROLLER_TYPE_PSMoveController, "PS Move"},
     {CONTROLLER_TYPE_AtariJoystick, "Atari Joystick"},
+    {CONTROLLER_TYPE_SInputController, "SInput"},
 
     {CONTROLLER_TYPE_GenericKeyboard, "Keyboard"},
     {CONTROLLER_TYPE_GenericMouse, "Mouse"},

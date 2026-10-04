@@ -50,6 +50,7 @@
 #include "parser/uni_hid_parser_ouya.h"
 #include "parser/uni_hid_parser_psmove.h"
 #include "parser/uni_hid_parser_rumble.h"
+#include "parser/uni_hid_parser_sinput.h"
 #include "parser/uni_hid_parser_smarttvremote.h"
 #include "parser/uni_hid_parser_stadia.h"
 #include "parser/uni_hid_parser_steam.h"
@@ -1725,7 +1726,7 @@ TEST(rumble_delayed_cancel_and_state_transitions_all_parsers_b4) {
 static uint8_t g_mock_hids_write_status = ERROR_CODE_SUCCESS;
 static int g_mock_hids_write_calls = 0;
 static uint8_t g_mock_hids_last_report_id = 0;
-static uint8_t g_mock_hids_last_report[32];
+static uint8_t g_mock_hids_last_report[64];
 static uint8_t g_mock_hids_last_report_len = 0;
 
 void hids_host_init(uint8_t* hid_descriptor_storage, uint16_t hid_descriptor_storage_len) {
@@ -2905,6 +2906,188 @@ TEST(parser_switch_rumble_same_data_on_both_actuators) {
 // ============================================================================
 // 28. Switch Parser: Setup Enables Vibration (Subcommand 0x48)
 // ============================================================================
+// SInput feature response (input report 0x02): protocol 1, caps0, caps1=0, poll/accel/gyro ranges.
+static void sinput_feed_features(uni_hid_device_t* d, uint8_t caps0, uint16_t accel_g, uint16_t gyro_dps) {
+    uint8_t rsp[24];
+    memset(rsp, 0, sizeof(rsp));
+    rsp[0] = 0x02;  // report ID: command response
+    rsp[1] = 0x02;  // command echo: features
+    write_le16(&rsp[2], 1);
+    rsp[4] = caps0;
+    write_le16(&rsp[8], 5000);
+    write_le16(&rsp[10], (int16_t)accel_g);
+    write_le16(&rsp[12], (int16_t)gyro_dps);
+    feed_input_report(d, rsp, sizeof(rsp));
+}
+
+// SInput input report 0x01 with raw IMU counts.
+static void sinput_feed_imu(uni_hid_device_t* d, uint16_t len, const int16_t accel[3], const int16_t gyro[3]) {
+    uint8_t rpt[64];
+    memset(rpt, 0, sizeof(rpt));
+    rpt[0] = 0x01;
+    for (int i = 0; i < 3; i++) {
+        write_le16(&rpt[23 + 2 * i], accel[i]);
+        write_le16(&rpt[29 + 2 * i], gyro[i]);
+    }
+    feed_input_report(d, rpt, len);
+}
+
+TEST(parser_sinput_imu_si_units_and_axes) {
+    uni_hid_device_t d;
+    const float g = UNI_STANDARD_GRAVITY;
+    const float r1000 = 1000.0f * UNI_DEG_TO_RAD;
+    // At +/-8g, 4096 counts = 1g. At +/-2000 dps, 16384 counts = 1000 dps.
+    const int16_t accel[3] = {-4096, 4096, 8192};
+    const int16_t gyro[3] = {-16384, 16384, -8192};
+
+    // 1. Ranges from the feature response; SDL's mapping: canonical = (-x, +z, -y).
+    setup_synthetic_device(&d, 0x2e8a, 0x10c6);
+    ASSERT_EQ(d.controller_type, CONTROLLER_TYPE_SInputController);
+    sinput_feed_features(&d, UNI_SINPUT_CAPS0_ACCEL | UNI_SINPUT_CAPS0_GYRO, 8, 2000);
+    uint16_t poll_us, accel_g, gyro_dps;
+    ASSERT_TRUE(uni_hid_parser_sinput_get_imu_config(&d, &poll_us, &accel_g, &gyro_dps));
+    EXPECT_EQ(poll_us, 5000);
+    EXPECT_EQ(accel_g, 8);
+    EXPECT_EQ(gyro_dps, 2000);
+    sinput_feed_imu(&d, 64, accel, gyro);
+    EXPECT_FLOAT_NEAR(d.controller.gamepad.accel[0], g, 0.01f);
+    EXPECT_FLOAT_NEAR(d.controller.gamepad.accel[1], 2.0f * g, 0.01f);
+    EXPECT_FLOAT_NEAR(d.controller.gamepad.accel[2], -g, 0.01f);
+    EXPECT_FLOAT_NEAR(d.controller.gamepad.gyro[0], r1000, 0.01f);
+    EXPECT_FLOAT_NEAR(d.controller.gamepad.gyro[1], -0.5f * r1000, 0.01f);
+    EXPECT_FLOAT_NEAR(d.controller.gamepad.gyro[2], -r1000, 0.01f);
+
+    // 2. A different range scales accordingly (+/-4g: 4096 counts = 0.5g).
+    setup_synthetic_device(&d, 0x2e8a, 0x10c6);
+    sinput_feed_features(&d, UNI_SINPUT_CAPS0_ACCEL, 4, 0);
+    sinput_feed_imu(&d, 64, accel, gyro);
+    EXPECT_FLOAT_NEAR(d.controller.gamepad.accel[0], 0.5f * g, 0.01f);
+    // No gyro capability: gyro stays 0 even though the report has data.
+    EXPECT_FLOAT_NEAR(d.controller.gamepad.gyro[0], 0.0f, 0.0001f);
+    EXPECT_FLOAT_NEAR(d.controller.gamepad.gyro[2], 0.0f, 0.0001f);
+
+    // 3. Capability bits set but ranges 0: SDL's defaults (+/-8g, +/-2000 dps).
+    setup_synthetic_device(&d, 0x2e8a, 0x10c6);
+    sinput_feed_features(&d, UNI_SINPUT_CAPS0_ACCEL | UNI_SINPUT_CAPS0_GYRO, 0, 0);
+    ASSERT_TRUE(uni_hid_parser_sinput_get_imu_config(&d, &poll_us, &accel_g, &gyro_dps));
+    EXPECT_EQ(accel_g, 8);
+    EXPECT_EQ(gyro_dps, 2000);
+    sinput_feed_imu(&d, 64, accel, gyro);
+    EXPECT_FLOAT_NEAR(d.controller.gamepad.accel[1], 2.0f * g, 0.01f);
+    EXPECT_FLOAT_NEAR(d.controller.gamepad.gyro[0], r1000, 0.01f);
+
+    // 4. A report too short for the IMU block clears the IMU instead of reading past the end.
+    sinput_feed_imu(&d, 19, accel, gyro);
+    EXPECT_FLOAT_NEAR(d.controller.gamepad.accel[1], 0.0f, 0.0001f);
+    EXPECT_FLOAT_NEAR(d.controller.gamepad.gyro[0], 0.0f, 0.0001f);
+
+    // 5. No feature response yet: no IMU, and no IMU config.
+    setup_synthetic_device(&d, 0x2e8a, 0x10c6);
+    ASSERT_FALSE(uni_hid_parser_sinput_get_imu_config(&d, &poll_us, &accel_g, &gyro_dps));
+    sinput_feed_imu(&d, 64, accel, gyro);
+    EXPECT_FLOAT_NEAR(d.controller.gamepad.accel[1], 0.0f, 0.0001f);
+    EXPECT_FLOAT_NEAR(d.controller.gamepad.gyro[0], 0.0f, 0.0001f);
+}
+
+// Fire the SInput parser's own timers for `d` (its command pump), like the run loop would: remove, then process.
+// The rumble helper's timers are left alone; tests fire those explicitly.
+static void sinput_pump(uni_hid_device_t* d) {
+    for (int guard = 0; guard < 16; guard++) {
+        btstack_timer_source_t* due = NULL;
+        for (btstack_linked_item_t* it = btstack_run_loop_base_timers; it != NULL; it = it->next) {
+            btstack_timer_source_t* ts = (btstack_timer_source_t*)it;
+            if (ts->context == d && ts != &d->rumble.timer_duration && ts != &d->rumble.timer_delayed_start) {
+                due = ts;
+                break;
+            }
+        }
+        if (due == NULL)
+            return;
+        btstack_run_loop_remove_timer(due);
+        due->process(due);
+    }
+}
+
+TEST(parser_sinput_haptics_erm) {
+    uni_hid_device_t d;
+
+    // 1. Rumble-capable device: start sends haptic type 2 (left = strong, right = weak), the duration timer stops it.
+    setup_synthetic_device(&d, 0x2e8a, 0x10c6);
+    d.conn.protocol = UNI_BT_CONN_PROTOCOL_BLE;
+    d.hids_cid = 1;
+    g_mock_hids_write_status = ERROR_CODE_SUCCESS;
+    sinput_feed_features(&d, UNI_SINPUT_CAPS0_RUMBLE, 0, 0);
+    g_mock_hids_write_calls = 0;
+    sinput_pump(&d);  // the feature request queued by setup
+    EXPECT_EQ(g_mock_hids_write_calls, 1);
+    EXPECT_EQ(g_mock_hids_last_report[0], 0x02);
+
+    d.report_parser.play_dual_rumble(&d, 0, 100, 40, 200);
+    EXPECT_EQ(d.rumble.state, UNI_RUMBLE_STATE_IN_PROGRESS);
+    sinput_pump(&d);
+    EXPECT_EQ(g_mock_hids_write_calls, 2);
+    EXPECT_EQ(g_mock_hids_last_report_id, 0x03);
+    EXPECT_EQ(g_mock_hids_last_report_len, 47);
+    const uint8_t start[] = {0x01, 0x02, 200, 0, 40, 0};
+    EXPECT_EQ(memcmp(g_mock_hids_last_report, start, sizeof(start)), 0);
+
+    d.rumble.timer_duration.process(&d.rumble.timer_duration);
+    EXPECT_EQ(d.rumble.state, UNI_RUMBLE_STATE_DISABLED);
+    sinput_pump(&d);
+    EXPECT_EQ(g_mock_hids_write_calls, 3);
+    const uint8_t stop[] = {0x01, 0x02, 0, 0, 0, 0};
+    EXPECT_EQ(memcmp(g_mock_hids_last_report, stop, sizeof(stop)), 0);
+
+    // 2. A busy GATT client is retried by the command queue, not dropped.
+    d.report_parser.play_dual_rumble(&d, 0, 100, 0, 255);
+    g_mock_hids_write_status = ERROR_CODE_COMMAND_DISALLOWED;
+    sinput_pump(&d);
+    g_mock_hids_write_status = ERROR_CODE_SUCCESS;
+    sinput_pump(&d);
+    const uint8_t strong_only[] = {0x01, 0x02, 255, 0, 0, 0};
+    EXPECT_EQ(memcmp(g_mock_hids_last_report, strong_only, sizeof(strong_only)), 0);
+    d.report_parser.play_dual_rumble(&d, 0, 0, 0, 0);  // cancel
+    sinput_pump(&d);
+
+    // 3. A device without the rumble capability gets no haptic command.
+    setup_synthetic_device(&d, 0x2e8a, 0x10c6);
+    d.conn.protocol = UNI_BT_CONN_PROTOCOL_BLE;
+    d.hids_cid = 1;
+    sinput_feed_features(&d, UNI_SINPUT_CAPS0_PLAYER_LEDS, 0, 0);
+    sinput_pump(&d);
+    g_mock_hids_write_calls = 0;
+    d.report_parser.play_dual_rumble(&d, 0, 100, 40, 200);
+    sinput_pump(&d);
+    EXPECT_EQ(g_mock_hids_write_calls, 0);
+    EXPECT_EQ(d.rumble.state, UNI_RUMBLE_STATE_DISABLED);
+}
+
+static bool timer_linked_for(const void* context) {
+    for (btstack_linked_item_t* it = btstack_run_loop_base_timers; it != NULL; it = it->next) {
+        if (((btstack_timer_source_t*)it)->context == context)
+            return true;
+    }
+    return false;
+}
+
+TEST(parser_sinput_deinit_unlinks_timers) {
+    uni_hid_device_t d;
+    // setup() queues the feature request (pump timer) and arms the feature timeout: both are linked.
+    setup_synthetic_device(&d, 0x2e8a, 0x10c6);
+    ASSERT_TRUE(d.report_parser.deinit != NULL);
+    EXPECT_TRUE(timer_linked_for(&d));
+
+    // deinit() must unlink them before the device slot is zeroed.
+    d.report_parser.deinit(&d);
+    EXPECT_FALSE(timer_linked_for(&d));
+
+    // setup() on a live instance must not leave a stale node behind either.
+    d.report_parser.setup(&d);
+    d.report_parser.setup(&d);
+    d.report_parser.deinit(&d);
+    EXPECT_FALSE(timer_linked_for(&d));
+}
+
 TEST(parser_switch_setup_enables_vibration) {
     uni_hid_device_t d;
     setup_synthetic_device(&d, 0x057e, 0x2006);  // Joy-Con (L)
@@ -2988,6 +3171,9 @@ int main(int argc, char** argv) {
     RUN_TEST(parser_switch_rumble_intensity_tracks_magnitude);
     RUN_TEST(parser_switch_rumble_same_data_on_both_actuators);
     RUN_TEST(parser_switch_setup_enables_vibration);
+    RUN_TEST(parser_sinput_imu_si_units_and_axes);
+    RUN_TEST(parser_sinput_haptics_erm);
+    RUN_TEST(parser_sinput_deinit_unlinks_timers);
 
     return test_summary();
 }

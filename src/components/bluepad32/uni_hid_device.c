@@ -29,6 +29,7 @@
 #include "parser/uni_hid_parser_nimbus.h"
 #include "parser/uni_hid_parser_ouya.h"
 #include "parser/uni_hid_parser_psmove.h"
+#include "parser/uni_hid_parser_sinput.h"
 #include "parser/uni_hid_parser_smarttvremote.h"
 #include "parser/uni_hid_parser_stadia.h"
 #include "parser/uni_hid_parser_steam.h"
@@ -837,6 +838,20 @@ static const uni_parser_entry_t k_parser_entries[] = {
                 .setup = uni_hid_parser_atari_setup,
                 .init_report = uni_hid_parser_atari_init_report,
                 .parse_input_report = uni_hid_parser_atari_parse_input_report,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_SInputController,
+        .name = "SInput",
+        .parser =
+            {
+                .setup = uni_hid_parser_sinput_setup,
+                .deinit = uni_hid_parser_sinput_deinit,
+                .init_report = uni_hid_parser_sinput_init_report,
+                .parse_input_report = uni_hid_parser_sinput_parse_input_report,
+                .set_player_leds = uni_hid_parser_sinput_set_player_leds,
+                .set_lightbar_color = uni_hid_parser_sinput_set_lightbar_color,
+                .play_dual_rumble = uni_hid_parser_sinput_play_dual_rumble,
             },
     },
     {
