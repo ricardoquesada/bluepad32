@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [5.0.0] - 2026-??-??
+## [5.0.0-beta0] - 2026-10-05
 
 ### New
 
@@ -16,27 +16,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the REPL in addition to `UART`. Fixes [Github Issue #209][github_issue_209]
   ([PR #210][github_pr_210], [PR #211][github_pr_211]).
 - ESP-IDF: Added support for ESP-IDF v5.5 and v6.1.
-- Pico W: Added support for Pico SDK 2.2.
-- DualShock 3: Added 3-axis accelerometer and gyroscope support to the
-  DualShock 3 (`SIXAXIS`) parser.
+- Pico W: Added support for Pico SDK 2.3.
+- DualShock 3: Added 3-axis accelerometer and gyroscope support.
 - Switch: Added support for Nintendo Switch Online NES Controllers (Left `0x09`
   and Right `0x0a`) ([PR #206][github_pr_206]).
 - BLE: Allow HID devices that do not expose the Device Information Service
   (DIS, `0x180A`) to connect via `UNI_HID_DEVICE_ALLOW_NO_DIS`
   ([PR #199][github_pr_199]).
-- Examples: Added `examples/posix_imgui`, a desktop controller tester and
-  diagnostic application built with Dear ImGui, GLFW, and OpenGL3 (featuring
-  vector controller visualization, dual-motor and trigger rumble testing,
-  circular IMU bullseye and gyroscope dials, live telemetry plots, LED/lightbar
-  controls, and persisted UI preferences).
+- Examples: Added `examples/posix_imgui`, a desktop controller tester built
+  with Dear ImGuifeaturing button/axess, rumble testing, gyroscope/accelerometer,
+  and LED/lightbar controls.
 - Posix Example: Added `--ble` / `-b 0|1` command-line option to enable or
   disable BLE connections at startup.
 - Tests & CI: Added host CTest unit test suite (`tests/`) with AddressSanitizer
   and UndefinedBehaviorSanitizer (`ASan`/`UBSan`) covering `uni_hid_device`,
-  `uni_hid_parser` (including synthetic reports and fuzzing across all 16
-  controller parsers), BTstack packet handlers, SDP, BLE advertisements, rumble
+  `uni_hid_parser`, BTstack packet handlers, SDP, BLE advertisements, rumble
   timers, TLV properties, and Wii Balance Board, plus GitHub Actions CI and
   upstream SDK canary workflows.
+- SInput protocol: Add support https://docs.handheldlegend.com/s/sinput
 
 ### Changed
 
@@ -63,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     (`CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192`) for ESP-IDF v5.3+ / v5.5+. Fixes
     [Github Issue #143][github_issue_143].
   - Updated `cmd_system` component to the latest ESP-IDF version.
-- Pico W: Recommends Pico SDK 2.1.1 or newer which fixed a nasty bug triggered
+- Pico W: Recommends Pico SDK 2.3 or newer which fixed a nasty bug triggered
   by Bluepad32. See: [Pico SDK #2157][picosdk#2157] and
   [Pico SDK #2165][picosdk#2165].
 - Properties: Unified `uni_property_pico.c` and `uni_property_posix.c` into a

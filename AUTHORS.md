@@ -43,6 +43,7 @@
     - Nunchuk values can be read independently of Wii Mote
 - C.Lee Taylor
     - Updated Supported Gamepads doc.
+    - Added support for SInput protocol
 - Michael Campbell
     - Switch driver improvements
 - Colin Luoma:
@@ -59,6 +60,9 @@
     - Added `USB_SERIAL_JTAG` primary console support for ESP32 REPL
 - Matt Hills:
     - Added Nintendo Switch Online NES Controller support for Switch parser
+- Felipe Araujo Matos:
+    - Added rumble support for Nintendo JoyCon
+    - Improved rumble in Nintendo Switch
 
 ## People who contributed with ideas and/or testing
 
