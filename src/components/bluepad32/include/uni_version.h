@@ -21,7 +21,7 @@ extern "C" {
 #endif
 
 /** @brief String version of Bluepad32 */
-#define UNI_VERSION_STRING "5.0.0"
+#define UNI_VERSION_STRING "5.0.0-beta0"
 
 // Number version, in case a 3rd party needs to check it
 /** @brief Major version number */
