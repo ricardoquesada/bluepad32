@@ -74,6 +74,7 @@ typedef enum {
     k_eControllerType_OUYAController = 55,           // (Bluepad32)
     k_eControllerType_PSMoveController = 56,         // (Bluepad32)
     k_eControllerType_AtariJoystick = 57,            // (Bluepad32)
+    k_eControllerType_SInputController = 58,         // (Bluepad32)
 
     k_eControllerType_LastController,  // Don't add game controllers below this enumeration - this enumeration can
     // change value
@@ -124,6 +125,7 @@ const char* uni_guess_controller_name(uint16_t vid, uint16_t pid);
 #define CONTROLLER_TYPE_OUYAController k_eControllerType_OUYAController
 #define CONTROLLER_TYPE_PSMoveController k_eControllerType_PSMoveController
 #define CONTROLLER_TYPE_AtariJoystick k_eControllerType_AtariJoystick
+#define CONTROLLER_TYPE_SInputController k_eControllerType_SInputController
 #define CONTROLLER_TYPE_LastController k_eControllerType_LastController
 #define CONTROLLER_TYPE_GenericKeyboard k_eControllertype_GenericKeyboard
 #define CONTROLLER_TYPE_GenericMouse k_eControllertype_GenericMouse

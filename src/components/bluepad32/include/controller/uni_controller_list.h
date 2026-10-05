@@ -663,6 +663,9 @@ static const uni_controller_description_t arrControllers[] = {
         // Atari Modern VCS Controllers
         { MAKE_CONTROLLER_ID( 0x3250, 0x1001 ), k_eControllerType_AtariJoystick, NULL },      // Atari Wireless Classic Joystick
 
+        // SInput (Handheld Legend). Fallback VID/PID from the spec, intended for testing.
+        { MAKE_CONTROLLER_ID( 0x2e8a, 0x10c6 ), k_eControllerType_SInputController, NULL },    // SInput generic
+
         // Note on: MAKE_CONTROLLER_ID( 0x1949, 0x0402 ). Reported by:
         // - Gamesir T3s in Android mode, says it is an Xbox 360 Controller for Windows
         // - Amazon Fire 1st gen
