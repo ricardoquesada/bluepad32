@@ -126,20 +126,6 @@ bool DrawToggleSwitch(const char* strId, bool* v) {
     return clicked;
 }
 
-/// Returns a human-readable description of a controller's face-button layout family.
-[[nodiscard]] const char* LayoutTypeToString(ControllerLayoutType layout) noexcept {
-    switch (layout) {
-        case CONTROLLER_LAYOUT_STANDARD:
-            return "Standard (Xbox: A=South, B=East, X=West, Y=North)";
-        case CONTROLLER_LAYOUT_SHAPES:
-            return "Shapes (PlayStation: Cross, Circle, Square, Triangle)";
-        case CONTROLLER_LAYOUT_REVERSE:
-            return "Reversed (Nintendo Switch: B=South, A=East, Y=West, X=North)";
-        default:
-            return "Unknown";
-    }
-}
-
 /// Returns a human-readable description of a Bluepad32 controller subtype.
 [[nodiscard]] const char* SubtypeToString(uni_controller_subtype_t subtype) noexcept {
     switch (subtype) {
@@ -1250,14 +1236,10 @@ void DemoScene::RenderPanel_InfoTab(int slot, const ControllerSnapshot& snap) {
                snap.is_virtual_device ? "Virtual Child Device (Touchpad Mouse)" : "Physical Bluetooth HID Device");
         addRow("Controller Subtype:", "%s (%d)", SubtypeToString(snap.controller_subtype),
                static_cast<int>(snap.controller_subtype));
-        // Displays parser-formatted firmware/hardware diagnostics (e.g. DS4/DS5/Switch/Xbox FW version,
-        // Wii expansion peripheral, SInput capabilities, or mouse scale), falling back to "Not available"
-        // when the active parser has no extra metadata or awaits an asynchronous feature report.
         addRow("Device Extra Info:", "%s",
                snap.device_extra_info[0] != '\0' ? snap.device_extra_info : "Not available");
         addRow("Vendor ID / Product ID:", "VID: 0x%04X  |  PID: 0x%04X", snap.vendor_id, snap.product_id);
         addRow("Bluetooth MAC Address:", "%s", bd_addr_to_str(snap.btaddr));
-        addRow("Face Button Layout:", "%s", LayoutTypeToString(snap.layout));
         addRow("RSSI (Link Quality):", "%u (signed: %d dBm)", snap.rssi,
                static_cast<int>(static_cast<int8_t>(snap.rssi)));
 
