@@ -37,7 +37,11 @@ void uni_hid_parser_ds5_play_dual_rumble(struct uni_hid_device_s* d,
                                          uint16_t duration_ms,
                                          uint8_t weak_magnitude,
                                          uint8_t strong_magnitude);
-void uni_hid_parser_ds5_device_dump(struct uni_hid_device_s* d);
+/**
+ * @brief Formats DualSense firmware, hardware, update version, and vibration2 capability into `buf`
+ *        (e.g., `"FW version: 0x1020304, HW version: 0x10002, update version: 0x221, use vibration2: 1"`).
+ */
+int uni_hid_parser_ds5_device_extra_info(const struct uni_hid_device_s* d, char* buf, size_t len);
 
 // Unique to DualSense. Not part of the "hid_parser" interface
 // Warning: Adaptive trigger API is experimental. It might change in the future without further notice.

@@ -43,6 +43,12 @@
  *     all 6 category sub-tabs, Preferences tab, and 4 DPI/font scales (`0.50f..4.00f`) with
  *     zero `IM_ASSERT` failures, and verifies `ControllerSlotUiState::ResetForSlot()` on
  *     controller disconnect/reconnect transitions.
+ *   - Suite H (`device_extra_info` Parser Callbacks, Cross-Thread Snapshot Propagation & Info Tab Rendering):
+ *     Verifies NULL/zero-length guard clauses and small-buffer `snprintf` truncation across all
+ *     8 parser `uni_hid_parser_*_device_extra_info` callbacks, exact prefix-free/newline-free
+ *     formatting and out-of-bounds enum resilience, synchronous (`on_device_ready`) and
+ *     asynchronous (`on_controller_data`) propagation into `ControllerSnapshot::device_extra_info`,
+ *     and headless `DemoScene` Info tab rendering for both populated and empty `device_extra_info`.
  */
 
 // Standard C++23 headers MUST be included outside and before `extern "C"`.
@@ -61,6 +67,14 @@ extern "C" {
 #include <btstack.h>
 #include <uni.h>
 #include "btstack_run_loop_posix.h"
+#include "parser/uni_hid_parser_ds4.h"
+#include "parser/uni_hid_parser_ds5.h"
+#include "parser/uni_hid_parser_keyboard.h"
+#include "parser/uni_hid_parser_mouse.h"
+#include "parser/uni_hid_parser_sinput.h"
+#include "parser/uni_hid_parser_switch.h"
+#include "parser/uni_hid_parser_wii.h"
+#include "parser/uni_hid_parser_xboxone.h"
 }
 
 #include "demo_scene.h"
@@ -1342,6 +1356,391 @@ void test_demo_scene_slot_ui_state_reset_on_disconnect_and_reconnect() {
     ImGui::DestroyContext(ctx);
 }
 
+// ============================================================================
+// Suite H: device_extra_info Parser Callbacks, Snapshot Propagation & Info Tab
+// ============================================================================
+
+/**
+ * @brief Layout-compatible prefix of `wii_instance_t` (`uni_hid_parser_wii.c`).
+ *
+ * Why a prefix struct is used here:
+ *   `wii_instance_t` is private to `uni_hid_parser_wii.c` and mapped onto `d->parser_data[0]`.
+ *   Matching the exact leading field layout (`state`, `register_address`, `mode`, `dev_type`,
+ *   `ext_type`) lets unit tests inject both valid (`WII_DEVTYPE_REMOTE_MP`, `WII_EXT_NUNCHUK`)
+ *   and out-of-bounds positive/negative enum values (`99`, `255`, `-1`) to verify defensive
+ *   lookup-table bounds checking in `uni_hid_parser_wii_device_extra_info()`.
+ */
+struct TestWiiParserPrefix {
+    uint8_t state;
+    uint8_t register_address;
+    wii_mode_t mode;
+    int dev_type;
+    int ext_type;
+};
+
+/**
+ * @brief Layout-compatible prefix of `xboxone_instance_t` (`uni_hid_parser_xboxone.c`).
+ *
+ * Matches the leading `version` (`xboxone_firmware_t`) field mapped at `d->parser_data[0]`
+ * so unit tests can inject out-of-bounds positive/negative enum values (`99`, `-1`) and
+ * verify that `uni_hid_parser_xboxone_device_extra_info()` safely writes `buf[0] = '\0'`
+ * and returns `0`.
+ */
+struct TestXboxOneParserPrefix {
+    int version;
+};
+
+/// Test 21: Verifies NULL/zero-length guard clauses (`d == nullptr`, `buf == nullptr`, `len == 0`)
+/// and small-buffer `snprintf` truncation (`len == 1` and `len == 8`) across all 8 parser
+/// `uni_hid_parser_*_device_extra_info` functions.
+void test_parser_device_extra_info_null_and_small_buffer_guards() {
+    constexpr std::array<report_device_extra_info_fn_t, 8> kAllCallbacks = {
+        &uni_hid_parser_ds4_device_extra_info,     &uni_hid_parser_ds5_device_extra_info,
+        &uni_hid_parser_switch_device_extra_info,  &uni_hid_parser_wii_device_extra_info,
+        &uni_hid_parser_xboxone_device_extra_info, &uni_hid_parser_sinput_device_extra_info,
+        &uni_hid_parser_mouse_device_extra_info,   &uni_hid_parser_keyboard_device_extra_info,
+    };
+
+    uni_hid_device_t d;
+    init_synthetic_device(&d, 0x054c, 0x09cc, CONTROLLER_TYPE_PS4Controller, "GuardTest");
+    char buf[64]{};
+
+    for (report_device_extra_info_fn_t fn : kAllCallbacks) {
+        TEST_ASSERT(fn(nullptr, buf, sizeof(buf)) == -1);
+        TEST_ASSERT(fn(&d, nullptr, sizeof(buf)) == -1);
+
+        std::memset(buf, 'X', sizeof(buf));
+        TEST_ASSERT(fn(&d, buf, 0) == -1);
+        TEST_ASSERT(buf[0] == 'X');
+    }
+
+    // Small-buffer truncation (len == 1) on callbacks that format non-empty strings on zeroed state:
+    constexpr std::array<report_device_extra_info_fn_t, 6> kNonEmptyOnZeroCallbacks = {
+        &uni_hid_parser_ds4_device_extra_info,     &uni_hid_parser_ds5_device_extra_info,
+        &uni_hid_parser_switch_device_extra_info,  &uni_hid_parser_wii_device_extra_info,
+        &uni_hid_parser_xboxone_device_extra_info, &uni_hid_parser_mouse_device_extra_info,
+    };
+    for (report_device_extra_info_fn_t fn : kNonEmptyOnZeroCallbacks) {
+        std::memset(buf, 'Z', sizeof(buf));
+        const int full_len = fn(&d, buf, 1);
+        TEST_ASSERT(full_len > 0);
+        TEST_ASSERT(buf[0] == '\0');
+        TEST_ASSERT(buf[1] == 'Z');
+    }
+
+    // Small-buffer truncation (len == 8) on DS4 ("FW version 0, HW version 0" -> 26 chars, truncated to "FW vers"):
+    std::memset(buf, 'Z', sizeof(buf));
+    const int ds4_len = uni_hid_parser_ds4_device_extra_info(&d, buf, 8);
+    TEST_ASSERT(ds4_len == 26);
+    TEST_ASSERT(std::strcmp(buf, "FW vers") == 0);
+    TEST_ASSERT(buf[8] == 'Z');
+}
+
+/// Test 22: Verifies exact prefix-free, tab-free, newline-free string formatting and
+/// out-of-bounds enum resilience across all 8 parser `device_extra_info` implementations.
+void test_parser_device_extra_info_all_parsers_and_enum_bounds() {
+    btstack_run_loop_deinit();
+    btstack_run_loop_init(btstack_run_loop_posix_get_instance());
+    posix_imgui_reset_for_test();
+    uni_platform_set_custom(get_posix_imgui_platform());
+
+    char buf[128]{};
+
+    // 1. DualShock 4: initial zeroed state and after 49-byte feature report 0xa3
+    {
+        uni_hid_device_t d_ds4;
+        init_synthetic_device(&d_ds4, 0x054c, 0x09cc, CONTROLLER_TYPE_PS4Controller, "DualShock 4");
+        TEST_ASSERT(uni_hid_parser_ds4_device_extra_info(&d_ds4, buf, sizeof(buf)) > 0);
+        TEST_ASSERT(std::strcmp(buf, "FW version 0, HW version 0") == 0);
+
+        std::array<uint8_t, 49> ds4_fw_report{};
+        ds4_fw_report[0] = 0xa3;  // DS4_FEATURE_REPORT_FIRMWARE_VERSION
+        // hw_version = 0x0100 at offset 35..36 (little-endian)
+        ds4_fw_report[35] = 0x00;
+        ds4_fw_report[36] = 0x01;
+        // fw_version = 0x0412 at offset 41..42 (little-endian)
+        ds4_fw_report[41] = 0x12;
+        ds4_fw_report[42] = 0x04;
+        uni_hid_parser_ds4_parse_feature_report(&d_ds4, ds4_fw_report.data(), ds4_fw_report.size());
+
+        const int n = uni_hid_parser_ds4_device_extra_info(&d_ds4, buf, sizeof(buf));
+        TEST_ASSERT(n > 0);
+        TEST_ASSERT(std::strcmp(buf, "FW version 0x412, HW version 0x100") == 0);
+        TEST_ASSERT(std::strchr(buf, '\t') == nullptr && std::strchr(buf, '\n') == nullptr);
+    }
+
+    // 2. DualSense: after 64-byte feature report 0x20 (hw_version=0x00010002, fw_version=0x01020304,
+    //    update_version=0x0221 -> use_vibration2=1)
+    {
+        uni_hid_device_t d_ds5;
+        init_synthetic_device(&d_ds5, 0x054c, 0x0ce6, CONTROLLER_TYPE_PS5Controller, "DualSense");
+        std::array<uint8_t, 64> ds5_fw_report{};
+        ds5_fw_report[0] = 0x20;  // DS5_FEATURE_REPORT_FIRMWARE_VERSION
+        // hw_version = 0x00010002 at offset 24..27 (little-endian)
+        ds5_fw_report[24] = 0x02;
+        ds5_fw_report[25] = 0x00;
+        ds5_fw_report[26] = 0x01;
+        ds5_fw_report[27] = 0x00;
+        // fw_version = 0x01020304 at offset 28..31 (little-endian)
+        ds5_fw_report[28] = 0x04;
+        ds5_fw_report[29] = 0x03;
+        ds5_fw_report[30] = 0x02;
+        ds5_fw_report[31] = 0x01;
+        // update_version = 0x0221 at offset 44..45 (little-endian)
+        ds5_fw_report[44] = 0x21;
+        ds5_fw_report[45] = 0x02;
+        uni_hid_parser_ds5_parse_feature_report(&d_ds5, ds5_fw_report.data(), ds5_fw_report.size());
+
+        const int n = uni_hid_parser_ds5_device_extra_info(&d_ds5, buf, sizeof(buf));
+        TEST_ASSERT(n > 0);
+        TEST_ASSERT(
+            std::strcmp(buf, "FW version: 0x1020304, HW version: 0x10002, update version: 0x221, use vibration2: 1") ==
+            0);
+        TEST_ASSERT(std::strchr(buf, '\t') == nullptr && std::strchr(buf, '\n') == nullptr);
+    }
+
+    // 3. Nintendo Switch: synthetic 0x21 SUBCMD_REQ_DEV_INFO (0x02) reply + all 3 Switch vtable entries
+    {
+        uni_hid_device_t d_sw;
+        init_synthetic_device(&d_sw, 0x057e, 0x2009, CONTROLLER_TYPE_SwitchProController, "Pro Controller");
+        // 18-byte report 0x21 (SWITCH_INPUT_SUBCMD_REPLY):
+        //   [0]=0x21, [1]=timer, [2]=bat_con (0x80), [3..12]=status, [13]=ack (0x82),
+        //   [14]=subcmd_id (0x02 = SUBCMD_REQ_DEV_INFO), [15]=fw_hi (4), [16]=fw_lo (33), [17]=type (3)
+        constexpr std::array<uint8_t, 18> kSwitchDevInfoReply = {
+            0x21, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x82, 0x02, 4, 33, 3,
+        };
+        uni_hid_parser_switch_parse_input_report(&d_sw, kSwitchDevInfoReply.data(), kSwitchDevInfoReply.size());
+
+        const int n = uni_hid_parser_switch_device_extra_info(&d_sw, buf, sizeof(buf));
+        TEST_ASSERT(n > 0);
+        TEST_ASSERT(std::strcmp(buf, "FW version 4.33") == 0);
+
+        // Verify all 3 Switch controller types wire uni_hid_parser_switch_device_extra_info in k_parser_entries[]
+        constexpr std::array<uint16_t, 3> kSwitchPids = {0x2009, 0x2007, 0x2006};
+        for (uint16_t pid : kSwitchPids) {
+            uni_hid_device_t d_check{};
+            d_check.vendor_id = 0x057e;
+            d_check.product_id = pid;
+            uni_hid_device_guess_controller_type_from_pid_vid(&d_check);
+            TEST_ASSERT(d_check.report_parser.device_extra_info == &uni_hid_parser_switch_device_extra_info);
+        }
+    }
+
+    // 4. Nintendo Wii: valid enums and out-of-bounds positive/negative enum resilience
+    {
+        uni_hid_device_t d_wii;
+        init_synthetic_device(&d_wii, 0x057e, 0x0330, CONTROLLER_TYPE_WiiController, "Nintendo RVL-CNT-01-TR");
+        auto* wii_ins = reinterpret_cast<TestWiiParserPrefix*>(&d_wii.parser_data[0]);
+        wii_ins->dev_type = 3;  // WII_DEVTYPE_REMOTE_MP
+        wii_ins->ext_type = 2;  // WII_EXT_NUNCHUK
+        TEST_ASSERT(uni_hid_parser_wii_device_extra_info(&d_wii, buf, sizeof(buf)) > 0);
+        TEST_ASSERT(std::strcmp(buf, "device 'Wii Mote Motion Plus (2nd gen)', extension 'Nunchuk'") == 0);
+
+        wii_ins->dev_type = 99;
+        wii_ins->ext_type = 255;
+        TEST_ASSERT(uni_hid_parser_wii_device_extra_info(&d_wii, buf, sizeof(buf)) > 0);
+        TEST_ASSERT(std::strcmp(buf, "device 'unk', extension 'unk'") == 0);
+
+        wii_ins->dev_type = -1;
+        wii_ins->ext_type = -1;
+        TEST_ASSERT(uni_hid_parser_wii_device_extra_info(&d_wii, buf, sizeof(buf)) > 0);
+        TEST_ASSERT(std::strcmp(buf, "device 'unk', extension 'unk'") == 0);
+    }
+
+    // 5. Xbox Wireless: v3.1 initial state, runtime upgrades to v4.8 and v5.x, and out-of-bounds enum
+    {
+        uni_hid_device_t d_xb;
+        init_synthetic_device(&d_xb, 0x045e, 0x02fd, CONTROLLER_TYPE_XBoxOneController, "Xbox Wireless Controller");
+        TEST_ASSERT(uni_hid_parser_xboxone_device_extra_info(&d_xb, buf, sizeof(buf)) > 0);
+        TEST_ASSERT(std::strcmp(buf, "FW version v3.1") == 0);
+
+        hid_globals_t globals{};
+        // Usage 0x0f on Button page (0x09) upgrades v3.1 -> v4.8
+        uni_hid_parser_xboxone_parse_usage(&d_xb, &globals, 0x09, 0x0f, 1);
+        TEST_ASSERT(uni_hid_parser_xboxone_device_extra_info(&d_xb, buf, sizeof(buf)) > 0);
+        TEST_ASSERT(std::strcmp(buf, "FW version v4.8") == 0);
+
+        // Usage HID_USAGE_RECORD (0x00b2) on Consumer page (0x0c) upgrades v4.8 -> v5.x
+        uni_hid_parser_xboxone_parse_usage(&d_xb, &globals, 0x0c, 0x00b2, 1);
+        TEST_ASSERT(uni_hid_parser_xboxone_device_extra_info(&d_xb, buf, sizeof(buf)) > 0);
+        TEST_ASSERT(std::strcmp(buf, "FW version v5.x") == 0);
+
+        // Out-of-bounds positive and negative enum values return 0 and write empty string
+        auto* xb_ins = reinterpret_cast<TestXboxOneParserPrefix*>(&d_xb.parser_data[0]);
+        for (int invalid_ver : {99, -1}) {
+            xb_ins->version = invalid_ver;
+            std::memset(buf, 'A', sizeof(buf));
+            TEST_ASSERT(uni_hid_parser_xboxone_device_extra_info(&d_xb, buf, sizeof(buf)) == 0);
+            TEST_ASSERT(buf[0] == '\0');
+        }
+    }
+
+    // 6. SInput: before feature response (returns 0, empty string) and after 14-byte feature response
+    {
+        uni_hid_device_t d_sinput{};
+        d_sinput.vendor_id = 0x2e8a;
+        d_sinput.product_id = 0x10c6;
+        d_sinput.conn.state = UNI_BT_CONN_STATE_DEVICE_READY;
+        uni_hid_device_guess_controller_type_from_pid_vid(&d_sinput);
+        TEST_ASSERT(d_sinput.report_parser.device_extra_info == &uni_hid_parser_sinput_device_extra_info);
+
+        std::memset(buf, 'A', sizeof(buf));
+        TEST_ASSERT(uni_hid_parser_sinput_device_extra_info(&d_sinput, buf, sizeof(buf)) == 0);
+        TEST_ASSERT(buf[0] == '\0');
+
+        constexpr std::array<uint8_t, 14> kSinputFeatureReply = {
+            0x02, 0x02, 0x01, 0x00, 0x0f, 0x01, 0x00, 0x00, 0xe8, 0x03, 0x08, 0x00, 0xd0, 0x07,
+        };
+        uni_hid_parser_sinput_parse_input_report(&d_sinput, kSinputFeatureReply.data(), kSinputFeatureReply.size());
+        TEST_ASSERT(uni_hid_parser_sinput_device_extra_info(&d_sinput, buf, sizeof(buf)) > 0);
+        TEST_ASSERT(std::strcmp(buf, "protocol=1, caps0=0x0f, caps1=0x01, poll=1000us, accel=+/-8g, gyro=+/-2000dps") ==
+                    0);
+    }
+
+    // 7. Mouse: Apple Magic Mouse 1st gen (VID=0x05ac, PID=0x030d -> scale=0.200000)
+    {
+        uni_hid_device_t d_mouse;
+        init_synthetic_device(&d_mouse, 0x05ac, 0x030d, CONTROLLER_TYPE_GenericMouse, "Magic Mouse");
+        uni_hid_parser_mouse_setup(&d_mouse);
+        TEST_ASSERT(uni_hid_parser_mouse_device_extra_info(&d_mouse, buf, sizeof(buf)) > 0);
+        TEST_ASSERT(std::strcmp(buf, "scale=0.200000") == 0);
+    }
+
+    // 8. Keyboard: returns 0 and sets buf[0] = '\0'
+    {
+        uni_hid_device_t d_kb;
+        init_synthetic_device(&d_kb, 0x046d, 0xb342, CONTROLLER_TYPE_GenericKeyboard, "Keyboard");
+        std::memset(buf, 'A', sizeof(buf));
+        TEST_ASSERT(uni_hid_parser_keyboard_device_extra_info(&d_kb, buf, sizeof(buf)) == 0);
+        TEST_ASSERT(buf[0] == '\0');
+    }
+}
+
+/// Test 23: Verifies `posix_imgui_on_device_ready()` and `posix_imgui_on_controller_data()`
+/// propagation of `device_extra_info` into `ControllerSnapshot::device_extra_info`, including
+/// `nullptr` / zero-return fallbacks, asynchronous DS4 firmware report arrival, and disconnect cleanup.
+void test_snapshot_device_extra_info_ready_async_update_and_fallbacks() {
+    posix_imgui_reset_for_test();
+    struct uni_platform* plat = get_posix_imgui_platform();
+    std::array<ControllerSnapshot, kMaxControllers> snapshots{};
+
+    // 1. Slot 0: Controller with report_parser.device_extra_info == nullptr -> empty string
+    uni_hid_device_t d_null_cb;
+    init_synthetic_device(&d_null_cb, 0x1111, 0x2222, CONTROLLER_TYPE_GenericController, "Generic Pad");
+    d_null_cb.report_parser.device_extra_info = nullptr;
+    plat->on_device_connected(&d_null_cb);
+    TEST_ASSERT(plat->on_device_ready(&d_null_cb) == UNI_ERROR_SUCCESS);
+
+    // 2. Slot 1: Controller whose device_extra_info returns 0 -> empty string
+    uni_hid_device_t d_zero_cb;
+    init_synthetic_device(&d_zero_cb, 0x2e8a, 0x10c6, CONTROLLER_TYPE_SInputController, "SInput Pending");
+    d_zero_cb.report_parser.device_extra_info = &uni_hid_parser_sinput_device_extra_info;
+    plat->on_device_connected(&d_zero_cb);
+    TEST_ASSERT(plat->on_device_ready(&d_zero_cb) == UNI_ERROR_SUCCESS);
+
+    // 3. Slot 2: DualShock 4 lifecycle (initial 0 at on_device_ready, updated via feature report + on_controller_data)
+    uni_hid_device_t d_ds4;
+    init_synthetic_device(&d_ds4, 0x054c, 0x09cc, CONTROLLER_TYPE_PS4Controller, "DualShock 4");
+    d_ds4.report_parser.device_extra_info = &uni_hid_parser_ds4_device_extra_info;
+    d_ds4.report_parser.parse_feature_report = &uni_hid_parser_ds4_parse_feature_report;
+    plat->on_device_connected(&d_ds4);
+    TEST_ASSERT(plat->on_device_ready(&d_ds4) == UNI_ERROR_SUCCESS);
+
+    posix_imgui_get_snapshots(std::span{snapshots});
+    TEST_ASSERT(snapshots[0].connected && snapshots[0].device_extra_info[0] == '\0');
+    TEST_ASSERT(snapshots[1].connected && snapshots[1].device_extra_info[0] == '\0');
+    TEST_ASSERT(snapshots[2].connected &&
+                std::strcmp(snapshots[2].device_extra_info, "FW version 0, HW version 0") == 0);
+
+    // Deliver late DS4 firmware version feature report (0xa3) followed by on_controller_data()
+    std::array<uint8_t, 49> ds4_fw_report{};
+    ds4_fw_report[0] = 0xa3;
+    ds4_fw_report[35] = 0x00;
+    ds4_fw_report[36] = 0x01;  // hw_version = 0x0100
+    ds4_fw_report[41] = 0x12;
+    ds4_fw_report[42] = 0x04;  // fw_version = 0x0412
+    d_ds4.report_parser.parse_feature_report(&d_ds4, ds4_fw_report.data(), ds4_fw_report.size());
+
+    uni_controller_t ctl{};
+    ctl.klass = UNI_CONTROLLER_CLASS_GAMEPAD;
+    plat->on_controller_data(&d_ds4, &ctl);
+
+    posix_imgui_get_snapshots(std::span{snapshots});
+    TEST_ASSERT(std::strcmp(snapshots[2].device_extra_info, "FW version 0x412, HW version 0x100") == 0);
+
+    // 4. Disconnect Slot 2 and verify snapshot is cleared
+    plat->on_device_disconnected(&d_ds4);
+    posix_imgui_get_snapshots(std::span{snapshots});
+    TEST_ASSERT(!snapshots[2].connected);
+    TEST_ASSERT(snapshots[2].device_extra_info[0] == '\0');
+}
+
+/// Test 24: Verifies headless `DemoScene::DoFrame()` on the Info tab (`SelectCategoryTabForTest(4)`)
+/// with both a populated `device_extra_info` string and an empty `device_extra_info` fallback (`"Not available"`).
+void test_demo_scene_headless_info_tab_with_populated_and_empty_device_extra_info() {
+    btstack_run_loop_deinit();
+    btstack_run_loop_init(btstack_run_loop_posix_get_instance());
+    posix_imgui_reset_for_test();
+
+    struct uni_platform* plat = get_posix_imgui_platform();
+
+    // Slot 0: DualSense with populated firmware version
+    uni_hid_device_t d_ds5;
+    init_synthetic_device(&d_ds5, 0x054c, 0x0ce6, CONTROLLER_TYPE_PS5Controller, "DualSense With FW");
+    d_ds5.report_parser.device_extra_info = &uni_hid_parser_ds5_device_extra_info;
+    std::array<uint8_t, 64> ds5_fw_report{};
+    ds5_fw_report[0] = 0x20;
+    ds5_fw_report[24] = 0x02;
+    ds5_fw_report[26] = 0x01;
+    ds5_fw_report[28] = 0x04;
+    ds5_fw_report[29] = 0x03;
+    ds5_fw_report[30] = 0x02;
+    ds5_fw_report[31] = 0x01;
+    ds5_fw_report[44] = 0x21;
+    ds5_fw_report[45] = 0x02;
+    uni_hid_parser_ds5_parse_feature_report(&d_ds5, ds5_fw_report.data(), ds5_fw_report.size());
+    plat->on_device_connected(&d_ds5);
+    TEST_ASSERT(plat->on_device_ready(&d_ds5) == UNI_ERROR_SUCCESS);
+
+    IMGUI_CHECKVERSION();
+    ImGuiContext* ctx = ImGui::CreateContext();
+    TEST_ASSERT(ctx != nullptr);
+
+    ImGuiIO& io = ImGui::GetIO();
+    io.IniFilename = nullptr;
+    io.DisplaySize = ImVec2(1280.0f, 800.0f);
+    io.DeltaTime = 1.0f / 60.0f;
+    io.Fonts->Build();
+
+    DemoScene demo_scene;
+    demo_scene.SetPreferencesActiveForTest(false);
+    demo_scene.SelectCategoryTabForTest(4);  // Info tab
+
+    // Render frame 1 with Slot 0 (populated device_extra_info) active
+    ImGui::NewFrame();
+    demo_scene.DoFrame();
+    ImGui::Render();
+    ImDrawData* draw_data0 = ImGui::GetDrawData();
+    TEST_ASSERT(draw_data0 != nullptr && draw_data0->Valid && draw_data0->CmdListsCount > 0);
+
+    // Connect Slot 1: Generic Controller with nullptr device_extra_info ("Not available" fallback)
+    uni_hid_device_t d_gen;
+    init_synthetic_device(&d_gen, 0x1234, 0x5678, CONTROLLER_TYPE_GenericController, "Generic No Extra Info");
+    d_gen.report_parser.device_extra_info = nullptr;
+    plat->on_device_connected(&d_gen);
+    TEST_ASSERT(plat->on_device_ready(&d_gen) == UNI_ERROR_SUCCESS);
+
+    // Render frame 2 (auto-switches to newly connected Slot 1 on Info tab)
+    demo_scene.SelectCategoryTabForTest(4);
+    ImGui::NewFrame();
+    demo_scene.DoFrame();
+    ImGui::Render();
+    ImDrawData* draw_data1 = ImGui::GetDrawData();
+    TEST_ASSERT(draw_data1 != nullptr && draw_data1->Valid && draw_data1->CmdListsCount > 0);
+
+    ImGui::DestroyContext(ctx);
+}
+
 }  // namespace
 
 int main() {
@@ -1380,6 +1779,12 @@ int main() {
     // Suite G
     RUN_TEST(test_demo_scene_headless_all_tabs_and_font_scales);
     RUN_TEST(test_demo_scene_slot_ui_state_reset_on_disconnect_and_reconnect);
+
+    // Suite H
+    RUN_TEST(test_parser_device_extra_info_null_and_small_buffer_guards);
+    RUN_TEST(test_parser_device_extra_info_all_parsers_and_enum_bounds);
+    RUN_TEST(test_snapshot_device_extra_info_ready_async_update_and_fallbacks);
+    RUN_TEST(test_demo_scene_headless_info_tab_with_populated_and_empty_device_extra_info);
 
     std::printf("\nSummary: %d/%d tests passed.\n", g_tests_run - g_tests_failed, g_tests_run);
     return g_tests_failed == 0 ? EXIT_SUCCESS : EXIT_FAILURE;

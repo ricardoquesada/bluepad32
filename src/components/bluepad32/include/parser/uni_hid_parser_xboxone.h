@@ -28,7 +28,11 @@ void uni_hid_parser_xboxone_play_dual_rumble(struct uni_hid_device_s* d,
                                              uint16_t duration_ms,
                                              uint8_t weak_magnitude,
                                              uint8_t strong_magnitude);
-void uni_hid_parser_xboxone_device_dump(struct uni_hid_device_s* d);
+/**
+ * @brief Formats the inferred Xbox Wireless Controller firmware/descriptor generation
+ *        (`"v3.1"`, `"v4.8"`, or `"v5.x"`) into `buf` (e.g., `"FW version v5.x"`).
+ */
+int uni_hid_parser_xboxone_device_extra_info(const struct uni_hid_device_s* d, char* buf, size_t len);
 
 // Unique to Xbox. Not part of the "hid_parser" interface
 void xboxone_play_quad_rumble(struct uni_hid_device_s* d,

@@ -602,8 +602,15 @@ void uni_hid_device_dump_device(uni_hid_device_t* d) {
                                                                        : "unknown");
     if (uni_get_platform()->device_dump)
         uni_get_platform()->device_dump(d);
-    if (d->report_parser.device_dump)
-        d->report_parser.device_dump(d);
+    if (d->report_parser.device_extra_info) {
+        // Format parser-specific hardware/firmware diagnostics into a stack buffer and log
+        // only when non-empty (> 0) so parsers with no extra info (e.g. Keyboard, or SInput
+        // before feature response) do not emit blank indented lines.
+        char extra[128];
+        if (d->report_parser.device_extra_info(d, extra, sizeof(extra)) > 0) {
+            logi("\t%s\n", extra);
+        }
+    }
 }
 
 void uni_hid_device_dump_all(void) {
@@ -662,7 +669,7 @@ static const uni_parser_entry_t k_parser_entries[] = {
                 .init_report = uni_hid_parser_xboxone_init_report,
                 .parse_usage = uni_hid_parser_xboxone_parse_usage,
                 .play_dual_rumble = uni_hid_parser_xboxone_play_dual_rumble,
-                .device_dump = uni_hid_parser_xboxone_device_dump,
+                .device_extra_info = uni_hid_parser_xboxone_device_extra_info,
             },
     },
     {
@@ -729,7 +736,7 @@ static const uni_parser_entry_t k_parser_entries[] = {
                 .parse_feature_report = uni_hid_parser_ds4_parse_feature_report,
                 .set_lightbar_color = uni_hid_parser_ds4_set_lightbar_color,
                 .play_dual_rumble = uni_hid_parser_ds4_play_dual_rumble,
-                .device_dump = uni_hid_parser_ds4_device_dump,
+                .device_extra_info = uni_hid_parser_ds4_device_extra_info,
             },
     },
     {
@@ -744,7 +751,7 @@ static const uni_parser_entry_t k_parser_entries[] = {
                 .set_player_leds = uni_hid_parser_ds5_set_player_leds,
                 .set_lightbar_color = uni_hid_parser_ds5_set_lightbar_color,
                 .play_dual_rumble = uni_hid_parser_ds5_play_dual_rumble,
-                .device_dump = uni_hid_parser_ds5_device_dump,
+                .device_extra_info = uni_hid_parser_ds5_device_extra_info,
             },
     },
     {
@@ -775,7 +782,7 @@ static const uni_parser_entry_t k_parser_entries[] = {
                 .parse_input_report = uni_hid_parser_wii_parse_input_report,
                 .set_player_leds = uni_hid_parser_wii_set_player_leds,
                 .play_dual_rumble = uni_hid_parser_wii_play_dual_rumble,
-                .device_dump = uni_hid_parser_wii_device_dump,
+                .device_extra_info = uni_hid_parser_wii_device_extra_info,
             },
     },
     {
@@ -789,7 +796,7 @@ static const uni_parser_entry_t k_parser_entries[] = {
                 .parse_input_report = uni_hid_parser_switch_parse_input_report,
                 .set_player_leds = uni_hid_parser_switch_set_player_leds,
                 .play_dual_rumble = uni_hid_parser_switch_play_dual_rumble,
-                .device_dump = uni_hid_parser_switch_device_dump,
+                .device_extra_info = uni_hid_parser_switch_device_extra_info,
             },
     },
     {
@@ -803,7 +810,7 @@ static const uni_parser_entry_t k_parser_entries[] = {
                 .parse_input_report = uni_hid_parser_switch_parse_input_report,
                 .set_player_leds = uni_hid_parser_switch_set_player_leds,
                 .play_dual_rumble = uni_hid_parser_switch_play_dual_rumble,
-                .device_dump = uni_hid_parser_switch_device_dump,
+                .device_extra_info = uni_hid_parser_switch_device_extra_info,
             },
     },
     {
@@ -817,7 +824,7 @@ static const uni_parser_entry_t k_parser_entries[] = {
                 .parse_input_report = uni_hid_parser_switch_parse_input_report,
                 .set_player_leds = uni_hid_parser_switch_set_player_leds,
                 .play_dual_rumble = uni_hid_parser_switch_play_dual_rumble,
-                .device_dump = uni_hid_parser_switch_device_dump,
+                .device_extra_info = uni_hid_parser_switch_device_extra_info,
             },
     },
     {
@@ -852,6 +859,7 @@ static const uni_parser_entry_t k_parser_entries[] = {
                 .set_player_leds = uni_hid_parser_sinput_set_player_leds,
                 .set_lightbar_color = uni_hid_parser_sinput_set_lightbar_color,
                 .play_dual_rumble = uni_hid_parser_sinput_play_dual_rumble,
+                .device_extra_info = uni_hid_parser_sinput_device_extra_info,
             },
     },
     {
@@ -863,7 +871,7 @@ static const uni_parser_entry_t k_parser_entries[] = {
                 .parse_input_report = uni_hid_parser_mouse_parse_input_report,
                 .init_report = uni_hid_parser_mouse_init_report,
                 .parse_usage = uni_hid_parser_mouse_parse_usage,
-                .device_dump = uni_hid_parser_mouse_device_dump,
+                .device_extra_info = uni_hid_parser_mouse_device_extra_info,
             },
     },
     {
@@ -875,7 +883,7 @@ static const uni_parser_entry_t k_parser_entries[] = {
                 .parse_input_report = uni_hid_parser_keyboard_parse_input_report,
                 .init_report = uni_hid_parser_keyboard_init_report,
                 .parse_usage = uni_hid_parser_keyboard_parse_usage,
-                .device_dump = uni_hid_parser_keyboard_device_dump,
+                .device_extra_info = uni_hid_parser_keyboard_device_extra_info,
             },
     },
 };

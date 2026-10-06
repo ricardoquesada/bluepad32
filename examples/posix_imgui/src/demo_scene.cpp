@@ -1250,6 +1250,11 @@ void DemoScene::RenderPanel_InfoTab(int slot, const ControllerSnapshot& snap) {
                snap.is_virtual_device ? "Virtual Child Device (Touchpad Mouse)" : "Physical Bluetooth HID Device");
         addRow("Controller Subtype:", "%s (%d)", SubtypeToString(snap.controller_subtype),
                static_cast<int>(snap.controller_subtype));
+        // Displays parser-formatted firmware/hardware diagnostics (e.g. DS4/DS5/Switch/Xbox FW version,
+        // Wii expansion peripheral, SInput capabilities, or mouse scale), falling back to "Not available"
+        // when the active parser has no extra metadata or awaits an asynchronous feature report.
+        addRow("Device Extra Info:", "%s",
+               snap.device_extra_info[0] != '\0' ? snap.device_extra_info : "Not available");
         addRow("Vendor ID / Product ID:", "VID: 0x%04X  |  PID: 0x%04X", snap.vendor_id, snap.product_id);
         addRow("Bluetooth MAC Address:", "%s", bd_addr_to_str(snap.btaddr));
         addRow("Face Button Layout:", "%s", LayoutTypeToString(snap.layout));

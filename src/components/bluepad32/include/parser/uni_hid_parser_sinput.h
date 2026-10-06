@@ -9,6 +9,10 @@
 
 #include "parser/uni_hid_parser.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Fallback VID/PID from the SInput spec. Intended for testing; real products should register their own PID.
 #define UNI_HID_PARSER_SINPUT_VID 0x2e8a
 #define UNI_HID_PARSER_SINPUT_PID 0x10c6
@@ -25,6 +29,13 @@ void uni_hid_parser_sinput_play_dual_rumble(struct uni_hid_device_s* d,
                                             uint8_t weak_magnitude,
                                             uint8_t strong_magnitude);
 void uni_hid_parser_sinput_set_lightbar_color(struct uni_hid_device_s* d, uint8_t r, uint8_t g, uint8_t b);
+/**
+ * @brief Formats SInput protocol version, capability bitmasks, polling interval, and IMU
+ *        sensor ranges into `buf` once the feature response (`0x02`) has been received
+ *        (e.g., `"protocol=1, caps0=0x0f, caps1=0x01, poll=1000us, accel=+/-8g, gyro=+/-2000dps"`),
+ *        or writes `buf[0] = '\0'` and returns `0` before the feature response arrives.
+ */
+int uni_hid_parser_sinput_device_extra_info(const struct uni_hid_device_s* d, char* buf, size_t len);
 
 // Capability bits from the feature response (command 0x02), byte 0 and byte 1.
 #define UNI_SINPUT_CAPS0_RUMBLE 0x01
@@ -51,5 +62,9 @@ bool uni_hid_parser_sinput_get_imu_config(struct uni_hid_device_s* d,
                                           uint16_t* poll_us,
                                           uint16_t* accel_range_g,
                                           uint16_t* gyro_range_dps);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // UNI_HID_PARSER_SINPUT_H

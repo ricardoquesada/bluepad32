@@ -36,7 +36,11 @@ void uni_hid_parser_switch_play_dual_rumble(struct uni_hid_device_s* d,
                                             uint8_t weak_magnitude,
                                             uint8_t strong_magnitude);
 bool uni_hid_parser_switch_does_name_match(struct uni_hid_device_s* d, const char* name);
-void uni_hid_parser_switch_device_dump(struct uni_hid_device_s* d);
+/**
+ * @brief Formats the Nintendo Switch controller firmware version (`major.minor` from
+ *        `SUBCMD_REQ_DEV_INFO`) into `buf` (e.g., `"FW version 4.33"`).
+ */
+int uni_hid_parser_switch_device_extra_info(const struct uni_hid_device_s* d, char* buf, size_t len);
 
 #ifdef __cplusplus
 }

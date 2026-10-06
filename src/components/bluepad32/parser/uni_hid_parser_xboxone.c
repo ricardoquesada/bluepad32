@@ -11,10 +11,12 @@
 #include "parser/uni_hid_parser_xboxone.h"
 
 #include <stdint.h>
+#include <stdio.h>
 
 #include "controller/uni_controller.h"
 #include "hid_usage.h"
 #include "parser/uni_hid_parser_rumble.h"
+#include "uni_common.h"
 #include "uni_hid_device.h"
 #include "uni_log.h"
 
@@ -498,15 +500,24 @@ void xboxone_play_quad_rumble(struct uni_hid_device_s* d,
                                     trigger_right, xboxone_start_rumble_now, xboxone_stop_rumble_now);
 }
 
-void uni_hid_parser_xboxone_device_dump(uni_hid_device_t* d) {
+// Formats the inferred Xbox Wireless Controller firmware/descriptor generation (`v3.1`,
+// `v4.8`, or `v5.x`). `ins->version` starts at `XBOXONE_FIRMWARE_V3_1` in `setup()` and
+// upgrades dynamically during `parse_usage()` when v4.8 (Button page `0x0f`) or v5.x
+// (Consumer page `HID_USAGE_RECORD`) usages are observed.
+int uni_hid_parser_xboxone_device_extra_info(const struct uni_hid_device_s* d, char* buf, size_t len) {
     static const char* versions[] = {
         "v3.1",
         "v4.8",
         "v5.x",
     };
-    xboxone_instance_t* ins = get_xboxone_instance(d);
-    if (ins->version >= 0 && ins->version < ARRAY_SIZE(versions))
-        logi("\tXbox: FW version %s\n", versions[ins->version]);
+    if (!d || !buf || len == 0)
+        return -1;
+    const xboxone_instance_t* ins = (const xboxone_instance_t*)&d->parser_data[0];
+    if ((int)ins->version >= 0 && (size_t)ins->version < ARRAY_SIZE(versions)) {
+        return snprintf(buf, len, "FW version %s", versions[ins->version]);
+    }
+    buf[0] = '\0';
+    return 0;
 }
 
 //

@@ -10,6 +10,7 @@
 
 #include "parser/uni_hid_parser_sinput.h"
 
+#include <stdio.h>
 #include <string.h>
 
 #include "controller/uni_controller.h"
@@ -468,4 +469,20 @@ void uni_hid_parser_sinput_parse_input_report(struct uni_hid_device_s* d, const 
     gp->gyro[0] = -(float)read_s16(report, IDX_GYRO_X) * gs;
     gp->gyro[1] = (float)read_s16(report, IDX_GYRO_Z) * gs;
     gp->gyro[2] = -(float)read_s16(report, IDX_GYRO_Y) * gs;
+}
+
+// Formats SInput protocol version, capability bitmasks, polling interval, and IMU sensor
+// ranges once the asynchronous feature response (`0x02`) has populated `ins->features_valid`.
+// Returns `0` with `buf[0] = '\0'` prior to receiving the feature response.
+int uni_hid_parser_sinput_device_extra_info(const struct uni_hid_device_s* d, char* buf, size_t len) {
+    if (!d || !buf || len == 0)
+        return -1;
+    const sinput_instance_t* ins = (const sinput_instance_t*)&d->parser_data[0];
+    if (!ins->features_valid) {
+        buf[0] = '\0';
+        return 0;
+    }
+    return snprintf(buf, len, "protocol=%u, caps0=0x%02x, caps1=0x%02x, poll=%uus, accel=+/-%ug, gyro=+/-%udps",
+                    ins->protocol_version, ins->caps0, ins->caps1, ins->poll_us, ins->accel_range_g,
+                    ins->gyro_range_dps);
 }

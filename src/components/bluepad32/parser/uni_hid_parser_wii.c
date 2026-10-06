@@ -7,6 +7,7 @@
 // https://github.com/dvdhrm/xwiimote/blob/master/doc/PROTOCOL
 
 #include <stdbool.h>
+#include <stdio.h>
 
 #define ENABLE_EEPROM_DUMP 0
 
@@ -1439,7 +1440,19 @@ static void wii_read_mem(uni_hid_device_t* d, wii_read_type_t t, uint32_t offset
     uni_hid_device_send_intr_report(d, report, sizeof(report));
 }
 
-void uni_hid_parser_wii_device_dump(uni_hid_device_t* d) {
-    wii_instance_t* ins = get_wii_instance(d);
-    logi("\tWii: device '%s', extension '%s'\n", wii_devtype_names[ins->dev_type], wii_exttype_names[ins->ext_type]);
+// Formats the detected Wii controller base type and attached expansion peripheral
+// (which can change dynamically at runtime when a Nunchuk or Classic Controller is
+// hot-plugged). Validates both signed (`>= 0`) and unsigned (`< ARRAY_SIZE`) bounds
+// before indexing lookup tables to guard against out-of-range enum values.
+int uni_hid_parser_wii_device_extra_info(const struct uni_hid_device_s* d, char* buf, size_t len) {
+    if (!d || !buf || len == 0)
+        return -1;
+    const wii_instance_t* ins = (const wii_instance_t*)&d->parser_data[0];
+    const char* dev_name = ((int)ins->dev_type >= 0 && (size_t)ins->dev_type < ARRAY_SIZE(wii_devtype_names))
+                               ? wii_devtype_names[ins->dev_type]
+                               : "unk";
+    const char* ext_name = ((int)ins->ext_type >= 0 && (size_t)ins->ext_type < ARRAY_SIZE(wii_exttype_names))
+                               ? wii_exttype_names[ins->ext_type]
+                               : "unk";
+    return snprintf(buf, len, "device '%s', extension '%s'", dev_name, ext_name);
 }

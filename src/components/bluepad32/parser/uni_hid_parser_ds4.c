@@ -13,6 +13,7 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "bt/uni_bt_defines.h"
 #include "controller/uni_gamepad.h"
@@ -553,9 +554,15 @@ void uni_hid_parser_ds4_play_dual_rumble(struct uni_hid_device_s* d,
                                     ds4_start_rumble_now, ds4_stop_rumble_now);
 }
 
-void uni_hid_parser_ds4_device_dump(uni_hid_device_t* d) {
-    ds4_instance_t* ins = get_ds4_instance(d);
-    logi("\tDS4: FW version %#x, HW version %#x\n", ins->fw_version, ins->hw_version);
+// Formats DualShock 4 firmware and hardware versions without a controller prefix or trailing
+// newline. Note that `ds4_setup()` calls `uni_hid_device_set_ready_complete(d)` before
+// `DS4_FEATURE_REPORT_FIRMWARE_VERSION` (0xa3) completes, so `fw_version` and `hw_version`
+// transition from 0 to their actual values asynchronously when feature report 0xa3 arrives.
+int uni_hid_parser_ds4_device_extra_info(const struct uni_hid_device_s* d, char* buf, size_t len) {
+    if (!d || !buf || len == 0)
+        return -1;
+    const ds4_instance_t* ins = (const ds4_instance_t*)&d->parser_data[0];
+    return snprintf(buf, len, "FW version %#x, HW version %#x", ins->fw_version, ins->hw_version);
 }
 
 //

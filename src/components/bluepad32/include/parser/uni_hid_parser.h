@@ -5,6 +5,7 @@
 #ifndef UNI_HID_PARSER_H
 #define UNI_HID_PARSER_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -62,7 +63,36 @@ typedef void (*report_play_dual_rumble_fn_t)(struct uni_hid_device_s* d,
                                              uint16_t duration_ms,
                                              uint8_t weak_magnitude,
                                              uint8_t strong_magnitude);
-typedef void (*report_device_dump_t)(struct uni_hid_device_s* d);
+/**
+ * @brief Formats parser-specific hardware/firmware diagnostic info into a caller-provided buffer.
+ *
+ * Why a caller-owned `(buf, len)` buffer (`snprintf` idiom):
+ *   Decouples diagnostic string formatting from console `stdout` (`logi`) side effects with
+ *   zero heap allocations, zero idle `.bss` SRAM overhead on embedded targets (ESP32/RP2040),
+ *   and 100% reentrancy across multiple connected controllers and threads. Both console dumps
+ *   (`uni_hid_device_dump_device()`) and GUI consumers (`posix_imgui` Info tab) share this
+ *   single formatter.
+ *
+ * Formatting contract:
+ *   Implementations must write a NUL-terminated single-line string into `buf` (up to `len`
+ *   bytes) WITHOUT a controller model prefix, leading tabs (`\t`), or trailing newlines (`\n`).
+ *   Examples:
+ *     - DualShock 4: `"FW version 0x412, HW version 0x100"`
+ *     - DualSense:   `"FW version: 0x1020304, HW version: 0x10002, update version: 0x221, use vibration2: 1"`
+ *     - Switch:      `"FW version 4.33"`
+ *     - Wii:         `"device 'Wii Mote Motion Plus (2nd gen)', extension 'Nunchuk'"`
+ *     - Xbox:        `"FW version v5.x"`
+ *     - SInput:      `"protocol=1, caps0=0x0f, caps1=0x01, poll=1000us, accel=+/-8g, gyro=+/-2000dps"`
+ *     - Mouse:       `"scale=0.200000"`
+ *
+ * @param d   Pointer to the HID device to inspect.
+ * @param buf Destination character buffer.
+ * @param len Capacity of `buf` in bytes (including space for the NUL terminator).
+ * @return `> 0`: Number of characters that would have been written (excluding NUL), per `snprintf`;
+ *         `0`:   No extra info available (writes `buf[0] = '\0'`);
+ *         `-1`:  Invalid arguments (`d == NULL`, `buf == NULL`, or `len == 0`).
+ */
+typedef int (*report_device_extra_info_fn_t)(const struct uni_hid_device_s* d, char* buf, size_t len);
 
 // Parsers should implement these optional functions:
 typedef struct {
@@ -85,8 +115,9 @@ typedef struct {
     report_set_lightbar_color_fn_t set_lightbar_color;
     // If implemented, activates rumble in the gamepad
     report_play_dual_rumble_fn_t play_dual_rumble;
-    // If implemented, it dumps device info
-    report_device_dump_t device_dump;
+    // If implemented, formats parser-specific hardware/firmware diagnostic info into a caller-owned buffer
+    // (used by both `uni_hid_device_dump_device()` console dumps and GUI telemetry snapshots).
+    report_device_extra_info_fn_t device_extra_info;
 } uni_report_parser_t;
 
 void uni_hid_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t report_len);

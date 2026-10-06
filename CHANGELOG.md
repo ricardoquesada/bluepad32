@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.0.0-beta1] - 2026-??-??
+
+### Changed
+
+- Parser / Device Dump: Replaced `uni_report_parser_t::device_dump`
+  (`report_device_dump_t`) with a caller-buffered `device_extra_info`
+  (`report_device_extra_info_fn_t`) callback across all HID parsers, added
+  SInput extra info dump support, and displayed live hardware/firmware extra
+  info in the `examples/posix_imgui` Info tab.
+
 ## [5.0.0-beta0] - 2026-10-05
 
 ### New

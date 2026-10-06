@@ -549,6 +549,30 @@ void posix_imgui_on_device_disconnected(uni_hid_device_t* d) {
     }
 }
 
+/**
+ * @brief Formats parser-specific hardware/firmware extra info into `snap.device_extra_info`.
+ *
+ * Why this helper is called in BOTH `posix_imgui_on_device_ready()` and `posix_imgui_on_controller_data()`:
+ *   - Synchronous parsers (DualSense, Switch, Mouse) populate their firmware/scale metadata
+ *     before `uni_hid_device_set_ready_complete(d)` is invoked.
+ *   - Asynchronous and runtime-mutating parsers populate or upgrade their metadata *after*
+ *     `on_device_ready()` (e.g., DualShock 4 receives feature report `0xa3` asynchronously
+ *     after setup; Xbox Wireless upgrades `ins->version` from `v3.1` to `v4.8`/`v5.x` during
+ *     `parse_usage()`; SInput receives feature response `0x02` asynchronously; Wii hot-plugs
+ *     Nunchuk/Classic Controller expansions at runtime).
+ *   Ensuring `<= 0` writes `snap.device_extra_info[0] = '\0'` guarantees the UI thread always
+ *   observes a valid NUL-terminated string.
+ */
+static void update_snapshot_device_extra_info(const uni_hid_device_t* d, ControllerSnapshot& snap) {
+    if (d != nullptr && d->report_parser.device_extra_info != nullptr) {
+        if (d->report_parser.device_extra_info(d, snap.device_extra_info, sizeof(snap.device_extra_info)) <= 0) {
+            snap.device_extra_info[0] = '\0';
+        }
+    } else {
+        snap.device_extra_info[0] = '\0';
+    }
+}
+
 /// Assigns the lowest free slot (`0..3`), populates capability metadata, and sets initial player LEDs.
 uni_error_t posix_imgui_on_device_ready(uni_hid_device_t* d) {
     logi("posix_imgui: device ready: %p\n", static_cast<void*>(d));
@@ -612,6 +636,7 @@ uni_error_t posix_imgui_on_device_ready(uni_hid_device_t* d) {
 
         const char* model = uni_gamepad_get_model_name(d->controller_type);
         std::snprintf(snap.model_name, sizeof(snap.model_name), "%s", model ? model : "Unknown");
+        update_snapshot_device_extra_info(d, snap);
 
         std::memcpy(snap.btaddr, d->conn.btaddr, sizeof(bd_addr_t));
         snap.rssi = d->conn.rssi;
@@ -667,6 +692,7 @@ void posix_imgui_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl) 
         snap.controller = *ctl;
         snap.rssi = d->conn.rssi;
         snap.controller_subtype = d->controller_subtype;
+        update_snapshot_device_extra_info(d, snap);
     }
 }
 

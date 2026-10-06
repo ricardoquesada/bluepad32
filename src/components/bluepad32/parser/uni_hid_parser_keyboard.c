@@ -266,10 +266,13 @@ void uni_hid_parser_keyboard_parse_usage(uni_hid_device_t* d,
     }
 }
 
-void uni_hid_parser_keyboard_device_dump(struct uni_hid_device_s* d) {
-    ARG_UNUSED(d);
-
-    logi("\tuni_hid_parser_keyboard_device_dump: implement me: \n");
+// Generic HID keyboards do not expose extra firmware/hardware diagnostics; writes an
+// empty NUL-terminated string and returns `0` so callers suppress empty dump lines.
+int uni_hid_parser_keyboard_device_extra_info(const struct uni_hid_device_s* d, char* buf, size_t len) {
+    if (!d || !buf || len == 0)
+        return -1;
+    buf[0] = '\0';
+    return 0;
 }
 
 void uni_hid_parser_keyboard_set_leds(struct uni_hid_device_s* d, uint8_t led_bitmask) {

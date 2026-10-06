@@ -12,6 +12,7 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "bt/uni_bt_defines.h"
 #include "controller/uni_gamepad.h"
@@ -471,7 +472,10 @@ void uni_hid_parser_ds5_parse_feature_report(uni_hid_device_t* d, const uint8_t*
             // "Vibration2" is the new way to rumble. The old one was emulating classic controllers.
             ins->use_vibration2 = (d->product_id == DS5_EDGE_PID || ins->update_version >= DS5_FEATURE_VERSION(2, 21));
 
-            uni_hid_parser_ds5_device_dump(d);
+            char dump_buf[128];
+            if (uni_hid_parser_ds5_device_extra_info(d, dump_buf, sizeof(dump_buf)) > 0) {
+                logi("\tDS5: %s\n", dump_buf);
+            }
             logi("\tDS5: Firmware build date: %s, %s\n", date_z, time_z);
 
             ds5_request_calibration_report(d);
@@ -736,10 +740,14 @@ void uni_hid_parser_ds5_play_dual_rumble(struct uni_hid_device_s* d,
                                     ds5_start_rumble_now, ds5_stop_rumble_now);
 }
 
-void uni_hid_parser_ds5_device_dump(uni_hid_device_t* d) {
-    ds5_instance_t* ins = get_ds5_instance(d);
-    logi("\tDS5: FW version: %#x, HW version: %#x, update version: %#x, use vibration2: %d\n", ins->fw_version,
-         ins->hw_version, ins->update_version, ins->use_vibration2);
+// Formats DualSense firmware, hardware, update version, and vibration2 haptics selection
+// (populated during setup when `DS5_FEATURE_REPORT_FIRMWARE_VERSION` 0x20 is received).
+int uni_hid_parser_ds5_device_extra_info(const struct uni_hid_device_s* d, char* buf, size_t len) {
+    if (!d || !buf || len == 0)
+        return -1;
+    const ds5_instance_t* ins = (const ds5_instance_t*)&d->parser_data[0];
+    return snprintf(buf, len, "FW version: %#x, HW version: %#x, update version: %#x, use vibration2: %d",
+                    ins->fw_version, ins->hw_version, ins->update_version, ins->use_vibration2);
 }
 
 //

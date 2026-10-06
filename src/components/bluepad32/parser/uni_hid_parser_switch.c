@@ -8,6 +8,8 @@
 
 #include "parser/uni_hid_parser_switch.h"
 
+#include <stdio.h>
+
 #define ENABLE_SPI_FLASH_DUMP 0
 #define ENABLE_IMU_REPORT 1
 
@@ -1445,7 +1447,11 @@ static void switch_setup_timeout_callback(btstack_timer_source_t* ts) {
     process_fsm(d);
 }
 
-void uni_hid_parser_switch_device_dump(uni_hid_device_t* d) {
-    switch_instance_t* ins = get_switch_instance(d);
-    logi("\tSwitch: FW version %d.%d\n", ins->firmware_version_hi, ins->firmware_version_lo);
+// Formats the Switch controller firmware version (`major.minor`) reported by
+// `SUBCMD_REQ_DEV_INFO` (0x02) during the setup state machine prior to `STATE_READY`.
+int uni_hid_parser_switch_device_extra_info(const struct uni_hid_device_s* d, char* buf, size_t len) {
+    if (!d || !buf || len == 0)
+        return -1;
+    const switch_instance_t* ins = (const switch_instance_t*)&d->parser_data[0];
+    return snprintf(buf, len, "FW version %d.%d", ins->firmware_version_hi, ins->firmware_version_lo);
 }

@@ -6,6 +6,7 @@
 
 #include <math.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <time.h>
 
 #include "controller/uni_controller.h"
@@ -277,11 +278,11 @@ void uni_hid_parser_mouse_parse_usage(uni_hid_device_t* d,
     }
 }
 
-void uni_hid_parser_mouse_device_dump(struct uni_hid_device_s* d) {
-    char buf[48];
-
-    mouse_instance_t* ins = get_mouse_instance(d);
-    // ets_printf() doesn't support "%f"
-    sprintf(buf, "\tmouse: scale=%f\n", ins->scale);
-    logi("%s", buf);
+// Formats the active mouse delta sensitivity multiplier (`ins->scale`) configured per
+// VID/PID in `uni_hid_parser_mouse_setup()` using bounded `snprintf`.
+int uni_hid_parser_mouse_device_extra_info(const struct uni_hid_device_s* d, char* buf, size_t len) {
+    if (!d || !buf || len == 0)
+        return -1;
+    const mouse_instance_t* ins = (const mouse_instance_t*)&d->parser_data[0];
+    return snprintf(buf, len, "scale=%f", (double)ins->scale);
 }

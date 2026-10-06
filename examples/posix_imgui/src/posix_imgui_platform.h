@@ -84,8 +84,12 @@ struct ControllerSnapshot {
     uni_controller_subtype_t controller_subtype;  ///< Bluepad32 controller subtype (e.g., Wiimote extension type).
     char name[HID_MAX_NAME_LEN];                  ///< Bluetooth device name reported during discovery/SDP.
     char model_name[64];                          ///< Human-readable model string from `uni_gamepad_get_model_name()`.
-    bd_addr_t btaddr;                             ///< 6-byte Bluetooth MAC address of the controller.
-    uint8_t rssi;                                 ///< Latest Bluetooth RSSI reading (`int8_t` cast to `uint8_t`).
+    /// Parser-specific hardware/firmware summary from `report_parser.device_extra_info`
+    /// (e.g., `"FW version 0x412, HW version 0x100"` or `"FW version 4.33"`), or `""` if unavailable.
+    /// Refreshed in both `on_device_ready()` and `on_controller_data()` to capture async updates.
+    char device_extra_info[128];
+    bd_addr_t btaddr;  ///< 6-byte Bluetooth MAC address of the controller.
+    uint8_t rssi;      ///< Latest Bluetooth RSSI reading (`int8_t` cast to `uint8_t`).
 
     // Capabilities populated in on_device_ready()
     ControllerLayoutType layout;  ///< Face button layout family (`STANDARD`, `SHAPES`, or `REVERSE`).
