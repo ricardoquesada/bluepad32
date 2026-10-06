@@ -723,16 +723,17 @@ void test_ds5_set_player_leds_all_16_bitmasks_and_sequence_wrap() {
     TEST_ASSERT(uni_circular_buffer_is_empty(&d.outgoing_buffer));
 }
 
-/// Test 12: Verifies that dirty upper-nibble bits (`0x10..0xf0`) are masked off before
-/// switching so single-seat patterns never fall into `default:` and upper bits never
-/// leak into bits 5..7 of `player_leds`.
+/// Test 12: Verifies that when `BIT(7)` is clear (`0x00..0x7f`), dirty bits 4..6 (`0x10..0x70`)
+/// are masked off before switching so single-seat patterns never fall into `default:`, and when
+/// `BIT(7)` is set (`0x80..0xff`), bits 0..4 (`leds & 0x1f`) directly represent each of the 5
+/// physical DualSense LEDs while bits 5..7 never leak into `player_leds`.
 void test_ds5_set_player_leds_upper_nibble_masking() {
     constexpr std::array<uint8_t, 16> kExpectedDs5Leds = {
         0x00, 0x04, 0x0a, 0x03, 0x15, 0x09, 0x0a, 0x0b, 0x1b, 0x11, 0x12, 0x13, 0x18, 0x19, 0x1a, 0x1b,
     };
-    constexpr std::array<uint8_t, 5> kHighNibbles = {0x10, 0x20, 0x50, 0xa0, 0xf0};
+    constexpr std::array<uint8_t, 5> kHighNibblesBit7Off = {0x10, 0x20, 0x30, 0x50, 0x70};
 
-    for (uint8_t high : kHighNibbles) {
+    for (uint8_t high : kHighNibblesBit7Off) {
         uni_hid_device_t d;
         init_synthetic_device(&d, 0x054c, 0x0ce6, CONTROLLER_TYPE_PS5Controller, "DualSense");
         d.conn.interrupt_cid = kTestDs5InterruptCid;
@@ -743,6 +744,23 @@ void test_ds5_set_player_leds_upper_nibble_masking() {
             uni_hid_parser_ds5_set_player_leds(&d, dirty_input);
             TEST_ASSERT(
                 dequeue_and_verify_ds5_led_report(&d, kTestDs5InterruptCid, expected_seq, kExpectedDs5Leds[mask]));
+        }
+        TEST_ASSERT(uni_circular_buffer_is_empty(&d.outgoing_buffer));
+    }
+
+    // When BIT(7) (0x80) is set, bits 0..4 (0x00..0x1f) directly represent each of the 5 LEDs,
+    // and bits 5..7 (0xe0) must be masked off before populating `out.player_leds`.
+    constexpr std::array<uint8_t, 4> kBit7Prefixes = {0x80, 0xa0, 0xc0, 0xe0};
+    for (uint8_t prefix : kBit7Prefixes) {
+        uni_hid_device_t d;
+        init_synthetic_device(&d, 0x054c, 0x0ce6, CONTROLLER_TYPE_PS5Controller, "DualSense");
+        d.conn.interrupt_cid = kTestDs5InterruptCid;
+
+        for (uint8_t raw_5bit = 0; raw_5bit < 32; ++raw_5bit) {
+            const uint8_t input = static_cast<uint8_t>(prefix | raw_5bit);
+            const uint8_t expected_seq = static_cast<uint8_t>(raw_5bit % 15);
+            uni_hid_parser_ds5_set_player_leds(&d, input);
+            TEST_ASSERT(dequeue_and_verify_ds5_led_report(&d, kTestDs5InterruptCid, expected_seq, raw_5bit));
         }
         TEST_ASSERT(uni_circular_buffer_is_empty(&d.outgoing_buffer));
     }

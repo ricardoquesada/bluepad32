@@ -672,40 +672,47 @@ void uni_hid_parser_ds5_set_player_leds(struct uni_hid_device_s* d, uint8_t leds
         return;
     }
 
-    // DualSense has 5 physical player LEDs (bits 0..4), whereas Bluepad32's
-    // report_set_player_leds_fn_t API passes a 4-bit bitmask (0x00..0x0f / uni_gamepad_seat_t).
-    // Mask to the low 4 bits before switching so dirty upper-nibble bits from raw callers
-    // cannot cause single-seat masks to miss `case GAMEPAD_SEAT_A..D` or leak into bits 5..7.
-    //
-    // Single-bit seats (Players 1..4) map to Sony's official symmetric 5-LED patterns:
-    //   Player 1 (GAMEPAD_SEAT_A = 0x01): --X-- (0x04)
-    //   Player 2 (GAMEPAD_SEAT_B = 0x02): -X-X- (0x0a)
-    //   Player 3 (GAMEPAD_SEAT_C = 0x04): X-X-X (0x15)
-    //   Player 4 (GAMEPAD_SEAT_D = 0x08): XX-XX (0x1b)
-    // Multi-bit masks (e.g. GAMEPAD_SEAT_AB_MASK = 0x03) map bits 0..1 to LEDs 0..1 and
-    // bits 2..3 to LEDs 3..4, leaving the center LED (BIT(2)) off.
-    const uint8_t mask = leds & 0x0f;
     uint8_t player_leds = 0;
 
-    switch (mask) {
-        case GAMEPAD_SEAT_NONE:
-            player_leds = 0x00;
-            break;
-        case GAMEPAD_SEAT_A:
-            player_leds = BIT(2);
-            break;
-        case GAMEPAD_SEAT_B:
-            player_leds = BIT(1) | BIT(3);
-            break;
-        case GAMEPAD_SEAT_C:
-            player_leds = BIT(0) | BIT(2) | BIT(4);
-            break;
-        case GAMEPAD_SEAT_D:
-            player_leds = BIT(0) | BIT(1) | BIT(3) | BIT(4);
-            break;
-        default:
-            player_leds = (uint8_t)((mask & 0x03) | ((mask & 0x0c) << 1));
-            break;
+    // DualSense has 5 physical player LEDs (bits 0..4).
+    // - If BIT(7) is set (`(leds & BIT(7)) != 0`), bits 0..4 (`leds & 0x1f`) directly represent
+    //   each of the 5 physical DualSense LEDs.
+    // - If BIT(7) is clear (`(leds & BIT(7)) == 0`), `leds` is treated as Bluepad32's standard
+    //   4-bit bitmask (`0x00..0x0f` / `uni_gamepad_seat_t`). We mask to the low 4 bits before
+    //   switching so dirty bits 4..6 from raw callers cannot cause single-seat masks to miss
+    //   `case GAMEPAD_SEAT_A..D` or leak into bits 5..7.
+    if ((leds & BIT(7)) != 0) {
+        player_leds = leds & 0x1f;
+    } else {
+        // Single-bit seats (Players 1..4) map to Sony's official symmetric 5-LED patterns:
+        //   Player 1 (GAMEPAD_SEAT_A = 0x01): --X-- (0x04)
+        //   Player 2 (GAMEPAD_SEAT_B = 0x02): -X-X- (0x0a)
+        //   Player 3 (GAMEPAD_SEAT_C = 0x04): X-X-X (0x15)
+        //   Player 4 (GAMEPAD_SEAT_D = 0x08): XX-XX (0x1b)
+        // Multi-bit masks (e.g. GAMEPAD_SEAT_AB_MASK = 0x03) map bits 0..1 to LEDs 0..1 and
+        // bits 2..3 to LEDs 3..4, leaving the center LED (BIT(2)) off.
+        const uint8_t mask = leds & 0x0f;
+
+        switch (mask) {
+            case GAMEPAD_SEAT_NONE:
+                player_leds = 0x00;
+                break;
+            case GAMEPAD_SEAT_A:
+                player_leds = BIT(2);
+                break;
+            case GAMEPAD_SEAT_B:
+                player_leds = BIT(1) | BIT(3);
+                break;
+            case GAMEPAD_SEAT_C:
+                player_leds = BIT(0) | BIT(2) | BIT(4);
+                break;
+            case GAMEPAD_SEAT_D:
+                player_leds = BIT(0) | BIT(1) | BIT(3) | BIT(4);
+                break;
+            default:
+                player_leds = (uint8_t)((mask & 0x03) | ((mask & 0x0c) << 1));
+                break;
+        }
     }
 
     ds5_output_report_t out = {
