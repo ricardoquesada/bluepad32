@@ -42,15 +42,29 @@
 
 /*
  * Execution order:
- *  uni_bt_le_on_gap_event_advertising_report()
- *      -> hog_connect()
- *  uni_sm_packet_handler()
- *  wait for SM_EVENT_REENCRYPTION_COMPLETE or SM_EVENT_PAIRING_COMPLETE
- *  uni_device_information_packet_handler()
- *  wait for GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_DONE
- *  uni_hids_client_packet_handler()
- *  wait for GATTSERVICE_SUBEVENT_HID_SERVICE_CONNECTED
- *  uni_hid_device_set_ready()
+ *  1. Standard BLE HOGP (0x1812) devices:
+ *     uni_bt_le_on_gap_event_advertising_report()
+ *         -> hog_connect()
+ *     uni_bt_le_on_hci_event_le_meta() [HCI_SUBEVENT_LE_CONNECTION_COMPLETE]
+ *         -> sm_request_pairing()
+ *     uni_sm_packet_handler()
+ *         -> wait for SM_EVENT_REENCRYPTION_COMPLETE or SM_EVENT_PAIRING_COMPLETE
+ *         -> device_information_service_client_query()
+ *     uni_device_information_packet_handler()
+ *         -> wait for GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_DONE
+ *         -> hids_host_connect()
+ *     uni_hids_client_packet_handler()
+ *         -> wait for GATTSERVICE_SUBEVENT_HID_SERVICE_CONNECTED
+ *         -> uni_hid_device_set_ready()
+ *
+ *  2. Custom BLE GATT devices (Switch 2 BLE and Steam Controller 2026 "Triton"):
+ *     - Switch 2 unbonded/pairing: bypasses SMP at LE_CONNECTION_COMPLETE and
+ *       enters uni_hid_parser_switch2_on_le_connected() directly.
+ *     - Switch 2 bonded reconnect & Steam Triton: complete SMP + Device
+ *       Information Service (DIS) query, then bypass hids_host_connect() inside
+ *       GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_DONE and invoke
+ *       uni_hid_device_set_ready() so their parser setup() drives custom
+ *       128-bit GATT discovery and notification registration.
  */
 
 #include "bt/uni_bt_le.h"
@@ -68,6 +82,8 @@
 #include "bt/uni_bt_conn.h"
 #include "bt/uni_bt_defines.h"
 #include "parser/uni_hid_parser.h"
+#include "parser/uni_hid_parser_steam_triton.h"
+#include "parser/uni_hid_parser_switch2.h"
 #include "uni_common.h"
 #include "uni_config.h"
 #include "uni_hid_device.h"
@@ -122,7 +138,12 @@ static void hog_disconnect(hci_con_handle_t con_handle) {
     resume_scanning_hint();
 }
 
-static void get_advertisement_data(const uint8_t* adv_data, uint8_t adv_size, uint16_t* appearance, char* name) {
+static void get_advertisement_data(const uint8_t* adv_data,
+                                   uint8_t adv_size,
+                                   uint16_t* appearance,
+                                   char* name,
+                                   uint16_t* out_vid,
+                                   uint16_t* out_pid) {
     ad_context_t context;
 
     for (ad_iterator_init(&context, adv_size, (uint8_t*)adv_data); ad_iterator_has_more(&context);
@@ -159,6 +180,20 @@ static void get_advertisement_data(const uint8_t* adv_data, uint8_t adv_size, ui
                     name[i] = data[i];
                 }
                 name[copy_len] = 0;
+                // Valve Steam Controller 2026 ("Triton") advertises Complete Local Name
+                // "Steam Controller" (exact 16 bytes) and may omit the Appearance AD item.
+                if (data_type == BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME && size == 16 &&
+                    memcmp(data, "Steam Controller", 16) == 0) {
+                    if (*appearance == 0) {
+                        *appearance = UNI_BT_HID_APPEARANCE_GAMEPAD;
+                    }
+                    if (out_vid && *out_vid == 0) {
+                        *out_vid = UNI_TRITON_VALVE_VID;
+                    }
+                    if (out_pid && *out_pid == 0) {
+                        *out_pid = STEAM_TRITON_BLE_PID;
+                    }
+                }
                 break;
             }
             case BLUETOOTH_DATA_TYPE_TX_POWER_LEVEL:
@@ -166,6 +201,18 @@ static void get_advertisement_data(const uint8_t* adv_data, uint8_t adv_size, ui
             case BLUETOOTH_DATA_TYPE_SLAVE_CONNECTION_INTERVAL_RANGE:
                 break;
             case BLUETOOTH_DATA_TYPE_SERVICE_DATA:
+                if (size >= 4 && little_endian_read_16(data, 0) == ORG_BLUETOOTH_SERVICE_HUMAN_INTERFACE_DEVICE &&
+                    little_endian_read_16(data, 2) == STEAM_TRITON_BLE_PID) {
+                    if (*appearance == 0) {
+                        *appearance = UNI_BT_HID_APPEARANCE_GAMEPAD;
+                    }
+                    if (out_vid) {
+                        *out_vid = UNI_TRITON_VALVE_VID;
+                    }
+                    if (out_pid) {
+                        *out_pid = STEAM_TRITON_BLE_PID;
+                    }
+                }
                 break;
             case BLUETOOTH_DATA_TYPE_PUBLIC_TARGET_ADDRESS:
             case BLUETOOTH_DATA_TYPE_RANDOM_TARGET_ADDRESS:
@@ -181,6 +228,18 @@ static void get_advertisement_data(const uint8_t* adv_data, uint8_t adv_size, ui
             case BLUETOOTH_DATA_TYPE_3D_INFORMATION_DATA:
                 break;
             case BLUETOOTH_DATA_TYPE_MANUFACTURER_SPECIFIC_DATA:  // Manufacturer Specific Data
+                if (size >= 4 && little_endian_read_16(data, 0) == UNI_TRITON_VALVE_VID &&
+                    little_endian_read_16(data, 2) == STEAM_TRITON_BLE_PID) {
+                    if (*appearance == 0) {
+                        *appearance = UNI_BT_HID_APPEARANCE_GAMEPAD;
+                    }
+                    if (out_vid) {
+                        *out_vid = UNI_TRITON_VALVE_VID;
+                    }
+                    if (out_pid) {
+                        *out_pid = STEAM_TRITON_BLE_PID;
+                    }
+                }
                 break;
             case BLUETOOTH_DATA_TYPE_CLASS_OF_DEVICE:
                 if (size >= 2) {
@@ -208,7 +267,12 @@ static void get_advertisement_data(const uint8_t* adv_data, uint8_t adv_size, ui
     }
 }
 
-static void adv_event_get_data(const uint8_t* packet, uint16_t size, uint16_t* appearance, char* name) {
+static void adv_event_get_data(const uint8_t* packet,
+                               uint16_t size,
+                               uint16_t* appearance,
+                               char* name,
+                               uint16_t* out_vid,
+                               uint16_t* out_pid) {
     const uint8_t* ad_data;
     uint16_t ad_len;
 
@@ -223,7 +287,7 @@ static void adv_event_get_data(const uint8_t* packet, uint16_t size, uint16_t* a
     }
 
     // if (!ad_data_contains_uuid16(ad_len, ad_data, ORG_BLUETOOTH_SERVICE_HUMAN_INTERFACE_DEVICE))
-    get_advertisement_data(ad_data, (uint8_t)ad_len, appearance, name);
+    get_advertisement_data(ad_data, (uint8_t)ad_len, appearance, name, out_vid, out_pid);
 }
 
 static void parse_report(const uint8_t* packet, uint16_t size) {
@@ -434,6 +498,22 @@ void uni_bt_le_on_hci_event_gattservice_meta(const uint8_t* packet, uint16_t siz
                         break;
                     }
 
+                    // Switch 2 and Steam Controller 2026 ("Triton") use proprietary 128-bit
+                    // BLE GATT services rather than standard HOGP (0x1812). Bypass
+                    // hids_host_connect() and transition directly to the controller's
+                    // parser setup() state machine via uni_hid_device_set_ready().
+                    // Guard uni_hid_device_connect() with !device->conn.connected in case
+                    // an unbonded Switch 2 setup path already marked the device connected.
+                    if (uni_hid_parser_switch2_is_ble_device(device) || uni_hid_parser_steam_triton_is_device(device)) {
+                        uni_hid_device_guess_controller_type_from_pid_vid(device);
+                        if (!device->conn.connected) {
+                            uni_hid_device_connect(device);
+                        }
+                        uni_hid_device_set_ready(device);
+                        resume_scanning_hint();
+                        break;
+                    }
+
                     // Continue - query primary services.
                     logi("Search for HID service, con_handle: %#x\n", con_handle);
                     status = hids_host_connect(con_handle, uni_hids_client_packet_handler, HID_PROTOCOL_MODE_REPORT,
@@ -459,6 +539,17 @@ void uni_bt_le_on_hci_event_gattservice_meta(const uint8_t* packet, uint16_t siz
                     device = uni_hid_device_get_instance_for_connection_handle(con_handle);
                     if (!device) {
                         loge("Invalid device for in GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_DONE");
+                        break;
+                    }
+                    // When DIS is absent or fails (e.g. controller identified via AD
+                    // manufacturer data or name), still bypass HOGP for Switch 2 and Triton.
+                    if (uni_hid_parser_switch2_is_ble_device(device) || uni_hid_parser_steam_triton_is_device(device)) {
+                        uni_hid_device_guess_controller_type_from_pid_vid(device);
+                        if (!device->conn.connected) {
+                            uni_hid_device_connect(device);
+                        }
+                        uni_hid_device_set_ready(device);
+                        resume_scanning_hint();
                         break;
                     }
                     status = hids_host_connect(con_handle, uni_hids_client_packet_handler, HID_PROTOCOL_MODE_REPORT,
@@ -791,6 +882,39 @@ void uni_bt_le_on_hci_event_le_meta(const uint8_t* packet, uint16_t size) {
             logi("Using con_handle: %#x\n", con_handle);
 
             uni_hid_device_set_connection_handle(device, con_handle);
+
+            if (uni_hid_parser_switch2_is_ble_device(device)) {
+                // If the controller advertised in active sync-button pairing mode, purge any
+                // stale host-side LTK bond so the controller executes a fresh 0x15 pairing
+                // handshake before SMP runs.
+                if (uni_hid_parser_switch2_needs_pair(device)) {
+                    gap_delete_bonding(
+                        (bd_addr_type_t)hci_subevent_le_connection_complete_get_peer_address_type(packet), event_addr);
+                }
+                if (uni_hid_parser_switch2_needs_pair(device) || !gap_bonded(con_handle)) {
+                    // Unbonded Switch 2 controllers reject SMP Pairing Requests until the
+                    // proprietary 4-step 0x15 pairing sequence completes over GATT. Enter
+                    // the Switch 2 GATT state machine immediately without calling sm_request_pairing().
+                    uni_hid_parser_switch2_on_le_connected(device);
+                    resume_scanning_hint();
+                } else {
+                    // Bonded Switch 2 reconnect: re-encrypt the link via SMP with auth_req=0,
+                    // then proceed through DIS query -> uni_hid_device_set_ready().
+                    sm_set_authentication_requirements(0);
+                    sm_request_pairing(con_handle);
+                }
+                break;
+            }
+
+            // Steam Controller 2026 ("Triton") requires LE Secure Connections + Bonding
+            // before its custom GATT characteristics accept writes/notifications, whereas
+            // legacy BLE controllers (including Steam Controller 2015 "Chell", which
+            // advertises as "SteamController" without a space) use legacy bonding.
+            if (uni_hid_parser_steam_triton_is_device(device) || strcmp(device->name, "Steam Controller") == 0) {
+                sm_set_authentication_requirements(SM_AUTHREQ_SECURE_CONNECTION | SM_AUTHREQ_BONDING);
+            } else {
+                sm_set_authentication_requirements(SM_AUTHREQ_BONDING);
+            }
             sm_request_pairing(con_handle);
 
             // Resume scanning
@@ -834,6 +958,12 @@ void uni_bt_le_on_hci_event_encryption_change(const uint8_t* packet, uint16_t si
     if (hci_event_encryption_change_get_encryption_enabled(packet) == 0) {
         logi("Encryption failed -> abort\n");
         hog_disconnect(con_handle);
+        return;
+    }
+
+    if (uni_hid_parser_switch2_is_ble_device(device)) {
+        uni_hid_parser_switch2_on_encrypted(device);
+        resume_scanning_hint();
     }
 }
 
@@ -842,10 +972,14 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
     bd_addr_type_t addr_type;
     uint16_t appearance;
     uint16_t cod;
+    uint16_t adv_vid;
+    uint16_t adv_pid;
     uint8_t rssi;
     char name[64];
 
     appearance = 0;
+    adv_vid = 0;
+    adv_pid = 0;
     name[0] = 0;
 
     if (size < 12) {
@@ -858,7 +992,12 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
         return;
     }
 
-    adv_event_get_data(packet, size, &appearance, name);
+    if (uni_hid_parser_switch2_does_packet_match(packet, size)) {
+        (void)uni_bt_le_switch2_handle_advertisement(packet, size);
+        return;
+    }
+
+    adv_event_get_data(packet, size, &appearance, name, &adv_vid, &adv_pid);
 
     if (appearance != UNI_BT_HID_APPEARANCE_GAMEPAD && appearance != UNI_BT_HID_APPEARANCE_JOYSTICK &&
         appearance != UNI_BT_HID_APPEARANCE_MOUSE && appearance != UNI_BT_HID_APPEARANCE_KEYBOARD) {
@@ -909,6 +1048,12 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
     uni_bt_conn_set_protocol(&d->conn, UNI_BT_CONN_PROTOCOL_BLE);
     uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_DISCOVERED);
     d->conn.rssi = rssi;
+
+    if (adv_vid != 0 && adv_pid != 0) {
+        uni_hid_device_set_vendor_id(d, adv_vid);
+        uni_hid_device_set_product_id(d, adv_pid);
+        uni_hid_device_guess_controller_type_from_pid_vid(d);
+    }
 
     hog_connect(addr, addr_type);
 }

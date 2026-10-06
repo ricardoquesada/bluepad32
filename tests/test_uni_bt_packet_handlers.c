@@ -71,6 +71,8 @@
 #include "controller/uni_controller.h"
 #include "controller/uni_controller_type.h"
 #include "controller/uni_gamepad.h"
+#include "parser/uni_hid_parser_steam_triton.h"
+#include "parser/uni_hid_parser_switch2.h"
 #include "platform/uni_platform.h"
 #include "sdkconfig.h"
 #include "test_check.h"
@@ -1481,6 +1483,9 @@ TEST(bt_le_setup_legacy_pairing_steam_controller_regression) {
     EXPECT_EQ(0xc0, g_last_acl_buf[11]);
     EXPECT_EQ(0x87, g_last_acl_buf[12]);  // STEAM_CMD_WRITE_REGISTER
     EXPECT_EQ(0x0f, g_last_acl_buf[13]);
+    EXPECT_EQ(0x30, g_last_acl_buf[14]);  // STEAM_REG_GYRO_MODE
+    EXPECT_EQ(0x18, g_last_acl_buf[15]);  // STEAM_GYRO_MODE_RAW_IMU low byte (0x0018)
+    EXPECT_EQ(0x00, g_last_acl_buf[16]);  // STEAM_GYRO_MODE_RAW_IMU high byte
 
     // Inject second ATT_WRITE_RESPONSE (0x13) to complete `STATE_QUERY_DISABLE_LIZARD` and verify
     // `uni_hid_device_set_ready_complete(d)` transitions the Steam Controller to `DEVICE_READY`.
@@ -1940,6 +1945,829 @@ TEST(bt_sdp_query_attribute_value_oob_data_offset_guard) {
 }
 
 // ============================================================================
+// 17. TEST(bt_le_adv_detection_switch2_and_steam_triton)
+// ============================================================================
+
+/**
+ * @brief Synthesize a `GAP_EVENT_ADVERTISING_REPORT` packet from raw AD payload bytes.
+ */
+static uint16_t build_raw_le_adv_report_pkt(uint8_t* pkt,
+                                            const bd_addr_t addr,
+                                            uint8_t rssi,
+                                            const uint8_t* ad_payload,
+                                            uint8_t ad_len) {
+    pkt[0] = GAP_EVENT_ADVERTISING_REPORT;
+    pkt[1] = (uint8_t)(10 + ad_len);
+    pkt[2] = 0x00;  // advertising_event_type
+    pkt[3] = BD_ADDR_TYPE_LE_RANDOM;
+    put_bd_addr_reversed(&pkt[4], addr);
+    pkt[10] = rssi;
+    pkt[11] = ad_len;
+    if (ad_len > 0 && ad_payload != NULL) {
+        memcpy(&pkt[12], ad_payload, ad_len);
+    }
+    return (uint16_t)(12 + ad_len);
+}
+
+TEST(bt_le_adv_detection_switch2_and_steam_triton) {
+    reset_test_fixture();
+    uint8_t pkt[128];
+
+    // Case 1a: Switch 2 advertising 18-byte 0xFF Manufacturer Specific Data (Company ID 0x0553 at [0..1],
+    // Nintendo VID 0x057e at [5..6], Pro 2 PID 0x2069 at [7..8], zero reconnect_mac at [12..17]).
+    uint8_t sw2_ad_18[] = {
+        19,                                              // AD item length (1 type + 18 data)
+        BLUETOOTH_DATA_TYPE_MANUFACTURER_SPECIFIC_DATA,  // 0xFF
+        0x53,
+        0x05,  // [0..1] Company ID 0x0553
+        0x00,
+        0x00,
+        0x00,  // [2..4] prefix
+        0x7e,
+        0x05,  // [5..6] Nintendo VID 0x057e
+        0x69,
+        0x20,  // [7..8] Switch 2 Pro PID 0x2069
+        0x00,
+        0x00,
+        0x00,  // [9..11] flags
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,  // [12..17] reconnect_mac = 00:00:00:00:00:00 (SYNC pair)
+    };
+    bd_addr_t sw2_pro_addr = {0x98, 0xB6, 0xE9, 0x10, 0x20, 0x01};
+    uint16_t pkt_len = build_raw_le_adv_report_pkt(pkt, sw2_pro_addr, 215, sw2_ad_18, sizeof(sw2_ad_18));
+    EXPECT_TRUE(uni_hid_parser_switch2_does_packet_match(pkt, pkt_len));
+    uni_bt_packet_handler(HCI_EVENT_PACKET, 0, pkt, pkt_len);
+
+    uni_hid_device_t* d_sw2_pro = uni_hid_device_get_instance_for_address(sw2_pro_addr);
+    ASSERT_NE(NULL, d_sw2_pro);
+    EXPECT_EQ(UNI_SW2_NINTENDO_VID, d_sw2_pro->vendor_id);
+    EXPECT_EQ(UNI_SW2_PRO_PID, d_sw2_pro->product_id);
+    EXPECT_EQ(CONTROLLER_TYPE_Switch2ProController, d_sw2_pro->controller_type);
+    EXPECT_TRUE(uni_hid_parser_switch2_needs_pair(d_sw2_pro));
+
+    // Case 1b: Switch 2 compact 0xFF Manufacturer Specific Data (Nintendo VID 0x057e at [0..1],
+    // Joy-Con 2 Left PID 0x2067 at [2..3] and Joy-Con 2 Right PID 0x2066 at [5..6]).
+    uint8_t sw2_ad_compact_l[] = {
+        5, BLUETOOTH_DATA_TYPE_MANUFACTURER_SPECIFIC_DATA, 0x7e, 0x05, 0x67, 0x20,
+    };
+    bd_addr_t sw2_jcl_addr = {0x98, 0xB6, 0xE9, 0x10, 0x20, 0x02};
+    pkt_len = build_raw_le_adv_report_pkt(pkt, sw2_jcl_addr, 215, sw2_ad_compact_l, sizeof(sw2_ad_compact_l));
+    EXPECT_TRUE(uni_hid_parser_switch2_does_packet_match(pkt, pkt_len));
+    uni_bt_packet_handler(HCI_EVENT_PACKET, 0, pkt, pkt_len);
+    uni_hid_device_t* d_sw2_jcl = uni_hid_device_get_instance_for_address(sw2_jcl_addr);
+    ASSERT_NE(NULL, d_sw2_jcl);
+    EXPECT_EQ(UNI_SW2_NINTENDO_VID, d_sw2_jcl->vendor_id);
+    EXPECT_EQ(UNI_SW2_JOYCON_L_PID, d_sw2_jcl->product_id);
+    EXPECT_EQ(CONTROLLER_TYPE_Switch2JoyConLeft, d_sw2_jcl->controller_type);
+
+    uint8_t sw2_ad_compact_r[] = {
+        8, BLUETOOTH_DATA_TYPE_MANUFACTURER_SPECIFIC_DATA, 0x7e, 0x05, 0x00, 0x00, 0x00, 0x66, 0x20,
+    };
+    bd_addr_t sw2_jcr_addr = {0x98, 0xB6, 0xE9, 0x10, 0x20, 0x03};
+    pkt_len = build_raw_le_adv_report_pkt(pkt, sw2_jcr_addr, 215, sw2_ad_compact_r, sizeof(sw2_ad_compact_r));
+    EXPECT_TRUE(uni_hid_parser_switch2_does_packet_match(pkt, pkt_len));
+    uni_bt_packet_handler(HCI_EVENT_PACKET, 0, pkt, pkt_len);
+    uni_hid_device_t* d_sw2_jcr = uni_hid_device_get_instance_for_address(sw2_jcr_addr);
+    ASSERT_NE(NULL, d_sw2_jcr);
+    EXPECT_EQ(UNI_SW2_NINTENDO_VID, d_sw2_jcr->vendor_id);
+    EXPECT_EQ(UNI_SW2_JOYCON_R_PID, d_sw2_jcr->product_id);
+    EXPECT_EQ(CONTROLLER_TYPE_Switch2JoyConRight, d_sw2_jcr->controller_type);
+
+    // Case 1c: Truncated Switch 2 advertisement under ASan (packet[11] claims 20 bytes, but size is 16).
+    uint8_t* trunc_sw2 = (uint8_t*)malloc(16);
+    ASSERT_NE(NULL, trunc_sw2);
+    memcpy(trunc_sw2, pkt, 16);
+    trunc_sw2[11] = 20;
+    EXPECT_FALSE(uni_hid_parser_switch2_does_packet_match(trunc_sw2, 16));
+    EXPECT_FALSE(uni_bt_le_switch2_handle_advertisement(trunc_sw2, 16));
+    free(trunc_sw2);
+
+    uni_hid_device_delete(d_sw2_pro);
+    uni_hid_device_delete(d_sw2_jcl);
+    uni_hid_device_delete(d_sw2_jcr);
+
+    // Case 2: Steam Triton advertising via 0xFF Manufacturer Specific Data (0x28de, 0x1303),
+    // 0x16 Service Data (0x1812, 0x1303), and 0x09 Complete Local Name "Steam Controller" (exact 16 bytes).
+    uint8_t triton_ad_mfg[] = {
+        5, BLUETOOTH_DATA_TYPE_MANUFACTURER_SPECIFIC_DATA, 0xde, 0x28, 0x03, 0x13,
+    };
+    bd_addr_t triton_addr1 = {0xD4, 0x35, 0x1D, 0x13, 0x03, 0x01};
+    pkt_len = build_raw_le_adv_report_pkt(pkt, triton_addr1, 210, triton_ad_mfg, sizeof(triton_ad_mfg));
+    uni_bt_packet_handler(HCI_EVENT_PACKET, 0, pkt, pkt_len);
+    uni_hid_device_t* d_tri1 = uni_hid_device_get_instance_for_address(triton_addr1);
+    ASSERT_NE(NULL, d_tri1);
+    EXPECT_EQ(UNI_TRITON_VALVE_VID, d_tri1->vendor_id);
+    EXPECT_EQ(STEAM_TRITON_BLE_PID, d_tri1->product_id);
+    EXPECT_EQ(CONTROLLER_TYPE_SteamControllerTriton, d_tri1->controller_type);
+
+    uint8_t triton_ad_svc[] = {
+        5, BLUETOOTH_DATA_TYPE_SERVICE_DATA, 0x12, 0x18, 0x03, 0x13,
+    };
+    bd_addr_t triton_addr2 = {0xD4, 0x35, 0x1D, 0x13, 0x03, 0x02};
+    pkt_len = build_raw_le_adv_report_pkt(pkt, triton_addr2, 210, triton_ad_svc, sizeof(triton_ad_svc));
+    uni_bt_packet_handler(HCI_EVENT_PACKET, 0, pkt, pkt_len);
+    uni_hid_device_t* d_tri2 = uni_hid_device_get_instance_for_address(triton_addr2);
+    ASSERT_NE(NULL, d_tri2);
+    EXPECT_EQ(UNI_TRITON_VALVE_VID, d_tri2->vendor_id);
+    EXPECT_EQ(STEAM_TRITON_BLE_PID, d_tri2->product_id);
+    EXPECT_EQ(CONTROLLER_TYPE_SteamControllerTriton, d_tri2->controller_type);
+
+    uint8_t triton_ad_name[] = {
+        17,  // 1 type + 16 name bytes
+        BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME,
+        'S',
+        't',
+        'e',
+        'a',
+        'm',
+        ' ',
+        'C',
+        'o',
+        'n',
+        't',
+        'r',
+        'o',
+        'l',
+        'l',
+        'e',
+        'r',
+    };
+    bd_addr_t triton_addr3 = {0xD4, 0x35, 0x1D, 0x13, 0x03, 0x03};
+    pkt_len = build_raw_le_adv_report_pkt(pkt, triton_addr3, 210, triton_ad_name, sizeof(triton_ad_name));
+    uni_bt_packet_handler(HCI_EVENT_PACKET, 0, pkt, pkt_len);
+    uni_hid_device_t* d_tri3 = uni_hid_device_get_instance_for_address(triton_addr3);
+    ASSERT_NE(NULL, d_tri3);
+    EXPECT_EQ(0, strcmp("Steam Controller", d_tri3->name));
+    EXPECT_EQ(UNI_TRITON_VALVE_VID, d_tri3->vendor_id);
+    EXPECT_EQ(STEAM_TRITON_BLE_PID, d_tri3->product_id);
+
+    uni_hid_device_delete(d_tri1);
+    uni_hid_device_delete(d_tri2);
+    uni_hid_device_delete(d_tri3);
+
+    // Case 3: Advertising packet with Complete Local Name "Steam Controller Pro" (20 bytes) and no
+    // HID service UUID / appearance -> Rejected (verifies exact length guard size == 16).
+    uint8_t non_triton_ad_name[] = {
+        21,  // 1 type + 20 name bytes
+        BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME,
+        'S',
+        't',
+        'e',
+        'a',
+        'm',
+        ' ',
+        'C',
+        'o',
+        'n',
+        't',
+        'r',
+        'o',
+        'l',
+        'l',
+        'e',
+        'r',
+        ' ',
+        'P',
+        'r',
+        'o',
+    };
+    bd_addr_t non_triton_addr = {0xD4, 0x35, 0x1D, 0x13, 0x03, 0x99};
+    pkt_len = build_raw_le_adv_report_pkt(pkt, non_triton_addr, 210, non_triton_ad_name, sizeof(non_triton_ad_name));
+    uni_bt_packet_handler(HCI_EVENT_PACKET, 0, pkt, pkt_len);
+    EXPECT_EQ(NULL, uni_hid_device_get_instance_for_address(non_triton_addr));
+
+    // Case 4: Standard HOGP BLE gamepad advertising 0x03 Complete List of 16-bit Service Class UUIDs (0x1812)
+    // and 0x19 Appearance (0x03C4) -> Detected as standard HOGP device (no regression).
+    uint8_t hogp_ad[] = {
+        3,    BLUETOOTH_DATA_TYPE_COMPLETE_LIST_OF_16_BIT_SERVICE_CLASS_UUIDS,
+        0x12, 0x18,
+        3,    BLUETOOTH_DATA_TYPE_APPEARANCE,
+        0xc4, 0x03,
+        9,    BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME,
+        'H',  'O',
+        'G',  'P',
+        ' ',  'P',
+        'a',  'd',
+    };
+    bd_addr_t hogp_addr = {0xAA, 0xBB, 0xCC, 0x11, 0x22, 0x33};
+    pkt_len = build_raw_le_adv_report_pkt(pkt, hogp_addr, 210, hogp_ad, sizeof(hogp_ad));
+    uni_bt_packet_handler(HCI_EVENT_PACKET, 0, pkt, pkt_len);
+    uni_hid_device_t* d_hogp = uni_hid_device_get_instance_for_address(hogp_addr);
+    ASSERT_NE(NULL, d_hogp);
+    EXPECT_EQ(0, strcmp("HOGP Pad", d_hogp->name));
+    EXPECT_EQ(0, d_hogp->vendor_id);
+    EXPECT_EQ(0, d_hogp->product_id);
+    uni_hid_device_delete(d_hogp);
+}
+
+// ============================================================================
+// 18. TEST(bt_le_dis_done_custom_gatt_routing_bypasses_hogp)
+// ============================================================================
+
+TEST(bt_le_dis_done_custom_gatt_routing_bypasses_hogp) {
+    reset_test_fixture();
+    char extra[128];
+
+    // 1. Switch 2 Pro Controller (0x057e:0x2069) on con_handle = 0x0040:
+    //    GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_DONE with ERROR_CODE_SUCCESS bypasses hids_host_connect()
+    //    (hids_cid remains 0xffff) and transitions Switch 2 GATT FSM to discover_services.
+    bd_addr_t sw2_addr1 = {0x98, 0xB6, 0xE9, 0x30, 0x01, 0x01};
+    uni_hid_device_t* d_sw2_ok = uni_hid_device_create(sw2_addr1);
+    ASSERT_NE(NULL, d_sw2_ok);
+    uni_bt_conn_set_protocol(&d_sw2_ok->conn, UNI_BT_CONN_PROTOCOL_BLE);
+    uni_hid_device_set_connection_handle(d_sw2_ok, 0x0040);
+    uni_hid_device_set_vendor_id(d_sw2_ok, UNI_SW2_NINTENDO_VID);
+    uni_hid_device_set_product_id(d_sw2_ok, UNI_SW2_PRO_PID);
+
+    uint8_t dis_done_pkt[6] = {
+        HCI_EVENT_GATTSERVICE_META,
+        4,
+        GATTSERVICE_SUBEVENT_DEVICE_INFORMATION_DONE,
+        0x40,
+        0x00,                // con_handle = 0x0040 at [3..4]
+        ERROR_CODE_SUCCESS,  // att_status at [5]
+    };
+    uni_bt_le_on_hci_event_gattservice_meta(dis_done_pkt, sizeof(dis_done_pkt));
+    EXPECT_EQ(0xffff, d_sw2_ok->hids_cid);
+    EXPECT_TRUE(d_sw2_ok->conn.connected);
+    EXPECT_EQ(UNI_BT_CONN_STATE_DEVICE_PENDING_READY, uni_bt_conn_get_state(&d_sw2_ok->conn));
+    ASSERT_NE(NULL, d_sw2_ok->report_parser.device_extra_info);
+    EXPECT_GT(d_sw2_ok->report_parser.device_extra_info(d_sw2_ok, extra, sizeof(extra)), 0);
+    EXPECT_NE(NULL, strstr(extra, "state=discover_services"));
+
+    // 2. Switch 2 Joy-Con 2 Left (0x057e:0x2067) on con_handle = 0x0041 with non-zero ATT status
+    //    (ATT_ERROR_ATTRIBUTE_NOT_FOUND = 0x0a) under UNI_HID_DEVICE_ALLOW_NO_DIS.
+    bd_addr_t sw2_addr2 = {0x98, 0xB6, 0xE9, 0x30, 0x01, 0x02};
+    uni_hid_device_t* d_sw2_nodis = uni_hid_device_create(sw2_addr2);
+    ASSERT_NE(NULL, d_sw2_nodis);
+    uni_bt_conn_set_protocol(&d_sw2_nodis->conn, UNI_BT_CONN_PROTOCOL_BLE);
+    uni_hid_device_set_connection_handle(d_sw2_nodis, 0x0041);
+    uni_hid_device_set_vendor_id(d_sw2_nodis, UNI_SW2_NINTENDO_VID);
+    uni_hid_device_set_product_id(d_sw2_nodis, UNI_SW2_JOYCON_L_PID);
+
+    little_endian_store_16(dis_done_pkt, 3, 0x0041);
+    dis_done_pkt[5] = ATT_ERROR_ATTRIBUTE_NOT_FOUND;
+    uni_bt_le_on_hci_event_gattservice_meta(dis_done_pkt, sizeof(dis_done_pkt));
+    EXPECT_EQ(0xffff, d_sw2_nodis->hids_cid);
+    EXPECT_TRUE(d_sw2_nodis->conn.connected);
+    EXPECT_EQ(UNI_BT_CONN_STATE_DEVICE_PENDING_READY, uni_bt_conn_get_state(&d_sw2_nodis->conn));
+    EXPECT_GT(d_sw2_nodis->report_parser.device_extra_info(d_sw2_nodis, extra, sizeof(extra)), 0);
+    EXPECT_NE(NULL, strstr(extra, "state=discover_services"));
+
+    // 3. Steam Triton (0x28de:0x1303) on con_handle = 0x0042 with ERROR_CODE_SUCCESS and
+    //    on con_handle = 0x0043 with ATT_ERROR_ATTRIBUTE_NOT_FOUND under UNI_HID_DEVICE_ALLOW_NO_DIS.
+    bd_addr_t tri_addr1 = {0xD4, 0x35, 0x1D, 0x30, 0x01, 0x03};
+    uni_hid_device_t* d_tri_ok = uni_hid_device_create(tri_addr1);
+    ASSERT_NE(NULL, d_tri_ok);
+    uni_bt_conn_set_protocol(&d_tri_ok->conn, UNI_BT_CONN_PROTOCOL_BLE);
+    uni_hid_device_set_connection_handle(d_tri_ok, 0x0042);
+    uni_hid_device_set_vendor_id(d_tri_ok, UNI_TRITON_VALVE_VID);
+    uni_hid_device_set_product_id(d_tri_ok, STEAM_TRITON_BLE_PID);
+
+    little_endian_store_16(dis_done_pkt, 3, 0x0042);
+    dis_done_pkt[5] = ERROR_CODE_SUCCESS;
+    uni_bt_le_on_hci_event_gattservice_meta(dis_done_pkt, sizeof(dis_done_pkt));
+    EXPECT_EQ(0xffff, d_tri_ok->hids_cid);
+    EXPECT_TRUE(d_tri_ok->conn.connected);
+    EXPECT_EQ(UNI_BT_CONN_STATE_DEVICE_PENDING_READY, uni_bt_conn_get_state(&d_tri_ok->conn));
+    ASSERT_NE(NULL, d_tri_ok->report_parser.device_extra_info);
+    EXPECT_GT(d_tri_ok->report_parser.device_extra_info(d_tri_ok, extra, sizeof(extra)), 0);
+    EXPECT_NE(NULL, strstr(extra, "state=find_service"));
+
+    bd_addr_t tri_addr2 = {0xD4, 0x35, 0x1D, 0x30, 0x01, 0x04};
+    uni_hid_device_t* d_tri_nodis = uni_hid_device_create(tri_addr2);
+    ASSERT_NE(NULL, d_tri_nodis);
+    uni_bt_conn_set_protocol(&d_tri_nodis->conn, UNI_BT_CONN_PROTOCOL_BLE);
+    uni_hid_device_set_connection_handle(d_tri_nodis, 0x0043);
+    uni_hid_device_set_vendor_id(d_tri_nodis, UNI_TRITON_VALVE_VID);
+    uni_hid_device_set_product_id(d_tri_nodis, STEAM_TRITON_BLE_PID);
+
+    little_endian_store_16(dis_done_pkt, 3, 0x0043);
+    dis_done_pkt[5] = ATT_ERROR_ATTRIBUTE_NOT_FOUND;
+    uni_bt_le_on_hci_event_gattservice_meta(dis_done_pkt, sizeof(dis_done_pkt));
+    EXPECT_EQ(0xffff, d_tri_nodis->hids_cid);
+    EXPECT_TRUE(d_tri_nodis->conn.connected);
+    EXPECT_EQ(UNI_BT_CONN_STATE_DEVICE_PENDING_READY, uni_bt_conn_get_state(&d_tri_nodis->conn));
+    EXPECT_GT(d_tri_nodis->report_parser.device_extra_info(d_tri_nodis, extra, sizeof(extra)), 0);
+    EXPECT_NE(NULL, strstr(extra, "state=find_service"));
+
+    uni_hid_device_disconnect(d_sw2_ok);
+    uni_hid_device_delete(d_sw2_ok);
+    uni_hid_device_disconnect(d_sw2_nodis);
+    uni_hid_device_delete(d_sw2_nodis);
+    uni_hid_device_disconnect(d_tri_ok);
+    uni_hid_device_delete(d_tri_ok);
+    uni_hid_device_disconnect(d_tri_nodis);
+    uni_hid_device_delete(d_tri_nodis);
+}
+
+// ============================================================================
+// GATT Event Packet Builders for Custom GATT State Machine Tests
+// ============================================================================
+
+static void build_gatt_query_complete_pkt(uint8_t pkt[9], hci_con_handle_t con_handle, uint8_t att_status) {
+    memset(pkt, 0, 9);
+    pkt[0] = GATT_EVENT_QUERY_COMPLETE;
+    pkt[1] = 7;
+    little_endian_store_16(pkt, 2, con_handle);
+    pkt[8] = att_status;
+}
+
+static void build_gatt_service_query_result_pkt(uint8_t pkt[28],
+                                                hci_con_handle_t con_handle,
+                                                uint16_t start_handle,
+                                                uint16_t end_handle,
+                                                const uint8_t uuid128_be[16]) {
+    memset(pkt, 0, 28);
+    pkt[0] = GATT_EVENT_SERVICE_QUERY_RESULT;
+    pkt[1] = 26;
+    little_endian_store_16(pkt, 2, con_handle);
+    little_endian_store_16(pkt, 8, start_handle);
+    little_endian_store_16(pkt, 10, end_handle);
+    reverse_128(uuid128_be, &pkt[12]);
+}
+
+static void build_gatt_char_query_result_pkt(uint8_t pkt[32],
+                                             hci_con_handle_t con_handle,
+                                             uint16_t start_handle,
+                                             uint16_t value_handle,
+                                             uint16_t end_handle,
+                                             uint16_t properties,
+                                             const uint8_t uuid128_be[16]) {
+    memset(pkt, 0, 32);
+    pkt[0] = GATT_EVENT_CHARACTERISTIC_QUERY_RESULT;
+    pkt[1] = 30;
+    little_endian_store_16(pkt, 2, con_handle);
+    little_endian_store_16(pkt, 8, start_handle);
+    little_endian_store_16(pkt, 10, value_handle);
+    little_endian_store_16(pkt, 12, end_handle);
+    little_endian_store_16(pkt, 14, properties);
+    reverse_128(uuid128_be, &pkt[16]);
+}
+
+static void build_gatt_desc_query_result_uuid16_pkt(uint8_t pkt[26],
+                                                    hci_con_handle_t con_handle,
+                                                    uint16_t desc_handle,
+                                                    uint16_t uuid16) {
+    uint8_t uuid128_be[16];
+    uuid_add_bluetooth_prefix(uuid128_be, uuid16);
+    memset(pkt, 0, 26);
+    pkt[0] = GATT_EVENT_ALL_CHARACTERISTIC_DESCRIPTORS_QUERY_RESULT;
+    pkt[1] = 24;
+    little_endian_store_16(pkt, 2, con_handle);
+    little_endian_store_16(pkt, 8, desc_handle);
+    reverse_128(uuid128_be, &pkt[10]);
+}
+
+static uint16_t build_gatt_notification_pkt(uint8_t* pkt,
+                                            hci_con_handle_t con_handle,
+                                            uint16_t value_handle,
+                                            const uint8_t* value,
+                                            uint16_t value_len) {
+    memset(pkt, 0, 12);
+    pkt[0] = GATT_EVENT_NOTIFICATION;
+    pkt[1] = (uint8_t)(10 + value_len);
+    little_endian_store_16(pkt, 2, con_handle);
+    little_endian_store_16(pkt, 8, value_handle);
+    little_endian_store_16(pkt, 10, value_len);
+    if (value_len > 0 && value != NULL) {
+        memcpy(&pkt[12], value, value_len);
+    }
+    return (uint16_t)(12 + value_len);
+}
+
+// ============================================================================
+// 19. TEST(bt_le_switch2_gatt_state_machine_and_teardown)
+// ============================================================================
+
+TEST(bt_le_switch2_gatt_state_machine_and_teardown) {
+    reset_test_fixture();
+    char extra[160];
+
+    // ------------------------------------------------------------------------
+    // Sub-case A: Full unbonded SYNC pairing + bootstrap gate + 13-step init
+    // ------------------------------------------------------------------------
+    // Discover & create Switch 2 Pro Controller (0x057e:0x2069) via SYNC advertisement (needs_pair = true).
+    uint8_t sw2_ad[] = {
+        19,   BLUETOOTH_DATA_TYPE_MANUFACTURER_SPECIFIC_DATA,
+        0x53, 0x05,
+        0x01, 0x00,
+        0x00, 0x7e,
+        0x05, 0x69,
+        0x20, 0x00,
+        0x00, 0x00,
+        0x00, 0x00,
+        0x00, 0x00,
+        0x00, 0x00,
+    };
+    bd_addr_t sw2_addr = {0x98, 0xB6, 0xE9, 0x40, 0x50, 0x01};
+    uint8_t adv_pkt[64];
+    uint16_t adv_len = build_raw_le_adv_report_pkt(adv_pkt, sw2_addr, 215, sw2_ad, sizeof(sw2_ad));
+    uni_bt_packet_handler(HCI_EVENT_PACKET, 0, adv_pkt, adv_len);
+
+    uni_hid_device_t* d = uni_hid_device_get_instance_for_address(sw2_addr);
+    ASSERT_NE(NULL, d);
+    hci_con_handle_t con_handle = 0x0050;
+    uni_hid_device_set_connection_handle(d, con_handle);
+    uni_hid_parser_switch2_on_le_connected(d);
+    EXPECT_EQ(UNI_BT_CONN_STATE_DEVICE_PENDING_READY, uni_bt_conn_get_state(&d->conn));
+
+    // 1. SW2_STATE_DISCOVER_SERVICES -> SW2_STATE_DISCOVER_CHARS
+    uint8_t svc_pkt[28];
+    uint8_t qc_pkt[9];
+    static const uint8_t k_sw2_service_uuid[16] = {
+        0xab, 0x7d, 0xe9, 0xbe, 0x89, 0xfe, 0x49, 0xad, 0x82, 0x8f, 0x11, 0x8f, 0x09, 0xdf, 0x7f, 0xd0,
+    };
+    build_gatt_service_query_result_pkt(svc_pkt, con_handle, 0x0001, 0x002f, k_sw2_service_uuid);
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, svc_pkt, sizeof(svc_pkt));
+    build_gatt_query_complete_pkt(qc_pkt, con_handle, ATT_ERROR_SUCCESS);
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, qc_pkt, sizeof(qc_pkt));
+    d->report_parser.device_extra_info(d, extra, sizeof(extra));
+    EXPECT_NE(NULL, strstr(extra, "state=discover_chars"));
+
+    // 2. SW2_STATE_DISCOVER_CHARS -> SW2_STATE_DISCOVER_DESCS
+    //    Use the exact 128-bit UUIDs from uni_hid_parser_switch2.c at non-default ATT handles
+    //    (0x0020, 0x0024, 0x0026, 0x002a) plus the 16-bit 0x2b29 bootstrap gate (0x0004)
+    //    to verify UUID matching overrides the fallback handles.
+    static const uint8_t k_sw2_input_uuid[16] = {
+        0xd2, 0x7f, 0xdf, 0x09, 0x8f, 0x11, 0x8f, 0x82, 0xad, 0x49, 0xfe, 0x89, 0xbe, 0xe9, 0x7d, 0xab,
+    };
+    static const uint8_t k_sw2_cmd_write_uuid[16] = {
+        0x05, 0xf0, 0xe5, 0x4f, 0xa5, 0x1e, 0x44, 0xaf, 0x6c, 0x4e, 0xb7, 0x8e, 0x64, 0x9d, 0x4a, 0xc9,
+    };
+    static const uint8_t k_sw2_cmd_resp_uuid[16] = {
+        0x6a, 0x83, 0x11, 0xb1, 0x15, 0x53, 0x0a, 0xa2, 0x36, 0x4d, 0xd8, 0xd9, 0x61, 0xa9, 0x65, 0xc7,
+    };
+    static const uint8_t k_sw2_vib_pro_uuid[16] = {
+        0x05, 0x2b, 0xf7, 0x31, 0x0c, 0x63, 0x39, 0xa9, 0x7d, 0x42, 0x58, 0x92, 0x51, 0x3f, 0x48, 0xcc,
+    };
+    uint8_t k_sw2_gate_2b29_uuid[16];
+    uuid_add_bluetooth_prefix(k_sw2_gate_2b29_uuid, 0x2b29);
+
+    uint8_t chr_pkt[32];
+    build_gatt_char_query_result_pkt(chr_pkt, con_handle, 0x0003, 0x0004, 0x0005, 0x0a, k_sw2_gate_2b29_uuid);
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, chr_pkt, sizeof(chr_pkt));
+    build_gatt_char_query_result_pkt(chr_pkt, con_handle, 0x001f, 0x0020, 0x0021, 0x10, k_sw2_input_uuid);
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, chr_pkt, sizeof(chr_pkt));
+    build_gatt_char_query_result_pkt(chr_pkt, con_handle, 0x0023, 0x0024, 0x0025, 0x04, k_sw2_cmd_write_uuid);
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, chr_pkt, sizeof(chr_pkt));
+    build_gatt_char_query_result_pkt(chr_pkt, con_handle, 0x0025, 0x0026, 0x0027, 0x04, k_sw2_vib_pro_uuid);
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, chr_pkt, sizeof(chr_pkt));
+    build_gatt_char_query_result_pkt(chr_pkt, con_handle, 0x0029, 0x002a, 0x002b, 0x10, k_sw2_cmd_resp_uuid);
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, chr_pkt, sizeof(chr_pkt));
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, qc_pkt, sizeof(qc_pkt));
+    d->report_parser.device_extra_info(d, extra, sizeof(extra));
+    EXPECT_NE(NULL, strstr(extra, "state=discover_descs"));
+
+    // 3. SW2_STATE_DISCOVER_DESCS (target 0 = cmd_response CCCD 0x002b, target 1 = input_report CCCD 0x0021)
+    //    -> SW2_STATE_WRITE_BOOTSTRAP_GATE (since 0x2b29 was discovered at handle 0x0004)
+    uint8_t desc_pkt[26];
+    build_gatt_desc_query_result_uuid16_pkt(desc_pkt, con_handle, 0x002b,
+                                            ORG_BLUETOOTH_DESCRIPTOR_GATT_CLIENT_CHARACTERISTIC_CONFIGURATION);
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, desc_pkt, sizeof(desc_pkt));
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, qc_pkt, sizeof(qc_pkt));
+
+    build_gatt_desc_query_result_uuid16_pkt(desc_pkt, con_handle, 0x0021,
+                                            ORG_BLUETOOTH_DESCRIPTOR_GATT_CLIENT_CHARACTERISTIC_CONFIGURATION);
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, desc_pkt, sizeof(desc_pkt));
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, qc_pkt, sizeof(qc_pkt));
+    d->report_parser.device_extra_info(d, extra, sizeof(extra));
+    EXPECT_NE(NULL, strstr(extra, "state=bootstrap_gate"));
+    EXPECT_NE(NULL, strstr(extra, "in=0x0020/0x0021 cmd=0x0024/0x002a/0x002b vib=0x0026"));
+
+    // 4. SW2_STATE_WRITE_BOOTSTRAP_GATE -> SW2_STATE_ENABLE_CMD_NOTIFY -> SW2_STATE_READ_CALIBRATION
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, qc_pkt, sizeof(qc_pkt));
+    d->report_parser.device_extra_info(d, extra, sizeof(extra));
+    EXPECT_NE(NULL, strstr(extra, "state=enable_cmd_notify"));
+
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, qc_pkt, sizeof(qc_pkt));
+    d->report_parser.device_extra_info(d, extra, sizeof(extra));
+    EXPECT_NE(NULL, strstr(extra, "state=read_calibration"));
+
+    // 5. SW2_STATE_READ_CALIBRATION -> SW2_STATE_PAIRING (since needs_pair == true)
+    uint8_t notify_pkt[128];
+    uint8_t spi_cal_rsp[34];
+    memset(spi_cal_rsp, 0, sizeof(spi_cal_rsp));
+    spi_cal_rsp[0] = 0x02;  // SW2_CMD_SPI
+    spi_cal_rsp[3] = 0x04;  // SW2_SUBCMD_SPI_READ
+    little_endian_store_32(spi_cal_rsp, 12, 0x001fc042u);
+    uint16_t notify_len = build_gatt_notification_pkt(notify_pkt, con_handle, 0x002a, spi_cal_rsp, sizeof(spi_cal_rsp));
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, notify_pkt, notify_len);
+    d->report_parser.device_extra_info(d, extra, sizeof(extra));
+    EXPECT_NE(NULL, strstr(extra, "state=pairing"));
+
+    // 6. SW2_STATE_PAIRING (4 steps: subcmds 0x01, 0x04, 0x02, 0x03) -> SW2_STATE_INIT_SEQUENCE
+    const uint8_t pair_subcmds[4] = {0x01, 0x04, 0x02, 0x03};
+    for (int step = 0; step < 4; step++) {
+        uint8_t pair_rsp[8] = {0x15, 0x91, 0x01, pair_subcmds[step], 0x00, 0x00, 0x00, 0x00};
+        notify_len = build_gatt_notification_pkt(notify_pkt, con_handle, 0x002a, pair_rsp, sizeof(pair_rsp));
+        uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, notify_pkt, notify_len);
+    }
+    d->report_parser.device_extra_info(d, extra, sizeof(extra));
+    EXPECT_NE(NULL, strstr(extra, "state=init_sequence"));
+
+    // 7. SW2_STATE_INIT_SEQUENCE (all 13 steps matching sw2_init_sequence[]) -> SW2_STATE_ENABLE_INPUT_NOTIFY
+    const uint8_t init_cmds[13][2] = {
+        {0x03, 0x0d}, {0x07, 0x01}, {0x16, 0x01}, {0x15, 0x03}, {0x0c, 0x02}, {0x11, 0x03}, {0x0a, 0x08},
+        {0x0c, 0x04}, {0x03, 0x0a}, {0x10, 0x01}, {0x01, 0x0c}, {0x01, 0x01}, {0x09, 0x07},
+    };
+    for (int step = 0; step < 13; step++) {
+        uint8_t init_rsp[8] = {init_cmds[step][0], 0x91, 0x01, init_cmds[step][1], 0x00, 0x00, 0x00, 0x00};
+        notify_len = build_gatt_notification_pkt(notify_pkt, con_handle, 0x002a, init_rsp, sizeof(init_rsp));
+        uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, notify_pkt, notify_len);
+    }
+    d->report_parser.device_extra_info(d, extra, sizeof(extra));
+    EXPECT_NE(NULL, strstr(extra, "state=enable_input_notify"));
+
+    // 8. SW2_STATE_ENABLE_INPUT_NOTIFY -> SW2_STATE_READY & UNI_BT_CONN_STATE_DEVICE_READY
+    int prev_ready = g_ready_count;
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, qc_pkt, sizeof(qc_pkt));
+    EXPECT_EQ(prev_ready + 1, g_ready_count);
+    EXPECT_EQ(UNI_BT_CONN_STATE_DEVICE_READY, uni_bt_conn_get_state(&d->conn));
+    d->report_parser.device_extra_info(d, extra, sizeof(extra));
+    EXPECT_NE(NULL, strstr(extra, "state=ready"));
+
+    // 9. Inject a 63-byte Switch 2 input notification on handle 0x0020 -> routes to parser and updates gamepad.
+    uint8_t sw2_input[63];
+    memset(sw2_input, 0, sizeof(sw2_input));
+    sw2_input[3] = 80;                                  // 80% battery
+    little_endian_store_32(sw2_input, 4, 0x00000008u);  // East A -> BUTTON_B
+    sw2_input[10] = 0x00;
+    sw2_input[11] = 0x08;
+    sw2_input[12] = 0x80;  // left stick center (2048, 2048)
+    sw2_input[13] = 0x00;
+    sw2_input[14] = 0x08;
+    sw2_input[15] = 0x80;  // right stick center (2048, 2048)
+    int prev_data = g_controller_data_count;
+    notify_len = build_gatt_notification_pkt(notify_pkt, con_handle, 0x0020, sw2_input, sizeof(sw2_input));
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, notify_pkt, notify_len);
+    EXPECT_EQ(prev_data + 1, g_controller_data_count);
+    EXPECT_EQ(BUTTON_B, d->controller.gamepad.buttons);
+
+    // 10. Teardown via uni_hid_device_disconnect(d) + uni_hid_device_delete(d):
+    //     Verify timers are removed from BTstack's run loop and post-disconnect notifications are ignored.
+    uni_hid_device_disconnect(d);
+    d->report_parser.device_extra_info(d, extra, sizeof(extra));
+    EXPECT_NE(NULL, strstr(extra, "state=disconnected"));
+    EXPECT_EQ(NULL, btstack_run_loop_base_timers);
+
+    prev_data = g_controller_data_count;
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, notify_pkt, notify_len);
+    EXPECT_EQ(prev_data, g_controller_data_count);
+
+    uni_hid_device_delete(d);
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, notify_pkt, notify_len);
+    EXPECT_EQ(prev_data, g_controller_data_count);
+
+    // ------------------------------------------------------------------------
+    // Sub-case B: Bonded reconnect (paired_from_bond == true) + CCCD fallback
+    // ------------------------------------------------------------------------
+    // Joy-Con 2 Left (0x057e:0x2067) with non-zero reconnect MAC advertisement (needs_pair = false).
+    uint8_t sw2_reconnect_ad[] = {
+        19,   BLUETOOTH_DATA_TYPE_MANUFACTURER_SPECIFIC_DATA,
+        0x53, 0x05,
+        0x00, 0x00,
+        0x00, 0x7e,
+        0x05, 0x67,
+        0x20, 0x00,
+        0x00, 0x00,
+        0xAA, 0xBB,
+        0xCC, 0xDD,
+        0xEE, 0xFF,
+    };
+    bd_addr_t sw2_bond_addr = {0x98, 0xB6, 0xE9, 0x40, 0x50, 0x02};
+    adv_len = build_raw_le_adv_report_pkt(adv_pkt, sw2_bond_addr, 212, sw2_reconnect_ad, sizeof(sw2_reconnect_ad));
+    uni_bt_packet_handler(HCI_EVENT_PACKET, 0, adv_pkt, adv_len);
+
+    uni_hid_device_t* d2 = uni_hid_device_get_instance_for_address(sw2_bond_addr);
+    ASSERT_NE(NULL, d2);
+    hci_con_handle_t bond_handle = 0x0051;
+    uni_hid_device_set_connection_handle(d2, bond_handle);
+    uni_hid_parser_switch2_on_le_connected(d2);
+    uni_hid_parser_switch2_on_encrypted(d2);  // Marks paired_from_bond = true
+
+    build_gatt_service_query_result_pkt(svc_pkt, bond_handle, 0x0001, 0x003f, k_sw2_service_uuid);
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, svc_pkt, sizeof(svc_pkt));
+    build_gatt_query_complete_pkt(qc_pkt, bond_handle, ATT_ERROR_SUCCESS);
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, qc_pkt, sizeof(qc_pkt));
+
+    static const uint8_t k_sw2_vib_joycon_l_uuid[16] = {
+        0x41, 0x82, 0xf1, 0x14, 0x0c, 0x24, 0xf4, 0xa8, 0x5d, 0x48, 0x71, 0xa4, 0xcb, 0x26, 0x93, 0x28,
+    };
+    build_gatt_char_query_result_pkt(chr_pkt, bond_handle, 0x002f, 0x0030, 0x0031, 0x10, k_sw2_input_uuid);
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, chr_pkt, sizeof(chr_pkt));
+    build_gatt_char_query_result_pkt(chr_pkt, bond_handle, 0x0033, 0x0034, 0x0035, 0x04, k_sw2_cmd_write_uuid);
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, chr_pkt, sizeof(chr_pkt));
+    build_gatt_char_query_result_pkt(chr_pkt, bond_handle, 0x0035, 0x0036, 0x0037, 0x04, k_sw2_vib_joycon_l_uuid);
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, chr_pkt, sizeof(chr_pkt));
+    build_gatt_char_query_result_pkt(chr_pkt, bond_handle, 0x0039, 0x003a, 0x003b, 0x10, k_sw2_cmd_resp_uuid);
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, chr_pkt, sizeof(chr_pkt));
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, qc_pkt, sizeof(qc_pkt));
+
+    // Complete both descriptor queries WITHOUT injecting 0x2902 descriptor results:
+    // verifies CCCD fallback to value_handle + 1 (0x003b and 0x0031).
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, qc_pkt, sizeof(qc_pkt));
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, qc_pkt, sizeof(qc_pkt));
+    d2->report_parser.device_extra_info(d2, extra, sizeof(extra));
+    EXPECT_NE(NULL, strstr(extra, "state=enable_cmd_notify"));
+    EXPECT_NE(NULL, strstr(extra, "in=0x0030/0x0031 cmd=0x0034/0x003a/0x003b vib=0x0036"));
+
+    // Advance enable_cmd_notify -> read_calibration -> skips SW2_STATE_PAIRING and jumps to init_sequence step 4
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, qc_pkt, sizeof(qc_pkt));
+    notify_len = build_gatt_notification_pkt(notify_pkt, bond_handle, 0x003a, spi_cal_rsp, sizeof(spi_cal_rsp));
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, notify_pkt, notify_len);
+    d2->report_parser.device_extra_info(d2, extra, sizeof(extra));
+    EXPECT_NE(NULL, strstr(extra, "state=init_sequence"));
+
+    // Only 9 steps (steps 4..12) should be required for bonded reconnect
+    for (int step = 4; step < 13; step++) {
+        uint8_t init_rsp[8] = {init_cmds[step][0], 0x91, 0x01, init_cmds[step][1], 0x00, 0x00, 0x00, 0x00};
+        notify_len = build_gatt_notification_pkt(notify_pkt, bond_handle, 0x003a, init_rsp, sizeof(init_rsp));
+        uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, notify_pkt, notify_len);
+    }
+    d2->report_parser.device_extra_info(d2, extra, sizeof(extra));
+    EXPECT_NE(NULL, strstr(extra, "state=enable_input_notify"));
+
+    prev_ready = g_ready_count;
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, qc_pkt, sizeof(qc_pkt));
+    EXPECT_EQ(prev_ready + 1, g_ready_count);
+    uni_hid_device_disconnect(d2);
+    uni_hid_device_delete(d2);
+
+    // ------------------------------------------------------------------------
+    // Sub-case C: Setup timeout watchdog firing (sw2_setup_timeout_cb)
+    // ------------------------------------------------------------------------
+    bd_addr_t sw2_timeout_addr = {0x98, 0xB6, 0xE9, 0x40, 0x50, 0x03};
+    adv_len = build_raw_le_adv_report_pkt(adv_pkt, sw2_timeout_addr, 210, sw2_ad, sizeof(sw2_ad));
+    uni_bt_packet_handler(HCI_EVENT_PACKET, 0, adv_pkt, adv_len);
+    uni_hid_device_t* d3 = uni_hid_device_get_instance_for_address(sw2_timeout_addr);
+    ASSERT_NE(NULL, d3);
+    uni_hid_device_set_connection_handle(d3, 0x0052);
+    uni_hid_parser_switch2_on_le_connected(d3);
+    ASSERT_NE(NULL, btstack_run_loop_base_timers);
+    btstack_timer_source_t* sw2_ts = (btstack_timer_source_t*)btstack_run_loop_base_timers;
+    sw2_ts->process(sw2_ts);
+    d3->report_parser.device_extra_info(d3, extra, sizeof(extra));
+    EXPECT_NE(NULL, strstr(extra, "state=disconnected"));
+    EXPECT_EQ(NULL, btstack_run_loop_base_timers);
+    uni_hid_device_delete(d3);
+}
+
+// ============================================================================
+// 20. TEST(bt_le_steam_triton_gatt_state_machine_and_teardown)
+// ============================================================================
+
+TEST(bt_le_steam_triton_gatt_state_machine_and_teardown) {
+    reset_test_fixture();
+    char extra[160];
+
+    // Create & setup a Steam Triton BLE device (0x28de:0x1303) on con_handle = 0x0060.
+    bd_addr_t tri_addr = {0xD4, 0x35, 0x1D, 0x60, 0x01, 0x01};
+    uni_hid_device_t* d = uni_hid_device_create(tri_addr);
+    ASSERT_NE(NULL, d);
+    hci_con_handle_t con_handle = 0x0060;
+    uni_bt_conn_set_protocol(&d->conn, UNI_BT_CONN_PROTOCOL_BLE);
+    uni_hid_device_set_connection_handle(d, con_handle);
+    uni_hid_device_set_vendor_id(d, UNI_TRITON_VALVE_VID);
+    uni_hid_device_set_product_id(d, STEAM_TRITON_BLE_PID);
+    uni_hid_device_guess_controller_type_from_pid_vid(d);
+    uni_hid_device_connect(d);
+    uni_hid_device_set_ready(d);
+    EXPECT_EQ(UNI_BT_CONN_STATE_DEVICE_PENDING_READY, uni_bt_conn_get_state(&d->conn));
+
+    // 1. TRITON_GATT_FIND_SERVICE -> TRITON_GATT_FIND_CHARS
+    static const uint8_t k_triton_service_uuid[16] = {
+        0x10, 0x0f, 0x6c, 0x32, 0x17, 0x35, 0x43, 0x13, 0xb4, 0x02, 0x38, 0x56, 0x71, 0x31, 0xe5, 0xf3,
+    };
+    uint8_t svc_pkt[28];
+    uint8_t qc_pkt[9];
+    build_gatt_service_query_result_pkt(svc_pkt, con_handle, 0x0020, 0x004f, k_triton_service_uuid);
+    uni_hid_parser_steam_triton_handle_gatt_event(HCI_EVENT_PACKET, 0, svc_pkt, sizeof(svc_pkt));
+    build_gatt_query_complete_pkt(qc_pkt, con_handle, ATT_ERROR_SUCCESS);
+    uni_hid_parser_steam_triton_handle_gatt_event(HCI_EVENT_PACKET, 0, qc_pkt, sizeof(qc_pkt));
+    d->report_parser.device_extra_info(d, extra, sizeof(extra));
+    EXPECT_NE(NULL, strstr(extra, "state=find_chars"));
+
+    // 2. TRITON_GATT_FIND_CHARS -> TRITON_GATT_ENABLE_NOTIFY
+    //    Inject BOTH 0x7a (report 0x46, handle 0x0021) and 0x7c (report 0x47, handle 0x0022)
+    //    to verify 0x7c is preferred over 0x7a, plus 0x34 (report control) and 0xb5 (rumble).
+    static const uint8_t k_triton_input_7a_uuid[16] = {
+        0x10, 0x0f, 0x6c, 0x7a, 0x17, 0x35, 0x43, 0x13, 0xb4, 0x02, 0x38, 0x56, 0x71, 0x31, 0xe5, 0xf3,
+    };
+    static const uint8_t k_triton_input_7c_uuid[16] = {
+        0x10, 0x0f, 0x6c, 0x7c, 0x17, 0x35, 0x43, 0x13, 0xb4, 0x02, 0x38, 0x56, 0x71, 0x31, 0xe5, 0xf3,
+    };
+    static const uint8_t k_triton_report_34_uuid[16] = {
+        0x10, 0x0f, 0x6c, 0x34, 0x17, 0x35, 0x43, 0x13, 0xb4, 0x02, 0x38, 0x56, 0x71, 0x31, 0xe5, 0xf3,
+    };
+    static const uint8_t k_triton_rumble_b5_uuid[16] = {
+        0x10, 0x0f, 0x6c, 0xb5, 0x17, 0x35, 0x43, 0x13, 0xb4, 0x02, 0x38, 0x56, 0x71, 0x31, 0xe5, 0xf3,
+    };
+    uint8_t chr_pkt[32];
+    build_gatt_char_query_result_pkt(chr_pkt, con_handle, 0x0020, 0x0021, 0x0021, 0x10, k_triton_input_7a_uuid);
+    uni_hid_parser_steam_triton_handle_gatt_event(HCI_EVENT_PACKET, 0, chr_pkt, sizeof(chr_pkt));
+    build_gatt_char_query_result_pkt(chr_pkt, con_handle, 0x0021, 0x0022, 0x0023, 0x10, k_triton_input_7c_uuid);
+    uni_hid_parser_steam_triton_handle_gatt_event(HCI_EVENT_PACKET, 0, chr_pkt, sizeof(chr_pkt));
+    build_gatt_char_query_result_pkt(chr_pkt, con_handle, 0x0024, 0x0025, 0x0026, 0x0a, k_triton_report_34_uuid);
+    uni_hid_parser_steam_triton_handle_gatt_event(HCI_EVENT_PACKET, 0, chr_pkt, sizeof(chr_pkt));
+    build_gatt_char_query_result_pkt(chr_pkt, con_handle, 0x0027, 0x0028, 0x0029, 0x04, k_triton_rumble_b5_uuid);
+    uni_hid_parser_steam_triton_handle_gatt_event(HCI_EVENT_PACKET, 0, chr_pkt, sizeof(chr_pkt));
+    uni_hid_parser_steam_triton_handle_gatt_event(HCI_EVENT_PACKET, 0, qc_pkt, sizeof(qc_pkt));
+    d->report_parser.device_extra_info(d, extra, sizeof(extra));
+    EXPECT_NE(NULL, strstr(extra, "state=enable_notify"));
+
+    // 3. TRITON_GATT_ENABLE_NOTIFY -> sends Enter Valve Mode on report handle 0x0025,
+    //    transitions to TRITON_GATT_READY & UNI_BT_CONN_STATE_DEVICE_READY.
+    int prev_ready = g_ready_count;
+    uni_hid_parser_steam_triton_handle_gatt_event(HCI_EVENT_PACKET, 0, qc_pkt, sizeof(qc_pkt));
+    EXPECT_EQ(prev_ready + 1, g_ready_count);
+    EXPECT_EQ(UNI_BT_CONN_STATE_DEVICE_READY, uni_bt_conn_get_state(&d->conn));
+    d->report_parser.device_extra_info(d, extra, sizeof(extra));
+    EXPECT_NE(NULL, strstr(extra, "state=ready"));
+    EXPECT_NE(NULL, strstr(extra, "stream=0x47"));
+    EXPECT_NE(NULL, strstr(extra, "notify=0x0022"));
+    EXPECT_NE(NULL, strstr(extra, "report=0x0025"));
+    EXPECT_NE(NULL, strstr(extra, "rumble=0x0028"));
+
+    // 4a. Inject a 46-byte report 0x47 GATT notification (prefixed with 0x47) on input handle 0x0022 -> routes to
+    // parser.
+    uint8_t triton_report[46];
+    memset(triton_report, 0, sizeof(triton_report));
+    triton_report[0] = 0x47;
+    triton_report[1] = 1;                                    // sequence number
+    little_endian_store_32(triton_report, 2, TRITON_BTN_A);  // TRITON_BTN_A -> BUTTON_A
+    uint8_t notify_pkt[128];
+    uint16_t notify_len =
+        build_gatt_notification_pkt(notify_pkt, con_handle, 0x0022, triton_report, sizeof(triton_report));
+    int prev_data = g_controller_data_count;
+    uni_hid_parser_steam_triton_handle_gatt_event(HCI_EVENT_PACKET, 0, notify_pkt, notify_len);
+    EXPECT_EQ(prev_data + 1, g_controller_data_count);
+    EXPECT_EQ(BUTTON_A, d->controller.gamepad.buttons);
+
+    // 4b. Inject a 45-byte RAW notification (without leading report ID) on input handle 0x0022 ->
+    //     verifies stream_report_id (0x47) is automatically prepended before parsing.
+    uint8_t triton_raw_body[45];
+    memset(triton_raw_body, 0, sizeof(triton_raw_body));
+    triton_raw_body[0] = 2;                                    // sequence number
+    little_endian_store_32(triton_raw_body, 1, TRITON_BTN_B);  // TRITON_BTN_B -> BUTTON_B
+    notify_len = build_gatt_notification_pkt(notify_pkt, con_handle, 0x0022, triton_raw_body, sizeof(triton_raw_body));
+    prev_data = g_controller_data_count;
+    uni_hid_parser_steam_triton_handle_gatt_event(HCI_EVENT_PACKET, 0, notify_pkt, notify_len);
+    EXPECT_EQ(prev_data + 1, g_controller_data_count);
+    EXPECT_EQ(BUTTON_B, d->controller.gamepad.buttons);
+
+    // 5. Exercise rumble timer firing, immediate zero-magnitude stop, and disconnect cleanup.
+    d->report_parser.play_dual_rumble(d, 0, 200, 128, 255);
+    ASSERT_NE(NULL, btstack_run_loop_base_timers);
+    btstack_timer_source_t* tri_rumble_ts = (btstack_timer_source_t*)btstack_run_loop_base_timers;
+    tri_rumble_ts->process(tri_rumble_ts);  // Fires rumble_timer_cb
+    EXPECT_EQ(NULL, btstack_run_loop_base_timers);
+
+    d->report_parser.play_dual_rumble(d, 0, 200, 128, 255);
+    ASSERT_NE(NULL, btstack_run_loop_base_timers);
+    d->report_parser.play_dual_rumble(d, 0, 0, 0, 0);  // Immediate stop removes timer
+    EXPECT_EQ(NULL, btstack_run_loop_base_timers);
+
+    d->report_parser.play_dual_rumble(d, 0, 200, 128, 255);
+    ASSERT_NE(NULL, btstack_run_loop_base_timers);
+    uni_hid_device_disconnect(d);
+    d->report_parser.device_extra_info(d, extra, sizeof(extra));
+    EXPECT_NE(NULL, strstr(extra, "state=disconnected"));
+    EXPECT_EQ(NULL, btstack_run_loop_base_timers);
+
+    prev_data = g_controller_data_count;
+    uni_hid_parser_steam_triton_handle_gatt_event(HCI_EVENT_PACKET, 0, notify_pkt, notify_len);
+    EXPECT_EQ(prev_data, g_controller_data_count);
+
+    uni_hid_device_delete(d);
+    uni_hid_parser_steam_triton_handle_gatt_event(HCI_EVENT_PACKET, 0, notify_pkt, notify_len);
+    EXPECT_EQ(prev_data, g_controller_data_count);
+
+    // 6. Connection timeout watchdog firing (conn_timeout_cb) when stalled in TRITON_GATT_FIND_SERVICE.
+    bd_addr_t tri_timeout_addr = {0xD4, 0x35, 0x1D, 0x60, 0x01, 0x02};
+    uni_hid_device_t* d2 = uni_hid_device_create(tri_timeout_addr);
+    ASSERT_NE(NULL, d2);
+    uni_bt_conn_set_protocol(&d2->conn, UNI_BT_CONN_PROTOCOL_BLE);
+    uni_hid_device_set_connection_handle(d2, 0x0061);
+    uni_hid_device_set_vendor_id(d2, UNI_TRITON_VALVE_VID);
+    uni_hid_device_set_product_id(d2, STEAM_TRITON_BLE_PID);
+    uni_hid_device_guess_controller_type_from_pid_vid(d2);
+    uni_hid_device_connect(d2);
+    uni_hid_device_set_ready(d2);
+    ASSERT_NE(NULL, btstack_run_loop_base_timers);
+    btstack_timer_source_t* tri_conn_ts = (btstack_timer_source_t*)btstack_run_loop_base_timers;
+    tri_conn_ts->process(tri_conn_ts);
+    d2->report_parser.device_extra_info(d2, extra, sizeof(extra));
+    EXPECT_NE(NULL, strstr(extra, "state=disconnected"));
+    EXPECT_EQ(NULL, btstack_run_loop_base_timers);
+    uni_hid_device_delete(d2);
+}
+
+// ============================================================================
 // Main Test Runner
 // ============================================================================
 
@@ -1969,6 +2797,10 @@ int main(void) {
     RUN_TEST(bt_service_device_lifecycle_and_att_write_validation);
     RUN_TEST(bt_le_connection_and_hids_failure_resumes_scanning);
     RUN_TEST(bt_sdp_query_attribute_value_oob_data_offset_guard);
+    RUN_TEST(bt_le_adv_detection_switch2_and_steam_triton);
+    RUN_TEST(bt_le_dis_done_custom_gatt_routing_bypasses_hogp);
+    RUN_TEST(bt_le_switch2_gatt_state_machine_and_teardown);
+    RUN_TEST(bt_le_steam_triton_gatt_state_machine_and_teardown);
 
     return test_summary();
 }

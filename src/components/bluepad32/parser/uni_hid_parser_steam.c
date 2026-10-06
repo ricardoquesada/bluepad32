@@ -2,11 +2,51 @@
 // Copyright 2023 Ricardo Quesada
 // http://retro.moe/unijoysticle2
 
-// Info from:
-// https://github.com/rodrigorc/steamctrl/blob/master/src/steamctrl.c
-// https://elixir.bootlin.com/linux/latest/source/drivers/hid/hid-steam.c
-// https://github.com/haxpor/sdl2-samples/blob/master/android-project/app/src/main/java/org/libsdl/app/HIDDeviceBLESteamController.java
-// https://github.com/g3gg0/LegoRemote
+/**
+ * @file uni_hid_parser_steam.c
+ * @brief BLE HID parser and GATT setup state machine for the Valve Steam
+ * Controller (1st Gen / "Chell", 2015, VID `0x28de`, PID `0x1106`).
+ *
+ * Architectural Overview:
+ * Unlike the 2nd-generation Steam Controller 2026 ("Triton"), the original 2015
+ * Steam Controller flashed with BLE firmware exposes a standard BLE HOGP (HID
+ * over GATT Profile, `0x1812`) service that streams input reports (`0x03`),
+ * paired alongside Valve's custom GATT configuration service
+ * (`100F6C32-1735-4313-B402-38567131E5F3`).
+ *
+ * When `uni_hid_parser_steam_setup()` runs, it discovers the custom report
+ * characteristic (`100F6C34-1735-4313-B402-38567131E5F3`) and writes two
+ * configuration commands:
+ * 1. `cmd_clear_mappings` (`0x81`): Clears onboard button-to-keyboard/mouse
+ *    bindings.
+ * 2. `cmd_disable_lizard` (`0x87` write register): Disables "lizard mode"
+ *    (cursor/mouse emulation on the trackpads), sets LED brightness, and
+ *    writes `STEAM_GYRO_MODE_RAW_IMU` (`0x0018` = `SEND_RAW_ACCEL |
+ *    SEND_RAW_GYRO`) to `STEAM_REG_GYRO_MODE` (`0x30`) so BLE input reports
+ *    append raw 6-axis IMU sections.
+ *
+ * BLE Input Report Framing (Report ID `0x03`):
+ * Bytes 0..3 form a 4-byte header (`[0]=0x03`, `[1]=0xc0`, `[2..3]` = 4-bit
+ * report type `0x04` + 12-bit section presence bitmask `report_flags`).
+ * Optional payload sections are packed sequentially in ascending bitmask order
+ * starting at byte offset 4:
+ *   - `0x0010` (`FLAG_BUTTONS`):     3 bytes (24-bit button/D-pad bitmask)
+ *   - `0x0020` (`FLAG_TRIGGERS`):    2 bytes (uint8 L/R triggers)
+ *   - `0x0040` (`FLAG_BUTTONS_EXT`): 3 bytes (extended buttons, skipped)
+ *   - `0x0080` (`FLAG_THUMBSTICK`):  4 bytes (int16 LE X, Y)
+ *   - `0x0100` (`FLAG_LEFT_PAD`):    4 bytes (int16 LE X, Y, skipped)
+ *   - `0x0200` (`FLAG_RIGHT_PAD`):   4 bytes (int16 LE X, Y)
+ *   - `0x0400` (`FLAG_IMU_ACCEL`):   6 bytes (int16 LE ax, ay, az; +/-2g)
+ *   - `0x0800` (`FLAG_IMU_GYRO`):    6 bytes (int16 LE gx, gy, gz; +/-2000 dps)
+ *   - `0x1000` (`FLAG_IMU_QUAT`):    8 bytes (orientation quaternion, skipped)
+ *
+ * References:
+ * - https://github.com/rodrigorc/steamctrl/blob/master/src/steamctrl.c
+ * - https://elixir.bootlin.com/linux/latest/source/drivers/hid/hid-steam.c
+ * -
+ * https://github.com/haxpor/sdl2-samples/blob/master/android-project/app/src/main/java/org/libsdl/app/HIDDeviceBLESteamController.java
+ * - https://github.com/g3gg0/LegoRemote
+ */
 
 #include "parser/uni_hid_parser_steam.h"
 
@@ -20,12 +60,29 @@
 
 // clang-format off
 #define STEAM_CONTROLLER_FLAG_BUTTONS       0x0010
-#define STEAM_CONTROLLER_FLAG_TRIGGERS 		0x0020
-#define STEAM_CONTROLLER_FLAG_THUMBSTICK  	0x0080
+#define STEAM_CONTROLLER_FLAG_TRIGGERS      0x0020
+#define STEAM_CONTROLLER_FLAG_BUTTONS_EXT   0x0040
+#define STEAM_CONTROLLER_FLAG_THUMBSTICK    0x0080
 #define STEAM_CONTROLLER_FLAG_LEFT_PAD      0x0100
 #define STEAM_CONTROLLER_FLAG_RIGHT_PAD     0x0200
+#define STEAM_CONTROLLER_FLAG_IMU_ACCEL     0x0400
+#define STEAM_CONTROLLER_FLAG_IMU_GYRO      0x0800
+#define STEAM_CONTROLLER_FLAG_IMU_QUAT      0x1000
 // clang-format on
 
+// Gyro mode bitmask for STEAM_REG_GYRO_MODE (0x30):
+// 0x0008 = SEND_RAW_ACCEL, 0x0010 = SEND_RAW_GYRO
+#define STEAM_GYRO_MODE_RAW_IMU 0x0018
+
+// Steam Controller 2015 IMU scales:
+// Accelerometer full-scale is +/-2g over int16_t (+/-32768 LSB -> 16384 LSB/g).
+// Gyroscope full-scale is +/-2000 deg/s over int16_t (+/-32768 LSB -> 16.384 LSB/(deg/s)).
+#define STEAM_ACCEL_SCALE ((2.0f * UNI_STANDARD_GRAVITY) / 32768.0f)
+#define STEAM_GYRO_SCALE ((2000.0f * UNI_DEG_TO_RAD) / 32768.0f)
+
+/**
+ * @brief GATT configuration state machine for Steam Controller (2015) setup.
+ */
 typedef enum {
     STATE_QUERY_SERVICE,
     STATE_QUERY_CHARACTERISTIC_REPORT,
@@ -84,7 +141,7 @@ static uint8_t cmd_clear_mappings[] = {
 static uint8_t cmd_disable_lizard[] = {
 	0xc0, STEAM_CMD_WRITE_REGISTER,    // Command
 	0x0f,                              // Command Len
-	STEAM_REG_GYRO_MODE,   0x00, 0x00, // Disable gyro/accel
+	STEAM_REG_GYRO_MODE,   (uint8_t)(STEAM_GYRO_MODE_RAW_IMU & 0xff), (uint8_t)(STEAM_GYRO_MODE_RAW_IMU >> 8), // Enable raw accel + gyro
 	STEAM_REG_LPAD_MODE,   0x07, 0x00, // Disable cursor
 	STEAM_REG_RPAD_MODE,   0x07, 0x00, // Disable mouse
 	STEAM_REG_RPAD_MARGIN, 0x00, 0x00, // No margin
@@ -103,6 +160,8 @@ static void parse_buttons(struct uni_hid_device_s* d, const uint8_t* data);
 static void parse_triggers(struct uni_hid_device_s* d, const uint8_t* data);
 static void parse_thumbstick(struct uni_hid_device_s* d, const uint8_t* data);
 static void parse_right_pad(struct uni_hid_device_s* d, const uint8_t* data);
+static void parse_imu_accel(struct uni_hid_device_s* d, const uint8_t* data);
+static void parse_imu_gyro(struct uni_hid_device_s* d, const uint8_t* data);
 
 static steam_instance_t* get_steam_instance(uni_hid_device_t* d) {
     return (steam_instance_t*)&d->parser_data[0];
@@ -257,9 +316,10 @@ void uni_hid_parser_steam_init_report(uni_hid_device_t* d) {
 void uni_hid_parser_steam_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len) {
     int idx;
 
-    // Sanity checks
-    if (len != 20) {
-        logi("Steam: Inport report with unsupported length: %d\n", len);
+    // Sanity checks: require at least the 4-byte BLE report header.
+    // Reports with IMU sections enabled grow beyond 20 bytes.
+    if (len < 4) {
+        logi("Steam: Input report with unsupported length: %d\n", len);
         return;
     }
 
@@ -281,14 +341,12 @@ void uni_hid_parser_steam_parse_input_report(struct uni_hid_device_s* d, const u
 
     // printf_hexdump(report, len);
 
-    uint16_t report_flags = (report[2] & 0xf0) + (report[3] << 8);
+    uint16_t report_flags = (uint16_t)((report[2] & 0xf0) | (report[3] << 8));
 
     // Each flagged section is packed sequentially starting at byte offset 4.
-    // A 20-byte BLE report has 16 payload bytes after the 4-byte header, whereas enabling
-    // all 5 flags simultaneously requests 3 + 2 + 4 + 4 + 4 = 17 bytes (21 > 20).
     // Guard every section read with `idx + N <= len` and always advance `idx` by the
-    // section's wire size (including the unmapped 4-byte LEFT_PAD section) so subsequent
-    // sections read from the correct offset without reading past `report + len`.
+    // section's wire size so subsequent sections read from the correct offset without
+    // reading past `report + len`.
     idx = 4;
     if (report_flags & STEAM_CONTROLLER_FLAG_BUTTONS) {
         if (idx + 3 <= len) {
@@ -302,6 +360,11 @@ void uni_hid_parser_steam_parse_input_report(struct uni_hid_device_s* d, const u
             parse_triggers(d, &report[idx]);
         }
         idx += 2;
+    }
+
+    if (report_flags & STEAM_CONTROLLER_FLAG_BUTTONS_EXT) {
+        // Extra 3-byte buttons chunk (unmapped, but advances stream offset).
+        idx += 3;
     }
 
     if (report_flags & STEAM_CONTROLLER_FLAG_THUMBSTICK) {
@@ -321,6 +384,25 @@ void uni_hid_parser_steam_parse_input_report(struct uni_hid_device_s* d, const u
             parse_right_pad(d, &report[idx]);
         }
         idx += 4;
+    }
+
+    if (report_flags & STEAM_CONTROLLER_FLAG_IMU_ACCEL) {
+        if (idx + 6 <= len) {
+            parse_imu_accel(d, &report[idx]);
+        }
+        idx += 6;
+    }
+
+    if (report_flags & STEAM_CONTROLLER_FLAG_IMU_GYRO) {
+        if (idx + 6 <= len) {
+            parse_imu_gyro(d, &report[idx]);
+        }
+        idx += 6;
+    }
+
+    if (report_flags & STEAM_CONTROLLER_FLAG_IMU_QUAT) {
+        // Quaternion occupies 8 bytes in the report stream.
+        idx += 8;
     }
 }
 
@@ -398,4 +480,30 @@ static void parse_right_pad(struct uni_hid_device_s* d, const uint8_t* data) {
 
     ctl->gamepad.axis_rx = (x >> 6);
     ctl->gamepad.axis_ry = (y >> 6);
+}
+
+static void parse_imu_accel(struct uni_hid_device_s* d, const uint8_t* data) {
+    uni_controller_t* ctl = &d->controller;
+    int16_t ax = (int16_t)(data[0] | (data[1] << 8));
+    int16_t ay = (int16_t)(data[2] | (data[3] << 8));
+    int16_t az = (int16_t)(data[4] | (data[5] << 8));
+
+    // Native sensor frame (+X right, +Y forward, +Z up) -> canonical Bluepad32 right-handed Y-up:
+    // [0] = +X (right), [1] = +Y (up = +az), [2] = +Z (toward player = -ay).
+    ctl->gamepad.accel[0] = (float)ax * STEAM_ACCEL_SCALE;
+    ctl->gamepad.accel[1] = (float)az * STEAM_ACCEL_SCALE;
+    ctl->gamepad.accel[2] = -(float)ay * STEAM_ACCEL_SCALE;
+}
+
+static void parse_imu_gyro(struct uni_hid_device_s* d, const uint8_t* data) {
+    uni_controller_t* ctl = &d->controller;
+    int16_t gx = (int16_t)(data[0] | (data[1] << 8));
+    int16_t gy = (int16_t)(data[2] | (data[3] << 8));
+    int16_t gz = (int16_t)(data[4] | (data[5] << 8));
+
+    // Native sensor frame (+X pitch, +Y roll, +Z yaw) -> canonical Bluepad32 right-handed Y-up:
+    // [0] = +X (pitch = +gx), [1] = +Y (yaw = +gz), [2] = +Z (roll = -gy).
+    ctl->gamepad.gyro[0] = (float)gx * STEAM_GYRO_SCALE;
+    ctl->gamepad.gyro[1] = (float)gz * STEAM_GYRO_SCALE;
+    ctl->gamepad.gyro[2] = -(float)gy * STEAM_GYRO_SCALE;
 }

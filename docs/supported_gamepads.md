@@ -123,6 +123,38 @@ Supported "extra features":
 
 [switch_joycon_img]: https://lh3.googleusercontent.com/pw/ACtC-3cN7JVNm3SvOM3IeKiAg4Ex03Dg7yxozBRNNV95Ycr_0J1eHF03_oDz8ydwpTZCFcPPfFuSzroK4UQ-3KcM0Y2XKew8deuYTqu_q5Q0nEEjA_KTQJCioVRU0IEbBGXHqy2ybtTP7EXp3p-7_RfjYK7Wjg=w360-no
 
+## Nintendo Switch 2 Pro
+
+Supported "extra features":
+
+| Rumble           | Player LEDs      | Gyro / Accelerometer |
+|------------------|------------------|----------------------|
+| :material-check: | :material-check: | :material-check:     |
+
+- Supported models: Nintendo Switch 2 Pro Controller (`057e:2069`)
+- Supported features:
+    - Connects over Nintendo's custom BLE GATT service (`ab7de9be-89fe-49ad-828f-118f09df7fd0`)
+    - Supports D-pad, face buttons, dual calibrated thumbsticks, digital & synthesized analog triggers (`ZL`/`ZR`), `C` and back grip (`GL`/`GR`) buttons, 6-axis IMU (gyro / accelerometer), HD rumble, player LEDs, and battery reporting
+- Pair instructions: Press and hold the Sync button on the top of the controller
+  until the player LEDs start flashing.
+- Protocol: BLE
+
+## Nintendo Switch 2 JoyCon
+
+- Supported models: Nintendo Switch 2 Joy-Con Left (`057e:2067`),
+  Nintendo Switch 2 Joy-Con Right (`057e:2066`)
+
+Supported "extra features":
+
+| Rumble           | Player LEDs      | Gyro / Accelerometer | Orientation mode      |
+|------------------|------------------|----------------------|-----------------------|
+| :material-check: | :material-check: | :material-check:     | Sideways (horizontal) |
+
+- Each Joy-Con 2 represents one standalone horizontal gamepad (`SL` -> Left Shoulder, `SR` -> Right Shoulder, outer rail buttons `L`/`ZL` or `R`/`ZR` -> triggers, with stick, D-pad/face buttons, and 6-axis IMU rotated into horizontal orientation). Cannot be used as a combined dual-controller pair.
+- Pair instructions: Press and hold the Sync button on the inner rail until the
+  LEDs start flashing.
+- Protocol: BLE
+
 ## Nintendo Wii U Pro controller
 
 [![Wii U Pro][wii_u_pro]][27]
@@ -342,10 +374,17 @@ Supported "extra features":
 
 [![Steam Controller][steam_controller_img]][steam_ebay]
 
+Supported "extra features":
+
+| Gyro / Accelerometer |
+|----------------------|
+| :material-check:     |
+
 - Controller must be [flashed with Bluetooth firmware][steam_instructions]
+- Supported models: Steam Controller (`28de:1106`)
 - Supported features:
-    - Disables "lizard mode" (keyboard / mouse mouse)
-    - Supports D-pad, triggers, buttons, thumbstick, right pad
+    - Disables "lizard mode" (keyboard / mouse mode)
+    - Supports D-pad, triggers, buttons, thumbstick, right pad, and 6-axis BLE IMU (gyro / accelerometer)
 - Pair instructions:
     - Press "Y" + "Steam" button
 - Protocol: BLE
@@ -355,6 +394,21 @@ Supported "extra features":
 [steam_instructions]: https://help.steampowered.com/en/faqs/view/1796-5FC3-88B3-C85F
 
 [steam_controller_img]:  https://lh3.googleusercontent.com/pw/AJFCJaX2KZ4NOFbcc0QuI-qgHReYsfsogpRIL1--86cZsMzrVmpDKuFPNHyGKeFXaCiQLtdCSey0SaH9fcj-OG7zDLUGZuZQ1B6wbLQ-pQrD883iMdH6g7fT7oQ-HfVkQXQGH-ZQRTD-LGITxIdI3Gx6VvdD-A=-no
+
+## Steam Controller (2nd Gen / "Triton", 2026)
+
+Supported "extra features":
+
+| Rumble           | Gyro / Accelerometer |
+|------------------|----------------------|
+| :material-check: | :material-check:     |
+
+- Supported models: Steam Controller 2nd Gen ("Triton") (`28de:1303` BLE,
+  `28de:1302` USB, `28de:1304` Wireless Puck, `28de:1305` Nereid)
+- Supported features:
+    - Connects over Valve's custom BLE GATT service (`100F6C32-1735-4313-B402-38567131E5F3`) and disables "lizard mode"
+    - Supports D-pad, analog triggers, face buttons, dual thumbsticks, trackpad clicks, 6-axis IMU (gyro / accelerometer), rumble, and battery reporting
+- Protocol: BLE
 
 ## Stadia Controller
 
@@ -538,26 +592,29 @@ Pico 2 W, but **NOT** in ESP32-S3 / ESP32-C3 / ESP32-C5 / ESP32-C6 / ESP32-H2.
 
 Non-comprehensive list of supported Bluetooth gamepads their protocols:
 
-| Gamepad                 | BR/EDR               | BLE                  |
-|-------------------------|----------------------|----------------------|
-| DualSense (PS5)         | :material-check:     |                      |
-| DualShock 4 (PS4)       | :material-check:     |                      |
-| DualShock 3 (PS3)       | :material-check:     |                      |
-| Nintendo Switch Pro     | :material-check:     |                      |
-| Nintendo Switch JoyCons | :material-check:     |                      |
-| Nintendo Wii U Pro      | :material-check:     |                      |
-| Nintendo Wii Remote     | :material-check:     |                      |
-| Nintendo Balance Board  | :material-check:     |                      |
-| Xbox Wireless           | :material-check:*    | :material-check:*    |
-| Xbox Adaptive           |                      | :material-check:*    |
-| Steam                   |                      | :material-check:**   |
-| Stadia                  |                      | :material-check:***  |
-| Android                 | :material-check:**** | :material-check:**** |
-| 8BitDo                  | :material-check:     |                      |
-| Atari                   | :material-check:     |                      |
-| iCade                   | :material-check:     |                      |
-| Nimbus                  | :material-check:     |                      |
-| OUYA 1st gen            | :material-check:     |                      |
+| Gamepad                   | BR/EDR               | BLE                  |
+|---------------------------|----------------------|----------------------|
+| DualSense (PS5)           | :material-check:     |                      |
+| DualShock 4 (PS4)         | :material-check:     |                      |
+| DualShock 3 (PS3)         | :material-check:     |                      |
+| Nintendo Switch Pro       | :material-check:     |                      |
+| Nintendo Switch JoyCons   | :material-check:     |                      |
+| Nintendo Switch 2 Pro     |                      | :material-check:     |
+| Nintendo Switch 2 JoyCons |                      | :material-check:     |
+| Nintendo Wii U Pro        | :material-check:     |                      |
+| Nintendo Wii Remote       | :material-check:     |                      |
+| Nintendo Balance Board    | :material-check:     |                      |
+| Xbox Wireless             | :material-check:*    | :material-check:*    |
+| Xbox Adaptive             |                      | :material-check:*    |
+| Steam                     |                      | :material-check:**   |
+| Steam (2nd gen / Triton)  |                      | :material-check:     |
+| Stadia                    |                      | :material-check:***  |
+| Android                   | :material-check:**** | :material-check:**** |
+| 8BitDo                    | :material-check:     |                      |
+| Atari                     | :material-check:     |                      |
+| iCade                     | :material-check:     |                      |
+| Nimbus                    | :material-check:     |                      |
+| OUYA 1st gen              | :material-check:     |                      |
 
 *: Xbox Controller Firmware v3.x and v4.x use BR/EDR. Firmware v5.x and later
 use BLE.

@@ -22,6 +22,7 @@ static struct {
     {CONTROLLER_TYPE_UnknownSteamController, "Unknown Steam"},
     {CONTROLLER_TYPE_SteamController, "Steam"},
     {CONTROLLER_TYPE_SteamControllerV2, "Steam V2"},
+    {CONTROLLER_TYPE_SteamControllerTriton, "Steam Triton"},
 
     {CONTROLLER_TYPE_XBox360Controller, "XBox 360"},
     {CONTROLLER_TYPE_XBoxOneController, "XBox One"},
@@ -48,6 +49,9 @@ static struct {
     {CONTROLLER_TYPE_PSMoveController, "PS Move"},
     {CONTROLLER_TYPE_AtariJoystick, "Atari Joystick"},
     {CONTROLLER_TYPE_SInputController, "SInput"},
+    {CONTROLLER_TYPE_Switch2ProController, "Switch 2 Pro"},
+    {CONTROLLER_TYPE_Switch2JoyConLeft, "Switch 2 JoyCon Left"},
+    {CONTROLLER_TYPE_Switch2JoyConRight, "Switch 2 JoyCon Right"},
 
     {CONTROLLER_TYPE_GenericKeyboard, "Keyboard"},
     {CONTROLLER_TYPE_GenericMouse, "Mouse"},

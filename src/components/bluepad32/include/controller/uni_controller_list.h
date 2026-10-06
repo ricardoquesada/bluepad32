@@ -655,6 +655,9 @@ static const uni_controller_description_t arrControllers[] = {
         { MAKE_CONTROLLER_ID(0x057e, 0x2017), k_eControllerType_SwitchProController, NULL },  // Nintendo Online SNES Controller
         { MAKE_CONTROLLER_ID(0x057e, 0x2019), k_eControllerType_SwitchProController, NULL },  // Nintendo Online N64 Controller
         { MAKE_CONTROLLER_ID(0x057e, 0x201e), k_eControllerType_SwitchProController, NULL },  // Nintendo Online SEGA Genesis Controller
+        { MAKE_CONTROLLER_ID(0x057e, 0x2066), k_eControllerType_Switch2JoyConRight, "Nintendo Switch 2 Joy-Con (R)" },
+        { MAKE_CONTROLLER_ID(0x057e, 0x2067), k_eControllerType_Switch2JoyConLeft, "Nintendo Switch 2 Joy-Con (L)" },
+        { MAKE_CONTROLLER_ID(0x057e, 0x2069), k_eControllerType_Switch2ProController, "Nintendo Switch 2 Pro Controller" },
 
         // Sony
         { MAKE_CONTROLLER_ID( 0x054c, 0x03d5 ), k_eControllerType_PSMoveController, NULL },   // Sony PS Move (Motion Controller) ZCM1
@@ -665,6 +668,12 @@ static const uni_controller_description_t arrControllers[] = {
 
         // SInput (Handheld Legend). Fallback VID/PID from the spec, intended for testing.
         { MAKE_CONTROLLER_ID( 0x2e8a, 0x10c6 ), k_eControllerType_SInputController, NULL },    // SInput generic
+
+        // Valve Steam Controller 2026 (Triton)
+        { MAKE_CONTROLLER_ID( 0x28de, 0x1302 ), k_eControllerType_SteamControllerTriton, "Steam Controller 2026 USB" },
+        { MAKE_CONTROLLER_ID( 0x28de, 0x1303 ), k_eControllerType_SteamControllerTriton, "Steam Controller 2026 BLE" },
+        { MAKE_CONTROLLER_ID( 0x28de, 0x1304 ), k_eControllerType_SteamControllerTriton, "Steam Controller 2026 Puck" },
+        { MAKE_CONTROLLER_ID( 0x28de, 0x1305 ), k_eControllerType_SteamControllerTriton, "Steam Controller 2026 Nereid" },
 
         // Note on: MAKE_CONTROLLER_ID( 0x1949, 0x0402 ). Reported by:
         // - Gamesir T3s in Android mode, says it is an Xbox 360 Controller for Windows

@@ -54,7 +54,9 @@
 #include "parser/uni_hid_parser_smarttvremote.h"
 #include "parser/uni_hid_parser_stadia.h"
 #include "parser/uni_hid_parser_steam.h"
+#include "parser/uni_hid_parser_steam_triton.h"
 #include "parser/uni_hid_parser_switch.h"
+#include "parser/uni_hid_parser_switch2.h"
 #include "parser/uni_hid_parser_wii.h"
 #include "parser/uni_hid_parser_xboxone.h"
 #include "platform/uni_platform.h"
@@ -3129,6 +3131,617 @@ TEST(parser_switch_setup_enables_vibration) {
     d.conn.interrupt_cid = 0;
 }
 
+// ============================================================================
+// 29. Nintendo Switch 2 BLE Parser & Steam 2015 BLE IMU Tests (Milestone 1)
+// ============================================================================
+
+static void sw2_pack_sticks_12bit(uint8_t* dst, uint16_t x, uint16_t y) {
+    dst[0] = (uint8_t)(x & 0xffu);
+    dst[1] = (uint8_t)(((x >> 8) & 0x0fu) | ((y & 0x0fu) << 4));
+    dst[2] = (uint8_t)((y >> 4) & 0xffu);
+}
+
+static void sw2_init_neutral_report(uint8_t* rpt, size_t len) {
+    memset(rpt, 0, len);
+    if (len >= 13) {
+        sw2_pack_sticks_12bit(&rpt[10], 2048, 2048);
+    }
+    if (len >= 16) {
+        sw2_pack_sticks_12bit(&rpt[13], 2048, 2048);
+    }
+}
+
+TEST(parser_switch2_pro_buttons_sticks_triggers_battery_imu_and_extra_info) {
+    uni_hid_device_t d;
+
+    // 1. Controller Type & Vtable Resolution + No Stack Timer Leak
+    setup_synthetic_device(&d, 0x057e, 0x2069);
+    ASSERT_EQ(CONTROLLER_TYPE_Switch2ProController, d.controller_type);
+    EXPECT_NE(NULL, d.report_parser.setup);
+    EXPECT_NE(NULL, d.report_parser.deinit);
+    EXPECT_NE(NULL, d.report_parser.init_report);
+    EXPECT_NE(NULL, d.report_parser.parse_input_report);
+    EXPECT_NE(NULL, d.report_parser.set_player_leds);
+    EXPECT_NE(NULL, d.report_parser.play_dual_rumble);
+    EXPECT_NE(NULL, d.report_parser.device_extra_info);
+    EXPECT_EQ(NULL, btstack_run_loop_base_timers);
+    EXPECT_EQ(0, strcmp("Switch 2 Pro", uni_gamepad_get_model_name(CONTROLLER_TYPE_Switch2ProController)));
+    EXPECT_EQ(0, strcmp("Switch 2 JoyCon Left", uni_gamepad_get_model_name(CONTROLLER_TYPE_Switch2JoyConLeft)));
+    EXPECT_EQ(0, strcmp("Switch 2 JoyCon Right", uni_gamepad_get_model_name(CONTROLLER_TYPE_Switch2JoyConRight)));
+    EXPECT_EQ(0, strcmp("Steam Triton", uni_gamepad_get_model_name(CONTROLLER_TYPE_SteamControllerTriton)));
+
+    // 2. Truncated Report Guards (len == 0, len == 11 < 12, and len == 20 < 60)
+    feed_input_report(&d, NULL, 0);
+    uint8_t* short11 = (uint8_t*)malloc(11);
+    ASSERT_NE(NULL, short11);
+    memset(short11, 0xff, 11);
+    feed_input_report(&d, short11, 11);
+    free(short11);
+    EXPECT_EQ(0, d.controller.gamepad.buttons);
+    EXPECT_EQ(0, d.controller.gamepad.dpad);
+    EXPECT_EQ(0, d.controller.gamepad.misc_buttons);
+
+    uint8_t* short20 = (uint8_t*)malloc(20);
+    ASSERT_NE(NULL, short20);
+    sw2_init_neutral_report(short20, 20);
+    little_endian_store_32(short20, 4, 0x000004u);  // B -> BUTTON_A
+    sw2_pack_sticks_12bit(&short20[10], 3648, 2048);
+    feed_input_report(&d, short20, 20);
+    free(short20);
+    EXPECT_EQ(BUTTON_A, d.controller.gamepad.buttons);
+    EXPECT_EQ(511, d.controller.gamepad.axis_x);
+    EXPECT_EQ(0, d.controller.gamepad.axis_y);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[0], 1e-5f);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[1], 1e-5f);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[2], 1e-5f);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.gyro[0], 1e-5f);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.gyro[1], 1e-5f);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.gyro[2], 1e-5f);
+
+    // 3. Pro Controller Buttons & D-Pad Bitmask
+    uint8_t rpt[63];
+    sw2_init_neutral_report(rpt, sizeof(rpt));
+    uint32_t all_pro_bits = 0x000001u | 0x000002u | 0x000004u | 0x000008u | 0x000040u | 0x000080u | 0x000100u |
+                            0x000200u | 0x000400u | 0x000800u | 0x001000u | 0x002000u | 0x010000u | 0x020000u |
+                            0x040000u | 0x080000u | 0x400000u | 0x800000u;
+    little_endian_store_32(rpt, 4, all_pro_bits);
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(BUTTON_A | BUTTON_B | BUTTON_X | BUTTON_Y | BUTTON_SHOULDER_L | BUTTON_SHOULDER_R | BUTTON_TRIGGER_L |
+                  BUTTON_TRIGGER_R | BUTTON_THUMB_L | BUTTON_THUMB_R,
+              d.controller.gamepad.buttons);
+    EXPECT_EQ(DPAD_UP | DPAD_DOWN | DPAD_LEFT | DPAD_RIGHT, d.controller.gamepad.dpad);
+    EXPECT_EQ(MISC_BUTTON_SELECT | MISC_BUTTON_START | MISC_BUTTON_SYSTEM | MISC_BUTTON_CAPTURE,
+              d.controller.gamepad.misc_buttons);
+
+    // Verify unmapped bits (SL/SR 0x000030 | 0x300000, Chat 0x004000, GL/GR 0x03000000) do not set spurious buttons
+    little_endian_store_32(rpt, 4, 0x03304030u);
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(0, d.controller.gamepad.buttons);
+    EXPECT_EQ(0, d.controller.gamepad.dpad);
+    EXPECT_EQ(0, d.controller.gamepad.misc_buttons);
+
+    // 4. 12-Bit Stick Normalization (Default Calibration: center=2048, min=448, max=3648)
+    sw2_init_neutral_report(rpt, sizeof(rpt));
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(0, d.controller.gamepad.axis_x);
+    EXPECT_EQ(0, d.controller.gamepad.axis_y);
+    EXPECT_EQ(0, d.controller.gamepad.axis_rx);
+    EXPECT_EQ(0, d.controller.gamepad.axis_ry);
+
+    sw2_pack_sticks_12bit(&rpt[10], 3648, 3648);
+    sw2_pack_sticks_12bit(&rpt[13], 448, 448);
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(511, d.controller.gamepad.axis_x);
+    EXPECT_EQ(-512, d.controller.gamepad.axis_y);
+    EXPECT_EQ(-512, d.controller.gamepad.axis_rx);
+    EXPECT_EQ(511, d.controller.gamepad.axis_ry);
+
+    // Extreme clamping (0 and 4095)
+    sw2_pack_sticks_12bit(&rpt[10], 4095, 0);
+    sw2_pack_sticks_12bit(&rpt[13], 0, 4095);
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(511, d.controller.gamepad.axis_x);
+    EXPECT_EQ(511, d.controller.gamepad.axis_y);
+    EXPECT_EQ(-512, d.controller.gamepad.axis_rx);
+    EXPECT_EQ(-512, d.controller.gamepad.axis_ry);
+
+    // 5. User SPI Flash Calibration + 0xFF/0x00 Sentinel Rejection + Degenerate Zero-Span Fallback
+    uint8_t spi_rpt[36];
+    memset(spi_rpt, 0, sizeof(spi_rpt));
+    spi_rpt[0] = 0x02;  // SW2_CMD_SPI
+    little_endian_store_32(spi_rpt, 12, 0x001fc042u);
+
+    // 5b. Unprogrammed SPI flash (all-0xFF and all-0x00 sentinels): rejected, default preserved
+    memset(&spi_rpt[16], 0xff, 18);
+    feed_input_report(&d, spi_rpt, sizeof(spi_rpt));
+    memset(&spi_rpt[16], 0x00, 18);
+    feed_input_report(&d, spi_rpt, sizeof(spi_rpt));
+    sw2_init_neutral_report(rpt, sizeof(rpt));
+    sw2_pack_sticks_12bit(&rpt[10], 3648, 2048);
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(511, d.controller.gamepad.axis_x);
+
+    // 5c. Degenerate zero-span calibration (max_span == 0 or min_span == 0): rejected, no divide-by-zero
+    sw2_pack_sticks_12bit(&spi_rpt[16], 2000, 2000);
+    sw2_pack_sticks_12bit(&spi_rpt[19], 0, 1000);
+    sw2_pack_sticks_12bit(&spi_rpt[22], 1000, 0);
+    feed_input_report(&d, spi_rpt, sizeof(spi_rpt));
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(511, d.controller.gamepad.axis_x);
+
+    // 5a. Valid custom user calibration: center=2000, max_span=1000 (max=3000), min_span=1000 (min=1000)
+    sw2_pack_sticks_12bit(&spi_rpt[16], 2000, 2000);
+    sw2_pack_sticks_12bit(&spi_rpt[19], 1000, 1000);
+    sw2_pack_sticks_12bit(&spi_rpt[22], 1000, 1000);
+    sw2_pack_sticks_12bit(&spi_rpt[25], 2000, 2000);
+    sw2_pack_sticks_12bit(&spi_rpt[28], 1000, 1000);
+    sw2_pack_sticks_12bit(&spi_rpt[31], 1000, 1000);
+    feed_input_report(&d, spi_rpt, sizeof(spi_rpt));
+    sw2_pack_sticks_12bit(&rpt[10], 2500, 2000);  // +500 / 1000 * 512 = +256
+    sw2_pack_sticks_12bit(&rpt[13], 2000, 2000);
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(256, d.controller.gamepad.axis_x);
+    EXPECT_EQ(0, d.controller.gamepad.axis_y);
+
+    // 6. Analog Triggers (report[30..31] & Digital ZL/ZR Fallback)
+    sw2_init_neutral_report(rpt, sizeof(rpt));
+    little_endian_store_32(rpt, 4, 0x800080u);  // ZL + ZR digital bits with analog bytes == 0
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(1023, d.controller.gamepad.brake);
+    EXPECT_EQ(1023, d.controller.gamepad.throttle);
+
+    little_endian_store_32(rpt, 4, 0);
+    rpt[30] = 128;
+    rpt[31] = 255;
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ((128 * 1023) / 255, d.controller.gamepad.brake);
+    EXPECT_EQ(1023, d.controller.gamepad.throttle);
+    EXPECT_EQ(BUTTON_TRIGGER_L | BUTTON_TRIGGER_R, d.controller.gamepad.buttons);
+
+    // 7. Battery (report[3]) & Temperature (report[43])
+    sw2_init_neutral_report(rpt, sizeof(rpt));
+    rpt[3] = 0;
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(0, d.controller.battery);
+    rpt[3] = 50;
+    rpt[43] = 25;
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(127, d.controller.battery);
+    rpt[3] = 100;
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(255, d.controller.battery);
+
+    // 8. IMU Conversion to SI Units (m/s^2 and rad/s) & sample_dt == 0 Guard
+    sw2_init_neutral_report(rpt, sizeof(rpt));
+    rpt[42] = 0x10;
+    rpt[43] = 25;
+    // Pro 2: accel = {-ay, +az, -ax} * (9.80665 / 4096), gyro = {-gy, +gz, -gx} * ((936 / 13371) * DEG_TO_RAD)
+    write_le16(&rpt[48], -4096);   // ax = -4096 -> accel[2] = +1g
+    write_le16(&rpt[50], -4096);   // ay = -4096 -> accel[0] = +1g
+    write_le16(&rpt[52], 4096);    // az = +4096 -> accel[1] = +1g
+    write_le16(&rpt[54], -13371);  // gx = -13371 -> gyro[2] = +936 dps
+    write_le16(&rpt[56], -13371);  // gy = -13371 -> gyro[0] = +936 dps
+    write_le16(&rpt[58], 13371);   // gz = +13371 -> gyro[1] = +936 dps
+    feed_input_report(&d, rpt, sizeof(rpt));
+    // Feed identical timestamp (sample_dt == 0) to verify no NaN/Inf
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[0], 1e-2f);
+    EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[1], 1e-2f);
+    EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[2], 1e-2f);
+    EXPECT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[0], 1e-2f);
+    EXPECT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[1], 1e-2f);
+    EXPECT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[2], 1e-2f);
+    for (int i = 0; i < 3; i++) {
+        EXPECT_TRUE(isfinite(d.controller.gamepad.accel[i]));
+        EXPECT_TRUE(isfinite(d.controller.gamepad.gyro[i]));
+    }
+
+    // 9. uni_hid_parser_switch2_device_extra_info()
+    char extra[128];
+    EXPECT_EQ(-1, d.report_parser.device_extra_info(NULL, extra, sizeof(extra)));
+    EXPECT_EQ(-1, d.report_parser.device_extra_info(&d, NULL, sizeof(extra)));
+    EXPECT_EQ(-1, d.report_parser.device_extra_info(&d, extra, 0));
+    EXPECT_GT(d.report_parser.device_extra_info(&d, extra, 1), 0);
+    EXPECT_EQ('\0', extra[0]);
+    EXPECT_GT(d.report_parser.device_extra_info(&d, extra, 8), 0);
+    int n = d.report_parser.device_extra_info(&d, extra, sizeof(extra));
+    EXPECT_GT(n, 0);
+    EXPECT_NE(NULL, strstr(extra, "0x2069"));
+    EXPECT_NE(NULL, strstr(extra, "user"));
+    EXPECT_EQ(NULL, strchr(extra, '\n'));
+    EXPECT_EQ(NULL, strchr(extra, '\t'));
+}
+
+TEST(parser_switch2_joycon_left_standalone_horizontal) {
+    uni_hid_device_t d;
+
+    // 1. Controller Type Resolution
+    setup_synthetic_device(&d, 0x057e, 0x2067);
+    ASSERT_EQ(CONTROLLER_TYPE_Switch2JoyConLeft, d.controller_type);
+
+    uint8_t rpt[63];
+    sw2_init_neutral_report(rpt, sizeof(rpt));
+
+    // 2. Rotated Face Buttons (Physical D-Pad Left/Down/Up/Right -> A/B/X/Y, dpad == 0)
+    little_endian_store_32(rpt, 4, 0x080000u);  // Left -> BUTTON_A
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(BUTTON_A, d.controller.gamepad.buttons);
+    EXPECT_EQ(0, d.controller.gamepad.dpad);
+
+    little_endian_store_32(rpt, 4, 0x010000u);  // Down -> BUTTON_B
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(BUTTON_B, d.controller.gamepad.buttons);
+
+    little_endian_store_32(rpt, 4, 0x020000u);  // Up -> BUTTON_X
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(BUTTON_X, d.controller.gamepad.buttons);
+
+    little_endian_store_32(rpt, 4, 0x040000u);  // Right -> BUTTON_Y
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(BUTTON_Y, d.controller.gamepad.buttons);
+
+    // 3. Side Shoulders (SL/SR), Triggers (L/ZL), Thumb & Misc
+    little_endian_store_32(rpt, 4,
+                           0x200000u | 0x100000u | 0x400000u | 0x800000u | 0x000800u | 0x000100u | 0x002000u |
+                               0x0000ffu);  // Include right-hand bits 0xff -> must be masked out!
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(BUTTON_SHOULDER_L | BUTTON_SHOULDER_R | BUTTON_TRIGGER_L | BUTTON_TRIGGER_R | BUTTON_THUMB_L,
+              d.controller.gamepad.buttons);
+    EXPECT_EQ(MISC_BUTTON_SELECT | MISC_BUTTON_CAPTURE, d.controller.gamepad.misc_buttons);
+    EXPECT_EQ(0, d.controller.gamepad.dpad);
+
+    // 4. Horizontal Stick Rotation (axis_x = -cal_y, axis_y = cal_x)
+    sw2_init_neutral_report(rpt, sizeof(rpt));
+    sw2_pack_sticks_12bit(&rpt[10], 2048, 3648);  // Physical Up (cal_y > 0) -> axis_x = -512, axis_y = 0
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(-512, d.controller.gamepad.axis_x);
+    EXPECT_EQ(0, d.controller.gamepad.axis_y);
+    EXPECT_EQ(0, d.controller.gamepad.axis_rx);
+    EXPECT_EQ(0, d.controller.gamepad.axis_ry);
+
+    sw2_pack_sticks_12bit(&rpt[10], 3648, 2048);  // Physical Right (cal_x > 0) -> axis_x = 0, axis_y = +511
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(0, d.controller.gamepad.axis_x);
+    EXPECT_EQ(511, d.controller.gamepad.axis_y);
+
+    // 5. Horizontal IMU Rotation (accel = {-ax, +az, +ay}, gyro = {-gx, +gz, +gy})
+    write_le16(&rpt[48], -4096);   // ax = -4096 -> accel[0] = +1g
+    write_le16(&rpt[50], 4096);    // ay = +4096 -> accel[2] = +1g
+    write_le16(&rpt[52], 4096);    // az = +4096 -> accel[1] = +1g
+    write_le16(&rpt[54], -13371);  // gx = -13371 -> gyro[0] = +936 dps
+    write_le16(&rpt[56], 13371);   // gy = +13371 -> gyro[2] = +936 dps
+    write_le16(&rpt[58], 13371);   // gz = +13371 -> gyro[1] = +936 dps
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[0], 1e-2f);
+    EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[1], 1e-2f);
+    EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[2], 1e-2f);
+    EXPECT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[0], 1e-2f);
+    EXPECT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[1], 1e-2f);
+    EXPECT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[2], 1e-2f);
+}
+
+TEST(parser_switch2_joycon_right_standalone_horizontal) {
+    uni_hid_device_t d;
+
+    // 1. Controller Type Resolution
+    setup_synthetic_device(&d, 0x057e, 0x2066);
+    ASSERT_EQ(CONTROLLER_TYPE_Switch2JoyConRight, d.controller_type);
+
+    uint8_t rpt[63];
+    sw2_init_neutral_report(rpt, sizeof(rpt));
+
+    // 2. Rotated Face Buttons (Physical A/X/B/Y -> A/B/X/Y, dpad == 0)
+    little_endian_store_32(rpt, 4, 0x000008u);  // Physical A -> BUTTON_A
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(BUTTON_A, d.controller.gamepad.buttons);
+    EXPECT_EQ(0, d.controller.gamepad.dpad);
+
+    little_endian_store_32(rpt, 4, 0x000002u);  // Physical X -> BUTTON_B
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(BUTTON_B, d.controller.gamepad.buttons);
+
+    little_endian_store_32(rpt, 4, 0x000004u);  // Physical B -> BUTTON_X
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(BUTTON_X, d.controller.gamepad.buttons);
+
+    little_endian_store_32(rpt, 4, 0x000001u);  // Physical Y -> BUTTON_Y
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(BUTTON_Y, d.controller.gamepad.buttons);
+
+    // 3. Side Shoulders (SL/SR), Triggers (R/ZR), Thumb & Misc
+    little_endian_store_32(rpt, 4,
+                           0x000020u | 0x000010u | 0x000040u | 0x000080u | 0x000400u | 0x000200u | 0x001000u |
+                               0xff0000u);  // Include left-hand bits -> must be masked out!
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(BUTTON_SHOULDER_L | BUTTON_SHOULDER_R | BUTTON_TRIGGER_L | BUTTON_TRIGGER_R | BUTTON_THUMB_L,
+              d.controller.gamepad.buttons);
+    EXPECT_EQ(MISC_BUTTON_START | MISC_BUTTON_SYSTEM, d.controller.gamepad.misc_buttons);
+    EXPECT_EQ(0, d.controller.gamepad.dpad);
+
+    // 4. Horizontal Stick Rotation (axis_x = cal_y, axis_y = -cal_x)
+    sw2_init_neutral_report(rpt, sizeof(rpt));
+    sw2_pack_sticks_12bit(&rpt[13], 2048, 3648);  // Physical Up (cal_y > 0) -> axis_x = +511, axis_y = 0
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(511, d.controller.gamepad.axis_x);
+    EXPECT_EQ(0, d.controller.gamepad.axis_y);
+    EXPECT_EQ(0, d.controller.gamepad.axis_rx);
+    EXPECT_EQ(0, d.controller.gamepad.axis_ry);
+
+    sw2_pack_sticks_12bit(&rpt[13], 3648, 2048);  // Physical Right (cal_x > 0) -> axis_x = 0, axis_y = -512
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(0, d.controller.gamepad.axis_x);
+    EXPECT_EQ(-512, d.controller.gamepad.axis_y);
+
+    // 5. Horizontal IMU Rotation (accel = {+ax, -az, +ay}, gyro = {+gx, -gz, +gy})
+    write_le16(&rpt[48], 4096);    // ax = +4096 -> accel[0] = +1g
+    write_le16(&rpt[50], 4096);    // ay = +4096 -> accel[2] = +1g
+    write_le16(&rpt[52], -4096);   // az = -4096 -> accel[1] = +1g
+    write_le16(&rpt[54], 13371);   // gx = +13371 -> gyro[0] = +936 dps
+    write_le16(&rpt[56], 13371);   // gy = +13371 -> gyro[2] = +936 dps
+    write_le16(&rpt[58], -13371);  // gz = -13371 -> gyro[1] = +936 dps
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[0], 1e-2f);
+    EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[1], 1e-2f);
+    EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[2], 1e-2f);
+    EXPECT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[0], 1e-2f);
+    EXPECT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[1], 1e-2f);
+    EXPECT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[2], 1e-2f);
+}
+
+TEST(parser_steam_2015_ble_imu_si_units_and_truncation_guards) {
+    uni_hid_device_t d;
+    setup_synthetic_device(&d, 0x28de, 0x1106);
+    ASSERT_EQ(CONTROLLER_TYPE_SteamController, d.controller_type);
+
+    // 1. BLE Report 0x03 with IMU Accel (0x0400) + Gyro (0x0800) Conversion to SI Units
+    // Header (4B) + Accel (6B) + Gyro (6B) = 16 bytes
+    uint8_t rpt[16];
+    memset(rpt, 0, sizeof(rpt));
+    rpt[0] = 0x03;
+    rpt[1] = 0xc0;
+    rpt[2] = 0x04;  // op = 0x04
+    rpt[3] = 0x0c;  // 0x0400 (IMU_ACCEL) | 0x0800 (IMU_GYRO)
+
+    // ax = 16384 (+1g), ay = -8192 (-0.5g), az = 16384 (+1g)
+    // Canonical: accel[0] = +ax (+1g), accel[1] = +az (+1g), accel[2] = -ay (+0.5g)
+    write_le16(&rpt[4], 16384);
+    write_le16(&rpt[6], -8192);
+    write_le16(&rpt[8], 16384);
+    // gx = -16384 (-1000 dps), gy = 8192 (+500 dps), gz = 16384 (+1000 dps)
+    // Canonical: gyro[0] = +gx (-1000 dps), gyro[1] = +gz (+1000 dps), gyro[2] = -gy (-500 dps)
+    write_le16(&rpt[10], -16384);
+    write_le16(&rpt[12], 8192);
+    write_le16(&rpt[14], 16384);
+
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[0], 1e-2f);
+    EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[1], 1e-2f);
+    EXPECT_FLOAT_NEAR(0.5f * UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[2], 1e-2f);
+    EXPECT_FLOAT_NEAR(-1000.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[0], 1e-2f);
+    EXPECT_FLOAT_NEAR(1000.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[1], 1e-2f);
+    EXPECT_FLOAT_NEAR(-500.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[2], 1e-2f);
+
+    // 2. Truncated IMU Packet Guard (< 12 remaining bytes for Accel + Gyro)
+    memset(&d.controller.gamepad, 0, sizeof(d.controller.gamepad));
+    uint8_t* trunc_imu = (uint8_t*)malloc(12);  // 4B header + 8B (< 12B needed for Accel+Gyro)
+    ASSERT_NE(NULL, trunc_imu);
+    memcpy(trunc_imu, rpt, 12);
+    feed_input_report(&d, trunc_imu, 12);
+    free(trunc_imu);
+    // Accel (bytes 4..9 <= 12) is parsed, while Gyro (bytes 10..15 > 12) is safely skipped without ASan OOB read
+    EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[0], 1e-2f);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.gyro[0], 1e-5f);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.gyro[1], 1e-5f);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.gyro[2], 1e-5f);
+}
+
+TEST(parser_steam_triton_reports_sticks_triggers_imu_and_extra_info) {
+    uni_hid_device_t d;
+
+    // 1. All 4 Triton PIDs Resolution + Vtable + No Stack Timer Leak
+    const uint16_t k_triton_pids[4] = {
+        UNI_TRITON_PID_USB,
+        UNI_TRITON_PID_BLE,
+        UNI_TRITON_PID_PUCK,
+        UNI_TRITON_PID_NEREID,
+    };
+    for (size_t i = 0; i < ARRAY_SIZE(k_triton_pids); i++) {
+        setup_synthetic_device(&d, UNI_TRITON_VALVE_VID, k_triton_pids[i]);
+        ASSERT_EQ(CONTROLLER_TYPE_SteamControllerTriton, d.controller_type);
+        EXPECT_TRUE(uni_hid_parser_steam_triton_is_device(&d));
+        EXPECT_NE(NULL, d.report_parser.setup);
+        EXPECT_NE(NULL, d.report_parser.deinit);
+        EXPECT_NE(NULL, d.report_parser.init_report);
+        EXPECT_NE(NULL, d.report_parser.parse_input_report);
+        EXPECT_NE(NULL, d.report_parser.play_dual_rumble);
+        EXPECT_NE(NULL, d.report_parser.device_extra_info);
+        EXPECT_EQ(NULL, btstack_run_loop_base_timers);
+    }
+
+    setup_synthetic_device(&d, UNI_TRITON_VALVE_VID, UNI_TRITON_PID_BLE);
+
+    // 2. Truncated Report Guards (len == 0, len == 29 < 30, and len == 30 < 46)
+    feed_input_report(&d, NULL, 0);
+    uint8_t* short29 = (uint8_t*)malloc(29);
+    ASSERT_NE(NULL, short29);
+    memset(short29, 0xff, 29);
+    short29[0] = ID_TRITON_CONTROLLER_STATE_BLE;
+    feed_input_report(&d, short29, 29);
+    free(short29);
+    EXPECT_EQ(0, d.controller.gamepad.buttons);
+    EXPECT_EQ(0, d.controller.gamepad.dpad);
+    EXPECT_EQ(0, d.controller.gamepad.misc_buttons);
+    EXPECT_EQ(0, d.controller.gamepad.brake);
+    EXPECT_EQ(0, d.controller.gamepad.throttle);
+
+    // len == 30 (buttons, triggers, sticks, pads present, but < 46 so IMU block at p + 33..44 is absent)
+    uint8_t* short30 = (uint8_t*)malloc(30);
+    ASSERT_NE(NULL, short30);
+    memset(short30, 0, 30);
+    short30[0] = ID_TRITON_CONTROLLER_STATE_BLE;
+    little_endian_store_32(short30, 2, TRITON_BTN_A | TRITON_BTN_DPAD_UP | TRITON_BTN_VIEW);
+    write_le16(&short30[6], 16384);   // lt = 16384 -> brake = 512
+    write_le16(&short30[10], 32767);  // lx = 32767 -> axis_x = 511
+    feed_input_report(&d, short30, 30);
+    free(short30);
+    EXPECT_EQ(BUTTON_A | BUTTON_TRIGGER_L, d.controller.gamepad.buttons);
+    EXPECT_EQ(DPAD_UP, d.controller.gamepad.dpad);
+    EXPECT_EQ(MISC_BUTTON_SELECT, d.controller.gamepad.misc_buttons);
+    EXPECT_EQ(512, d.controller.gamepad.brake);
+    EXPECT_EQ(511, d.controller.gamepad.axis_x);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[0], 1e-5f);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[1], 1e-5f);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.accel[2], 1e-5f);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.gyro[0], 1e-5f);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.gyro[1], 1e-5f);
+    EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.gyro[2], 1e-5f);
+
+    // 3. Report IDs 0x42 (USB), 0x45 (BLE), and 0x47 (BLE Timestamped) Full Button & Misc Mapping
+    const uint8_t k_report_ids[3] = {
+        ID_TRITON_CONTROLLER_STATE,
+        ID_TRITON_CONTROLLER_STATE_BLE,
+        ID_TRITON_CONTROLLER_STATE_TIMESTAMP,
+    };
+    uint8_t rpt[46];
+    for (size_t i = 0; i < ARRAY_SIZE(k_report_ids); i++) {
+        memset(rpt, 0, sizeof(rpt));
+        rpt[0] = k_report_ids[i];
+
+        // Individual misc buttons verification: VIEW -> SELECT, MENU -> START, STEAM -> SYSTEM, QAM -> CAPTURE
+        little_endian_store_32(rpt, 2, TRITON_BTN_VIEW);
+        feed_input_report(&d, rpt, sizeof(rpt));
+        EXPECT_EQ(MISC_BUTTON_SELECT, d.controller.gamepad.misc_buttons);
+
+        little_endian_store_32(rpt, 2, TRITON_BTN_MENU);
+        feed_input_report(&d, rpt, sizeof(rpt));
+        EXPECT_EQ(MISC_BUTTON_START, d.controller.gamepad.misc_buttons);
+
+        little_endian_store_32(rpt, 2, TRITON_BTN_STEAM);
+        feed_input_report(&d, rpt, sizeof(rpt));
+        EXPECT_EQ(MISC_BUTTON_SYSTEM, d.controller.gamepad.misc_buttons);
+
+        little_endian_store_32(rpt, 2, TRITON_BTN_QAM);
+        feed_input_report(&d, rpt, sizeof(rpt));
+        EXPECT_EQ(MISC_BUTTON_CAPTURE, d.controller.gamepad.misc_buttons);
+
+        // Verify LPAD_CLICK -> BUTTON_THUMB_L and RPAD_CLICK -> BUTTON_THUMB_R
+        little_endian_store_32(rpt, 2, TRITON_BTN_LPAD_CLICK);
+        feed_input_report(&d, rpt, sizeof(rpt));
+        EXPECT_EQ(BUTTON_THUMB_L, d.controller.gamepad.buttons);
+
+        little_endian_store_32(rpt, 2, TRITON_BTN_RPAD_CLICK);
+        feed_input_report(&d, rpt, sizeof(rpt));
+        EXPECT_EQ(BUTTON_THUMB_R, d.controller.gamepad.buttons);
+
+        // Combined full button + D-pad + misc mask
+        uint32_t all_mapped = TRITON_BTN_A | TRITON_BTN_B | TRITON_BTN_X | TRITON_BTN_Y | TRITON_BTN_LB |
+                              TRITON_BTN_RB | TRITON_BTN_LT_FULL | TRITON_BTN_RT_FULL | TRITON_BTN_L3 | TRITON_BTN_R3 |
+                              TRITON_BTN_DPAD_UP | TRITON_BTN_DPAD_DOWN | TRITON_BTN_DPAD_LEFT | TRITON_BTN_DPAD_RIGHT |
+                              TRITON_BTN_VIEW | TRITON_BTN_MENU | TRITON_BTN_STEAM | TRITON_BTN_QAM;
+        little_endian_store_32(rpt, 2, all_mapped);
+        feed_input_report(&d, rpt, sizeof(rpt));
+        EXPECT_EQ(BUTTON_A | BUTTON_B | BUTTON_X | BUTTON_Y | BUTTON_SHOULDER_L | BUTTON_SHOULDER_R | BUTTON_TRIGGER_L |
+                      BUTTON_TRIGGER_R | BUTTON_THUMB_L | BUTTON_THUMB_R,
+                  d.controller.gamepad.buttons);
+        EXPECT_EQ(DPAD_UP | DPAD_DOWN | DPAD_LEFT | DPAD_RIGHT, d.controller.gamepad.dpad);
+        EXPECT_EQ(MISC_BUTTON_SELECT | MISC_BUTTON_START | MISC_BUTTON_SYSTEM | MISC_BUTTON_CAPTURE,
+                  d.controller.gamepad.misc_buttons);
+
+        // Unmapped rear grip buttons (L4, L5, R4, R5) must not set spurious buttons
+        little_endian_store_32(rpt, 2, TRITON_BTN_L4 | TRITON_BTN_L5 | TRITON_BTN_R4 | TRITON_BTN_R5);
+        feed_input_report(&d, rpt, sizeof(rpt));
+        EXPECT_EQ(0, d.controller.gamepad.buttons);
+        EXPECT_EQ(0, d.controller.gamepad.dpad);
+        EXPECT_EQ(0, d.controller.gamepad.misc_buttons);
+    }
+
+    // 4. 16-Bit Triggers (0..32767 -> 0..1023) & Negative Noise Clamping
+    memset(rpt, 0, sizeof(rpt));
+    rpt[0] = ID_TRITON_CONTROLLER_STATE_BLE;
+    write_le16(&rpt[6], -100);  // lt negative noise -> 0
+    write_le16(&rpt[8], 0);     // rt = 0 -> 0
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(0, d.controller.gamepad.brake);
+    EXPECT_EQ(0, d.controller.gamepad.throttle);
+    EXPECT_EQ(0, d.controller.gamepad.buttons);
+
+    write_le16(&rpt[6], 16384);  // lt = 16384 -> 512
+    write_le16(&rpt[8], 32767);  // rt = 32767 -> 1023
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(512, d.controller.gamepad.brake);
+    EXPECT_EQ(1023, d.controller.gamepad.throttle);
+    EXPECT_EQ(BUTTON_TRIGGER_L | BUTTON_TRIGGER_R, d.controller.gamepad.buttons);
+
+    // 5. 16-Bit Signed Sticks (-32768..32767 -> -512..511) & INT16_MIN Negation Overflow Regression
+    memset(rpt, 0, sizeof(rpt));
+    rpt[0] = ID_TRITON_CONTROLLER_STATE_BLE;
+    write_le16(&rpt[10], 32767);   // lx = +32767 -> +511
+    write_le16(&rpt[12], -32768);  // ly = INT16_MIN (-32768) -> negated & clamped to +511 (not +512!)
+    write_le16(&rpt[14], -32768);  // rx = -32768 -> -512
+    write_le16(&rpt[16], -32768);  // ry = INT16_MIN (-32768) -> negated & clamped to +511 (not +512!)
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(511, d.controller.gamepad.axis_x);
+    EXPECT_EQ(511, d.controller.gamepad.axis_y);
+    EXPECT_EQ(-512, d.controller.gamepad.axis_rx);
+    EXPECT_EQ(511, d.controller.gamepad.axis_ry);
+
+    write_le16(&rpt[12], 32767);  // ly = +32767 -> -511
+    write_le16(&rpt[16], 32767);  // ry = +32767 -> -511
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(-511, d.controller.gamepad.axis_y);
+    EXPECT_EQ(-511, d.controller.gamepad.axis_ry);
+
+    // 6. SI IMU Conversion (m/s^2 and rad/s at p + 33..44, i.e., rpt[34..45] when len >= 46)
+    for (size_t i = 0; i < ARRAY_SIZE(k_report_ids); i++) {
+        memset(&d.controller.gamepad, 0, sizeof(d.controller.gamepad));
+        memset(rpt, 0, sizeof(rpt));
+        rpt[0] = k_report_ids[i];
+        // ax = 16384 (+1g), ay = -16384 (-1g forward -> +1g back), az = 16384 (+1g up)
+        // gx = 16384 (+1000 dps), gy = -16384 (-1000 dps -> +1000 dps roll), gz = 8192 (+500 dps yaw)
+        write_le16(&rpt[34], 16384);
+        write_le16(&rpt[36], -16384);
+        write_le16(&rpt[38], 16384);
+        write_le16(&rpt[40], 16384);
+        write_le16(&rpt[42], -16384);
+        write_le16(&rpt[44], 8192);
+        feed_input_report(&d, rpt, sizeof(rpt));
+        EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[0], 1e-2f);
+        EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[1], 1e-2f);
+        EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[2], 1e-2f);
+        EXPECT_FLOAT_NEAR(1000.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[0], 1e-2f);
+        EXPECT_FLOAT_NEAR(500.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[1], 1e-2f);
+        EXPECT_FLOAT_NEAR(1000.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[2], 1e-2f);
+    }
+
+    // 7. Battery Report 0x43 (0..100 -> 0..255 + truncated len < 3 guard)
+    d.controller.battery = 42;
+    uint8_t short_bat[2] = {ID_TRITON_BATTERY_STATUS, 0x0b};
+    feed_input_report(&d, short_bat, sizeof(short_bat));
+    EXPECT_EQ(42, d.controller.battery);
+
+    uint8_t bat50[12] = {ID_TRITON_BATTERY_STATUS, 0x0b, 50};
+    feed_input_report(&d, bat50, sizeof(bat50));
+    EXPECT_EQ(127, d.controller.battery);
+
+    uint8_t bat100[12] = {ID_TRITON_BATTERY_STATUS, 0x0b, 100};
+    feed_input_report(&d, bat100, sizeof(bat100));
+    EXPECT_EQ(255, d.controller.battery);
+
+    // 8. uni_hid_parser_steam_triton_device_extra_info()
+    char extra[128];
+    EXPECT_EQ(-1, d.report_parser.device_extra_info(NULL, extra, sizeof(extra)));
+    EXPECT_EQ(-1, d.report_parser.device_extra_info(&d, NULL, sizeof(extra)));
+    EXPECT_EQ(-1, d.report_parser.device_extra_info(&d, extra, 0));
+    EXPECT_GT(d.report_parser.device_extra_info(&d, extra, 1), 0);
+    EXPECT_EQ('\0', extra[0]);
+    int n = d.report_parser.device_extra_info(&d, extra, sizeof(extra));
+    EXPECT_GT(n, 0);
+    EXPECT_NE(NULL, strstr(extra, "0x1303"));
+    EXPECT_NE(NULL, strstr(extra, "idle"));
+    EXPECT_EQ(NULL, strchr(extra, '\n'));
+    EXPECT_EQ(NULL, strchr(extra, '\t'));
+}
+
 int main(int argc, char** argv) {
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
@@ -3174,6 +3787,11 @@ int main(int argc, char** argv) {
     RUN_TEST(parser_sinput_imu_si_units_and_axes);
     RUN_TEST(parser_sinput_haptics_erm);
     RUN_TEST(parser_sinput_deinit_unlinks_timers);
+    RUN_TEST(parser_switch2_pro_buttons_sticks_triggers_battery_imu_and_extra_info);
+    RUN_TEST(parser_switch2_joycon_left_standalone_horizontal);
+    RUN_TEST(parser_switch2_joycon_right_standalone_horizontal);
+    RUN_TEST(parser_steam_2015_ble_imu_si_units_and_truncation_guards);
+    RUN_TEST(parser_steam_triton_reports_sticks_triggers_imu_and_extra_info);
 
     return test_summary();
 }

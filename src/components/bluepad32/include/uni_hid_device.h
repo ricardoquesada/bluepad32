@@ -158,14 +158,22 @@ struct uni_hid_device_s {
     struct uni_hid_device_s* child;
 
     /**
-     * @brief Bytes reserved to controller's parser instances (e.g., Wii or Switch state machines).
+     * @brief Scratch buffer reserved for per-controller parser state machines
+     * (e.g., Wii, Switch, Switch 2 BLE `sw2_instance_t`, or Steam Triton
+     * `steam_triton_instance_t`).
+     *
+     * Explicitly aligned to an 8-byte boundary so parser instance structs that
+     * embed 64-bit pointers or BTstack linked-list nodes (`btstack_timer_source_t`,
+     * `gatt_client_notification_t`) can safely alias `&d->parser_data[0]` without
+     * triggering misaligned pointer UndefinedBehaviorSanitizer (UBSan) traps.
      */
-    uint8_t parser_data[HID_DEVICE_MAX_PARSER_DATA] __attribute__((aligned(sizeof(void*))));
+    uint8_t parser_data[HID_DEVICE_MAX_PARSER_DATA] __attribute__((aligned(8)));
 
     /**
-     * @brief Bytes reserved to different platforms (e.g., C64 or custom per-device state).
+     * @brief Scratch buffer reserved for platform-specific per-device state
+     * (e.g., C64 or custom platform drivers), 8-byte aligned for safe struct aliasing.
      */
-    uint8_t platform_data[HID_DEVICE_MAX_PLATFORM_DATA] __attribute__((aligned(sizeof(void*))));
+    uint8_t platform_data[HID_DEVICE_MAX_PLATFORM_DATA] __attribute__((aligned(8)));
 };
 typedef struct uni_hid_device_s uni_hid_device_t;
 

@@ -237,8 +237,14 @@ void disconnect_and_delete_device(uni_hid_device_t* d) {
         case CONTROLLER_TYPE_SwitchJoyConPair:
         case CONTROLLER_TYPE_SwitchInputOnlyController:
         case CONTROLLER_TYPE_XInputSwitchController:
+        case CONTROLLER_TYPE_Switch2ProController:
+        case CONTROLLER_TYPE_Switch2JoyConLeft:
+        case CONTROLLER_TYPE_Switch2JoyConRight:
             return CONTROLLER_LAYOUT_REVERSE;
 
+        case CONTROLLER_TYPE_SteamController:
+        case CONTROLLER_TYPE_SteamControllerV2:
+        case CONTROLLER_TYPE_SteamControllerTriton:
         default:
             return CONTROLLER_LAYOUT_STANDARD;
     }
@@ -260,6 +266,11 @@ void disconnect_and_delete_device(uni_hid_device_t* d) {
         case CONTROLLER_TYPE_SwitchJoyConLeft:
         case CONTROLLER_TYPE_SwitchJoyConRight:
         case CONTROLLER_TYPE_SwitchJoyConPair:
+        case CONTROLLER_TYPE_Switch2ProController:
+        case CONTROLLER_TYPE_Switch2JoyConLeft:
+        case CONTROLLER_TYPE_Switch2JoyConRight:
+        case CONTROLLER_TYPE_SteamController:
+        case CONTROLLER_TYPE_SteamControllerTriton:
         case CONTROLLER_TYPE_WiiController:
             return true;
         default:

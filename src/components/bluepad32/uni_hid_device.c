@@ -33,7 +33,9 @@
 #include "parser/uni_hid_parser_smarttvremote.h"
 #include "parser/uni_hid_parser_stadia.h"
 #include "parser/uni_hid_parser_steam.h"
+#include "parser/uni_hid_parser_steam_triton.h"
 #include "parser/uni_hid_parser_switch.h"
+#include "parser/uni_hid_parser_switch2.h"
 #include "parser/uni_hid_parser_wii.h"
 #include "parser/uni_hid_parser_xboxone.h"
 #include "platform/uni_platform.h"
@@ -513,6 +515,13 @@ void uni_hid_device_disconnect(uni_hid_device_t* d) {
     // Disconnected, so no longer needs the timers
     btstack_run_loop_remove_timer(&d->connection_timer);
     btstack_run_loop_remove_timer(&d->inquiry_remote_name_timer);
+    uni_hid_parser_rumble_stop_timers(d);
+    // Allow custom BLE GATT parsers (e.g., Switch 2 and Steam Triton) to unregister
+    // GATT notification listeners and stop parser-owned timers stored in parser_data[]
+    // before the slot is recycled or reconnected.
+    if (d->report_parser.deinit) {
+        d->report_parser.deinit(d);
+    }
 
     // If it was already connected, tell platforms
     if (connected)
@@ -828,6 +837,48 @@ static const uni_parser_entry_t k_parser_entries[] = {
             },
     },
     {
+        .type = CONTROLLER_TYPE_Switch2ProController,
+        .name = "Nintendo Switch 2 Pro controller",
+        .parser =
+            {
+                .setup = uni_hid_parser_switch2_setup,
+                .deinit = uni_hid_parser_switch2_deinit,
+                .init_report = uni_hid_parser_switch2_init_report,
+                .parse_input_report = uni_hid_parser_switch2_parse_input_report,
+                .set_player_leds = uni_hid_parser_switch2_set_player_leds,
+                .play_dual_rumble = uni_hid_parser_switch2_play_dual_rumble,
+                .device_extra_info = uni_hid_parser_switch2_device_extra_info,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_Switch2JoyConRight,
+        .name = "Nintendo Switch 2 Joy-Con (R)",
+        .parser =
+            {
+                .setup = uni_hid_parser_switch2_setup,
+                .deinit = uni_hid_parser_switch2_deinit,
+                .init_report = uni_hid_parser_switch2_init_report,
+                .parse_input_report = uni_hid_parser_switch2_parse_input_report,
+                .set_player_leds = uni_hid_parser_switch2_set_player_leds,
+                .play_dual_rumble = uni_hid_parser_switch2_play_dual_rumble,
+                .device_extra_info = uni_hid_parser_switch2_device_extra_info,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_Switch2JoyConLeft,
+        .name = "Nintendo Switch 2 Joy-Con (L)",
+        .parser =
+            {
+                .setup = uni_hid_parser_switch2_setup,
+                .deinit = uni_hid_parser_switch2_deinit,
+                .init_report = uni_hid_parser_switch2_init_report,
+                .parse_input_report = uni_hid_parser_switch2_parse_input_report,
+                .set_player_leds = uni_hid_parser_switch2_set_player_leds,
+                .play_dual_rumble = uni_hid_parser_switch2_play_dual_rumble,
+                .device_extra_info = uni_hid_parser_switch2_device_extra_info,
+            },
+    },
+    {
         .type = CONTROLLER_TYPE_SteamController,
         .name = "Steam",
         .parser =
@@ -835,6 +886,19 @@ static const uni_parser_entry_t k_parser_entries[] = {
                 .setup = uni_hid_parser_steam_setup,
                 .init_report = uni_hid_parser_steam_init_report,
                 .parse_input_report = uni_hid_parser_steam_parse_input_report,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_SteamControllerTriton,
+        .name = "Steam Controller 2026 (Triton)",
+        .parser =
+            {
+                .setup = uni_hid_parser_steam_triton_setup,
+                .deinit = uni_hid_parser_steam_triton_deinit,
+                .init_report = uni_hid_parser_steam_triton_init_report,
+                .parse_input_report = uni_hid_parser_steam_triton_parse_input_report,
+                .play_dual_rumble = uni_hid_parser_steam_triton_play_dual_rumble,
+                .device_extra_info = uni_hid_parser_steam_triton_device_extra_info,
             },
     },
     {
@@ -1138,13 +1202,16 @@ static void process_misc_button_system(uni_hid_device_t* d) {
     if (d->misc_button_wait_release & MISC_BUTTON_SYSTEM)
         return;
 
-    // Needed only for Nintendo Switch family of controllers.
-    // This is because each time you press the "system" button it generates two events
-    // automatically:  press button + release button
-    // We artificially add a delay.
+    // Needed for both Nintendo Switch 1 and Switch 2 families of controllers.
+    // Pressing the Home/Capture ("system") button on Switch controllers can emit
+    // rapid back-to-back press/release transitions; apply a debounce window via
+    // misc_button_delay_timer so the platform receives a single clean event.
     bool requires_delay = (d->controller_type == CONTROLLER_TYPE_SwitchProController ||
                            d->controller_type == CONTROLLER_TYPE_SwitchJoyConLeft ||
-                           d->controller_type == CONTROLLER_TYPE_SwitchJoyConRight);
+                           d->controller_type == CONTROLLER_TYPE_SwitchJoyConRight ||
+                           d->controller_type == CONTROLLER_TYPE_Switch2ProController ||
+                           d->controller_type == CONTROLLER_TYPE_Switch2JoyConLeft ||
+                           d->controller_type == CONTROLLER_TYPE_Switch2JoyConRight);
 
     if (requires_delay && (d->misc_button_wait_delay & MISC_BUTTON_SYSTEM))
         return;

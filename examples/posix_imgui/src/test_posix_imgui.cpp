@@ -72,7 +72,9 @@ extern "C" {
 #include "parser/uni_hid_parser_keyboard.h"
 #include "parser/uni_hid_parser_mouse.h"
 #include "parser/uni_hid_parser_sinput.h"
+#include "parser/uni_hid_parser_steam_triton.h"
 #include "parser/uni_hid_parser_switch.h"
+#include "parser/uni_hid_parser_switch2.h"
 #include "parser/uni_hid_parser_wii.h"
 #include "parser/uni_hid_parser_xboxone.h"
 }
@@ -204,6 +206,7 @@ void init_synthetic_device(uni_hid_device_t* d,
     if (name != nullptr) {
         std::snprintf(d->name, sizeof(d->name), "%s", name);
     }
+    d->conn.handle = UNI_BT_CONN_HANDLE_INVALID;
     d->conn.state = UNI_BT_CONN_STATE_DEVICE_READY;
     d->conn.rssi = 200;
 }
@@ -360,20 +363,42 @@ void test_slot_reclamation_on_disconnect_and_reconnection() {
 // Suite B: ControllerLayoutType & Capability Detection
 // ============================================================================
 
-/// Test 5: Verifies `ControllerLayoutType` classification across Xbox/Generic,
-/// PlayStation, and Nintendo Switch controller types.
+/// Test 5: Verifies `uni_gamepad_get_model_name()` and `ControllerLayoutType` classification
+/// across Xbox/Generic/Steam, PlayStation, and Nintendo Switch 1 & 2 controller types.
 void test_controller_layout_classification() {
+    // 1. Verify exact model names for Switch 2 and Steam Triton controller types.
+    struct ModelNameCase {
+        uni_controller_type_t type;
+        const char* expected_name;
+    };
+    constexpr std::array<ModelNameCase, 4> kNewModelCases = {{
+        {CONTROLLER_TYPE_Switch2ProController, "Switch 2 Pro"},
+        {CONTROLLER_TYPE_Switch2JoyConLeft, "Switch 2 JoyCon Left"},
+        {CONTROLLER_TYPE_Switch2JoyConRight, "Switch 2 JoyCon Right"},
+        {CONTROLLER_TYPE_SteamControllerTriton, "Steam Triton"},
+    }};
+    for (const ModelNameCase& mc : kNewModelCases) {
+        const char* actual = uni_gamepad_get_model_name(mc.type);
+        TEST_ASSERT(actual != nullptr);
+        TEST_ASSERT(actual[0] != '\0');
+        TEST_ASSERT(std::strstr(actual, "Unknown") == nullptr);
+        TEST_ASSERT(std::strcmp(actual, mc.expected_name) == 0);
+    }
+
+    // 2. Verify layout classification across Xbox/Generic/Steam, PlayStation, and Switch 1 & 2.
     struct LayoutCase {
         uni_controller_type_t type;
         ControllerLayoutType expected_layout;
     };
 
-    constexpr std::array<LayoutCase, 15> kCases = {{
+    constexpr std::array<LayoutCase, 20> kCases = {{
         {CONTROLLER_TYPE_XBoxOneController, CONTROLLER_LAYOUT_STANDARD},
         {CONTROLLER_TYPE_XBox360Controller, CONTROLLER_LAYOUT_STANDARD},
         {CONTROLLER_TYPE_AndroidController, CONTROLLER_LAYOUT_STANDARD},
         {CONTROLLER_TYPE_GenericController, CONTROLLER_LAYOUT_STANDARD},
         {CONTROLLER_TYPE_8BitdoController, CONTROLLER_LAYOUT_STANDARD},
+        {CONTROLLER_TYPE_SteamController, CONTROLLER_LAYOUT_STANDARD},
+        {CONTROLLER_TYPE_SteamControllerTriton, CONTROLLER_LAYOUT_STANDARD},
         {CONTROLLER_TYPE_PS3Controller, CONTROLLER_LAYOUT_SHAPES},
         {CONTROLLER_TYPE_PS4Controller, CONTROLLER_LAYOUT_SHAPES},
         {CONTROLLER_TYPE_PS5Controller, CONTROLLER_LAYOUT_SHAPES},
@@ -384,6 +409,9 @@ void test_controller_layout_classification() {
         {CONTROLLER_TYPE_SwitchJoyConPair, CONTROLLER_LAYOUT_REVERSE},
         {CONTROLLER_TYPE_SwitchInputOnlyController, CONTROLLER_LAYOUT_REVERSE},
         {CONTROLLER_TYPE_XInputSwitchController, CONTROLLER_LAYOUT_REVERSE},
+        {CONTROLLER_TYPE_Switch2ProController, CONTROLLER_LAYOUT_REVERSE},
+        {CONTROLLER_TYPE_Switch2JoyConLeft, CONTROLLER_LAYOUT_REVERSE},
+        {CONTROLLER_TYPE_Switch2JoyConRight, CONTROLLER_LAYOUT_REVERSE},
     }};
 
     struct uni_platform* plat = get_posix_imgui_platform();
@@ -397,12 +425,17 @@ void test_controller_layout_classification() {
         std::array<ControllerSnapshot, kMaxControllers> snapshots{};
         posix_imgui_get_snapshots(std::span{snapshots});
         TEST_ASSERT(snapshots[0].layout == tc.expected_layout);
+        TEST_ASSERT(snapshots[0].model_name[0] != '\0');
+        TEST_ASSERT(std::strstr(snapshots[0].model_name, "Unknown") == nullptr);
     }
 }
 
 /// Test 6: Verifies hardware capability detection (`has_rumble`, `has_player_leds`,
-/// `has_rgb_led`, `has_brightness_led`, `has_imu`) across DualSense, Switch Pro, and Xbox One.
+/// `has_rgb_led`, `has_brightness_led`, `has_imu`) across DualSense, Switch Pro, Xbox One,
+/// Switch 2 (Pro, Joy-Con L, Joy-Con R), Steam Triton, and Steam Controller 2015.
 void test_controller_capability_flags() {
+    btstack_run_loop_deinit();
+    btstack_run_loop_init(btstack_run_loop_posix_get_instance());
     struct uni_platform* plat = get_posix_imgui_platform();
 
     // Case 1: DualSense (rumble, player LEDs, RGB lightbar, IMU, no brightness LED)
@@ -453,6 +486,74 @@ void test_controller_capability_flags() {
     TEST_ASSERT(!snapshots[0].has_rgb_led);
     TEST_ASSERT(!snapshots[0].has_brightness_led);
     TEST_ASSERT(!snapshots[0].has_imu);
+
+    // Case 4: Nintendo Switch 2 Pro (057e:2069), Joy-Con L (057e:2067), Joy-Con R (057e:2066)
+    // Resolved via `uni_hid_device_guess_controller_type_from_pid_vid`:
+    //   has_rumble = true, has_player_leds = true, has_rgb_led = false, has_brightness_led = false, has_imu = true
+    constexpr std::array<uint16_t, 3> kSwitch2Pids = {0x2069, 0x2067, 0x2066};
+    for (uint16_t pid : kSwitch2Pids) {
+        posix_imgui_reset_for_test();
+        uni_hid_device_t sw2{};
+        sw2.vendor_id = 0x057e;
+        sw2.product_id = pid;
+        std::snprintf(sw2.name, sizeof(sw2.name), "Switch 2 %04x", static_cast<unsigned>(pid));
+        sw2.conn.handle = UNI_BT_CONN_HANDLE_INVALID;
+        sw2.conn.state = UNI_BT_CONN_STATE_DEVICE_READY;
+        uni_hid_device_guess_controller_type_from_pid_vid(&sw2);
+
+        plat->on_device_connected(&sw2);
+        TEST_ASSERT(plat->on_device_ready(&sw2) == UNI_ERROR_SUCCESS);
+
+        posix_imgui_get_snapshots(std::span{snapshots});
+        TEST_ASSERT(snapshots[0].layout == CONTROLLER_LAYOUT_REVERSE);
+        TEST_ASSERT(snapshots[0].has_rumble);
+        TEST_ASSERT(snapshots[0].has_player_leds);
+        TEST_ASSERT(!snapshots[0].has_rgb_led);
+        TEST_ASSERT(!snapshots[0].has_brightness_led);
+        TEST_ASSERT(snapshots[0].has_imu);
+    }
+
+    // Case 5: Valve Steam Controller Triton (28de:1303)
+    //   has_rumble = true, has_player_leds = false, has_rgb_led = false, has_brightness_led = false, has_imu = true
+    posix_imgui_reset_for_test();
+    uni_hid_device_t triton{};
+    triton.vendor_id = 0x28de;
+    triton.product_id = 0x1303;
+    std::snprintf(triton.name, sizeof(triton.name), "Steam Controller");
+    triton.conn.handle = UNI_BT_CONN_HANDLE_INVALID;
+    triton.conn.state = UNI_BT_CONN_STATE_DEVICE_READY;
+    uni_hid_device_guess_controller_type_from_pid_vid(&triton);
+
+    plat->on_device_connected(&triton);
+    TEST_ASSERT(plat->on_device_ready(&triton) == UNI_ERROR_SUCCESS);
+
+    posix_imgui_get_snapshots(std::span{snapshots});
+    TEST_ASSERT(snapshots[0].controller_type == CONTROLLER_TYPE_SteamControllerTriton);
+    TEST_ASSERT(std::strcmp(snapshots[0].model_name, "Steam Triton") == 0);
+    TEST_ASSERT(snapshots[0].layout == CONTROLLER_LAYOUT_STANDARD);
+    TEST_ASSERT(snapshots[0].has_rumble);
+    TEST_ASSERT(!snapshots[0].has_player_leds);
+    TEST_ASSERT(!snapshots[0].has_rgb_led);
+    TEST_ASSERT(!snapshots[0].has_brightness_led);
+    TEST_ASSERT(snapshots[0].has_imu);
+
+    // Case 6: Valve Steam Controller 2015 (28de:1106) -> has_imu = true
+    posix_imgui_reset_for_test();
+    uni_hid_device_t steam_2015{};
+    steam_2015.vendor_id = 0x28de;
+    steam_2015.product_id = 0x1106;
+    std::snprintf(steam_2015.name, sizeof(steam_2015.name), "SteamController");
+    steam_2015.conn.handle = UNI_BT_CONN_HANDLE_INVALID;
+    steam_2015.conn.state = UNI_BT_CONN_STATE_DEVICE_READY;
+    uni_hid_device_guess_controller_type_from_pid_vid(&steam_2015);
+
+    plat->on_device_connected(&steam_2015);
+    TEST_ASSERT(plat->on_device_ready(&steam_2015) == UNI_ERROR_SUCCESS);
+
+    posix_imgui_get_snapshots(std::span{snapshots});
+    TEST_ASSERT(snapshots[0].controller_type == CONTROLLER_TYPE_SteamController);
+    TEST_ASSERT(snapshots[0].layout == CONTROLLER_LAYOUT_STANDARD);
+    TEST_ASSERT(snapshots[0].has_imu);
 }
 
 // ============================================================================
@@ -1409,14 +1510,15 @@ struct TestXboxOneParserPrefix {
 };
 
 /// Test 21: Verifies NULL/zero-length guard clauses (`d == nullptr`, `buf == nullptr`, `len == 0`)
-/// and small-buffer `snprintf` truncation (`len == 1` and `len == 8`) across all 8 parser
+/// and small-buffer `snprintf` truncation (`len == 1` and `len == 8`) across all 10 parser
 /// `uni_hid_parser_*_device_extra_info` functions.
 void test_parser_device_extra_info_null_and_small_buffer_guards() {
-    constexpr std::array<report_device_extra_info_fn_t, 8> kAllCallbacks = {
-        &uni_hid_parser_ds4_device_extra_info,     &uni_hid_parser_ds5_device_extra_info,
-        &uni_hid_parser_switch_device_extra_info,  &uni_hid_parser_wii_device_extra_info,
-        &uni_hid_parser_xboxone_device_extra_info, &uni_hid_parser_sinput_device_extra_info,
-        &uni_hid_parser_mouse_device_extra_info,   &uni_hid_parser_keyboard_device_extra_info,
+    constexpr std::array<report_device_extra_info_fn_t, 10> kAllCallbacks = {
+        &uni_hid_parser_ds4_device_extra_info,          &uni_hid_parser_ds5_device_extra_info,
+        &uni_hid_parser_switch_device_extra_info,       &uni_hid_parser_switch2_device_extra_info,
+        &uni_hid_parser_steam_triton_device_extra_info, &uni_hid_parser_wii_device_extra_info,
+        &uni_hid_parser_xboxone_device_extra_info,      &uni_hid_parser_sinput_device_extra_info,
+        &uni_hid_parser_mouse_device_extra_info,        &uni_hid_parser_keyboard_device_extra_info,
     };
 
     uni_hid_device_t d;
@@ -1433,10 +1535,11 @@ void test_parser_device_extra_info_null_and_small_buffer_guards() {
     }
 
     // Small-buffer truncation (len == 1) on callbacks that format non-empty strings on zeroed state:
-    constexpr std::array<report_device_extra_info_fn_t, 6> kNonEmptyOnZeroCallbacks = {
-        &uni_hid_parser_ds4_device_extra_info,     &uni_hid_parser_ds5_device_extra_info,
-        &uni_hid_parser_switch_device_extra_info,  &uni_hid_parser_wii_device_extra_info,
-        &uni_hid_parser_xboxone_device_extra_info, &uni_hid_parser_mouse_device_extra_info,
+    constexpr std::array<report_device_extra_info_fn_t, 8> kNonEmptyOnZeroCallbacks = {
+        &uni_hid_parser_ds4_device_extra_info,          &uni_hid_parser_ds5_device_extra_info,
+        &uni_hid_parser_switch_device_extra_info,       &uni_hid_parser_switch2_device_extra_info,
+        &uni_hid_parser_steam_triton_device_extra_info, &uni_hid_parser_wii_device_extra_info,
+        &uni_hid_parser_xboxone_device_extra_info,      &uni_hid_parser_mouse_device_extra_info,
     };
     for (report_device_extra_info_fn_t fn : kNonEmptyOnZeroCallbacks) {
         std::memset(buf, 'Z', sizeof(buf));
@@ -1455,7 +1558,7 @@ void test_parser_device_extra_info_null_and_small_buffer_guards() {
 }
 
 /// Test 22: Verifies exact prefix-free, tab-free, newline-free string formatting and
-/// out-of-bounds enum resilience across all 8 parser `device_extra_info` implementations.
+/// out-of-bounds enum resilience across all 10 parser `device_extra_info` implementations.
 void test_parser_device_extra_info_all_parsers_and_enum_bounds() {
     btstack_run_loop_deinit();
     btstack_run_loop_init(btstack_run_loop_posix_get_instance());
@@ -1632,11 +1735,54 @@ void test_parser_device_extra_info_all_parsers_and_enum_bounds() {
         TEST_ASSERT(uni_hid_parser_keyboard_device_extra_info(&d_kb, buf, sizeof(buf)) == 0);
         TEST_ASSERT(buf[0] == '\0');
     }
+
+    // 9. Nintendo Switch 2: Pro Controller 2 (0x2069), Joy-Con 2 Left (0x2067), Joy-Con 2 Right (0x2066)
+    {
+        constexpr std::array<uint16_t, 3> kSwitch2Pids = {0x2069, 0x2067, 0x2066};
+        for (uint16_t pid : kSwitch2Pids) {
+            uni_hid_device_t d_sw2{};
+            d_sw2.vendor_id = 0x057e;
+            d_sw2.product_id = pid;
+            d_sw2.conn.handle = UNI_BT_CONN_HANDLE_INVALID;
+            d_sw2.conn.state = UNI_BT_CONN_STATE_DEVICE_READY;
+            uni_hid_device_guess_controller_type_from_pid_vid(&d_sw2);
+            TEST_ASSERT(d_sw2.report_parser.device_extra_info == &uni_hid_parser_switch2_device_extra_info);
+            d_sw2.report_parser.setup(&d_sw2);
+
+            const int n = uni_hid_parser_switch2_device_extra_info(&d_sw2, buf, sizeof(buf));
+            TEST_ASSERT(n > 0);
+            TEST_ASSERT(std::strstr(buf, "pid=0x206") != nullptr);
+            TEST_ASSERT(std::strstr(buf, "state=idle, cal=default") != nullptr);
+            TEST_ASSERT(std::strchr(buf, '\t') == nullptr && std::strchr(buf, '\n') == nullptr);
+        }
+    }
+
+    // 10. Valve Steam Controller Triton: USB (0x1302), BLE (0x1303), Puck (0x1304), Nereid (0x1305)
+    {
+        constexpr std::array<uint16_t, 4> kTritonPids = {0x1302, 0x1303, 0x1304, 0x1305};
+        for (uint16_t pid : kTritonPids) {
+            uni_hid_device_t d_tri{};
+            d_tri.vendor_id = 0x28de;
+            d_tri.product_id = pid;
+            d_tri.conn.handle = UNI_BT_CONN_HANDLE_INVALID;
+            d_tri.conn.state = UNI_BT_CONN_STATE_DEVICE_READY;
+            uni_hid_device_guess_controller_type_from_pid_vid(&d_tri);
+            TEST_ASSERT(d_tri.report_parser.device_extra_info == &uni_hid_parser_steam_triton_device_extra_info);
+            d_tri.report_parser.setup(&d_tri);
+
+            const int n = uni_hid_parser_steam_triton_device_extra_info(&d_tri, buf, sizeof(buf));
+            TEST_ASSERT(n > 0);
+            TEST_ASSERT(std::strstr(buf, "pid=0x130") != nullptr);
+            TEST_ASSERT(std::strstr(buf, "state=idle, stream=0x00") != nullptr);
+            TEST_ASSERT(std::strchr(buf, '\t') == nullptr && std::strchr(buf, '\n') == nullptr);
+        }
+    }
 }
 
 /// Test 23: Verifies `posix_imgui_on_device_ready()` and `posix_imgui_on_controller_data()`
 /// propagation of `device_extra_info` into `ControllerSnapshot::device_extra_info`, including
-/// `nullptr` / zero-return fallbacks, asynchronous DS4 firmware report arrival, and disconnect cleanup.
+/// `nullptr` / zero-return fallbacks, asynchronous DS4 firmware report arrival, Switch 2 &
+/// Steam Triton snapshot + IMU telemetry propagation, and disconnect cleanup.
 void test_snapshot_device_extra_info_ready_async_update_and_fallbacks() {
     posix_imgui_reset_for_test();
     struct uni_platform* plat = get_posix_imgui_platform();
@@ -1691,6 +1837,118 @@ void test_snapshot_device_extra_info_ready_async_update_and_fallbacks() {
     posix_imgui_get_snapshots(std::span{snapshots});
     TEST_ASSERT(!snapshots[2].connected);
     TEST_ASSERT(snapshots[2].device_extra_info[0] == '\0');
+
+    // 5. Switch 2 Pro (057e:2069), Joy-Con L (057e:2067), Joy-Con R (057e:2066), and Steam Triton (28de:1303)
+    //    end-to-end snapshot & IMU telemetry propagation across Slots 0..3:
+    posix_imgui_reset_for_test();
+    uni_hid_device_t sw2_pro{};
+    sw2_pro.vendor_id = 0x057e;
+    sw2_pro.product_id = 0x2069;
+    sw2_pro.conn.handle = UNI_BT_CONN_HANDLE_INVALID;
+    sw2_pro.conn.state = UNI_BT_CONN_STATE_DEVICE_READY;
+    std::snprintf(sw2_pro.name, sizeof(sw2_pro.name), "Nintendo Switch 2 Pro");
+    uni_hid_device_guess_controller_type_from_pid_vid(&sw2_pro);
+    sw2_pro.report_parser.setup(&sw2_pro);
+    plat->on_device_connected(&sw2_pro);
+    TEST_ASSERT(plat->on_device_ready(&sw2_pro) == UNI_ERROR_SUCCESS);
+
+    uni_hid_device_t sw2_jcl{};
+    sw2_jcl.vendor_id = 0x057e;
+    sw2_jcl.product_id = 0x2067;
+    sw2_jcl.conn.handle = UNI_BT_CONN_HANDLE_INVALID;
+    sw2_jcl.conn.state = UNI_BT_CONN_STATE_DEVICE_READY;
+    std::snprintf(sw2_jcl.name, sizeof(sw2_jcl.name), "Nintendo Switch 2 Joy-Con (L)");
+    uni_hid_device_guess_controller_type_from_pid_vid(&sw2_jcl);
+    sw2_jcl.report_parser.setup(&sw2_jcl);
+    plat->on_device_connected(&sw2_jcl);
+    TEST_ASSERT(plat->on_device_ready(&sw2_jcl) == UNI_ERROR_SUCCESS);
+
+    uni_hid_device_t sw2_jcr{};
+    sw2_jcr.vendor_id = 0x057e;
+    sw2_jcr.product_id = 0x2066;
+    sw2_jcr.conn.handle = UNI_BT_CONN_HANDLE_INVALID;
+    sw2_jcr.conn.state = UNI_BT_CONN_STATE_DEVICE_READY;
+    std::snprintf(sw2_jcr.name, sizeof(sw2_jcr.name), "Nintendo Switch 2 Joy-Con (R)");
+    uni_hid_device_guess_controller_type_from_pid_vid(&sw2_jcr);
+    sw2_jcr.report_parser.setup(&sw2_jcr);
+    plat->on_device_connected(&sw2_jcr);
+    TEST_ASSERT(plat->on_device_ready(&sw2_jcr) == UNI_ERROR_SUCCESS);
+
+    uni_hid_device_t triton{};
+    triton.vendor_id = 0x28de;
+    triton.product_id = 0x1303;
+    triton.conn.handle = UNI_BT_CONN_HANDLE_INVALID;
+    triton.conn.state = UNI_BT_CONN_STATE_DEVICE_READY;
+    std::snprintf(triton.name, sizeof(triton.name), "Steam Controller");
+    uni_hid_device_guess_controller_type_from_pid_vid(&triton);
+    triton.report_parser.setup(&triton);
+    plat->on_device_connected(&triton);
+    TEST_ASSERT(plat->on_device_ready(&triton) == UNI_ERROR_SUCCESS);
+
+    // Feed a synthetic 63-byte Switch 2 Pro report with +1g (az = 4096) and BUTTON_B (physical A = 0x08)
+    std::array<uint8_t, 63> sw2_report{};
+    sw2_report[3] = 80;    // 80% battery
+    sw2_report[4] = 0x08;  // Right A -> BUTTON_B
+    // Neutral sticks (2048 = 0x800) at [10..15]
+    sw2_report[10] = 0x00;
+    sw2_report[11] = 0x08;
+    sw2_report[12] = 0x80;
+    sw2_report[13] = 0x00;
+    sw2_report[14] = 0x08;
+    sw2_report[15] = 0x80;
+    // az = 4096 (+1g = 0x1000) at [52..53], gz = 13371 (+936 dps = 0x343b) at [58..59]
+    sw2_report[52] = 0x00;
+    sw2_report[53] = 0x10;
+    sw2_report[58] = 0x3b;
+    sw2_report[59] = 0x34;
+    sw2_pro.report_parser.init_report(&sw2_pro);
+    sw2_pro.report_parser.parse_input_report(&sw2_pro, sw2_report.data(), sw2_report.size());
+    plat->on_controller_data(&sw2_pro, &sw2_pro.controller);
+
+    // Feed a synthetic 46-byte Steam Triton 0x47 report with +1g (az = 16384 = 0x4000) and BUTTON_A (0x01)
+    std::array<uint8_t, 46> triton_report{};
+    triton_report[0] = ID_TRITON_CONTROLLER_STATE_TIMESTAMP;  // 0x47
+    triton_report[2] = 0x01;                                  // TRITON_BTN_A -> BUTTON_A
+    // az at p[37..38] (report[38..39]) = 16384 (0x4000), gz at p[43..44] (report[44..45]) = 16384 (+1000 dps)
+    triton_report[38] = 0x00;
+    triton_report[39] = 0x40;
+    triton_report[44] = 0x00;
+    triton_report[45] = 0x40;
+    triton.report_parser.init_report(&triton);
+    triton.report_parser.parse_input_report(&triton, triton_report.data(), triton_report.size());
+    plat->on_controller_data(&triton, &triton.controller);
+
+    posix_imgui_get_snapshots(std::span{snapshots});
+    // Slot 0: Switch 2 Pro
+    TEST_ASSERT(snapshots[0].connected);
+    TEST_ASSERT(std::strcmp(snapshots[0].model_name, "Switch 2 Pro") == 0);
+    TEST_ASSERT(snapshots[0].layout == CONTROLLER_LAYOUT_REVERSE);
+    TEST_ASSERT(snapshots[0].has_imu && snapshots[0].has_rumble && snapshots[0].has_player_leds);
+    TEST_ASSERT(std::strstr(snapshots[0].device_extra_info, "pid=0x2069, state=idle, cal=default") != nullptr);
+    TEST_ASSERT(snapshots[0].controller.gamepad.buttons == BUTTON_B);
+    TEST_ASSERT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, snapshots[0].controller.gamepad.accel[1], 1e-2f);
+    TEST_ASSERT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, snapshots[0].controller.gamepad.gyro[1], 1e-2f);
+
+    // Slot 1 & Slot 2: Switch 2 Joy-Con Left & Right
+    TEST_ASSERT(snapshots[1].connected);
+    TEST_ASSERT(std::strcmp(snapshots[1].model_name, "Switch 2 JoyCon Left") == 0);
+    TEST_ASSERT(snapshots[1].layout == CONTROLLER_LAYOUT_REVERSE && snapshots[1].has_imu);
+    TEST_ASSERT(std::strstr(snapshots[1].device_extra_info, "pid=0x2067, state=idle, cal=default") != nullptr);
+
+    TEST_ASSERT(snapshots[2].connected);
+    TEST_ASSERT(std::strcmp(snapshots[2].model_name, "Switch 2 JoyCon Right") == 0);
+    TEST_ASSERT(snapshots[2].layout == CONTROLLER_LAYOUT_REVERSE && snapshots[2].has_imu);
+    TEST_ASSERT(std::strstr(snapshots[2].device_extra_info, "pid=0x2066, state=idle, cal=default") != nullptr);
+
+    // Slot 3: Steam Triton
+    TEST_ASSERT(snapshots[3].connected);
+    TEST_ASSERT(std::strcmp(snapshots[3].model_name, "Steam Triton") == 0);
+    TEST_ASSERT(snapshots[3].layout == CONTROLLER_LAYOUT_STANDARD);
+    TEST_ASSERT(snapshots[3].has_imu && snapshots[3].has_rumble && !snapshots[3].has_player_leds);
+    TEST_ASSERT(std::strstr(snapshots[3].device_extra_info, "pid=0x1303, state=idle, stream=0x00") != nullptr);
+    TEST_ASSERT(snapshots[3].controller.gamepad.buttons == BUTTON_A);
+    TEST_ASSERT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, snapshots[3].controller.gamepad.accel[1], 1e-2f);
+    TEST_ASSERT_FLOAT_NEAR(1000.0f * UNI_DEG_TO_RAD, snapshots[3].controller.gamepad.gyro[1], 1e-2f);
 }
 
 /// Test 24: Verifies headless `DemoScene::DoFrame()` on the Info tab (`SelectCategoryTabForTest(4)`)
