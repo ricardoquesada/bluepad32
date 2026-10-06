@@ -11,6 +11,7 @@
 #include "parser/uni_hid_parser_ds5.h"
 
 #include <assert.h>
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -746,7 +747,8 @@ int uni_hid_parser_ds5_device_extra_info(const struct uni_hid_device_s* d, char*
     if (!d || !buf || len == 0)
         return -1;
     const ds5_instance_t* ins = (const ds5_instance_t*)&d->parser_data[0];
-    return snprintf(buf, len, "FW version: %#x, HW version: %#x, update version: %#x, use vibration2: %d",
+    return snprintf(buf, len,
+                    "FW version: %#" PRIx32 ", HW version: %#" PRIx32 ", update version: %#x, use vibration2: %d",
                     ins->fw_version, ins->hw_version, ins->update_version, ins->use_vibration2);
 }
 
