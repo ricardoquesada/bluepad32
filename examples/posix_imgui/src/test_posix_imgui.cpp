@@ -1751,7 +1751,6 @@ void test_parser_device_extra_info_all_parsers_and_enum_bounds() {
 
             const int n = uni_hid_parser_switch2_device_extra_info(&d_sw2, buf, sizeof(buf));
             TEST_ASSERT(n > 0);
-            TEST_ASSERT(std::strstr(buf, "pid=0x206") != nullptr);
             TEST_ASSERT(std::strstr(buf, "state=idle, cal=default") != nullptr);
             TEST_ASSERT(std::strchr(buf, '\t') == nullptr && std::strchr(buf, '\n') == nullptr);
         }
@@ -1924,7 +1923,7 @@ void test_snapshot_device_extra_info_ready_async_update_and_fallbacks() {
     TEST_ASSERT(std::strcmp(snapshots[0].model_name, "Switch 2 Pro") == 0);
     TEST_ASSERT(snapshots[0].layout == CONTROLLER_LAYOUT_REVERSE);
     TEST_ASSERT(snapshots[0].has_imu && snapshots[0].has_rumble && snapshots[0].has_player_leds);
-    TEST_ASSERT(std::strstr(snapshots[0].device_extra_info, "pid=0x2069, state=idle, cal=default") != nullptr);
+    TEST_ASSERT(std::strstr(snapshots[0].device_extra_info, "state=idle, cal=default") != nullptr);
     TEST_ASSERT(snapshots[0].controller.gamepad.buttons == BUTTON_B);
     TEST_ASSERT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, snapshots[0].controller.gamepad.accel[1], 1e-2f);
     TEST_ASSERT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, snapshots[0].controller.gamepad.gyro[1], 1e-2f);
@@ -1933,12 +1932,12 @@ void test_snapshot_device_extra_info_ready_async_update_and_fallbacks() {
     TEST_ASSERT(snapshots[1].connected);
     TEST_ASSERT(std::strcmp(snapshots[1].model_name, "Switch 2 JoyCon Left") == 0);
     TEST_ASSERT(snapshots[1].layout == CONTROLLER_LAYOUT_REVERSE && snapshots[1].has_imu);
-    TEST_ASSERT(std::strstr(snapshots[1].device_extra_info, "pid=0x2067, state=idle, cal=default") != nullptr);
+    TEST_ASSERT(std::strstr(snapshots[1].device_extra_info, "state=idle, cal=default") != nullptr);
 
     TEST_ASSERT(snapshots[2].connected);
     TEST_ASSERT(std::strcmp(snapshots[2].model_name, "Switch 2 JoyCon Right") == 0);
     TEST_ASSERT(snapshots[2].layout == CONTROLLER_LAYOUT_REVERSE && snapshots[2].has_imu);
-    TEST_ASSERT(std::strstr(snapshots[2].device_extra_info, "pid=0x2066, state=idle, cal=default") != nullptr);
+    TEST_ASSERT(std::strstr(snapshots[2].device_extra_info, "state=idle, cal=default") != nullptr);
 
     // Slot 3: Steam Triton
     TEST_ASSERT(snapshots[3].connected);

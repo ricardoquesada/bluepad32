@@ -1567,14 +1567,13 @@ void uni_hid_parser_switch2_parse_input_report(struct uni_hid_device_s* d, const
     // 6-axis IMU at report[48..59] (requires len >= 60).
     // Converts raw sensor counts into Bluepad32's canonical right-handed Y-up SI coordinate frame
     // ([0] = +X right / pitch, [1] = +Y up / yaw, [2] = +Z toward player / roll; determinant = +1)
-    // in m/s^2 (SW2_ACCEL_SCALE) and rad/s (SW2_GYRO_SCALE):
-    // - Pro Controller 2 (0x2069, native +X_s forward, +Y_s left, +Z_s up):
-    //     [X, Y, Z] = [-Y_s, +Z_s, -X_s]
+    // in m/s^2 (SW2_ACCEL_SCALE) and rad/s (SW2_GYRO_SCALE), matching SDL_hidapi_switch2.c:
+    // - Pro Controller 2 (0x2069, native +X_s right, +Y_s forward, +Z_s up):
+    //     [X, Y, Z] = [+X_s, +Z_s, -Y_s]
     // - Solo Joy-Con 2 Left (0x2067, rotated 90 deg CCW around +Z_s into horizontal grip):
-    //     [X, Y, Z] = [-X_s, +Z_s, +Y_s]
-    // - Solo Joy-Con 2 Right (0x2066, IMU mounted 180 deg around +X_s so +Y_s is right and +Z_s is
-    //   down, rotated 90 deg CW into horizontal grip):
-    //     [X, Y, Z] = [+X_s, -Z_s, +Y_s]
+    //     [X, Y, Z] = [-Y_s, +Z_s, -X_s]
+    // - Solo Joy-Con 2 Right (0x2066, rotated 90 deg CW around +Z_s into horizontal grip):
+    //     [X, Y, Z] = [+Y_s, +Z_s, +X_s]
     if (len >= 60) {
         uint16_t imu_ts = little_endian_read_16(report, 42);
         uint16_t sample_dt = ins->has_imu_ts ? (uint16_t)(imu_ts - ins->last_imu_ts) : 0;
@@ -1592,33 +1591,33 @@ void uni_hid_parser_switch2_parse_input_report(struct uni_hid_device_s* d, const
         switch (d->controller_type) {
             case CONTROLLER_TYPE_Switch2JoyConLeft:
                 // Solo Joy-Con 2 Left (horizontal 90 deg CCW, right-handed Y-up det = +1)
-                gp->accel[0] = -(float)ax * SW2_ACCEL_SCALE;
-                gp->accel[1] = (float)az * SW2_ACCEL_SCALE;
-                gp->accel[2] = (float)ay * SW2_ACCEL_SCALE;
-                gp->gyro[0] = -(float)gx * SW2_GYRO_SCALE;
-                gp->gyro[1] = (float)gz * SW2_GYRO_SCALE;
-                gp->gyro[2] = (float)gy * SW2_GYRO_SCALE;
-                break;
-
-            case CONTROLLER_TYPE_Switch2JoyConRight:
-                // Solo Joy-Con 2 Right (horizontal 90 deg CW, IMU mounted 180 deg around X_s, det = +1)
-                gp->accel[0] = (float)ax * SW2_ACCEL_SCALE;
-                gp->accel[1] = -(float)az * SW2_ACCEL_SCALE;
-                gp->accel[2] = (float)ay * SW2_ACCEL_SCALE;
-                gp->gyro[0] = (float)gx * SW2_GYRO_SCALE;
-                gp->gyro[1] = -(float)gz * SW2_GYRO_SCALE;
-                gp->gyro[2] = (float)gy * SW2_GYRO_SCALE;
-                break;
-
-            case CONTROLLER_TYPE_Switch2ProController:
-            default:
-                // Pro Controller 2 (+X_s forward, +Y_s left, +Z_s up -> canonical right-handed Y-up)
                 gp->accel[0] = -(float)ay * SW2_ACCEL_SCALE;
                 gp->accel[1] = (float)az * SW2_ACCEL_SCALE;
                 gp->accel[2] = -(float)ax * SW2_ACCEL_SCALE;
                 gp->gyro[0] = -(float)gy * SW2_GYRO_SCALE;
                 gp->gyro[1] = (float)gz * SW2_GYRO_SCALE;
                 gp->gyro[2] = -(float)gx * SW2_GYRO_SCALE;
+                break;
+
+            case CONTROLLER_TYPE_Switch2JoyConRight:
+                // Solo Joy-Con 2 Right (horizontal 90 deg CW, right-handed Y-up det = +1)
+                gp->accel[0] = (float)ay * SW2_ACCEL_SCALE;
+                gp->accel[1] = (float)az * SW2_ACCEL_SCALE;
+                gp->accel[2] = (float)ax * SW2_ACCEL_SCALE;
+                gp->gyro[0] = (float)gy * SW2_GYRO_SCALE;
+                gp->gyro[1] = (float)gz * SW2_GYRO_SCALE;
+                gp->gyro[2] = (float)gx * SW2_GYRO_SCALE;
+                break;
+
+            case CONTROLLER_TYPE_Switch2ProController:
+            default:
+                // Pro Controller 2 (+X_s right, +Y_s forward, +Z_s up -> canonical right-handed Y-up)
+                gp->accel[0] = (float)ax * SW2_ACCEL_SCALE;
+                gp->accel[1] = (float)az * SW2_ACCEL_SCALE;
+                gp->accel[2] = -(float)ay * SW2_ACCEL_SCALE;
+                gp->gyro[0] = (float)gx * SW2_GYRO_SCALE;
+                gp->gyro[1] = (float)gz * SW2_GYRO_SCALE;
+                gp->gyro[2] = -(float)gy * SW2_GYRO_SCALE;
                 break;
         }
     }

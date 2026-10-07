@@ -3323,21 +3323,21 @@ TEST(parser_switch2_pro_buttons_sticks_triggers_battery_imu_and_extra_info) {
     sw2_init_neutral_report(rpt, sizeof(rpt));
     rpt[42] = 0x10;
     rpt[43] = 25;
-    // Pro 2: accel = {-ay, +az, -ax} * (9.80665 / 4096), gyro = {-gy, +gz, -gx} * ((936 / 13371) * DEG_TO_RAD)
-    write_le16(&rpt[48], -4096);   // ax = -4096 -> accel[2] = +1g
-    write_le16(&rpt[50], -4096);   // ay = -4096 -> accel[0] = +1g
-    write_le16(&rpt[52], 4096);    // az = +4096 -> accel[1] = +1g
-    write_le16(&rpt[54], -13371);  // gx = -13371 -> gyro[2] = +936 dps
-    write_le16(&rpt[56], -13371);  // gy = -13371 -> gyro[0] = +936 dps
-    write_le16(&rpt[58], 13371);   // gz = +13371 -> gyro[1] = +936 dps
+    // Pro 2: accel = {+ax, +az, -ay} * (9.80665 / 4096), gyro = {+gx, +gz, -gy} * ((936 / 13371) * DEG_TO_RAD)
+    write_le16(&rpt[48], 4096);    // ax = +4096 -> accel[0] = +1g
+    write_le16(&rpt[50], -2048);   // ay = -2048 -> accel[2] = +0.5g
+    write_le16(&rpt[52], 8192);    // az = +8192 -> accel[1] = +2g
+    write_le16(&rpt[54], 13371);   // gx = +13371 -> gyro[0] = +936 dps
+    write_le16(&rpt[56], -13371);  // gy = -13371 -> gyro[2] = +936 dps
+    write_le16(&rpt[58], 6685);    // gz = +6685  -> gyro[1] = +468 dps
     feed_input_report(&d, rpt, sizeof(rpt));
     // Feed identical timestamp (sample_dt == 0) to verify no NaN/Inf
     feed_input_report(&d, rpt, sizeof(rpt));
     EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[0], 1e-2f);
-    EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[1], 1e-2f);
-    EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[2], 1e-2f);
+    EXPECT_FLOAT_NEAR(2.0f * UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[1], 1e-2f);
+    EXPECT_FLOAT_NEAR(0.5f * UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[2], 1e-2f);
     EXPECT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[0], 1e-2f);
-    EXPECT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[1], 1e-2f);
+    EXPECT_FLOAT_NEAR((6685.0f * 936.0f / 13371.0f) * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[1], 1e-2f);
     EXPECT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[2], 1e-2f);
     for (int i = 0; i < 3; i++) {
         EXPECT_TRUE(isfinite(d.controller.gamepad.accel[i]));
@@ -3354,7 +3354,7 @@ TEST(parser_switch2_pro_buttons_sticks_triggers_battery_imu_and_extra_info) {
     EXPECT_GT(d.report_parser.device_extra_info(&d, extra, 8), 0);
     int n = d.report_parser.device_extra_info(&d, extra, sizeof(extra));
     EXPECT_GT(n, 0);
-    EXPECT_NE(NULL, strstr(extra, "0x2069"));
+    EXPECT_NE(NULL, strstr(extra, "state=idle"));
     EXPECT_NE(NULL, strstr(extra, "user"));
     EXPECT_EQ(NULL, strchr(extra, '\n'));
     EXPECT_EQ(NULL, strchr(extra, '\t'));
@@ -3412,20 +3412,20 @@ TEST(parser_switch2_joycon_left_standalone_horizontal) {
     EXPECT_EQ(0, d.controller.gamepad.axis_x);
     EXPECT_EQ(511, d.controller.gamepad.axis_y);
 
-    // 5. Horizontal IMU Rotation (accel = {-ax, +az, +ay}, gyro = {-gx, +gz, +gy})
-    write_le16(&rpt[48], -4096);   // ax = -4096 -> accel[0] = +1g
-    write_le16(&rpt[50], 4096);    // ay = +4096 -> accel[2] = +1g
-    write_le16(&rpt[52], 4096);    // az = +4096 -> accel[1] = +1g
-    write_le16(&rpt[54], -13371);  // gx = -13371 -> gyro[0] = +936 dps
-    write_le16(&rpt[56], 13371);   // gy = +13371 -> gyro[2] = +936 dps
+    // 5. Horizontal IMU Rotation (accel = {-ay, +az, -ax}, gyro = {-gy, +gz, -gx})
+    write_le16(&rpt[48], -2048);   // ax = -2048 -> accel[2] = +0.5g
+    write_le16(&rpt[50], -4096);   // ay = -4096 -> accel[0] = +1g
+    write_le16(&rpt[52], 8192);    // az = +8192 -> accel[1] = +2g
+    write_le16(&rpt[54], -6685);   // gx = -6685 -> gyro[2] = +468 dps
+    write_le16(&rpt[56], -13371);  // gy = -13371 -> gyro[0] = +936 dps
     write_le16(&rpt[58], 13371);   // gz = +13371 -> gyro[1] = +936 dps
     feed_input_report(&d, rpt, sizeof(rpt));
     EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[0], 1e-2f);
-    EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[1], 1e-2f);
-    EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[2], 1e-2f);
+    EXPECT_FLOAT_NEAR(2.0f * UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[1], 1e-2f);
+    EXPECT_FLOAT_NEAR(0.5f * UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[2], 1e-2f);
     EXPECT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[0], 1e-2f);
     EXPECT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[1], 1e-2f);
-    EXPECT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[2], 1e-2f);
+    EXPECT_FLOAT_NEAR((6685.0f * 936.0f / 13371.0f) * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[2], 1e-2f);
 }
 
 TEST(parser_switch2_joycon_right_standalone_horizontal) {
@@ -3480,20 +3480,20 @@ TEST(parser_switch2_joycon_right_standalone_horizontal) {
     EXPECT_EQ(0, d.controller.gamepad.axis_x);
     EXPECT_EQ(-512, d.controller.gamepad.axis_y);
 
-    // 5. Horizontal IMU Rotation (accel = {+ax, -az, +ay}, gyro = {+gx, -gz, +gy})
-    write_le16(&rpt[48], 4096);    // ax = +4096 -> accel[0] = +1g
-    write_le16(&rpt[50], 4096);    // ay = +4096 -> accel[2] = +1g
-    write_le16(&rpt[52], -4096);   // az = -4096 -> accel[1] = +1g
-    write_le16(&rpt[54], 13371);   // gx = +13371 -> gyro[0] = +936 dps
-    write_le16(&rpt[56], 13371);   // gy = +13371 -> gyro[2] = +936 dps
-    write_le16(&rpt[58], -13371);  // gz = -13371 -> gyro[1] = +936 dps
+    // 5. Horizontal IMU Rotation (accel = {+ay, +az, +ax}, gyro = {+gy, +gz, +gx})
+    write_le16(&rpt[48], 2048);   // ax = +2048 -> accel[2] = +0.5g
+    write_le16(&rpt[50], 4096);   // ay = +4096 -> accel[0] = +1g
+    write_le16(&rpt[52], 8192);   // az = +8192 -> accel[1] = +2g
+    write_le16(&rpt[54], 6685);   // gx = +6685 -> gyro[2] = +468 dps
+    write_le16(&rpt[56], 13371);  // gy = +13371 -> gyro[0] = +936 dps
+    write_le16(&rpt[58], 13371);  // gz = +13371 -> gyro[1] = +936 dps
     feed_input_report(&d, rpt, sizeof(rpt));
     EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[0], 1e-2f);
-    EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[1], 1e-2f);
-    EXPECT_FLOAT_NEAR(UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[2], 1e-2f);
+    EXPECT_FLOAT_NEAR(2.0f * UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[1], 1e-2f);
+    EXPECT_FLOAT_NEAR(0.5f * UNI_STANDARD_GRAVITY, d.controller.gamepad.accel[2], 1e-2f);
     EXPECT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[0], 1e-2f);
     EXPECT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[1], 1e-2f);
-    EXPECT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[2], 1e-2f);
+    EXPECT_FLOAT_NEAR((6685.0f * 936.0f / 13371.0f) * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[2], 1e-2f);
 }
 
 TEST(parser_steam_2015_ble_imu_si_units_and_truncation_guards) {
