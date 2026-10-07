@@ -1672,9 +1672,8 @@ int uni_hid_parser_switch2_device_extra_info(const struct uni_hid_device_s* d, c
     if (!d || !buf || len == 0)
         return -1;
     const sw2_instance_t* ins = get_sw2_instance_const(d);
-    return snprintf(
-        buf, len, "pid=0x%04x, state=%s, cal=%s, temp=%dC, in=0x%04x/0x%04x cmd=0x%04x/0x%04x/0x%04x vib=0x%04x",
-        d->product_id, sw2_state_to_str(ins->state), ins->calibrated ? "user" : "default", (int)ins->temperature_c,
-        ins->input_report_value_handle, ins->input_report_cccd_handle, ins->cmd_write_handle,
-        ins->cmd_response_value_handle, ins->cmd_response_cccd_handle, ins->vibration_handle);
+    return snprintf(buf, len, "state=%s, cal=%s, temp=%dC, in=0x%04x/0x%04x cmd=0x%04x/0x%04x/0x%04x vib=0x%04x",
+                    sw2_state_to_str(ins->state), ins->calibrated ? "user" : "default", (int)ins->temperature_c,
+                    ins->input_report_value_handle, ins->input_report_cccd_handle, ins->cmd_write_handle,
+                    ins->cmd_response_value_handle, ins->cmd_response_cccd_handle, ins->vibration_handle);
 }
