@@ -886,6 +886,7 @@ static const uni_parser_entry_t k_parser_entries[] = {
                 .setup = uni_hid_parser_steam_setup,
                 .init_report = uni_hid_parser_steam_init_report,
                 .parse_input_report = uni_hid_parser_steam_parse_input_report,
+                .play_dual_rumble = uni_hid_parser_steam_play_dual_rumble,
             },
     },
     {

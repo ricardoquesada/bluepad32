@@ -1579,6 +1579,7 @@ TEST(rumble_delayed_cancel_and_state_transitions_all_parsers_b4) {
         {0x057e, 0x0306, CONTROLLER_TYPE_WiiController},        // wii
         {0x045e, 0x02e0, CONTROLLER_TYPE_XBoxOneController},    // xboxone
         {0x18d1, 0x9400, CONTROLLER_TYPE_AndroidController},    // stadia
+        {0x28de, 0x1106, CONTROLLER_TYPE_SteamController},      // steam 2015
     };
 
     for (size_t i = 0; i < ARRAY_SIZE(k_rumble_controllers); i++) {
@@ -3533,6 +3534,22 @@ TEST(parser_steam_2015_ble_imu_si_units_and_truncation_guards) {
     EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.gyro[0], 1e-5f);
     EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.gyro[1], 1e-5f);
     EXPECT_FLOAT_NEAR(0.0f, d.controller.gamepad.gyro[2], 1e-5f);
+
+    // 3. Steam 2015 Dual LRA Rumble Vtable & State Machine Verification
+    ASSERT_EQ(uni_hid_parser_steam_play_dual_rumble, d.report_parser.play_dual_rumble);
+    uni_hid_parser_steam_play_dual_rumble(NULL, 0, 250, 128, 255);  // NULL guard
+
+    d.report_parser.play_dual_rumble(&d, 0, 250, 128, 255);
+    EXPECT_EQ(UNI_RUMBLE_STATE_IN_PROGRESS, d.rumble.state);
+    EXPECT_EQ(250, d.rumble.duration_ms);
+    EXPECT_EQ(128, d.rumble.weak_magnitude);
+    EXPECT_EQ(255, d.rumble.strong_magnitude);
+
+    // Weak-only rumble & immediate stop
+    d.report_parser.play_dual_rumble(&d, 0, 250, 128, 0);
+    EXPECT_EQ(UNI_RUMBLE_STATE_IN_PROGRESS, d.rumble.state);
+    d.report_parser.play_dual_rumble(&d, 0, 0, 0, 0);
+    EXPECT_EQ(UNI_RUMBLE_STATE_DISABLED, d.rumble.state);
 }
 
 TEST(parser_steam_triton_reports_sticks_triggers_imu_and_extra_info) {

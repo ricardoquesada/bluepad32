@@ -1494,6 +1494,88 @@ TEST(bt_le_setup_legacy_pairing_steam_controller_regression) {
     EXPECT_EQ(UNI_BT_CONN_STATE_DEVICE_READY, uni_bt_conn_get_state(&d->conn));
     EXPECT_EQ(1, g_ready_count);
 
+    // Step 4: Exercise `uni_hid_parser_steam_play_dual_rumble()` over the live ATT/GATT channel
+    // (`con_handle = 0x004c`, `value_handle = 0x002b`).
+    // Request `duration_ms = 250`, `weak_magnitude = 128` (Right LRA), `strong_magnitude = 255` (Left LRA).
+    ASSERT_NE(NULL, d->report_parser.play_dual_rumble);
+    hci_con->num_packets_sent = 0;
+    memset(g_last_acl_buf, 0, sizeof(g_last_acl_buf));
+    g_last_acl_size = 0;
+
+    d->report_parser.play_dual_rumble(d, 0, 250, 128, 255);
+    EXPECT_EQ(UNI_RUMBLE_STATE_IN_PROGRESS, d->rumble.state);
+
+    // Step 4a: First ATT_WRITE_REQUEST (0x12, 22-byte ACL frame) drives Left LRA (`actuator = 0x01`):
+    // - period_us = 10000 -> half_period_us = 5000 -> on_us = 5000 (0x1388), off_us = 5000 (0x1388)
+    // - count = (250 * 1000) / 10000 = 25 (0x0019), gain = 0x00
+    ASSERT_EQ(22, g_last_acl_size);
+    EXPECT_EQ(0x0004, little_endian_read_16(g_last_acl_buf, 6));  // L2CAP CID = ATT
+    EXPECT_EQ(0x12, g_last_acl_buf[8]);                           // ATT_WRITE_REQUEST
+    EXPECT_EQ(0x002b, little_endian_read_16(g_last_acl_buf, 9));  // Value Handle = 0x002b
+    EXPECT_EQ(0xc0, g_last_acl_buf[11]);                          // BLE segment header
+    EXPECT_EQ(0x8f, g_last_acl_buf[12]);                          // STEAM_CMD_FORCEFEEDBAK
+    EXPECT_EQ(0x08, g_last_acl_buf[13]);                          // Payload length = 8
+    EXPECT_EQ(0x01, g_last_acl_buf[14]);                          // Left actuator (0x01 on wire)
+    EXPECT_EQ(5000, little_endian_read_16(g_last_acl_buf, 15));   // on_us = 5000
+    EXPECT_EQ(5000, little_endian_read_16(g_last_acl_buf, 17));   // off_us = 5000
+    EXPECT_EQ(25, little_endian_read_16(g_last_acl_buf, 19));     // count = 25
+    EXPECT_EQ(0x00, g_last_acl_buf[21]);                          // gain = 0 dB
+
+    // Step 4b: Inject ATT_WRITE_RESPONSE (0x13) and verify `STATE_QUERY_END` chains the second
+    // ATT_WRITE_REQUEST (0x12) for Right LRA (`actuator = 0x00`):
+    // - period_us = 6250 -> half_period_us = 3125 -> on_us = (128 * 3125) / 255 = 1568, off_us = 4682
+    // - count = (250 * 1000) / 6250 = 40, gain = 0x00
+    hci_con->num_packets_sent = 0;
+    memset(g_last_acl_buf, 0, sizeof(g_last_acl_buf));
+    g_last_acl_size = 0;
+    g_transport_packet_handler(HCI_ACL_DATA_PACKET, att_write_rsp, sizeof(att_write_rsp));
+
+    ASSERT_EQ(22, g_last_acl_size);
+    EXPECT_EQ(0x12, g_last_acl_buf[8]);                           // ATT_WRITE_REQUEST
+    EXPECT_EQ(0x002b, little_endian_read_16(g_last_acl_buf, 9));  // Value Handle = 0x002b
+    EXPECT_EQ(0xc0, g_last_acl_buf[11]);
+    EXPECT_EQ(0x8f, g_last_acl_buf[12]);                         // STEAM_CMD_FORCEFEEDBAK
+    EXPECT_EQ(0x08, g_last_acl_buf[13]);                         // Payload length = 8
+    EXPECT_EQ(0x00, g_last_acl_buf[14]);                         // Right actuator (0x00 on wire)
+    EXPECT_EQ(1568, little_endian_read_16(g_last_acl_buf, 15));  // on_us = 1568
+    EXPECT_EQ(4682, little_endian_read_16(g_last_acl_buf, 17));  // off_us = 4682
+    EXPECT_EQ(40, little_endian_read_16(g_last_acl_buf, 19));    // count = 40
+    EXPECT_EQ(0x00, g_last_acl_buf[21]);                         // gain = 0 dB
+
+    // Complete Right LRA write with ATT_WRITE_RESPONSE (0x13).
+    hci_con->num_packets_sent = 0;
+    memset(g_last_acl_buf, 0, sizeof(g_last_acl_buf));
+    g_last_acl_size = 0;
+    g_transport_packet_handler(HCI_ACL_DATA_PACKET, att_write_rsp, sizeof(att_write_rsp));
+    EXPECT_EQ(0, g_last_acl_size);
+
+    // Step 4c: Stop rumble (`duration_ms = 0, weak = 0, strong = 0`) and verify Left & Right stop packets
+    // (`on_us = 0, off_us = 0, count = 0`) are sent back-to-back across ATT_WRITE_RESPONSE.
+    d->report_parser.play_dual_rumble(d, 0, 0, 0, 0);
+    EXPECT_EQ(UNI_RUMBLE_STATE_DISABLED, d->rumble.state);
+    ASSERT_EQ(22, g_last_acl_size);
+    EXPECT_EQ(0x12, g_last_acl_buf[8]);
+    EXPECT_EQ(0x8f, g_last_acl_buf[12]);
+    EXPECT_EQ(0x01, g_last_acl_buf[14]);  // Left actuator stop
+    EXPECT_EQ(0, little_endian_read_16(g_last_acl_buf, 15));
+    EXPECT_EQ(0, little_endian_read_16(g_last_acl_buf, 17));
+    EXPECT_EQ(0, little_endian_read_16(g_last_acl_buf, 19));
+
+    hci_con->num_packets_sent = 0;
+    memset(g_last_acl_buf, 0, sizeof(g_last_acl_buf));
+    g_last_acl_size = 0;
+    g_transport_packet_handler(HCI_ACL_DATA_PACKET, att_write_rsp, sizeof(att_write_rsp));
+    ASSERT_EQ(22, g_last_acl_size);
+    EXPECT_EQ(0x12, g_last_acl_buf[8]);
+    EXPECT_EQ(0x8f, g_last_acl_buf[12]);
+    EXPECT_EQ(0x00, g_last_acl_buf[14]);  // Right actuator stop
+    EXPECT_EQ(0, little_endian_read_16(g_last_acl_buf, 15));
+    EXPECT_EQ(0, little_endian_read_16(g_last_acl_buf, 17));
+    EXPECT_EQ(0, little_endian_read_16(g_last_acl_buf, 19));
+
+    hci_con->num_packets_sent = 0;
+    g_transport_packet_handler(HCI_ACL_DATA_PACKET, att_write_rsp, sizeof(att_write_rsp));
+
     // Clean up connection via HCI_EVENT_DISCONNECTION_COMPLETE.
     uint8_t disc_evt[6] = {HCI_EVENT_DISCONNECTION_COMPLETE, 4, 0x00, 0x4c, 0x00, 0x08};
     g_transport_packet_handler(HCI_EVENT_PACKET, disc_evt, sizeof(disc_evt));

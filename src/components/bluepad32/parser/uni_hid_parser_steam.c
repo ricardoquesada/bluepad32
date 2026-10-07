@@ -40,9 +40,19 @@
  *   - `0x0800` (`FLAG_IMU_GYRO`):    6 bytes (int16 LE gx, gy, gz; +/-2000 dps)
  *   - `0x1000` (`FLAG_IMU_QUAT`):    8 bytes (orientation quaternion, skipped)
  *
+ * Haptic Rumble Emulation (`STEAM_CMD_FORCEFEEDBAK` = `0x8f`):
+ * The 2015 Steam Controller does not have spinning ERM rumble motors, and
+ * `STEAM_CMD_HAPTIC_RUMBLE` (`0xeb`) is only supported on the Steam Deck.
+ * Instead, it has dual voice-coil Linear Resonant Actuators (LRAs) beneath the
+ * Left and Right trackpads driven by command `0x8f` (`ID_TRIGGER_HAPTIC_PULSE`).
+ * Each 11-byte BLE feature report addresses one actuator (`0x01` = Left,
+ * `0x00` = Right; swapped on wire for legacy reasons) with pulse ON duration
+ * (`on_us`), OFF interval (`off_us`), repeat `count`, and `0 dB` gain.
+ *
  * References:
  * - https://github.com/rodrigorc/steamctrl/blob/master/src/steamctrl.c
  * - https://elixir.bootlin.com/linux/latest/source/drivers/hid/hid-steam.c
+ * - https://github.com/cvuchener/steamcontroller-linux-kernel/blob/master/hid-valve-sc.c
  * -
  * https://github.com/haxpor/sdl2-samples/blob/master/android-project/app/src/main/java/org/libsdl/app/HIDDeviceBLESteamController.java
  * - https://github.com/g3gg0/LegoRemote
@@ -50,10 +60,13 @@
 
 #include "parser/uni_hid_parser_steam.h"
 
+#include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "controller/uni_controller.h"
 #include "hid_usage.h"
+#include "parser/uni_hid_parser_rumble.h"
 #include "uni_common.h"
 #include "uni_hid_device.h"
 #include "uni_log.h"
@@ -79,6 +92,19 @@
 // Gyroscope full-scale is +/-2000 deg/s over int16_t (+/-32768 LSB -> 16.384 LSB/(deg/s)).
 #define STEAM_ACCEL_SCALE ((2.0f * UNI_STANDARD_GRAVITY) / 32768.0f)
 #define STEAM_GYRO_SCALE ((2000.0f * UNI_DEG_TO_RAD) / 32768.0f)
+
+// 2015 Steam Controller LRA haptic actuator wire indices for STEAM_CMD_FORCEFEEDBAK (0x8f).
+// Per Linux drivers/hid/hid-steam.c ("Left and right are swapped on this report for legacy reasons"):
+// wire 0x00 addresses the Right trackpad LRA, and wire 0x01 addresses the Left trackpad LRA.
+#define STEAM_HAPTIC_ACTUATOR_RIGHT 0x00
+#define STEAM_HAPTIC_ACTUATOR_LEFT 0x01
+
+// Carrier periods in microseconds for LRA square-wave rumble synthesis:
+// - Left trackpad LRA ("strong" low-frequency motor): 10000 us (100 Hz, matching SC_RUMBLE_PERIOD)
+// - Right trackpad LRA ("weak" high-frequency motor): 6250 us (160 Hz)
+#define STEAM_RUMBLE_LEFT_PERIOD_US 10000u
+#define STEAM_RUMBLE_RIGHT_PERIOD_US 6250u
+#define STEAM_HAPTIC_CMD_LEN 11u
 
 /**
  * @brief GATT configuration state machine for Steam Controller (2015) setup.
@@ -153,6 +179,10 @@ typedef struct {
     gatt_client_service_t service;
     gatt_client_characteristic_t characteristic_report;
     steam_query_state_t query_state;
+    uint8_t rumble_cmd[STEAM_HAPTIC_CMD_LEN];
+    uint8_t pending_right_cmd[STEAM_HAPTIC_CMD_LEN];
+    bool pending_right_valid;
+    bool write_in_flight;
 } steam_instance_t;
 _Static_assert(sizeof(steam_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "Steam instance too big");
 
@@ -162,6 +192,12 @@ static void parse_thumbstick(struct uni_hid_device_s* d, const uint8_t* data);
 static void parse_right_pad(struct uni_hid_device_s* d, const uint8_t* data);
 static void parse_imu_accel(struct uni_hid_device_s* d, const uint8_t* data);
 static void parse_imu_gyro(struct uni_hid_device_s* d, const uint8_t* data);
+static uni_rumble_result_t steam_stop_rumble_now(struct uni_hid_device_s* d);
+static uni_rumble_result_t steam_start_rumble_now(struct uni_hid_device_s* d,
+                                                  uint8_t weak_magnitude,
+                                                  uint8_t strong_magnitude,
+                                                  uint8_t trigger_left,
+                                                  uint8_t trigger_right);
 
 static steam_instance_t* get_steam_instance(uni_hid_device_t* d) {
     return (steam_instance_t*)&d->parser_data[0];
@@ -287,7 +323,26 @@ static void uni_steam_handle_gatt_client_event(uint8_t packet_type, uint16_t cha
             }
             break;
         case STATE_QUERY_END:
-            // pass-through
+            if (event == GATT_EVENT_QUERY_COMPLETE) {
+                ins->write_in_flight = false;
+                att_status = gatt_event_query_complete_get_att_status(packet);
+                if (att_status != ATT_ERROR_SUCCESS) {
+                    logd("Steam: Rumble write complete with ATT status %#x\n", att_status);
+                    ins->pending_right_valid = false;
+                    break;
+                }
+                if (ins->pending_right_valid) {
+                    memcpy(ins->rumble_cmd, ins->pending_right_cmd, sizeof(ins->rumble_cmd));
+                    ins->pending_right_valid = false;
+                    uint8_t status = gatt_client_write_value_of_characteristic(
+                        uni_steam_handle_gatt_client_event, con_handle, ins->characteristic_report.value_handle,
+                        sizeof(ins->rumble_cmd), ins->rumble_cmd);
+                    if (status == ERROR_CODE_SUCCESS) {
+                        ins->write_in_flight = true;
+                    }
+                }
+            }
+            break;
         default:
             loge("Steam: Unknown query state: %#x\n", ins->query_state);
             break;
@@ -295,8 +350,15 @@ static void uni_steam_handle_gatt_client_event(uint8_t packet_type, uint16_t cha
 }
 
 void uni_hid_parser_steam_setup(struct uni_hid_device_s* d) {
+    if (d == NULL) {
+        loge("Steam: Invalid device\n");
+        return;
+    }
+
     steam_instance_t* ins = get_steam_instance(d);
     memset(ins, 0, sizeof(*ins));
+
+    uni_hid_parser_rumble_init(d, steam_start_rumble_now, steam_stop_rumble_now);
 
     ins->query_state = STATE_QUERY_SERVICE;
     gatt_client_discover_primary_services_by_uuid128(uni_steam_handle_gatt_client_event, d->conn.handle,
@@ -311,6 +373,20 @@ void uni_hid_parser_steam_init_report(uni_hid_device_t* d) {
     ARG_UNUSED(d);
     // Don't reset old state. Each report contains a full-state.
     // memset(ctl, 0, sizeof(*ctl));
+}
+
+void uni_hid_parser_steam_play_dual_rumble(struct uni_hid_device_s* d,
+                                           uint16_t start_delay_ms,
+                                           uint16_t duration_ms,
+                                           uint8_t weak_magnitude,
+                                           uint8_t strong_magnitude) {
+    if (d == NULL) {
+        loge("Steam: Invalid device\n");
+        return;
+    }
+
+    uni_hid_parser_rumble_play_dual(d, start_delay_ms, duration_ms, weak_magnitude, strong_magnitude,
+                                    steam_start_rumble_now, steam_stop_rumble_now);
 }
 
 void uni_hid_parser_steam_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len) {
@@ -506,4 +582,123 @@ static void parse_imu_gyro(struct uni_hid_device_s* d, const uint8_t* data) {
     ctl->gamepad.gyro[0] = (float)gx * STEAM_GYRO_SCALE;
     ctl->gamepad.gyro[1] = (float)gz * STEAM_GYRO_SCALE;
     ctl->gamepad.gyro[2] = -(float)gy * STEAM_GYRO_SCALE;
+}
+
+static void steam_build_haptic_pulse_cmd(uint8_t out_cmd[STEAM_HAPTIC_CMD_LEN],
+                                         uint8_t actuator,
+                                         uint16_t duration_ms,
+                                         uint8_t magnitude,
+                                         uint16_t period_us) {
+    uint16_t on_us = 0;
+    uint16_t off_us = 0;
+    uint16_t count = 0;
+
+    if (magnitude > 0 && duration_ms > 0 && period_us > 0) {
+        // Voice-coil LRAs reach peak AC oscillation amplitude at 50% duty cycle
+        // (on_us == off_us == period_us / 2). Scale on_us linearly from 1..(period_us / 2)
+        // and set off_us = period_us - on_us so (on_us + off_us) == period_us is invariant.
+        uint16_t half_period_us = (uint16_t)(period_us / 2u);
+        on_us = (uint16_t)(((uint32_t)magnitude * (uint32_t)half_period_us) / 255u);
+        if (on_us == 0) {
+            on_us = 1;
+        }
+        off_us = (uint16_t)(period_us - on_us);
+
+        uint32_t total_us = (uint32_t)duration_ms * 1000u;
+        uint32_t raw_count = total_us / (uint32_t)period_us;
+        if (raw_count == 0) {
+            count = 1;
+        } else if (raw_count > 0xffffu) {
+            count = 0xffffu;
+        } else {
+            count = (uint16_t)raw_count;
+        }
+    }
+
+    out_cmd[0] = 0xc0;                    // BLE single-segment header (0x80 data | 0x40 last)
+    out_cmd[1] = STEAM_CMD_FORCEFEEDBAK;  // 0x8f (ID_TRIGGER_HAPTIC_PULSE)
+    out_cmd[2] = 0x08;                    // Payload length (8 bytes)
+    out_cmd[3] = actuator;                // 0x00 = Right, 0x01 = Left (swapped on wire)
+    out_cmd[4] = (uint8_t)(on_us & 0xffu);
+    out_cmd[5] = (uint8_t)(on_us >> 8);
+    out_cmd[6] = (uint8_t)(off_us & 0xffu);
+    out_cmd[7] = (uint8_t)(off_us >> 8);
+    out_cmd[8] = (uint8_t)(count & 0xffu);
+    out_cmd[9] = (uint8_t)(count >> 8);
+    out_cmd[10] = 0x00;  // 0 dB gain
+}
+
+static uni_rumble_result_t steam_send_rumble_dual(struct uni_hid_device_s* d,
+                                                  uint16_t duration_ms,
+                                                  uint8_t weak_magnitude,
+                                                  uint8_t strong_magnitude) {
+    steam_instance_t* ins = get_steam_instance(d);
+
+    uint8_t left_cmd[STEAM_HAPTIC_CMD_LEN];
+    uint8_t right_cmd[STEAM_HAPTIC_CMD_LEN];
+    steam_build_haptic_pulse_cmd(left_cmd, STEAM_HAPTIC_ACTUATOR_LEFT, duration_ms, strong_magnitude,
+                                 STEAM_RUMBLE_LEFT_PERIOD_US);
+    steam_build_haptic_pulse_cmd(right_cmd, STEAM_HAPTIC_ACTUATOR_RIGHT, duration_ms, weak_magnitude,
+                                 STEAM_RUMBLE_RIGHT_PERIOD_US);
+
+    // Synthetic test devices (conn.handle == UNI_BT_CONN_HANDLE_INVALID) have no active BLE GATT session;
+    // stage the primary/secondary packets in parser_data for inspection and return UNI_RUMBLE_OK.
+    if (d->conn.handle == UNI_BT_CONN_HANDLE_INVALID) {
+        if (strong_magnitude > 0 || weak_magnitude == 0) {
+            memcpy(ins->rumble_cmd, left_cmd, sizeof(ins->rumble_cmd));
+            memcpy(ins->pending_right_cmd, right_cmd, sizeof(ins->pending_right_cmd));
+        } else {
+            memcpy(ins->rumble_cmd, right_cmd, sizeof(ins->rumble_cmd));
+            memcpy(ins->pending_right_cmd, left_cmd, sizeof(ins->pending_right_cmd));
+        }
+        ins->pending_right_valid = true;
+        return UNI_RUMBLE_OK;
+    }
+
+    // On a live BLE connection, defer rumble if GATT setup has not finished or an ATT Write Request
+    // is already in flight (avoiding mutating ins->rumble_cmd while gatt_client references it).
+    if (ins->query_state != STATE_QUERY_END || ins->characteristic_report.value_handle == 0 || ins->write_in_flight) {
+        ins->pending_right_valid = false;
+        return UNI_RUMBLE_RETRY_BLE;
+    }
+
+    if (strong_magnitude > 0 || weak_magnitude == 0) {
+        memcpy(ins->rumble_cmd, left_cmd, sizeof(ins->rumble_cmd));
+        memcpy(ins->pending_right_cmd, right_cmd, sizeof(ins->pending_right_cmd));
+    } else {
+        memcpy(ins->rumble_cmd, right_cmd, sizeof(ins->rumble_cmd));
+        memcpy(ins->pending_right_cmd, left_cmd, sizeof(ins->pending_right_cmd));
+    }
+    ins->pending_right_valid = true;
+
+    uint8_t status = gatt_client_write_value_of_characteristic(uni_steam_handle_gatt_client_event, d->conn.handle,
+                                                               ins->characteristic_report.value_handle,
+                                                               sizeof(ins->rumble_cmd), ins->rumble_cmd);
+    if (status == ERROR_CODE_SUCCESS) {
+        ins->write_in_flight = true;
+        return UNI_RUMBLE_OK;
+    }
+
+    ins->pending_right_valid = false;
+    if (status == GATT_CLIENT_IN_WRONG_STATE || status == GATT_CLIENT_BUSY || status == ERROR_CODE_COMMAND_DISALLOWED) {
+        logd("Steam: GATT busy sending rumble (status=%#x), retrying...\n", status);
+        return UNI_RUMBLE_RETRY_BLE;
+    }
+
+    logi("Steam: Failed to send rumble report, status=%#x\n", status);
+    return UNI_RUMBLE_ERR;
+}
+
+static uni_rumble_result_t steam_stop_rumble_now(struct uni_hid_device_s* d) {
+    return steam_send_rumble_dual(d, 0, 0, 0);
+}
+
+static uni_rumble_result_t steam_start_rumble_now(struct uni_hid_device_s* d,
+                                                  uint8_t weak_magnitude,
+                                                  uint8_t strong_magnitude,
+                                                  uint8_t trigger_left,
+                                                  uint8_t trigger_right) {
+    ARG_UNUSED(trigger_left);
+    ARG_UNUSED(trigger_right);
+    return steam_send_rumble_dual(d, d->rumble.duration_ms, weak_magnitude, strong_magnitude);
 }
