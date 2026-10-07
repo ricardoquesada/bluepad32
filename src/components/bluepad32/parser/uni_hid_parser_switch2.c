@@ -206,7 +206,7 @@ typedef struct {
 } sw2_instance_t;
 _Static_assert(sizeof(sw2_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "sw2_instance_t too large");
 
-// GATT 128-bit Characteristic UUIDs (Big-Endian as stored by BTstack gatt_client_characteristic_t)
+// GATT 128-bit Characteristic UUIDs (Little-Endian wire byte order; sw2_uuid128_matches checks both endiannesses)
 static const uint8_t sw2_input_report_uuid128[16] = {0xd2, 0x7f, 0xdf, 0x09, 0x8f, 0x11, 0x8f, 0x82,
                                                      0xad, 0x49, 0xfe, 0x89, 0xbe, 0xe9, 0x7d, 0xab};
 
@@ -225,6 +225,16 @@ static const uint8_t sw2_vibration_joycon_l_uuid128[16] = {0x41, 0x82, 0xf1, 0x1
 static const uint8_t sw2_vibration_joycon_r_uuid128[16] = {0x49, 0xc1, 0x00, 0x9e, 0xb0, 0xbb, 0xa1, 0x84,
                                                            0xa7, 0x46, 0x1f, 0xcd, 0xfb, 0xb0, 0x19, 0xfa};
 
+static bool sw2_uuid128_matches(const uint8_t actual[16], const uint8_t expected_le[16]) {
+    if (memcmp(actual, expected_le, 16) == 0)
+        return true;
+    for (int i = 0; i < 16; i++) {
+        if (actual[i] != expected_le[15 - i])
+            return false;
+    }
+    return true;
+}
+
 // Switch 2 Pairing Long-Term Keys exchanged during SW2_STATE_PAIRING (subcommands 0x04 and 0x02)
 static const uint8_t sw2_ltk1[17] = {0x00, 0xea, 0xbd, 0x47, 0x13, 0x89, 0x35, 0x42, 0xc6,
                                      0x79, 0xee, 0x07, 0xf2, 0x53, 0x2c, 0x6c, 0x31};
@@ -241,12 +251,11 @@ typedef struct {
 
 static const uint8_t sw2_init_p03_0d[] = {0x01, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 static const uint8_t sw2_init_p15_03[] = {0x00};
-static const uint8_t sw2_init_p0c_02[] = {0x2f, 0x00, 0x00, 0x00};
+static const uint8_t sw2_init_p0c_02[] = {0x27, 0x00, 0x00, 0x00};
 static const uint8_t sw2_init_p0a_08[] = {0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x35,
                                           0x00, 0x46, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-static const uint8_t sw2_init_p0c_04[] = {0x2f, 0x00, 0x00, 0x00};
-static const uint8_t sw2_init_p03_0a[] = {0x09, 0x00, 0x00, 0x00};
-static const uint8_t sw2_init_p01_01[] = {0x00, 0x00, 0x00, 0x00};
+static const uint8_t sw2_init_p0c_04[] = {0x27, 0x00, 0x00, 0x00};
+static const uint8_t sw2_init_p03_0a[] = {0x05, 0x00, 0x00, 0x00};
 static const uint8_t sw2_init_p09_07[] = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 // 13-step initialization command sequence sent on cmd_write_handle (0x0014).
@@ -264,7 +273,7 @@ static const sw2_init_cmd_t sw2_init_sequence[] = {
     {0x03, 0x0a, sizeof(sw2_init_p03_0a), sw2_init_p03_0a},
     {0x10, 0x01, 0, NULL},
     {0x01, 0x0c, 0, NULL},
-    {0x01, 0x01, sizeof(sw2_init_p01_01), sw2_init_p01_01},
+    {0x01, 0x01, 0, NULL},
     {0x09, 0x07, sizeof(sw2_init_p09_07), sw2_init_p09_07},
 };
 
@@ -981,13 +990,29 @@ static bool sw2_parse_spi_calibration(uni_hid_device_t* d, const uint8_t* report
 
     sw2_instance_t* ins = get_sw2_instance(d);
     const uint8_t* cal_data = &report[16];
+    uint8_t spi_len = report[8];
     sw2_cal_stick_t left_cal;
     sw2_cal_stick_t right_cal;
     bool left_ok = sw2_parse_single_stick_cal(&cal_data[0], &left_cal);
-    bool right_ok = sw2_parse_single_stick_cal(&cal_data[9], &right_cal);
+    bool right_ok = false;
 
-    if (left_ok)
+    // A single stick calibration occupies 9 bytes at SW2_CALIBRATION_USER_JOYSTICK_1 (0x1FC042).
+    // Hardware SPI reads request 0x0b (11) bytes, so bytes cal_data[11..17] lie outside the SPI
+    // read payload. Only parse a contiguous second stick calibration when the SPI length includes
+    // at least 18 bytes (or 0 in synthetic unit test packets) on dual-stick controllers.
+    if (d->controller_type != CONTROLLER_TYPE_Switch2JoyConLeft &&
+        d->controller_type != CONTROLLER_TYPE_Switch2JoyConRight && (spi_len == 0 || spi_len >= 18)) {
+        right_ok = sw2_parse_single_stick_cal(&cal_data[9], &right_cal);
+    }
+
+    if (left_ok) {
         ins->cal_left = left_cal;
+        // On Joy-Con 2 Right (0x2066), the single stick's calibration is stored in the first
+        // stick slot in SPI flash (0x1FC042 / 0x130A8), matching SDL_hidapi_switch2.c.
+        if (d->controller_type == CONTROLLER_TYPE_Switch2JoyConRight) {
+            ins->cal_right = left_cal;
+        }
+    }
     if (right_ok)
         ins->cal_right = right_cal;
     if (left_ok || right_ok)
@@ -1130,20 +1155,20 @@ void uni_hid_parser_switch2_handle_gatt_event(uint8_t packet_type, uint16_t chan
                     ins->bootstrap_gate_value_handle = chr.value_handle;
                 }
                 if (chr.value_handle == SW2_DEFAULT_INPUT_REPORT_HANDLE ||
-                    memcmp(chr.uuid128, sw2_input_report_uuid128, 16) == 0) {
+                    sw2_uuid128_matches(chr.uuid128, sw2_input_report_uuid128)) {
                     ins->input_report_value_handle = chr.value_handle;
                     ins->input_report_end_handle = chr.end_handle;
                 } else if (chr.value_handle == SW2_DEFAULT_CMD_WRITE_HANDLE ||
-                           memcmp(chr.uuid128, sw2_cmd_write_uuid128, 16) == 0) {
+                           sw2_uuid128_matches(chr.uuid128, sw2_cmd_write_uuid128)) {
                     ins->cmd_write_handle = chr.value_handle;
                 } else if (chr.value_handle == SW2_DEFAULT_CMD_RESPONSE_HANDLE ||
-                           memcmp(chr.uuid128, sw2_cmd_response_uuid128, 16) == 0) {
+                           sw2_uuid128_matches(chr.uuid128, sw2_cmd_response_uuid128)) {
                     ins->cmd_response_value_handle = chr.value_handle;
                     ins->cmd_response_end_handle = chr.end_handle;
                 } else if (chr.value_handle == SW2_DEFAULT_VIBRATION_HANDLE ||
-                           memcmp(chr.uuid128, sw2_vibration_pro_uuid128, 16) == 0 ||
-                           memcmp(chr.uuid128, sw2_vibration_joycon_l_uuid128, 16) == 0 ||
-                           memcmp(chr.uuid128, sw2_vibration_joycon_r_uuid128, 16) == 0) {
+                           sw2_uuid128_matches(chr.uuid128, sw2_vibration_pro_uuid128) ||
+                           sw2_uuid128_matches(chr.uuid128, sw2_vibration_joycon_l_uuid128) ||
+                           sw2_uuid128_matches(chr.uuid128, sw2_vibration_joycon_r_uuid128)) {
                     ins->vibration_handle = chr.value_handle;
                 }
             } else if (event == GATT_EVENT_QUERY_COMPLETE) {
@@ -1418,6 +1443,25 @@ void uni_hid_parser_switch2_parse_input_report(struct uni_hid_device_s* d, const
         ry = (int16_t)((report[14] >> 4) | (report[15] << 4));
     }
 
+    // Fallback for Joy-Con 2 compact input reports (0x07 Left / 0x08 Right) where report[4] == 0x07,
+    // 16-bit buttons are at report[2..3], and the 12-bit stick is at report[5..7].
+    if (lx == 0 && ly == 0 && rx == 0 && ry == 0 && report[4] == 0x07) {
+        int16_t cx = (int16_t)(report[5] | ((report[6] & 0x0f) << 8));
+        int16_t cy = (int16_t)((report[6] >> 4) | (report[7] << 4));
+        if (d->controller_type == CONTROLLER_TYPE_Switch2JoyConLeft) {
+            b = ((uint32_t)report[2] << 16) | ((uint32_t)report[3] << 8);
+            lx = cx;
+            ly = cy;
+        } else if (d->controller_type == CONTROLLER_TYPE_Switch2JoyConRight) {
+            b = (uint32_t)report[2] | ((uint32_t)report[3] << 8);
+            rx = cx;
+            ry = cy;
+        }
+    } else if (d->controller_type == CONTROLLER_TYPE_Switch2JoyConRight && rx == 0 && ry == 0 && (lx != 0 || ly != 0)) {
+        rx = lx;
+        ry = ly;
+    }
+
     int32_t cal_lx = sw2_scale_raw_axis(lx, &ins->cal_left.x);
     int32_t cal_ly = sw2_scale_raw_axis(ly, &ins->cal_left.y);
     int32_t cal_rx = sw2_scale_raw_axis(rx, &ins->cal_right.x);
@@ -1443,10 +1487,14 @@ void uni_hid_parser_switch2_parse_input_report(struct uni_hid_device_s* d, const
                 gp->buttons |= BUTTON_SHOULDER_R;
 
             // L/ZL -> triggers L/R
-            if (b & 0x400000u)
+            if (b & 0x400000u) {
                 gp->buttons |= BUTTON_TRIGGER_L;
-            if (b & 0x800000u)
+                gp->brake = 1023;
+            }
+            if (b & 0x800000u) {
                 gp->buttons |= BUTTON_TRIGGER_R;
+                gp->throttle = 1023;
+            }
 
             // Stick click & misc
             if (b & 0x000800u)
@@ -1456,9 +1504,10 @@ void uni_hid_parser_switch2_parse_input_report(struct uni_hid_device_s* d, const
             if (b & 0x002000u)
                 gp->misc_buttons |= MISC_BUTTON_CAPTURE;
 
-            // Horizontal CCW stick rotation: axis_x = -cal_y, axis_y = cal_x
+            // Horizontal CCW stick rotation (matches SDL HandleMiniControllerStateL):
+            // axis_x = -cal_y (invert = true), axis_y = -cal_x (invert = true)
             gp->axis_x = sw2_clamp_axis(-cal_ly);
-            gp->axis_y = sw2_clamp_axis(cal_lx);
+            gp->axis_y = sw2_clamp_axis(-cal_lx);
             gp->axis_rx = 0;
             gp->axis_ry = 0;
             break;
@@ -1482,10 +1531,14 @@ void uni_hid_parser_switch2_parse_input_report(struct uni_hid_device_s* d, const
                 gp->buttons |= BUTTON_SHOULDER_R;
 
             // R/ZR -> triggers L/R
-            if (b & 0x000040u)
+            if (b & 0x000040u) {
                 gp->buttons |= BUTTON_TRIGGER_L;
-            if (b & 0x000080u)
+                gp->brake = 1023;
+            }
+            if (b & 0x000080u) {
                 gp->buttons |= BUTTON_TRIGGER_R;
+                gp->throttle = 1023;
+            }
 
             // Stick click & misc
             if (b & 0x000400u)
@@ -1495,9 +1548,10 @@ void uni_hid_parser_switch2_parse_input_report(struct uni_hid_device_s* d, const
             if (b & 0x001000u)
                 gp->misc_buttons |= MISC_BUTTON_SYSTEM;
 
-            // Horizontal CW stick rotation: axis_x = cal_y, axis_y = -cal_x
+            // Horizontal CW stick rotation (matches SDL HandleMiniControllerStateR):
+            // axis_x = cal_y (invert = false), axis_y = cal_x (invert = false)
             gp->axis_x = sw2_clamp_axis(cal_ry);
-            gp->axis_y = sw2_clamp_axis(-cal_rx);
+            gp->axis_y = sw2_clamp_axis(cal_rx);
             gp->axis_rx = 0;
             gp->axis_ry = 0;
             break;

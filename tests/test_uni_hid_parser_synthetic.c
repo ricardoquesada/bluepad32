@@ -3396,9 +3396,11 @@ TEST(parser_switch2_joycon_left_standalone_horizontal) {
     EXPECT_EQ(BUTTON_SHOULDER_L | BUTTON_SHOULDER_R | BUTTON_TRIGGER_L | BUTTON_TRIGGER_R | BUTTON_THUMB_L,
               d.controller.gamepad.buttons);
     EXPECT_EQ(MISC_BUTTON_SELECT | MISC_BUTTON_CAPTURE, d.controller.gamepad.misc_buttons);
+    EXPECT_EQ(1023, d.controller.gamepad.brake);
+    EXPECT_EQ(1023, d.controller.gamepad.throttle);
     EXPECT_EQ(0, d.controller.gamepad.dpad);
 
-    // 4. Horizontal Stick Rotation (axis_x = -cal_y, axis_y = cal_x)
+    // 4. Horizontal Stick Rotation (axis_x = -cal_y, axis_y = -cal_x)
     sw2_init_neutral_report(rpt, sizeof(rpt));
     sw2_pack_sticks_12bit(&rpt[10], 2048, 3648);  // Physical Up (cal_y > 0) -> axis_x = -512, axis_y = 0
     feed_input_report(&d, rpt, sizeof(rpt));
@@ -3407,10 +3409,10 @@ TEST(parser_switch2_joycon_left_standalone_horizontal) {
     EXPECT_EQ(0, d.controller.gamepad.axis_rx);
     EXPECT_EQ(0, d.controller.gamepad.axis_ry);
 
-    sw2_pack_sticks_12bit(&rpt[10], 3648, 2048);  // Physical Right (cal_x > 0) -> axis_x = 0, axis_y = +511
+    sw2_pack_sticks_12bit(&rpt[10], 3648, 2048);  // Physical Right (cal_x > 0) -> axis_x = 0, axis_y = -512
     feed_input_report(&d, rpt, sizeof(rpt));
     EXPECT_EQ(0, d.controller.gamepad.axis_x);
-    EXPECT_EQ(511, d.controller.gamepad.axis_y);
+    EXPECT_EQ(-512, d.controller.gamepad.axis_y);
 
     // 5. Horizontal IMU Rotation (accel = {-ay, +az, -ax}, gyro = {-gy, +gz, -gx})
     write_le16(&rpt[48], -2048);   // ax = -2048 -> accel[2] = +0.5g
@@ -3464,9 +3466,11 @@ TEST(parser_switch2_joycon_right_standalone_horizontal) {
     EXPECT_EQ(BUTTON_SHOULDER_L | BUTTON_SHOULDER_R | BUTTON_TRIGGER_L | BUTTON_TRIGGER_R | BUTTON_THUMB_L,
               d.controller.gamepad.buttons);
     EXPECT_EQ(MISC_BUTTON_START | MISC_BUTTON_SYSTEM, d.controller.gamepad.misc_buttons);
+    EXPECT_EQ(1023, d.controller.gamepad.brake);
+    EXPECT_EQ(1023, d.controller.gamepad.throttle);
     EXPECT_EQ(0, d.controller.gamepad.dpad);
 
-    // 4. Horizontal Stick Rotation (axis_x = cal_y, axis_y = -cal_x)
+    // 4. Horizontal Stick Rotation (axis_x = cal_y, axis_y = cal_x)
     sw2_init_neutral_report(rpt, sizeof(rpt));
     sw2_pack_sticks_12bit(&rpt[13], 2048, 3648);  // Physical Up (cal_y > 0) -> axis_x = +511, axis_y = 0
     feed_input_report(&d, rpt, sizeof(rpt));
@@ -3475,10 +3479,10 @@ TEST(parser_switch2_joycon_right_standalone_horizontal) {
     EXPECT_EQ(0, d.controller.gamepad.axis_rx);
     EXPECT_EQ(0, d.controller.gamepad.axis_ry);
 
-    sw2_pack_sticks_12bit(&rpt[13], 3648, 2048);  // Physical Right (cal_x > 0) -> axis_x = 0, axis_y = -512
+    sw2_pack_sticks_12bit(&rpt[13], 3648, 2048);  // Physical Right (cal_x > 0) -> axis_x = 0, axis_y = +511
     feed_input_report(&d, rpt, sizeof(rpt));
     EXPECT_EQ(0, d.controller.gamepad.axis_x);
-    EXPECT_EQ(-512, d.controller.gamepad.axis_y);
+    EXPECT_EQ(511, d.controller.gamepad.axis_y);
 
     // 5. Horizontal IMU Rotation (accel = {+ay, +az, +ax}, gyro = {+gy, +gz, +gx})
     write_le16(&rpt[48], 2048);   // ax = +2048 -> accel[2] = +0.5g
