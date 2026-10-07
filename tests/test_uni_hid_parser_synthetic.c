@@ -3284,20 +3284,27 @@ TEST(parser_switch2_pro_buttons_sticks_triggers_battery_imu_and_extra_info) {
     EXPECT_EQ(256, d.controller.gamepad.axis_x);
     EXPECT_EQ(0, d.controller.gamepad.axis_y);
 
-    // 6. Analog Triggers (report[30..31] & Digital ZL/ZR Fallback)
+    // 6. Digital ZL/ZR Triggers (Switch 2 Pro Controller has digital-only triggers; report[30..31] ignored)
     sw2_init_neutral_report(rpt, sizeof(rpt));
-    little_endian_store_32(rpt, 4, 0x800080u);  // ZL + ZR digital bits with analog bytes == 0
+    little_endian_store_32(rpt, 4, 0x800000u);  // ZL only
     feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(BUTTON_TRIGGER_L, d.controller.gamepad.buttons);
     EXPECT_EQ(1023, d.controller.gamepad.brake);
+    EXPECT_EQ(0, d.controller.gamepad.throttle);
+
+    little_endian_store_32(rpt, 4, 0x000080u);  // ZR only
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(BUTTON_TRIGGER_R, d.controller.gamepad.buttons);
+    EXPECT_EQ(0, d.controller.gamepad.brake);
     EXPECT_EQ(1023, d.controller.gamepad.throttle);
 
     little_endian_store_32(rpt, 4, 0);
     rpt[30] = 128;
     rpt[31] = 255;
     feed_input_report(&d, rpt, sizeof(rpt));
-    EXPECT_EQ((128 * 1023) / 255, d.controller.gamepad.brake);
-    EXPECT_EQ(1023, d.controller.gamepad.throttle);
-    EXPECT_EQ(BUTTON_TRIGGER_L | BUTTON_TRIGGER_R, d.controller.gamepad.buttons);
+    EXPECT_EQ(0, d.controller.gamepad.brake);
+    EXPECT_EQ(0, d.controller.gamepad.throttle);
+    EXPECT_EQ(0, d.controller.gamepad.buttons);
 
     // 7. Battery (report[3]) & Temperature (report[43])
     sw2_init_neutral_report(rpt, sizeof(rpt));

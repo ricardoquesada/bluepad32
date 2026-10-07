@@ -179,6 +179,7 @@ typedef struct {
     bool waiting_encryption;
     bool rumble_active;
     bool has_imu_ts;
+    bool player_leds_dirty;
     uint8_t player_leds;
     uint8_t rumble_seq;
     uint8_t rumble_weak;
@@ -662,6 +663,17 @@ static void sw2_send_vibration_packet(uni_hid_device_t* d, uint8_t weak_magnitud
     }
 }
 
+static uint8_t sw2_send_command(uni_hid_device_t* d,
+                                uint8_t cmd,
+                                uint8_t subcmd,
+                                const uint8_t* payload,
+                                uint8_t payload_len);
+
+static uint8_t sw2_send_player_leds_cmd(uni_hid_device_t* d, uint8_t leds) {
+    uint8_t val[8] = {(uint8_t)(leds & 0x0fu), 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    return sw2_send_command(d, SW2_CMD_LEDS, SW2_SUBCMD_LEDS_SET_PLAYER, val, sizeof(val));
+}
+
 static void sw2_keepalive_timer_cb(btstack_timer_source_t* ts) {
     uni_hid_device_t* d = (uni_hid_device_t*)btstack_run_loop_get_timer_context(ts);
     if (!d)
@@ -671,6 +683,21 @@ static void sw2_keepalive_timer_cb(btstack_timer_source_t* ts) {
     ins->keepalive_active = false;
     if (ins->state != SW2_STATE_READY || d->conn.handle == UNI_BT_CONN_HANDLE_INVALID)
         return;
+
+    if (ins->player_leds_dirty) {
+        uint8_t status = sw2_send_player_leds_cmd(d, ins->player_leds);
+        if (status != GATT_CLIENT_BUSY) {
+            ins->player_leds_dirty = false;
+        }
+        if (status == ERROR_CODE_SUCCESS) {
+            btstack_run_loop_set_timer_context(&ins->keepalive_timer, d);
+            btstack_run_loop_set_timer_handler(&ins->keepalive_timer, &sw2_keepalive_timer_cb);
+            btstack_run_loop_set_timer(&ins->keepalive_timer, SW2_KEEPALIVE_MS);
+            btstack_run_loop_add_timer(&ins->keepalive_timer);
+            ins->keepalive_active = true;
+            return;
+        }
+    }
 
     // Switch 2 controllers require a periodic ~5 ms packet on vibration_handle (0x0016) to
     // prevent an HCI connection timeout (0x08). By evaluating the active rumble window
@@ -740,13 +767,13 @@ static void sw2_arm_cmd_timer(uni_hid_device_t* d, uint32_t timeout_ms) {
     ins->setup_timer_active = true;
 }
 
-static void sw2_send_command(uni_hid_device_t* d,
-                             uint8_t cmd,
-                             uint8_t subcmd,
-                             const uint8_t* payload,
-                             uint8_t payload_len) {
+static uint8_t sw2_send_command(uni_hid_device_t* d,
+                                uint8_t cmd,
+                                uint8_t subcmd,
+                                const uint8_t* payload,
+                                uint8_t payload_len) {
     if (!d || d->conn.handle == UNI_BT_CONN_HANDLE_INVALID)
-        return;
+        return ERROR_CODE_UNKNOWN_CONNECTION_IDENTIFIER;
     if (payload_len > 32)
         payload_len = 32;
 
@@ -784,6 +811,7 @@ static void sw2_send_command(uni_hid_device_t* d,
     if (status != ERROR_CODE_SUCCESS) {
         logd("Switch2: cmd 0x%02x/0x%02x write returned status=0x%02x\n", cmd, subcmd, status);
     }
+    return status;
 }
 
 static void sw2_send_spi_read_calibration(uni_hid_device_t* d) {
@@ -1216,14 +1244,19 @@ void uni_hid_parser_switch2_handle_gatt_event(uint8_t packet_type, uint16_t chan
                 sw2_stop_setup_timer(ins);
                 ins->state = SW2_STATE_READY;
                 gap_request_connection_parameter_update(d->conn.handle, 6, 6, 0, 400);
-                uint8_t leds = ins->player_leds ? ins->player_leds : 0x01;
-                uni_hid_parser_switch2_set_player_leds(d, leds);
-                sw2_send_vibration_packet(d, 0, 0);
-                sw2_start_keepalive_timer(d);
                 if (uni_bt_conn_get_state(&d->conn) != UNI_BT_CONN_STATE_DEVICE_READY) {
                     uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_PENDING_READY);
-                    uni_hid_device_set_ready_complete(d);
+                    if (!uni_hid_device_set_ready_complete(d)) {
+                        break;
+                    }
                 }
+                if (!ins->player_leds) {
+                    uni_hid_parser_switch2_set_player_leds(d, 0x01);
+                } else if (ins->player_leds_dirty) {
+                    uni_hid_parser_switch2_set_player_leds(d, ins->player_leds);
+                }
+                sw2_send_vibration_packet(d, 0, 0);
+                sw2_start_keepalive_timer(d);
             }
             break;
 
@@ -1268,11 +1301,15 @@ void uni_hid_parser_switch2_setup(struct uni_hid_device_s* d) {
     sw2_instance_t* ins = get_sw2_instance(d);
     bool saved_needs_pair = ins->needs_pair;
     bool saved_paired_from_bond = ins->paired_from_bond;
+    uint8_t saved_player_leds = ins->player_leds;
+    bool saved_player_leds_dirty = ins->player_leds_dirty;
 
     uni_hid_parser_switch2_deinit(d);
     memset(ins, 0, sizeof(*ins));
     ins->needs_pair = saved_needs_pair;
     ins->paired_from_bond = saved_paired_from_bond;
+    ins->player_leds = saved_player_leds;
+    ins->player_leds_dirty = saved_player_leds_dirty;
     sw2_set_default_calibration(ins);
 
     d->controller.klass = UNI_CONTROLLER_CLASS_GAMEPAD;
@@ -1335,7 +1372,7 @@ void uni_hid_parser_switch2_parse_input_report(struct uni_hid_device_s* d, const
     //                     0x80=ZL byte 7 (extra): 0x01=GR, 0x02=GL
     //   report[10..12]: 12-bit packed left thumbstick:  lx = [10] | (([11] & 0x0f) << 8), ly = ([11] >> 4) | ([12] <<
     //   4) report[13..15]: 12-bit packed right thumbstick: rx = [13] | (([14] & 0x0f) << 8), ry = ([14] >> 4) | ([15]
-    //   << 4) report[30..31]: 8-bit analog triggers on Pro 2 (report[30] = ZL/brake, report[31] = ZR/throttle)
+    //   << 4)
     //   report[42..43]: 16-bit little-endian IMU sample timestamp
     //   report[43]:     Signed board temperature in degrees Celsius (int8_t)
     //   report[48..53]: 3-axis accelerometer (int16_t LE: ax, ay, az; 4096 LSB/g, +/-8g full scale)
@@ -1490,10 +1527,16 @@ void uni_hid_parser_switch2_parse_input_report(struct uni_hid_device_s* d, const
                 gp->buttons |= BUTTON_SHOULDER_L;
             if (b & 0x000040u)
                 gp->buttons |= BUTTON_SHOULDER_R;
-            if (b & 0x800000u)
+            // Switch 2 Pro Controller has digital-only ZL/ZR triggers (like Joy-Con 2);
+            // only the Switch 2 GameCube controller has analog triggers.
+            if (b & 0x800000u) {
                 gp->buttons |= BUTTON_TRIGGER_L;
-            if (b & 0x000080u)
+                gp->brake = 1023;
+            }
+            if (b & 0x000080u) {
                 gp->buttons |= BUTTON_TRIGGER_R;
+                gp->throttle = 1023;
+            }
 
             if (b & 0x000800u)
                 gp->buttons |= BUTTON_THUMB_L;
@@ -1513,22 +1556,6 @@ void uni_hid_parser_switch2_parse_input_report(struct uni_hid_device_s* d, const
             gp->axis_y = sw2_clamp_axis(-cal_ly);
             gp->axis_rx = sw2_clamp_axis(cal_rx);
             gp->axis_ry = sw2_clamp_axis(-cal_ry);
-
-            // Analog triggers at report[30..31] (0..255 -> 0..1023) with digital ZL/ZR fallback
-            if (len >= 32) {
-                if (report[30] > 0) {
-                    gp->brake = ((int32_t)report[30] * 1023) / 255;
-                    gp->buttons |= BUTTON_TRIGGER_L;
-                }
-                if (report[31] > 0) {
-                    gp->throttle = ((int32_t)report[31] * 1023) / 255;
-                    gp->buttons |= BUTTON_TRIGGER_R;
-                }
-            }
-            if (gp->brake == 0 && (b & 0x800000u))
-                gp->brake = 1023;
-            if (gp->throttle == 0 && (b & 0x000080u))
-                gp->throttle = 1023;
             break;
     }
 
@@ -1603,8 +1630,13 @@ void uni_hid_parser_switch2_set_player_leds(struct uni_hid_device_s* d, uint8_t 
     sw2_instance_t* ins = get_sw2_instance(d);
     ins->player_leds = (uint8_t)(leds & 0x0fu);
 
-    uint8_t val[4] = {(uint8_t)(leds & 0x0fu), 0x00, 0x00, 0x00};
-    sw2_send_command(d, SW2_CMD_LEDS, SW2_SUBCMD_LEDS_SET_PLAYER, val, sizeof(val));
+    if (ins->state != SW2_STATE_READY) {
+        ins->player_leds_dirty = true;
+        return;
+    }
+
+    uint8_t status = sw2_send_player_leds_cmd(d, ins->player_leds);
+    ins->player_leds_dirty = (status == GATT_CLIENT_BUSY);
 }
 
 void uni_hid_parser_switch2_play_dual_rumble(struct uni_hid_device_s* d,
