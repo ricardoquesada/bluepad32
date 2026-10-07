@@ -92,6 +92,8 @@
 
 static bool is_scanning;
 static bool ble_enabled;
+static hci_con_handle_t just_works_fallback_con_handle = UNI_BT_CONN_HANDLE_INVALID;
+static bool just_works_fallback_tried;
 
 // Temporal space for SDP in BLE
 static uint8_t hid_descriptor_storage[HID_MAX_DESCRIPTOR_LEN * CONFIG_BLUEPAD32_MAX_DEVICES];
@@ -121,6 +123,18 @@ static void hog_disconnect(hci_con_handle_t con_handle) {
     // MUST not call uni_hid_device_disconnect(), called from it.
     uint8_t status;
     uni_hid_device_t* device;
+
+    // When device_connection_timeout() fires before HCI_SUBEVENT_LE_CONNECTION_COMPLETE,
+    // d->conn.handle is still UNI_BT_CONN_HANDLE_INVALID (0xffff). Because BTstack's
+    // pending outgoing hci_connection_t (state = SENT_CREATE_CONNECTION) also has
+    // con_handle == 0xffff, gap_get_connection_type(0xffff) returns GAP_CONNECTION_LE.
+    // Calling gap_disconnect(0xffff) sends a bogus HCI_Disconnect(0x0fff) instead of
+    // HCI_LE_Create_Connection_Cancel, leaving a permanent zombie connection in BTstack.
+    if (con_handle == UNI_BT_CONN_HANDLE_INVALID) {
+        gap_connect_cancel();
+        resume_scanning_hint();
+        return;
+    }
 
     device = uni_hid_device_get_instance_for_connection_handle(con_handle);
     if (device && device->hids_cid != 0xffff) {
@@ -760,16 +774,21 @@ static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
                  bd_addr_to_str(addr));
             break;
         case SM_EVENT_REENCRYPTION_STARTED:
-            sm_event_reencryption_complete_get_address(packet, addr);
+            sm_event_reencryption_started_get_address(packet, addr);
             logi("Bonding information exists for addr type %u, identity addr %s -> start re-encryption\n",
                  sm_event_reencryption_started_get_addr_type(packet), bd_addr_to_str(addr));
             break;
         case SM_EVENT_REENCRYPTION_COMPLETE:
             con_handle = sm_event_reencryption_complete_get_handle(packet);
+            device = uni_hid_device_get_instance_for_connection_handle(con_handle);
             switch (sm_event_reencryption_complete_get_status(packet)) {
                 case ERROR_CODE_SUCCESS:
                     logi("Re-encryption complete, success\n");
-                    request_device_information_query = true;
+                    if (device && uni_hid_parser_switch2_is_ble_device(device)) {
+                        logi("Switch2: re-encryption complete; skipping DIS query\n");
+                    } else {
+                        request_device_information_query = true;
+                    }
                     break;
                 case ERROR_CODE_CONNECTION_TIMEOUT:
                     logi("Re-encryption failed, timeout\n");
@@ -784,8 +803,11 @@ static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
                     logi("Assuming remote lost bonding information\n");
                     logi("Deleting local bonding information and start new pairing...\n");
                     sm_event_reencryption_complete_get_address(packet, addr);
-                    type = sm_event_reencryption_started_get_addr_type(packet);
+                    type = sm_event_reencryption_complete_get_addr_type(packet);
                     gap_delete_bonding(type, addr);
+                    if (device && uni_hid_parser_switch2_is_ble_device(device)) {
+                        sm_set_authentication_requirements(0);
+                    }
                     sm_request_pairing(sm_event_reencryption_complete_get_handle(packet));
                     break;
                 default:
@@ -806,7 +828,15 @@ static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
             switch (status) {
                 case ERROR_CODE_SUCCESS:
                     logi("Pairing complete, success\n");
-                    request_device_information_query = true;
+                    if (just_works_fallback_con_handle == con_handle) {
+                        just_works_fallback_con_handle = UNI_BT_CONN_HANDLE_INVALID;
+                        just_works_fallback_tried = false;
+                    }
+                    if (uni_hid_parser_switch2_is_ble_device(device)) {
+                        logi("Switch2: SMP pairing complete; skipping DIS query\n");
+                    } else {
+                        request_device_information_query = true;
+                    }
                     break;
                 case ERROR_CODE_CONNECTION_TIMEOUT:
                     logi("Pairing failed, timeout\n");
@@ -814,18 +844,32 @@ static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
                 case ERROR_CODE_REMOTE_USER_TERMINATED_CONNECTION:
                     logi("Pairing failed, disconnected\n");
                     break;
-                case ERROR_CODE_AUTHENTICATION_FAILURE:
-                    logi("Pairing failed, reason = %u\n", sm_event_pairing_complete_get_reason(packet));
+                case ERROR_CODE_AUTHENTICATION_FAILURE: {
+                    uint8_t reason = sm_event_pairing_complete_get_reason(packet);
+                    logi("Pairing failed, reason = %u\n", reason);
+                    if (uni_hid_parser_switch2_is_ble_device(device)) {
+                        logi("Switch2: SMP pairing failed, disconnecting\n");
+                        hog_disconnect(device->conn.handle);
+                        break;
+                    }
+                    if (reason == SM_REASON_AUTHENTHICATION_REQUIREMENTS) {
+                        if (just_works_fallback_con_handle != con_handle || !just_works_fallback_tried) {
+                            just_works_fallback_con_handle = con_handle;
+                            just_works_fallback_tried = true;
+                            logi("Retrying pairing with Just Works (no bonding)\n");
+                            sm_set_authentication_requirements(0);
+                            sm_request_pairing(con_handle);
+                            break;
+                        }
+                        logi("Just Works retry also failed, disconnecting\n");
+                        hog_disconnect(device->conn.handle);
+                    }
                     break;
+                }
                 default:
                     loge("Unknown paring status: %#x\n", status);
                     break;
             }
-
-            // TODO: Double check
-            // Do not disconnect. Sometimes it appears as "failure" although
-            // the connection as Ok (???)
-            // hog_disconnect(device->conn.handle);
             break;
 
         default:
@@ -880,6 +924,8 @@ void uni_bt_le_on_hci_event_le_meta(const uint8_t* packet, uint16_t size) {
             }
             con_handle = hci_subevent_le_connection_complete_get_connection_handle(packet);
             logi("Using con_handle: %#x\n", con_handle);
+            just_works_fallback_con_handle = con_handle;
+            just_works_fallback_tried = false;
 
             uni_hid_device_set_connection_handle(device, con_handle);
 
@@ -898,8 +944,8 @@ void uni_bt_le_on_hci_event_le_meta(const uint8_t* packet, uint16_t size) {
                     uni_hid_parser_switch2_on_le_connected(device);
                     resume_scanning_hint();
                 } else {
-                    // Bonded Switch 2 reconnect: re-encrypt the link via SMP with auth_req=0,
-                    // then proceed through DIS query -> uni_hid_device_set_ready().
+                    // Bonded Switch 2 reconnect: re-encrypt the link via SMP with auth_req=0;
+                    // HCI_EVENT_ENCRYPTION_CHANGE then triggers uni_hid_parser_switch2_on_encrypted().
                     sm_set_authentication_requirements(0);
                     sm_request_pairing(con_handle);
                 }
@@ -986,14 +1032,14 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
         return;
     }
 
-    gap_event_advertising_report_get_address(packet, addr);
-    if (uni_hid_device_get_instance_for_address(addr)) {
-        // Ignore, address already found
+    if (uni_hid_parser_switch2_does_packet_match(packet, size)) {
+        (void)uni_bt_le_switch2_handle_advertisement(packet, size);
         return;
     }
 
-    if (uni_hid_parser_switch2_does_packet_match(packet, size)) {
-        (void)uni_bt_le_switch2_handle_advertisement(packet, size);
+    gap_event_advertising_report_get_address(packet, addr);
+    if (uni_hid_device_get_instance_for_address(addr)) {
+        // Ignore, address already found
         return;
     }
 
@@ -1062,6 +1108,9 @@ void uni_bt_le_on_hci_disconnection_complete(uint16_t channel, const uint8_t* pa
     ARG_UNUSED(channel);
     ARG_UNUSED(packet);
     ARG_UNUSED(size);
+
+    just_works_fallback_con_handle = UNI_BT_CONN_HANDLE_INVALID;
+    just_works_fallback_tried = false;
 
     resume_scanning_hint();
 }

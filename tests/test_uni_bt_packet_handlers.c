@@ -2389,10 +2389,10 @@ TEST(bt_le_switch2_gatt_state_machine_and_teardown) {
     d->report_parser.device_extra_info(d, extra, sizeof(extra));
     EXPECT_NE(NULL, strstr(extra, "state=discover_chars"));
 
-    // 2. SW2_STATE_DISCOVER_CHARS -> SW2_STATE_DISCOVER_DESCS
+    // 2. SW2_STATE_DISCOVER_CHARS -> SW2_STATE_WRITE_BOOTSTRAP_GATE
     //    Use the exact 128-bit UUIDs from uni_hid_parser_switch2.c at non-default ATT handles
     //    (0x0020, 0x0024, 0x0026, 0x002a) plus the 16-bit 0x2b29 bootstrap gate (0x0004)
-    //    to verify UUID matching overrides the fallback handles.
+    //    to verify UUID matching overrides the fallback handles and derives CCCDs (value_handle + 1).
     static const uint8_t k_sw2_input_uuid[16] = {
         0xd2, 0x7f, 0xdf, 0x09, 0x8f, 0x11, 0x8f, 0x82, 0xad, 0x49, 0xfe, 0x89, 0xbe, 0xe9, 0x7d, 0xab,
     };
@@ -2421,56 +2421,30 @@ TEST(bt_le_switch2_gatt_state_machine_and_teardown) {
     uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, chr_pkt, sizeof(chr_pkt));
     uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, qc_pkt, sizeof(qc_pkt));
     d->report_parser.device_extra_info(d, extra, sizeof(extra));
-    EXPECT_NE(NULL, strstr(extra, "state=discover_descs"));
+    EXPECT_NE(NULL, strstr(extra, "state=bootstrap_gate"));
+    EXPECT_NE(NULL, strstr(extra, "in=0x0020/0x0021 cmd=0x0024/0x002a/0x002b vib=0x0026"));
 
-    // 3. SW2_STATE_DISCOVER_DESCS (target 0 = cmd_response CCCD 0x002b, target 1 = input_report CCCD 0x0021)
-    //    -> SW2_STATE_WRITE_BOOTSTRAP_GATE (since 0x2b29 was discovered at handle 0x0004)
+    // 3. Optional 0x2902 descriptor events in SW2_STATE_WRITE_BOOTSTRAP_GATE + GATT_EVENT_QUERY_COMPLETE
+    //    -> SW2_STATE_ENABLE_CMD_NOTIFY -> SW2_STATE_INIT_SEQUENCE
     uint8_t desc_pkt[26];
     build_gatt_desc_query_result_uuid16_pkt(desc_pkt, con_handle, 0x002b,
                                             ORG_BLUETOOTH_DESCRIPTOR_GATT_CLIENT_CHARACTERISTIC_CONFIGURATION);
     uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, desc_pkt, sizeof(desc_pkt));
-    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, qc_pkt, sizeof(qc_pkt));
-
     build_gatt_desc_query_result_uuid16_pkt(desc_pkt, con_handle, 0x0021,
                                             ORG_BLUETOOTH_DESCRIPTOR_GATT_CLIENT_CHARACTERISTIC_CONFIGURATION);
     uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, desc_pkt, sizeof(desc_pkt));
-    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, qc_pkt, sizeof(qc_pkt));
-    d->report_parser.device_extra_info(d, extra, sizeof(extra));
-    EXPECT_NE(NULL, strstr(extra, "state=bootstrap_gate"));
-    EXPECT_NE(NULL, strstr(extra, "in=0x0020/0x0021 cmd=0x0024/0x002a/0x002b vib=0x0026"));
 
-    // 4. SW2_STATE_WRITE_BOOTSTRAP_GATE -> SW2_STATE_ENABLE_CMD_NOTIFY -> SW2_STATE_READ_CALIBRATION
     uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, qc_pkt, sizeof(qc_pkt));
     d->report_parser.device_extra_info(d, extra, sizeof(extra));
     EXPECT_NE(NULL, strstr(extra, "state=enable_cmd_notify"));
 
     uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, qc_pkt, sizeof(qc_pkt));
     d->report_parser.device_extra_info(d, extra, sizeof(extra));
-    EXPECT_NE(NULL, strstr(extra, "state=read_calibration"));
-
-    // 5. SW2_STATE_READ_CALIBRATION -> SW2_STATE_PAIRING (since needs_pair == true)
-    uint8_t notify_pkt[128];
-    uint8_t spi_cal_rsp[34];
-    memset(spi_cal_rsp, 0, sizeof(spi_cal_rsp));
-    spi_cal_rsp[0] = 0x02;  // SW2_CMD_SPI
-    spi_cal_rsp[3] = 0x04;  // SW2_SUBCMD_SPI_READ
-    little_endian_store_32(spi_cal_rsp, 12, 0x001fc042u);
-    uint16_t notify_len = build_gatt_notification_pkt(notify_pkt, con_handle, 0x002a, spi_cal_rsp, sizeof(spi_cal_rsp));
-    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, notify_pkt, notify_len);
-    d->report_parser.device_extra_info(d, extra, sizeof(extra));
-    EXPECT_NE(NULL, strstr(extra, "state=pairing"));
-
-    // 6. SW2_STATE_PAIRING (4 steps: subcmds 0x01, 0x04, 0x02, 0x03) -> SW2_STATE_INIT_SEQUENCE
-    const uint8_t pair_subcmds[4] = {0x01, 0x04, 0x02, 0x03};
-    for (int step = 0; step < 4; step++) {
-        uint8_t pair_rsp[8] = {0x15, 0x91, 0x01, pair_subcmds[step], 0x00, 0x00, 0x00, 0x00};
-        notify_len = build_gatt_notification_pkt(notify_pkt, con_handle, 0x002a, pair_rsp, sizeof(pair_rsp));
-        uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, notify_pkt, notify_len);
-    }
-    d->report_parser.device_extra_info(d, extra, sizeof(extra));
     EXPECT_NE(NULL, strstr(extra, "state=init_sequence"));
 
-    // 7. SW2_STATE_INIT_SEQUENCE (all 13 steps matching sw2_init_sequence[]) -> SW2_STATE_ENABLE_INPUT_NOTIFY
+    // 4. SW2_STATE_INIT_SEQUENCE (all 13 steps matching sw2_init_sequence[]) -> SW2_STATE_READ_CALIBRATION
+    uint8_t notify_pkt[128];
+    uint16_t notify_len = 0;
     const uint8_t init_cmds[13][2] = {
         {0x03, 0x0d}, {0x07, 0x01}, {0x16, 0x01}, {0x15, 0x03}, {0x0c, 0x02}, {0x11, 0x03}, {0x0a, 0x08},
         {0x0c, 0x04}, {0x03, 0x0a}, {0x10, 0x01}, {0x01, 0x0c}, {0x01, 0x01}, {0x09, 0x07},
@@ -2481,9 +2455,31 @@ TEST(bt_le_switch2_gatt_state_machine_and_teardown) {
         uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, notify_pkt, notify_len);
     }
     d->report_parser.device_extra_info(d, extra, sizeof(extra));
+    EXPECT_NE(NULL, strstr(extra, "state=read_calibration"));
+
+    // 5. SW2_STATE_READ_CALIBRATION -> SW2_STATE_PAIRING (since needs_pair == true)
+    uint8_t spi_cal_rsp[34];
+    memset(spi_cal_rsp, 0, sizeof(spi_cal_rsp));
+    spi_cal_rsp[0] = 0x02;  // SW2_CMD_SPI
+    spi_cal_rsp[1] = 0x91;
+    spi_cal_rsp[3] = 0x04;  // SW2_SUBCMD_SPI_READ
+    little_endian_store_32(spi_cal_rsp, 12, 0x001fc042u);
+    notify_len = build_gatt_notification_pkt(notify_pkt, con_handle, 0x002a, spi_cal_rsp, sizeof(spi_cal_rsp));
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, notify_pkt, notify_len);
+    d->report_parser.device_extra_info(d, extra, sizeof(extra));
+    EXPECT_NE(NULL, strstr(extra, "state=pairing"));
+
+    // 6. SW2_STATE_PAIRING (4 steps: subcmds 0x01, 0x04, 0x02, 0x03) -> SW2_STATE_ENABLE_INPUT_NOTIFY
+    const uint8_t pair_subcmds[4] = {0x01, 0x04, 0x02, 0x03};
+    for (int step = 0; step < 4; step++) {
+        uint8_t pair_rsp[8] = {0x15, 0x91, 0x01, pair_subcmds[step], 0x00, 0x00, 0x00, 0x00};
+        notify_len = build_gatt_notification_pkt(notify_pkt, con_handle, 0x002a, pair_rsp, sizeof(pair_rsp));
+        uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, notify_pkt, notify_len);
+    }
+    d->report_parser.device_extra_info(d, extra, sizeof(extra));
     EXPECT_NE(NULL, strstr(extra, "state=enable_input_notify"));
 
-    // 8. SW2_STATE_ENABLE_INPUT_NOTIFY -> SW2_STATE_READY & UNI_BT_CONN_STATE_DEVICE_READY
+    // 7. SW2_STATE_ENABLE_INPUT_NOTIFY -> SW2_STATE_READY & UNI_BT_CONN_STATE_DEVICE_READY
     int prev_ready = g_ready_count;
     uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, qc_pkt, sizeof(qc_pkt));
     EXPECT_EQ(prev_ready + 1, g_ready_count);
@@ -2491,7 +2487,7 @@ TEST(bt_le_switch2_gatt_state_machine_and_teardown) {
     d->report_parser.device_extra_info(d, extra, sizeof(extra));
     EXPECT_NE(NULL, strstr(extra, "state=ready"));
 
-    // 9. Inject a 63-byte Switch 2 input notification on handle 0x0020 -> routes to parser and updates gamepad.
+    // 8. Inject a 63-byte Switch 2 input notification on handle 0x0020 -> routes to parser and updates gamepad.
     uint8_t sw2_input[63];
     memset(sw2_input, 0, sizeof(sw2_input));
     sw2_input[3] = 80;                                  // 80% battery
@@ -2508,8 +2504,8 @@ TEST(bt_le_switch2_gatt_state_machine_and_teardown) {
     EXPECT_EQ(prev_data + 1, g_controller_data_count);
     EXPECT_EQ(BUTTON_B, d->controller.gamepad.buttons);
 
-    // 10. Teardown via uni_hid_device_disconnect(d) + uni_hid_device_delete(d):
-    //     Verify timers are removed from BTstack's run loop and post-disconnect notifications are ignored.
+    // 9. Teardown via uni_hid_device_disconnect(d) + uni_hid_device_delete(d):
+    //    Verify timers are removed from BTstack's run loop and post-disconnect notifications are ignored.
     uni_hid_device_disconnect(d);
     d->report_parser.device_extra_info(d, extra, sizeof(extra));
     EXPECT_NE(NULL, strstr(extra, "state=disconnected"));
@@ -2524,7 +2520,7 @@ TEST(bt_le_switch2_gatt_state_machine_and_teardown) {
     EXPECT_EQ(prev_data, g_controller_data_count);
 
     // ------------------------------------------------------------------------
-    // Sub-case B: Bonded reconnect (paired_from_bond == true) + CCCD fallback
+    // Sub-case B: Bonded reconnect (needs_pair == false) + 500ms stabilize timer
     // ------------------------------------------------------------------------
     // Joy-Con 2 Left (0x057e:0x2067) with non-zero reconnect MAC advertisement (needs_pair = false).
     uint8_t sw2_reconnect_ad[] = {
@@ -2568,27 +2564,35 @@ TEST(bt_le_switch2_gatt_state_machine_and_teardown) {
     uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, chr_pkt, sizeof(chr_pkt));
     uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, qc_pkt, sizeof(qc_pkt));
 
-    // Complete both descriptor queries WITHOUT injecting 0x2902 descriptor results:
-    // verifies CCCD fallback to value_handle + 1 (0x003b and 0x0031).
-    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, qc_pkt, sizeof(qc_pkt));
-    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, qc_pkt, sizeof(qc_pkt));
     d2->report_parser.device_extra_info(d2, extra, sizeof(extra));
-    EXPECT_NE(NULL, strstr(extra, "state=enable_cmd_notify"));
+    EXPECT_NE(NULL, strstr(extra, "state=bootstrap_gate"));
     EXPECT_NE(NULL, strstr(extra, "in=0x0030/0x0031 cmd=0x0034/0x003a/0x003b vib=0x0036"));
 
-    // Advance enable_cmd_notify -> read_calibration -> skips SW2_STATE_PAIRING and jumps to init_sequence step 4
+    // Fire the 500 ms stabilization timer (sw2_on_setup_stabilized):
+    // Since bond_handle (0x0051) has no lower-level BTstack hci_connection_t, the bootstrap gate
+    // write returns non-zero and immediately advances to SW2_STATE_ENABLE_CMD_NOTIFY.
+    ASSERT_NE(NULL, btstack_run_loop_base_timers);
+    btstack_timer_source_t* stab_ts = (btstack_timer_source_t*)btstack_run_loop_base_timers;
+    stab_ts->process(stab_ts);
+    d2->report_parser.device_extra_info(d2, extra, sizeof(extra));
+    EXPECT_NE(NULL, strstr(extra, "state=enable_cmd_notify"));
+
+    // Advance enable_cmd_notify -> init_sequence -> read_calibration -> skips SW2_STATE_PAIRING
+    // (since needs_pair == false) and goes directly to enable_input_notify.
     uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, qc_pkt, sizeof(qc_pkt));
-    notify_len = build_gatt_notification_pkt(notify_pkt, bond_handle, 0x003a, spi_cal_rsp, sizeof(spi_cal_rsp));
-    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, notify_pkt, notify_len);
     d2->report_parser.device_extra_info(d2, extra, sizeof(extra));
     EXPECT_NE(NULL, strstr(extra, "state=init_sequence"));
 
-    // Only 9 steps (steps 4..12) should be required for bonded reconnect
-    for (int step = 4; step < 13; step++) {
+    for (int step = 0; step < 13; step++) {
         uint8_t init_rsp[8] = {init_cmds[step][0], 0x91, 0x01, init_cmds[step][1], 0x00, 0x00, 0x00, 0x00};
         notify_len = build_gatt_notification_pkt(notify_pkt, bond_handle, 0x003a, init_rsp, sizeof(init_rsp));
         uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, notify_pkt, notify_len);
     }
+    d2->report_parser.device_extra_info(d2, extra, sizeof(extra));
+    EXPECT_NE(NULL, strstr(extra, "state=read_calibration"));
+
+    notify_len = build_gatt_notification_pkt(notify_pkt, bond_handle, 0x003a, spi_cal_rsp, sizeof(spi_cal_rsp));
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, notify_pkt, notify_len);
     d2->report_parser.device_extra_info(d2, extra, sizeof(extra));
     EXPECT_NE(NULL, strstr(extra, "state=enable_input_notify"));
 
