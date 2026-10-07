@@ -3498,6 +3498,25 @@ TEST(parser_switch2_joycon_right_standalone_horizontal) {
     EXPECT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[0], 1e-2f);
     EXPECT_FLOAT_NEAR(936.0f * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[1], 1e-2f);
     EXPECT_FLOAT_NEAR((6685.0f * 936.0f / 13371.0f) * UNI_DEG_TO_RAD, d.controller.gamepad.gyro[2], 1e-2f);
+
+    // 6. Real 27-byte Hardware SPI Calibration Response (16B header + 11B payload at 0x001fc042)
+    //    Verifies Joy-Con 2 Right copies the first stick slot calibration into cal_right.
+    static const uint8_t hw_spi_cal_27[27] = {
+        0x02, 0x01, 0x01, 0x04, 0x10, 0x78, 0x00, 0x00, 0x0b, 0x00, 0x00, 0x00, 0x42, 0xc0,
+        0x1f, 0x00, 0x1c, 0x78, 0x81, 0x0f, 0x26, 0x60, 0x09, 0x26, 0x60, 0x00, 0x00,
+    };
+    feed_input_report(&d, hw_spi_cal_27, sizeof(hw_spi_cal_27));
+    char extra[128];
+    d.report_parser.device_extra_info(&d, extra, sizeof(extra));
+    EXPECT_NE(NULL, strstr(extra, "cal=user"));
+
+    // Verify centered hardware report (lx=2047, ly=2047 at [10..12], rx=2076, ry=2071 at [13..15])
+    sw2_init_neutral_report(rpt, sizeof(rpt));
+    sw2_pack_sticks_12bit(&rpt[10], 2047, 2047);
+    sw2_pack_sticks_12bit(&rpt[13], 2076, 2071);
+    feed_input_report(&d, rpt, sizeof(rpt));
+    EXPECT_EQ(0, d.controller.gamepad.axis_x);
+    EXPECT_EQ(0, d.controller.gamepad.axis_y);
 }
 
 TEST(parser_steam_2015_ble_imu_si_units_and_truncation_guards) {

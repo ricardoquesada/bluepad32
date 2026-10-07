@@ -106,11 +106,13 @@
 #define SW2_SUBCMD_PAIR_FINISH 0x03
 #define SW2_SUBCMD_PAIR_LTK1 0x04
 
-// Default attribute handles on Switch 2 GATT table (used as fallback if UUID discovery omits handles)
+// Default attribute handles on Switch 2 GATT table (used as fallback if UUID discovery omits handles).
+// Note: Handle 0x0012 is Output Report (Vibration only), whereas Handle 0x0016 is Output Report
+// (Vibration + Command) which triggers a Command Response notification on 0x001a for every write.
 #define SW2_DEFAULT_BOOTSTRAP_GATE_HANDLE 0x0004
 #define SW2_DEFAULT_INPUT_REPORT_HANDLE 0x000a
+#define SW2_DEFAULT_VIBRATION_HANDLE 0x0012
 #define SW2_DEFAULT_CMD_WRITE_HANDLE 0x0014
-#define SW2_DEFAULT_VIBRATION_HANDLE 0x0016
 #define SW2_DEFAULT_CMD_RESPONSE_HANDLE 0x001a
 
 // IMU conversion scales to SI units:
@@ -251,16 +253,15 @@ typedef struct {
 
 static const uint8_t sw2_init_p03_0d[] = {0x01, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 static const uint8_t sw2_init_p15_03[] = {0x00};
-static const uint8_t sw2_init_p0c_02[] = {0x27, 0x00, 0x00, 0x00};
+static const uint8_t sw2_init_p0c_02[] = {0x2f, 0x00, 0x00, 0x00};
 static const uint8_t sw2_init_p0a_08[] = {0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x35,
                                           0x00, 0x46, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-static const uint8_t sw2_init_p0c_04[] = {0x27, 0x00, 0x00, 0x00};
-static const uint8_t sw2_init_p03_0a[] = {0x05, 0x00, 0x00, 0x00};
+static const uint8_t sw2_init_p0c_04[] = {0x2f, 0x00, 0x00, 0x00};
+static const uint8_t sw2_init_p03_0a[] = {0x09, 0x00, 0x00, 0x00};
+static const uint8_t sw2_init_p01_01[] = {0x00, 0x00, 0x00, 0x00};
 static const uint8_t sw2_init_p09_07[] = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 // 13-step initialization command sequence sent on cmd_write_handle (0x0014).
-// Note: Unbonded connections execute all 13 steps (indices 0..12). Bonded reconnections
-// jump directly to index 4 ({0x0c, 0x02}) to avoid re-issuing pairing finalization ({0x15, 0x03}).
 static const sw2_init_cmd_t sw2_init_sequence[] = {
     {0x03, 0x0d, sizeof(sw2_init_p03_0d), sw2_init_p03_0d},
     {0x07, 0x01, 0, NULL},
@@ -273,7 +274,7 @@ static const sw2_init_cmd_t sw2_init_sequence[] = {
     {0x03, 0x0a, sizeof(sw2_init_p03_0a), sw2_init_p03_0a},
     {0x10, 0x01, 0, NULL},
     {0x01, 0x0c, 0, NULL},
-    {0x01, 0x01, 0, NULL},
+    {0x01, 0x01, sizeof(sw2_init_p01_01), sw2_init_p01_01},
     {0x09, 0x07, sizeof(sw2_init_p09_07), sw2_init_p09_07},
 };
 
@@ -708,7 +709,7 @@ static void sw2_keepalive_timer_cb(btstack_timer_source_t* ts) {
         }
     }
 
-    // Switch 2 controllers require a periodic ~5 ms packet on vibration_handle (0x0016) to
+    // Switch 2 controllers require a periodic ~5 ms packet on vibration_handle (0x0012) to
     // prevent an HCI connection timeout (0x08). By evaluating the active rumble window
     // [rumble_start_ms, rumble_end_ms) inside each 5 ms keepalive tick, keepalive packets
     // sustain active vibration instead of overwriting it with silence.
@@ -981,7 +982,9 @@ static bool sw2_parse_single_stick_cal(const uint8_t* data, sw2_cal_stick_t* out
 }
 
 static bool sw2_parse_spi_calibration(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
-    if (!d || !report || len < 34)
+    // 16-byte SPI response header + 9-byte single-stick calibration block = 25 bytes minimum
+    // (real hardware returns 16 + 11 = 27 bytes when reading 0x0b bytes at 0x001fc042).
+    if (!d || !report || len < 25)
         return false;
     if (report[0] != SW2_CMD_SPI)
         return false;
@@ -997,11 +1000,11 @@ static bool sw2_parse_spi_calibration(uni_hid_device_t* d, const uint8_t* report
     bool right_ok = false;
 
     // A single stick calibration occupies 9 bytes at SW2_CALIBRATION_USER_JOYSTICK_1 (0x1FC042).
-    // Hardware SPI reads request 0x0b (11) bytes, so bytes cal_data[11..17] lie outside the SPI
-    // read payload. Only parse a contiguous second stick calibration when the SPI length includes
-    // at least 18 bytes (or 0 in synthetic unit test packets) on dual-stick controllers.
+    // Hardware SPI reads request 0x0b (11) bytes (27-byte response), so only parse a contiguous
+    // second stick calibration at cal_data[9..17] when len >= 34 and the SPI length includes at
+    // least 18 bytes (or 0 in synthetic unit test packets) on dual-stick controllers.
     if (d->controller_type != CONTROLLER_TYPE_Switch2JoyConLeft &&
-        d->controller_type != CONTROLLER_TYPE_Switch2JoyConRight && (spi_len == 0 || spi_len >= 18)) {
+        d->controller_type != CONTROLLER_TYPE_Switch2JoyConRight && len >= 34 && (spi_len == 0 || spi_len >= 18)) {
         right_ok = sw2_parse_single_stick_cal(&cal_data[9], &right_cal);
     }
 
@@ -1117,7 +1120,7 @@ void uni_hid_parser_switch2_handle_gatt_event(uint8_t packet_type, uint16_t chan
         if (value_handle == cmd_rsp_handle) {
             if (value_len < 2 || (value[0] == 0x00 && value[1] == 0x00))
                 return;
-            if (value[1] != 0x01 && value[1] != 0x91 && !(value[0] == SW2_CMD_SPI && value_len >= 34))
+            if (value[1] != 0x01 && value[1] != 0x91 && !(value[0] == SW2_CMD_SPI && value_len >= 25))
                 return;
             sw2_advance_command_state(d, value, value_len);
         }
@@ -1165,10 +1168,10 @@ void uni_hid_parser_switch2_handle_gatt_event(uint8_t packet_type, uint16_t chan
                            sw2_uuid128_matches(chr.uuid128, sw2_cmd_response_uuid128)) {
                     ins->cmd_response_value_handle = chr.value_handle;
                     ins->cmd_response_end_handle = chr.end_handle;
-                } else if (chr.value_handle == SW2_DEFAULT_VIBRATION_HANDLE ||
-                           sw2_uuid128_matches(chr.uuid128, sw2_vibration_pro_uuid128) ||
+                } else if (sw2_uuid128_matches(chr.uuid128, sw2_vibration_pro_uuid128) ||
                            sw2_uuid128_matches(chr.uuid128, sw2_vibration_joycon_l_uuid128) ||
-                           sw2_uuid128_matches(chr.uuid128, sw2_vibration_joycon_r_uuid128)) {
+                           sw2_uuid128_matches(chr.uuid128, sw2_vibration_joycon_r_uuid128) ||
+                           (ins->vibration_handle == 0 && chr.value_handle == SW2_DEFAULT_VIBRATION_HANDLE)) {
                     ins->vibration_handle = chr.value_handle;
                 }
             } else if (event == GATT_EVENT_QUERY_COMPLETE) {
@@ -1268,7 +1271,7 @@ void uni_hid_parser_switch2_handle_gatt_event(uint8_t packet_type, uint16_t chan
                 ins->waiting_encryption = false;
                 sw2_stop_setup_timer(ins);
                 ins->state = SW2_STATE_READY;
-                gap_request_connection_parameter_update(d->conn.handle, 6, 6, 0, 400);
+                gap_update_connection_parameters(d->conn.handle, 6, 6, 0, 400);
                 if (uni_bt_conn_get_state(&d->conn) != UNI_BT_CONN_STATE_DEVICE_READY) {
                     uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_PENDING_READY);
                     if (!uni_hid_device_set_ready_complete(d)) {
@@ -1344,6 +1347,15 @@ void uni_hid_parser_switch2_setup(struct uni_hid_device_s* d) {
     if (d->conn.handle == UNI_BT_CONN_HANDLE_INVALID)
         return;
 
+    // Update this connection's BLE parameters via HCI_LE_Connection_Update (per-connection,
+    // without mutating BTstack's global defaults for other BLE devices) to the minimum 7.5 ms
+    // interval with 0 peripheral latency instead of BTstack's default (30 ms interval, latency 4):
+    //   - conn_interval_min:   6 * 1.25 ms = 7.5 ms
+    //   - conn_interval_max:   6 * 1.25 ms = 7.5 ms
+    //   - conn_latency:        0 (no skipped connection events)
+    //   - supervision_timeout: 400 * 10 ms = 4000 ms (4 s)
+    gap_update_connection_parameters(d->conn.handle, 6, 6, 0, 400);
+
     ins->state = SW2_STATE_DISCOVER_SERVICES;
     sw2_arm_setup_timer(d, SW2_SETUP_TIMEOUT_MS);
     (void)gatt_client_discover_primary_services(uni_hid_parser_switch2_handle_gatt_event, d->conn.handle);
@@ -1406,7 +1418,7 @@ void uni_hid_parser_switch2_parse_input_report(struct uni_hid_device_s* d, const
         return;
 
     // Handle SPI Flash Calibration response (report[0] == 0x02, addr == 0x001fc042 at [12..15]).
-    if (report[0] == SW2_CMD_SPI && len >= 34 && little_endian_read_32(report, 12) == SW2_CALIBRATION_USER_JOYSTICK_1) {
+    if (report[0] == SW2_CMD_SPI && len >= 25 && little_endian_read_32(report, 12) == SW2_CALIBRATION_USER_JOYSTICK_1) {
         (void)sw2_parse_spi_calibration(d, report, len);
         return;
     }
@@ -1457,9 +1469,6 @@ void uni_hid_parser_switch2_parse_input_report(struct uni_hid_device_s* d, const
             rx = cx;
             ry = cy;
         }
-    } else if (d->controller_type == CONTROLLER_TYPE_Switch2JoyConRight && rx == 0 && ry == 0 && (lx != 0 || ly != 0)) {
-        rx = lx;
-        ry = ly;
     }
 
     int32_t cal_lx = sw2_scale_raw_axis(lx, &ins->cal_left.x);

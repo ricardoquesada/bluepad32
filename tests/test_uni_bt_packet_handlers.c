@@ -2636,11 +2636,17 @@ TEST(bt_le_switch2_gatt_state_machine_and_teardown) {
     static const uint8_t k_sw2_vib_joycon_l_uuid[16] = {
         0x41, 0x82, 0xf1, 0x14, 0x0c, 0x24, 0xf4, 0xa8, 0x5d, 0x48, 0x71, 0xa4, 0xcb, 0x26, 0x93, 0x28,
     };
+    static const uint8_t k_sw2_vib_cmd_uuid[16] = {
+        0x21, 0x9d, 0x2b, 0xa4, 0x13, 0x2b, 0x16, 0xa3, 0x76, 0x41, 0x0b, 0x66, 0x3c, 0x00, 0xa7, 0xc4,
+    };
     build_gatt_char_query_result_pkt(chr_pkt, bond_handle, 0x002f, 0x0030, 0x0031, 0x10, k_sw2_input_uuid);
     uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, chr_pkt, sizeof(chr_pkt));
     build_gatt_char_query_result_pkt(chr_pkt, bond_handle, 0x0033, 0x0034, 0x0035, 0x04, k_sw2_cmd_write_uuid);
     uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, chr_pkt, sizeof(chr_pkt));
     build_gatt_char_query_result_pkt(chr_pkt, bond_handle, 0x0035, 0x0036, 0x0037, 0x04, k_sw2_vib_joycon_l_uuid);
+    uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, chr_pkt, sizeof(chr_pkt));
+    // Verify that the Vibration + Command characteristic at handle 0x0016 does NOT overwrite vibration_handle!
+    build_gatt_char_query_result_pkt(chr_pkt, bond_handle, 0x0015, 0x0016, 0x0017, 0x04, k_sw2_vib_cmd_uuid);
     uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, chr_pkt, sizeof(chr_pkt));
     build_gatt_char_query_result_pkt(chr_pkt, bond_handle, 0x0039, 0x003a, 0x003b, 0x10, k_sw2_cmd_resp_uuid);
     uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, chr_pkt, sizeof(chr_pkt));
@@ -2673,10 +2679,17 @@ TEST(bt_le_switch2_gatt_state_machine_and_teardown) {
     d2->report_parser.device_extra_info(d2, extra, sizeof(extra));
     EXPECT_NE(NULL, strstr(extra, "state=read_calibration"));
 
-    notify_len = build_gatt_notification_pkt(notify_pkt, bond_handle, 0x003a, spi_cal_rsp, sizeof(spi_cal_rsp));
+    // Inject real 27-byte hardware SPI calibration response (16B header + 11B payload at 0x001fc042)
+    static const uint8_t hw_spi_cal_rsp_27[27] = {
+        0x02, 0x01, 0x01, 0x04, 0x10, 0x78, 0x00, 0x00, 0x0b, 0x00, 0x00, 0x00, 0x42, 0xc0,
+        0x1f, 0x00, 0x1c, 0x78, 0x81, 0x0f, 0x26, 0x60, 0x09, 0x26, 0x60, 0x00, 0x00,
+    };
+    notify_len =
+        build_gatt_notification_pkt(notify_pkt, bond_handle, 0x003a, hw_spi_cal_rsp_27, sizeof(hw_spi_cal_rsp_27));
     uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, notify_pkt, notify_len);
     d2->report_parser.device_extra_info(d2, extra, sizeof(extra));
     EXPECT_NE(NULL, strstr(extra, "state=enable_input_notify"));
+    EXPECT_NE(NULL, strstr(extra, "cal=user"));
 
     prev_ready = g_ready_count;
     uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, qc_pkt, sizeof(qc_pkt));
