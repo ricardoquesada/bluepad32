@@ -373,6 +373,10 @@ uint8_t uni_hid_device_get_allowed_types(void);
  * @param rssi Received Signal Strength Indicator (RSSI) in `0..255`. Higher values mean stronger signal.
  * @returns `UNI_ERROR_SUCCESS` to connect to the device, or an error code to ignore it.
  */
+// Only for verified bond identities whose directed advertisements omit the HID class.
+// The platform callback receives an empty name and CoD zero until HID setup.
+uni_error_t uni_hid_device_on_bonded_device_discovered(bd_addr_t addr, uint8_t rssi);
+
 uni_error_t uni_hid_device_on_device_discovered(bd_addr_t addr, const char* name, uint16_t cod, uint8_t rssi);
 
 /**
