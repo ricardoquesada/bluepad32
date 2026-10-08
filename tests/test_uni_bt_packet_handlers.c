@@ -878,6 +878,56 @@ static uint16_t build_le_adv_report_pkt(uint8_t* pkt,
     return (uint16_t)(12 + ad_pos);
 }
 
+// Directed reconnects have no AD payload. Bond identity is address AND type.
+TEST(bt_le_bonded_directed_reconnect) {
+    reset_test_fixture();
+    const btstack_tlv_t* tlv;
+    void* context;
+    btstack_tlv_get_instance(&tlv, &context);
+    le_device_db_tlv_configure(tlv, context);
+    bd_addr_t addr = {0xde, 0x84, 0x37, 0xc5, 0x16, 0xf2};
+    sm_key_t irk = {0};
+    for (int i = 0; i < le_device_db_max_count(); i++)
+        le_device_db_remove(i);
+    uint8_t pkt[12] = {GAP_EVENT_ADVERTISING_REPORT, 10, 1, BD_ADDR_TYPE_LE_RANDOM};
+    put_bd_addr_reversed(&pkt[4], addr);
+    pkt[10] = 210;
+    uni_bt_le_on_gap_event_advertising_report(pkt, sizeof(pkt));
+    EXPECT_EQ(NULL, uni_hid_device_get_instance_for_address(addr));
+    int bond = le_device_db_add(BD_ADDR_TYPE_LE_RANDOM, addr, irk);
+    EXPECT_TRUE(bond >= 0);
+    pkt[3] = BD_ADDR_TYPE_LE_PUBLIC;
+    uni_bt_le_on_gap_event_advertising_report(pkt, sizeof(pkt));
+    EXPECT_EQ(NULL, uni_hid_device_get_instance_for_address(addr));
+    pkt[3] = BD_ADDR_TYPE_LE_RANDOM;
+    pkt[2] = 3;  // Non-connectable advertisements must not bypass the filter.
+    uni_bt_le_on_gap_event_advertising_report(pkt, sizeof(pkt));
+    EXPECT_EQ(NULL, uni_hid_device_get_instance_for_address(addr));
+    pkt[2] = 1;
+    pkt[10] = 100;
+    uni_bt_le_on_gap_event_advertising_report(pkt, sizeof(pkt));
+    EXPECT_EQ(NULL, uni_hid_device_get_instance_for_address(addr));
+    pkt[10] = 210;
+    uni_bt_allowlist_set_enabled(true);
+    uni_bt_le_on_gap_event_advertising_report(pkt, sizeof(pkt));
+    EXPECT_EQ(NULL, uni_hid_device_get_instance_for_address(addr));
+    uni_bt_allowlist_set_enabled(false);
+    g_discover_return_value = UNI_ERROR_IGNORE_DEVICE;
+    uni_bt_le_on_gap_event_advertising_report(pkt, sizeof(pkt));
+    EXPECT_EQ(NULL, uni_hid_device_get_instance_for_address(addr));
+    g_discover_return_value = UNI_ERROR_SUCCESS;
+    g_discovered_count = 0;
+    uni_bt_le_on_gap_event_advertising_report(pkt, sizeof(pkt));
+    uni_hid_device_t* d = uni_hid_device_get_instance_for_address(addr);
+    ASSERT_NE(NULL, d);
+    EXPECT_EQ(0, d->cod);
+    EXPECT_EQ(0, d->name[0]);
+    EXPECT_EQ(1, g_discovered_count);
+    uni_bt_le_on_gap_event_advertising_report(pkt, sizeof(pkt));
+    EXPECT_EQ(1, g_discovered_count);  // No duplicate discovery.
+    le_device_db_remove(bond);
+}
+
 TEST(bt_le_adv_report_64byte_name_overflow_regression) {
     reset_test_fixture();
     uint8_t pkt[256];
@@ -2873,6 +2923,7 @@ int main(void) {
     RUN_TEST(bt_l2cap_incoming_connection_accept_and_decline);
     RUN_TEST(bt_sdp_pid_and_hid_query_result_chunks_and_truncation);
     RUN_TEST(bt_le_adv_report_64byte_name_overflow_regression);
+    RUN_TEST(bt_le_bonded_directed_reconnect);
     RUN_TEST(bt_bredr_l2cap_data_packet_strips_header_and_routes);
     RUN_TEST(bt_disconnect_cleans_up_device);
     RUN_TEST(bt_sdp_query_abort_on_disconnect_and_failure_b5);
