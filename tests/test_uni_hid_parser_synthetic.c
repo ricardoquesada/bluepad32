@@ -2521,6 +2521,18 @@ TEST(imu_cross_vendor_canonical_units_and_axes) {
 // ============================================================================
 // 24. Switch Parser: SPI Bounds & Zero-Span Stick Calibration Regression
 // ============================================================================
+/**
+ * @brief Set the SPI flash address echoed by a Switch 0x21 SUBCMD_SPI_FLASH_READ reply (`data[0..3]`).
+ *
+ * The Switch setup only accepts the SPI reply that matches its pending read request.
+ */
+static void set_switch_spi_reply_addr(uint8_t* r21, uint32_t addr) {
+    r21[15] = (uint8_t)(addr & 0xff);
+    r21[16] = (uint8_t)((addr >> 8) & 0xff);
+    r21[17] = (uint8_t)((addr >> 16) & 0xff);
+    r21[18] = (uint8_t)((addr >> 24) & 0xff);
+}
+
 TEST(parser_switch_spi_bounds_and_zero_span_calibration_regression) {
     uni_hid_device_t d;
 
@@ -2563,7 +2575,8 @@ TEST(parser_switch_spi_bounds_and_zero_span_calibration_regression) {
     memset(spi_19, 0, 19);
     spi_19[0] = 0x21;
     spi_19[13] = 0x80;
-    spi_19[14] = 0x10;  // SUBCMD_SPI_FLASH_READ
+    spi_19[14] = 0x10;                          // SUBCMD_SPI_FLASH_READ
+    set_switch_spi_reply_addr(spi_19, 0x603d);  // echo the pending read (factory stick cal)
     feed_input_report(&d, spi_19, 19);
     free(spi_19);
 
@@ -2578,6 +2591,7 @@ TEST(parser_switch_spi_bounds_and_zero_span_calibration_regression) {
     spi_oob[13] = 0x80;
     spi_oob[14] = 0x10;  // SUBCMD_SPI_FLASH_READ
     spi_oob[19] = 24;    // mem_len = 24 > 22 - 20
+    set_switch_spi_reply_addr(spi_oob, 0x603d);
     feed_input_report(&d, spi_oob, 22);
     free(spi_oob);
 
@@ -2588,8 +2602,9 @@ TEST(parser_switch_spi_bounds_and_zero_span_calibration_regression) {
     memset(user_cal_1, 0, 21);
     user_cal_1[0] = 0x21;
     user_cal_1[13] = 0x80;
-    user_cal_1[14] = 0x10;  // SUBCMD_SPI_FLASH_READ
-    user_cal_1[19] = 1;     // mem_len = 1 < 2
+    user_cal_1[14] = 0x10;                          // SUBCMD_SPI_FLASH_READ
+    user_cal_1[19] = 1;                             // mem_len = 1 < 2
+    set_switch_spi_reply_addr(user_cal_1, 0x8010);  // user stick cal
     user_cal_1[20] = 0xb2;
     feed_input_report(&d, user_cal_1, 21);
     free(user_cal_1);
@@ -2603,6 +2618,7 @@ TEST(parser_switch_spi_bounds_and_zero_span_calibration_regression) {
     fac_cal_zero[13] = 0x80;
     fac_cal_zero[14] = 0x10;  // SUBCMD_SPI_FLASH_READ (factory stick cal, 18 bytes of zeros -> zero-span cal!)
     fac_cal_zero[19] = 18;
+    set_switch_spi_reply_addr(fac_cal_zero, 0x603d);
     feed_input_report(&d, fac_cal_zero, sizeof(fac_cal_zero));
 
     uint8_t* user_cal_18 = (uint8_t*)malloc(38);
@@ -2612,6 +2628,7 @@ TEST(parser_switch_spi_bounds_and_zero_span_calibration_regression) {
     user_cal_18[13] = 0x80;
     user_cal_18[14] = 0x10;  // SUBCMD_SPI_FLASH_READ (user stick cal)
     user_cal_18[19] = 18;    // mem_len = 18 < 22 (SWITCH_USER_STICK_CAL_DATA_SIZE * 2)
+    set_switch_spi_reply_addr(user_cal_18, 0x8010);
     user_cal_18[20] = 0xb2;
     user_cal_18[21] = 0xa1;
     feed_input_report(&d, user_cal_18, 38);
@@ -2625,6 +2642,7 @@ TEST(parser_switch_spi_bounds_and_zero_span_calibration_regression) {
     r21_step[0] = 0x21;
     r21_step[13] = 0x80;
     r21_step[14] = 0x10;  // FACTORY_IMU_CAL
+    set_switch_spi_reply_addr(r21_step, 0x6020);
     feed_input_report(&d, r21_step, sizeof(r21_step));
     r21_step[14] = 0x03;  // SET_REPORT_MODE
     feed_input_report(&d, r21_step, sizeof(r21_step));
@@ -3103,8 +3121,12 @@ TEST(parser_switch_setup_enables_vibration) {
     r21[13] = 0x80;  // ack bit
     r21[17] = 0x01;  // SWITCH_CONTROLLER_TYPE_JCL
     const uint8_t subcmds[] = {0x02, 0x10, 0x10, 0x10, 0x03};
+    // SPI reads in setup order (left side): factory stick cal, user stick cal, factory IMU cal.
+    const uint32_t spi_addrs[] = {0, 0x603d, 0x8010, 0x6020, 0};
     for (size_t i = 0; i < ARRAY_SIZE(subcmds); i++) {
         r21[14] = subcmds[i];
+        if (subcmds[i] == 0x10)
+            set_switch_spi_reply_addr(r21, spi_addrs[i]);
         feed_input_report(&d, r21, sizeof(r21));
     }
 
@@ -3789,6 +3811,90 @@ TEST(parser_steam_triton_reports_sticks_triggers_imu_and_extra_info) {
     EXPECT_EQ(NULL, strchr(extra, '\t'));
 }
 
+// ============================================================================
+// 30. Switch Parser: Setup Drops Stale Replies & Retries a Step on Timeout
+// ============================================================================
+static btstack_timer_source_t* find_timer_for_context(const void* context) {
+    for (btstack_linked_item_t* it = btstack_run_loop_base_timers; it != NULL; it = it->next) {
+        btstack_timer_source_t* ts = (btstack_timer_source_t*)it;
+        if (ts->context == context)
+            return ts;
+    }
+    return NULL;
+}
+
+// Pops the next queued output report and returns its Switch subcommand id (-1 if none).
+static int pop_switch_subcmd(uni_hid_device_t* d) {
+    int16_t cid = 0;
+    uint8_t data[128];
+    int len = 0;
+    if (uni_circular_buffer_get(&d->outgoing_buffer, &cid, data, &len) != UNI_CIRCULAR_BUFFER_ERROR_OK || len < 12)
+        return -1;
+    return data[11];
+}
+
+TEST(parser_switch_setup_stale_replies_and_step_retries) {
+    uni_hid_device_t d;
+    setup_synthetic_device(&d, 0x057e, 0x2009);
+    ASSERT_EQ(CONTROLLER_TYPE_SwitchProController, d.controller_type);
+    d.conn.interrupt_cid = 0x0041;
+
+    uint8_t r21[48];
+    memset(r21, 0, sizeof(r21));
+    r21[0] = 0x21;
+    r21[13] = 0x80;  // ack bit
+
+    // 1. Lost reply to SUBCMD_REQ_DEV_INFO: the step is resent twice, then skipped.
+    btstack_timer_source_t* ts = find_timer_for_context(&d);
+    ASSERT_NE(NULL, ts);
+    uni_circular_buffer_reset(&d.outgoing_buffer);
+    ts->process(ts);
+    EXPECT_EQ(0x02, pop_switch_subcmd(&d));  // retry 1
+    ts->process(ts);
+    EXPECT_EQ(0x02, pop_switch_subcmd(&d));  // retry 2
+    ts->process(ts);
+    EXPECT_EQ(0x10, pop_switch_subcmd(&d));  // skipped: factory stick calibration read
+    EXPECT_EQ(ts, find_timer_for_context(&d));
+
+    // 2. A late reply to the skipped request must not advance the setup.
+    r21[14] = 0x02;  // SUBCMD_REQ_DEV_INFO
+    r21[17] = 0x03;  // SWITCH_CONTROLLER_TYPE_PRO
+    feed_input_report(&d, r21, sizeof(r21));
+    EXPECT_EQ(-1, pop_switch_subcmd(&d));
+
+    // 3. An SPI reply for another address (e.g. to an earlier, retried read) is dropped too.
+    r21[14] = 0x10;  // SUBCMD_SPI_FLASH_READ
+    set_switch_spi_reply_addr(r21, 0x8010);
+    feed_input_report(&d, r21, sizeof(r21));
+    EXPECT_EQ(-1, pop_switch_subcmd(&d));
+
+    // 4. The matching reply advances to the next step (user stick calibration read).
+    set_switch_spi_reply_addr(r21, 0x603d);
+    feed_input_report(&d, r21, sizeof(r21));
+    EXPECT_EQ(0x10, pop_switch_subcmd(&d));
+
+    // 5. A valid reply resets the retry count: two more timeouts resend, the third one skips.
+    ts->process(ts);
+    EXPECT_EQ(0x10, pop_switch_subcmd(&d));
+    ts->process(ts);
+    EXPECT_EQ(0x10, pop_switch_subcmd(&d));
+    ts->process(ts);
+    EXPECT_EQ(0x10, pop_switch_subcmd(&d));  // skipped: factory IMU calibration read
+
+    // 6. Walk to STATE_READY: no setup timer is left armed.
+    const uint8_t subcmds[] = {0x10, 0x03, 0x40, 0x48, 0x30};
+    for (size_t i = 0; i < ARRAY_SIZE(subcmds); i++) {
+        r21[14] = subcmds[i];
+        if (subcmds[i] == 0x10)
+            set_switch_spi_reply_addr(r21, 0x6020);
+        feed_input_report(&d, r21, sizeof(r21));
+    }
+    EXPECT_EQ(NULL, find_timer_for_context(&d));
+
+    uni_circular_buffer_reset(&d.outgoing_buffer);
+    d.conn.interrupt_cid = 0;
+}
+
 int main(int argc, char** argv) {
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
@@ -3839,6 +3945,8 @@ int main(int argc, char** argv) {
     RUN_TEST(parser_switch2_joycon_right_standalone_horizontal);
     RUN_TEST(parser_steam_2015_ble_imu_si_units_and_truncation_guards);
     RUN_TEST(parser_steam_triton_reports_sticks_triggers_imu_and_extra_info);
+
+    RUN_TEST(parser_switch_setup_stale_replies_and_step_retries);
 
     return test_summary();
 }
