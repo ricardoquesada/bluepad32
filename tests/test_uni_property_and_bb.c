@@ -30,6 +30,7 @@
 #include "sdkconfig.h"
 #include "test_check.h"
 #include "uni_common.h"
+#include "uni_config.h"
 #include "uni_error.h"
 #include "uni_hid_device.h"
 #include "uni_joystick.h"
@@ -133,6 +134,17 @@ TEST(property_btstack_tlv_null_instance_fallback_b1) {
     ASSERT_TRUE(ver_str.str != NULL);
     EXPECT_EQ(strcmp(ver_str.str, UNI_VERSION_STRING), 0);
 
+    uni_property_value_t svc_en_val = uni_property_get(UNI_PROPERTY_IDX_BLE_SERVICE_ENABLED);
+    EXPECT_EQ(svc_en_val.u8, CONFIG_BLUEPAD32_BLE_SERVICE_ENABLED);
+
+    uni_property_value_t svc_name_val = uni_property_get(UNI_PROPERTY_IDX_BLE_SERVICE_NAME);
+    ASSERT_TRUE(svc_name_val.str != NULL);
+    EXPECT_EQ(strcmp(svc_name_val.str, CONFIG_BLUEPAD32_BLE_SERVICE_NAME), 0);
+
+    uni_property_value_t svc_pass_val = uni_property_get(UNI_PROPERTY_IDX_BLE_SERVICE_PASSWORD);
+    ASSERT_TRUE(svc_pass_val.str != NULL);
+    EXPECT_EQ(strcmp(svc_pass_val.str, CONFIG_BLUEPAD32_BLE_SERVICE_PASSWORD), 0);
+
     // Synthetic FLOAT property descriptor tested via uni_property_get_with_property().
     const uni_property_t float_prop = {
         .idx = UNI_PROPERTY_IDX_MOUSE_SCALE,
@@ -149,6 +161,9 @@ TEST(property_btstack_tlv_null_instance_fallback_b1) {
     uni_property_set(UNI_PROPERTY_IDX_GAP_LEVEL, (uni_property_value_t){.u8 = 99});
     uni_property_set(UNI_PROPERTY_IDX_UNI_BB_MOVE_THRESHOLD, (uni_property_value_t){.u32 = 9999});
     uni_property_set(UNI_PROPERTY_IDX_ALLOWLIST_LIST, (uni_property_value_t){.str = "11:22:33:44:55:66"});
+    uni_property_set(UNI_PROPERTY_IDX_BLE_SERVICE_ENABLED, (uni_property_value_t){.u8 = 0});
+    uni_property_set(UNI_PROPERTY_IDX_BLE_SERVICE_NAME, (uni_property_value_t){.str = "Bluepad32 rc car"});
+    uni_property_set(UNI_PROPERTY_IDX_BLE_SERVICE_PASSWORD, (uni_property_value_t){.str = "secret"});
     uni_property_set_with_property(&float_prop, (uni_property_value_t){.f32 = 4.25f});
 
     // Verify NULL property descriptor guards.
@@ -591,6 +606,93 @@ TEST(property_btstack_tlv_posix_env_path_override_and_default_fallback) {
     unlink(custom_path);
 }
 
+TEST(ble_service_properties_defaults_roundtrip_and_shared_buffer_safety) {
+    const btstack_tlv_t* tlv_impl = NULL;
+    void* tlv_ctx = NULL;
+    btstack_tlv_get_instance(&tlv_impl, &tlv_ctx);
+    ASSERT_TRUE(tlv_impl != NULL);
+    ASSERT_TRUE(tlv_ctx != NULL);
+
+    // 1. Property Registration & Index Ordering Invariant (Landmine #2):
+    uni_property_init_debug();
+    EXPECT_EQ(UNI_PROPERTY_IDX_UNI_BB_FIRE_THRESHOLD, 10);
+    EXPECT_EQ(UNI_PROPERTY_IDX_UNI_BB_MOVE_THRESHOLD, 11);
+    EXPECT_EQ(UNI_PROPERTY_IDX_BLE_SERVICE_ENABLED, 12);
+    EXPECT_EQ(UNI_PROPERTY_IDX_BLE_SERVICE_NAME, 13);
+    EXPECT_EQ(UNI_PROPERTY_IDX_BLE_SERVICE_PASSWORD, 14);
+    EXPECT_EQ(UNI_PROPERTY_IDX_LAST, 15);
+
+    const uni_property_t* p_en = uni_property_get_property_by_name(UNI_PROPERTY_NAME_BLE_SERVICE_ENABLED);
+    const uni_property_t* p_name = uni_property_get_property_by_name(UNI_PROPERTY_NAME_BLE_SERVICE_NAME);
+    const uni_property_t* p_pass = uni_property_get_property_by_name(UNI_PROPERTY_NAME_BLE_SERVICE_PASSWORD);
+    ASSERT_TRUE(p_en != NULL);
+    ASSERT_TRUE(p_name != NULL);
+    ASSERT_TRUE(p_pass != NULL);
+    EXPECT_EQ(strcmp(p_en->name, "bp.ble.svc_en"), 0);
+    EXPECT_EQ(strcmp(p_name->name, "bp.ble.name"), 0);
+    EXPECT_EQ(strcmp(p_pass->name, "bp.ble.pass"), 0);
+    EXPECT_EQ(p_en->idx, UNI_PROPERTY_IDX_BLE_SERVICE_ENABLED);
+    EXPECT_EQ(p_name->idx, UNI_PROPERTY_IDX_BLE_SERVICE_NAME);
+    EXPECT_EQ(p_pass->idx, UNI_PROPERTY_IDX_BLE_SERVICE_PASSWORD);
+
+    // 2. Default Fallback When TLV Tags Are Absent:
+    const uint32_t tag_en =
+        ((uint32_t)'B' << 24) | ((uint32_t)'P' << 16) | ((uint32_t)'3' << 8) | UNI_PROPERTY_IDX_BLE_SERVICE_ENABLED;
+    const uint32_t tag_name =
+        ((uint32_t)'B' << 24) | ((uint32_t)'P' << 16) | ((uint32_t)'3' << 8) | UNI_PROPERTY_IDX_BLE_SERVICE_NAME;
+    const uint32_t tag_pass =
+        ((uint32_t)'B' << 24) | ((uint32_t)'P' << 16) | ((uint32_t)'3' << 8) | UNI_PROPERTY_IDX_BLE_SERVICE_PASSWORD;
+    tlv_impl->delete_tag(tlv_ctx, tag_en);
+    tlv_impl->delete_tag(tlv_ctx, tag_name);
+    tlv_impl->delete_tag(tlv_ctx, tag_pass);
+
+    EXPECT_EQ(uni_property_get(UNI_PROPERTY_IDX_BLE_SERVICE_ENABLED).u8, 1);
+    uni_property_value_t def_name = uni_property_get(UNI_PROPERTY_IDX_BLE_SERVICE_NAME);
+    ASSERT_TRUE(def_name.str != NULL);
+    EXPECT_EQ(strcmp(def_name.str, "Bluepad32"), 0);
+    uni_property_value_t def_pass = uni_property_get(UNI_PROPERTY_IDX_BLE_SERVICE_PASSWORD);
+    ASSERT_TRUE(def_pass.str != NULL);
+    EXPECT_EQ(strcmp(def_pass.str, ""), 0);
+
+    // 3. Round-Trip Persistence Across All Three Properties:
+    uni_property_set(UNI_PROPERTY_IDX_BLE_SERVICE_ENABLED, (uni_property_value_t){.u8 = 0});
+    EXPECT_EQ(uni_property_get(UNI_PROPERTY_IDX_BLE_SERVICE_ENABLED).u8, 0);
+    uni_property_set(UNI_PROPERTY_IDX_BLE_SERVICE_ENABLED, (uni_property_value_t){.u8 = 1});
+    EXPECT_EQ(uni_property_get(UNI_PROPERTY_IDX_BLE_SERVICE_ENABLED).u8, 1);
+
+    uni_property_set(UNI_PROPERTY_IDX_BLE_SERVICE_NAME, (uni_property_value_t){.str = "Bluepad32 rc car"});
+    uni_property_value_t rt_name = uni_property_get(UNI_PROPERTY_IDX_BLE_SERVICE_NAME);
+    ASSERT_TRUE(rt_name.str != NULL);
+    EXPECT_EQ(strcmp(rt_name.str, "Bluepad32 rc car"), 0);
+
+    uni_property_set(UNI_PROPERTY_IDX_BLE_SERVICE_PASSWORD, (uni_property_value_t){.str = "my_secret_pass"});
+    uni_property_value_t rt_pass = uni_property_get(UNI_PROPERTY_IDX_BLE_SERVICE_PASSWORD);
+    ASSERT_TRUE(rt_pass.str != NULL);
+    EXPECT_EQ(strcmp(rt_pass.str, "my_secret_pass"), 0);
+
+    // 4. Shared Static str_ret[128] Buffer Regression Test (Landmine #2):
+    uni_property_set(UNI_PROPERTY_IDX_BLE_SERVICE_NAME, (uni_property_value_t){.str = "Bluepad32 on esp32"});
+    uni_property_set(UNI_PROPERTY_IDX_BLE_SERVICE_PASSWORD, (uni_property_value_t){.str = "hunter2"});
+
+    char copied_name[64] = {0};
+    char copied_pass[64] = {0};
+    uni_property_value_t read_name = uni_property_get(UNI_PROPERTY_IDX_BLE_SERVICE_NAME);
+    ASSERT_TRUE(read_name.str != NULL);
+    strncpy(copied_name, read_name.str, sizeof(copied_name) - 1);
+
+    uni_property_value_t read_pass = uni_property_get(UNI_PROPERTY_IDX_BLE_SERVICE_PASSWORD);
+    ASSERT_TRUE(read_pass.str != NULL);
+    strncpy(copied_pass, read_pass.str, sizeof(copied_pass) - 1);
+
+    EXPECT_EQ(strcmp(copied_name, "Bluepad32 on esp32"), 0);
+    EXPECT_EQ(strcmp(copied_pass, "hunter2"), 0);
+
+    // 5. Cleanup:
+    tlv_impl->delete_tag(tlv_ctx, tag_en);
+    tlv_impl->delete_tag(tlv_ctx, tag_name);
+    tlv_impl->delete_tag(tlv_ctx, tag_pass);
+}
+
 int main(void) {
     btstack_memory_init();
     btstack_run_loop_init(btstack_run_loop_posix_get_instance());
@@ -601,6 +703,7 @@ int main(void) {
     RUN_TEST(balance_board_global_properties_and_defaults_b2);
     RUN_TEST(balance_board_directional_smoothing_and_fire_hysteresis_b2);
     RUN_TEST(property_btstack_tlv_posix_env_path_override_and_default_fallback);
+    RUN_TEST(ble_service_properties_defaults_roundtrip_and_shared_buffer_safety);
 
     return test_summary();
 }

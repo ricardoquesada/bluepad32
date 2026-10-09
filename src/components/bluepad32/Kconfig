@@ -129,4 +129,27 @@ menu "Bluepad32"
             is forced to disconnect then both devices will be disconnected.
             Can be overriden from the console by using the command "virtual_device_enabled"
 
+    config BLUEPAD32_BLE_SERVICE_ENABLED
+        bool "Enable BLE configuration service by default"
+        depends on BT_ENABLED
+        default y
+        help
+            Enables the Bluepad32 BLE GATT configuration and telemetry service by default.
+
+    config BLUEPAD32_BLE_SERVICE_NAME
+        string "BLE service advertised device name"
+        depends on BT_ENABLED
+        default "Bluepad32"
+        help
+            Default UTF-8 device name (max 29 bytes) advertised by the Bluepad32 BLE service
+            (e.g., "Bluepad32 rc car" or "Bluepad32 on esp32").
+
+    config BLUEPAD32_BLE_SERVICE_PASSWORD
+        string "BLE service password (empty = no password)"
+        depends on BT_ENABLED
+        default ""
+        help
+            Optional simple UTF-8 password (max 31 bytes) required to access or modify
+            Bluepad32 settings over BLE. Leave empty to allow open access.
+
 endmenu

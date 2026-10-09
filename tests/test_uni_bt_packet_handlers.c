@@ -66,6 +66,7 @@
 #include "bt/uni_bt_defines.h"
 #include "bt/uni_bt_le.h"
 #include "bt/uni_bt_sdp.h"
+#include "bt/uni_bt_service.gatt.h"
 #include "bt/uni_bt_service.h"
 #include "bt/uni_bt_setup.h"
 #include "controller/uni_controller.h"
@@ -269,7 +270,7 @@ static void put_bd_addr_reversed(uint8_t* dst, const bd_addr_t addr) {
 }
 
 /**
- * @brief Reset mock counters, allowlist, and HID device table between tests.
+ * @brief Reset mock counters, allowlist, BLE service identity/auth, and HID device table between tests.
  */
 static void reset_test_fixture(void) {
     btstack_run_loop_base_timers = NULL;
@@ -278,6 +279,8 @@ static void reset_test_fixture(void) {
     uni_bt_allowlist_set_enabled(false);
     uni_bt_allow_incoming_connections(true);
     uni_bt_sdp_set_device_for_test(NULL);
+    uni_bt_service_set_name("Bluepad32");
+    uni_bt_service_set_password(NULL);
 
     g_mock_platform.on_init_complete = mock_platform_on_init_complete;
     g_discover_return_value = UNI_ERROR_SUCCESS;
@@ -2893,6 +2896,623 @@ TEST(bt_le_steam_triton_gatt_state_machine_and_teardown) {
 }
 
 // ============================================================================
+// 21. TEST(bt_service_custom_name_adv_scan_rsp_and_ac0d_gatt)
+// ============================================================================
+
+TEST(bt_service_custom_name_adv_scan_rsp_and_ac0d_gatt) {
+    reset_test_fixture();
+
+    // 0. Pre-Init / Disabled Name Change (Test Plan 1.2.B.1):
+    // While service_initialized == false, uni_bt_service_set_name("Bluepad32 Posix") updates
+    // uni_bt_service_get_name() and UNI_PROPERTY_IDX_BLE_SERVICE_NAME, and enabling the service
+    // afterwards registers the updated adv_data and scan_rsp_data with GAP.
+    uni_bt_service_set_enabled(false);
+    EXPECT_FALSE(uni_bt_service_is_enabled());
+    uni_bt_service_set_name("Bluepad32 Posix");
+    EXPECT_EQ(0, strcmp(uni_bt_service_get_name(), "Bluepad32 Posix"));
+    uni_property_value_t pre_prop = uni_property_get(UNI_PROPERTY_IDX_BLE_SERVICE_NAME);
+    ASSERT_NE(NULL, pre_prop.str);
+    EXPECT_EQ(0, strcmp(pre_prop.str, "Bluepad32 Posix"));
+
+    uni_bt_service_set_enabled(true);
+    EXPECT_TRUE(uni_bt_service_is_enabled());
+    ASSERT_NE(NULL, hci_get_stack());
+    ASSERT_NE(NULL, hci_get_stack()->le_advertisements_data);
+    ASSERT_NE(NULL, hci_get_stack()->le_scan_response_data);
+    EXPECT_EQ(31, hci_get_stack()->le_advertisements_data_len);
+    EXPECT_EQ(0x09, hci_get_stack()->le_advertisements_data[21]);
+    EXPECT_EQ(BLUETOOTH_DATA_TYPE_SHORTENED_LOCAL_NAME, hci_get_stack()->le_advertisements_data[22]);
+    EXPECT_EQ(0, memcmp(&hci_get_stack()->le_advertisements_data[23], "Bluepad3", 8));
+    EXPECT_EQ(17, hci_get_stack()->le_scan_response_data_len);
+    EXPECT_EQ(0x10, hci_get_stack()->le_scan_response_data[0]);
+    EXPECT_EQ(BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME, hci_get_stack()->le_scan_response_data[1]);
+    EXPECT_EQ(0, memcmp(&hci_get_stack()->le_scan_response_data[2], "Bluepad32 Posix", 15));
+
+    // 1. Default Name & Dual-PDU Split:
+    uni_bt_service_set_name("Bluepad32");
+    EXPECT_EQ(0, strcmp(uni_bt_service_get_name(), "Bluepad32"));
+
+    // Verify adv_data (31 bytes for "Bluepad32"):
+    //   [0..2]   Flags (3B): 0x02, 0x01, 0x06
+    //   [3..20]  128-bit Service UUID 4627C4A4-AC00-46B9-B688-AFC5C1BF7F63 (18B)
+    //   [21..30] Shortened Local Name (10B, type 0x08): "Bluepad3" (first 8 bytes)
+    static const uint8_t k_expected_adv_data[31] = {
+        0x02, 0x01, 0x06, 0x11, 0x07, 0x63, 0x7f, 0xbf, 0xc1, 0xc5, 0xaf, 0x88, 0xb6, 0xb9, 0x46, 0x00,
+        0xac, 0xa4, 0xc4, 0x27, 0x46, 0x09, 0x08, 'B',  'l',  'u',  'e',  'p',  'a',  'd',  '3',
+    };
+    EXPECT_EQ((int)sizeof(k_expected_adv_data), hci_get_stack()->le_advertisements_data_len);
+    EXPECT_EQ(0, memcmp(hci_get_stack()->le_advertisements_data, k_expected_adv_data, sizeof(k_expected_adv_data)));
+
+    // Verify scan_rsp_data (11 bytes for "Bluepad32"): [0x0a, 0x09, 'B', 'l', 'u', 'e', 'p', 'a', 'd', '3', '2'].
+    static const uint8_t k_expected_scan_rsp_default[11] = {
+        0x0a, 0x09, 'B', 'l', 'u', 'e', 'p', 'a', 'd', '3', '2',
+    };
+    EXPECT_EQ((int)sizeof(k_expected_scan_rsp_default), hci_get_stack()->le_scan_response_data_len);
+    EXPECT_EQ(0, memcmp(hci_get_stack()->le_scan_response_data, k_expected_scan_rsp_default,
+                        sizeof(k_expected_scan_rsp_default)));
+
+    // 1b. Short Name <= 8 Bytes ("RC-Car", 6B) & Exact 8-Byte Boundary ("12345678", 8B) (Test Plan 1.2.B.2 & B.3):
+    uni_bt_service_set_name("RC-Car");
+    EXPECT_EQ(29, hci_get_stack()->le_advertisements_data_len);
+    EXPECT_EQ(7, hci_get_stack()->le_advertisements_data[21]);
+    EXPECT_EQ(BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME, hci_get_stack()->le_advertisements_data[22]);
+    EXPECT_EQ(0, memcmp(&hci_get_stack()->le_advertisements_data[23], "RC-Car", 6));
+    EXPECT_EQ(8, hci_get_stack()->le_scan_response_data_len);
+    EXPECT_EQ(7, hci_get_stack()->le_scan_response_data[0]);
+    EXPECT_EQ(BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME, hci_get_stack()->le_scan_response_data[1]);
+    EXPECT_EQ(0, memcmp(&hci_get_stack()->le_scan_response_data[2], "RC-Car", 6));
+
+    uni_bt_service_set_name("12345678");
+    EXPECT_EQ(31, hci_get_stack()->le_advertisements_data_len);
+    EXPECT_EQ(9, hci_get_stack()->le_advertisements_data[21]);
+    EXPECT_EQ(BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME, hci_get_stack()->le_advertisements_data[22]);
+    EXPECT_EQ(0, memcmp(&hci_get_stack()->le_advertisements_data[23], "12345678", 8));
+    EXPECT_EQ(10, hci_get_stack()->le_scan_response_data_len);
+
+    // 1c. Multi-Word Long Names ("Bluepad32 rc car", 16B & "Bluepad32 on esp32", 18B) (Test Plan 1.2.B.4):
+    uni_bt_service_set_name("Bluepad32 rc car");
+    EXPECT_EQ(31, hci_get_stack()->le_advertisements_data_len);
+    EXPECT_EQ(9, hci_get_stack()->le_advertisements_data[21]);
+    EXPECT_EQ(BLUETOOTH_DATA_TYPE_SHORTENED_LOCAL_NAME, hci_get_stack()->le_advertisements_data[22]);
+    EXPECT_EQ(0, memcmp(&hci_get_stack()->le_advertisements_data[23], "Bluepad3", 8));
+    EXPECT_EQ(18, hci_get_stack()->le_scan_response_data_len);
+    EXPECT_EQ(17, hci_get_stack()->le_scan_response_data[0]);
+    EXPECT_EQ(BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME, hci_get_stack()->le_scan_response_data[1]);
+    EXPECT_EQ(0, memcmp(&hci_get_stack()->le_scan_response_data[2], "Bluepad32 rc car", 16));
+
+    uni_bt_service_set_name("Bluepad32 on esp32");
+    EXPECT_EQ(31, hci_get_stack()->le_advertisements_data_len);
+    EXPECT_EQ(20, hci_get_stack()->le_scan_response_data_len);
+    EXPECT_EQ(19, hci_get_stack()->le_scan_response_data[0]);
+    EXPECT_EQ(BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME, hci_get_stack()->le_scan_response_data[1]);
+    EXPECT_EQ(0, memcmp(&hci_get_stack()->le_scan_response_data[2], "Bluepad32 on esp32", 18));
+
+    // Reset back to "Bluepad32" for GATT read/write checks below.
+    uni_bt_service_set_name("Bluepad32");
+
+    // 2. GAP Device Name (0x2A00, handle 0x0003) and AC0D (handle 0x0022) Read:
+    EXPECT_EQ(0x0003, ATT_CHARACTERISTIC_GAP_DEVICE_NAME_01_VALUE_HANDLE);
+    EXPECT_EQ(0x0022, ATT_CHARACTERISTIC_4627C4A4_AC0D_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE);
+
+    att_connection_t att_conn;
+    memset(&att_conn, 0, sizeof(att_conn));
+    att_conn.con_handle = 0x0040;
+    att_conn.mtu = 256;
+    att_conn.max_mtu = 256;
+
+    uint8_t rsp_buf[256];
+    uint8_t req_read_gap_name[3] = {
+        ATT_READ_REQUEST,
+        (uint8_t)(ATT_CHARACTERISTIC_GAP_DEVICE_NAME_01_VALUE_HANDLE & 0xff),
+        (uint8_t)(ATT_CHARACTERISTIC_GAP_DEVICE_NAME_01_VALUE_HANDLE >> 8),
+    };
+    memset(rsp_buf, 0, sizeof(rsp_buf));
+    uint16_t rsp_len = att_handle_request(&att_conn, req_read_gap_name, sizeof(req_read_gap_name), rsp_buf);
+    ASSERT_EQ(1 + 9, rsp_len);
+    EXPECT_EQ(ATT_READ_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(0, memcmp(&rsp_buf[1], "Bluepad32", 9));
+
+    uint8_t req_read_ac0d[3] = {
+        ATT_READ_REQUEST,
+        (uint8_t)(ATT_CHARACTERISTIC_4627C4A4_AC0D_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE & 0xff),
+        (uint8_t)(ATT_CHARACTERISTIC_4627C4A4_AC0D_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE >> 8),
+    };
+    memset(rsp_buf, 0, sizeof(rsp_buf));
+    rsp_len = att_handle_request(&att_conn, req_read_ac0d, sizeof(req_read_ac0d), rsp_buf);
+    ASSERT_EQ(1 + 9, rsp_len);
+    EXPECT_EQ(ATT_READ_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(0, memcmp(&rsp_buf[1], "Bluepad32", 9));
+
+    // 3. AC0D Write Updates Name, Property, and Scan Response Live:
+    const char* k_custom_name = "RetroCabinet-1";
+    const size_t k_custom_len = strlen(k_custom_name);  // 14 bytes
+    uint8_t req_write_ac0d[3 + 14];
+    req_write_ac0d[0] = ATT_WRITE_REQUEST;
+    little_endian_store_16(req_write_ac0d, 1, ATT_CHARACTERISTIC_4627C4A4_AC0D_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE);
+    memcpy(&req_write_ac0d[3], k_custom_name, k_custom_len);
+
+    memset(rsp_buf, 0, sizeof(rsp_buf));
+    rsp_len = att_handle_request(&att_conn, req_write_ac0d, sizeof(req_write_ac0d), rsp_buf);
+    ASSERT_EQ(1, rsp_len);
+    EXPECT_EQ(ATT_WRITE_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(0, strcmp(uni_bt_service_get_name(), "RetroCabinet-1"));
+
+    uni_property_value_t prop_name = uni_property_get(UNI_PROPERTY_IDX_BLE_SERVICE_NAME);
+    ASSERT_NE(NULL, prop_name.str);
+    EXPECT_EQ(0, strcmp(prop_name.str, "RetroCabinet-1"));
+
+    // Both GAP_DEVICE_NAME (0x0003) and AC0D (0x0022) must return "RetroCabinet-1".
+    memset(rsp_buf, 0, sizeof(rsp_buf));
+    rsp_len = att_handle_request(&att_conn, req_read_gap_name, sizeof(req_read_gap_name), rsp_buf);
+    ASSERT_EQ(1 + 14, rsp_len);
+    EXPECT_EQ(ATT_READ_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(0, memcmp(&rsp_buf[1], "RetroCabinet-1", 14));
+
+    memset(rsp_buf, 0, sizeof(rsp_buf));
+    rsp_len = att_handle_request(&att_conn, req_read_ac0d, sizeof(req_read_ac0d), rsp_buf);
+    ASSERT_EQ(1 + 14, rsp_len);
+    EXPECT_EQ(ATT_READ_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(0, memcmp(&rsp_buf[1], "RetroCabinet-1", 14));
+
+    // Verify scan_rsp_data updated to length 16 ([0x0f, 0x09, 'R', 'e', 't', ...]).
+    EXPECT_EQ(16, hci_get_stack()->le_scan_response_data_len);
+    EXPECT_EQ(0x0f, hci_get_stack()->le_scan_response_data[0]);
+    EXPECT_EQ(BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME, hci_get_stack()->le_scan_response_data[1]);
+    EXPECT_EQ(0, memcmp(&hci_get_stack()->le_scan_response_data[2], "RetroCabinet-1", 14));
+
+    // 4. AC0D Write Validation Errors:
+    // 4a. Empty 0-byte write to AC0D -> ATT_ERROR_INVALID_ATTRIBUTE_VALUE_LENGTH (0x0d).
+    uint8_t req_empty_ac0d[3] = {
+        ATT_WRITE_REQUEST,
+        (uint8_t)(ATT_CHARACTERISTIC_4627C4A4_AC0D_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE & 0xff),
+        (uint8_t)(ATT_CHARACTERISTIC_4627C4A4_AC0D_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE >> 8),
+    };
+    rsp_len = att_handle_request(&att_conn, req_empty_ac0d, sizeof(req_empty_ac0d), rsp_buf);
+    ASSERT_EQ(5, rsp_len);
+    EXPECT_EQ(ATT_ERROR_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(ATT_ERROR_INVALID_ATTRIBUTE_VALUE_LENGTH, rsp_buf[4]);
+
+    // 4b. 30-byte (> 29 max) write to AC0D -> ATT_ERROR_INVALID_ATTRIBUTE_VALUE_LENGTH (0x0d).
+    uint8_t req_30b_ac0d[3 + 30];
+    req_30b_ac0d[0] = ATT_WRITE_REQUEST;
+    little_endian_store_16(req_30b_ac0d, 1, ATT_CHARACTERISTIC_4627C4A4_AC0D_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE);
+    memset(&req_30b_ac0d[3], 'A', 30);
+    rsp_len = att_handle_request(&att_conn, req_30b_ac0d, sizeof(req_30b_ac0d), rsp_buf);
+    ASSERT_EQ(5, rsp_len);
+    EXPECT_EQ(ATT_ERROR_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(ATT_ERROR_INVALID_ATTRIBUTE_VALUE_LENGTH, rsp_buf[4]);
+    EXPECT_EQ(0, strcmp(uni_bt_service_get_name(), "RetroCabinet-1"));
+
+    // 4c. Non-zero offset prepared write (ATT_PREPARE_WRITE_REQUEST with offset = 1) ->
+    //     ATT_ERROR_REQUEST_NOT_SUPPORTED (0x06).
+    uint8_t req_prep_ac0d[5 + 4];
+    req_prep_ac0d[0] = ATT_PREPARE_WRITE_REQUEST;
+    little_endian_store_16(req_prep_ac0d, 1, ATT_CHARACTERISTIC_4627C4A4_AC0D_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE);
+    little_endian_store_16(req_prep_ac0d, 3, 1);  // offset = 1
+    memcpy(&req_prep_ac0d[5], "Test", 4);
+    rsp_len = att_handle_request(&att_conn, req_prep_ac0d, sizeof(req_prep_ac0d), rsp_buf);
+    ASSERT_EQ(5, rsp_len);
+    EXPECT_EQ(ATT_ERROR_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(ATT_ERROR_REQUEST_NOT_SUPPORTED, rsp_buf[4]);
+
+    // 4d. Exact 29-byte write ("12345678901234567890123456789") to AC0D -> succeeds, scan_rsp_data length == 31.
+    const char* k_name_29 = "12345678901234567890123456789";
+    uint8_t req_29b_ac0d[3 + 29];
+    req_29b_ac0d[0] = ATT_WRITE_REQUEST;
+    little_endian_store_16(req_29b_ac0d, 1, ATT_CHARACTERISTIC_4627C4A4_AC0D_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE);
+    memcpy(&req_29b_ac0d[3], k_name_29, 29);
+    rsp_len = att_handle_request(&att_conn, req_29b_ac0d, sizeof(req_29b_ac0d), rsp_buf);
+    ASSERT_EQ(1, rsp_len);
+    EXPECT_EQ(ATT_WRITE_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(0, strcmp(uni_bt_service_get_name(), k_name_29));
+    EXPECT_EQ(31, hci_get_stack()->le_scan_response_data_len);
+    EXPECT_EQ(0x1e, hci_get_stack()->le_scan_response_data[0]);
+    EXPECT_EQ(BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME, hci_get_stack()->le_scan_response_data[1]);
+    EXPECT_EQ(0, memcmp(&hci_get_stack()->le_scan_response_data[2], k_name_29, 29));
+
+    // 5. uni_bt_service_set_name Clamping & Reset:
+    uni_bt_service_set_name("ThisNameIsDefinitelyLongerThan29Bytes!");
+    EXPECT_EQ(29, (int)strlen(uni_bt_service_get_name()));
+    EXPECT_EQ(0, memcmp(uni_bt_service_get_name(), "ThisNameIsDefinitelyLongerTha", 29));
+    EXPECT_EQ(31, hci_get_stack()->le_scan_response_data_len);
+
+    uni_bt_service_set_name("");
+    EXPECT_EQ(0, strcmp(uni_bt_service_get_name(), "Bluepad32"));
+    uni_bt_service_set_name("TempName");
+    EXPECT_EQ(0, strcmp(uni_bt_service_get_name(), "TempName"));
+    uni_bt_service_set_name(NULL);
+    EXPECT_EQ(0, strcmp(uni_bt_service_get_name(), "Bluepad32"));
+
+    uni_bt_service_set_enabled(false);
+}
+
+// ============================================================================
+// 22. TEST(bt_service_password_auth_gate_ac0e_and_session_lifecycle)
+// ============================================================================
+
+static uint16_t send_att_read_req(att_connection_t* att_conn, uint16_t handle, uint8_t* rsp_buf) {
+    uint8_t req[3] = {ATT_READ_REQUEST, (uint8_t)(handle & 0xff), (uint8_t)(handle >> 8)};
+    memset(rsp_buf, 0, 256);
+    return att_handle_request(att_conn, req, sizeof(req), rsp_buf);
+}
+
+static uint16_t send_att_write_req(att_connection_t* att_conn,
+                                   uint16_t handle,
+                                   const void* payload,
+                                   uint16_t payload_len,
+                                   uint8_t* rsp_buf) {
+    uint8_t req[64];
+    req[0] = ATT_WRITE_REQUEST;
+    little_endian_store_16(req, 1, handle);
+    if (payload_len > 0 && payload != NULL) {
+        memcpy(&req[3], payload, payload_len);
+    }
+    memset(rsp_buf, 0, 256);
+    return att_handle_request(att_conn, req, (uint16_t)(3 + payload_len), rsp_buf);
+}
+
+TEST(bt_service_password_auth_gate_ac0e_and_session_lifecycle) {
+    reset_test_fixture();
+
+    uni_bt_service_set_enabled(false);
+    uni_bt_service_set_enabled(true);
+    EXPECT_EQ(0x0024, ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE);
+
+    att_connection_t att_conn;
+    memset(&att_conn, 0, sizeof(att_conn));
+    att_conn.con_handle = 0x0040;
+    att_conn.mtu = 256;
+    att_conn.max_mtu = 256;
+    uint8_t rsp_buf[256];
+
+    // 1. Open Mode — No Password Configured:
+    uni_bt_service_set_password(NULL);
+    EXPECT_FALSE(uni_bt_service_is_password_required());
+
+    uint16_t rsp_len =
+        send_att_read_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE, rsp_buf);
+    ASSERT_EQ(2, rsp_len);
+    EXPECT_EQ(ATT_READ_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(UNI_BT_SERVICE_AUTH_STATE_OPEN, rsp_buf[1]);
+
+    // Reading protected characteristic AC02 (0x000b) succeeds in Open Mode.
+    rsp_len =
+        send_att_read_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC02_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE, rsp_buf);
+    ASSERT_EQ(2, rsp_len);
+    EXPECT_EQ(ATT_READ_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(CONFIG_BLUEPAD32_MAX_DEVICES, rsp_buf[1]);
+
+    // Writing AC0E with "anything" in Open Mode succeeds and subsequent read of AC0E still returns 0x00 (OPEN).
+    rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                 "anything", 8, rsp_buf);
+    ASSERT_EQ(1, rsp_len);
+    EXPECT_EQ(ATT_WRITE_RESPONSE, rsp_buf[0]);
+
+    rsp_len =
+        send_att_read_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE, rsp_buf);
+    ASSERT_EQ(2, rsp_len);
+    EXPECT_EQ(ATT_READ_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(UNI_BT_SERVICE_AUTH_STATE_OPEN, rsp_buf[1]);
+
+    // 2. Password Mode — Unauthenticated Rejection Across All Protected Handles:
+    uni_bt_service_set_password("opensesame");
+    EXPECT_TRUE(uni_bt_service_is_password_required());
+    EXPECT_EQ(0, strcmp(uni_bt_service_get_password(), "opensesame"));
+
+    // Publicly readable handles remain accessible while unauthenticated:
+    // - GAP_DEVICE_NAME (0x0003)
+    rsp_len = send_att_read_req(&att_conn, ATT_CHARACTERISTIC_GAP_DEVICE_NAME_01_VALUE_HANDLE, rsp_buf);
+    ASSERT_EQ(1 + 9, rsp_len);
+    EXPECT_EQ(ATT_READ_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(0, memcmp(&rsp_buf[1], "Bluepad32", 9));
+
+    // - AC01 (0x0009, Version)
+    rsp_len =
+        send_att_read_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC01_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE, rsp_buf);
+    ASSERT_TRUE(rsp_len > 1);
+    EXPECT_EQ(ATT_READ_RESPONSE, rsp_buf[0]);
+
+    // - AC0D (0x0022, Service Name)
+    rsp_len =
+        send_att_read_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0D_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE, rsp_buf);
+    ASSERT_EQ(1 + 9, rsp_len);
+    EXPECT_EQ(ATT_READ_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(0, memcmp(&rsp_buf[1], "Bluepad32", 9));
+
+    // - AC0E (0x0024, Auth Status) -> returns 0x01 (UNI_BT_SERVICE_AUTH_STATE_REQUIRED)
+    rsp_len =
+        send_att_read_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE, rsp_buf);
+    ASSERT_EQ(2, rsp_len);
+    EXPECT_EQ(ATT_READ_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(UNI_BT_SERVICE_AUTH_STATE_REQUIRED, rsp_buf[1]);
+
+    // Every protected read handle (AC02..AC09) must return ATT_ERROR_INSUFFICIENT_AUTHENTICATION (0x05):
+    static const uint16_t k_protected_read_handles[] = {
+        ATT_CHARACTERISTIC_4627C4A4_AC02_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x000b
+        ATT_CHARACTERISTIC_4627C4A4_AC03_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x000d
+        ATT_CHARACTERISTIC_4627C4A4_AC04_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x000f
+        ATT_CHARACTERISTIC_4627C4A4_AC05_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x0011
+        ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x0014
+        ATT_CHARACTERISTIC_4627C4A4_AC07_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x0016
+        ATT_CHARACTERISTIC_4627C4A4_AC08_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x0018
+        ATT_CHARACTERISTIC_4627C4A4_AC09_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x001a
+    };
+    for (size_t i = 0; i < ARRAY_SIZE(k_protected_read_handles); i++) {
+        rsp_len = send_att_read_req(&att_conn, k_protected_read_handles[i], rsp_buf);
+        ASSERT_EQ(5, rsp_len);
+        EXPECT_EQ(ATT_ERROR_RESPONSE, rsp_buf[0]);
+        EXPECT_EQ(ATT_READ_REQUEST, rsp_buf[1]);
+        EXPECT_EQ(k_protected_read_handles[i], little_endian_read_16(rsp_buf, 2));
+        EXPECT_EQ(ATT_ERROR_INSUFFICIENT_AUTHENTICATION, rsp_buf[4]);
+    }
+
+    // Every protected write handle (AC03..AC0D + AC05 CCCD) must return ATT_ERROR_INSUFFICIENT_AUTHENTICATION (0x05)
+    // and produce zero side effects:
+    uni_bt_stop_scanning_unsafe();
+    EXPECT_FALSE(uni_bt_is_scanning());
+    const uint8_t one_byte = 0x01;
+    const uint8_t cccd_on[2] = {0x01, 0x00};
+    const uint8_t mac_6b[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
+    static const uint16_t k_protected_1b_write_handles[] = {
+        ATT_CHARACTERISTIC_4627C4A4_AC03_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x000d
+        ATT_CHARACTERISTIC_4627C4A4_AC04_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x000f
+        ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x0014
+        ATT_CHARACTERISTIC_4627C4A4_AC07_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x0016
+        ATT_CHARACTERISTIC_4627C4A4_AC09_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x001a
+        ATT_CHARACTERISTIC_4627C4A4_AC0A_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x001c
+        ATT_CHARACTERISTIC_4627C4A4_AC0B_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x001e
+        ATT_CHARACTERISTIC_4627C4A4_AC0C_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x0020
+    };
+    for (size_t i = 0; i < ARRAY_SIZE(k_protected_1b_write_handles); i++) {
+        rsp_len = send_att_write_req(&att_conn, k_protected_1b_write_handles[i], &one_byte, 1, rsp_buf);
+        ASSERT_EQ(5, rsp_len);
+        EXPECT_EQ(ATT_ERROR_RESPONSE, rsp_buf[0]);
+        EXPECT_EQ(ATT_WRITE_REQUEST, rsp_buf[1]);
+        EXPECT_EQ(k_protected_1b_write_handles[i], little_endian_read_16(rsp_buf, 2));
+        EXPECT_EQ(ATT_ERROR_INSUFFICIENT_AUTHENTICATION, rsp_buf[4]);
+    }
+    // AC05 CCCD (0x0012)
+    rsp_len = send_att_write_req(&att_conn,
+                                 ATT_CHARACTERISTIC_4627C4A4_AC05_46B9_B688_AFC5C1BF7F63_01_CLIENT_CONFIGURATION_HANDLE,
+                                 cccd_on, 2, rsp_buf);
+    ASSERT_EQ(5, rsp_len);
+    EXPECT_EQ(ATT_ERROR_INSUFFICIENT_AUTHENTICATION, rsp_buf[4]);
+    // AC08 (0x0018)
+    rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC08_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                 mac_6b, 6, rsp_buf);
+    ASSERT_EQ(5, rsp_len);
+    EXPECT_EQ(ATT_ERROR_INSUFFICIENT_AUTHENTICATION, rsp_buf[4]);
+    // AC0D (0x0022)
+    rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0D_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                 "HackedName", 10, rsp_buf);
+    ASSERT_EQ(5, rsp_len);
+    EXPECT_EQ(ATT_ERROR_INSUFFICIENT_AUTHENTICATION, rsp_buf[4]);
+
+    // Verify zero side effects occurred on scanning, allowlist, or service name.
+    EXPECT_FALSE(uni_bt_is_scanning());
+    EXPECT_FALSE(uni_bt_allowlist_is_enabled());
+    EXPECT_EQ(0, strcmp(uni_bt_service_get_name(), "Bluepad32"));
+
+    // 3. Wrong Password & Length/Offset Validation on AC0E:
+    // - Wrong password of identical length (10 bytes: "wrongpass!") -> ATT_ERROR_INSUFFICIENT_AUTHENTICATION (0x05)
+    rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                 "wrongpass!", 10, rsp_buf);
+    ASSERT_EQ(5, rsp_len);
+    EXPECT_EQ(ATT_ERROR_INSUFFICIENT_AUTHENTICATION, rsp_buf[4]);
+
+    // - Prefix "opensesam" (length 9) and superstring "opensesame!" (length 11) -> 0x05
+    rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                 "opensesam", 9, rsp_buf);
+    ASSERT_EQ(5, rsp_len);
+    EXPECT_EQ(ATT_ERROR_INSUFFICIENT_AUTHENTICATION, rsp_buf[4]);
+
+    rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                 "opensesame!", 11, rsp_buf);
+    ASSERT_EQ(5, rsp_len);
+    EXPECT_EQ(ATT_ERROR_INSUFFICIENT_AUTHENTICATION, rsp_buf[4]);
+
+    // - Empty 0-byte payload or 32-byte (> UNI_BT_SERVICE_PASSWORD_MAX_LEN == 31) payload ->
+    //   ATT_ERROR_INVALID_ATTRIBUTE_VALUE_LENGTH (0x0d)
+    rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                 NULL, 0, rsp_buf);
+    ASSERT_EQ(5, rsp_len);
+    EXPECT_EQ(ATT_ERROR_INVALID_ATTRIBUTE_VALUE_LENGTH, rsp_buf[4]);
+
+    char pass_32b[UNI_BT_SERVICE_PASSWORD_MAX_LEN + 1];
+    memset(pass_32b, 'P', sizeof(pass_32b));
+    rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                 pass_32b, sizeof(pass_32b), rsp_buf);
+    ASSERT_EQ(5, rsp_len);
+    EXPECT_EQ(ATT_ERROR_INVALID_ATTRIBUTE_VALUE_LENGTH, rsp_buf[4]);
+
+    // - Non-zero offset prepared write on AC0E -> ATT_ERROR_REQUEST_NOT_SUPPORTED (0x06)
+    uint8_t req_prep_ac0e[5 + 4];
+    req_prep_ac0e[0] = ATT_PREPARE_WRITE_REQUEST;
+    little_endian_store_16(req_prep_ac0e, 1, ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE);
+    little_endian_store_16(req_prep_ac0e, 3, 1);
+    memcpy(&req_prep_ac0e[5], "open", 4);
+    rsp_len = att_handle_request(&att_conn, req_prep_ac0e, sizeof(req_prep_ac0e), rsp_buf);
+    ASSERT_EQ(5, rsp_len);
+    EXPECT_EQ(ATT_ERROR_REQUEST_NOT_SUPPORTED, rsp_buf[4]);
+
+    // Read AC0E -> still 0x01 (REQUIRED).
+    rsp_len =
+        send_att_read_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE, rsp_buf);
+    ASSERT_EQ(2, rsp_len);
+    EXPECT_EQ(UNI_BT_SERVICE_AUTH_STATE_REQUIRED, rsp_buf[1]);
+
+    // 4. Correct Password Unlocks Session for con_handle = 0x0040:
+    rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                 "opensesame", 10, rsp_buf);
+    ASSERT_EQ(1, rsp_len);
+    EXPECT_EQ(ATT_WRITE_RESPONSE, rsp_buf[0]);
+
+    rsp_len =
+        send_att_read_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE, rsp_buf);
+    ASSERT_EQ(2, rsp_len);
+    EXPECT_EQ(UNI_BT_SERVICE_AUTH_STATE_AUTHENTICATED, rsp_buf[1]);
+
+    // Protected reads and writes now succeed on con_handle = 0x0040:
+    rsp_len =
+        send_att_read_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC02_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE, rsp_buf);
+    ASSERT_EQ(2, rsp_len);
+    EXPECT_EQ(ATT_READ_RESPONSE, rsp_buf[0]);
+
+    rsp_len =
+        send_att_read_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC05_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE, rsp_buf);
+    ASSERT_TRUE(rsp_len >= 1 + 16);
+    EXPECT_EQ(ATT_READ_RESPONSE, rsp_buf[0]);
+
+    rsp_len = send_att_write_req(&att_conn,
+                                 ATT_CHARACTERISTIC_4627C4A4_AC05_46B9_B688_AFC5C1BF7F63_01_CLIENT_CONFIGURATION_HANDLE,
+                                 cccd_on, 2, rsp_buf);
+    ASSERT_EQ(1, rsp_len);
+    EXPECT_EQ(ATT_WRITE_RESPONSE, rsp_buf[0]);
+
+    rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC04_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                 &one_byte, 1, rsp_buf);
+    ASSERT_EQ(1, rsp_len);
+    EXPECT_EQ(ATT_WRITE_RESPONSE, rsp_buf[0]);
+    EXPECT_TRUE(uni_bt_is_scanning());
+    uni_bt_stop_scanning_unsafe();
+
+    rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0D_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                 "UnlockedPad", 11, rsp_buf);
+    ASSERT_EQ(1, rsp_len);
+    EXPECT_EQ(ATT_WRITE_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(0, strcmp(uni_bt_service_get_name(), "UnlockedPad"));
+
+    // 5. Per-Connection Isolation:
+    att_connection_t att_conn_2;
+    memset(&att_conn_2, 0, sizeof(att_conn_2));
+    att_conn_2.con_handle = 0x0041;
+    att_conn_2.mtu = 256;
+    att_conn_2.max_mtu = 256;
+
+    rsp_len = send_att_read_req(&att_conn_2, ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                rsp_buf);
+    ASSERT_EQ(2, rsp_len);
+    EXPECT_EQ(UNI_BT_SERVICE_AUTH_STATE_REQUIRED, rsp_buf[1]);
+
+    // Meanwhile con_handle = 0x0040 remains AUTHENTICATED (0x02):
+    rsp_len =
+        send_att_read_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE, rsp_buf);
+    ASSERT_EQ(2, rsp_len);
+    EXPECT_EQ(UNI_BT_SERVICE_AUTH_STATE_AUTHENTICATED, rsp_buf[1]);
+
+    // Protected read on unauthenticated con_handle = 0x0041 is rejected with 0x05:
+    rsp_len = send_att_read_req(&att_conn_2, ATT_CHARACTERISTIC_4627C4A4_AC02_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                rsp_buf);
+    ASSERT_EQ(5, rsp_len);
+    EXPECT_EQ(ATT_ERROR_INSUFFICIENT_AUTHENTICATION, rsp_buf[4]);
+
+    // 6. Disconnect & Reconnect Resets Session Authentication:
+    // Establish LE peripheral connection on handle 0x0040 via HCI_SUBEVENT_LE_CONNECTION_COMPLETE
+    // (which dispatches ATT_EVENT_CONNECTED to uni_att_packet_handler), authenticate, then disconnect
+    // via HCI_EVENT_DISCONNECTION_COMPLETE (which dispatches ATT_EVENT_DISCONNECTED) and reconnect.
+    bd_addr_t central_addr = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
+    uint8_t le_conn_evt[21];
+    memset(le_conn_evt, 0, sizeof(le_conn_evt));
+    le_conn_evt[0] = HCI_EVENT_LE_META;
+    le_conn_evt[1] = 19;
+    le_conn_evt[2] = HCI_SUBEVENT_LE_CONNECTION_COMPLETE;
+    le_conn_evt[3] = ERROR_CODE_SUCCESS;
+    little_endian_store_16(le_conn_evt, 4, 0x0040);
+    le_conn_evt[6] = HCI_ROLE_SLAVE;
+    le_conn_evt[7] = BD_ADDR_TYPE_LE_PUBLIC;
+    put_bd_addr_reversed(&le_conn_evt[8], central_addr);
+    little_endian_store_16(le_conn_evt, 14, 0x0018);
+    little_endian_store_16(le_conn_evt, 16, 0x0000);
+    little_endian_store_16(le_conn_evt, 18, 0x0048);
+
+    // First connect -> authenticate -> disconnect -> reconnect:
+    g_transport_packet_handler(HCI_EVENT_PACKET, le_conn_evt, sizeof(le_conn_evt));
+    rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                 "opensesame", 10, rsp_buf);
+    ASSERT_EQ(1, rsp_len);
+    EXPECT_EQ(ATT_WRITE_RESPONSE, rsp_buf[0]);
+
+    uint8_t disc_evt[6] = {HCI_EVENT_DISCONNECTION_COMPLETE, 4, 0x00, 0x40, 0x00, 0x13};
+    g_transport_packet_handler(HCI_EVENT_PACKET, disc_evt, sizeof(disc_evt));
+    g_transport_packet_handler(HCI_EVENT_PACKET, le_conn_evt, sizeof(le_conn_evt));
+
+    // Read AC0E on 0x0040 -> returns 0x01 (REQUIRED) and reading AC02 is rejected with 0x05.
+    rsp_len =
+        send_att_read_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE, rsp_buf);
+    ASSERT_EQ(2, rsp_len);
+    EXPECT_EQ(UNI_BT_SERVICE_AUTH_STATE_REQUIRED, rsp_buf[1]);
+
+    rsp_len =
+        send_att_read_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC02_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE, rsp_buf);
+    ASSERT_EQ(5, rsp_len);
+    EXPECT_EQ(ATT_ERROR_INSUFFICIENT_AUTHENTICATION, rsp_buf[4]);
+
+    // 7. Runtime Password Change Re-Locks Active Authenticated Sessions & Exact 31-Byte Max Password:
+    rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                 "opensesame", 10, rsp_buf);
+    ASSERT_EQ(1, rsp_len);
+    EXPECT_EQ(ATT_WRITE_RESPONSE, rsp_buf[0]);
+    rsp_len = send_att_write_req(&att_conn,
+                                 ATT_CHARACTERISTIC_4627C4A4_AC05_46B9_B688_AFC5C1BF7F63_01_CLIENT_CONFIGURATION_HANDLE,
+                                 cccd_on, 2, rsp_buf);
+    ASSERT_EQ(1, rsp_len);
+    EXPECT_EQ(ATT_WRITE_RESPONSE, rsp_buf[0]);
+
+    // Change password at runtime -> revokes authenticated & notification_enabled on all active connections.
+    uni_bt_service_set_password("newsecret");
+    rsp_len =
+        send_att_read_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE, rsp_buf);
+    ASSERT_EQ(2, rsp_len);
+    EXPECT_EQ(UNI_BT_SERVICE_AUTH_STATE_REQUIRED, rsp_buf[1]);
+
+    rsp_len =
+        send_att_read_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC02_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE, rsp_buf);
+    ASSERT_EQ(5, rsp_len);
+    EXPECT_EQ(ATT_ERROR_INSUFFICIENT_AUTHENTICATION, rsp_buf[4]);
+
+    // Authenticate with "newsecret" -> AC0E == 0x02 (AUTHENTICATED).
+    rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                 "newsecret", 9, rsp_buf);
+    ASSERT_EQ(1, rsp_len);
+    EXPECT_EQ(ATT_WRITE_RESPONSE, rsp_buf[0]);
+    rsp_len =
+        send_att_read_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE, rsp_buf);
+    ASSERT_EQ(2, rsp_len);
+    EXPECT_EQ(UNI_BT_SERVICE_AUTH_STATE_AUTHENTICATED, rsp_buf[1]);
+
+    // Exact 31-byte maximum length password ("1234567890123456789012345678901") round-trip:
+    const char* k_pass_31 = "1234567890123456789012345678901";
+    uni_bt_service_set_password(k_pass_31);
+    EXPECT_EQ(UNI_BT_SERVICE_PASSWORD_MAX_LEN, (int)strlen(uni_bt_service_get_password()));
+    rsp_len =
+        send_att_read_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE, rsp_buf);
+    ASSERT_EQ(2, rsp_len);
+    EXPECT_EQ(UNI_BT_SERVICE_AUTH_STATE_REQUIRED, rsp_buf[1]);
+
+    rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                 k_pass_31, 31, rsp_buf);
+    ASSERT_EQ(1, rsp_len);
+    EXPECT_EQ(ATT_WRITE_RESPONSE, rsp_buf[0]);
+    rsp_len =
+        send_att_read_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE, rsp_buf);
+    ASSERT_EQ(2, rsp_len);
+    EXPECT_EQ(UNI_BT_SERVICE_AUTH_STATE_AUTHENTICATED, rsp_buf[1]);
+
+    // Clear password via uni_bt_service_set_password("") -> !uni_bt_service_is_password_required(), AC0E == 0x00
+    // (OPEN).
+    uni_bt_service_set_password("");
+    EXPECT_FALSE(uni_bt_service_is_password_required());
+    rsp_len =
+        send_att_read_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE, rsp_buf);
+    ASSERT_EQ(2, rsp_len);
+    EXPECT_EQ(UNI_BT_SERVICE_AUTH_STATE_OPEN, rsp_buf[1]);
+
+    // Clean up LE connection on 0x0040.
+    g_transport_packet_handler(HCI_EVENT_PACKET, disc_evt, sizeof(disc_evt));
+    uni_bt_service_set_enabled(false);
+}
+
+// ============================================================================
 // Main Test Runner
 // ============================================================================
 
@@ -2926,6 +3546,8 @@ int main(void) {
     RUN_TEST(bt_le_dis_done_custom_gatt_routing_bypasses_hogp);
     RUN_TEST(bt_le_switch2_gatt_state_machine_and_teardown);
     RUN_TEST(bt_le_steam_triton_gatt_state_machine_and_teardown);
+    RUN_TEST(bt_service_custom_name_adv_scan_rsp_and_ac0d_gatt);
+    RUN_TEST(bt_service_password_auth_gate_ac0e_and_session_lifecycle);
 
     return test_summary();
 }

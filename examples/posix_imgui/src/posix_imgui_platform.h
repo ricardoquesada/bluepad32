@@ -267,6 +267,119 @@ void posix_imgui_request_set_allowed_device_types(uint32_t allowed_types_mask);
 [[nodiscard]] uint32_t posix_imgui_get_allowed_device_types(void);
 
 /**
+ * @brief Enables or disables the Bluepad32 BLE configuration GATT service (`4627C4A4-AC00-...`).
+ *
+ * Thread-safe and non-blocking. Immediately updates the platform-cached enabled state and
+ * enqueues a `SetBleServiceEnabledCmd` command on the BTstack run-loop thread that calls
+ * `uni_bt_service_set_enabled(enabled)`.
+ *
+ * @param enabled True (default) to enable and advertise the BLE service; false to disable it.
+ */
+void posix_imgui_request_set_ble_service_enabled(bool enabled);
+
+/**
+ * @brief Alias for `posix_imgui_request_set_ble_service_enabled(enabled)`.
+ *
+ * @param enabled True to enable the BLE configuration service; false to disable it.
+ */
+void posix_imgui_set_ble_service_enabled(bool enabled);
+
+/**
+ * @brief Returns whether the Bluepad32 BLE configuration service is currently enabled (default: `true`).
+ *
+ * Thread-safe (reads an `std::atomic<bool>` with `std::memory_order_acquire`).
+ *
+ * @return True if the BLE configuration service is enabled; false otherwise.
+ */
+[[nodiscard]] bool posix_imgui_is_ble_service_enabled(void);
+
+/**
+ * @brief Alias for `posix_imgui_is_ble_service_enabled()`.
+ *
+ * @return True if the BLE configuration service is enabled; false otherwise.
+ */
+[[nodiscard]] bool posix_imgui_get_ble_service_enabled(void);
+
+/**
+ * @brief Sets the advertised device name for the Bluepad32 BLE configuration service.
+ *
+ * Thread-safe and non-blocking. Names longer than `UNI_BT_SERVICE_NAME_MAX_LEN` (29 UTF-8 bytes)
+ * are truncated. Passing `nullptr` or `""` resets the service name to `"Bluepad32"`.
+ * Updates the mutex-guarded platform state immediately and enqueues `SetBleServiceNameCmd`
+ * on the BTstack run-loop thread to invoke `uni_bt_service_set_name()`.
+ *
+ * @param name UTF-8 device name string (e.g., `"Bluepad32 rc car"`), or `nullptr`/`""` for default.
+ */
+void posix_imgui_request_set_ble_service_name(const char* name);
+
+/**
+ * @brief Alias for `posix_imgui_request_set_ble_service_name(name)`.
+ *
+ * @param name UTF-8 device name string, or `nullptr`/`""` to reset to `"Bluepad32"`.
+ */
+void posix_imgui_set_ble_service_name(const char* name);
+
+/**
+ * @brief Copies the current BLE configuration service name into `out_buf` (always NUL-terminated).
+ *
+ * Thread-safe. Safely no-ops if `out_buf == nullptr` or `out_len == 0`.
+ *
+ * @param[out] out_buf Destination character buffer.
+ * @param      out_len Size of `out_buf` in bytes (including NUL terminator).
+ */
+void posix_imgui_get_ble_service_name(char* out_buf, size_t out_len);
+
+/**
+ * @brief Returns a pointer to a thread-local copy of the NUL-terminated BLE configuration service name.
+ *
+ * Thread-safe. Copies `g_ble_service_name` under `g_ble_service_mutex` into a `thread_local`
+ * buffer so callers on any thread can safely read the returned C-string without data races.
+ *
+ * @return Non-null pointer to the configured BLE service name (default `"Bluepad32"`).
+ */
+[[nodiscard]] const char* posix_imgui_get_ble_service_name(void);
+
+/**
+ * @brief Sets or clears the session password for the Bluepad32 BLE configuration service (`AC0E`).
+ *
+ * Thread-safe and non-blocking. Passwords longer than `UNI_BT_SERVICE_PASSWORD_MAX_LEN` (31 UTF-8 bytes)
+ * are truncated. Passing `nullptr` or `""` clears the password and restores open access (`AC0E == 0`).
+ * Updates the mutex-guarded platform state immediately and enqueues `SetBleServicePasswordCmd`
+ * on the BTstack run-loop thread to invoke `uni_bt_service_set_password()`.
+ *
+ * @param password UTF-8 password string, or `nullptr`/`""` for open access.
+ */
+void posix_imgui_request_set_ble_service_password(const char* password);
+
+/**
+ * @brief Alias for `posix_imgui_request_set_ble_service_password(password)`.
+ *
+ * @param password UTF-8 password string, or `nullptr`/`""` for open access.
+ */
+void posix_imgui_set_ble_service_password(const char* password);
+
+/**
+ * @brief Copies the current BLE configuration service password into `out_buf` (always NUL-terminated).
+ *
+ * Thread-safe. Safely no-ops if `out_buf == nullptr` or `out_len == 0`. Writes `""` when no
+ * password is required (open access).
+ *
+ * @param[out] out_buf Destination character buffer.
+ * @param      out_len Size of `out_buf` in bytes (including NUL terminator).
+ */
+void posix_imgui_get_ble_service_password(char* out_buf, size_t out_len);
+
+/**
+ * @brief Returns a pointer to a thread-local copy of the NUL-terminated BLE configuration service password.
+ *
+ * Thread-safe. Copies `g_ble_service_password` under `g_ble_service_mutex` into a `thread_local`
+ * buffer so callers on any thread can safely read the returned C-string without data races.
+ *
+ * @return Non-null pointer to the configured BLE service password (`""` when open).
+ */
+[[nodiscard]] const char* posix_imgui_get_ble_service_password(void);
+
+/**
  * @brief Requests a clean asynchronous shutdown of the BTstack run loop from any thread.
  *
  * Sets an atomic shutdown flag and enqueues a `ShutdownCmd` command on the BTstack thread

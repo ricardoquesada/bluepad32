@@ -27,6 +27,9 @@ extern "C" {
 #define UNI_PROPERTY_NAME_ALLOWLIST_ENABLED "bp.bt.allow_en"
 #define UNI_PROPERTY_NAME_ALLOWLIST_LIST "bp.bt.allowlist"
 #define UNI_PROPERTY_NAME_BLE_ENABLED "bp.ble.enabled"
+#define UNI_PROPERTY_NAME_BLE_SERVICE_ENABLED "bp.ble.svc_en"
+#define UNI_PROPERTY_NAME_BLE_SERVICE_NAME "bp.ble.name"
+#define UNI_PROPERTY_NAME_BLE_SERVICE_PASSWORD "bp.ble.pass"
 #define UNI_PROPERTY_NAME_GAP_INQ_LEN "bp.gap.inq_len"
 #define UNI_PROPERTY_NAME_GAP_LEVEL "bp.gap.level"
 #define UNI_PROPERTY_NAME_GAP_MAX_PERIODIC_LEN "bp.gap.max_len"
@@ -54,6 +57,9 @@ typedef enum {
     // stored as BTstack TLV tags ('BP3' | idx).
     UNI_PROPERTY_IDX_UNI_BB_FIRE_THRESHOLD,
     UNI_PROPERTY_IDX_UNI_BB_MOVE_THRESHOLD,
+    UNI_PROPERTY_IDX_BLE_SERVICE_ENABLED,
+    UNI_PROPERTY_IDX_BLE_SERVICE_NAME,
+    UNI_PROPERTY_IDX_BLE_SERVICE_PASSWORD,
     UNI_PROPERTY_IDX_LAST,
 
     // Unijoysticle only properties

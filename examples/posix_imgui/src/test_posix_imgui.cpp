@@ -45,10 +45,17 @@
  *     controller disconnect/reconnect transitions.
  *   - Suite H (`device_extra_info` Parser Callbacks, Cross-Thread Snapshot Propagation & Info Tab Rendering):
  *     Verifies NULL/zero-length guard clauses and small-buffer `snprintf` truncation across all
- *     8 parser `uni_hid_parser_*_device_extra_info` callbacks, exact prefix-free/newline-free
+ *     10 parser `uni_hid_parser_*_device_extra_info` callbacks, exact prefix-free/newline-free
  *     formatting and out-of-bounds enum resilience, synchronous (`on_device_ready`) and
  *     asynchronous (`on_controller_data`) propagation into `ControllerSnapshot::device_extra_info`,
  *     and headless `DemoScene` Info tab rendering for both populated and empty `device_extra_info`.
+ *   - Suite I (BLE Configuration Service CLI Flags, Platform Thread-Safe Getters/Setters, Command Queue & Headless UI):
+ *     Verifies `-N`/`--ble-service-name`, `-P`/`--ble-service-password`, and `-S`/`--no-ble-service`
+ *     CLI flag parsing in `posix_imgui_init()`, missing trailing argument guards, immediate getter
+ *     visibility and BTstack command-queue draining (`SetBleServiceEnabledCmd`, `SetBleServiceNameCmd`,
+ *     `SetBleServicePasswordCmd`), 29-byte name and 31-byte password truncation, `nullptr`/empty
+ *     reset semantics, buffer boundary guards, `posix_imgui_reset_for_test()` cleanup, and headless
+ *     `DemoScene` Preferences & Status Bar rendering across Open, Password Protected, and Disabled states.
  */
 
 // Standard C++23 headers MUST be included outside and before `extern "C"`.
@@ -2016,6 +2023,285 @@ void test_demo_scene_headless_info_tab_with_populated_and_empty_device_extra_inf
     ImGui::DestroyContext(ctx);
 }
 
+// ============================================================================
+// Suite I: BLE Configuration Service CLI Flags, Platform State & Headless UI
+// ============================================================================
+
+/// Test 25: Verifies `-N`/`--ble-service-name`, `-P`/`--ble-service-password`, and `-S`/`--no-ble-service`
+/// CLI flag parsing in `posix_imgui_init()`, missing trailing argument guards, and `posix_imgui_reset_for_test()`
+/// restoration of default BLE service state (Landmine #3 & #6).
+void test_ble_service_cli_flags_and_init_parsing() {
+    btstack_run_loop_deinit();
+    btstack_run_loop_init(btstack_run_loop_posix_get_instance());
+    struct uni_platform* plat = get_posix_imgui_platform();
+    TEST_ASSERT(plat != nullptr && plat->init != nullptr);
+
+    char name_buf[64]{};
+    char pass_buf[64]{};
+
+    // 1. Default Init (argc = 1, no BLE service flags):
+    posix_imgui_reset_for_test();
+    const char* argv_default[] = {"posix_imgui"};
+    plat->init(1, argv_default);
+    TEST_ASSERT(posix_imgui_is_ble_service_enabled());
+    TEST_ASSERT(posix_imgui_get_ble_service_enabled());
+    TEST_ASSERT(uni_bt_service_is_enabled());
+    TEST_ASSERT(std::strcmp(posix_imgui_get_ble_service_name(), "Bluepad32") == 0);
+    TEST_ASSERT(std::strcmp(uni_bt_service_get_name(), "Bluepad32") == 0);
+    TEST_ASSERT(std::strcmp(posix_imgui_get_ble_service_password(), "") == 0);
+    TEST_ASSERT(std::strcmp(uni_bt_service_get_password(), "") == 0);
+    TEST_ASSERT(!uni_bt_service_is_password_required());
+
+    posix_imgui_get_ble_service_name(name_buf, sizeof(name_buf));
+    posix_imgui_get_ble_service_password(pass_buf, sizeof(pass_buf));
+    TEST_ASSERT(std::strcmp(name_buf, "Bluepad32") == 0);
+    TEST_ASSERT(std::strcmp(pass_buf, "") == 0);
+
+    // 2. Short Flags (-N, -P, -S):
+    posix_imgui_reset_for_test();
+    const char* argv_short[] = {"posix_imgui", "-N", "Bluepad32 rc car", "-P", "rc1234", "-S"};
+    plat->init(6, argv_short);
+    TEST_ASSERT(!posix_imgui_is_ble_service_enabled());
+    TEST_ASSERT(!posix_imgui_get_ble_service_enabled());
+    TEST_ASSERT(!uni_bt_service_is_enabled());
+    TEST_ASSERT(std::strcmp(posix_imgui_get_ble_service_name(), "Bluepad32 rc car") == 0);
+    TEST_ASSERT(std::strcmp(uni_bt_service_get_name(), "Bluepad32 rc car") == 0);
+    TEST_ASSERT(std::strcmp(posix_imgui_get_ble_service_password(), "rc1234") == 0);
+    TEST_ASSERT(std::strcmp(uni_bt_service_get_password(), "rc1234") == 0);
+    TEST_ASSERT(uni_bt_service_is_password_required());
+
+    // 3. Long Flags (--ble-service-name, --ble-service-password, --no-ble-service):
+    posix_imgui_reset_for_test();
+    const char* argv_long[] = {
+        "posix_imgui", "--ble-service-name", "Bluepad32 on esp32", "--ble-service-password",
+        "esp_pass",    "--no-ble-service",
+    };
+    plat->init(6, argv_long);
+    TEST_ASSERT(!posix_imgui_is_ble_service_enabled());
+    TEST_ASSERT(!uni_bt_service_is_enabled());
+    TEST_ASSERT(std::strcmp(posix_imgui_get_ble_service_name(), "Bluepad32 on esp32") == 0);
+    TEST_ASSERT(std::strcmp(uni_bt_service_get_name(), "Bluepad32 on esp32") == 0);
+    TEST_ASSERT(std::strcmp(posix_imgui_get_ble_service_password(), "esp_pass") == 0);
+    TEST_ASSERT(std::strcmp(uni_bt_service_get_password(), "esp_pass") == 0);
+
+    // 4. Missing Trailing Argument Guard (-N or -P at argv[argc - 1]):
+    posix_imgui_reset_for_test();
+    const char* argv_missing_n[] = {"posix_imgui", "-N"};
+    plat->init(2, argv_missing_n);
+    TEST_ASSERT(posix_imgui_is_ble_service_enabled());
+    TEST_ASSERT(std::strcmp(posix_imgui_get_ble_service_name(), "Bluepad32") == 0);
+    TEST_ASSERT(std::strcmp(posix_imgui_get_ble_service_password(), "") == 0);
+
+    posix_imgui_reset_for_test();
+    const char* argv_missing_p[] = {"posix_imgui", "-P"};
+    plat->init(2, argv_missing_p);
+    TEST_ASSERT(posix_imgui_is_ble_service_enabled());
+    TEST_ASSERT(std::strcmp(posix_imgui_get_ble_service_name(), "Bluepad32") == 0);
+    TEST_ASSERT(std::strcmp(posix_imgui_get_ble_service_password(), "") == 0);
+
+    // 5. Verify posix_imgui_reset_for_test() cleanly restores all BLE service defaults:
+    posix_imgui_set_ble_service_enabled(false);
+    posix_imgui_set_ble_service_name("DirtyName");
+    posix_imgui_set_ble_service_password("DirtyPass");
+    posix_imgui_reset_for_test();
+    TEST_ASSERT(posix_imgui_is_ble_service_enabled());
+    TEST_ASSERT(uni_bt_service_is_enabled());
+    TEST_ASSERT(std::strcmp(posix_imgui_get_ble_service_name(), "Bluepad32") == 0);
+    TEST_ASSERT(std::strcmp(uni_bt_service_get_name(), "Bluepad32") == 0);
+    TEST_ASSERT(std::strcmp(posix_imgui_get_ble_service_password(), "") == 0);
+    TEST_ASSERT(std::strcmp(uni_bt_service_get_password(), "") == 0);
+}
+
+/// Test 26: Verifies immediate getter visibility and BTstack command-queue draining for
+/// `SetBleServiceEnabledCmd`, `SetBleServiceNameCmd`, and `SetBleServicePasswordCmd`.
+void test_ble_service_platform_getters_setters_and_command_queue() {
+    btstack_run_loop_deinit();
+    btstack_run_loop_init(btstack_run_loop_posix_get_instance());
+    posix_imgui_reset_for_test();
+
+    // 1. Immediate getter visibility before command queue drain:
+    posix_imgui_request_set_ble_service_enabled(false);
+    posix_imgui_request_set_ble_service_name("Bluepad32 Robot");
+    posix_imgui_request_set_ble_service_password("bot99");
+
+    TEST_ASSERT(!posix_imgui_is_ble_service_enabled());
+    TEST_ASSERT(!posix_imgui_get_ble_service_enabled());
+    TEST_ASSERT(std::strcmp(posix_imgui_get_ble_service_name(), "Bluepad32 Robot") == 0);
+    TEST_ASSERT(std::strcmp(posix_imgui_get_ble_service_password(), "bot99") == 0);
+    TEST_ASSERT(std::strcmp(uni_bt_service_get_name(), "Bluepad32 Robot") == 0);
+    TEST_ASSERT(std::strcmp(uni_bt_service_get_password(), "bot99") == 0);
+
+    // 2. Verify command queue execution on the BTstack run loop:
+    // Mutate the underlying C service directly, then drain the pending command queue to prove
+    // that the queued SetBleService*Cmd variants execute and synchronize uni_bt_service!
+    uni_bt_service_set_enabled(true);
+    uni_bt_service_set_name("TempOverride");
+    uni_bt_service_set_password("TempPass");
+
+    btstack_run_loop_base_execute_callbacks();
+
+    TEST_ASSERT(!uni_bt_service_is_enabled());
+    TEST_ASSERT(std::strcmp(uni_bt_service_get_name(), "Bluepad32 Robot") == 0);
+    TEST_ASSERT(std::strcmp(uni_bt_service_get_password(), "bot99") == 0);
+
+    // 3. Exercise alias setters and synchronous posix_imgui_process_pending_commands():
+    posix_imgui_set_ble_service_enabled(true);
+    posix_imgui_set_ble_service_name("Bluepad32 Arcade");
+    posix_imgui_set_ble_service_password("coinop");
+
+    uni_bt_service_set_name("Stale");
+    posix_imgui_process_pending_commands();
+
+    char name_buf[64]{};
+    char pass_buf[64]{};
+    posix_imgui_get_ble_service_name(name_buf, sizeof(name_buf));
+    posix_imgui_get_ble_service_password(pass_buf, sizeof(pass_buf));
+    TEST_ASSERT(posix_imgui_get_ble_service_enabled());
+    TEST_ASSERT(uni_bt_service_is_enabled());
+    TEST_ASSERT(std::strcmp(name_buf, "Bluepad32 Arcade") == 0);
+    TEST_ASSERT(std::strcmp(uni_bt_service_get_name(), "Bluepad32 Arcade") == 0);
+    TEST_ASSERT(std::strcmp(pass_buf, "coinop") == 0);
+    TEST_ASSERT(std::strcmp(uni_bt_service_get_password(), "coinop") == 0);
+
+    posix_imgui_reset_for_test();
+}
+
+/// Test 27: Verifies 29-byte BLE service name truncation, 31-byte BLE service password truncation,
+/// `nullptr`/empty string reset semantics, and getter output buffer boundary guards.
+void test_ble_service_string_truncation_and_null_safety() {
+    btstack_run_loop_deinit();
+    btstack_run_loop_init(btstack_run_loop_posix_get_instance());
+    posix_imgui_reset_for_test();
+
+    // 1. Service Name > 29 bytes clamped to 29 bytes (UNI_BT_SERVICE_NAME_MAX_LEN):
+    posix_imgui_request_set_ble_service_name("12345678901234567890123456789_EXTRA");
+    posix_imgui_process_pending_commands();
+    TEST_ASSERT(std::strlen(posix_imgui_get_ble_service_name()) == UNI_BT_SERVICE_NAME_MAX_LEN);
+    TEST_ASSERT(std::strcmp(posix_imgui_get_ble_service_name(), "12345678901234567890123456789") == 0);
+    TEST_ASSERT(std::strcmp(uni_bt_service_get_name(), "12345678901234567890123456789") == 0);
+
+    // 2. Empty string "" and nullptr reset service name to "Bluepad32":
+    posix_imgui_request_set_ble_service_name("");
+    posix_imgui_process_pending_commands();
+    TEST_ASSERT(std::strcmp(posix_imgui_get_ble_service_name(), "Bluepad32") == 0);
+    TEST_ASSERT(std::strcmp(uni_bt_service_get_name(), "Bluepad32") == 0);
+
+    posix_imgui_request_set_ble_service_name("CustomTemp");
+    posix_imgui_request_set_ble_service_name(nullptr);
+    posix_imgui_process_pending_commands();
+    TEST_ASSERT(std::strcmp(posix_imgui_get_ble_service_name(), "Bluepad32") == 0);
+    TEST_ASSERT(std::strcmp(uni_bt_service_get_name(), "Bluepad32") == 0);
+
+    // 3. Service Password > 31 bytes clamped to 31 bytes (UNI_BT_SERVICE_PASSWORD_MAX_LEN):
+    posix_imgui_request_set_ble_service_password("1234567890123456789012345678901_EXTRA");
+    posix_imgui_process_pending_commands();
+    TEST_ASSERT(std::strlen(posix_imgui_get_ble_service_password()) == UNI_BT_SERVICE_PASSWORD_MAX_LEN);
+    TEST_ASSERT(std::strcmp(posix_imgui_get_ble_service_password(), "1234567890123456789012345678901") == 0);
+    TEST_ASSERT(std::strcmp(uni_bt_service_get_password(), "1234567890123456789012345678901") == 0);
+
+    // 4. Empty string "" and nullptr clear service password to "":
+    posix_imgui_request_set_ble_service_password("");
+    posix_imgui_process_pending_commands();
+    TEST_ASSERT(std::strcmp(posix_imgui_get_ble_service_password(), "") == 0);
+    TEST_ASSERT(!uni_bt_service_is_password_required());
+
+    posix_imgui_request_set_ble_service_password("temp_pw");
+    posix_imgui_request_set_ble_service_password(nullptr);
+    posix_imgui_process_pending_commands();
+    TEST_ASSERT(std::strcmp(posix_imgui_get_ble_service_password(), "") == 0);
+    TEST_ASSERT(!uni_bt_service_is_password_required());
+
+    // 5. Getter Buffer Boundary Guards (out_buf == nullptr, out_len == 0, out_len == 1, out_len == 5):
+    posix_imgui_request_set_ble_service_name("Bluepad32 rc car");
+    posix_imgui_request_set_ble_service_password("hunter2");
+    posix_imgui_process_pending_commands();
+
+    posix_imgui_get_ble_service_name(nullptr, 16);
+    posix_imgui_get_ble_service_password(nullptr, 16);
+
+    char guard_buf[16];
+    std::memset(guard_buf, 'X', sizeof(guard_buf));
+    posix_imgui_get_ble_service_name(guard_buf, 0);
+    posix_imgui_get_ble_service_password(guard_buf, 0);
+    TEST_ASSERT(guard_buf[0] == 'X');
+
+    std::memset(guard_buf, 'Y', sizeof(guard_buf));
+    posix_imgui_get_ble_service_name(guard_buf, 1);
+    TEST_ASSERT(guard_buf[0] == '\0' && guard_buf[1] == 'Y');
+
+    std::memset(guard_buf, 'Y', sizeof(guard_buf));
+    posix_imgui_get_ble_service_password(guard_buf, 1);
+    TEST_ASSERT(guard_buf[0] == '\0' && guard_buf[1] == 'Y');
+
+    std::memset(guard_buf, 'Z', sizeof(guard_buf));
+    posix_imgui_get_ble_service_name(guard_buf, 5);
+    TEST_ASSERT(std::strcmp(guard_buf, "Blue") == 0 && guard_buf[5] == 'Z');
+
+    std::memset(guard_buf, 'Z', sizeof(guard_buf));
+    posix_imgui_get_ble_service_password(guard_buf, 5);
+    TEST_ASSERT(std::strcmp(guard_buf, "hunt") == 0 && guard_buf[5] == 'Z');
+
+    posix_imgui_reset_for_test();
+}
+
+/// Test 28: Verifies headless `DemoScene` Preferences & Status Bar rendering across
+/// State 1 (Enabled, `"Bluepad32 rc car"`, Open), State 2 (Enabled, `"Bluepad32 on esp32"`, Password Protected),
+/// and State 3 (Disabled) with zero `IM_ASSERT` failures.
+void test_demo_scene_headless_preferences_ble_service_controls_and_status_bar() {
+    btstack_run_loop_deinit();
+    btstack_run_loop_init(btstack_run_loop_posix_get_instance());
+    posix_imgui_reset_for_test();
+
+    IMGUI_CHECKVERSION();
+    ImGuiContext* ctx = ImGui::CreateContext();
+    TEST_ASSERT(ctx != nullptr);
+
+    ImGuiIO& io = ImGui::GetIO();
+    io.IniFilename = nullptr;
+    io.DisplaySize = ImVec2(1280.0f, 800.0f);
+    io.DeltaTime = 1.0f / 60.0f;
+    io.Fonts->Build();
+
+    DemoScene demo_scene;
+
+    struct BleUiStateCase {
+        bool enabled;
+        const char* name;
+        const char* password;
+    };
+    constexpr std::array<BleUiStateCase, 3> kCases = {{
+        {true, "Bluepad32 rc car", ""},
+        {true, "Bluepad32 on esp32", "secret"},
+        {false, "Bluepad32 on esp32", "secret"},
+    }};
+
+    for (const BleUiStateCase& tc : kCases) {
+        posix_imgui_request_set_ble_service_enabled(tc.enabled);
+        posix_imgui_request_set_ble_service_name(tc.name);
+        posix_imgui_request_set_ble_service_password(tc.password);
+        posix_imgui_process_pending_commands();
+
+        // Render Preferences view
+        demo_scene.SetPreferencesActiveForTest(true);
+        ImGui::NewFrame();
+        demo_scene.DoFrame();
+        ImGui::Render();
+        ImDrawData* pref_draw = ImGui::GetDrawData();
+        TEST_ASSERT(pref_draw != nullptr && pref_draw->Valid && pref_draw->CmdListsCount > 0);
+
+        // Render main controller view with Status Bar
+        demo_scene.SetPreferencesActiveForTest(false);
+        ImGui::NewFrame();
+        demo_scene.DoFrame();
+        ImGui::Render();
+        ImDrawData* main_draw = ImGui::GetDrawData();
+        TEST_ASSERT(main_draw != nullptr && main_draw->Valid && main_draw->CmdListsCount > 0);
+    }
+
+    ImGui::DestroyContext(ctx);
+    posix_imgui_reset_for_test();
+}
+
 }  // namespace
 
 int main() {
@@ -2060,6 +2346,12 @@ int main() {
     RUN_TEST(test_parser_device_extra_info_all_parsers_and_enum_bounds);
     RUN_TEST(test_snapshot_device_extra_info_ready_async_update_and_fallbacks);
     RUN_TEST(test_demo_scene_headless_info_tab_with_populated_and_empty_device_extra_info);
+
+    // Suite I
+    RUN_TEST(test_ble_service_cli_flags_and_init_parsing);
+    RUN_TEST(test_ble_service_platform_getters_setters_and_command_queue);
+    RUN_TEST(test_ble_service_string_truncation_and_null_safety);
+    RUN_TEST(test_demo_scene_headless_preferences_ble_service_controls_and_status_bar);
 
     std::printf("\nSummary: %d/%d tests passed.\n", g_tests_run - g_tests_failed, g_tests_run);
     return g_tests_failed == 0 ? EXIT_SUCCESS : EXIT_FAILURE;

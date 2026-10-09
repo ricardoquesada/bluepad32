@@ -26,6 +26,18 @@ extern "C" {
 // For more configurations, please look at the Kconfig file, or just do:
 // "idf.py menuconfig" -> "Component config" -> "Bluepad32"
 
+#ifndef CONFIG_BLUEPAD32_BLE_SERVICE_ENABLED
+#define CONFIG_BLUEPAD32_BLE_SERVICE_ENABLED 1
+#endif
+
+#ifndef CONFIG_BLUEPAD32_BLE_SERVICE_NAME
+#define CONFIG_BLUEPAD32_BLE_SERVICE_NAME "Bluepad32"
+#endif
+
+#ifndef CONFIG_BLUEPAD32_BLE_SERVICE_PASSWORD
+#define CONFIG_BLUEPAD32_BLE_SERVICE_PASSWORD ""
+#endif
+
 #ifdef __cplusplus
 }
 #endif

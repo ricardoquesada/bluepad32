@@ -1,9 +1,9 @@
 // Bluepad32 BLE GATT Profile Definition
 // Primary Service UUID: 4627C4A4-AC00-46B9-B688-AFC5C1BF7F63
-// Characteristics are numbered contiguously from AC01 through AC0C.
+// Characteristics are numbered contiguously from AC01 through AC0E.
 
 PRIMARY_SERVICE, GAP_SERVICE
-CHARACTERISTIC, GAP_DEVICE_NAME, READ, "Bluepad32"
+CHARACTERISTIC, GAP_DEVICE_NAME, READ | DYNAMIC,
 
 PRIMARY_SERVICE, GATT_SERVICE
 CHARACTERISTIC, GATT_DATABASE_HASH, READ,
@@ -50,3 +50,10 @@ CHARACTERISTIC, 4627C4A4-AC0B-46B9-B688-AFC5C1BF7F63, WRITE | DYNAMIC
 // AC0C: Reset / reboot the Bluepad32 device immediately (uint8_t: 1=reboot)
 CHARACTERISTIC, 4627C4A4-AC0C-46B9-B688-AFC5C1BF7F63, WRITE | DYNAMIC
 
+// AC0D: BLE service advertised device name (UTF-8, 1..29 bytes, no NUL terminator)
+CHARACTERISTIC, 4627C4A4-AC0D-46B9-B688-AFC5C1BF7F63, READ | WRITE | DYNAMIC,
+
+// AC0E: BLE service password authentication gate
+// Read returns uint8_t: 0=open (no password), 1=password required (locked), 2=authenticated (unlocked)
+// Write submits UTF-8 password (1..31 bytes) to authenticate the current BLE connection
+CHARACTERISTIC, 4627C4A4-AC0E-46B9-B688-AFC5C1BF7F63, READ | WRITE | DYNAMIC,

@@ -186,6 +186,13 @@ class DemoScene {
     bool mAutoAcceptMice = false;         ///< If true, auto-accepts physical Bluetooth mice (default: false).
     bool mAutoAcceptKeyboards = false;    ///< If true, auto-accepts physical Bluetooth keyboards (default: false).
     bool mImuPlotPaused = false;          ///< If true, freezes IMU history ring buffers.
+
+    bool mBleServiceEnabled = true;  ///< If true, enables the Bluepad32 BLE configuration GATT service.
+    std::array<char, UNI_BT_SERVICE_NAME_MAX_LEN + 1> mBleServiceName{
+        "Bluepad32"};  ///< Editable BLE service advertised name buffer (max 29 UTF-8 bytes).
+    std::array<char, UNI_BT_SERVICE_PASSWORD_MAX_LEN + 1> mBleServicePassword{
+        ""};                        ///< Editable BLE service session password buffer (max 31 UTF-8 bytes).
+    bool mBleShowPassword = false;  ///< If true, reveals the BLE service password characters in the Preferences UI.
 };
 
 /// Top-level convenience alias for per-slot UI state inspection in unit tests.

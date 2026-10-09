@@ -18,8 +18,26 @@
 // 3. `populate_compact_device()` is the single source of truth for synchronizing
 //    `compact_devices[]` across `init`, `connected`, `ready`, and `disconnected`
 //    lifecycle transitions.
+// 4. Dual-PDU Service Identity (`ADV_IND` + `SCAN_RSP`, `0x2A00`, `AC0D`):
+//    Because Legacy BLE advertising PDUs are capped at 31 bytes and the Flags (3B)
+//    plus 128-bit Bluepad32 Service UUID (18B) consume 21 bytes in `ADV_IND`,
+//    `update_adv_and_scan_rsp()` places up to 8 bytes of the service name in
+//    `ADV_IND` (`0x09` Complete Local Name if `<= 8` bytes, or `0x08` Shortened
+//    Local Name if `> 8` bytes) and places the full `0x09` Complete Local Name
+//    (up to 29 UTF-8 bytes) in `SCAN_RSP` via `gap_scan_response_set_data()`.
+//    Both `GAP_DEVICE_NAME` (`0x2A00`, handle `0x0003`) and `AC0D` (handle `0x0022`)
+//    are `DYNAMIC` so GATT reads and writes reflect runtime renames immediately.
+// 5. Per-Connection Password Authentication Gate (`AC0E`, handle `0x0024`):
+//    Public discovery characteristics (`0x2A00`, `AC01`, `AC0D` read, `AC0E` read/write)
+//    are always accessible. When a non-empty password (`1..31` bytes) is configured,
+//    protected reads (`AC02`–`AC09`) return `ATT_READ_ERROR_CODE_OFFSET | ATT_ERROR_INSUFFICIENT_AUTHENTICATION`
+//    (`0xfe05`), and protected writes (`AC03`–`AC0D` and `AC05` CCCD `0x0012`) return
+//    `ATT_ERROR_INSUFFICIENT_AUTHENTICATION` (`0x05`) until the client writes the
+//    matching password to `AC0E` on that connection handle.
 
 #include "bt/uni_bt_service.h"
+
+#include <string.h>
 
 #include <btstack.h>
 
@@ -27,9 +45,12 @@
 #include "bt/uni_bt_allowlist.h"
 #include "bt/uni_bt_le.h"
 #include "bt/uni_bt_service.gatt.h"
+#include "bt/uni_bt_setup.h"
 #include "controller/uni_gamepad.h"
 #include "uni_common.h"
+#include "uni_config.h"
 #include "uni_log.h"
+#include "uni_property.h"
 #include "uni_system.h"
 #include "uni_version.h"
 #include "uni_virtual_device.h"
@@ -40,6 +61,10 @@
 
 // Max number of clients that can connect to the service at the same time.
 #define MAX_NR_CLIENT_CONNECTIONS 1
+
+// Maximum UTF-8 bytes of the service name that fit alongside Flags (3B) + 128-bit UUID (18B)
+// + AD header (2B) inside the 31-byte Legacy Primary Advertising PDU (ADV_IND).
+#define ADV_PRIMARY_NAME_MAX_LEN 8
 
 // Wire representation of a single controller slot transmitted over characteristic AC05.
 //
@@ -69,9 +94,10 @@ typedef struct __attribute((packed)) {
 } compact_device_t;
 _Static_assert(sizeof(compact_device_t) == 16, "compact_device_t must be 16 bytes");
 
-// Per-client GATT connection state and notification subscription metadata.
+// Per-client GATT connection state, notification subscription, and session authentication metadata.
 typedef struct {
     bool notification_enabled;
+    bool authenticated;
     uint16_t value_handle;
     hci_con_handle_t connection_handle;
 } client_connection_t;
@@ -85,22 +111,27 @@ static int notification_connection_idx;
 static int notification_device_idx;
 
 static compact_device_t compact_devices[CONFIG_BLUEPAD32_MAX_DEVICES];
-static bool service_enabled;
+static bool config_loaded;
+static bool service_enabled = true;
+static bool service_initialized;
 
-// clang-format off
-static const uint8_t adv_data[] = {
-    // Flags general discoverable
-    2, BLUETOOTH_DATA_TYPE_FLAGS, APP_AD_FLAGS,
-    // Name
-    5, BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME,'B', 'P', '3', '2',
-    // 4627C4A4-AC00-46B9-B688-AFC5C1BF7F63
-    17, BLUETOOTH_DATA_TYPE_COMPLETE_LIST_OF_128_BIT_SERVICE_CLASS_UUIDS,
+static char service_name[UNI_BT_SERVICE_NAME_MAX_LEN + 1];
+static char service_password[UNI_BT_SERVICE_PASSWORD_MAX_LEN + 1];
+
+// Static buffers passed to BTstack's gap_advertisements_set_data() and gap_scan_response_set_data(),
+// which store raw pointers without copying.
+static uint8_t adv_data[31];
+static uint8_t adv_data_len;
+static uint8_t scan_rsp_data[31];
+static uint8_t scan_rsp_data_len;
+
+// 128-bit Bluepad32 Service UUID (4627C4A4-AC00-46B9-B688-AFC5C1BF7F63) in little-endian wire order.
+static const uint8_t k_service_uuid128_le[16] = {
     0x63, 0x7F, 0xBF, 0xC1, 0xC5, 0xAF, 0x88, 0xB6, 0xB9, 0x46, 0x00, 0xAC, 0xA4, 0xC4, 0x27, 0x46,
 };
-_Static_assert(sizeof(adv_data) <= 31, "adv_data too big");
-// clang-format on
-static const int adv_data_len = sizeof(adv_data);
 
+static void ensure_config_loaded(void);
+static void update_adv_and_scan_rsp(void);
 static void uni_att_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
 static int uni_att_write_callback(hci_con_handle_t con_handle,
                                   uint16_t att_handle,
@@ -114,10 +145,114 @@ static uint16_t uni_att_read_callback(hci_con_handle_t conn_handle,
                                       uint8_t* buffer,
                                       uint16_t buffer_size);
 static client_connection_t* connection_for_conn_handle(hci_con_handle_t conn_handle);
+static client_connection_t* connection_or_alloc_for_conn_handle(hci_con_handle_t conn_handle);
+static bool is_conn_authenticated(hci_con_handle_t conn_handle);
+static bool constant_time_password_matches(const uint8_t* candidate, uint16_t candidate_len, const char* expected);
 static void populate_compact_device(int idx, const uni_hid_device_t* d);
 static bool next_notify_device(void);
 static void notify_client(void);
 static void maybe_notify_client(void);
+
+// Guards GAP advertising calls in fuzzing/unit-test builds (`FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION`)
+// where setters may be invoked before `hci_init()` allocates `hci_stack`.
+static bool is_hci_stack_ready(void) {
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+    return hci_get_stack() != NULL;
+#else
+    return true;
+#endif
+}
+
+// Rebuilds both the 31-byte Primary Advertising PDU (`adv_data`) and the 31-byte
+// Scan Response PDU (`scan_rsp_data`), and registers them with GAP when the
+// BLE service is initialized.
+static void update_adv_and_scan_rsp(void) {
+    size_t full_name_len = strlen(service_name);
+    if (full_name_len > UNI_BT_SERVICE_NAME_MAX_LEN) {
+        full_name_len = UNI_BT_SERVICE_NAME_MAX_LEN;
+    }
+    size_t primary_name_len = (full_name_len <= ADV_PRIMARY_NAME_MAX_LEN) ? full_name_len : ADV_PRIMARY_NAME_MAX_LEN;
+
+    // 1. Primary Advertising PDU (ADV_IND, <= 31 bytes):
+    //    [0..2]   Flags (3 bytes)
+    //    [3..20]  Complete List of 128-bit Service Class UUIDs (18 bytes)
+    //    [21..]   Complete Local Name (0x09) if full_name_len <= 8, else Shortened Local Name (0x08) (2 +
+    //    primary_name_len bytes)
+    uint8_t pos = 0;
+    memset(adv_data, 0, sizeof(adv_data));
+    adv_data[pos++] = 2;
+    adv_data[pos++] = BLUETOOTH_DATA_TYPE_FLAGS;
+    adv_data[pos++] = APP_AD_FLAGS;
+
+    adv_data[pos++] = 17;
+    adv_data[pos++] = BLUETOOTH_DATA_TYPE_COMPLETE_LIST_OF_128_BIT_SERVICE_CLASS_UUIDS;
+    memcpy(&adv_data[pos], k_service_uuid128_le, sizeof(k_service_uuid128_le));
+    pos += (uint8_t)sizeof(k_service_uuid128_le);
+
+    adv_data[pos++] = (uint8_t)(1 + primary_name_len);
+    adv_data[pos++] = (full_name_len <= ADV_PRIMARY_NAME_MAX_LEN) ? BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME
+                                                                  : BLUETOOTH_DATA_TYPE_SHORTENED_LOCAL_NAME;
+    if (primary_name_len > 0) {
+        memcpy(&adv_data[pos], service_name, primary_name_len);
+        pos += (uint8_t)primary_name_len;
+    }
+    adv_data_len = pos;
+
+    // 2. Scan Response PDU (SCAN_RSP, <= 31 bytes):
+    //    Carries the full Complete Local Name (0x09) up to 29 UTF-8 bytes.
+    memset(scan_rsp_data, 0, sizeof(scan_rsp_data));
+    scan_rsp_data[0] = (uint8_t)(1 + full_name_len);
+    scan_rsp_data[1] = BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME;
+    if (full_name_len > 0) {
+        memcpy(&scan_rsp_data[2], service_name, full_name_len);
+    }
+    scan_rsp_data_len = (uint8_t)(2 + full_name_len);
+
+    if (service_initialized && is_hci_stack_ready()) {
+        gap_advertisements_set_data(adv_data_len, adv_data);
+        gap_scan_response_set_data(scan_rsp_data_len, scan_rsp_data);
+    }
+}
+
+// Lazily loads BLE service configuration from `uni_property` on first access.
+//
+// Why copy `UNI_PROPERTY_IDX_BLE_SERVICE_NAME` into `service_name` BEFORE reading
+// `UNI_PROPERTY_IDX_BLE_SERVICE_PASSWORD`:
+// Both `uni_property_btstack_tlv.c` and `uni_property_esp32.c` return string property
+// values in a single shared static buffer (`str_ret[128]`). Copying the name immediately
+// prevents the subsequent password lookup from overwriting the name buffer.
+static void ensure_config_loaded(void) {
+    if (config_loaded)
+        return;
+    config_loaded = true;
+
+    for (int i = 0; i < MAX_NR_CLIENT_CONNECTIONS; i++) {
+        client_connections[i].connection_handle = HCI_CON_HANDLE_INVALID;
+    }
+
+    uni_property_value_t en_val = uni_property_get(UNI_PROPERTY_IDX_BLE_SERVICE_ENABLED);
+    service_enabled = (en_val.u8 != 0);
+
+    uni_property_value_t name_val = uni_property_get(UNI_PROPERTY_IDX_BLE_SERVICE_NAME);
+    const char* src_name = (name_val.str && name_val.str[0] != '\0') ? name_val.str : CONFIG_BLUEPAD32_BLE_SERVICE_NAME;
+    if (!src_name || src_name[0] == '\0') {
+        src_name = "Bluepad32";
+    }
+    memset(service_name, 0, sizeof(service_name));
+    strncpy(service_name, src_name, UNI_BT_SERVICE_NAME_MAX_LEN);
+    service_name[UNI_BT_SERVICE_NAME_MAX_LEN] = '\0';
+
+    uni_property_value_t pass_val = uni_property_get(UNI_PROPERTY_IDX_BLE_SERVICE_PASSWORD);
+    const char* src_pass = pass_val.str ? pass_val.str : CONFIG_BLUEPAD32_BLE_SERVICE_PASSWORD;
+    if (!src_pass) {
+        src_pass = "";
+    }
+    memset(service_password, 0, sizeof(service_password));
+    strncpy(service_password, src_pass, UNI_BT_SERVICE_PASSWORD_MAX_LEN);
+    service_password[UNI_BT_SERVICE_PASSWORD_MAX_LEN] = '\0';
+
+    update_adv_and_scan_rsp();
+}
 
 // Synchronizes `compact_devices[idx]` with the live state of HID device slot `d`.
 //
@@ -143,9 +278,12 @@ static void populate_compact_device(int idx, const uni_hid_device_t* d) {
     compact_devices[idx].controller_subtype = (uint8_t)d->controller_subtype;
 }
 
+// Returns `true` only if a BLE client is connected, has subscribed to `AC05` notifications,
+// and has satisfied the `AC0E` password authentication gate.
 static bool is_notify_client_valid(void) {
     return ((client_connections[notification_connection_idx].connection_handle != HCI_CON_HANDLE_INVALID) &&
-            (client_connections[notification_connection_idx].notification_enabled));
+            (client_connections[notification_connection_idx].notification_enabled) &&
+            is_conn_authenticated(client_connections[notification_connection_idx].connection_handle));
 }
 
 // Advances the round-robin slot cursor for 23-byte MTU single-slot notifications.
@@ -207,19 +345,42 @@ static void notify_client(void) {
 }
 
 // Requests a BTstack `ATT_EVENT_CAN_SEND_NOW` callback if any connected client
-// has subscribed to AC05 notifications.
+// has subscribed to AC05 notifications and is authenticated.
 static void maybe_notify_client(void) {
     client_connection_t* ctx = NULL;
 
     for (int i = 0; i < MAX_NR_CLIENT_CONNECTIONS; i++) {
         if (client_connections[i].connection_handle != HCI_CON_HANDLE_INVALID &&
-            client_connections[i].notification_enabled) {
+            client_connections[i].notification_enabled &&
+            is_conn_authenticated(client_connections[i].connection_handle)) {
             ctx = &client_connections[i];
             break;
         }
     }
     if (ctx)
         att_server_request_can_send_now_event(ctx->connection_handle);
+}
+
+// Compares a candidate password payload (`candidate[0..candidate_len-1]`) against the
+// NUL-terminated `expected` password without early-return branching on byte mismatches,
+// preventing byte-by-byte timing side-channel attacks over ATT writes to `AC0E`.
+static bool constant_time_password_matches(const uint8_t* candidate, uint16_t candidate_len, const char* expected) {
+    size_t expected_len = strlen(expected);
+    uint8_t diff = (candidate_len == expected_len) ? 0 : 1;
+    for (uint16_t i = 0; i < candidate_len; i++) {
+        uint8_t exp_byte = (i < expected_len) ? (uint8_t)expected[i] : 0;
+        diff |= (uint8_t)(candidate[i] ^ exp_byte);
+    }
+    return diff == 0;
+}
+
+// Returns `true` if the BLE service is open (`service_password == ""`) or if the
+// client connection identified by `conn_handle` has unlocked its session via `AC0E`.
+static bool is_conn_authenticated(hci_con_handle_t conn_handle) {
+    if (!uni_bt_service_is_password_required())
+        return true;
+    client_connection_t* ctx = connection_for_conn_handle(conn_handle);
+    return ctx != NULL && ctx->authenticated;
 }
 
 static int uni_att_write_callback(hci_con_handle_t con_handle,
@@ -229,15 +390,45 @@ static int uni_att_write_callback(hci_con_handle_t con_handle,
                                   uint8_t* buffer,
                                   uint16_t buffer_size) {
     ARG_UNUSED(transaction_mode);
+    ensure_config_loaded();
 
     logd("uni_att_write_callback: con handle=%#x, att_handle=%#x, offset=%d\n", con_handle, att_handle, offset);
     //    printf_hexdump(buffer, buffer_size);
 
     client_connection_t* ctx;
 
+    // Handle AC0E (Password Authentication Gate) first so unauthenticated clients can unlock the session.
+    if (att_handle == ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE) {
+        if (offset != 0)
+            return ATT_ERROR_REQUEST_NOT_SUPPORTED;
+        if (buffer_size == 0 || buffer_size > UNI_BT_SERVICE_PASSWORD_MAX_LEN)
+            return ATT_ERROR_INVALID_ATTRIBUTE_VALUE_LENGTH;
+
+        ctx = connection_or_alloc_for_conn_handle(con_handle);
+        if (!ctx)
+            return ATT_ERROR_REQUEST_NOT_SUPPORTED;
+
+        if (!uni_bt_service_is_password_required()) {
+            ctx->authenticated = true;
+            return ATT_ERROR_SUCCESS;
+        }
+
+        if (!constant_time_password_matches(buffer, buffer_size, service_password)) {
+            ctx->authenticated = false;
+            logi("BLE Service: Authentication failed for handle %#x\n", con_handle);
+            return ATT_ERROR_INSUFFICIENT_AUTHENTICATION;
+        }
+
+        ctx->authenticated = true;
+        logi("BLE Service: Client authenticated for handle %#x\n", con_handle);
+        return ATT_ERROR_SUCCESS;
+    }
+
     switch (att_handle) {
         case ATT_CHARACTERISTIC_4627C4A4_AC03_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
             // AC03: Whether to enable BLE connections (1-byte boolean).
+            if (!is_conn_authenticated(con_handle))
+                return ATT_ERROR_INSUFFICIENT_AUTHENTICATION;
             if (buffer_size != 1 || offset != 0)
                 return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             bool enabled = buffer[0];
@@ -246,6 +437,8 @@ static int uni_att_write_callback(hci_con_handle_t con_handle,
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC04_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
             // AC04: Start or stop scanning for new controller connections (1-byte boolean).
+            if (!is_conn_authenticated(con_handle))
+                return ATT_ERROR_INSUFFICIENT_AUTHENTICATION;
             if (buffer_size != 1 || offset != 0)
                 return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             bool enabled = buffer[0];
@@ -257,11 +450,13 @@ static int uni_att_write_callback(hci_con_handle_t con_handle,
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC05_46B9_B688_AFC5C1BF7F63_01_CLIENT_CONFIGURATION_HANDLE: {
             // AC05 CCCD: Enable or disable notifications for connected controllers.
+            if (!is_conn_authenticated(con_handle))
+                return ATT_ERROR_INSUFFICIENT_AUTHENTICATION;
             if (buffer_size < 2)
                 return ATT_ERROR_INVALID_ATTRIBUTE_VALUE_LENGTH;
             if (offset != 0)
                 return ATT_ERROR_REQUEST_NOT_SUPPORTED;
-            ctx = connection_for_conn_handle(con_handle);
+            ctx = connection_or_alloc_for_conn_handle(con_handle);
             if (!ctx)
                 return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             ctx->notification_enabled =
@@ -277,6 +472,8 @@ static int uni_att_write_callback(hci_con_handle_t con_handle,
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
             // AC06: Controller mappings preset (0 = Xbox, 1 = Nintendo Switch, 2 = Custom).
+            if (!is_conn_authenticated(con_handle))
+                return ATT_ERROR_INSUFFICIENT_AUTHENTICATION;
             if (buffer_size != 1 || offset != 0)
                 return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             uint8_t type = buffer[0];
@@ -287,6 +484,8 @@ static int uni_att_write_callback(hci_con_handle_t con_handle,
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC07_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
             // AC07: Whether to enforce the Bluetooth MAC allowlist in connections.
+            if (!is_conn_authenticated(con_handle))
+                return ATT_ERROR_INSUFFICIENT_AUTHENTICATION;
             if (buffer_size != 1 || offset != 0)
                 return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             bool enabled = buffer[0];
@@ -299,6 +498,8 @@ static int uni_att_write_callback(hci_con_handle_t con_handle,
             // Why skip `00:00:00:00:00:00`: mobile BLE stacks (Android BluetoothGatt / iOS CoreBluetooth)
             // may reject 0-byte GATT writes, so clients clearing the last allowlist entry write a single
             // 6-byte all-zero sentinel (`00:00:00:00:00:00`), which clears the allowlist cleanly here.
+            if (!is_conn_authenticated(con_handle))
+                return ATT_ERROR_INSUFFICIENT_AUTHENTICATION;
             if (offset != 0)
                 return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             if ((buffer_size % sizeof(bd_addr_t)) != 0 ||
@@ -320,6 +521,8 @@ static int uni_att_write_callback(hci_con_handle_t con_handle,
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC09_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
             // AC09: Whether to enable virtual child devices (e.g., DualSense touchpad mouse).
+            if (!is_conn_authenticated(con_handle))
+                return ATT_ERROR_INSUFFICIENT_AUTHENTICATION;
             if (buffer_size != 1 || offset != 0)
                 return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             bool enabled = buffer[0];
@@ -331,6 +534,8 @@ static int uni_att_write_callback(hci_con_handle_t con_handle,
             // Both `uni_hid_device_disconnect(d)` and `uni_hid_device_delete(d)` must be called
             // (matching `CMD_DISCONNECT_DEVICE` in `uni_bt.c`) so the slot in `g_devices[]` is
             // freed for future controller connections instead of leaking.
+            if (!is_conn_authenticated(con_handle))
+                return ATT_ERROR_INSUFFICIENT_AUTHENTICATION;
             if (buffer_size != 1 || offset != 0)
                 return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             uint8_t idx = buffer[0];
@@ -345,6 +550,8 @@ static int uni_att_write_callback(hci_con_handle_t con_handle,
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC0B_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
             // AC0B: Delete stored Bluetooth bond keys.
+            if (!is_conn_authenticated(con_handle))
+                return ATT_ERROR_INSUFFICIENT_AUTHENTICATION;
             if (buffer_size != 1 || offset != 0)
                 return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             bool delete_keys = buffer[0];
@@ -355,12 +562,30 @@ static int uni_att_write_callback(hci_con_handle_t con_handle,
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC0C_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
             // AC0C: Reset / reboot the Bluepad32 microcontroller immediately.
+            if (!is_conn_authenticated(con_handle))
+                return ATT_ERROR_INSUFFICIENT_AUTHENTICATION;
             if (buffer_size != 1 || offset != 0)
                 return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             bool reset = buffer[0];
             if (!reset)
                 return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             uni_system_reboot();
+            break;
+        }
+        case ATT_CHARACTERISTIC_4627C4A4_AC0D_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
+            // AC0D: Set BLE service advertised device name (UTF-8, 1..29 bytes).
+            if (!is_conn_authenticated(con_handle))
+                return ATT_ERROR_INSUFFICIENT_AUTHENTICATION;
+            if (offset != 0)
+                return ATT_ERROR_REQUEST_NOT_SUPPORTED;
+            if (buffer_size == 0 || buffer_size > UNI_BT_SERVICE_NAME_MAX_LEN)
+                return ATT_ERROR_INVALID_ATTRIBUTE_VALUE_LENGTH;
+            char new_name[UNI_BT_SERVICE_NAME_MAX_LEN + 1];
+            memcpy(new_name, buffer, buffer_size);
+            new_name[buffer_size] = '\0';
+            if (new_name[0] == '\0')
+                return ATT_ERROR_INVALID_ATTRIBUTE_VALUE_LENGTH;
+            uni_bt_service_set_name(new_name);
             break;
         }
         default:
@@ -375,44 +600,72 @@ static uint16_t uni_att_read_callback(hci_con_handle_t conn_handle,
                                       uint16_t offset,
                                       uint8_t* buffer,
                                       uint16_t buffer_size) {
-    ARG_UNUSED(conn_handle);
+    ensure_config_loaded();
 
     switch (att_handle) {
+        case ATT_CHARACTERISTIC_GAP_DEVICE_NAME_01_VALUE_HANDLE:
+        case ATT_CHARACTERISTIC_4627C4A4_AC0D_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
+            // GAP Device Name (0x2A00) and AC0D (Service Name): publicly readable without authentication.
+            return att_read_callback_handle_blob((const uint8_t*)service_name, (uint16_t)strlen(service_name), offset,
+                                                 buffer, buffer_size);
         case ATT_CHARACTERISTIC_4627C4A4_AC01_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
-            // AC01: Firmware version string (UTF-8, without NUL terminator).
+            // AC01: Firmware version string (UTF-8, without NUL terminator), publicly readable.
             return att_read_callback_handle_blob((const uint8_t*)uni_version, (uint16_t)strlen(uni_version), offset,
                                                  buffer, buffer_size);
+        case ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
+            // AC0E: Session authentication status (0 = open, 1 = password required, 2 = authenticated).
+            uint8_t state = UNI_BT_SERVICE_AUTH_STATE_OPEN;
+            if (uni_bt_service_is_password_required()) {
+                state = is_conn_authenticated(conn_handle) ? UNI_BT_SERVICE_AUTH_STATE_AUTHENTICATED
+                                                           : UNI_BT_SERVICE_AUTH_STATE_REQUIRED;
+            }
+            return att_read_callback_handle_blob(&state, (uint16_t)1, offset, buffer, buffer_size);
+        }
         case ATT_CHARACTERISTIC_4627C4A4_AC02_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
             // AC02: Max supported concurrent connections.
+            if (!is_conn_authenticated(conn_handle))
+                return (uint16_t)(ATT_READ_ERROR_CODE_OFFSET | ATT_ERROR_INSUFFICIENT_AUTHENTICATION);
             const uint8_t max = CONFIG_BLUEPAD32_MAX_DEVICES;
             return att_read_callback_handle_blob(&max, (uint16_t)1, offset, buffer, buffer_size);
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC03_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
             // AC03: Whether BLE controller connections are enabled.
+            if (!is_conn_authenticated(conn_handle))
+                return (uint16_t)(ATT_READ_ERROR_CODE_OFFSET | ATT_ERROR_INSUFFICIENT_AUTHENTICATION);
             const uint8_t enabled = uni_bt_le_is_enabled();
             return att_read_callback_handle_blob(&enabled, (uint16_t)1, offset, buffer, buffer_size);
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC04_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
             // AC04: Whether controller scanning/inquiry is active.
+            if (!is_conn_authenticated(conn_handle))
+                return (uint16_t)(ATT_READ_ERROR_CODE_OFFSET | ATT_ERROR_INSUFFICIENT_AUTHENTICATION);
             const uint8_t scanning = uni_bt_is_scanning();
             return att_read_callback_handle_blob(&scanning, (uint16_t)1, offset, buffer, buffer_size);
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC05_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
             // AC05: All controller slots (4 * 16 = 64 bytes).
+            if (!is_conn_authenticated(conn_handle))
+                return (uint16_t)(ATT_READ_ERROR_CODE_OFFSET | ATT_ERROR_INSUFFICIENT_AUTHENTICATION);
             return att_read_callback_handle_blob((const void*)compact_devices, (uint16_t)sizeof(compact_devices),
                                                  offset, buffer, buffer_size);
         case ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
             // AC06: Active controller button mappings preset (0 = Xbox, 1 = Switch, 2 = Custom).
+            if (!is_conn_authenticated(conn_handle))
+                return (uint16_t)(ATT_READ_ERROR_CODE_OFFSET | ATT_ERROR_INSUFFICIENT_AUTHENTICATION);
             const uint8_t mappings_type = uni_gamepad_get_mappings_type();
             return att_read_callback_handle_blob(&mappings_type, (uint16_t)1, offset, buffer, buffer_size);
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC07_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
             // AC07: Whether Bluetooth MAC allowlist enforcement is enabled.
+            if (!is_conn_authenticated(conn_handle))
+                return (uint16_t)(ATT_READ_ERROR_CODE_OFFSET | ATT_ERROR_INSUFFICIENT_AUTHENTICATION);
             const uint8_t allowlist_enabled = uni_bt_allowlist_is_enabled();
             return att_read_callback_handle_blob(&allowlist_enabled, (uint16_t)1, offset, buffer, buffer_size);
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC08_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
             // AC08: Compacted list of non-zero MAC addresses currently in the allowlist.
+            if (!is_conn_authenticated(conn_handle))
+                return (uint16_t)(ATT_READ_ERROR_CODE_OFFSET | ATT_ERROR_INSUFFICIENT_AUTHENTICATION);
             const bd_addr_t* addresses = NULL;
             int total = 0;
             bd_addr_t compacted[CONFIG_BLUEPAD32_MAX_ALLOWLIST];
@@ -430,6 +683,8 @@ static uint16_t uni_att_read_callback(hci_con_handle_t conn_handle,
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC09_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
             // AC09: Whether virtual child devices are enabled.
+            if (!is_conn_authenticated(conn_handle))
+                return (uint16_t)(ATT_READ_ERROR_CODE_OFFSET | ATT_ERROR_INSUFFICIENT_AUTHENTICATION);
             const uint8_t virtual_enabled = uni_virtual_device_is_enabled();
             return att_read_callback_handle_blob(&virtual_enabled, (uint16_t)1, offset, buffer, buffer_size);
         }
@@ -451,13 +706,35 @@ static uint16_t uni_att_read_callback(hci_con_handle_t conn_handle,
     return 0;
 }
 
+// Looks up an existing `client_connection_t` slot matching `conn_handle`.
 static client_connection_t* connection_for_conn_handle(hci_con_handle_t conn_handle) {
-    int i;
-    for (i = 0; i < MAX_NR_CLIENT_CONNECTIONS; i++) {
+    for (int i = 0; i < MAX_NR_CLIENT_CONNECTIONS; i++) {
         if (client_connections[i].connection_handle == conn_handle)
             return &client_connections[i];
     }
     return NULL;
+}
+
+// Returns the existing `client_connection_t` slot for `conn_handle`, or claims a free
+// (`HCI_CON_HANDLE_INVALID`) slot if not yet registered.
+//
+// Why lazy allocation is needed in addition to `ATT_EVENT_CONNECTED`:
+// Unit tests that exercise ATT PDUs directly via `att_handle_request()` without first
+// injecting an `ATT_EVENT_CONNECTED` HCI event still need a per-connection slot to record
+// `AC05` CCCD subscriptions (`0x0012`) or `AC0E` password authentication state (`0x0024`).
+static client_connection_t* connection_or_alloc_for_conn_handle(hci_con_handle_t conn_handle) {
+    if (conn_handle == HCI_CON_HANDLE_INVALID)
+        return NULL;
+    client_connection_t* ctx = connection_for_conn_handle(conn_handle);
+    if (ctx)
+        return ctx;
+    ctx = connection_for_conn_handle(HCI_CON_HANDLE_INVALID);
+    if (!ctx)
+        return NULL;
+    memset(ctx, 0, sizeof(*ctx));
+    ctx->connection_handle = conn_handle;
+    ctx->authenticated = !uni_bt_service_is_password_required();
+    return ctx;
 }
 
 static void uni_att_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
@@ -471,15 +748,18 @@ static void uni_att_packet_handler(uint8_t packet_type, uint16_t channel, uint8_
         return;
 
     switch (hci_event_packet_get_type(packet)) {
-        case ATT_EVENT_CONNECTED:
-            // Claim a free client slot for the newly connected central.
-            ctx = connection_for_conn_handle(HCI_CON_HANDLE_INVALID);
+        case ATT_EVENT_CONNECTED: {
+            // Claim or reset the client slot for the newly connected central.
+            hci_con_handle_t handle = att_event_connected_get_handle(packet);
+            ctx = connection_or_alloc_for_conn_handle(handle);
             if (!ctx)
                 break;
-            ctx->connection_handle = att_event_connected_get_handle(packet);
+            ctx->notification_enabled = false;
+            ctx->authenticated = !uni_bt_service_is_password_required();
             mtu = att_server_get_mtu(ctx->connection_handle);
             logi("BLE Service: New client connected handle = %#x, mtu = %d\n", ctx->connection_handle, mtu);
             break;
+        }
         case ATT_EVENT_MTU_EXCHANGE_COMPLETE:
             mtu = att_event_mtu_exchange_complete_get_MTU(packet);
             ctx = connection_for_conn_handle(att_event_mtu_exchange_complete_get_handle(packet));
@@ -519,8 +799,16 @@ static void uni_att_packet_handler(uint8_t packet_type, uint16_t channel, uint8_
 }
 
 void uni_bt_service_deinit(void) {
+    service_initialized = false;
+    memset(&client_connections, 0, sizeof(client_connections));
+    for (int i = 0; i < MAX_NR_CLIENT_CONNECTIONS; i++) {
+        client_connections[i].connection_handle = HCI_CON_HANDLE_INVALID;
+    }
+    notification_device_idx = 0;
     att_server_deinit();
-    gap_advertisements_enable(false);
+    if (is_hci_stack_ready()) {
+        gap_advertisements_enable(false);
+    }
 }
 
 /*
@@ -528,7 +816,12 @@ void uni_bt_service_deinit(void) {
  * hydrates all `compact_devices[]` slots from `g_devices[]`, and enables BLE advertisements.
  */
 void uni_bt_service_init(void) {
-    logi("Starting Bluepad32 BLE service UUID: 4627C4A4-AC00-46B9-B688-AFC5C1BF7F63\n");
+    ensure_config_loaded();
+    service_enabled = true;
+    service_initialized = true;
+
+    logi("Starting Bluepad32 BLE service UUID: 4627C4A4-AC00-46B9-B688-AFC5C1BF7F63 (name='%s', auth=%s)\n",
+         service_name, uni_bt_service_is_password_required() ? "password" : "open");
 
     // Setup ATT server.
     att_server_init(profile_data, uni_att_read_callback, uni_att_write_callback);
@@ -552,25 +845,89 @@ void uni_bt_service_init(void) {
     // register for ATT events
     att_server_register_packet_handler(uni_att_packet_handler);
 
-    gap_advertisements_set_params(adv_int_min, adv_int_max, adv_type, 0, null_addr, 0x07, 0x00);
-    gap_advertisements_set_data(adv_data_len, (uint8_t*)adv_data);
-    gap_advertisements_enable(true);
+    if (is_hci_stack_ready()) {
+        gap_advertisements_set_params(adv_int_min, adv_int_max, adv_type, 0, null_addr, 0x07, 0x00);
+        update_adv_and_scan_rsp();
+        gap_advertisements_enable(true);
+    }
 }
 
 bool uni_bt_service_is_enabled(void) {
+    ensure_config_loaded();
     return service_enabled;
 }
 
 void uni_bt_service_set_enabled(bool enabled) {
-    if (enabled == service_enabled)
-        return;
-
+    ensure_config_loaded();
     service_enabled = enabled;
+    uni_property_set(UNI_PROPERTY_IDX_BLE_SERVICE_ENABLED, (uni_property_value_t){.u8 = enabled ? 1 : 0});
 
-    if (service_enabled)
-        uni_bt_service_init();
-    else
-        uni_bt_service_deinit();
+    // Only start/stop the ATT server if `uni_bt_setup` has already reached `SETUP_STATE_READY`.
+    // When called during early `platform->init()` (before `uni_bt_le_setup()` / `sm_init()`),
+    // `uni_bt_setup` will invoke `uni_bt_service_init()` at the proper point in the boot sequence.
+    if (enabled) {
+        if (!service_initialized && uni_bt_setup_is_ready()) {
+            uni_bt_service_init();
+        }
+    } else {
+        if (service_initialized && uni_bt_setup_is_ready()) {
+            uni_bt_service_deinit();
+        }
+    }
+}
+
+const char* uni_bt_service_get_name(void) {
+    ensure_config_loaded();
+    return service_name;
+}
+
+void uni_bt_service_set_name(const char* name) {
+    ensure_config_loaded();
+
+    const char* effective_name = (name && name[0] != '\0') ? name : CONFIG_BLUEPAD32_BLE_SERVICE_NAME;
+    if (!effective_name || effective_name[0] == '\0') {
+        effective_name = "Bluepad32";
+    }
+
+    memset(service_name, 0, sizeof(service_name));
+    strncpy(service_name, effective_name, UNI_BT_SERVICE_NAME_MAX_LEN);
+    service_name[UNI_BT_SERVICE_NAME_MAX_LEN] = '\0';
+
+    uni_property_set(UNI_PROPERTY_IDX_BLE_SERVICE_NAME, (uni_property_value_t){.str = service_name});
+    update_adv_and_scan_rsp();
+}
+
+const char* uni_bt_service_get_password(void) {
+    ensure_config_loaded();
+    return service_password;
+}
+
+void uni_bt_service_set_password(const char* password) {
+    ensure_config_loaded();
+
+    const char* effective_pass = password ? password : "";
+    memset(service_password, 0, sizeof(service_password));
+    strncpy(service_password, effective_pass, UNI_BT_SERVICE_PASSWORD_MAX_LEN);
+    service_password[UNI_BT_SERVICE_PASSWORD_MAX_LEN] = '\0';
+
+    uni_property_set(UNI_PROPERTY_IDX_BLE_SERVICE_PASSWORD, (uni_property_value_t){.str = service_password});
+
+    // Setting or rotating a non-empty password immediately re-locks any active client
+    // sessions and revokes `AC05` notification subscriptions until re-authenticated.
+    bool pass_required = (service_password[0] != '\0');
+    for (int i = 0; i < MAX_NR_CLIENT_CONNECTIONS; i++) {
+        if (pass_required) {
+            client_connections[i].authenticated = false;
+            client_connections[i].notification_enabled = false;
+        } else if (client_connections[i].connection_handle != HCI_CON_HANDLE_INVALID) {
+            client_connections[i].authenticated = true;
+        }
+    }
+}
+
+bool uni_bt_service_is_password_required(void) {
+    ensure_config_loaded();
+    return service_password[0] != '\0';
 }
 
 // Invoked from the BTstack task after a controller transitions to `UNI_BT_CONN_STATE_DEVICE_READY`

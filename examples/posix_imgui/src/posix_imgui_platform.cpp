@@ -17,6 +17,8 @@
  * Lock-Ordering Invariant (Deadlock Prevention):
  *   - `g_state_mutex` guards `g_devices[]`, `g_snapshots[]`, and `g_most_recent_connected_slot`.
  *   - `g_cmd_mutex` guards `g_cmd_queue` and `g_cmd_wakeup_pending`.
+ *   - `g_ble_service_mutex` guards `g_ble_service_name` and `g_ble_service_password` (leaf lock;
+ *     never held while acquiring `g_cmd_mutex`, `g_state_mutex`, or invoking Bluepad32/BTstack APIs).
  *   - `g_cmd_mutex` and `g_state_mutex` are NEVER held simultaneously. In
  *     `process_pending_commands()`, `g_cmd_queue` is swapped into a thread-local vector
  *     and `g_cmd_mutex` is unlocked BEFORE acquiring `g_state_mutex` or invoking any
@@ -79,6 +81,22 @@ struct SetAllowedDeviceTypesCmd {
     uint32_t allowed_types_mask;  ///< Bitwise OR of `PosixImguiDeviceTypeFlags`.
 };
 
+/// Command payload enabling or disabling the Bluepad32 BLE configuration service.
+struct SetBleServiceEnabledCmd {
+    bool enabled;  ///< True to enable the BLE configuration service; false to disable it.
+};
+
+/// Command payload updating the advertised Bluepad32 BLE configuration service name.
+struct SetBleServiceNameCmd {
+    std::array<char, UNI_BT_SERVICE_NAME_MAX_LEN + 1> name;  ///< Clamped NUL-terminated UTF-8 name (`1..29` bytes).
+};
+
+/// Command payload updating or clearing the Bluepad32 BLE configuration service password.
+struct SetBleServicePasswordCmd {
+    std::array<char, UNI_BT_SERVICE_PASSWORD_MAX_LEN + 1>
+        password;  ///< Clamped NUL-terminated UTF-8 password (`0..31` bytes).
+};
+
 /// Command payload requesting an orderly BTstack HCI power-down and run-loop exit.
 struct ShutdownCmd {};
 
@@ -90,8 +108,15 @@ struct ShutdownCmd {};
  *   cannot be accidentally read, and guarantees at compile time that `process_pending_commands()`
  *   exhaustively handles every command alternative.
  */
-using ControllerCommand = std::
-    variant<RumbleCmd, PlayerLedsCmd, LightbarColorCmd, SetVirtualDevicesCmd, SetAllowedDeviceTypesCmd, ShutdownCmd>;
+using ControllerCommand = std::variant<RumbleCmd,
+                                       PlayerLedsCmd,
+                                       LightbarColorCmd,
+                                       SetVirtualDevicesCmd,
+                                       SetAllowedDeviceTypesCmd,
+                                       SetBleServiceEnabledCmd,
+                                       SetBleServiceNameCmd,
+                                       SetBleServicePasswordCmd,
+                                       ShutdownCmd>;
 
 /// C++23 overload-set helper for dispatching `std::variant` alternatives via `std::visit`.
 template <class... Ts>
@@ -102,7 +127,7 @@ struct Overloaded : Ts... {
 int g_enhanced_mode = 0;  ///< Non-zero when `-e` / `--enhanced` CLI flag is passed.
 int g_delete_keys = 0;    ///< Non-zero when `-d` / `--delete` CLI flag is passed.
 /// True after `posix_imgui_init()` runs; false in headless unit tests where `hci_init()` is omitted.
-bool g_hci_initialized = false;
+std::atomic<bool> g_hci_initialized{false};
 
 // Guarded by `g_state_mutex`.
 std::mutex g_state_mutex;
@@ -122,6 +147,33 @@ btstack_context_callback_registration_t g_cmd_callback = {};
 std::atomic<bool> g_shutdown_requested{false};
 std::atomic<bool> g_virtual_devices_enabled{false};
 std::atomic<uint32_t> g_allowed_device_types_mask{POSIX_IMGUI_DEVICE_TYPE_DEFAULT};
+
+std::atomic<bool> g_ble_service_enabled{true};
+std::mutex g_ble_service_mutex;
+std::array<char, UNI_BT_SERVICE_NAME_MAX_LEN + 1> g_ble_service_name{"Bluepad32"};
+std::array<char, UNI_BT_SERVICE_PASSWORD_MAX_LEN + 1> g_ble_service_password{""};
+
+/// Normalizes a BLE service name (falling back to `"Bluepad32"` if null/empty and clamping to 29 bytes).
+[[nodiscard]] std::array<char, UNI_BT_SERVICE_NAME_MAX_LEN + 1> normalize_ble_service_name(const char* name) {
+    std::array<char, UNI_BT_SERVICE_NAME_MAX_LEN + 1> out{};
+    const char* effective = (name != nullptr && name[0] != '\0') ? name : CONFIG_BLUEPAD32_BLE_SERVICE_NAME;
+    if (effective == nullptr || effective[0] == '\0') {
+        effective = "Bluepad32";
+    }
+    std::strncpy(out.data(), effective, UNI_BT_SERVICE_NAME_MAX_LEN);
+    out[UNI_BT_SERVICE_NAME_MAX_LEN] = '\0';
+    return out;
+}
+
+/// Normalizes a BLE service password (mapping null to `""` and clamping to 31 bytes).
+[[nodiscard]] std::array<char, UNI_BT_SERVICE_PASSWORD_MAX_LEN + 1> normalize_ble_service_password(
+    const char* password) {
+    std::array<char, UNI_BT_SERVICE_PASSWORD_MAX_LEN + 1> out{};
+    const char* effective = (password != nullptr) ? password : "";
+    std::strncpy(out.data(), effective, UNI_BT_SERVICE_PASSWORD_MAX_LEN);
+    out[UNI_BT_SERVICE_PASSWORD_MAX_LEN] = '\0';
+    return out;
+}
 
 void posix_imgui_on_device_disconnected(uni_hid_device_t* d);
 
@@ -408,11 +460,29 @@ void process_pending_commands(void* context) {
                                disconnect_and_delete_device(dev);
                            }
                        },
+                       [](const SetBleServiceEnabledCmd& c) {
+                           g_ble_service_enabled.store(c.enabled, std::memory_order_release);
+                           uni_bt_service_set_enabled(c.enabled);
+                       },
+                       [](const SetBleServiceNameCmd& c) {
+                           {
+                               std::lock_guard<std::mutex> lock(g_ble_service_mutex);
+                               g_ble_service_name = c.name;
+                           }
+                           uni_bt_service_set_name(c.name.data());
+                       },
+                       [](const SetBleServicePasswordCmd& c) {
+                           {
+                               std::lock_guard<std::mutex> lock(g_ble_service_mutex);
+                               g_ble_service_password = c.password;
+                           }
+                           uni_bt_service_set_password(c.password.data());
+                       },
                        [](const ShutdownCmd&) {
                            g_shutdown_requested.store(true, std::memory_order_release);
                            // Guard against headless unit tests where `hci_init()` was not called
                            // (`hci_stack` is NULL inside BTstack).
-                           if (!g_hci_initialized) {
+                           if (!g_hci_initialized.load(std::memory_order_acquire)) {
                                btstack_run_loop_trigger_exit();
                                return;
                            }
@@ -464,28 +534,59 @@ void enqueue_command(const ControllerCommand& cmd) {
 // uni_platform Callbacks (Executed on Thread 2: BTstack Run-Loop Thread)
 // ============================================================================
 
-/// Initializes Bluepad32 platform options (`--enhanced`, `--delete`, `--ble`) during `uni_init()`.
+/// Initializes Bluepad32 platform options (`--enhanced`, `--delete`, `--ble`, `-N`, `-P`, `-S`) during `uni_init()`.
 void posix_imgui_init(int argc, const char** argv) {
     logi("posix_imgui: init()\n");
-    g_hci_initialized = true;
+    g_hci_initialized.store(true, std::memory_order_release);
     bool ble_enabled = true;
+    bool ble_service_enabled = true;
+    const char* ble_service_name = CONFIG_BLUEPAD32_BLE_SERVICE_NAME;
+    const char* ble_service_password = CONFIG_BLUEPAD32_BLE_SERVICE_PASSWORD;
 
     for (int i = 1; i < argc && argv != nullptr; i++) {
+        if (argv[i] == nullptr) {
+            continue;
+        }
         if (std::strcmp(argv[i], "--enhanced") == 0 || std::strcmp(argv[i], "-e") == 0) {
             g_enhanced_mode = 1;
             logi("Enhanced mode enabled\n");
-        }
-        if (std::strcmp(argv[i], "--delete") == 0 || std::strcmp(argv[i], "-d") == 0) {
+        } else if (std::strcmp(argv[i], "--delete") == 0 || std::strcmp(argv[i], "-d") == 0) {
             g_delete_keys = 1;
             logi("Stored keys will be deleted\n");
-        }
-        if ((std::strcmp(argv[i], "--ble") == 0 || std::strcmp(argv[i], "-b") == 0) && i + 1 < argc) {
+        } else if ((std::strcmp(argv[i], "--ble") == 0 || std::strcmp(argv[i], "-b") == 0) && i + 1 < argc &&
+                   argv[i + 1] != nullptr) {
             ble_enabled = std::atoi(argv[++i]) != 0;
+        } else if ((std::strcmp(argv[i], "--ble-service-name") == 0 || std::strcmp(argv[i], "--service-name") == 0 ||
+                    std::strcmp(argv[i], "-N") == 0) &&
+                   i + 1 < argc && argv[i + 1] != nullptr) {
+            ble_service_name = argv[++i];
+        } else if ((std::strcmp(argv[i], "--ble-service-password") == 0 ||
+                    std::strcmp(argv[i], "--service-password") == 0 || std::strcmp(argv[i], "-P") == 0) &&
+                   i + 1 < argc && argv[i + 1] != nullptr) {
+            ble_service_password = argv[++i];
+        } else if (std::strcmp(argv[i], "--no-ble-service") == 0 || std::strcmp(argv[i], "-S") == 0) {
+            ble_service_enabled = false;
+        } else if ((std::strcmp(argv[i], "--ble-service") == 0 || std::strcmp(argv[i], "--service") == 0) &&
+                   i + 1 < argc && argv[i + 1] != nullptr) {
+            ble_service_enabled = std::atoi(argv[++i]) != 0;
         }
     }
 
+    const auto norm_name = normalize_ble_service_name(ble_service_name);
+    const auto norm_pass = normalize_ble_service_password(ble_service_password);
+    {
+        std::lock_guard<std::mutex> lock(g_ble_service_mutex);
+        g_ble_service_name = norm_name;
+        g_ble_service_password = norm_pass;
+    }
+    g_ble_service_enabled.store(ble_service_enabled, std::memory_order_release);
+
+    uni_bt_service_set_name(norm_name.data());
+    uni_bt_service_set_password(norm_pass.data());
+    uni_bt_service_set_enabled(ble_service_enabled);
+
     uni_bt_le_set_enabled(ble_enabled);
-    logi("BLE enabled: %d\n", ble_enabled);
+    logi("BLE enabled: %d, BLE service enabled: %d, name: '%s'\n", ble_enabled, ble_service_enabled, norm_name.data());
     uni_gamepad_set_mappings_type(UNI_GAMEPAD_MAPPINGS_TYPE_XBOX);
 }
 
@@ -821,6 +922,103 @@ uint32_t posix_imgui_get_allowed_device_types(void) {
     return g_allowed_device_types_mask.load(std::memory_order_acquire);
 }
 
+void posix_imgui_request_set_ble_service_enabled(bool enabled) {
+    g_ble_service_enabled.store(enabled, std::memory_order_release);
+    // In single-threaded headless unit tests (before `posix_imgui_init()` sets `g_hci_initialized`),
+    // also update `uni_bt_service` synchronously. Once the multi-threaded runtime is active,
+    // all `uni_bt_service_*` calls are dispatched exclusively on Thread 2 via `g_cmd_queue`.
+    if (!g_hci_initialized.load(std::memory_order_acquire)) {
+        uni_bt_service_set_enabled(enabled);
+    }
+    enqueue_command(SetBleServiceEnabledCmd{
+        .enabled = enabled,
+    });
+}
+
+void posix_imgui_set_ble_service_enabled(bool enabled) {
+    posix_imgui_request_set_ble_service_enabled(enabled);
+}
+
+bool posix_imgui_is_ble_service_enabled(void) {
+    return g_ble_service_enabled.load(std::memory_order_acquire);
+}
+
+bool posix_imgui_get_ble_service_enabled(void) {
+    return posix_imgui_is_ble_service_enabled();
+}
+
+void posix_imgui_request_set_ble_service_name(const char* name) {
+    const auto norm = normalize_ble_service_name(name);
+    {
+        std::lock_guard<std::mutex> lock(g_ble_service_mutex);
+        g_ble_service_name = norm;
+    }
+    if (!g_hci_initialized.load(std::memory_order_acquire)) {
+        uni_bt_service_set_name(norm.data());
+    }
+    enqueue_command(SetBleServiceNameCmd{
+        .name = norm,
+    });
+}
+
+void posix_imgui_set_ble_service_name(const char* name) {
+    posix_imgui_request_set_ble_service_name(name);
+}
+
+void posix_imgui_get_ble_service_name(char* out_buf, size_t out_len) {
+    if (out_buf == nullptr || out_len == 0) {
+        return;
+    }
+    std::lock_guard<std::mutex> lock(g_ble_service_mutex);
+    std::snprintf(out_buf, out_len, "%s", g_ble_service_name.data());
+}
+
+const char* posix_imgui_get_ble_service_name(void) {
+    // Copy under `g_ble_service_mutex` into a thread-local buffer so returning a `const char*`
+    // after releasing the mutex never races with concurrent updates on another thread.
+    thread_local std::array<char, UNI_BT_SERVICE_NAME_MAX_LEN + 1> tls_buf{};
+    {
+        std::lock_guard<std::mutex> lock(g_ble_service_mutex);
+        tls_buf = g_ble_service_name;
+    }
+    return tls_buf.data();
+}
+
+void posix_imgui_request_set_ble_service_password(const char* password) {
+    const auto norm = normalize_ble_service_password(password);
+    {
+        std::lock_guard<std::mutex> lock(g_ble_service_mutex);
+        g_ble_service_password = norm;
+    }
+    if (!g_hci_initialized.load(std::memory_order_acquire)) {
+        uni_bt_service_set_password(norm.data());
+    }
+    enqueue_command(SetBleServicePasswordCmd{
+        .password = norm,
+    });
+}
+
+void posix_imgui_set_ble_service_password(const char* password) {
+    posix_imgui_request_set_ble_service_password(password);
+}
+
+void posix_imgui_get_ble_service_password(char* out_buf, size_t out_len) {
+    if (out_buf == nullptr || out_len == 0) {
+        return;
+    }
+    std::lock_guard<std::mutex> lock(g_ble_service_mutex);
+    std::snprintf(out_buf, out_len, "%s", g_ble_service_password.data());
+}
+
+const char* posix_imgui_get_ble_service_password(void) {
+    thread_local std::array<char, UNI_BT_SERVICE_PASSWORD_MAX_LEN + 1> tls_buf{};
+    {
+        std::lock_guard<std::mutex> lock(g_ble_service_mutex);
+        tls_buf = g_ble_service_password;
+    }
+    return tls_buf.data();
+}
+
 void posix_imgui_request_shutdown(void) {
     g_shutdown_requested.store(true, std::memory_order_release);
     enqueue_command(ShutdownCmd{});
@@ -843,11 +1041,24 @@ void posix_imgui_reset_for_test(void) {
         g_cmd_wakeup_pending = false;
     }
     btstack_run_loop_base_execute_callbacks();
-    g_hci_initialized = false;
+    g_hci_initialized.store(false, std::memory_order_release);
+    g_enhanced_mode = 0;
+    g_delete_keys = 0;
     g_shutdown_requested.store(false, std::memory_order_release);
     g_virtual_devices_enabled.store(false, std::memory_order_release);
     g_allowed_device_types_mask.store(POSIX_IMGUI_DEVICE_TYPE_DEFAULT, std::memory_order_release);
     uni_virtual_device_set_enabled(false);
+
+    // Reset BLE configuration service state (Landmine #6)
+    g_ble_service_enabled.store(true, std::memory_order_release);
+    {
+        std::lock_guard<std::mutex> lock(g_ble_service_mutex);
+        g_ble_service_name = normalize_ble_service_name("Bluepad32");
+        g_ble_service_password = normalize_ble_service_password("");
+    }
+    uni_bt_service_set_name("Bluepad32");
+    uni_bt_service_set_password("");
+    uni_bt_service_set_enabled(true);
 }
 
 void posix_imgui_process_pending_commands(void) {

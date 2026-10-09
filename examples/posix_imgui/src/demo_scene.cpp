@@ -473,7 +473,10 @@ DemoScene::DemoScene()
     : mVirtualDevicesEnabled(posix_imgui_is_virtual_devices_enabled()),
       mAutoAcceptGamepads((posix_imgui_get_allowed_device_types() & POSIX_IMGUI_DEVICE_TYPE_GAMEPAD) != 0),
       mAutoAcceptMice((posix_imgui_get_allowed_device_types() & POSIX_IMGUI_DEVICE_TYPE_MOUSE) != 0),
-      mAutoAcceptKeyboards((posix_imgui_get_allowed_device_types() & POSIX_IMGUI_DEVICE_TYPE_KEYBOARD) != 0) {
+      mAutoAcceptKeyboards((posix_imgui_get_allowed_device_types() & POSIX_IMGUI_DEVICE_TYPE_KEYBOARD) != 0),
+      mBleServiceEnabled(posix_imgui_is_ble_service_enabled()) {
+    posix_imgui_get_ble_service_name(mBleServiceName.data(), mBleServiceName.size());
+    posix_imgui_get_ble_service_password(mBleServicePassword.data(), mBleServicePassword.size());
     for (int i = 0; i < kMaxControllers; ++i) {
         mSlots[static_cast<size_t>(i)].ResetForSlot(i);
     }
@@ -487,6 +490,16 @@ void DemoScene::SelectCategoryTabForTest(int tab_index) noexcept {
 
 void DemoScene::SetPreferencesActiveForTest(bool active) noexcept {
     mPreferencesActive = active;
+    if (active) {
+        mVirtualDevicesEnabled = posix_imgui_is_virtual_devices_enabled();
+        const uint32_t allowedMask = posix_imgui_get_allowed_device_types();
+        mAutoAcceptGamepads = (allowedMask & POSIX_IMGUI_DEVICE_TYPE_GAMEPAD) != 0;
+        mAutoAcceptMice = (allowedMask & POSIX_IMGUI_DEVICE_TYPE_MOUSE) != 0;
+        mAutoAcceptKeyboards = (allowedMask & POSIX_IMGUI_DEVICE_TYPE_KEYBOARD) != 0;
+        mBleServiceEnabled = posix_imgui_is_ble_service_enabled();
+        posix_imgui_get_ble_service_name(mBleServiceName.data(), mBleServiceName.size());
+        posix_imgui_get_ble_service_password(mBleServicePassword.data(), mBleServicePassword.size());
+    }
 }
 
 const DemoScene::ControllerSlotUiState& DemoScene::GetSlotStateForTest(int slot) const noexcept {
@@ -776,7 +789,19 @@ void DemoScene::RenderStatusBar() {
                            kMaxControllers);
     }
 
-    ImGui::SameLine(0.0f, 24.0f);
+    ImGui::SameLine(0.0f, 20.0f);
+    if (posix_imgui_is_ble_service_enabled()) {
+        char svc_name[UNI_BT_SERVICE_NAME_MAX_LEN + 1]{};
+        char svc_pass[UNI_BT_SERVICE_PASSWORD_MAX_LEN + 1]{};
+        posix_imgui_get_ble_service_name(svc_name, sizeof(svc_name));
+        posix_imgui_get_ble_service_password(svc_pass, sizeof(svc_pass));
+        const bool locked = (svc_pass[0] != '\0');
+        ImGui::TextColored(kTextColorCyan, "BLE Service: \"%s\" [%s]", svc_name, locked ? "Password" : "Open");
+    } else {
+        ImGui::TextColored(kTextColorGrey, "BLE Service: Off");
+    }
+
+    ImGui::SameLine(0.0f, 20.0f);
     ImGui::TextColored(kTextColorGrey, "Radial Deadzone: %.0f%% | %.1f FPS",
                        static_cast<double>((mDontTrimDeadzone ? 0.0f : mRadialDeadzone) * 100.0f),
                        static_cast<double>(ImGui::GetIO().Framerate));
@@ -786,15 +811,20 @@ bool DemoScene::RenderPreferences() {
     if (!mPreferencesActive) {
         if (ImGui::Button("Preferences...")) {
             mPreferencesActive = true;
-            // Synchronize UI checkboxes with the authoritative atomic platform state.
+            // Synchronize UI checkboxes and BLE service fields with the authoritative platform state.
             mVirtualDevicesEnabled = posix_imgui_is_virtual_devices_enabled();
             const uint32_t allowedMask = posix_imgui_get_allowed_device_types();
             mAutoAcceptGamepads = (allowedMask & POSIX_IMGUI_DEVICE_TYPE_GAMEPAD) != 0;
             mAutoAcceptMice = (allowedMask & POSIX_IMGUI_DEVICE_TYPE_MOUSE) != 0;
             mAutoAcceptKeyboards = (allowedMask & POSIX_IMGUI_DEVICE_TYPE_KEYBOARD) != 0;
+            mBleServiceEnabled = posix_imgui_is_ble_service_enabled();
+            posix_imgui_get_ble_service_name(mBleServiceName.data(), mBleServiceName.size());
+            posix_imgui_get_ble_service_password(mBleServicePassword.data(), mBleServicePassword.size());
         }
         return false;
     }
+
+    mBleServiceEnabled = posix_imgui_is_ble_service_enabled();
 
     // Dear ImGui 1.92+ / 1.93.0 WIP uses `style.FontScaleMain` instead of legacy `io.FontGlobalScale`.
     ImGuiStyle& style = ImGui::GetStyle();
@@ -865,6 +895,72 @@ bool DemoScene::RenderPreferences() {
     ImGui::TextColored(kTextColorGrey,
                        "When disabled (default), DualSense and DualShock 4 controllers do not spawn a secondary "
                        "virtual mouse slot.");
+
+    ImGui::Spacing();
+    ImGui::Spacing();
+    ImGui::TextColored(kTextColorCyan, "BLE Configuration");
+    ImGui::Separator();
+    ImGui::Spacing();
+    if (ImGui::Checkbox("Enable BLE Service", &mBleServiceEnabled)) {
+        posix_imgui_request_set_ble_service_enabled(mBleServiceEnabled);
+    }
+
+    char active_ble_name[UNI_BT_SERVICE_NAME_MAX_LEN + 1]{};
+    char active_ble_pass[UNI_BT_SERVICE_PASSWORD_MAX_LEN + 1]{};
+    posix_imgui_get_ble_service_name(active_ble_name, sizeof(active_ble_name));
+    posix_imgui_get_ble_service_password(active_ble_pass, sizeof(active_ble_pass));
+    const bool is_password_protected = (active_ble_pass[0] != '\0');
+
+    ImGui::SameLine(0.0f, 16.0f * UiScale());
+    if (!mBleServiceEnabled) {
+        ImGui::TextColored(kTextColorGrey, "[Service Disabled]");
+    } else if (is_password_protected) {
+        ImGui::TextColored(kTextColorYellow, "[Password Protected — Advertising as \"%s\"]", active_ble_name);
+    } else {
+        ImGui::TextColored(kTextColorGreen, "[Open Access (No Password) — Advertising as \"%s\"]", active_ble_name);
+    }
+
+    ImGui::Spacing();
+    ImGui::BeginDisabled(!mBleServiceEnabled);
+
+    ImGui::AlignTextToFramePadding();
+    ImGui::Text("BLE Service Name:");
+    ImGui::SameLine(180.0f * UiScale());
+    ImGui::SetNextItemWidth(260.0f * UiScale());
+    const bool name_enter = ImGui::InputText("##ble_service_name", mBleServiceName.data(), mBleServiceName.size(),
+                                             ImGuiInputTextFlags_EnterReturnsTrue);
+    ImGui::SameLine();
+    if (ImGui::Button("Apply##ble_name") || name_enter) {
+        posix_imgui_request_set_ble_service_name(mBleServiceName.data());
+        posix_imgui_get_ble_service_name(mBleServiceName.data(), mBleServiceName.size());
+    }
+
+    ImGui::Spacing();
+    ImGui::AlignTextToFramePadding();
+    ImGui::Text("BLE Password:");
+    ImGui::SameLine(180.0f * UiScale());
+    ImGui::SetNextItemWidth(260.0f * UiScale());
+    const ImGuiInputTextFlags pw_flags = ImGuiInputTextFlags_EnterReturnsTrue |
+                                         (mBleShowPassword ? ImGuiInputTextFlags_None : ImGuiInputTextFlags_Password);
+    const bool pw_enter =
+        ImGui::InputText("##ble_service_password", mBleServicePassword.data(), mBleServicePassword.size(), pw_flags);
+    ImGui::SameLine();
+    if (ImGui::Button("Apply##ble_pw") || pw_enter) {
+        posix_imgui_request_set_ble_service_password(mBleServicePassword.data());
+        posix_imgui_get_ble_service_password(mBleServicePassword.data(), mBleServicePassword.size());
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Clear##ble_pw")) {
+        mBleServicePassword.fill('\0');
+        posix_imgui_request_set_ble_service_password("");
+    }
+    ImGui::SameLine();
+    ImGui::Checkbox("Show Password", &mBleShowPassword);
+
+    ImGui::EndDisabled();
+    ImGui::TextColored(kTextColorGrey,
+                       "Identifies this Bluepad32 instance on the BLE companion app (max 29 UTF-8 bytes) and "
+                       "optionally requires a password (max 31 bytes) before reading or modifying settings.");
 
     ImGui::Spacing();
     ImGui::Separator();

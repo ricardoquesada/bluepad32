@@ -331,13 +331,20 @@ void glfw_error_callback(int error, const char* description) {
     std::fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
 
-constexpr const char* kShortOptions = "hu:l:rb:de";
+constexpr const char* kShortOptions = "hu:l:rb:deN:P:S";
 
 const struct option kLongOptions[] = {
-    {"help", no_argument, nullptr, 'h'},      {"logfile", required_argument, nullptr, 'l'},
-    {"reset-tlv", no_argument, nullptr, 'r'}, {"usbpath", required_argument, nullptr, 'u'},
-    {"ble", required_argument, nullptr, 'b'}, {"delete", no_argument, nullptr, 'd'},
-    {"enhanced", no_argument, nullptr, 'e'},  {nullptr, 0, nullptr, 0},
+    {"help", no_argument, nullptr, 'h'},
+    {"logfile", required_argument, nullptr, 'l'},
+    {"reset-tlv", no_argument, nullptr, 'r'},
+    {"usbpath", required_argument, nullptr, 'u'},
+    {"ble", required_argument, nullptr, 'b'},
+    {"delete", no_argument, nullptr, 'd'},
+    {"enhanced", no_argument, nullptr, 'e'},
+    {"ble-service-name", required_argument, nullptr, 'N'},
+    {"ble-service-password", required_argument, nullptr, 'P'},
+    {"no-ble-service", no_argument, nullptr, 'S'},
+    {nullptr, 0, nullptr, 0},
 };
 
 const char* const kHelpOptions[] = {
@@ -348,18 +355,27 @@ const char* const kHelpOptions[] = {
     "disable (0) or enable (1) BLE.",
     "delete stored bonding keys.",
     "enable enhanced mode.",
+    "set BLE configuration service advertised name (max 29 bytes).",
+    "set BLE configuration service password (max 31 bytes, empty = open).",
+    "disable BLE configuration service.",
 };
 
 const char* const kOptionArgName[] = {
-    "", "LOGFILE", "", "USBPATH", "0|1", "", "",
+    "", "LOGFILE", "", "USBPATH", "0|1", "", "", "NAME", "PASSWORD", "",
 };
+
+static_assert((sizeof(kLongOptions) / sizeof(kLongOptions[0])) - 1 == (sizeof(kHelpOptions) / sizeof(kHelpOptions[0])),
+              "kHelpOptions must match kLongOptions count");
+static_assert((sizeof(kLongOptions) / sizeof(kLongOptions[0])) - 1 ==
+                  (sizeof(kOptionArgName) / sizeof(kOptionArgName[0])),
+              "kOptionArgName must match kLongOptions count");
 
 /// Prints CLI usage and supported flags to `stdout`.
 void usage(const char* name) {
     std::printf("usage:\n\t%s [options]\n", name);
     std::printf("valid options:\n");
     for (unsigned int i = 0; kLongOptions[i].name != nullptr; i++) {
-        std::printf("--%-10s| -%c  %-10s\t\t%s\n", kLongOptions[i].name, kLongOptions[i].val, kOptionArgName[i],
+        std::printf("--%-20s| -%c  %-10s\t\t%s\n", kLongOptions[i].name, kLongOptions[i].val, kOptionArgName[i],
                     kHelpOptions[i]);
     }
 }
@@ -397,6 +413,9 @@ int main(int argc, const char* argv[]) {
             case 'b':
             case 'd':
             case 'e':
+            case 'N':
+            case 'P':
+            case 'S':
                 // Handled inside posix_imgui_platform.cpp (posix_imgui_init)
                 break;
             case 'h':

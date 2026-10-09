@@ -16,6 +16,7 @@
 #include "bt/uni_bt.h"
 #include "bt/uni_bt_allowlist.h"
 #include "bt/uni_bt_le.h"
+#include "bt/uni_bt_service.h"
 #include "controller/uni_balance_board.h"
 #include "platform/uni_platform.h"
 #include "uni_common.h"
@@ -81,6 +82,21 @@ static struct {
     struct arg_int* enabled;
     struct arg_end* end;
 } virtual_device_enable_args;
+
+static struct {
+    struct arg_int* enabled;
+    struct arg_end* end;
+} ble_service_enable_args;
+
+static struct {
+    struct arg_str* name;
+    struct arg_end* end;
+} ble_service_name_args;
+
+static struct {
+    struct arg_str* password;
+    struct arg_end* end;
+} ble_service_password_args;
 
 static struct {
     struct arg_str* prop;
@@ -412,6 +428,60 @@ static int virtual_device_enable(int argc, char** argv) {
     return 0;
 }
 
+static int ble_service_enable(int argc, char** argv) {
+    int enabled;
+
+    int nerrors = arg_parse(argc, argv, (void**)&ble_service_enable_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, ble_service_enable_args.end, argv[0]);
+
+        // Don't treat it as error, just report the current value
+        logi("BLE Service: %s\n", uni_bt_service_is_enabled() ? "Enabled" : "Disabled");
+        return 0;
+    }
+
+    enabled = ble_service_enable_args.enabled->ival[0];
+    uni_bt_service_set_enabled(!!enabled);
+    return 0;
+}
+
+static int ble_service_name(int argc, char** argv) {
+    int nerrors = arg_parse(argc, argv, (void**)&ble_service_name_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, ble_service_name_args.end, argv[0]);
+
+        // Don't treat it as error, just report the current value
+        logi("BLE Service Name: '%s'\n", uni_bt_service_get_name());
+        return 0;
+    }
+
+    uni_bt_service_set_name(ble_service_name_args.name->sval[0]);
+    logi("BLE Service Name set to: '%s'\n", uni_bt_service_get_name());
+    return 0;
+}
+
+static int ble_service_password(int argc, char** argv) {
+    int nerrors = arg_parse(argc, argv, (void**)&ble_service_password_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, ble_service_password_args.end, argv[0]);
+
+        // Don't treat it as error, just report the current status
+        logi("BLE Service Password: %s\n",
+             uni_bt_service_is_password_required() ? "Set (Protected)" : "<empty> (Open)");
+        return 0;
+    }
+
+    const char* pass = ble_service_password_args.password->sval[0];
+    if (pass[0] == '\0' || strcmp(pass, "none") == 0 || strcmp(pass, "clear") == 0) {
+        uni_bt_service_set_password("");
+        logi("BLE Service Password cleared (Open)\n");
+    } else {
+        uni_bt_service_set_password(pass);
+        logi("BLE Service Password updated\n");
+    }
+    return 0;
+}
+
 static int getprop(int argc, char** argv) {
     int nerrors = arg_parse(argc, argv, (void**)&getprop_args);
     if (nerrors != 0) {
@@ -473,6 +543,18 @@ static void register_bluepad32(void) {
 
     virtual_device_enable_args.enabled = arg_int1(NULL, NULL, "<0 | 1>", "Whether virtual devices are allowed");
     virtual_device_enable_args.end = arg_end(2);
+
+    ble_service_enable_args.enabled =
+        arg_int1(NULL, NULL, "<0 | 1>", "Whether the BLE configuration service is enabled");
+    ble_service_enable_args.end = arg_end(2);
+
+    ble_service_name_args.name =
+        arg_str1(NULL, NULL, "<name>", "BLE service advertised device name (1..29 UTF-8 bytes)");
+    ble_service_name_args.end = arg_end(2);
+
+    ble_service_password_args.password =
+        arg_str1(NULL, NULL, "<password>", "BLE service password (1..31 UTF-8 bytes, or 'none' to clear)");
+    ble_service_password_args.end = arg_end(2);
 
     getprop_args.prop = arg_str1(NULL, NULL, "<property_name>", "Return property value");
     getprop_args.end = arg_end(2);
@@ -601,6 +683,30 @@ static void register_bluepad32(void) {
         .argtable = &virtual_device_enable_args,
     };
 
+    const esp_console_cmd_t cmd_ble_service_enable = {
+        .command = "ble_service_enable",
+        .help = "Enables/Disables BLE configuration service",
+        .hint = NULL,
+        .func = &ble_service_enable,
+        .argtable = &ble_service_enable_args,
+    };
+
+    const esp_console_cmd_t cmd_ble_service_name = {
+        .command = "ble_service_name",
+        .help = "Get/Set BLE service advertised device name (max 29 bytes)",
+        .hint = NULL,
+        .func = &ble_service_name,
+        .argtable = &ble_service_name_args,
+    };
+
+    const esp_console_cmd_t cmd_ble_service_password = {
+        .command = "ble_service_password",
+        .help = "Get/Set BLE service password (max 31 bytes, or 'none' to clear)",
+        .hint = NULL,
+        .func = &ble_service_password,
+        .argtable = &ble_service_password_args,
+    };
+
     const esp_console_cmd_t cmd_getprop = {
         .command = "getprop",
         .help = "Get property or all properties",
@@ -624,6 +730,9 @@ static void register_bluepad32(void) {
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_allowlist_enable));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_mouse_scale));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_virtual_device_enable));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_ble_service_enable));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_ble_service_name));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_ble_service_password));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_getprop));
 }
 #endif  // CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
