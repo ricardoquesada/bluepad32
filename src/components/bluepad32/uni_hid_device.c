@@ -281,9 +281,13 @@ bool uni_hid_device_set_ready_complete(uni_hid_device_t* d) {
         return false;
     }
 
-    uni_bt_service_on_device_ready(d);
-
+    // Transition the connection state to DEVICE_READY before notifying the BLE GATT
+    // service so `uni_bt_service_on_device_ready(d)` snapshots `state = 14` (`DEVICE_READY`)
+    // along with the resolved `vendor_id`, `product_id`, and `controller_type` rather
+    // than broadcasting a stale intermediate `PENDING_READY` state.
     uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_READY);
+
+    uni_bt_service_on_device_ready(d);
     return true;
 }
 

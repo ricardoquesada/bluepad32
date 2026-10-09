@@ -1,3 +1,7 @@
+// Bluepad32 BLE GATT Profile Definition
+// Primary Service UUID: 4627C4A4-AC00-46B9-B688-AFC5C1BF7F63
+// Characteristics are numbered contiguously from AC01 through AC0C.
+
 PRIMARY_SERVICE, GAP_SERVICE
 CHARACTERISTIC, GAP_DEVICE_NAME, READ, "Bluepad32"
 
@@ -8,49 +12,41 @@ CHARACTERISTIC, GATT_DATABASE_HASH, READ,
 PRIMARY_SERVICE, 4627C4A4-AC00-46B9-B688-AFC5C1BF7F63
 
 // Bluepad32 Characteristics
-// Bluepad32 version
+// AC01: Firmware version string (UTF-8, no NUL terminator)
 CHARACTERISTIC, 4627C4A4-AC01-46B9-B688-AFC5C1BF7F63, READ | DYNAMIC
 
-// Max supported connections
+// AC02: Max supported concurrent controller connections (uint8_t)
 CHARACTERISTIC, 4627C4A4-AC02-46B9-B688-AFC5C1BF7F63, READ | DYNAMIC
 
-// Whether to enable BLE connections
+// AC03: Whether BLE controller connections are enabled (uint8_t: 0=disabled, 1=enabled)
 CHARACTERISTIC, 4627C4A4-AC03-46B9-B688-AFC5C1BF7F63, READ | WRITE | DYNAMIC
 
-// Scan for new connections
+// AC04: Scan / pair new controllers (uint8_t: 0=stop scanning, 1=start scanning)
 CHARACTERISTIC, 4627C4A4-AC04-46B9-B688-AFC5C1BF7F63, READ | WRITE | DYNAMIC
 
-// List of connected devices. Returns all connected devices at once.
-CHARACTERISTIC, 4627C4A4-AC05-46B9-B688-AFC5C1BF7F63, READ | DYNAMIC
+// AC05: Connected controllers (N * 16-byte little-endian compact_device_t records;
+// Read returns all slots; Notify pushes full table when MTU >= 67 or 1 slot when MTU == 23)
+CHARACTERISTIC, 4627C4A4-AC05-46B9-B688-AFC5C1BF7F63, READ | NOTIFY | DYNAMIC
 
-// Notify all connected devices, only when there is a change, one at the time.
-// Ideally it should be merged with the previous one, but don't know how to increase
-// the MTU for the notify package.
-CHARACTERISTIC, 4627C4A4-AC06-46B9-B688-AFC5C1BF7F63, NOTIFY | DYNAMIC
+// AC06: Controller button mappings preset (uint8_t: 0=Xbox, 1=Nintendo Switch, 2=Custom)
+CHARACTERISTIC, 4627C4A4-AC06-46B9-B688-AFC5C1BF7F63, READ | WRITE | DYNAMIC
 
-// Mappings: Nintendo or Xbox: A,B,X,Y vs B,A,Y,X
+// AC07: Whether Bluetooth MAC allowlist enforcement is enabled (uint8_t: 0=disabled, 1=enabled)
 CHARACTERISTIC, 4627C4A4-AC07-46B9-B688-AFC5C1BF7F63, READ | WRITE | DYNAMIC
 
-// Whether to enable Allowlist in connections
+// AC08: Allowlist MAC addresses (K * 6-byte bd_addr_t entries; Read returns non-zero entries,
+// Write atomically replaces the allowlist)
 CHARACTERISTIC, 4627C4A4-AC08-46B9-B688-AFC5C1BF7F63, READ | WRITE | DYNAMIC
 
-// List of addresses in the allowlist.
+// AC09: Whether virtual child devices (e.g., touchpad mouse) are enabled (uint8_t: 0=disabled, 1=enabled)
 CHARACTERISTIC, 4627C4A4-AC09-46B9-B688-AFC5C1BF7F63, READ | WRITE | DYNAMIC
 
-// Whether to enable Virtual Devices
-CHARACTERISTIC, 4627C4A4-AC0A-46B9-B688-AFC5C1BF7F63, READ | WRITE | DYNAMIC
+// AC0A: Disconnect and delete the controller at slot idx (uint8_t: 0..MAX_DEVICES-1)
+CHARACTERISTIC, 4627C4A4-AC0A-46B9-B688-AFC5C1BF7F63, WRITE | DYNAMIC
 
-// Disconnect a device
+// AC0B: Delete all stored Bluetooth BR/EDR and BLE bond keys (uint8_t: 1=delete)
 CHARACTERISTIC, 4627C4A4-AC0B-46B9-B688-AFC5C1BF7F63, WRITE | DYNAMIC
 
-// Delete stored Bluetooth bond keys
+// AC0C: Reset / reboot the Bluepad32 device immediately (uint8_t: 1=reboot)
 CHARACTERISTIC, 4627C4A4-AC0C-46B9-B688-AFC5C1BF7F63, WRITE | DYNAMIC
 
-// Reset device. DEBUG Only
-CHARACTERISTIC, 4627C4A4-AC0D-46B9-B688-AFC5C1BF7F63, WRITE | DYNAMIC
-
-// add Battery Service
-#import <battery_service.gatt>
-
-// add Device ID Service
-#import <device_information_service.gatt>
