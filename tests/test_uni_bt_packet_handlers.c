@@ -2524,14 +2524,14 @@ TEST(bt_le_switch2_gatt_state_machine_and_teardown) {
     d->report_parser.device_extra_info(d, extra, sizeof(extra));
     EXPECT_NE(NULL, strstr(extra, "state=init_sequence"));
 
-    // 4. SW2_STATE_INIT_SEQUENCE (all 13 steps matching sw2_init_sequence[]) -> SW2_STATE_READ_CALIBRATION
+    // 4. SW2_STATE_INIT_SEQUENCE (all 14 steps matching sw2_init_sequence[]) -> SW2_STATE_READ_CALIBRATION
     uint8_t notify_pkt[128];
     uint16_t notify_len = 0;
-    const uint8_t init_cmds[13][2] = {
+    const uint8_t init_cmds[14][2] = {
         {0x03, 0x0d}, {0x07, 0x01}, {0x16, 0x01}, {0x15, 0x03}, {0x0c, 0x02}, {0x11, 0x03}, {0x0a, 0x08},
-        {0x0c, 0x04}, {0x03, 0x0a}, {0x10, 0x01}, {0x01, 0x0c}, {0x01, 0x01}, {0x09, 0x07},
+        {0x11, 0x01}, {0x0c, 0x04}, {0x03, 0x0a}, {0x10, 0x01}, {0x01, 0x0c}, {0x01, 0x01}, {0x09, 0x07},
     };
-    for (int step = 0; step < 13; step++) {
+    for (int step = 0; step < 14; step++) {
         uint8_t init_rsp[8] = {init_cmds[step][0], 0x91, 0x01, init_cmds[step][1], 0x00, 0x00, 0x00, 0x00};
         notify_len = build_gatt_notification_pkt(notify_pkt, con_handle, 0x002a, init_rsp, sizeof(init_rsp));
         uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, notify_pkt, notify_len);
@@ -2671,7 +2671,7 @@ TEST(bt_le_switch2_gatt_state_machine_and_teardown) {
     d2->report_parser.device_extra_info(d2, extra, sizeof(extra));
     EXPECT_NE(NULL, strstr(extra, "state=init_sequence"));
 
-    for (int step = 0; step < 13; step++) {
+    for (int step = 0; step < 14; step++) {
         uint8_t init_rsp[8] = {init_cmds[step][0], 0x91, 0x01, init_cmds[step][1], 0x00, 0x00, 0x00, 0x00};
         notify_len = build_gatt_notification_pkt(notify_pkt, bond_handle, 0x003a, init_rsp, sizeof(init_rsp));
         uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, notify_pkt, notify_len);

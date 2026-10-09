@@ -253,15 +253,18 @@ typedef struct {
 
 static const uint8_t sw2_init_p03_0d[] = {0x01, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 static const uint8_t sw2_init_p15_03[] = {0x00};
-static const uint8_t sw2_init_p0c_02[] = {0x2f, 0x00, 0x00, 0x00};
+// Feature flags bitmask: 0x01 (Buttons) | 0x02 (Analog sticks) | 0x04 (IMU) | 0x20 (Rumble) = 0x27.
+// Matches SDL_hidapi_switch2.c; avoids setting unused bit 3 (0x08) which can suppress IMU on Joy-Con 2.
+static const uint8_t sw2_init_p0c_02[] = {0x27, 0x00, 0x00, 0x00};
 static const uint8_t sw2_init_p0a_08[] = {0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x35,
                                           0x00, 0x46, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-static const uint8_t sw2_init_p0c_04[] = {0x2f, 0x00, 0x00, 0x00};
-static const uint8_t sw2_init_p03_0a[] = {0x09, 0x00, 0x00, 0x00};
+static const uint8_t sw2_init_p0c_04[] = {0x27, 0x00, 0x00, 0x00};
+// Select Common Input Report 0x05 (carried on GATT handle 0x000a across all Switch 2 controllers).
+static const uint8_t sw2_init_p03_0a[] = {0x05, 0x00, 0x00, 0x00};
 static const uint8_t sw2_init_p01_01[] = {0x00, 0x00, 0x00, 0x00};
 static const uint8_t sw2_init_p09_07[] = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-// 13-step initialization command sequence sent on cmd_write_handle (0x0014).
+// 14-step initialization command sequence sent on cmd_write_handle (0x0014).
 static const sw2_init_cmd_t sw2_init_sequence[] = {
     {0x03, 0x0d, sizeof(sw2_init_p03_0d), sw2_init_p03_0d},
     {0x07, 0x01, 0, NULL},
@@ -270,6 +273,7 @@ static const sw2_init_cmd_t sw2_init_sequence[] = {
     {0x0c, 0x02, sizeof(sw2_init_p0c_02), sw2_init_p0c_02},
     {0x11, 0x03, 0, NULL},
     {0x0a, 0x08, sizeof(sw2_init_p0a_08), sw2_init_p0a_08},
+    {0x11, 0x01, 0, NULL},
     {0x0c, 0x04, sizeof(sw2_init_p0c_04), sw2_init_p0c_04},
     {0x03, 0x0a, sizeof(sw2_init_p03_0a), sw2_init_p03_0a},
     {0x10, 0x01, 0, NULL},
