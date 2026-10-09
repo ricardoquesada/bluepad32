@@ -122,12 +122,8 @@ static void maybe_notify_client(void);
 // Synchronizes `compact_devices[idx]` with the live state of HID device slot `d`.
 //
 // Always zeroes the wire struct first and preserves `idx` so unoccupied or
-// disconnected slots serialize cleanly with an all-zero MAC address and `state = 0`.
-// Why check `!d->conn.connected`: during `uni_hid_device_disconnect(d)`,
-// `uni_bt_conn_disconnect(&d->conn)` sets `d->conn.connected = false` (without clearing
-// `btaddr` or `vendor_id`) and immediately triggers `uni_bt_service_on_device_disconnected(d)`
-// BEFORE `uni_hid_device_delete(d)` zeroes `*d`. Guarding on `d->conn.connected`
-// guarantees that disconnected slots are cleared immediately before notifying the client.
+// disconnected slots (when `d == NULL`) serialize cleanly with an all-zero MAC
+// address and `state = 0`.
 static void populate_compact_device(int idx, const uni_hid_device_t* d) {
     if (idx < 0 || idx >= CONFIG_BLUEPAD32_MAX_DEVICES)
         return;
@@ -135,7 +131,7 @@ static void populate_compact_device(int idx, const uni_hid_device_t* d) {
     memset(&compact_devices[idx], 0, sizeof(compact_devices[idx]));
     compact_devices[idx].idx = (uint8_t)idx;
 
-    if (!d || !d->conn.connected)
+    if (!d)
         return;
 
     memcpy(compact_devices[idx].addr, d->conn.btaddr, sizeof(compact_devices[idx].addr));
@@ -339,7 +335,7 @@ static int uni_att_write_callback(hci_con_handle_t con_handle,
                 return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             uint8_t idx = buffer[0];
             if (idx >= CONFIG_BLUEPAD32_MAX_DEVICES)
-                return ATT_ERROR_VALUE_NOT_ALLOWED;
+                return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             uni_hid_device_t* d = uni_hid_device_get_instance_for_idx(idx);
             if (!d || !d->conn.connected)
                 return ATT_ERROR_VALUE_NOT_ALLOWED;
@@ -548,8 +544,10 @@ void uni_bt_service_init(void) {
         client_connections[i].connection_handle = HCI_CON_HANDLE_INVALID;
     notification_device_idx = 0;
 
-    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++)
-        populate_compact_device(i, uni_hid_device_get_instance_for_idx(i));
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
+        uni_hid_device_t* d = uni_hid_device_get_instance_for_idx(i);
+        populate_compact_device(i, (d && d->conn.connected) ? d : NULL);
+    }
 
     // register for ATT events
     att_server_register_packet_handler(uni_att_packet_handler);
@@ -611,8 +609,8 @@ void uni_bt_service_on_device_connected(const uni_hid_device_t* d) {
     maybe_notify_client();
 }
 
-// Invoked from the BTstack task when a controller disconnects. Because `d->conn.connected`
-// is already `false`, `populate_compact_device(idx, d)` zeroes the slot while preserving `idx`.
+// Invoked from the BTstack task when a controller disconnects. Passing `NULL` to
+// `populate_compact_device(idx, NULL)` zeroes the slot while preserving `idx`.
 void uni_bt_service_on_device_disconnected(const uni_hid_device_t* d) {
     // Must be called from BTstack task
     if (!d)
@@ -624,7 +622,7 @@ void uni_bt_service_on_device_disconnected(const uni_hid_device_t* d) {
     if (idx < 0)
         return;
 
-    populate_compact_device(idx, d);
+    populate_compact_device(idx, NULL);
 
     maybe_notify_client();
 }

@@ -1833,41 +1833,41 @@ TEST(bt_service_device_lifecycle_and_att_write_validation) {
     EXPECT_EQ(0, little_endian_read_16(rsp_buf, 10));
 
     // Validate ATT_WRITE_REQUEST error paths in uni_att_write_callback:
-    // 1. Short 1-byte write to CCCD handle 0x0014 (AC06 Client Configuration) ->
+    // 1. Short 1-byte write to CCCD handle 0x0012 (AC05 Client Configuration) ->
     //    ATT_ERROR_INVALID_ATTRIBUTE_VALUE_LENGTH (0x0d).
-    uint8_t req_short_cccd[4] = {ATT_WRITE_REQUEST, 0x14, 0x00, 0x01};
+    uint8_t req_short_cccd[4] = {ATT_WRITE_REQUEST, 0x12, 0x00, 0x01};
     rsp_len = att_handle_request(&att_conn, req_short_cccd, sizeof(req_short_cccd), rsp_buf);
     ASSERT_EQ(5, rsp_len);
     EXPECT_EQ(ATT_ERROR_RESPONSE, rsp_buf[0]);
     EXPECT_EQ(ATT_WRITE_REQUEST, rsp_buf[1]);
-    EXPECT_EQ(0x0014, little_endian_read_16(rsp_buf, 2));
+    EXPECT_EQ(0x0012, little_endian_read_16(rsp_buf, 2));
     EXPECT_EQ(ATT_ERROR_INVALID_ATTRIBUTE_VALUE_LENGTH, rsp_buf[4]);
 
-    // 2a. Out-of-bounds mappings type write (UNI_GAMEPAD_MAPPINGS_TYPE_COUNT) to AC07 (handle 0x0016) ->
+    // 2a. Out-of-bounds mappings type write (UNI_GAMEPAD_MAPPINGS_TYPE_COUNT) to AC06 (handle 0x0014) ->
     //     ATT_ERROR_VALUE_NOT_ALLOWED (0x13).
-    uint8_t req_oob_map[4] = {ATT_WRITE_REQUEST, 0x16, 0x00, UNI_GAMEPAD_MAPPINGS_TYPE_COUNT};
+    uint8_t req_oob_map[4] = {ATT_WRITE_REQUEST, 0x14, 0x00, UNI_GAMEPAD_MAPPINGS_TYPE_COUNT};
     rsp_len = att_handle_request(&att_conn, req_oob_map, sizeof(req_oob_map), rsp_buf);
     ASSERT_EQ(5, rsp_len);
     EXPECT_EQ(ATT_ERROR_RESPONSE, rsp_buf[0]);
-    EXPECT_EQ(0x0016, little_endian_read_16(rsp_buf, 2));
+    EXPECT_EQ(0x0014, little_endian_read_16(rsp_buf, 2));
     EXPECT_EQ(ATT_ERROR_VALUE_NOT_ALLOWED, rsp_buf[4]);
 
-    // 2b. Out-of-bounds device index write (CONFIG_BLUEPAD32_MAX_DEVICES) to AC0B (handle 0x001e) ->
+    // 2b. Out-of-bounds device index write (CONFIG_BLUEPAD32_MAX_DEVICES) to AC0A (handle 0x001c) ->
     //     ATT_ERROR_REQUEST_NOT_SUPPORTED (0x06).
-    uint8_t req_oob_disc[4] = {ATT_WRITE_REQUEST, 0x1e, 0x00, CONFIG_BLUEPAD32_MAX_DEVICES};
+    uint8_t req_oob_disc[4] = {ATT_WRITE_REQUEST, 0x1c, 0x00, CONFIG_BLUEPAD32_MAX_DEVICES};
     rsp_len = att_handle_request(&att_conn, req_oob_disc, sizeof(req_oob_disc), rsp_buf);
     ASSERT_EQ(5, rsp_len);
     EXPECT_EQ(ATT_ERROR_RESPONSE, rsp_buf[0]);
-    EXPECT_EQ(0x001e, little_endian_read_16(rsp_buf, 2));
+    EXPECT_EQ(0x001c, little_endian_read_16(rsp_buf, 2));
     EXPECT_EQ(ATT_ERROR_REQUEST_NOT_SUPPORTED, rsp_buf[4]);
 
-    // 3. Write 0 (false) to AC0C (handle 0x0020, delete Bluetooth keys) ->
+    // 3. Write 0 (false) to AC0B (handle 0x001e, delete Bluetooth keys) ->
     //    ATT_ERROR_REQUEST_NOT_SUPPORTED (0x06).
-    uint8_t req_false_del_keys[4] = {ATT_WRITE_REQUEST, 0x20, 0x00, 0x00};
+    uint8_t req_false_del_keys[4] = {ATT_WRITE_REQUEST, 0x1e, 0x00, 0x00};
     rsp_len = att_handle_request(&att_conn, req_false_del_keys, sizeof(req_false_del_keys), rsp_buf);
     ASSERT_EQ(5, rsp_len);
     EXPECT_EQ(ATT_ERROR_RESPONSE, rsp_buf[0]);
-    EXPECT_EQ(0x0020, little_endian_read_16(rsp_buf, 2));
+    EXPECT_EQ(0x001e, little_endian_read_16(rsp_buf, 2));
     EXPECT_EQ(ATT_ERROR_REQUEST_NOT_SUPPORTED, rsp_buf[4]);
 
     // 4. Valid 1-byte write to AC04 (handle 0x000f, scan for new connections) toggles uni_bt_is_scanning().
@@ -1882,6 +1882,32 @@ TEST(bt_service_device_lifecycle_and_att_write_validation) {
     ASSERT_EQ(1, rsp_len);
     EXPECT_EQ(ATT_WRITE_RESPONSE, rsp_buf[0]);
     EXPECT_FALSE(uni_bt_is_scanning());
+
+    // 5. Write and read back AC08 (handle 0x0018, allowlist MAC addresses).
+    uint8_t req_write_allowlist[3 + 12] = {
+        ATT_WRITE_REQUEST, 0x18, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF,
+    };
+    rsp_len = att_handle_request(&att_conn, req_write_allowlist, sizeof(req_write_allowlist), rsp_buf);
+    ASSERT_EQ(1, rsp_len);
+    EXPECT_EQ(ATT_WRITE_RESPONSE, rsp_buf[0]);
+
+    uint8_t req_read_allowlist[3] = {ATT_READ_REQUEST, 0x18, 0x00};
+    memset(rsp_buf, 0, sizeof(rsp_buf));
+    rsp_len = att_handle_request(&att_conn, req_read_allowlist, sizeof(req_read_allowlist), rsp_buf);
+    ASSERT_EQ(1 + 12, rsp_len);
+    EXPECT_EQ(ATT_READ_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(0, memcmp(&rsp_buf[1], &req_write_allowlist[3], 12));
+
+    // Clear allowlist with a 6-byte all-zero MAC payload.
+    uint8_t req_clear_allowlist[3 + 6] = {ATT_WRITE_REQUEST, 0x18, 0x00, 0, 0, 0, 0, 0, 0};
+    rsp_len = att_handle_request(&att_conn, req_clear_allowlist, sizeof(req_clear_allowlist), rsp_buf);
+    ASSERT_EQ(1, rsp_len);
+    EXPECT_EQ(ATT_WRITE_RESPONSE, rsp_buf[0]);
+
+    memset(rsp_buf, 0, sizeof(rsp_buf));
+    rsp_len = att_handle_request(&att_conn, req_read_allowlist, sizeof(req_read_allowlist), rsp_buf);
+    ASSERT_EQ(1, rsp_len);
+    EXPECT_EQ(ATT_READ_RESPONSE, rsp_buf[0]);
 
     uni_hid_device_delete(d);
     uni_bt_service_set_enabled(false);
