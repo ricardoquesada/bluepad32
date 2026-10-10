@@ -338,20 +338,16 @@ static const char* sw2_state_to_str(sw2_state_t state) {
     }
 }
 
-bool uni_hid_parser_switch2_is_device(uint16_t vid, uint16_t pid) {
+static bool is_switch2_vid_pid(uint16_t vid, uint16_t pid) {
     if (vid != UNI_SW2_NINTENDO_VID)
         return false;
     return (pid == UNI_SW2_PRO_PID || pid == UNI_SW2_JOYCON_L_PID || pid == UNI_SW2_JOYCON_R_PID);
 }
 
-bool uni_hid_parser_switch2_is_switch2_device(uint16_t vid, uint16_t pid) {
-    return uni_hid_parser_switch2_is_device(vid, pid);
-}
-
-bool uni_hid_parser_switch2_is_ble_device(const struct uni_hid_device_s* d) {
+bool uni_hid_parser_switch2_is_device(const struct uni_hid_device_s* d) {
     if (!d)
         return false;
-    return uni_hid_parser_switch2_is_device(d->vendor_id, d->product_id);
+    return is_switch2_vid_pid(d->vendor_id, d->product_id);
 }
 
 bool uni_hid_parser_switch2_needs_pair(const struct uni_hid_device_s* d) {
@@ -395,7 +391,7 @@ bool uni_hid_parser_switch2_parse_mfg_data(const uint8_t* mfg,
     } else if (little_endian_read_16(mfg, 0) == UNI_SW2_NINTENDO_VID) {
         // Format B: Direct Nintendo VID 0x057e at [0..1] with Switch 2 PID at [2..3] or [5..6].
         uint16_t pid_at_2 = little_endian_read_16(mfg, 2);
-        if (uni_hid_parser_switch2_is_device(UNI_SW2_NINTENDO_VID, pid_at_2)) {
+        if (is_switch2_vid_pid(UNI_SW2_NINTENDO_VID, pid_at_2)) {
             pid = pid_at_2;
         } else if (mfg_len >= 7) {
             pid = little_endian_read_16(mfg, 5);
@@ -405,7 +401,7 @@ bool uni_hid_parser_switch2_parse_mfg_data(const uint8_t* mfg,
         return false;
     }
 
-    if (!uni_hid_parser_switch2_is_device(UNI_SW2_NINTENDO_VID, pid))
+    if (!is_switch2_vid_pid(UNI_SW2_NINTENDO_VID, pid))
         return false;
 
     if (out_pid)

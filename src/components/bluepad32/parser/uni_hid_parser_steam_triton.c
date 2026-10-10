@@ -150,10 +150,10 @@ static bool uuid_is_valve_family(const uint8_t u[16]) {
     return u[0] == 0x10 && u[1] == 0x0f && u[2] == 0x6c && memcmp(&u[4], &k_valve_service_uuid[4], 12) == 0;
 }
 
-bool uni_hid_parser_steam_triton_is_triton_device(uint16_t vid, uint16_t pid) {
-    if (vid != UNI_TRITON_VALVE_VID)
+bool uni_hid_parser_steam_triton_is_device(const struct uni_hid_device_s* d) {
+    if (!d || d->vendor_id != UNI_TRITON_VALVE_VID)
         return false;
-    switch (pid) {
+    switch (d->product_id) {
         case UNI_TRITON_PID_USB:
         case UNI_TRITON_PID_BLE:
         case UNI_TRITON_PID_PUCK:
@@ -162,12 +162,6 @@ bool uni_hid_parser_steam_triton_is_triton_device(uint16_t vid, uint16_t pid) {
         default:
             return false;
     }
-}
-
-bool uni_hid_parser_steam_triton_is_device(const struct uni_hid_device_s* d) {
-    if (!d)
-        return false;
-    return uni_hid_parser_steam_triton_is_triton_device(d->vendor_id, d->product_id);
 }
 
 static void stop_conn_timer(steam_triton_instance_t* ins) {

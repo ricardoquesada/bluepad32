@@ -126,30 +126,12 @@ void uni_hid_parser_switch2_play_dual_rumble(struct uni_hid_device_s* d,
 int uni_hid_parser_switch2_device_extra_info(const struct uni_hid_device_s* d, char* buf, size_t len);
 
 /**
- * @brief Returns true if `(vid, pid)` identifies a supported Nintendo Switch 2 controller.
- *
- * @param vid Vendor ID.
- * @param pid Product ID.
- * @return `true` if `vid == 0x057e` and `pid` is `0x2066`, `0x2067`, or `0x2069`.
- */
-bool uni_hid_parser_switch2_is_device(uint16_t vid, uint16_t pid);
-
-/**
- * @brief Alias of `uni_hid_parser_switch2_is_device()` for `(vid, pid)` checks.
- *
- * @param vid Vendor ID.
- * @param pid Product ID.
- * @return `true` if `(vid, pid)` is a Nintendo Switch 2 controller.
- */
-bool uni_hid_parser_switch2_is_switch2_device(uint16_t vid, uint16_t pid);
-
-/**
- * @brief Returns true if `d` is a Nintendo Switch 2 BLE device.
+ * @brief Returns true if `d` is a supported Nintendo Switch 2 BLE controller.
  *
  * @param d Target HID device instance (may be NULL).
- * @return `true` if `d` is non-NULL and has Switch 2 VID/PID.
+ * @return `true` if `d` is non-NULL and has a Switch 2 VID (`0x057e`) and PID (`0x2066`, `0x2067`, or `0x2069`).
  */
-bool uni_hid_parser_switch2_is_ble_device(const struct uni_hid_device_s* d);
+bool uni_hid_parser_switch2_is_device(const struct uni_hid_device_s* d);
 
 /**
  * @brief Returns whether the Switch 2 device advertised SYNC pairing mode (`needs_pair`).

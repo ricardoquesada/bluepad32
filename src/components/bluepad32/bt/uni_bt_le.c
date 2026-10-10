@@ -518,7 +518,7 @@ void uni_bt_le_on_hci_event_gattservice_meta(const uint8_t* packet, uint16_t siz
                     // parser setup() state machine via uni_hid_device_set_ready().
                     // Guard uni_hid_device_connect() with !device->conn.connected in case
                     // an unbonded Switch 2 setup path already marked the device connected.
-                    if (uni_hid_parser_switch2_is_ble_device(device) || uni_hid_parser_steam_triton_is_device(device)) {
+                    if (uni_hid_parser_switch2_is_device(device) || uni_hid_parser_steam_triton_is_device(device)) {
                         uni_hid_device_guess_controller_type_from_pid_vid(device);
                         if (!device->conn.connected) {
                             uni_hid_device_connect(device);
@@ -557,7 +557,7 @@ void uni_bt_le_on_hci_event_gattservice_meta(const uint8_t* packet, uint16_t siz
                     }
                     // When DIS is absent or fails (e.g. controller identified via AD
                     // manufacturer data or name), still bypass HOGP for Switch 2 and Triton.
-                    if (uni_hid_parser_switch2_is_ble_device(device) || uni_hid_parser_steam_triton_is_device(device)) {
+                    if (uni_hid_parser_switch2_is_device(device) || uni_hid_parser_steam_triton_is_device(device)) {
                         uni_hid_device_guess_controller_type_from_pid_vid(device);
                         if (!device->conn.connected) {
                             uni_hid_device_connect(device);
@@ -784,7 +784,7 @@ static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
             switch (sm_event_reencryption_complete_get_status(packet)) {
                 case ERROR_CODE_SUCCESS:
                     logi("Re-encryption complete, success\n");
-                    if (device && uni_hid_parser_switch2_is_ble_device(device)) {
+                    if (device && uni_hid_parser_switch2_is_device(device)) {
                         logi("Switch2: re-encryption complete; skipping DIS query\n");
                     } else {
                         request_device_information_query = true;
@@ -805,7 +805,7 @@ static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
                     sm_event_reencryption_complete_get_address(packet, addr);
                     type = sm_event_reencryption_complete_get_addr_type(packet);
                     gap_delete_bonding(type, addr);
-                    if (device && uni_hid_parser_switch2_is_ble_device(device)) {
+                    if (device && uni_hid_parser_switch2_is_device(device)) {
                         sm_set_authentication_requirements(0);
                     }
                     sm_request_pairing(sm_event_reencryption_complete_get_handle(packet));
@@ -832,7 +832,7 @@ static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
                         just_works_fallback_con_handle = UNI_BT_CONN_HANDLE_INVALID;
                         just_works_fallback_tried = false;
                     }
-                    if (uni_hid_parser_switch2_is_ble_device(device)) {
+                    if (uni_hid_parser_switch2_is_device(device)) {
                         logi("Switch2: SMP pairing complete; skipping DIS query\n");
                     } else {
                         request_device_information_query = true;
@@ -847,7 +847,7 @@ static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
                 case ERROR_CODE_AUTHENTICATION_FAILURE: {
                     uint8_t reason = sm_event_pairing_complete_get_reason(packet);
                     logi("Pairing failed, reason = %u\n", reason);
-                    if (uni_hid_parser_switch2_is_ble_device(device)) {
+                    if (uni_hid_parser_switch2_is_device(device)) {
                         logi("Switch2: SMP pairing failed, disconnecting\n");
                         hog_disconnect(device->conn.handle);
                         break;
@@ -929,7 +929,7 @@ void uni_bt_le_on_hci_event_le_meta(const uint8_t* packet, uint16_t size) {
 
             uni_hid_device_set_connection_handle(device, con_handle);
 
-            if (uni_hid_parser_switch2_is_ble_device(device)) {
+            if (uni_hid_parser_switch2_is_device(device)) {
                 // If the controller advertised in active sync-button pairing mode, purge any
                 // stale host-side LTK bond so the controller executes a fresh 0x15 pairing
                 // handshake before SMP runs.
@@ -1007,7 +1007,7 @@ void uni_bt_le_on_hci_event_encryption_change(const uint8_t* packet, uint16_t si
         return;
     }
 
-    if (uni_hid_parser_switch2_is_ble_device(device)) {
+    if (uni_hid_parser_switch2_is_device(device)) {
         uni_hid_parser_switch2_on_encrypted(device);
         resume_scanning_hint();
     }

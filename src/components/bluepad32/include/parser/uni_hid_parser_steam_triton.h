@@ -148,19 +148,10 @@ void uni_hid_parser_steam_triton_play_dual_rumble(struct uni_hid_device_s* d,
 int uni_hid_parser_steam_triton_device_extra_info(const struct uni_hid_device_s* d, char* buf, size_t len);
 
 /**
- * @brief Returns true if `(vid, pid)` identifies a Valve Steam Controller 2026 ("Triton") model.
- *
- * @param vid Vendor ID.
- * @param pid Product ID.
- * @return `true` if `vid == 0x28de` and `pid` is in `{0x1302, 0x1303, 0x1304, 0x1305}`.
- */
-bool uni_hid_parser_steam_triton_is_triton_device(uint16_t vid, uint16_t pid);
-
-/**
  * @brief Returns true if `d` is a Valve Steam Controller 2026 ("Triton") device.
  *
  * @param d Target HID device instance (may be NULL).
- * @return `true` if `d` is non-NULL and has a Triton VID/PID.
+ * @return `true` if `d` is non-NULL and has a Triton VID (`0x28de`) and PID (`0x1302..0x1305`).
  */
 bool uni_hid_parser_steam_triton_is_device(const struct uni_hid_device_s* d);
 
