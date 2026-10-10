@@ -18,7 +18,7 @@ extern "C" {
  * @brief Bluetooth Low Energy (BLE) Configuration & Telemetry GATT Service for Bluepad32.
  *
  * Exposes the Bluepad32 primary GATT service (`4627C4A4-AC00-46B9-B688-AFC5C1BF7F63`)
- * with characteristics `AC01` through `AC0E`:
+ * with characteristics `AC01` through `AC0F`:
  * - **Dual-PDU BLE Service Identity (`0x2A00` & `AC0D`):**
  *   Fits the 16-byte 128-bit service UUID and a custom UTF-8 device name (`1..29` bytes)
  *   within Legacy BLE's 31-byte packet limit by placing Flags (3B) + 128-bit UUID (18B) +
@@ -29,9 +29,15 @@ extern "C" {
  * - **Per-Connection Password Authentication Gate (`AC0E`):**
  *   When a non-empty password (`1..31` UTF-8 bytes) is configured, unauthenticated clients
  *   can only read public identity characteristics (`0x2A00`, `AC01`, `AC0D`, `AC0E`) and
- *   write the password to `AC0E`. All protected reads (`AC02`–`AC09`), writes (`AC03`–`AC0D`),
+ *   write the password to `AC0E`. All protected reads (`AC02`–`AC09`, `AC0F`), writes (`AC03`–`AC0D`, `AC0F`),
  *   and `AC05` CCCD subscriptions/notifications are rejected with
  *   `ATT_ERROR_INSUFFICIENT_AUTHENTICATION` (`0x05`) until `AC0E` is unlocked for that connection.
+ * - **Controller Remapping Matrix (`AC06` & `AC0F`):**
+ *   `AC06` selects the active mapping preset (`0=Xbox`, `1=Nintendo Switch`, `2=Custom`) via a
+ *   1-byte read/write and also accepts a 29-byte atomic custom-mappings write (`[2, ...28B...]`).
+ *   `AC0F` exposes the full 28-byte `uni_gamepad_mappings_t` custom remapping table for direct
+ *   read/write inspection and editing, validating all 28 bytes via `uni_gamepad_mappings_is_valid()`
+ *   before applying.
  */
 
 /**

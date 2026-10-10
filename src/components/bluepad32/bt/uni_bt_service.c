@@ -30,10 +30,19 @@
 // 5. Per-Connection Password Authentication Gate (`AC0E`, handle `0x0024`):
 //    Public discovery characteristics (`0x2A00`, `AC01`, `AC0D` read, `AC0E` read/write)
 //    are always accessible. When a non-empty password (`1..31` bytes) is configured,
-//    protected reads (`AC02`–`AC09`) return `ATT_READ_ERROR_CODE_OFFSET | ATT_ERROR_INSUFFICIENT_AUTHENTICATION`
-//    (`0xfe05`), and protected writes (`AC03`–`AC0D` and `AC05` CCCD `0x0012`) return
+//    protected reads (`AC02`–`AC09`, `AC0F`) return `ATT_READ_ERROR_CODE_OFFSET |
+//    ATT_ERROR_INSUFFICIENT_AUTHENTICATION`
+//    (`0xfe05`), and protected writes (`AC03`–`AC0D`, `AC0F`, and `AC05` CCCD `0x0012`) return
 //    `ATT_ERROR_INSUFFICIENT_AUTHENTICATION` (`0x05`) until the client writes the
 //    matching password to `AC0E` on that connection handle.
+// 6. Controller Remapping Matrix (`AC06`, handle `0x0014` & `AC0F`, handle `0x0026`):
+//    `AC06` reads the 1-byte active `uni_gamepad_mappings_type_t` (`0..2`) and accepts either
+//    a 1-byte preset selection or a 29-byte atomic custom-mappings payload (`[2, ...28B...]`).
+//    `AC0F` reads and writes the 28-byte `uni_gamepad_mappings_t` table directly (`offset == 0`
+//    on writes, `att_read_callback_handle_blob()` on reads so both 185+ MTU single reads and
+//    23-byte MTU `ATT_READ_BLOB_REQUEST` offset reads work seamlessly). Both paths validate all
+//    28 fields with `uni_gamepad_mappings_is_valid()` before calling `uni_gamepad_set_mappings()`,
+//    rejecting out-of-range field values with `ATT_ERROR_VALUE_NOT_ALLOWED` (`0x13`).
 
 #include "bt/uni_bt_service.h"
 
@@ -471,15 +480,26 @@ static int uni_att_write_callback(hci_con_handle_t con_handle,
             break;
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
-            // AC06: Controller mappings preset (0 = Xbox, 1 = Nintendo Switch, 2 = Custom).
+            // AC06: Controller mappings preset (1-byte: 0 = Xbox, 1 = Nintendo Switch, 2 = Custom)
+            // or atomic custom mappings update (29-byte: [2, ...28-byte uni_gamepad_mappings_t...]).
             if (!is_conn_authenticated(con_handle))
                 return ATT_ERROR_INSUFFICIENT_AUTHENTICATION;
-            if (buffer_size != 1 || offset != 0)
+            if (offset != 0 || (buffer_size != 1 && buffer_size != 1 + sizeof(uni_gamepad_mappings_t)))
                 return ATT_ERROR_REQUEST_NOT_SUPPORTED;
             uint8_t type = buffer[0];
-            if (type >= UNI_GAMEPAD_MAPPINGS_TYPE_COUNT)
+            if (buffer_size == 1) {
+                if (type >= UNI_GAMEPAD_MAPPINGS_TYPE_COUNT)
+                    return ATT_ERROR_VALUE_NOT_ALLOWED;
+                uni_gamepad_set_mappings_type(type);
+                break;
+            }
+            if (type != UNI_GAMEPAD_MAPPINGS_TYPE_CUSTOM)
                 return ATT_ERROR_VALUE_NOT_ALLOWED;
-            uni_gamepad_set_mappings_type(type);
+            uni_gamepad_mappings_t custom_mappings;
+            memcpy(&custom_mappings, &buffer[1], sizeof(custom_mappings));
+            if (!uni_gamepad_mappings_is_valid(&custom_mappings))
+                return ATT_ERROR_VALUE_NOT_ALLOWED;
+            uni_gamepad_set_mappings(&custom_mappings);
             break;
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC07_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
@@ -588,6 +608,21 @@ static int uni_att_write_callback(hci_con_handle_t con_handle,
             uni_bt_service_set_name(new_name);
             break;
         }
+        case ATT_CHARACTERISTIC_4627C4A4_AC0F_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
+            // AC0F: Set custom controller button/axis remapping table (28-byte packed uni_gamepad_mappings_t).
+            if (!is_conn_authenticated(con_handle))
+                return ATT_ERROR_INSUFFICIENT_AUTHENTICATION;
+            if (offset != 0)
+                return ATT_ERROR_REQUEST_NOT_SUPPORTED;
+            if (buffer_size != sizeof(uni_gamepad_mappings_t))
+                return ATT_ERROR_INVALID_ATTRIBUTE_VALUE_LENGTH;
+            uni_gamepad_mappings_t custom_mappings;
+            memcpy(&custom_mappings, buffer, sizeof(custom_mappings));
+            if (!uni_gamepad_mappings_is_valid(&custom_mappings))
+                return ATT_ERROR_VALUE_NOT_ALLOWED;
+            uni_gamepad_set_mappings(&custom_mappings);
+            break;
+        }
         default:
             logi("BLE Service: Unsupported write to 0x%04x, len %u\n", att_handle, buffer_size);
             return ATT_ERROR_ATTRIBUTE_NOT_FOUND;
@@ -687,6 +722,15 @@ static uint16_t uni_att_read_callback(hci_con_handle_t conn_handle,
                 return (uint16_t)(ATT_READ_ERROR_CODE_OFFSET | ATT_ERROR_INSUFFICIENT_AUTHENTICATION);
             const uint8_t virtual_enabled = uni_virtual_device_is_enabled();
             return att_read_callback_handle_blob(&virtual_enabled, (uint16_t)1, offset, buffer, buffer_size);
+        }
+        case ATT_CHARACTERISTIC_4627C4A4_AC0F_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
+            // AC0F: Active 28-byte custom controller button/axis remapping table (uni_gamepad_mappings_t).
+            if (!is_conn_authenticated(conn_handle))
+                return (uint16_t)(ATT_READ_ERROR_CODE_OFFSET | ATT_ERROR_INSUFFICIENT_AUTHENTICATION);
+            uni_gamepad_mappings_t current_mappings;
+            uni_gamepad_get_mappings(&current_mappings);
+            return att_read_callback_handle_blob((const uint8_t*)&current_mappings, (uint16_t)sizeof(current_mappings),
+                                                 offset, buffer, buffer_size);
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC0A_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
             // AC0A: Write-only characteristic (Disconnect a device).

@@ -281,6 +281,8 @@ static void reset_test_fixture(void) {
     uni_bt_sdp_set_device_for_test(NULL);
     uni_bt_service_set_name("Bluepad32");
     uni_bt_service_set_password(NULL);
+    uni_gamepad_set_mappings(&GAMEPAD_DEFAULT_MAPPINGS);
+    uni_gamepad_set_mappings_type(UNI_GAMEPAD_MAPPINGS_TYPE_XBOX);
 
     g_mock_platform.on_init_complete = mock_platform_on_init_complete;
     g_discover_return_value = UNI_ERROR_SUCCESS;
@@ -3226,7 +3228,7 @@ TEST(bt_service_password_auth_gate_ac0e_and_session_lifecycle) {
     EXPECT_EQ(ATT_READ_RESPONSE, rsp_buf[0]);
     EXPECT_EQ(UNI_BT_SERVICE_AUTH_STATE_REQUIRED, rsp_buf[1]);
 
-    // Every protected read handle (AC02..AC09) must return ATT_ERROR_INSUFFICIENT_AUTHENTICATION (0x05):
+    // Every protected read handle (AC02..AC09, AC0F) must return ATT_ERROR_INSUFFICIENT_AUTHENTICATION (0x05):
     static const uint16_t k_protected_read_handles[] = {
         ATT_CHARACTERISTIC_4627C4A4_AC02_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x000b
         ATT_CHARACTERISTIC_4627C4A4_AC03_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x000d
@@ -3236,6 +3238,7 @@ TEST(bt_service_password_auth_gate_ac0e_and_session_lifecycle) {
         ATT_CHARACTERISTIC_4627C4A4_AC07_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x0016
         ATT_CHARACTERISTIC_4627C4A4_AC08_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x0018
         ATT_CHARACTERISTIC_4627C4A4_AC09_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x001a
+        ATT_CHARACTERISTIC_4627C4A4_AC0F_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x0026 (FW-GATT-01)
     };
     for (size_t i = 0; i < ARRAY_SIZE(k_protected_read_handles); i++) {
         rsp_len = send_att_read_req(&att_conn, k_protected_read_handles[i], rsp_buf);
@@ -3246,8 +3249,8 @@ TEST(bt_service_password_auth_gate_ac0e_and_session_lifecycle) {
         EXPECT_EQ(ATT_ERROR_INSUFFICIENT_AUTHENTICATION, rsp_buf[4]);
     }
 
-    // Every protected write handle (AC03..AC0D + AC05 CCCD) must return ATT_ERROR_INSUFFICIENT_AUTHENTICATION (0x05)
-    // and produce zero side effects:
+    // Every protected write handle (AC03..AC0D, AC0F + AC05 CCCD) must return ATT_ERROR_INSUFFICIENT_AUTHENTICATION
+    // (0x05) and produce zero side effects:
     uni_bt_stop_scanning_unsafe();
     EXPECT_FALSE(uni_bt_is_scanning());
     const uint8_t one_byte = 0x01;
@@ -3288,10 +3291,38 @@ TEST(bt_service_password_auth_gate_ac0e_and_session_lifecycle) {
     ASSERT_EQ(5, rsp_len);
     EXPECT_EQ(ATT_ERROR_INSUFFICIENT_AUTHENTICATION, rsp_buf[4]);
 
-    // Verify zero side effects occurred on scanning, allowlist, or service name.
+    // FW-GATT-02: Unauthenticated 28-byte write to AC0F (0x0026) and 29-byte write to AC06 (0x0014) -> 0x05
+    uni_gamepad_mappings_t unauth_map = GAMEPAD_DEFAULT_MAPPINGS;
+    unauth_map.button_a = UNI_GAMEPAD_MAPPINGS_BUTTON_B;
+    rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0F_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                 &unauth_map, sizeof(unauth_map), rsp_buf);
+    ASSERT_EQ(5, rsp_len);
+    EXPECT_EQ(ATT_ERROR_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(ATT_WRITE_REQUEST, rsp_buf[1]);
+    EXPECT_EQ(ATT_CHARACTERISTIC_4627C4A4_AC0F_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+              little_endian_read_16(rsp_buf, 2));
+    EXPECT_EQ(ATT_ERROR_INSUFFICIENT_AUTHENTICATION, rsp_buf[4]);
+
+    uint8_t unauth_ac06_29b[1 + sizeof(uni_gamepad_mappings_t)];
+    unauth_ac06_29b[0] = UNI_GAMEPAD_MAPPINGS_TYPE_CUSTOM;
+    memcpy(&unauth_ac06_29b[1], &unauth_map, sizeof(unauth_map));
+    rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                 unauth_ac06_29b, sizeof(unauth_ac06_29b), rsp_buf);
+    ASSERT_EQ(5, rsp_len);
+    EXPECT_EQ(ATT_ERROR_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(ATT_WRITE_REQUEST, rsp_buf[1]);
+    EXPECT_EQ(ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+              little_endian_read_16(rsp_buf, 2));
+    EXPECT_EQ(ATT_ERROR_INSUFFICIENT_AUTHENTICATION, rsp_buf[4]);
+
+    // Verify zero side effects occurred on scanning, allowlist, service name, or gamepad mappings.
     EXPECT_FALSE(uni_bt_is_scanning());
     EXPECT_FALSE(uni_bt_allowlist_is_enabled());
     EXPECT_EQ(0, strcmp(uni_bt_service_get_name(), "Bluepad32"));
+    EXPECT_EQ(UNI_GAMEPAD_MAPPINGS_TYPE_XBOX, uni_gamepad_get_mappings_type());
+    uni_gamepad_mappings_t check_map = {0};
+    uni_gamepad_get_mappings(&check_map);
+    EXPECT_EQ(0, memcmp(&check_map, &GAMEPAD_DEFAULT_MAPPINGS, sizeof(check_map)));
 
     // 3. Wrong Password & Length/Offset Validation on AC0E:
     // - Wrong password of identical length (10 bytes: "wrongpass!") -> ATT_ERROR_INSUFFICIENT_AUTHENTICATION (0x05)
@@ -3513,6 +3544,274 @@ TEST(bt_service_password_auth_gate_ac0e_and_session_lifecycle) {
 }
 
 // ============================================================================
+// 23. TEST(bt_service_custom_mappings_ac0f_and_ac06_roundtrip)
+// ============================================================================
+
+/**
+ * @brief End-to-end ATT read/write/validation contract test for `AC06` (`0x0014`) and `AC0F` (`0x0026`)
+ * custom controller remapping (`FW-GATT-01..09`).
+ *
+ * Verifies:
+ * - **FW-GATT-01..03:** Default 28-byte `AC0F` (`0x0026`) read returns `GAMEPAD_DEFAULT_MAPPINGS`
+ *   (including asymmetric D-pad `{0, 1, 3, 2}` and misc `{1, 2, 0, 3}` bytes) and supports
+ *   `ATT_READ_BLOB_REQUEST` offset reads (`offset = 14`).
+ * - **FW-GATT-04:** Non-zero write offset (`ATT_PREPARE_WRITE_REQUEST`, `offset = 1`) on `AC0F`
+ *   is rejected with `ATT_ERROR_REQUEST_NOT_SUPPORTED` (`0x06`).
+ * - **FW-GATT-05:** Malformed payload lengths (`0`, `27`, `29` bytes) on `AC0F` are rejected with
+ *   `ATT_ERROR_INVALID_ATTRIBUTE_VALUE_LENGTH` (`0x0d`).
+ * - **FW-GATT-06:** Malformed payload lengths (`0`, `2`, `28`, `30` bytes) on `AC06` return `0x06`,
+ *   and 29-byte writes on `AC06` with `buffer[0] != UNI_GAMEPAD_MAPPINGS_TYPE_CUSTOM` (`0`, `1`, `99`)
+ *   return `ATT_ERROR_VALUE_NOT_ALLOWED` (`0x13`).
+ * - **FW-GATT-07:** Out-of-range field values across all 6 mapping domains on both `AC0F` (28B) and
+ *   `AC06` (29B) are rejected with `ATT_ERROR_VALUE_NOT_ALLOWED` (`0x13`) with zero side effects.
+ * - **FW-GATT-08:** Valid 28-byte write to `AC0F` promotes `AC06` to `UNI_GAMEPAD_MAPPINGS_TYPE_CUSTOM` (`2`),
+ *   reads back identically from `AC0F`, and remaps `uni_gamepad_remap()` outputs accurately.
+ * - **FW-GATT-09:** Valid 29-byte atomic write (`[2, ...28B...]`) to `AC06` updates both `AC06` and
+ *   `AC0F` and applies the new custom remapping in `uni_gamepad_remap()`.
+ */
+TEST(bt_service_custom_mappings_ac0f_and_ac06_roundtrip) {
+    reset_test_fixture();
+
+    uni_bt_service_set_enabled(false);
+    uni_bt_service_set_enabled(true);
+    EXPECT_EQ(0x0014, ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE);
+    EXPECT_EQ(0x0026, ATT_CHARACTERISTIC_4627C4A4_AC0F_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE);
+
+    att_connection_t att_conn;
+    memset(&att_conn, 0, sizeof(att_conn));
+    att_conn.con_handle = 0x0040;
+    att_conn.mtu_exchanged = true;
+    att_conn.mtu = 185;
+    att_conn.max_mtu = 185;
+    uint8_t rsp_buf[256];
+
+    // 1. FW-GATT-03: Default AC0F (0x0026) 28-byte read & ATT_READ_BLOB_REQUEST offset read:
+    uint16_t rsp_len =
+        send_att_read_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0F_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE, rsp_buf);
+    ASSERT_EQ(1 + sizeof(uni_gamepad_mappings_t), rsp_len);
+    EXPECT_EQ(ATT_READ_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(0, memcmp(&rsp_buf[1], &GAMEPAD_DEFAULT_MAPPINGS, sizeof(uni_gamepad_mappings_t)));
+    // Verify asymmetric D-pad (offsets 0..3: {0, 1, 3, 2}) and misc button (offsets 14..17: {1, 2, 0, 3}) bytes:
+    EXPECT_EQ(0, rsp_buf[1]);
+    EXPECT_EQ(1, rsp_buf[2]);
+    EXPECT_EQ(3, rsp_buf[3]);
+    EXPECT_EQ(2, rsp_buf[4]);
+    EXPECT_EQ(1, rsp_buf[15]);
+    EXPECT_EQ(2, rsp_buf[16]);
+    EXPECT_EQ(0, rsp_buf[17]);
+    EXPECT_EQ(3, rsp_buf[18]);
+
+    // Blob read at offset = 14 on AC0F (0x0026):
+    uint8_t req_blob_ac0f[5] = {ATT_READ_BLOB_REQUEST, 0x26, 0x00, 14, 0x00};
+    memset(rsp_buf, 0, sizeof(rsp_buf));
+    rsp_len = att_handle_request(&att_conn, req_blob_ac0f, sizeof(req_blob_ac0f), rsp_buf);
+    ASSERT_EQ(1 + 14, rsp_len);
+    EXPECT_EQ(ATT_READ_BLOB_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(0, memcmp(&rsp_buf[1], ((const uint8_t*)&GAMEPAD_DEFAULT_MAPPINGS) + 14, 14));
+
+    // 2. FW-GATT-04: Non-zero write offset rejection on AC0F (0x0026) -> ATT_ERROR_REQUEST_NOT_SUPPORTED (0x06):
+    uint8_t req_prep_ac0f[5 + sizeof(uni_gamepad_mappings_t)];
+    req_prep_ac0f[0] = ATT_PREPARE_WRITE_REQUEST;
+    little_endian_store_16(req_prep_ac0f, 1, ATT_CHARACTERISTIC_4627C4A4_AC0F_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE);
+    little_endian_store_16(req_prep_ac0f, 3, 1);  // offset = 1
+    memcpy(&req_prep_ac0f[5], &GAMEPAD_DEFAULT_MAPPINGS, sizeof(uni_gamepad_mappings_t));
+    memset(rsp_buf, 0, sizeof(rsp_buf));
+    rsp_len = att_handle_request(&att_conn, req_prep_ac0f, sizeof(req_prep_ac0f), rsp_buf);
+    ASSERT_EQ(5, rsp_len);
+    EXPECT_EQ(ATT_ERROR_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(ATT_PREPARE_WRITE_REQUEST, rsp_buf[1]);
+    EXPECT_EQ(ATT_CHARACTERISTIC_4627C4A4_AC0F_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+              little_endian_read_16(rsp_buf, 2));
+    EXPECT_EQ(ATT_ERROR_REQUEST_NOT_SUPPORTED, rsp_buf[4]);
+
+    // 3. FW-GATT-05: AC0F (0x0026) invalid payload lengths (0, 27, 29 bytes) ->
+    //    ATT_ERROR_INVALID_ATTRIBUTE_VALUE_LENGTH (0x0d):
+    uint8_t dummy_29b[29];
+    memset(dummy_29b, 0, sizeof(dummy_29b));
+    static const uint16_t k_invalid_ac0f_lengths[] = {0, 27, 29};
+    for (size_t i = 0; i < ARRAY_SIZE(k_invalid_ac0f_lengths); i++) {
+        rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0F_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                     dummy_29b, k_invalid_ac0f_lengths[i], rsp_buf);
+        ASSERT_EQ(5, rsp_len);
+        EXPECT_EQ(ATT_ERROR_RESPONSE, rsp_buf[0]);
+        EXPECT_EQ(ATT_WRITE_REQUEST, rsp_buf[1]);
+        EXPECT_EQ(ATT_CHARACTERISTIC_4627C4A4_AC0F_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                  little_endian_read_16(rsp_buf, 2));
+        EXPECT_EQ(ATT_ERROR_INVALID_ATTRIBUTE_VALUE_LENGTH, rsp_buf[4]);
+    }
+    EXPECT_EQ(UNI_GAMEPAD_MAPPINGS_TYPE_XBOX, uni_gamepad_get_mappings_type());
+
+    // 4. FW-GATT-06: AC06 (0x0014) invalid payload lengths (0, 2, 28, 30 bytes -> 0x06) &
+    //    non-custom 29-byte header (buffer[0] != 2 -> 0x13):
+    uint8_t dummy_30b[30];
+    memset(dummy_30b, 0, sizeof(dummy_30b));
+    static const uint16_t k_invalid_ac06_lengths[] = {0, 2, 28, 30};
+    for (size_t i = 0; i < ARRAY_SIZE(k_invalid_ac06_lengths); i++) {
+        rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                     dummy_30b, k_invalid_ac06_lengths[i], rsp_buf);
+        ASSERT_EQ(5, rsp_len);
+        EXPECT_EQ(ATT_ERROR_RESPONSE, rsp_buf[0]);
+        EXPECT_EQ(ATT_WRITE_REQUEST, rsp_buf[1]);
+        EXPECT_EQ(ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                  little_endian_read_16(rsp_buf, 2));
+        EXPECT_EQ(ATT_ERROR_REQUEST_NOT_SUPPORTED, rsp_buf[4]);
+    }
+
+    static const uint8_t k_non_custom_types[] = {
+        UNI_GAMEPAD_MAPPINGS_TYPE_XBOX,
+        UNI_GAMEPAD_MAPPINGS_TYPE_SWITCH,
+        99,
+    };
+    for (size_t i = 0; i < ARRAY_SIZE(k_non_custom_types); i++) {
+        uint8_t bad_ac06_header[1 + sizeof(uni_gamepad_mappings_t)];
+        bad_ac06_header[0] = k_non_custom_types[i];
+        memcpy(&bad_ac06_header[1], &GAMEPAD_DEFAULT_MAPPINGS, sizeof(uni_gamepad_mappings_t));
+        rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                     bad_ac06_header, sizeof(bad_ac06_header), rsp_buf);
+        ASSERT_EQ(5, rsp_len);
+        EXPECT_EQ(ATT_ERROR_RESPONSE, rsp_buf[0]);
+        EXPECT_EQ(ATT_WRITE_REQUEST, rsp_buf[1]);
+        EXPECT_EQ(ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                  little_endian_read_16(rsp_buf, 2));
+        EXPECT_EQ(ATT_ERROR_VALUE_NOT_ALLOWED, rsp_buf[4]);
+    }
+    EXPECT_EQ(UNI_GAMEPAD_MAPPINGS_TYPE_XBOX, uni_gamepad_get_mappings_type());
+
+    // 5. FW-GATT-07: Out-of-range field bytes across all 6 domains on AC0F (28B) and AC06 (29B) ->
+    //    ATT_ERROR_VALUE_NOT_ALLOWED (0x13) with zero side effects:
+    struct {
+        size_t offset;
+        uint8_t bad_val;
+    } k_bad_domain_cases[] = {
+        {offsetof(uni_gamepad_mappings_t, dpad_up), UNI_GAMEPAD_MAPPINGS_DPAD_COUNT},                    // dpad >= 4
+        {offsetof(uni_gamepad_mappings_t, button_a), UNI_GAMEPAD_MAPPINGS_BUTTON_COUNT},                 // button >= 10
+        {offsetof(uni_gamepad_mappings_t, misc_button_select), UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_COUNT},  // misc >= 4
+        {offsetof(uni_gamepad_mappings_t, axis_rx), UNI_GAMEPAD_MAPPINGS_AXIS_COUNT},                    // axis >= 4
+        {offsetof(uni_gamepad_mappings_t, axis_y_inverted), 2},                                          // inverted > 1
+        {offsetof(uni_gamepad_mappings_t, throttle), UNI_GAMEPAD_MAPPINGS_PEDAL_COUNT},                  // pedal >= 2
+    };
+    for (size_t i = 0; i < ARRAY_SIZE(k_bad_domain_cases); i++) {
+        uni_gamepad_mappings_t bad_map = GAMEPAD_DEFAULT_MAPPINGS;
+        ((uint8_t*)&bad_map)[k_bad_domain_cases[i].offset] = k_bad_domain_cases[i].bad_val;
+
+        // 28B write to AC0F (0x0026) -> 0x13
+        rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0F_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                     &bad_map, sizeof(bad_map), rsp_buf);
+        ASSERT_EQ(5, rsp_len);
+        EXPECT_EQ(ATT_ERROR_RESPONSE, rsp_buf[0]);
+        EXPECT_EQ(ATT_ERROR_VALUE_NOT_ALLOWED, rsp_buf[4]);
+
+        // 29B write to AC06 (0x0014) -> 0x13
+        uint8_t bad_ac06[1 + sizeof(uni_gamepad_mappings_t)];
+        bad_ac06[0] = UNI_GAMEPAD_MAPPINGS_TYPE_CUSTOM;
+        memcpy(&bad_ac06[1], &bad_map, sizeof(bad_map));
+        rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                     bad_ac06, sizeof(bad_ac06), rsp_buf);
+        ASSERT_EQ(5, rsp_len);
+        EXPECT_EQ(ATT_ERROR_RESPONSE, rsp_buf[0]);
+        EXPECT_EQ(ATT_ERROR_VALUE_NOT_ALLOWED, rsp_buf[4]);
+
+        // Verify zero side effects:
+        EXPECT_EQ(UNI_GAMEPAD_MAPPINGS_TYPE_XBOX, uni_gamepad_get_mappings_type());
+        rsp_len = send_att_read_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0F_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                    rsp_buf);
+        ASSERT_EQ(1 + sizeof(uni_gamepad_mappings_t), rsp_len);
+        EXPECT_EQ(0, memcmp(&rsp_buf[1], &GAMEPAD_DEFAULT_MAPPINGS, sizeof(uni_gamepad_mappings_t)));
+    }
+
+    // 6. FW-GATT-08: Valid 28-byte AC0F (0x0026) write -> AC06 type update -> AC0F readback ->
+    //    uni_gamepad_remap() verification:
+    uni_gamepad_mappings_t custom1 = GAMEPAD_DEFAULT_MAPPINGS;
+    custom1.button_a = UNI_GAMEPAD_MAPPINGS_BUTTON_B;
+    custom1.button_b = UNI_GAMEPAD_MAPPINGS_BUTTON_A;
+    custom1.dpad_left = UNI_GAMEPAD_MAPPINGS_DPAD_RIGHT;
+    custom1.dpad_right = UNI_GAMEPAD_MAPPINGS_DPAD_LEFT;
+    custom1.misc_button_select = UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_CAPTURE;
+    custom1.axis_ry_inverted = 1;
+    custom1.brake = UNI_GAMEPAD_MAPPINGS_PEDAL_THROTTLE;
+    custom1.throttle = UNI_GAMEPAD_MAPPINGS_PEDAL_BRAKE;
+
+    rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0F_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                 &custom1, sizeof(custom1), rsp_buf);
+    ASSERT_EQ(1, rsp_len);
+    EXPECT_EQ(ATT_WRITE_RESPONSE, rsp_buf[0]);
+
+    // Reading AC06 (0x0014) returns 1 byte [2] (UNI_GAMEPAD_MAPPINGS_TYPE_CUSTOM):
+    rsp_len =
+        send_att_read_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE, rsp_buf);
+    ASSERT_EQ(2, rsp_len);
+    EXPECT_EQ(ATT_READ_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(UNI_GAMEPAD_MAPPINGS_TYPE_CUSTOM, rsp_buf[1]);
+
+    // Reading AC0F (0x0026) returns the exact 28-byte custom1 payload:
+    rsp_len =
+        send_att_read_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0F_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE, rsp_buf);
+    ASSERT_EQ(1 + sizeof(custom1), rsp_len);
+    EXPECT_EQ(ATT_READ_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(0, memcmp(&rsp_buf[1], &custom1, sizeof(custom1)));
+
+    // Verify uni_gamepad_remap() applies custom1 accurately:
+    uni_gamepad_t gp_in = {0};
+    gp_in.buttons = BUTTON_A;
+    gp_in.dpad = DPAD_LEFT;
+    gp_in.misc_buttons = MISC_BUTTON_SELECT;
+    gp_in.axis_x = 120;
+    gp_in.axis_ry = -250;
+    gp_in.brake = 300;
+    gp_in.throttle = 900;
+
+    uni_gamepad_t gp_out1 = uni_gamepad_remap(&gp_in);
+    EXPECT_EQ(BUTTON_B, gp_out1.buttons);
+    EXPECT_EQ(DPAD_RIGHT, gp_out1.dpad);
+    EXPECT_EQ(MISC_BUTTON_CAPTURE, gp_out1.misc_buttons);
+    EXPECT_EQ(120, gp_out1.axis_x);
+    EXPECT_EQ(250, gp_out1.axis_ry);
+    EXPECT_EQ(900, gp_out1.brake);
+    EXPECT_EQ(300, gp_out1.throttle);
+
+    // 7. FW-GATT-09: Valid 29-byte AC06 (0x0014) atomic write ([2, ...28B...]) -> AC0F readback ->
+    //    uni_gamepad_remap() verification:
+    const uint8_t xbox_preset = UNI_GAMEPAD_MAPPINGS_TYPE_XBOX;
+    rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                 &xbox_preset, 1, rsp_buf);
+    ASSERT_EQ(1, rsp_len);
+    EXPECT_EQ(ATT_WRITE_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(UNI_GAMEPAD_MAPPINGS_TYPE_XBOX, uni_gamepad_get_mappings_type());
+
+    uni_gamepad_mappings_t custom2 = GAMEPAD_DEFAULT_MAPPINGS;
+    custom2.button_a = UNI_GAMEPAD_MAPPINGS_BUTTON_X;
+    custom2.axis_x = UNI_GAMEPAD_MAPPINGS_AXIS_RY;
+    custom2.axis_x_inverted = 1;
+
+    uint8_t atomic_ac06[1 + sizeof(uni_gamepad_mappings_t)];
+    atomic_ac06[0] = UNI_GAMEPAD_MAPPINGS_TYPE_CUSTOM;
+    memcpy(&atomic_ac06[1], &custom2, sizeof(custom2));
+
+    rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                 atomic_ac06, sizeof(atomic_ac06), rsp_buf);
+    ASSERT_EQ(1, rsp_len);
+    EXPECT_EQ(ATT_WRITE_RESPONSE, rsp_buf[0]);
+
+    rsp_len =
+        send_att_read_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC06_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE, rsp_buf);
+    ASSERT_EQ(2, rsp_len);
+    EXPECT_EQ(ATT_READ_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(UNI_GAMEPAD_MAPPINGS_TYPE_CUSTOM, rsp_buf[1]);
+
+    rsp_len =
+        send_att_read_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC0F_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE, rsp_buf);
+    ASSERT_EQ(1 + sizeof(custom2), rsp_len);
+    EXPECT_EQ(ATT_READ_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(0, memcmp(&rsp_buf[1], &custom2, sizeof(custom2)));
+
+    uni_gamepad_t gp_out2 = uni_gamepad_remap(&gp_in);
+    EXPECT_EQ(BUTTON_X, gp_out2.buttons);
+    EXPECT_EQ(250, gp_out2.axis_x);
+
+    uni_bt_service_set_enabled(false);
+}
+
+// ============================================================================
 // Main Test Runner
 // ============================================================================
 
@@ -3548,6 +3847,7 @@ int main(void) {
     RUN_TEST(bt_le_steam_triton_gatt_state_machine_and_teardown);
     RUN_TEST(bt_service_custom_name_adv_scan_rsp_and_ac0d_gatt);
     RUN_TEST(bt_service_password_auth_gate_ac0e_and_session_lifecycle);
+    RUN_TEST(bt_service_custom_mappings_ac0f_and_ac06_roundtrip);
 
     return test_summary();
 }

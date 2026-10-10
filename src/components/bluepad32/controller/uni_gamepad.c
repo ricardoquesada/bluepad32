@@ -1,6 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2019 Ricardo Quesada
 // http://retro.moe/unijoysticle2
+//
+// Virtual gamepad remapping engine and controller model name registry.
+//
+// Key invariants:
+// 1. Static `.data` Initialization (`UNI_GAMEPAD_DEFAULT_MAPPINGS_INIT`):
+//    `map` is initialized at compile time to the Xbox identity mapping so it resides in `.data`
+//    rather than zero-initialized `.bss`. If a caller or BLE client (`AC06`) activates
+//    `UNI_GAMEPAD_MAPPINGS_TYPE_CUSTOM` before uploading a custom table, `uni_gamepad_remap()`
+//    preserves identity behavior instead of collapsing every button to `BUTTON_A` (`BIT(0)`)
+//    and every analog stick axis to `axis_x`.
+// 2. Domain Validation Before Remapping (`uni_gamepad_mappings_is_valid()`):
+//    Because `uni_gamepad_remap()` evaluates `BIT(map.button_*)` (`1 << n`) and indexes axis/pedal
+//    switch helpers, `uni_gamepad_set_mappings()` validates all 28 bytes against their domain
+//    bounds first, preventing signed 32-bit left-shift overflow undefined behavior (`n >= 31`)
+//    on untrusted GATT payloads (`AC06` / `AC0F`).
 
 #include "controller/uni_gamepad.h"
 
@@ -12,7 +27,9 @@
 #include "uni_config.h"
 #include "uni_log.h"
 
-static uni_gamepad_mappings_t map;
+// Initialized with `UNI_GAMEPAD_DEFAULT_MAPPINGS_INIT` so `map` is placed in `.data`
+// (Xbox identity layout) rather than zeroed in `.bss` on startup.
+static uni_gamepad_mappings_t map = UNI_GAMEPAD_DEFAULT_MAPPINGS_INIT;
 static uni_gamepad_mappings_type_t mappings_type;
 
 static struct {
@@ -57,42 +74,13 @@ static struct {
     {CONTROLLER_TYPE_GenericMouse, "Mouse"},
 };
 
-// extern
-const uni_gamepad_mappings_t GAMEPAD_DEFAULT_MAPPINGS = {
-    .dpad_up = UNI_GAMEPAD_MAPPINGS_DPAD_UP,
-    .dpad_down = UNI_GAMEPAD_MAPPINGS_DPAD_DOWN,
-    .dpad_left = UNI_GAMEPAD_MAPPINGS_DPAD_LEFT,
-    .dpad_right = UNI_GAMEPAD_MAPPINGS_DPAD_RIGHT,
-
-    .button_a = UNI_GAMEPAD_MAPPINGS_BUTTON_A,
-    .button_b = UNI_GAMEPAD_MAPPINGS_BUTTON_B,
-    .button_x = UNI_GAMEPAD_MAPPINGS_BUTTON_X,
-    .button_y = UNI_GAMEPAD_MAPPINGS_BUTTON_Y,
-
-    .button_shoulder_l = UNI_GAMEPAD_MAPPINGS_BUTTON_SHOULDER_L,
-    .button_shoulder_r = UNI_GAMEPAD_MAPPINGS_BUTTON_SHOULDER_R,
-    .button_trigger_l = UNI_GAMEPAD_MAPPINGS_BUTTON_TRIGGER_L,
-    .button_trigger_r = UNI_GAMEPAD_MAPPINGS_BUTTON_TRIGGER_R,
-    .button_thumb_l = UNI_GAMEPAD_MAPPINGS_BUTTON_THUMB_L,
-    .button_thumb_r = UNI_GAMEPAD_MAPPINGS_BUTTON_THUMB_R,
-
-    .brake = UNI_GAMEPAD_MAPPINGS_PEDAL_BRAKE,
-    .throttle = UNI_GAMEPAD_MAPPINGS_PEDAL_THROTTLE,
-
-    .axis_x = UNI_GAMEPAD_MAPPINGS_AXIS_X,
-    .axis_y = UNI_GAMEPAD_MAPPINGS_AXIS_Y,
-    .axis_rx = UNI_GAMEPAD_MAPPINGS_AXIS_RX,
-    .axis_ry = UNI_GAMEPAD_MAPPINGS_AXIS_RY,
-
-    .misc_button_select = UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_SELECT,
-    .misc_button_start = UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_START,
-    .misc_button_system = UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_SYSTEM,
-    .misc_button_capture = UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_CAPTURE,
-};
+// Public read-only Xbox identity mapping table.
+const uni_gamepad_mappings_t GAMEPAD_DEFAULT_MAPPINGS = UNI_GAMEPAD_DEFAULT_MAPPINGS_INIT;
 
 const int AXIS_NORMALIZE_RANGE = 1024;  // 10-bit resolution (1024)
 const int AXIS_THRESHOLD = (1024 / 8);
 
+// Samples the physical analog stick axis selected by `axis_type` from `gp`.
 static int32_t get_mappings_value_for_axis(uni_gamepad_mappings_axis_t axis_type, const uni_gamepad_t* gp) {
     switch (axis_type) {
         case UNI_GAMEPAD_MAPPINGS_AXIS_X:
@@ -110,6 +98,7 @@ static int32_t get_mappings_value_for_axis(uni_gamepad_mappings_axis_t axis_type
     return -1;
 }
 
+// Samples the physical analog pedal/trigger selected by `pedal_type` from `gp`.
 static int32_t get_mappings_value_for_pedal(uni_gamepad_mappings_pedal_t pedal_type, const uni_gamepad_t* gp) {
     switch (pedal_type) {
         case UNI_GAMEPAD_MAPPINGS_PEDAL_THROTTLE:
@@ -148,7 +137,10 @@ uni_gamepad_t uni_gamepad_remap(const uni_gamepad_t* gp) {
         return new_gp;
     }
 
-    // else UNI_GAMEPAD_MAPPINGS_TYPE_CUSTOM
+    // else UNI_GAMEPAD_MAPPINGS_TYPE_CUSTOM:
+    // Every shift count in `map` has been pre-validated by `uni_gamepad_mappings_is_valid()`
+    // (or initialized via `UNI_GAMEPAD_DEFAULT_MAPPINGS_INIT`), guaranteeing `BIT(...)` is
+    // free of shift-overflow UB.
 
     if (gp->buttons & BUTTON_A)
         new_gp.buttons |= BIT(map.button_a);
@@ -214,9 +206,72 @@ uni_gamepad_t uni_gamepad_remap(const uni_gamepad_t* gp) {
     return new_gp;
 }
 
+// Validates all 28 bytes of `mappings` against their respective domain bounds.
+// Why this check is mandatory before accepting GATT writes (`AC06` / `AC0F`) or API calls:
+// `BIT(n)` expands to `(1 << (n))` on signed `int`; shifting by `n >= 31` is undefined behavior
+// in C99/C11, and out-of-range axis/pedal selectors would hit the `default:` error path in
+// `get_mappings_value_for_axis()` / `get_mappings_value_for_pedal()` on every input report.
+bool uni_gamepad_mappings_is_valid(const uni_gamepad_mappings_t* mappings) {
+    if (!mappings)
+        return false;
+
+    if (mappings->dpad_up >= UNI_GAMEPAD_MAPPINGS_DPAD_COUNT ||
+        mappings->dpad_down >= UNI_GAMEPAD_MAPPINGS_DPAD_COUNT ||
+        mappings->dpad_left >= UNI_GAMEPAD_MAPPINGS_DPAD_COUNT ||
+        mappings->dpad_right >= UNI_GAMEPAD_MAPPINGS_DPAD_COUNT) {
+        return false;
+    }
+
+    if (mappings->button_a >= UNI_GAMEPAD_MAPPINGS_BUTTON_COUNT ||
+        mappings->button_b >= UNI_GAMEPAD_MAPPINGS_BUTTON_COUNT ||
+        mappings->button_x >= UNI_GAMEPAD_MAPPINGS_BUTTON_COUNT ||
+        mappings->button_y >= UNI_GAMEPAD_MAPPINGS_BUTTON_COUNT ||
+        mappings->button_shoulder_l >= UNI_GAMEPAD_MAPPINGS_BUTTON_COUNT ||
+        mappings->button_shoulder_r >= UNI_GAMEPAD_MAPPINGS_BUTTON_COUNT ||
+        mappings->button_trigger_l >= UNI_GAMEPAD_MAPPINGS_BUTTON_COUNT ||
+        mappings->button_trigger_r >= UNI_GAMEPAD_MAPPINGS_BUTTON_COUNT ||
+        mappings->button_thumb_l >= UNI_GAMEPAD_MAPPINGS_BUTTON_COUNT ||
+        mappings->button_thumb_r >= UNI_GAMEPAD_MAPPINGS_BUTTON_COUNT) {
+        return false;
+    }
+
+    if (mappings->misc_button_select >= UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_COUNT ||
+        mappings->misc_button_start >= UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_COUNT ||
+        mappings->misc_button_system >= UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_COUNT ||
+        mappings->misc_button_capture >= UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_COUNT) {
+        return false;
+    }
+
+    if (mappings->axis_x >= UNI_GAMEPAD_MAPPINGS_AXIS_COUNT || mappings->axis_y >= UNI_GAMEPAD_MAPPINGS_AXIS_COUNT ||
+        mappings->axis_rx >= UNI_GAMEPAD_MAPPINGS_AXIS_COUNT || mappings->axis_ry >= UNI_GAMEPAD_MAPPINGS_AXIS_COUNT) {
+        return false;
+    }
+
+    if (mappings->axis_x_inverted > 1 || mappings->axis_y_inverted > 1 || mappings->axis_rx_inverted > 1 ||
+        mappings->axis_ry_inverted > 1) {
+        return false;
+    }
+
+    if (mappings->brake >= UNI_GAMEPAD_MAPPINGS_PEDAL_COUNT || mappings->throttle >= UNI_GAMEPAD_MAPPINGS_PEDAL_COUNT) {
+        return false;
+    }
+
+    return true;
+}
+
 void uni_gamepad_set_mappings(const uni_gamepad_mappings_t* mappings) {
+    if (!uni_gamepad_mappings_is_valid(mappings)) {
+        loge("uni_gamepad_set_mappings: invalid mappings rejected\n");
+        return;
+    }
     mappings_type = UNI_GAMEPAD_MAPPINGS_TYPE_CUSTOM;
     map = *mappings;
+}
+
+void uni_gamepad_get_mappings(uni_gamepad_mappings_t* out_mappings) {
+    if (!out_mappings)
+        return;
+    *out_mappings = map;
 }
 
 void uni_gamepad_set_mappings_type(uni_gamepad_mappings_type_t type) {

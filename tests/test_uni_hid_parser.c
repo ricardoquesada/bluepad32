@@ -274,8 +274,83 @@ TEST(ds5_adaptive_triggers) {
     printf("PASS\n");
 }
 
+/**
+ * @brief Verifies fresh-boot `.data` default mappings and compile-time size/sentinel invariants (`FW-CT-01..02`,
+ * `FW-GP-01`).
+ *
+ * Ensures that:
+ * - `sizeof(uni_gamepad_mappings_t) == 28` and all `*_COUNT` sentinels match their wire domains (`4, 10, 4, 4, 2`).
+ * - Before any call to `uni_gamepad_set_mappings()`, `uni_gamepad_get_mappings()` returns `GAMEPAD_DEFAULT_MAPPINGS`
+ *   (initialized in `.data` via `UNI_GAMEPAD_DEFAULT_MAPPINGS_INIT` rather than zeroed in `.bss`), including the
+ *   asymmetric D-pad wire bytes at offsets `0..3` (`{0, 1, 3, 2}`) and misc button wire bytes at offsets `14..17` (`{1,
+ * 2, 0, 3}`).
+ * - Selecting `UNI_GAMEPAD_MAPPINGS_TYPE_CUSTOM` on a fresh boot preserves Xbox identity behavior across all
+ *   buttons, D-pad directions, axes, pedals, and IMU channels.
+ */
+TEST(uni_default_mappings_initialized_on_startup) {
+    printf("Testing fresh-boot default mappings & compile-time invariants (FW-CT-01..02, FW-GP-01)...\n");
+
+    // FW-CT-01 & FW-CT-02: Verify 28-byte size and sentinel enum constants.
+    EXPECT_EQ(sizeof(uni_gamepad_mappings_t), 28u);
+    EXPECT_EQ(UNI_GAMEPAD_MAPPINGS_DPAD_COUNT, 4);
+    EXPECT_EQ(UNI_GAMEPAD_MAPPINGS_BUTTON_COUNT, 10);
+    EXPECT_EQ(UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_COUNT, 4);
+    EXPECT_EQ(UNI_GAMEPAD_MAPPINGS_AXIS_COUNT, 4);
+    EXPECT_EQ(UNI_GAMEPAD_MAPPINGS_PEDAL_COUNT, 2);
+
+    // FW-GP-01: Before any call to uni_gamepad_set_mappings(), verify static `map` is
+    // initialized to GAMEPAD_DEFAULT_MAPPINGS (not zeroed in .bss) and verify asymmetric
+    // D-pad (offsets 0..3: {0, 1, 3, 2}) and misc button (offsets 14..17: {1, 2, 0, 3}) wire layout.
+    uni_gamepad_mappings_t initial_map;
+    memset(&initial_map, 0xFF, sizeof(initial_map));
+    uni_gamepad_get_mappings(&initial_map);
+    EXPECT_EQ(memcmp(&initial_map, &GAMEPAD_DEFAULT_MAPPINGS, sizeof(initial_map)), 0);
+
+    const uint8_t k_expected_default_wire[28] = {
+        0, 1, 3, 2,                    // dpad_up, dpad_down, dpad_left, dpad_right
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9,  // button_a .. button_thumb_r
+        1, 2, 0, 3,                    // misc_button_select, start, system, capture
+        0, 1, 2, 3,                    // axis_x, axis_y, axis_rx, axis_ry
+        0, 0, 0, 0,                    // axis_*_inverted
+        0, 1,                          // brake, throttle
+    };
+    EXPECT_EQ(memcmp(&initial_map, k_expected_default_wire, sizeof(k_expected_default_wire)), 0);
+
+    // Selecting UNI_GAMEPAD_MAPPINGS_TYPE_CUSTOM on fresh boot must preserve identity behavior
+    // rather than collapsing all buttons to BUTTON_A and all axes to axis_x.
+    uni_gamepad_t gp = {0};
+    gp.dpad = DPAD_UP | DPAD_DOWN | DPAD_LEFT | DPAD_RIGHT;
+    gp.buttons = BUTTON_A | BUTTON_B | BUTTON_X | BUTTON_Y | BUTTON_SHOULDER_L | BUTTON_SHOULDER_R | BUTTON_TRIGGER_L |
+                 BUTTON_TRIGGER_R | BUTTON_THUMB_L | BUTTON_THUMB_R;
+    gp.misc_buttons = MISC_BUTTON_SYSTEM | MISC_BUTTON_SELECT | MISC_BUTTON_START | MISC_BUTTON_CAPTURE;
+    gp.axis_x = 200;
+    gp.axis_y = -300;
+    gp.axis_rx = 100;
+    gp.axis_ry = -100;
+    gp.brake = 400;
+    gp.throttle = 800;
+    gp.accel[0] = -1.25f;
+    gp.accel[1] = 9.80665f;
+    gp.accel[2] = 3.5f;
+    gp.gyro[0] = 0.25f;
+    gp.gyro[1] = -1.5f;
+    gp.gyro[2] = 0.75f;
+
+    uni_gamepad_set_mappings_type(UNI_GAMEPAD_MAPPINGS_TYPE_CUSTOM);
+    EXPECT_EQ(uni_gamepad_get_mappings_type(), UNI_GAMEPAD_MAPPINGS_TYPE_CUSTOM);
+    uni_gamepad_t default_custom_gp = uni_gamepad_remap(&gp);
+    EXPECT_EQ(memcmp(&default_custom_gp, &gp, sizeof(gp)), 0);
+
+    uni_gamepad_set_mappings_type(UNI_GAMEPAD_MAPPINGS_TYPE_XBOX);
+    printf("PASS\n");
+}
+
+/**
+ * @brief Verifies `uni_gamepad_remap()`, `uni_gamepad_get_mappings()`, `uni_gamepad_set_mappings()`,
+ * and exhaustive 28-field boundary checks in `uni_gamepad_mappings_is_valid()` (`FW-GP-01..05`).
+ */
 TEST(gamepad_remap) {
-    printf("Testing uni_gamepad_remap (XBOX, SWITCH, CUSTOM)...\n");
+    printf("Testing uni_gamepad_remap (XBOX, SWITCH, CUSTOM, bounds validation)...\n");
     uni_gamepad_t gp = {0};
     gp.dpad = DPAD_UP | DPAD_LEFT;
     gp.buttons = BUTTON_A | BUTTON_X | BUTTON_SHOULDER_L;
@@ -293,7 +368,25 @@ TEST(gamepad_remap) {
     gp.gyro[1] = -1.5f;
     gp.gyro[2] = 0.75f;
 
-    // 1. XBOX (identity mapping)
+    // 0. FW-GP-01: Fresh-boot CUSTOM mode before uni_gamepad_set_mappings() preserves GAMEPAD_DEFAULT_MAPPINGS.
+    uni_gamepad_mappings_t initial_map = {0};
+    uni_gamepad_get_mappings(&initial_map);
+    EXPECT_EQ(memcmp(&initial_map, &GAMEPAD_DEFAULT_MAPPINGS, sizeof(initial_map)), 0);
+    const uint8_t* raw_initial = (const uint8_t*)&initial_map;
+    EXPECT_EQ(raw_initial[0], 0);
+    EXPECT_EQ(raw_initial[1], 1);
+    EXPECT_EQ(raw_initial[2], 3);
+    EXPECT_EQ(raw_initial[3], 2);
+    EXPECT_EQ(raw_initial[14], 1);
+    EXPECT_EQ(raw_initial[15], 2);
+    EXPECT_EQ(raw_initial[16], 0);
+    EXPECT_EQ(raw_initial[17], 3);
+
+    uni_gamepad_set_mappings_type(UNI_GAMEPAD_MAPPINGS_TYPE_CUSTOM);
+    uni_gamepad_t default_custom_gp = uni_gamepad_remap(&gp);
+    EXPECT_EQ(memcmp(&default_custom_gp, &gp, sizeof(gp)), 0);
+
+    // 1. FW-GP-02: XBOX (identity mapping)
     uni_gamepad_set_mappings_type(UNI_GAMEPAD_MAPPINGS_TYPE_XBOX);
     EXPECT_EQ(uni_gamepad_get_mappings_type(), UNI_GAMEPAD_MAPPINGS_TYPE_XBOX);
     uni_gamepad_t xbox_gp = uni_gamepad_remap(&gp);
@@ -305,7 +398,7 @@ TEST(gamepad_remap) {
     EXPECT_FLOAT_NEAR(xbox_gp.gyro[1], -1.5f, 1e-5f);
     EXPECT_FLOAT_NEAR(xbox_gp.gyro[2], 0.75f, 1e-5f);
 
-    // 2. SWITCH (swaps A <-> B and X <-> Y)
+    // 2. FW-GP-02: SWITCH (swaps A <-> B and X <-> Y)
     uni_gamepad_set_mappings_type(UNI_GAMEPAD_MAPPINGS_TYPE_SWITCH);
     uni_gamepad_t switch_gp = uni_gamepad_remap(&gp);
     EXPECT_EQ(switch_gp.buttons, (BUTTON_B | BUTTON_Y | BUTTON_SHOULDER_L));
@@ -318,7 +411,7 @@ TEST(gamepad_remap) {
     EXPECT_FLOAT_NEAR(switch_gp.gyro[1], -1.5f, 1e-5f);
     EXPECT_FLOAT_NEAR(switch_gp.gyro[2], 0.75f, 1e-5f);
 
-    // 3. CUSTOM (invert axes, swap pedals, remap buttons/dpad)
+    // 3. FW-GP-03: CUSTOM (invert axes, swap pedals, remap buttons/dpad) & uni_gamepad_get_mappings()
     uni_gamepad_mappings_t custom = GAMEPAD_DEFAULT_MAPPINGS;
     custom.dpad_up = UNI_GAMEPAD_MAPPINGS_DPAD_DOWN;
     custom.button_a = UNI_GAMEPAD_MAPPINGS_BUTTON_Y;
@@ -328,6 +421,10 @@ TEST(gamepad_remap) {
     custom.throttle = UNI_GAMEPAD_MAPPINGS_PEDAL_BRAKE;
     uni_gamepad_set_mappings(&custom);
     EXPECT_EQ(uni_gamepad_get_mappings_type(), UNI_GAMEPAD_MAPPINGS_TYPE_CUSTOM);
+
+    uni_gamepad_mappings_t readback = {0};
+    uni_gamepad_get_mappings(&readback);
+    EXPECT_EQ(memcmp(&readback, &custom, sizeof(custom)), 0);
 
     uni_gamepad_t custom_gp = uni_gamepad_remap(&gp);
     EXPECT_NE(custom_gp.dpad & DPAD_DOWN, 0);
@@ -343,7 +440,56 @@ TEST(gamepad_remap) {
     EXPECT_FLOAT_NEAR(custom_gp.gyro[1], -1.5f, 1e-5f);
     EXPECT_FLOAT_NEAR(custom_gp.gyro[2], 0.75f, 1e-5f);
 
-    // Restore default
+    // 4. FW-GP-04: NULL pointer guards on uni_gamepad_get_mappings(), uni_gamepad_mappings_is_valid(),
+    //    and uni_gamepad_set_mappings()
+    uni_gamepad_get_mappings(NULL);
+    EXPECT_FALSE(uni_gamepad_mappings_is_valid(NULL));
+    uni_gamepad_set_mappings_type(UNI_GAMEPAD_MAPPINGS_TYPE_XBOX);
+    uni_gamepad_set_mappings(NULL);
+    EXPECT_EQ(uni_gamepad_get_mappings_type(), UNI_GAMEPAD_MAPPINGS_TYPE_XBOX);
+    memset(&readback, 0, sizeof(readback));
+    uni_gamepad_get_mappings(&readback);
+    EXPECT_EQ(memcmp(&readback, &custom, sizeof(custom)), 0);
+
+    // 5. FW-GP-05: Exhaustive 28-field boundary checks in uni_gamepad_mappings_is_valid()
+    //    & uni_gamepad_set_mappings() rejection with zero side effects.
+    EXPECT_TRUE(uni_gamepad_mappings_is_valid(&GAMEPAD_DEFAULT_MAPPINGS));
+    static const uint8_t k_max_valid_per_offset[28] = {
+        3, 3, 3, 3,                    // 0..3: dpad (UNI_GAMEPAD_MAPPINGS_DPAD_COUNT - 1)
+        9, 9, 9, 9, 9, 9, 9, 9, 9, 9,  // 4..13: buttons (UNI_GAMEPAD_MAPPINGS_BUTTON_COUNT - 1)
+        3, 3, 3, 3,                    // 14..17: misc buttons (UNI_GAMEPAD_MAPPINGS_MISC_BUTTON_COUNT - 1)
+        3, 3, 3, 3,                    // 18..21: axes (UNI_GAMEPAD_MAPPINGS_AXIS_COUNT - 1)
+        1, 1, 1, 1,                    // 22..25: axis_*_inverted (boolean 0..1)
+        1, 1,                          // 26..27: pedals (UNI_GAMEPAD_MAPPINGS_PEDAL_COUNT - 1)
+    };
+
+    for (size_t offset = 0; offset < sizeof(uni_gamepad_mappings_t); offset++) {
+        uni_gamepad_mappings_t candidate = GAMEPAD_DEFAULT_MAPPINGS;
+        uint8_t* raw = (uint8_t*)&candidate;
+        uint8_t max_valid = k_max_valid_per_offset[offset];
+
+        // Maximum valid domain value -> valid
+        raw[offset] = max_valid;
+        EXPECT_TRUE(uni_gamepad_mappings_is_valid(&candidate));
+
+        // Minimum invalid domain value (max_valid + 1) -> invalid & rejected by uni_gamepad_set_mappings()
+        raw[offset] = (uint8_t)(max_valid + 1);
+        EXPECT_FALSE(uni_gamepad_mappings_is_valid(&candidate));
+        uni_gamepad_set_mappings(&candidate);
+        EXPECT_EQ(uni_gamepad_get_mappings_type(), UNI_GAMEPAD_MAPPINGS_TYPE_XBOX);
+        memset(&readback, 0, sizeof(readback));
+        uni_gamepad_get_mappings(&readback);
+        EXPECT_EQ(memcmp(&readback, &custom, sizeof(custom)), 0);
+
+        // 0xFF -> invalid & rejected by uni_gamepad_set_mappings()
+        raw[offset] = 0xFF;
+        EXPECT_FALSE(uni_gamepad_mappings_is_valid(&candidate));
+        uni_gamepad_set_mappings(&candidate);
+        EXPECT_EQ(uni_gamepad_get_mappings_type(), UNI_GAMEPAD_MAPPINGS_TYPE_XBOX);
+    }
+
+    // Restore default mappings and XBOX type
+    uni_gamepad_set_mappings(&GAMEPAD_DEFAULT_MAPPINGS);
     uni_gamepad_set_mappings_type(UNI_GAMEPAD_MAPPINGS_TYPE_XBOX);
     printf("PASS\n");
 }
@@ -517,6 +663,7 @@ int main(int argc, char** argv) {
     uni_property_init();
     uni_balance_board_init();
 
+    RUN_TEST(uni_default_mappings_initialized_on_startup);
     RUN_TEST(process_axis);
     RUN_TEST(process_pedal);
     RUN_TEST(hat_to_dpad);

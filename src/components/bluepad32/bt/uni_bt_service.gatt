@@ -1,6 +1,6 @@
 // Bluepad32 BLE GATT Profile Definition
 // Primary Service UUID: 4627C4A4-AC00-46B9-B688-AFC5C1BF7F63
-// Characteristics are numbered contiguously from AC01 through AC0E.
+// Characteristics are numbered contiguously from AC01 through AC0F.
 
 PRIMARY_SERVICE, GAP_SERVICE
 CHARACTERISTIC, GAP_DEVICE_NAME, READ | DYNAMIC,
@@ -28,7 +28,8 @@ CHARACTERISTIC, 4627C4A4-AC04-46B9-B688-AFC5C1BF7F63, READ | WRITE | DYNAMIC
 // Read returns all slots; Notify pushes full table when MTU >= 67 or 1 slot when MTU == 23)
 CHARACTERISTIC, 4627C4A4-AC05-46B9-B688-AFC5C1BF7F63, READ | NOTIFY | DYNAMIC
 
-// AC06: Controller button mappings preset (uint8_t: 0=Xbox, 1=Nintendo Switch, 2=Custom)
+// AC06: Controller button mappings preset (Read: uint8_t 0=Xbox, 1=Nintendo Switch, 2=Custom;
+// Write: 1-byte preset [0..2] or 29-byte atomic custom update [2, ...28-byte uni_gamepad_mappings_t...])
 CHARACTERISTIC, 4627C4A4-AC06-46B9-B688-AFC5C1BF7F63, READ | WRITE | DYNAMIC
 
 // AC07: Whether Bluetooth MAC allowlist enforcement is enabled (uint8_t: 0=disabled, 1=enabled)
@@ -57,3 +58,8 @@ CHARACTERISTIC, 4627C4A4-AC0D-46B9-B688-AFC5C1BF7F63, READ | WRITE | DYNAMIC,
 // Read returns uint8_t: 0=open (no password), 1=password required (locked), 2=authenticated (unlocked)
 // Write submits UTF-8 password (1..31 bytes) to authenticate the current BLE connection
 CHARACTERISTIC, 4627C4A4-AC0E-46B9-B688-AFC5C1BF7F63, READ | WRITE | DYNAMIC,
+
+// AC0F: Custom controller button/axis remapping table (28-byte packed uni_gamepad_mappings_t:
+// offsets 0..3 dpad, 4..13 buttons, 14..17 misc buttons, 18..21 axes, 22..25 axis inversions, 26..27 pedals;
+// Write validates all 28 bytes via uni_gamepad_mappings_is_valid() and promotes AC06 to Custom [2])
+CHARACTERISTIC, 4627C4A4-AC0F-46B9-B688-AFC5C1BF7F63, READ | WRITE | DYNAMIC,

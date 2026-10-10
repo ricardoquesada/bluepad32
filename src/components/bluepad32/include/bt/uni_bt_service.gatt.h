@@ -1,10 +1,10 @@
 
 // clang-format off
-// ../src/components/bluepad32/include/bt/uni_bt_service.gatt.h generated from ../src/components/bluepad32/bt/uni_bt_service.gatt for BTstack
+// src/components/bluepad32/include/bt/uni_bt_service.gatt.h generated from src/components/bluepad32/bt/uni_bt_service.gatt for BTstack
 // it needs to be regenerated when the .gatt file is updated. 
 
-// To generate ../src/components/bluepad32/include/bt/uni_bt_service.gatt.h:
-// ../external/btstack/tool/compile_gatt.py ../src/components/bluepad32/bt/uni_bt_service.gatt ../src/components/bluepad32/include/bt/uni_bt_service.gatt.h
+// To generate src/components/bluepad32/include/bt/uni_bt_service.gatt.h:
+// external/btstack/tool/compile_gatt.py src/components/bluepad32/bt/uni_bt_service.gatt src/components/bluepad32/include/bt/uni_bt_service.gatt.h
 
 // att db format version 1
 
@@ -24,7 +24,7 @@ static const uint8_t profile_data[] =
 
     // Bluepad32 BLE GATT Profile Definition
     // Primary Service UUID: 4627C4A4-AC00-46B9-B688-AFC5C1BF7F63
-    // Characteristics are numbered contiguously from AC01 through AC0E.
+    // Characteristics are numbered contiguously from AC01 through AC0F.
     // 0x0001 PRIMARY_SERVICE-GAP_SERVICE
     0x0a, 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x28, 0x00, 0x18, 
     // 0x0002 CHARACTERISTIC-GAP_DEVICE_NAME - READ | DYNAMIC
@@ -38,7 +38,7 @@ static const uint8_t profile_data[] =
     0x0d, 0x00, 0x02, 0x00, 0x05, 0x00, 0x03, 0x28, 0x02, 0x06, 0x00, 0x2a, 0x2b, 
     // 0x0006 VALUE CHARACTERISTIC-GATT_DATABASE_HASH - READ -''
     // READ_ANYBODY
-    0x18, 0x00, 0x02, 0x00, 0x06, 0x00, 0x2a, 0x2b, 0x20, 0xf5, 0x96, 0xe9, 0x05, 0x17, 0x99, 0x18, 0x98, 0xd9, 0xe9, 0x33, 0xfd, 0xf8, 0x60, 0xc1, 
+    0x18, 0x00, 0x02, 0x00, 0x06, 0x00, 0x2a, 0x2b, 0x8c, 0x62, 0xf0, 0xb4, 0x35, 0x7c, 0xa2, 0x61, 0xbc, 0x8c, 0x59, 0x00, 0x9b, 0xe3, 0x8f, 0x13, 
     // Bluepad32 Service
     // 0x0007 PRIMARY_SERVICE-4627C4A4-AC00-46B9-B688-AFC5C1BF7F63
     0x18, 0x00, 0x02, 0x00, 0x07, 0x00, 0x00, 0x28, 0x63, 0x7f, 0xbf, 0xc1, 0xc5, 0xaf, 0x88, 0xb6, 0xb9, 0x46, 0x00, 0xac, 0xa4, 0xc4, 0x27, 0x46, 
@@ -77,7 +77,8 @@ static const uint8_t profile_data[] =
     // 0x0012 CLIENT_CHARACTERISTIC_CONFIGURATION
     // READ_ANYBODY, WRITE_ANYBODY
     0x0a, 0x00, 0x0e, 0x01, 0x12, 0x00, 0x02, 0x29, 0x00, 0x00, 
-    // AC06: Controller button mappings preset (uint8_t: 0=Xbox, 1=Nintendo Switch, 2=Custom)
+    // AC06: Controller button mappings preset (Read: uint8_t 0=Xbox, 1=Nintendo Switch, 2=Custom;
+    // Write: 1-byte preset [0..2] or 29-byte atomic custom update [2, ...28-byte uni_gamepad_mappings_t...])
     // 0x0013 CHARACTERISTIC-4627C4A4-AC06-46B9-B688-AFC5C1BF7F63 - READ | WRITE | DYNAMIC
     0x1b, 0x00, 0x02, 0x00, 0x13, 0x00, 0x03, 0x28, 0x0a, 0x14, 0x00, 0x63, 0x7f, 0xbf, 0xc1, 0xc5, 0xaf, 0x88, 0xb6, 0xb9, 0x46, 0x06, 0xac, 0xa4, 0xc4, 0x27, 0x46, 
     // 0x0014 VALUE CHARACTERISTIC-4627C4A4-AC06-46B9-B688-AFC5C1BF7F63 - READ | WRITE | DYNAMIC
@@ -134,9 +135,15 @@ static const uint8_t profile_data[] =
     // 0x0024 VALUE CHARACTERISTIC-4627C4A4-AC0E-46B9-B688-AFC5C1BF7F63 - READ | WRITE | DYNAMIC
     // READ_ANYBODY, WRITE_ANYBODY
     0x16, 0x00, 0x0a, 0x03, 0x24, 0x00, 0x63, 0x7f, 0xbf, 0xc1, 0xc5, 0xaf, 0x88, 0xb6, 0xb9, 0x46, 0x0e, 0xac, 0xa4, 0xc4, 0x27, 0x46, 
+    // AC0F: Custom controller button/axis remapping table (28-byte packed uni_gamepad_mappings_t)
+    // 0x0025 CHARACTERISTIC-4627C4A4-AC0F-46B9-B688-AFC5C1BF7F63 - READ | WRITE | DYNAMIC
+    0x1b, 0x00, 0x02, 0x00, 0x25, 0x00, 0x03, 0x28, 0x0a, 0x26, 0x00, 0x63, 0x7f, 0xbf, 0xc1, 0xc5, 0xaf, 0x88, 0xb6, 0xb9, 0x46, 0x0f, 0xac, 0xa4, 0xc4, 0x27, 0x46, 
+    // 0x0026 VALUE CHARACTERISTIC-4627C4A4-AC0F-46B9-B688-AFC5C1BF7F63 - READ | WRITE | DYNAMIC
+    // READ_ANYBODY, WRITE_ANYBODY
+    0x16, 0x00, 0x0a, 0x03, 0x26, 0x00, 0x63, 0x7f, 0xbf, 0xc1, 0xc5, 0xaf, 0x88, 0xb6, 0xb9, 0x46, 0x0f, 0xac, 0xa4, 0xc4, 0x27, 0x46, 
     // END
     0x00, 0x00, 
-}; // total size 450 bytes 
+}; // total size 477 bytes 
 
 
 //
@@ -151,9 +158,9 @@ static const uint8_t profile_data[] =
 #define ATT_SERVICE_GATT_SERVICE_01_START_HANDLE 0x0004
 #define ATT_SERVICE_GATT_SERVICE_01_END_HANDLE 0x0006
 #define ATT_SERVICE_4627C4A4_AC00_46B9_B688_AFC5C1BF7F63_START_HANDLE 0x0007
-#define ATT_SERVICE_4627C4A4_AC00_46B9_B688_AFC5C1BF7F63_END_HANDLE 0x0024
+#define ATT_SERVICE_4627C4A4_AC00_46B9_B688_AFC5C1BF7F63_END_HANDLE 0x0026
 #define ATT_SERVICE_4627C4A4_AC00_46B9_B688_AFC5C1BF7F63_01_START_HANDLE 0x0007
-#define ATT_SERVICE_4627C4A4_AC00_46B9_B688_AFC5C1BF7F63_01_END_HANDLE 0x0024
+#define ATT_SERVICE_4627C4A4_AC00_46B9_B688_AFC5C1BF7F63_01_END_HANDLE 0x0026
 
 //
 // list mapping between characteristics and handles
@@ -175,3 +182,4 @@ static const uint8_t profile_data[] =
 #define ATT_CHARACTERISTIC_4627C4A4_AC0C_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE 0x0020
 #define ATT_CHARACTERISTIC_4627C4A4_AC0D_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE 0x0022
 #define ATT_CHARACTERISTIC_4627C4A4_AC0E_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE 0x0024
+#define ATT_CHARACTERISTIC_4627C4A4_AC0F_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE 0x0026
