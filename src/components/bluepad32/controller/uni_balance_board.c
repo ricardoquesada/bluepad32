@@ -8,7 +8,10 @@
 #include "uni_property.h"
 
 // Gets initialized at platform_init time.
-static uni_balance_board_threshold_t bb_threshold = {
+static struct {
+    int move;
+    int fire;
+} bb_threshold = {
     .move = UNI_BALANCE_BOARD_MOVE_THRESHOLD_DEFAULT,
     .fire = UNI_BALANCE_BOARD_FIRE_THRESHOLD_DEFAULT,
 };
@@ -70,8 +73,4 @@ void uni_balance_board_init(void) {
 void uni_balance_board_dump(const uni_balance_board_t* bb) {
     // Don't add "\n"
     logi("tl=%d, tr=%d, bl=%d, br=%d, temperature=%d", bb->tl, bb->tr, bb->bl, bb->br, bb->temperature);
-}
-
-uni_balance_board_threshold_t uni_balance_board_get_threshold(void) {
-    return bb_threshold;
 }

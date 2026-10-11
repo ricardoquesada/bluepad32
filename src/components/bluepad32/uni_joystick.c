@@ -259,7 +259,8 @@ void uni_joy_to_twinstick_from_keyboard(const uni_keyboard_t* kb, uni_joystick_t
 void uni_joy_to_single_joy_from_balance_board(const uni_balance_board_t* bb,
                                               uni_balance_board_state_t* bb_state,
                                               uni_joystick_t* out_joy) {
-    uni_balance_board_threshold_t bb_threshold = uni_balance_board_get_threshold();
+    int move_threshold = uni_balance_board_get_move_threshold();
+    int fire_threshold = uni_balance_board_get_fire_threshold();
 
     // Low pass filter, assuming values arrive at the same framespeed
     bb_state->smooth_down = mult_frac((bb->bl + bb->br) - bb_state->smooth_down, 6, 100);
@@ -270,14 +271,14 @@ void uni_joy_to_single_joy_from_balance_board(const uni_balance_board_t* bb,
     logd("l=%d, r=%d, t=%d, d=%d\n", bb_state->smooth_left, bb_state->smooth_right, bb_state->smooth_top,
          bb_state->smooth_down);
 
-    if ((bb_state->smooth_top - bb_state->smooth_down) > bb_threshold.move)
+    if ((bb_state->smooth_top - bb_state->smooth_down) > move_threshold)
         out_joy->up = 1;
-    else if ((bb_state->smooth_down - bb_state->smooth_top) > bb_threshold.move)
+    else if ((bb_state->smooth_down - bb_state->smooth_top) > move_threshold)
         out_joy->down = 1;
 
-    if ((bb_state->smooth_right - bb_state->smooth_left) > bb_threshold.move)
+    if ((bb_state->smooth_right - bb_state->smooth_left) > move_threshold)
         out_joy->right = 1;
-    else if ((bb_state->smooth_left - bb_state->smooth_right) > bb_threshold.move)
+    else if ((bb_state->smooth_left - bb_state->smooth_right) > move_threshold)
         out_joy->left = 1;
 
     // State machine to detect whether we can trigger fire
@@ -287,7 +288,7 @@ void uni_joy_to_single_joy_from_balance_board(const uni_balance_board_t* bb,
          bb->tr, bb->bl, bb->br);
     switch (bb_state->fire_state) {
         case UNI_BALANCE_BOARD_STATE_RESET:
-            if (sum >= bb_threshold.fire) {
+            if (sum >= fire_threshold) {
                 bb_state->fire_state = UNI_BALANCE_BOARD_STATE_THRESHOLD;
                 bb_state->fire_counter = 0;
             }
@@ -306,7 +307,7 @@ void uni_joy_to_single_joy_from_balance_board(const uni_balance_board_t* bb,
                 break;
             }
             // Reset counter in case we are still above threshold
-            if (sum >= bb_threshold.fire) {
+            if (sum >= fire_threshold) {
                 bb_state->fire_counter = 0;
                 break;
             }

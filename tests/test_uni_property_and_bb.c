@@ -307,9 +307,6 @@ TEST(balance_board_global_properties_and_defaults_b2) {
     // Call uni_balance_board_init() (without CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE) and verify
     // thresholds are loaded as 1500 / 5000 instead of being zeroed to 0.
     uni_balance_board_init();
-    uni_balance_board_threshold_t thr = uni_balance_board_get_threshold();
-    EXPECT_EQ(thr.move, 1500);
-    EXPECT_EQ(thr.fire, 5000);
     EXPECT_EQ(uni_balance_board_get_move_threshold(), 1500);
     EXPECT_EQ(uni_balance_board_get_fire_threshold(), 5000);
 

@@ -63,11 +63,6 @@ typedef enum {
     UNI_BT_SERVICE_AUTH_STATE_REQUIRED = 1,
     /** `2`: A password is configured and the current BLE connection has authenticated via `AC0E`. */
     UNI_BT_SERVICE_AUTH_STATE_AUTHENTICATED = 2,
-
-    // Compatibility aliases
-    UNI_BT_SERVICE_AUTH_OPEN = UNI_BT_SERVICE_AUTH_STATE_OPEN,
-    UNI_BT_SERVICE_AUTH_REQUIRED = UNI_BT_SERVICE_AUTH_STATE_REQUIRED,
-    UNI_BT_SERVICE_AUTH_AUTHENTICATED = UNI_BT_SERVICE_AUTH_STATE_AUTHENTICATED,
 } uni_bt_service_auth_state_t;
 
 /**

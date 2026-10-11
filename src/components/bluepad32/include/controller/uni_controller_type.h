@@ -95,7 +95,6 @@ typedef struct {
 } uni_controller_description_t;
 
 uni_controller_type_t uni_guess_controller_type(uint16_t vid, uint16_t pid);
-const char* uni_guess_controller_name(uint16_t vid, uint16_t pid);
 
 // Bluepad32 start
 #define CONTROLLER_TYPE_None k_eControllerType_None

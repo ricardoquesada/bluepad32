@@ -54,14 +54,6 @@ typedef struct {
     int16_t smooth_down;
 } uni_balance_board_state_t;
 
-/**
- * @brief Represents the threshold for movement and fire.
- */
-typedef struct {
-    int move;
-    int fire;
-} uni_balance_board_threshold_t;
-
 /** @brief Dump raw Balance Board sensor weights and temperature to the info log. */
 void uni_balance_board_dump(const uni_balance_board_t* bb);
 
@@ -81,9 +73,6 @@ void uni_balance_board_register_cmds(void);
  * `UNI_BALANCE_BOARD_FIRE_THRESHOLD_DEFAULT` when unset).
  */
 void uni_balance_board_init(void);
-
-/** @brief Return the current in-memory move and fire weight thresholds. */
-uni_balance_board_threshold_t uni_balance_board_get_threshold(void);
 
 /** @brief Update the Balance Board move weight threshold in memory and persist it via `uni_property_set()`. */
 void uni_balance_board_set_move_threshold(int threshold);

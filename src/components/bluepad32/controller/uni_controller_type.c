@@ -63,15 +63,4 @@ uni_controller_type_t uni_guess_controller_type(uint16_t vid, uint16_t pid) {
     return k_eControllerType_UnknownNonSteamController;
 }
 
-const char* uni_guess_controller_name(uint16_t vid, uint16_t pid) {
-    uint32_t device_id = MAKE_CONTROLLER_ID(vid, pid);
-    int i;
-    for (i = 0; i < sizeof(arrControllers) / sizeof(arrControllers[0]); ++i) {
-        if (device_id == arrControllers[i].device_id) {
-            return arrControllers[i].name;
-        }
-    }
-    return NULL;
-}
-
 #undef MAKE_CONTROLLER_ID

@@ -205,7 +205,7 @@ static void get_advertisement_data(const uint8_t* adv_data,
                         *out_vid = UNI_TRITON_VALVE_VID;
                     }
                     if (out_pid && *out_pid == 0) {
-                        *out_pid = STEAM_TRITON_BLE_PID;
+                        *out_pid = UNI_TRITON_PID_BLE;
                     }
                 }
                 break;
@@ -216,7 +216,7 @@ static void get_advertisement_data(const uint8_t* adv_data,
                 break;
             case BLUETOOTH_DATA_TYPE_SERVICE_DATA:
                 if (size >= 4 && little_endian_read_16(data, 0) == ORG_BLUETOOTH_SERVICE_HUMAN_INTERFACE_DEVICE &&
-                    little_endian_read_16(data, 2) == STEAM_TRITON_BLE_PID) {
+                    little_endian_read_16(data, 2) == UNI_TRITON_PID_BLE) {
                     if (*appearance == 0) {
                         *appearance = UNI_BT_HID_APPEARANCE_GAMEPAD;
                     }
@@ -224,7 +224,7 @@ static void get_advertisement_data(const uint8_t* adv_data,
                         *out_vid = UNI_TRITON_VALVE_VID;
                     }
                     if (out_pid) {
-                        *out_pid = STEAM_TRITON_BLE_PID;
+                        *out_pid = UNI_TRITON_PID_BLE;
                     }
                 }
                 break;
@@ -243,7 +243,7 @@ static void get_advertisement_data(const uint8_t* adv_data,
                 break;
             case BLUETOOTH_DATA_TYPE_MANUFACTURER_SPECIFIC_DATA:  // Manufacturer Specific Data
                 if (size >= 4 && little_endian_read_16(data, 0) == UNI_TRITON_VALVE_VID &&
-                    little_endian_read_16(data, 2) == STEAM_TRITON_BLE_PID) {
+                    little_endian_read_16(data, 2) == UNI_TRITON_PID_BLE) {
                     if (*appearance == 0) {
                         *appearance = UNI_BT_HID_APPEARANCE_GAMEPAD;
                     }
@@ -251,7 +251,7 @@ static void get_advertisement_data(const uint8_t* adv_data,
                         *out_vid = UNI_TRITON_VALVE_VID;
                     }
                     if (out_pid) {
-                        *out_pid = STEAM_TRITON_BLE_PID;
+                        *out_pid = UNI_TRITON_PID_BLE;
                     }
                 }
                 break;

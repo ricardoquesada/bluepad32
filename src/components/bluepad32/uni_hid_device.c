@@ -514,7 +514,7 @@ void uni_hid_device_disconnect(uni_hid_device_t* d) {
     }
 
     // Close possible open connections
-    uni_bt_conn_disconnect(&d->conn);
+    uni_bt_conn_set_connected(&d->conn, false);
 
     // Disconnected, so no longer needs the timers
     btstack_run_loop_remove_timer(&d->connection_timer);

@@ -38,8 +38,6 @@ struct uni_hid_device_s;
 #define UNI_TRITON_PID_BLE 0x1303     ///< Steam Controller 2026 ("Triton") BLE Product ID.
 #define UNI_TRITON_PID_PUCK 0x1304    ///< Steam Controller 2026 ("Triton") Wireless Puck Product ID.
 #define UNI_TRITON_PID_NEREID 0x1305  ///< Steam Controller 2026 ("Triton") Nereid Product ID.
-#define STEAM_TRITON_BLE_PID \
-    UNI_TRITON_PID_BLE  ///< Alias for the BLE Product ID (`0x1303`) used in BLE advertising probes.
 
 // Steam Controller 2026 ("Triton") Input & Output Report IDs
 #define ID_TRITON_CONTROLLER_STATE 0x42      ///< Full controller state report (USB / wired).

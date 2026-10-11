@@ -2174,7 +2174,7 @@ TEST(bt_le_adv_detection_switch2_and_steam_triton) {
     uni_hid_device_t* d_tri1 = uni_hid_device_get_instance_for_address(triton_addr1);
     ASSERT_NE(NULL, d_tri1);
     EXPECT_EQ(UNI_TRITON_VALVE_VID, d_tri1->vendor_id);
-    EXPECT_EQ(STEAM_TRITON_BLE_PID, d_tri1->product_id);
+    EXPECT_EQ(UNI_TRITON_PID_BLE, d_tri1->product_id);
     EXPECT_EQ(CONTROLLER_TYPE_SteamControllerTriton, d_tri1->controller_type);
 
     uint8_t triton_ad_svc[] = {
@@ -2186,7 +2186,7 @@ TEST(bt_le_adv_detection_switch2_and_steam_triton) {
     uni_hid_device_t* d_tri2 = uni_hid_device_get_instance_for_address(triton_addr2);
     ASSERT_NE(NULL, d_tri2);
     EXPECT_EQ(UNI_TRITON_VALVE_VID, d_tri2->vendor_id);
-    EXPECT_EQ(STEAM_TRITON_BLE_PID, d_tri2->product_id);
+    EXPECT_EQ(UNI_TRITON_PID_BLE, d_tri2->product_id);
     EXPECT_EQ(CONTROLLER_TYPE_SteamControllerTriton, d_tri2->controller_type);
 
     uint8_t triton_ad_name[] = {
@@ -2216,7 +2216,7 @@ TEST(bt_le_adv_detection_switch2_and_steam_triton) {
     ASSERT_NE(NULL, d_tri3);
     EXPECT_EQ(0, strcmp("Steam Controller", d_tri3->name));
     EXPECT_EQ(UNI_TRITON_VALVE_VID, d_tri3->vendor_id);
-    EXPECT_EQ(STEAM_TRITON_BLE_PID, d_tri3->product_id);
+    EXPECT_EQ(UNI_TRITON_PID_BLE, d_tri3->product_id);
 
     uni_hid_device_delete(d_tri1);
     uni_hid_device_delete(d_tri2);
@@ -2339,7 +2339,7 @@ TEST(bt_le_dis_done_custom_gatt_routing_bypasses_hogp) {
     uni_bt_conn_set_protocol(&d_tri_ok->conn, UNI_BT_CONN_PROTOCOL_BLE);
     uni_hid_device_set_connection_handle(d_tri_ok, 0x0042);
     uni_hid_device_set_vendor_id(d_tri_ok, UNI_TRITON_VALVE_VID);
-    uni_hid_device_set_product_id(d_tri_ok, STEAM_TRITON_BLE_PID);
+    uni_hid_device_set_product_id(d_tri_ok, UNI_TRITON_PID_BLE);
 
     little_endian_store_16(dis_done_pkt, 3, 0x0042);
     dis_done_pkt[5] = ERROR_CODE_SUCCESS;
@@ -2357,7 +2357,7 @@ TEST(bt_le_dis_done_custom_gatt_routing_bypasses_hogp) {
     uni_bt_conn_set_protocol(&d_tri_nodis->conn, UNI_BT_CONN_PROTOCOL_BLE);
     uni_hid_device_set_connection_handle(d_tri_nodis, 0x0043);
     uni_hid_device_set_vendor_id(d_tri_nodis, UNI_TRITON_VALVE_VID);
-    uni_hid_device_set_product_id(d_tri_nodis, STEAM_TRITON_BLE_PID);
+    uni_hid_device_set_product_id(d_tri_nodis, UNI_TRITON_PID_BLE);
 
     little_endian_store_16(dis_done_pkt, 3, 0x0043);
     dis_done_pkt[5] = ATT_ERROR_ATTRIBUTE_NOT_FOUND;
@@ -2763,7 +2763,7 @@ TEST(bt_le_steam_triton_gatt_state_machine_and_teardown) {
     uni_bt_conn_set_protocol(&d->conn, UNI_BT_CONN_PROTOCOL_BLE);
     uni_hid_device_set_connection_handle(d, con_handle);
     uni_hid_device_set_vendor_id(d, UNI_TRITON_VALVE_VID);
-    uni_hid_device_set_product_id(d, STEAM_TRITON_BLE_PID);
+    uni_hid_device_set_product_id(d, UNI_TRITON_PID_BLE);
     uni_hid_device_guess_controller_type_from_pid_vid(d);
     uni_hid_device_connect(d);
     uni_hid_device_set_ready(d);
@@ -2884,7 +2884,7 @@ TEST(bt_le_steam_triton_gatt_state_machine_and_teardown) {
     uni_bt_conn_set_protocol(&d2->conn, UNI_BT_CONN_PROTOCOL_BLE);
     uni_hid_device_set_connection_handle(d2, 0x0061);
     uni_hid_device_set_vendor_id(d2, UNI_TRITON_VALVE_VID);
-    uni_hid_device_set_product_id(d2, STEAM_TRITON_BLE_PID);
+    uni_hid_device_set_product_id(d2, UNI_TRITON_PID_BLE);
     uni_hid_device_guess_controller_type_from_pid_vid(d2);
     uni_hid_device_connect(d2);
     uni_hid_device_set_ready(d2);
