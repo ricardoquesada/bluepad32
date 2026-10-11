@@ -3789,6 +3789,40 @@ TEST(parser_steam_triton_reports_sticks_triggers_imu_and_extra_info) {
     EXPECT_EQ(NULL, strchr(extra, '\t'));
 }
 
+// ============================================================================
+// 30. Switch Parser: Sleep Request (Subcommand 0x06)
+// ============================================================================
+TEST(parser_switch_request_sleep) {
+    uni_hid_device_t d;
+    setup_synthetic_device(&d, 0x057e, 0x2006);  // Joy-Con (L)
+    ASSERT_EQ(CONTROLLER_TYPE_SwitchJoyConLeft, d.controller_type);
+    d.conn.interrupt_cid = 0x0041;
+
+    uni_circular_buffer_reset(&d.outgoing_buffer);
+    uni_hid_parser_switch_request_sleep(&d);
+    int16_t cid = 0;
+    uint8_t data[128];
+    int len = 0;
+    ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d.outgoing_buffer, &cid, data, &len));
+    ASSERT_EQ(13, len);
+    const uint8_t* out = data;
+    EXPECT_EQ(0x01, out[1]);   // OUTPUT_RUMBLE_AND_SUBCMD
+    EXPECT_EQ(0x06, out[11]);  // SUBCMD_SET_HCI_STATE
+    EXPECT_EQ(0x00, out[12]);  // disconnect and sleep
+
+    // Non-Switch device: no-op.
+    uni_hid_device_t ds4;
+    setup_synthetic_device(&ds4, 0x054c, 0x09cc);
+    ds4.conn.interrupt_cid = 0x0041;
+    uni_circular_buffer_reset(&ds4.outgoing_buffer);
+    uni_hid_parser_switch_request_sleep(&ds4);
+    EXPECT_EQ(1, uni_circular_buffer_is_empty(&ds4.outgoing_buffer));
+    ds4.conn.interrupt_cid = 0;
+
+    uni_circular_buffer_reset(&d.outgoing_buffer);
+    d.conn.interrupt_cid = 0;
+}
+
 int main(int argc, char** argv) {
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
@@ -3839,6 +3873,7 @@ int main(int argc, char** argv) {
     RUN_TEST(parser_switch2_joycon_right_standalone_horizontal);
     RUN_TEST(parser_steam_2015_ble_imu_si_units_and_truncation_guards);
     RUN_TEST(parser_steam_triton_reports_sticks_triggers_imu_and_extra_info);
+    RUN_TEST(parser_switch_request_sleep);
 
     return test_summary();
 }
