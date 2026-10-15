@@ -52,6 +52,19 @@ typedef void (*report_parse_feature_report_fn_t)(struct uni_hid_device_s* d,
 // `GAMEPAD_SEAT_C = BIT(2)`, `GAMEPAD_SEAT_D = BIT(3)`) or multi-bit combinations
 // (e.g. `GAMEPAD_SEAT_AB_MASK = 0x03`), NOT a sequential player index `0..4`.
 typedef void (*report_set_player_leds_fn_t)(struct uni_hid_device_s* d, uint8_t leds);
+/**
+ * @brief Sets the controller's single-channel LED brightness (e.g., Nintendo Switch Pro Controller
+ *        and Joy-Con Right Home Button Ring LED).
+ *
+ * Uses the normalized 8-bit `0..255` scale to match `report_set_lightbar_color_fn_t` and
+ * `report_play_dual_rumble_fn_t`, allowing parsers to map intensity to hardware registers
+ * via a single bit-shift (e.g., `brightness >> 4` for the 4-bit Switch Home LED).
+ *
+ * @param d          Pointer to the target HID device.
+ * @param brightness Normalized 8-bit LED brightness intensity (`0..255`, where `0x00` turns the LED
+ *                   off and `0xff` sets 100% maximum intensity).
+ */
+typedef void (*report_set_led_brightness_fn_t)(struct uni_hid_device_s* d, uint8_t brightness);
 typedef void (*report_set_lightbar_color_fn_t)(struct uni_hid_device_s* d, uint8_t r, uint8_t g, uint8_t b);
 // start_delay_ms: a delayed start measured in milliseconds. Use 0 to start rumble immediately.
 // duration_ms: duration of rumble in milliseconds. The controller might limit the max duration. 0 means stop rumble.
@@ -113,6 +126,8 @@ typedef struct {
     report_set_player_leds_fn_t set_player_leds;
     // If implemented, changes the lightbar color (e.g.: in DS4 and DualSense)
     report_set_lightbar_color_fn_t set_lightbar_color;
+    // If implemented, sets single-channel LED brightness (`0..255`, e.g., Switch Pro / Joy-Con Right Home LED)
+    report_set_led_brightness_fn_t set_led_brightness;
     // If implemented, activates rumble in the gamepad
     report_play_dual_rumble_fn_t play_dual_rumble;
     // If implemented, formats parser-specific hardware/firmware diagnostic info into a caller-owned buffer

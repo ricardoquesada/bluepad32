@@ -79,8 +79,9 @@ class DemoScene {
         int player_led_index = 1;                                        ///< Selected player index (`1..4`).
         std::array<bool, 4> player_led_bits{true, false, false, false};  ///< Individual LED checkbox states.
         std::array<float, 3> rgb_color{0.0f, 0.25f, 1.0f};               ///< Normalized RGB float components.
-        bool rgb_live_update = false;  ///< If true, streams RGB updates while dragging picker.
-        int brightness_percent = 100;  ///< Switch Pro Brightness placeholder slider (`0..100%`).
+        bool rgb_live_update = false;         ///< If true, streams RGB updates while dragging picker.
+        int brightness_percent = 100;         ///< Single-channel LED brightness percentage (`0..100%`).
+        bool brightness_live_update = false;  ///< If true, streams brightness updates while dragging slider.
 
         /**
          * @brief Resets all per-slot UI state to default values for `slot` (`0..kMaxControllers - 1`).
@@ -156,7 +157,7 @@ class DemoScene {
     void RenderPanel_VibrationTab(int slot, const ControllerSnapshot& snap);
     /// Tab 3 — `IMU`: Circular Accelerometer bullseye & Gyroscope needle dials + 240-sample plots.
     void RenderPanel_MotionTab(int slot, const ControllerSnapshot& snap);
-    /// Tab 4 — `Lights`: Player ID LEDs, RGB Lightbar color picker/swatches, and Brightness LED placeholder.
+    /// Tab 4 — `Lights`: Player ID LEDs, RGB Lightbar color picker/swatches, and Brightness LED controls.
     void RenderPanel_LightsTab(int slot, const ControllerSnapshot& snap);
     /// Tab 5 — `Info`: Hardware/Bluetooth diagnostics, battery progress bar, and capability badges.
     void RenderPanel_InfoTab(int slot, const ControllerSnapshot& snap);

@@ -3132,6 +3132,107 @@ TEST(parser_switch_setup_enables_vibration) {
     d.conn.interrupt_cid = 0;
 }
 
+TEST(parser_switch_set_led_brightness_home_light_subcmd_0x38) {
+    // 1. Vtable wiring check across Switch Pro (0x2009), Joy-Con R (0x2007), Joy-Con L (0x2006), and Switch 2 Pro
+    // (0x2069).
+    uni_hid_device_t d_jcr, d_jcl, d_sw2, d_pro;
+    setup_synthetic_device(&d_jcr, 0x057e, 0x2007);
+    EXPECT_EQ(uni_hid_parser_switch_set_led_brightness, d_jcr.report_parser.set_led_brightness);
+    d_jcr.report_parser.deinit(&d_jcr);
+
+    setup_synthetic_device(&d_jcl, 0x057e, 0x2006);
+    EXPECT_EQ(NULL, d_jcl.report_parser.set_led_brightness);
+    d_jcl.report_parser.deinit(&d_jcl);
+
+    setup_synthetic_device(&d_sw2, 0x057e, 0x2069);
+    EXPECT_EQ(NULL, d_sw2.report_parser.set_led_brightness);
+    d_sw2.report_parser.deinit(&d_sw2);
+
+    setup_synthetic_device(&d_pro, 0x057e, 0x2009);
+    EXPECT_EQ(uni_hid_parser_switch_set_led_brightness, d_pro.report_parser.set_led_brightness);
+
+    // 2. NULL device guard and pre-STATE_READY guard.
+    uni_hid_parser_switch_set_led_brightness(NULL, 255);
+    d_pro.conn.interrupt_cid = 0x0041;
+    uni_circular_buffer_reset(&d_pro.outgoing_buffer);
+    d_pro.report_parser.set_led_brightness(&d_pro, 255);
+    EXPECT_TRUE(uni_circular_buffer_is_empty(&d_pro.outgoing_buffer));
+
+    // 3. Verify 0x21 SUBCMD_SET_HOME_LIGHT (0x38) does not advance setup FSM early, then walk d_pro to STATE_READY.
+    uint8_t r21[48];
+    memset(r21, 0, sizeof(r21));
+    r21[0] = 0x21;
+    r21[13] = 0x80;  // ack
+    r21[17] = 0x03;  // SWITCH_CONTROLLER_TYPE_PRO
+
+    // Send an unexpected 0x38 reply while still in STATE_REQ_DEV_INFO: must NOT advance FSM!
+    r21[14] = 0x38;
+    feed_input_report(&d_pro, r21, sizeof(r21));
+    EXPECT_TRUE(uni_circular_buffer_is_empty(&d_pro.outgoing_buffer));
+
+    const uint8_t subcmds[] = {0x02, 0x10, 0x10, 0x10, 0x03, 0x40, 0x48, 0x30};
+    for (size_t i = 0; i < ARRAY_SIZE(subcmds); i++) {
+        r21[14] = subcmds[i];
+        feed_input_report(&d_pro, r21, sizeof(r21));
+    }
+    uni_circular_buffer_reset(&d_pro.outgoing_buffer);
+
+    // 4. Verify 17-byte SUBCMD_SET_HOME_LIGHT (0x38) output report across boundary & midpoint brightness values.
+    const uint8_t test_vals[] = {0, 15, 16, 128, 240, 255};
+    for (size_t i = 0; i < ARRAY_SIZE(test_vals); i++) {
+        d_pro.report_parser.set_led_brightness(&d_pro, test_vals[i]);
+        int16_t cid = 0;
+        uint8_t out[128];
+        int len = 0;
+        ASSERT_EQ(UNI_CIRCULAR_BUFFER_ERROR_OK, uni_circular_buffer_get(&d_pro.outgoing_buffer, &cid, out, &len));
+        ASSERT_EQ(17, len);
+        const uint8_t hw_val = test_vals[i] >> 4;
+        EXPECT_EQ(0xA2, out[0]);         // (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT
+        EXPECT_EQ(0x01, out[1]);         // OUTPUT_RUMBLE_AND_SUBCMD
+        EXPECT_EQ(0x00, out[2] & 0xF0);  // 4-bit rolling packet_num in 0x0..0xF
+        for (int b = 3; b <= 10; b++) {
+            EXPECT_EQ(0x00, out[b]);  // Neutral zero rumble bytes
+        }
+        EXPECT_EQ(0x38, out[11]);  // SUBCMD_SET_HOME_LIGHT
+        EXPECT_EQ(0x01, out[12]);  // 0 mini-cycles, 8ms base duration
+        EXPECT_EQ((uint8_t)(hw_val << 4), out[13]);
+        EXPECT_EQ((uint8_t)((hw_val << 4) | hw_val), out[14]);
+        EXPECT_EQ(0x11, out[15]);
+        EXPECT_EQ(0x11, out[16]);
+    }
+
+    // 4b. Verify 0x21 reply for SUBCMD_SET_HOME_LIGHT (0x38) in STATE_READY is accepted cleanly.
+    r21[14] = 0x38;
+    feed_input_report(&d_pro, r21, sizeof(r21));
+    EXPECT_TRUE(uni_circular_buffer_is_empty(&d_pro.outgoing_buffer));
+
+    // 5. Verify JCR (0x02) and PRO (0x03) preserve set_led_brightness, while JCL (0x01), NES_L (0x09),
+    //    NES_R (0x0a), and SNES (0x0b) clear set_led_brightness to NULL and suppress 0x38 packets.
+    const uint8_t supported_types[] = {0x02, 0x03};
+    for (size_t i = 0; i < ARRAY_SIZE(supported_types); i++) {
+        d_pro.report_parser.set_led_brightness = uni_hid_parser_switch_set_led_brightness;
+        r21[14] = 0x02;
+        r21[17] = supported_types[i];
+        feed_input_report(&d_pro, r21, sizeof(r21));
+        EXPECT_EQ(uni_hid_parser_switch_set_led_brightness, d_pro.report_parser.set_led_brightness);
+    }
+
+    const uint8_t unsupported_types[] = {0x01, 0x09, 0x0a, 0x0b};
+    for (size_t i = 0; i < ARRAY_SIZE(unsupported_types); i++) {
+        d_pro.report_parser.set_led_brightness = uni_hid_parser_switch_set_led_brightness;
+        r21[14] = 0x02;
+        r21[17] = unsupported_types[i];
+        feed_input_report(&d_pro, r21, sizeof(r21));
+        EXPECT_EQ(NULL, d_pro.report_parser.set_led_brightness);
+        uni_circular_buffer_reset(&d_pro.outgoing_buffer);
+        uni_hid_parser_switch_set_led_brightness(&d_pro, 255);
+        EXPECT_TRUE(uni_circular_buffer_is_empty(&d_pro.outgoing_buffer));
+    }
+
+    d_pro.conn.interrupt_cid = 0;
+    d_pro.report_parser.deinit(&d_pro);
+}
+
 // ============================================================================
 // 29. Nintendo Switch 2 BLE Parser & Steam 2015 BLE IMU Tests (Milestone 1)
 // ============================================================================
@@ -3831,6 +3932,7 @@ int main(int argc, char** argv) {
     RUN_TEST(parser_switch_rumble_intensity_tracks_magnitude);
     RUN_TEST(parser_switch_rumble_same_data_on_both_actuators);
     RUN_TEST(parser_switch_setup_enables_vibration);
+    RUN_TEST(parser_switch_set_led_brightness_home_light_subcmd_0x38);
     RUN_TEST(parser_sinput_imu_si_units_and_axes);
     RUN_TEST(parser_sinput_haptics_erm);
     RUN_TEST(parser_sinput_deinit_unlinks_timers);

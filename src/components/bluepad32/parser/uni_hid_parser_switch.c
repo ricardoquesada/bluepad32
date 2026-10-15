@@ -121,6 +121,7 @@ enum switch_subcmd {
     SUBCMD_SET_REPORT_MODE = 0x03,
     SUBCMD_SPI_FLASH_READ = 0x10,
     SUBCMD_SET_PLAYER_LEDS = 0x30,
+    SUBCMD_SET_HOME_LIGHT = 0x38,  // Sets Home button ring LED intensity/pattern
     SUBCMD_ENABLE_IMU = 0x40,
     SUBCMD_ENABLE_VIBRATION = 0x48,
 };
@@ -688,6 +689,12 @@ static void process_reply_req_dev_info(struct uni_hid_device_s* d, const struct 
     ins->firmware_version_hi = r->data[0];
     ins->firmware_version_lo = r->data[1];
     ins->controller_type = r->data[2];
+    // Clear set_led_brightness if DEV_INFO reports a controller type without a physical Home LED
+    // (e.g., Joy-Con Left or Switch Online NES/SNES controllers sharing SwitchProController VID/PID).
+    if (ins->controller_type == SWITCH_CONTROLLER_TYPE_JCL || ins->controller_type == SWITCH_CONTROLLER_TYPE_NES_L ||
+        ins->controller_type == SWITCH_CONTROLLER_TYPE_NES_R || ins->controller_type == SWITCH_CONTROLLER_TYPE_SNES) {
+        d->report_parser.set_led_brightness = NULL;
+    }
     logi("Switch: Firmware version: %d.%d. Controller type=%d\n", r->data[0], r->data[1], r->data[2]);
 }
 
@@ -783,6 +790,9 @@ static void process_input_subcmd_reply(struct uni_hid_device_s* d, const uint8_t
         case SUBCMD_ENABLE_VIBRATION:
             // Nothing to parse: the ack bit is already checked above.
             break;
+        case SUBCMD_SET_HOME_LIGHT:
+            // Nothing to parse: the ack bit is already checked above.
+            break;
         default:
             loge("Switch: Error, unexpected subcmd_id=0x%02x in report 0x21\n", r->subcmd_id);
             break;
@@ -809,7 +819,11 @@ static void process_input_subcmd_reply(struct uni_hid_device_s* d, const uint8_t
         default:
             loge("Switch: invalid battery value: %d\n", battery);
     }
-    process_fsm(d);
+    // `SUBCMD_SET_HOME_LIGHT` (0x38) is an on-demand runtime command rather than a setup step;
+    // do not advance the setup FSM when its `0x21` acknowledgment arrives.
+    if (r->subcmd_id != SUBCMD_SET_HOME_LIGHT) {
+        process_fsm(d);
+    }
 }
 
 static void parse_stick_calibration(switch_cal_stick_t* x, switch_cal_stick_t* y, const uint8_t* data, bool is_left) {
@@ -1308,6 +1322,43 @@ void uni_hid_parser_switch_set_player_leds(uni_hid_device_t* d, uint8_t leds) {
         return;
 
     set_led(d, leds);
+}
+
+void uni_hid_parser_switch_set_led_brightness(struct uni_hid_device_s* d, uint8_t brightness) {
+    if (d == NULL) {
+        loge("Switch: Invalid device\n");
+        return;
+    }
+
+    switch_instance_t* ins = get_switch_instance(d);
+    if (ins->state < STATE_READY)
+        return;
+
+    // Only Switch Pro Controller and Joy-Con (R) physically have a Home button LED.
+    // If DEV_INFO explicitly identified a Joy-Con (L) or NES/SNES controller, ignore.
+    if (ins->controller_type == SWITCH_CONTROLLER_TYPE_JCL || ins->controller_type == SWITCH_CONTROLLER_TYPE_NES_L ||
+        ins->controller_type == SWITCH_CONTROLLER_TYPE_NES_R || ins->controller_type == SWITCH_CONTROLLER_TYPE_SNES) {
+        return;
+    }
+
+    // 5 == SUBCMD_SET_HOME_LIGHT (0x38) argument length (per Linux hid-nintendo.c joycon_set_home_led).
+    // Scale normalized 8-bit brightness (0..255) to 4-bit hardware nibble (0x0..0xF).
+    const uint8_t hw_val = brightness >> 4;
+    uint8_t report[sizeof(struct switch_subcmd_request) + 5] = {0};
+
+    struct switch_subcmd_request* req = (struct switch_subcmd_request*)&report[0];
+    req->report_id = OUTPUT_RUMBLE_AND_SUBCMD;  // 0x01 for subcommands
+    req->subcmd_id = SUBCMD_SET_HOME_LIGHT;
+    // data[0]: upper nibble = number of mini-cycles (0), lower nibble = global mini-cycle duration (1 = 8ms).
+    req->data[0] = 0x01;
+    // data[1]: upper nibble = LED start intensity (0x0..0xF), lower nibble = number of full cycles (0 = latch).
+    req->data[1] = (uint8_t)(hw_val << 4);
+    // data[2]: mini-cycle 1 & 2 intensities both set to hw_val (required by some third-party clones).
+    req->data[2] = (uint8_t)((hw_val << 4) | hw_val);
+    // data[3..4]: mini-cycle 1 & 2 duration/fade multipliers.
+    req->data[3] = 0x11;
+    req->data[4] = 0x11;
+    send_subcmd(d, req, sizeof(report));
 }
 
 void uni_hid_parser_switch_play_dual_rumble(struct uni_hid_device_s* d,

@@ -1377,7 +1377,7 @@ void DemoScene::RenderPanel_InfoTab(int slot, const ControllerSnapshot& snap) {
     renderBadge("Dual-Motor Rumble (play_dual_rumble)", snap.has_rumble);
     renderBadge("Player Indicator LEDs (set_player_leds)", snap.has_player_leds);
     renderBadge("RGB Lightbar (set_lightbar_color)", snap.has_rgb_led);
-    renderBadge("Switch Pro / Joy-Con Brightness LED", snap.has_brightness_led);
+    renderBadge("Brightness Light (set_led_brightness)", snap.has_brightness_led);
     renderBadge("6-Axis IMU (Accelerometer + Gyroscope)", snap.has_imu);
 }
 
@@ -2021,20 +2021,53 @@ void DemoScene::RenderPanel_LightsTab(int slot, const ControllerSnapshot& snap) 
     ImGui::Spacing();
 
     // ------------------------------------------------------------------------
-    // 3. Brightness Light (Switch Pro Controller / Joy-Con Right UI Placeholder)
+    // 3. Brightness Light (set_led_brightness)
     // ------------------------------------------------------------------------
-    ImGui::TextColored(kTextColorCyan, "3. Brightness Light (Nintendo Switch Pro Controller / Joy-Con Right)");
+    ImGui::TextColored(kTextColorCyan, "3. Brightness Light (`set_led_brightness`)");
     ImGui::Separator();
-    if (!snap.has_brightness_led) {
+    if (snap.has_brightness_led) {
+        // Map UI percentage (0..100%) to the normalized 8-bit parser range (0..255).
+        auto to_u8 = [](int pct) -> uint8_t {
+            return static_cast<uint8_t>(
+                std::clamp(std::round(static_cast<float>(pct) * 255.0f / 100.0f), 0.0f, 255.0f));
+        };
+
+        ImGui::SetNextItemWidth(220.0f * s);
+        const bool brightnessChanged =
+            ImGui::SliderInt("LED Brightness (%)", &slot_state.brightness_percent, 0, 100, "%d%%");
+        ImGui::SameLine();
+        if (ImGui::Button("Set Brightness Light") || (brightnessChanged && slot_state.brightness_live_update)) {
+            posix_imgui_request_led_brightness(slot, to_u8(slot_state.brightness_percent));
+        }
+        ImGui::SameLine();
+        // Append `##brightness` to prevent a Dear ImGui widget ID collision with Section 2's
+        // `"Live update on drag"` checkbox in the same window/tab ID stack.
+        ImGui::Checkbox("Live update on drag##brightness", &slot_state.brightness_live_update);
+
+        struct BrightnessPreset {
+            const char* name;
+            int percent;
+        };
+        constexpr std::array<BrightnessPreset, 5> kPresets = {{
+            {"Off (0%)", 0},
+            {"25%", 25},
+            {"50%", 50},
+            {"75%", 75},
+            {"Max (100%)", 100},
+        }};
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextColored(kTextColorGrey, "Presets:");
+        ImGui::SameLine();
+        for (size_t i = 0; i < kPresets.size(); ++i) {
+            if (i > 0) {
+                ImGui::SameLine();
+            }
+            if (ImGui::Button(kPresets[i].name)) {
+                slot_state.brightness_percent = kPresets[i].percent;
+                posix_imgui_request_led_brightness(slot, to_u8(slot_state.brightness_percent));
+            }
+        }
+    } else {
         ImGui::TextColored(kTextColorGrey, "No brightness light present on %s.", snap.model_name);
     }
-    ImGui::BeginDisabled(true);
-    ImGui::SetNextItemWidth(220.0f * s);
-    ImGui::SliderInt("LED Brightness (%)", &slot_state.brightness_percent, 0, 100, "%d%%");
-    ImGui::SameLine();
-    ImGui::Button("Set Brightness Light");
-    ImGui::EndDisabled();
-    ImGui::TextColored(kTextColorYellow,
-                       "Note: UI placeholder — uni_hid_device_t does not yet expose a brightness LED setter in "
-                       "libbluepad32.");
 }

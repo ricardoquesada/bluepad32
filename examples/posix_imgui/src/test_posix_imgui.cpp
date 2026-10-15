@@ -140,6 +140,9 @@ struct MockParserCalls {
     int player_leds_calls;
     uint8_t last_leds;
 
+    int led_brightness_calls;
+    uint8_t last_led_brightness;
+
     int lightbar_calls;
     uint8_t last_r;
     uint8_t last_g;
@@ -183,6 +186,17 @@ void mock_set_player_leds(struct uni_hid_device_s* d, uint8_t leds) {
     const int slot = (d != nullptr) ? get_posix_imgui_instance(d)->slot : -1;
     char buf[64];
     std::snprintf(buf, sizeof(buf), "leds:slot=%d:mask=0x%02x", slot, static_cast<unsigned>(leds));
+    g_command_trace.emplace_back(buf);
+}
+
+/// Mock `set_led_brightness` callback recording the 8-bit brightness value and appending to `g_command_trace`.
+void mock_set_led_brightness(struct uni_hid_device_s* d, uint8_t brightness) {
+    g_mock_calls.led_brightness_calls++;
+    g_mock_calls.last_led_brightness = brightness;
+
+    const int slot = (d != nullptr) ? get_posix_imgui_instance(d)->slot : -1;
+    char buf[64];
+    std::snprintf(buf, sizeof(buf), "brightness:slot=%d:val=%u", slot, static_cast<unsigned>(brightness));
     g_command_trace.emplace_back(buf);
 }
 
@@ -469,6 +483,7 @@ void test_controller_capability_flags() {
     init_synthetic_device(&sw_pro, 0x057e, 0x2009, CONTROLLER_TYPE_SwitchProController, "Switch Pro");
     sw_pro.report_parser.play_dual_rumble = &mock_play_dual_rumble;
     sw_pro.report_parser.set_player_leds = &mock_set_player_leds;
+    sw_pro.report_parser.set_led_brightness = &mock_set_led_brightness;
     plat->on_device_connected(&sw_pro);
     TEST_ASSERT(plat->on_device_ready(&sw_pro) == UNI_ERROR_SUCCESS);
 
@@ -478,6 +493,41 @@ void test_controller_capability_flags() {
     TEST_ASSERT(!snapshots[0].has_rgb_led);
     TEST_ASSERT(snapshots[0].has_brightness_led);
     TEST_ASSERT(snapshots[0].has_imu);
+
+    // Dynamic update via on_controller_data: if DEV_INFO clears set_led_brightness to nullptr,
+    // has_brightness_led must immediately transition to false.
+    sw_pro.report_parser.set_led_brightness = nullptr;
+    uni_controller_t sw_ctl{};
+    sw_ctl.klass = UNI_CONTROLLER_CLASS_GAMEPAD;
+    plat->on_controller_data(&sw_pro, &sw_ctl);
+    posix_imgui_get_snapshots(std::span{snapshots});
+    TEST_ASSERT(!snapshots[0].has_brightness_led);
+
+    // Case 2b: Switch 1 PID/VID table resolution via `uni_hid_device_guess_controller_type_from_pid_vid`:
+    //   Pro (057e:2009) & Joy-Con R (057e:2007) -> has_brightness_led == true;
+    //   Joy-Con L (057e:2006) -> has_brightness_led == false.
+    struct Switch1CapCase {
+        uint16_t pid;
+        bool expected_brightness;
+    };
+    constexpr std::array<Switch1CapCase, 3> kSwitch1Cases = {{
+        {0x2009, true},
+        {0x2007, true},
+        {0x2006, false},
+    }};
+    for (const auto& tc : kSwitch1Cases) {
+        posix_imgui_reset_for_test();
+        uni_hid_device_t sw1{};
+        sw1.vendor_id = 0x057e;
+        sw1.product_id = tc.pid;
+        sw1.conn.handle = UNI_BT_CONN_HANDLE_INVALID;
+        sw1.conn.state = UNI_BT_CONN_STATE_DEVICE_READY;
+        uni_hid_device_guess_controller_type_from_pid_vid(&sw1);
+        plat->on_device_connected(&sw1);
+        TEST_ASSERT(plat->on_device_ready(&sw1) == UNI_ERROR_SUCCESS);
+        posix_imgui_get_snapshots(std::span{snapshots});
+        TEST_ASSERT(snapshots[0].has_brightness_led == tc.expected_brightness);
+    }
 
     // Case 3: Xbox One Controller (rumble only)
     posix_imgui_reset_for_test();
@@ -637,8 +687,9 @@ void test_on_controller_data_updates_snapshot_and_delta_ms() {
 }
 
 /// Test 8: Verifies that `posix_imgui_request_rumble`, `posix_imgui_request_player_leds`,
-/// and `posix_imgui_request_lightbar_color` drain through BTstack's callback queue and
-/// safely discard commands if the target controller disconnects before draining.
+/// `posix_imgui_request_led_brightness`, and `posix_imgui_request_lightbar_color` drain
+/// through BTstack's callback queue and safely discard commands if the target controller
+/// disconnects or lacks the vtable hook before draining.
 void test_command_queue_draining_and_dangling_pointer_safety() {
     btstack_run_loop_deinit();
     btstack_run_loop_init(btstack_run_loop_posix_get_instance());
@@ -651,6 +702,7 @@ void test_command_queue_draining_and_dangling_pointer_safety() {
     init_synthetic_device(&d0, 0x054c, 0x0ce6, CONTROLLER_TYPE_PS5Controller, "DualSense");
     d0.report_parser.play_dual_rumble = &mock_play_dual_rumble;
     d0.report_parser.set_player_leds = &mock_set_player_leds;
+    d0.report_parser.set_led_brightness = &mock_set_led_brightness;
     d0.report_parser.set_lightbar_color = &mock_set_lightbar_color;
 
     plat->on_device_connected(&d0);
@@ -659,6 +711,7 @@ void test_command_queue_draining_and_dangling_pointer_safety() {
 
     posix_imgui_request_rumble(0, 50, 500, 128, 255);
     posix_imgui_request_player_leds(0, 0x0A);
+    posix_imgui_request_led_brightness(0, 200);
     posix_imgui_request_lightbar_color(0, 10, 20, 30);
 
     btstack_run_loop_base_execute_callbacks();
@@ -672,18 +725,31 @@ void test_command_queue_draining_and_dangling_pointer_safety() {
     TEST_ASSERT(g_mock_calls.player_leds_calls == 1);
     TEST_ASSERT(g_mock_calls.last_leds == 0x0A);
 
+    TEST_ASSERT(g_mock_calls.led_brightness_calls == 1);
+    TEST_ASSERT(g_mock_calls.last_led_brightness == 200);
+
     TEST_ASSERT(g_mock_calls.lightbar_calls == 1);
     TEST_ASSERT(g_mock_calls.last_r == 10);
     TEST_ASSERT(g_mock_calls.last_g == 20);
     TEST_ASSERT(g_mock_calls.last_b == 30);
 
-    // Enqueue another rumble command, disconnect d0 BEFORE draining, then drain callbacks.
+    // When set_led_brightness is nullptr on an active device, command must safely no-op.
     reset_mock_calls();
+    d0.report_parser.set_led_brightness = nullptr;
+    posix_imgui_request_led_brightness(0, 150);
+    btstack_run_loop_base_execute_callbacks();
+    TEST_ASSERT(g_mock_calls.led_brightness_calls == 0);
+
+    // Enqueue another rumble and brightness command, disconnect d0 BEFORE draining, then drain callbacks.
+    reset_mock_calls();
+    d0.report_parser.set_led_brightness = &mock_set_led_brightness;
     posix_imgui_request_rumble(0, 0, 300, 200, 200);
+    posix_imgui_request_led_brightness(0, 128);
     plat->on_device_disconnected(&d0);
     btstack_run_loop_base_execute_callbacks();
 
     TEST_ASSERT(g_mock_calls.rumble_calls == 0);
+    TEST_ASSERT(g_mock_calls.led_brightness_calls == 0);
 }
 
 // ============================================================================
@@ -1162,6 +1228,7 @@ void test_variant_command_queue_ordering_batch_draining_and_bounds_rejection() {
     init_synthetic_device(&d1, 0x057e, 0x2009, CONTROLLER_TYPE_SwitchProController, "Switch Pro #1");
     d1.report_parser.play_dual_rumble = &mock_play_dual_rumble;
     d1.report_parser.set_player_leds = &mock_set_player_leds;
+    d1.report_parser.set_led_brightness = &mock_set_led_brightness;
     d1.report_parser.set_lightbar_color = &mock_set_lightbar_color;
     plat->on_device_connected(&d1);
     TEST_ASSERT(plat->on_device_ready(&d1) == UNI_ERROR_SUCCESS);
@@ -1176,12 +1243,14 @@ void test_variant_command_queue_ordering_batch_draining_and_bounds_rejection() {
     for (int invalid_slot : {-1, kMaxControllers, 99}) {
         posix_imgui_request_rumble(invalid_slot, 10, 100, 50, 50);
         posix_imgui_request_player_leds(invalid_slot, 0xff);
+        posix_imgui_request_led_brightness(invalid_slot, 180);
         posix_imgui_request_lightbar_color(invalid_slot, 255, 0, 0);
     }
 
     // 2. Enqueue valid per-slot and global commands in a single batch before draining.
     posix_imgui_request_rumble(0, 10, 250, 64, 192);
     posix_imgui_request_player_leds(1, 0xF5);  // Dirty upper nibble -> must mask to 0x05
+    posix_imgui_request_led_brightness(1, 204);
     posix_imgui_request_lightbar_color(0, 12, 34, 56);
     posix_imgui_request_set_virtual_devices_enabled(true);
     posix_imgui_request_set_allowed_device_types(POSIX_IMGUI_DEVICE_TYPE_GAMEPAD | POSIX_IMGUI_DEVICE_TYPE_MOUSE);
@@ -1190,14 +1259,16 @@ void test_variant_command_queue_ordering_batch_draining_and_bounds_rejection() {
     // 3. Drain the entire command batch in one run-loop callback execution.
     btstack_run_loop_base_execute_callbacks();
 
-    // Verify all 9 out-of-bounds commands were rejected and the 3 valid per-slot commands ran in exact FIFO order.
+    // Verify all 12 out-of-bounds commands were rejected and the 4 valid per-slot commands ran in exact FIFO order.
     TEST_ASSERT(g_mock_calls.rumble_calls == 1);
     TEST_ASSERT(g_mock_calls.player_leds_calls == 1);
+    TEST_ASSERT(g_mock_calls.led_brightness_calls == 1);
     TEST_ASSERT(g_mock_calls.lightbar_calls == 1);
-    TEST_ASSERT(g_command_trace.size() == 3);
+    TEST_ASSERT(g_command_trace.size() == 4);
     TEST_ASSERT(g_command_trace[0] == "rumble:slot=0:delay=10:dur=250:weak=64:strong=192");
     TEST_ASSERT(g_command_trace[1] == "leds:slot=1:mask=0x05");
-    TEST_ASSERT(g_command_trace[2] == "lightbar:slot=0:r=12:g=34:b=56");
+    TEST_ASSERT(g_command_trace[2] == "brightness:slot=1:val=204");
+    TEST_ASSERT(g_command_trace[3] == "lightbar:slot=0:r=12:g=34:b=56");
 
     // Verify global state commands and headless ShutdownCmd completed cleanly.
     TEST_ASSERT(posix_imgui_is_virtual_devices_enabled());
@@ -1231,6 +1302,10 @@ void test_demo_scene_headless_all_tabs_and_font_scales() {
     uni_hid_device_t d_pad;
     init_synthetic_device(&d_pad, 0x054c, 0x0ce6, CONTROLLER_TYPE_PS5Controller, "DualSense Wireless Controller");
     uni_hid_device_set_cod(&d_pad, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_GAMEPAD);
+    d_pad.report_parser.play_dual_rumble = &mock_play_dual_rumble;
+    d_pad.report_parser.set_player_leds = &mock_set_player_leds;
+    d_pad.report_parser.set_led_brightness = &mock_set_led_brightness;
+    d_pad.report_parser.set_lightbar_color = &mock_set_lightbar_color;
     plat->on_device_connected(&d_pad);
     TEST_ASSERT(plat->on_device_ready(&d_pad) == UNI_ERROR_SUCCESS);
 
@@ -1287,10 +1362,13 @@ void test_demo_scene_headless_all_tabs_and_font_scales() {
     mouse_ctl.mouse.scroll_wheel = -2;
     plat->on_controller_data(&d_mouse, &mouse_ctl);
 
-    // Slot 3: Generic Bluetooth Keyboard.
+    // Slot 3: Generic Bluetooth Keyboard (with all LED vtable hooks wired to verify Section 1/2/3 ID coexistence).
     uni_hid_device_t d_kb;
     init_synthetic_device(&d_kb, 0x046d, 0xb342, CONTROLLER_TYPE_GenericKeyboard, "Keychron K2");
     uni_hid_device_set_cod(&d_kb, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_KEYBOARD);
+    d_kb.report_parser.set_player_leds = &mock_set_player_leds;
+    d_kb.report_parser.set_led_brightness = &mock_set_led_brightness;
+    d_kb.report_parser.set_lightbar_color = &mock_set_lightbar_color;
     plat->on_device_connected(&d_kb);
     TEST_ASSERT(plat->on_device_ready(&d_kb) == UNI_ERROR_SUCCESS);
 
@@ -1373,6 +1451,7 @@ void test_demo_scene_slot_ui_state_reset_on_disconnect_and_reconnect() {
         state.rumble_duration_ms = 2500.0f;
         state.trigger_rumble_enabled = true;
         state.brightness_percent = 25;
+        state.brightness_live_update = true;
         state.ResetForSlot(slot);
 
         TEST_ASSERT(std::fabs(state.rumble_duration_ms - 1000.0f) < 1e-5f);
@@ -1389,6 +1468,7 @@ void test_demo_scene_slot_ui_state_reset_on_disconnect_and_reconnect() {
         TEST_ASSERT(std::fabs(state.rgb_color[2] - 1.0f) < 1e-5f);
         TEST_ASSERT(!state.rgb_live_update);
         TEST_ASSERT(state.brightness_percent == 100);
+        TEST_ASSERT(!state.brightness_live_update);
         TEST_ASSERT(std::strcmp(state.last_detected_input.data(), "None") == 0);
     }
 
@@ -1440,6 +1520,7 @@ void test_demo_scene_slot_ui_state_reset_on_disconnect_and_reconnect() {
     slot0.rgb_color = {0.25f, 0.50f, 0.75f};
     slot0.rgb_live_update = true;
     slot0.brightness_percent = 35;
+    slot0.brightness_live_update = true;
 
     // 4. Disconnect Slot 0 and run one frame so `prev_connected` transitions to `false`.
     plat->on_device_disconnected(&d0);
@@ -1476,6 +1557,7 @@ void test_demo_scene_slot_ui_state_reset_on_disconnect_and_reconnect() {
     TEST_ASSERT(std::fabs(reset_slot0.rgb_color[2] - 1.0f) < 1e-5f);
     TEST_ASSERT(!reset_slot0.rgb_live_update);
     TEST_ASSERT(reset_slot0.brightness_percent == 100);
+    TEST_ASSERT(!reset_slot0.brightness_live_update);
     TEST_ASSERT(reset_slot0.imu_history_offset == 0);
     TEST_ASSERT(std::strcmp(reset_slot0.last_detected_input.data(), "None") == 0);
 
@@ -2302,6 +2384,110 @@ void test_demo_scene_headless_preferences_ble_service_controls_and_status_bar() 
     posix_imgui_reset_for_test();
 }
 
+/// Test 29: Verifies `uni_hid_parser_switch_set_led_brightness` (`SUBCMD_SET_HOME_LIGHT = 0x38`),
+/// NULL & pre-`STATE_READY` guards, `0x21` reply handling without advancing `process_fsm`,
+/// SNES/Joy-Con Left capability exclusion, and end-to-end `posix_imgui_platform` integration.
+void test_switch_set_led_brightness_parser_and_vtable() {
+    btstack_run_loop_deinit();
+    btstack_run_loop_init(btstack_run_loop_posix_get_instance());
+    posix_imgui_reset_for_test();
+
+    // 1. NULL device pointer guard must safely no-op.
+    uni_hid_parser_switch_set_led_brightness(nullptr, 255);
+
+    // 2. Setup a synthetic Switch Pro Controller (`057e:2009`) and verify pre-STATE_READY guard.
+    uni_hid_device_t d{};
+    d.vendor_id = 0x057e;
+    d.product_id = 0x2009;
+    d.conn.handle = UNI_BT_CONN_HANDLE_INVALID;
+    d.conn.state = UNI_BT_CONN_STATE_DEVICE_READY;
+    d.conn.interrupt_cid = 0x0041;
+    uni_hid_device_guess_controller_type_from_pid_vid(&d);
+    TEST_ASSERT(d.report_parser.set_led_brightness == &uni_hid_parser_switch_set_led_brightness);
+    d.report_parser.setup(&d);
+    uni_circular_buffer_reset(&d.outgoing_buffer);
+
+    // While in STATE_REQ_DEV_INFO (< STATE_READY), set_led_brightness must not enqueue a subcommand.
+    d.report_parser.set_led_brightness(&d, 255);
+    TEST_ASSERT(uni_circular_buffer_is_empty(&d.outgoing_buffer));
+
+    // Advance setup FSM to STATE_READY via synthetic 0x21 replies.
+    uint8_t r21[48]{};
+    r21[0] = 0x21;
+    r21[13] = 0x80;  // ack
+    r21[17] = 0x03;  // SWITCH_CONTROLLER_TYPE_PRO
+    constexpr std::array<uint8_t, 7> kSetupSubcmds = {0x02, 0x10, 0x10, 0x10, 0x03, 0x40, 0x48};
+    for (uint8_t subcmd : kSetupSubcmds) {
+        r21[14] = subcmd;
+        d.report_parser.parse_input_report(&d, r21, sizeof(r21));
+    }
+    r21[14] = 0x30;  // SUBCMD_SET_PLAYER_LEDS -> transitions to STATE_READY
+    d.report_parser.parse_input_report(&d, r21, sizeof(r21));
+    uni_circular_buffer_reset(&d.outgoing_buffer);
+
+    // 3. Verify 17-byte SUBCMD_SET_HOME_LIGHT (0x38) framing across 0, 128, and 255.
+    for (uint8_t brightness : {static_cast<uint8_t>(0), static_cast<uint8_t>(128), static_cast<uint8_t>(255)}) {
+        d.report_parser.set_led_brightness(&d, brightness);
+        int16_t cid = 0;
+        uint8_t out[128]{};
+        int len = 0;
+        TEST_ASSERT(uni_circular_buffer_get(&d.outgoing_buffer, &cid, out, &len) == UNI_CIRCULAR_BUFFER_ERROR_OK);
+        TEST_ASSERT(len == 17);
+        const uint8_t hw_val = static_cast<uint8_t>(brightness >> 4);
+        TEST_ASSERT(out[0] == 0xA2);
+        TEST_ASSERT(out[1] == 0x01);   // OUTPUT_RUMBLE_AND_SUBCMD
+        TEST_ASSERT(out[11] == 0x38);  // SUBCMD_SET_HOME_LIGHT
+        TEST_ASSERT(out[12] == 0x01);
+        TEST_ASSERT(out[13] == static_cast<uint8_t>(hw_val << 4));
+        TEST_ASSERT(out[14] == static_cast<uint8_t>((hw_val << 4) | hw_val));
+        TEST_ASSERT(out[15] == 0x11);
+        TEST_ASSERT(out[16] == 0x11);
+    }
+
+    // 4. Verify 0x21 reply for SUBCMD_SET_HOME_LIGHT (0x38) is accepted without enqueuing FSM commands.
+    r21[14] = 0x38;
+    d.report_parser.parse_input_report(&d, r21, sizeof(r21));
+    TEST_ASSERT(uni_circular_buffer_is_empty(&d.outgoing_buffer));
+
+    // 5. Connect `d` to `posix_imgui_platform`, verify end-to-end `posix_imgui_request_led_brightness`,
+    //    and verify DEV_INFO reporting SNES (0x0b) clears `d.report_parser.set_led_brightness` to `nullptr`
+    //    and updates `snapshots[0].has_brightness_led` to `false`.
+    struct uni_platform* plat = get_posix_imgui_platform();
+    plat->on_device_connected(&d);
+    TEST_ASSERT(plat->on_device_ready(&d) == UNI_ERROR_SUCCESS);
+    uni_circular_buffer_reset(&d.outgoing_buffer);
+
+    std::array<ControllerSnapshot, kMaxControllers> snapshots{};
+    posix_imgui_get_snapshots(std::span{snapshots});
+    TEST_ASSERT(snapshots[0].connected && snapshots[0].has_brightness_led);
+
+    posix_imgui_request_led_brightness(0, 192);
+    btstack_run_loop_base_execute_callbacks();
+    {
+        int16_t cid = 0;
+        uint8_t out[128]{};
+        int len = 0;
+        TEST_ASSERT(uni_circular_buffer_get(&d.outgoing_buffer, &cid, out, &len) == UNI_CIRCULAR_BUFFER_ERROR_OK);
+        TEST_ASSERT(len == 17 && out[11] == 0x38 && out[13] == 0xC0 && out[14] == 0xCC);
+    }
+
+    r21[14] = 0x02;
+    r21[17] = 0x0b;  // SWITCH_CONTROLLER_TYPE_SNES
+    d.report_parser.parse_input_report(&d, r21, sizeof(r21));
+    TEST_ASSERT(d.report_parser.set_led_brightness == nullptr);
+    plat->on_controller_data(&d, &d.controller);
+    posix_imgui_get_snapshots(std::span{snapshots});
+    TEST_ASSERT(!snapshots[0].has_brightness_led);
+
+    uni_circular_buffer_reset(&d.outgoing_buffer);
+    uni_hid_parser_switch_set_led_brightness(&d, 255);
+    TEST_ASSERT(uni_circular_buffer_is_empty(&d.outgoing_buffer));
+
+    plat->on_device_disconnected(&d);
+    d.report_parser.deinit(&d);
+    posix_imgui_reset_for_test();
+}
+
 }  // namespace
 
 int main() {
@@ -2352,6 +2538,9 @@ int main() {
     RUN_TEST(test_ble_service_platform_getters_setters_and_command_queue);
     RUN_TEST(test_ble_service_string_truncation_and_null_safety);
     RUN_TEST(test_demo_scene_headless_preferences_ble_service_controls_and_status_bar);
+
+    // Suite J
+    RUN_TEST(test_switch_set_led_brightness_parser_and_vtable);
 
     std::printf("\nSummary: %d/%d tests passed.\n", g_tests_run - g_tests_failed, g_tests_run);
     return g_tests_failed == 0 ? EXIT_SUCCESS : EXIT_FAILURE;

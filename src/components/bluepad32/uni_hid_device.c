@@ -808,13 +808,14 @@ static const uni_parser_entry_t k_parser_entries[] = {
                 .init_report = uni_hid_parser_switch_init_report,
                 .parse_input_report = uni_hid_parser_switch_parse_input_report,
                 .set_player_leds = uni_hid_parser_switch_set_player_leds,
+                .set_led_brightness = uni_hid_parser_switch_set_led_brightness,
                 .play_dual_rumble = uni_hid_parser_switch_play_dual_rumble,
                 .device_extra_info = uni_hid_parser_switch_device_extra_info,
             },
     },
     {
         .type = CONTROLLER_TYPE_SwitchJoyConRight,
-        .name = "Nintendo Switch Pro controller",
+        .name = "Nintendo Switch Joy-Con (R)",
         .parser =
             {
                 .setup = uni_hid_parser_switch_setup,
@@ -822,13 +823,14 @@ static const uni_parser_entry_t k_parser_entries[] = {
                 .init_report = uni_hid_parser_switch_init_report,
                 .parse_input_report = uni_hid_parser_switch_parse_input_report,
                 .set_player_leds = uni_hid_parser_switch_set_player_leds,
+                .set_led_brightness = uni_hid_parser_switch_set_led_brightness,
                 .play_dual_rumble = uni_hid_parser_switch_play_dual_rumble,
                 .device_extra_info = uni_hid_parser_switch_device_extra_info,
             },
     },
     {
         .type = CONTROLLER_TYPE_SwitchJoyConLeft,
-        .name = "Nintendo Switch Pro controller",
+        .name = "Nintendo Switch Joy-Con (L)",
         .parser =
             {
                 .setup = uni_hid_parser_switch_setup,
@@ -836,6 +838,7 @@ static const uni_parser_entry_t k_parser_entries[] = {
                 .init_report = uni_hid_parser_switch_init_report,
                 .parse_input_report = uni_hid_parser_switch_parse_input_report,
                 .set_player_leds = uni_hid_parser_switch_set_player_leds,
+                // Joy-Con Left has a Capture button and lacks a physical Home button LED ring.
                 .play_dual_rumble = uni_hid_parser_switch_play_dual_rumble,
                 .device_extra_info = uni_hid_parser_switch_device_extra_info,
             },

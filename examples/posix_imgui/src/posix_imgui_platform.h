@@ -97,7 +97,7 @@ struct ControllerSnapshot {
     bool has_rumble;              ///< True if `d->report_parser.play_dual_rumble != nullptr`.
     bool has_player_leds;         ///< True if `d->report_parser.set_player_leds != nullptr`.
     bool has_rgb_led;             ///< True if `d->report_parser.set_lightbar_color != nullptr`.
-    bool has_brightness_led;      ///< True for Switch Pro Controller and Switch Joy-Con Right.
+    bool has_brightness_led;      ///< True if `d->report_parser.set_led_brightness != nullptr`.
     bool has_imu;                 ///< True if the controller family provides 6-axis IMU telemetry.
 
     // Live telemetry updated in on_controller_data()
@@ -209,6 +209,18 @@ void posix_imgui_request_rumble(int slot,
  * @param leds_bitmask 4-bit LED bitmask (e.g., `0x01` for LED 1, `0x0f` for all 4 LEDs).
  */
 void posix_imgui_request_player_leds(int slot, uint8_t leds_bitmask);
+
+/**
+ * @brief Enqueues an asynchronous single-channel LED brightness update from the UI thread (Thread 1).
+ *
+ * Thread-safe and non-blocking. Appends a `LedBrightnessCmd` entry under `g_cmd_mutex` and
+ * wakes the BTstack run loop to invoke `d->report_parser.set_led_brightness(d, brightness)`
+ * on supporting controllers (e.g., Nintendo Switch Pro Controller and Joy-Con Right Home LED).
+ *
+ * @param slot       Controller slot index in `[0, kMaxControllers - 1]`.
+ * @param brightness Normalized LED brightness intensity (`0..255`, where `0` = off and `255` = 100%).
+ */
+void posix_imgui_request_led_brightness(int slot, uint8_t brightness);
 
 /**
  * @brief Enqueues an asynchronous RGB lightbar color update from the UI thread (Thread 1).

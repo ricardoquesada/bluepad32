@@ -63,6 +63,12 @@ struct PlayerLedsCmd {
     uint8_t leds_bitmask;  ///< Masked 4-bit LED bitmask (`0x00..0x0f`).
 };
 
+/// Command payload requesting a single-channel LED brightness update on `slot`.
+struct LedBrightnessCmd {
+    int slot;            ///< Target controller slot index in `[0, kMaxControllers - 1]`.
+    uint8_t brightness;  ///< Normalized LED brightness intensity (`0..255`).
+};
+
 /// Command payload requesting an RGB lightbar color update on `slot`.
 struct LightbarColorCmd {
     int slot;   ///< Target controller slot index in `[0, kMaxControllers - 1]`.
@@ -110,6 +116,7 @@ struct ShutdownCmd {};
  */
 using ControllerCommand = std::variant<RumbleCmd,
                                        PlayerLedsCmd,
+                                       LedBrightnessCmd,
                                        LightbarColorCmd,
                                        SetVirtualDevicesCmd,
                                        SetAllowedDeviceTypesCmd,
@@ -388,6 +395,12 @@ void process_pending_commands(void* context) {
                            uni_hid_device_t* d = lookup_ready_device_for_slot(c.slot);
                            if (d != nullptr && d->report_parser.set_player_leds != nullptr) {
                                d->report_parser.set_player_leds(d, c.leds_bitmask);
+                           }
+                       },
+                       [](const LedBrightnessCmd& c) {
+                           uni_hid_device_t* d = lookup_ready_device_for_slot(c.slot);
+                           if (d != nullptr && d->report_parser.set_led_brightness != nullptr) {
+                               d->report_parser.set_led_brightness(d, c.brightness);
                            }
                        },
                        [](const LightbarColorCmd& c) {
@@ -758,8 +771,7 @@ uni_error_t posix_imgui_on_device_ready(uni_hid_device_t* d) {
         snap.has_rumble = (d->report_parser.play_dual_rumble != nullptr);
         snap.has_player_leds = (d->report_parser.set_player_leds != nullptr);
         snap.has_rgb_led = (d->report_parser.set_lightbar_color != nullptr);
-        snap.has_brightness_led = (d->controller_type == CONTROLLER_TYPE_SwitchProController ||
-                                   d->controller_type == CONTROLLER_TYPE_SwitchJoyConRight);
+        snap.has_brightness_led = (d->report_parser.set_led_brightness != nullptr);
         snap.has_imu = has_imu_support(d->controller_type);
 
         snap.controller = d->controller;
@@ -804,6 +816,9 @@ void posix_imgui_on_controller_data(uni_hid_device_t* d, uni_controller_t* ctl) 
         snap.controller = *ctl;
         snap.rssi = d->conn.rssi;
         snap.controller_subtype = d->controller_subtype;
+        // Refresh capability flag in case a parser dynamically clears `set_led_brightness`
+        // after inspecting device info (e.g., Switch Online NES/SNES controllers).
+        snap.has_brightness_led = (d->report_parser.set_led_brightness != nullptr);
         update_snapshot_device_extra_info(d, snap);
     }
 }
@@ -888,6 +903,13 @@ void posix_imgui_request_player_leds(int slot, uint8_t leds_bitmask) {
     enqueue_command(PlayerLedsCmd{
         .slot = slot,
         .leds_bitmask = static_cast<uint8_t>(leds_bitmask & 0x0f),
+    });
+}
+
+void posix_imgui_request_led_brightness(int slot, uint8_t brightness) {
+    enqueue_command(LedBrightnessCmd{
+        .slot = slot,
+        .brightness = brightness,
     });
 }
 

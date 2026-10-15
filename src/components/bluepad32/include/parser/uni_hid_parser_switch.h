@@ -30,6 +30,19 @@ void uni_hid_parser_switch_deinit(struct uni_hid_device_s* d);
 void uni_hid_parser_switch_init_report(struct uni_hid_device_s* d);
 void uni_hid_parser_switch_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len);
 void uni_hid_parser_switch_set_player_leds(struct uni_hid_device_s* d, uint8_t leds);
+/**
+ * @brief Sets the Nintendo Switch Home button LED ring brightness (`SUBCMD_SET_HOME_LIGHT = 0x38`).
+ *
+ * Supports the Nintendo Switch Pro Controller (`057e:2009`) and Joy-Con Right (`057e:2007`).
+ * Ignores the request when `d == NULL`, when the setup FSM has not yet reached `STATE_READY`,
+ * or when `SUBCMD_REQ_DEV_INFO` reports a controller subtype without a physical Home LED
+ * (`JCL`, `NES_L`, `NES_R`, or `SNES`).
+ *
+ * @param d          Pointer to the target HID device.
+ * @param brightness Normalized 8-bit LED brightness intensity (`0..255`), which the parser scales
+ *                   to the 4-bit hardware range (`0x0..0xF`).
+ */
+void uni_hid_parser_switch_set_led_brightness(struct uni_hid_device_s* d, uint8_t brightness);
 void uni_hid_parser_switch_play_dual_rumble(struct uni_hid_device_s* d,
                                             uint16_t start_delay_ms,
                                             uint16_t duration_ms,
