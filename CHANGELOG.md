@@ -124,6 +124,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   amplitude, at a fixed ~150 Hz, so a single Joy-Con rumbles for either one.
 - Switch: Fixed Joy-Con rumble. Setup now enables vibration (subcommand
   `0x48`); Joy-Cons ignore rumble until it is enabled.
+- Switch: Setup no longer stalls or desyncs when a subcommand reply is lost or
+  late. Each setup step has its own timeout and is resent up to 2 times before
+  it is skipped, and replies that don't match the pending request are ignored.
+- Switch: Only one Switch pad runs its setup at a time, so two Joy-Cons
+  reconnecting together no longer leave one of them connected but never ready.
 - Wii Balance Board: Fixed swapped default move/fire threshold constants
   (`move=1500`, `fire=5000`), guarded calibration interpolation against
   zero/inverted dividers, and decoupled Balance Board from ESP-IDF console
