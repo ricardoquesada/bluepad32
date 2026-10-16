@@ -95,3 +95,5 @@ target_compile_options(bluepad32 PRIVATE
     -Wstrict-prototypes
     -Werror
 )
+
+register_bluepad32_test(test_uni_bt_hid_appearance test_uni_bt_hid_appearance.c)
