@@ -1,0 +1,30 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ricardo Quesada <ricardoquesada@gmail.com>
+Date: Mon, 19 Oct 2026 06:41:00 -0700
+Subject: [PATCH] esp32: Remove esp32h2 from esp_wifi_remote and esp_hosted
+ dependencies
+
+ESP32-H2 has a native BLE controller and does not require esp_hosted or
+esp_wifi_remote. Furthermore, pulling in esp_wifi_remote on ESP-IDF 6.1+
+collides with the built-in components/esp_wifi/remote implementation.
+---
+ port/esp32/components/btstack/idf_component.yml | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/port/esp32/components/btstack/idf_component.yml b/port/esp32/components/btstack/idf_component.yml
+index 06fb62905..5c01db987 100644
+--- a/port/esp32/components/btstack/idf_component.yml
++++ b/port/esp32/components/btstack/idf_component.yml
+@@ -2,8 +2,8 @@ dependencies:
+   espressif/esp_wifi_remote:
+     version: "*"
+     rules:
+-      - if: "target in [esp32p4, esp32h2]"
++      - if: "target in [esp32p4]"
+   espressif/esp_hosted:
+     version: "~1"
+     rules:
+-      - if: "target in [esp32p4, esp32h2]"
++      - if: "target in [esp32p4]"
+-- 
+2.55.0

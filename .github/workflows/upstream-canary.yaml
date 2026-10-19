@@ -90,7 +90,7 @@ jobs:
       run: |
         . $IDF_PATH/export.sh
         for target in esp32 esp32s3 esp32c3 esp32c5 esp32c6 esp32h2; do
-          rm -rf build sdkconfig
+          rm -rf build sdkconfig managed_components dependencies.lock
           idf.py set-target "${target}"
           idf.py build
         done
