@@ -2,36 +2,29 @@
 
 ## Supported boards
 
-It works on **any ESP32 / ESP32-S3 / ESP32-C3 / ESP32-C5 / ESP32-C6 / ESP32-H2
-module** where the [Arduino Core for ESP32][arduino-core] runs. In other words,
-if you already have Arduino working on an ESP32 / ESP32-S3 / ESP32-C3 /
-ESP32-C5 / ESP32-C6 / ESP32-H2 module, you can have Bluepad32 running on it as
-well.
+Bluepad32 runs on **any ESP32, ESP32-S3, ESP32-C3, ESP32-C5, ESP32-C6, or
+ESP32-H2 module** that supports the [Arduino Core for ESP32][arduino-core].
 
 !!! Bug
 
-    No output in certain ESP32-S3 boards like
-    [Arduino Nano ESP32][arduino_nano_esp32] or [Lolin S3 Mini][lolin_s3_mini] ?
+    If you see no serial output on ESP32-S3 boards such as the
+    [Arduino Nano ESP32][arduino_nano_esp32] or [Lolin S3 Mini][lolin_s3_mini],
+    read [GitHub issue #65][github_issue_65] to enable USB CDC output.
 
-    Read [Github issue #65][github_issue_65] to see how to enable it.
+Choose one of two methods to configure a Bluepad32 Arduino project:
 
-There are two ways to setup a Bluepad32 Arduino project for ESP32 chips:
-
-* Option A: Use Arduino IDE
-    * Recommended for Arduino IDE users.
-* Option B: Use ESP-IDF + template project
-    * Recommended advanced users.
-    * Fine-tune your project
-    * Includes advanced features
+* Option A: Use Arduino IDE (recommended for Arduino IDE users)
+* Option B: Use ESP-IDF with the template project (recommended for advanced
+    configuration and console access)
 
 [arduino-core]: https://github.com/espressif/arduino-esp32
 [github_issue_65]: https://github.com/ricardoquesada/bluepad32/issues/65#issuecomment-1987046804
 [arduino_nano_esp32]: https://store-usa.arduino.cc/products/nano-esp32
 [lolin_s3_mini]: https://www.wemos.cc/en/latest/s3/s3_mini.html
 
-## Option A: Use "Arduino Core for ESP32 + Bluepad32" board
+## Option A: Use the "Arduino Core for ESP32 + Bluepad32" board
 
-**RECOMMENDED for Arduino IDE users**.
+**Recommended for Arduino IDE users.**
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/0jnY-XXiD8Q?si=YphWYgQf0a1YX_nq" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 
@@ -39,55 +32,54 @@ There are two ways to setup a Bluepad32 Arduino project for ESP32 chips:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/Laa93Wj7f-I?si=gRxO5sAWl0cAE8vn" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
+Complete these 4 steps:
 
-These 4 steps are needed:
+1.  Add the ESP32 and Bluepad32 board packages to Boards Manager.
+2.  Install the ESP32 and Bluepad32 board packages.
+3.  Select an `ESP32 + Bluepad32` board.
+4.  Open and upload the `Bluepad32` example sketch.
 
-1. Add ESP32 and Bluepad32 board packages to Board Manager
-2. Install ESP32 and Bluepad32 files
-3. Select a "ESP32 + Bluepad32" board
-4. Open the "Bluepad32" example
+### 1. Add the ESP32 and Bluepad32 board packages to Boards Manager
 
-### 1. Add ESP32 and Bluepad32 board packages to Board Manager
-
-These two boards must be added to Arduino IDE.
+Add these two board index URLs to Arduino IDE:
 
 ![arduino-board-manager][arduino-board-manager]
 
 * Official ESP32 package:
-  `https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json`
-* "Bluepad32 + ESP32"
-  package: `https://raw.githubusercontent.com/ricardoquesada/esp32-arduino-lib-builder/master/bluepad32_files/package_esp32_bluepad32_index.json`
+    `https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json`
+* Bluepad32 + ESP32 package:
+    `https://raw.githubusercontent.com/ricardoquesada/esp32-arduino-lib-builder/master/bluepad32_files/package_esp32_bluepad32_index.json`
 
-If you don't know how to add a board, then read
-[Add or Remove 3rd party boards in Board Manager][arduino_3rd_party_board]
+For instructions on adding board URLs, read
+[Add or remove third-party boards in Boards Manager][arduino_3rd_party_board].
 
-### 2. Install ESP32 and Bluepad32 files
+### 2. Install the ESP32 and Bluepad32 board packages
 
-After adding both the ESP32 & Bluepad32 boards:
+After you add both board URLs, install the packages:
 
-* go to: `Tools` -> `Board` -> `Board Manager`
-* Install `ESP32` board package
-* And install the `ESP32 + Bluepad32` board package
+* Open `Tools` -> `Board` -> `Boards Manager`.
+* Install the `esp32` board package.
+* Install the `esp32_bluepad32` board package.
 
 ![arduino-bluepad32-install][arduino-bluepad32-install]
 
-### 3. Select a "ESP32 + Bluepad32" board
+### 3. Select an "ESP32 + Bluepad32" board
 
-Then choose any of the "ESP32 + Bluepad32" boards:
+Select your target board from the menu:
 
-* `Tools` -> `Board` -> `ESP32 + Bluepad32 Arduino` -> The board you are using
+* Open `Tools` -> `Board` -> `ESP32 + Bluepad32 Arduino` and select your board.
 
 ![arduino-select-board][arduino-select-board]
 
-### 4. Open the "Bluepad32" example
+### 4. Open and upload the "Bluepad32" example
 
 ![arduino-bluepad32-example][arduino-bluepad32-example]
 
-Finally, open the Bluepad32 example:
+Open the Bluepad32 Controller example sketch:
 
-* `File` -> `Examples` -> `Bluepad32_ESP32` -> `Controller`
+* Open `File` -> `Examples` -> `Bluepad32_ESP32` -> `Controller`.
 
-And compile & flash!
+Compile and upload the sketch to your board.
 
 [arduino_3rd_party_board]: https://support.arduino.cc/hc/en-us/articles/360016466340-Add-or-remove-third-party-boards-in-Boards-Manager
 
@@ -99,7 +91,7 @@ And compile & flash!
 
 [arduino-bluepad32-example]: https://lh3.googleusercontent.com/pw/AJFCJaXPSlzTv7Ol0nx2WpqepXgpDXjxJC_Cfxl_muVb1YamL1tWZSW7vFfbAHV212Lwgibg7trrI28CY9FGPNFI3fbS8dyPpJHS5rPFcYjxJyiCmMEIgef7S7B6CE33QozCD03xP7v57MY9L_MBRN3jyYJ9uw=-no
 
-## Option B: Use ESP-IDF + template project
+## Option B: Use ESP-IDF with the template project
 
 !!! Note
 
@@ -111,47 +103,44 @@ And compile & flash!
 git clone --recursive https://github.com/ricardoquesada/esp-idf-arduino-bluepad32-template.git my_project
 ```
 
-To install and use ESP-IDF you have two options:
+Choose one of two ways to build with ESP-IDF:
 
-* a) Using PlatformIO
-* b) Or manually install ESP-IDF toolchain
+* Option A: Use PlatformIO
+* Option B: Install the ESP-IDF toolchain manually
 
-#### A) Using PlatformIO + ESP-IDF
+#### A) Use PlatformIO with ESP-IDF
 
 ![open_project][pio_open_project]
 
-1. Open Visual Studio Code, select the PlatformIO plugin
-2. Click on "Pick a folder", a select the recently cloned "my_project" folder
+1.  Open Visual Studio Code and select the PlatformIO extension.
+2.  Click **Pick a folder** and select the `my_project` folder.
 
-That's it. The PlatformIO will download the ESP-IDF toolchain and its
+PlatformIO automatically downloads the ESP-IDF toolchain and all required
 dependencies.
-
-It might take a few minutes to download all dependencies. Be patient.
 
 ![build_project][pio_build_project]
 
-After all dependencies were installed:
+After PlatformIO installs all dependencies, build the project:
 
-1. Click on one of the pre-created boards, like *esp32-s3-devkit-1*. Or edit
-   `platformio.ini` file, and add your own.
-2. Click on *build*
+1.  Select a preconfigured board target (such as `esp32-s3-devkit-1`), or add
+    your board in `platformio.ini`.
+2.  Click **Build**.
 
 ![monitor_project][pio_monitor_project]
 
-Finally, click on "Upload and Monitor":
+Click **Upload and Monitor**:
 
-* It will upload your sketch
-* And will enter into "monitor" mode: You can see and use the console. Try
-  typing `help` on the console.
-
+* PlatformIO flashes the firmware to your board.
+* PlatformIO opens the serial console. Type `help` in the console to list
+    available commands.
 
 [pio_open_project]: https://lh3.googleusercontent.com/pw/ABLVV85JEEjjsQqcCcfZUclYF1ItYSHPmpzP0SC4VH9Ypqp05r2ixlv9C2xv4p-r6fW_CyCNa8ylmeSjyUg_K2Sp-XUXQRTYO_6HvhQXcXxTZXgQvvNBqA8JaerwCB1UODkXgYa_6ONT19KTO52OMs0eOOeeMg=-no-gm?authuser=0
 [pio_build_project]: https://lh3.googleusercontent.com/pw/ABLVV86DiV9H-wDEv1X8ra_fJAw0OG2sBoM5d0gJElPfptzVpb6n8gzOEHDfKXLMKrivzNSt03XpMWSw-hSVJUi0aavQiwgL0t1rmQeKqfYpXkGCKKwcerrNx8BBkFR3VoKQEPMF-e-xVvKVque2pi1sTa8tWA=-no-gm?authuser=0
 [pio_monitor_project]: https://lh3.googleusercontent.com/pw/ABLVV845uPqRtJkUrv4JlODuTr7Shnw0HR7BdojRbxv3xWyiUO-V_Kv42YAKAV-XyoNRPY5vsyj0yRDsRxH0mxz8Q1NYzvhCKw5Ni9MH6UYR8IiaT8XS9hysR81APn8X2tnVgnmJ6ZkSPCgUURnE2MVYIWYrNQ=-no-gm?authuser=0
 
-#### B) Manually installing ESP-IDF
+#### B) Install ESP-IDF manually
 
-Install ESP-IDF toolchain by following these instructions:
+Follow the official ESP-IDF setup guide for your operating system:
 
 * [ESP-IDF for Windows][esp_idf_win]
 * [ESP-IDF for Linux or macOS][esp_idf_linux]
@@ -159,28 +148,29 @@ Install ESP-IDF toolchain by following these instructions:
 [esp_idf_win]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/windows-setup.html
 [esp_idf_linux]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/linux-macos-setup.html
 
-### Compile template project and flash it
+### Compile and flash the template project
 
-To compile it and flash it, do:
+Run these commands to build and flash the project:
 
 ```sh
-# cd to your project folder
+# Open your project folder
 cd my_project
 
-# To compile it do:
+# Compile the project
 idf.py build
 
-# To flash it do:
+# Flash the binary and open the serial monitor
 idf.py flash monitor
 ```
 
-To fine-tune it do:
+Run `menuconfig` to customize project components:
 
 ```sh
-# Add / edit / remove components with:
+# Configure components
 idf.py menuconfig
 ```
 
 ### Further reading
 
-Detailed instructions here: <https://github.com/ricardoquesada/esp-idf-arduino-bluepad32-template>
+See the template repository for complete documentation:
+<https://github.com/ricardoquesada/esp-idf-arduino-bluepad32-template>

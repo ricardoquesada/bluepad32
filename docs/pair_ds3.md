@@ -1,14 +1,14 @@
-# How to pair a DualShock 3 (sixaxis) & Motion Controller
+# Pair a DualShock 3 (SIXAXIS) and Motion Controller
 
-The DualShock 3 gamepad does not implement the entire Bluetooth stack. It requires "manual pairing" in order to work.
+The DualShock 3 gamepad does not implement standard Bluetooth discovery. You
+must pair it over USB before it connects over Bluetooth.
 
-## Manual pair
+## Manual pairing steps
 
-### Fetch the ESP32 / Pico W Bluetooth Address
+### 1. Find the ESP32 or Pico W Bluetooth address
 
-* Connect a terminal to the ESP32 / Pico W using 115200 baud 8N1.
-
-* Watch the logs. You should see something like:
+* Connect a serial terminal to the ESP32 or Pico W at `115200` baud (`8N1`).
+* Read the boot log to find the local Bluetooth address:
 
 ```
 Bluepad32 (C) 2016-2020 Ricardo Quesada and contributors.
@@ -20,36 +20,37 @@ BTstack up and running at CC:50:E3:AF:E2:96     <------ THIS IS THE BLUETOOTH AD
 Btstack ready!
 ```
 
-In this example, the BT address is "CC:50:E3:AF:E2:96".
+In this example, the Bluetooth address is `CC:50:E3:AF:E2:96`.
 
-### Plug in the DS3 gamepad
+### 2. Connect the DualShock 3 to your computer
 
-Plug in the DS3 gamepad to your PC. Should work on all Linux, Mac and Windows,
-although I only tested it on Linux.
+Connect the DualShock 3 gamepad to your computer with a USB cable.
 
-### Pair DS3
+### 3. Pair the DualShock 3
 
-Install [HIDAPI][hidapi]. For Debian-based OSs, do:
+Install [HIDAPI][hidapi] for your operating system.
 
+On Debian or Ubuntu, run:
+
+```sh
+sudo apt install libhidapi-dev
 ```
-$ sudo apt install libhidapi-dev
-```
 
-On Gentoo Linux run:
+On Gentoo Linux, run:
 
 ```sh
 sudo emerge dev-libs/hidapi
 ```
 
-On macOS run:
+On macOS, run:
 
 ```sh
 brew install hidapi
 ```
 
-on macOS you will also have to modify the Makefile to look like so
+On macOS, update `tools/Makefile` to include the Homebrew `hidapi` paths:
 
-```
+```makefile
 INCLUDES := -I/opt/homebrew/Cellar/hidapi/0.13.1/include
 LIBS := -L/opt/homebrew/Cellar/hidapi/0.13.1/lib -lhidapi
 
@@ -63,40 +64,36 @@ clean:
 	rm sixaxispairer sixaxispairer.o
 ```
 
-I got the INCLUDES and LIBS paths using `pkg-config --cflags hidapi` and `pkg-config --libs hidapi` respectively
-(note how I went up to the parent directory in the include)
+Run `pkg-config --cflags hidapi` and `pkg-config --libs hidapi` to find your
+local `INCLUDES` and `LIBS` paths.
 
-For Windows: I don't know, you are in your own.
-
-* Compile the "sixaxis pairer":
+Compile and run `sixaxispairer`:
 
 ```sh
 cd bluepad32/tools
 make sixaxispairer
-sudo ./sixaxispairer XX:XX:XX:XX:XX:XX  # Following our example, it should be CC:50:E3:AF:E2:96
+sudo ./sixaxispairer XX:XX:XX:XX:XX:XX  # Example: CC:50:E3:AF:E2:96
 ```
 
 [hidapi]: https://github.com/signal11/hidapi
 
-### Pair Motion Controller / Navigator
+### 4. Pair a PS Move Motion Controller or Navigation Controller
 
-Use [PS Move API][psmoveapi].
-E.g.:
+Use the [PS Move API][psmoveapi] tool to pair a PS Move controller:
 
 ```sh
-# To list the connected devices to your Linux machine
-$ sudo psmove list
+# List connected PS Move devices
+sudo psmove list
 ```
 
 ```sh
-# To list the connected devices to your Linux machine
-$ sudo psmove pair XX:XX:XX:XX:XX:XX  # Following our example, it should be CC:50:E3:AF:E2:96
+# Write the target Bluetooth host address to the controller
+sudo psmove pair XX:XX:XX:XX:XX:XX  # Example: CC:50:E3:AF:E2:96
 ```
 
 [psmoveapi]: https://github.com/thp/psmoveapi
 
-### Unplug DS3 from computer
+### 5. Disconnect the USB cable
 
-Unplug the DS3 gamepad from your computer and press the "Play" button on the DS3
-to establish a connection with the ESP32. It might take a few seconds
-(perhaps more than 10 seconds) to establish the connection.
+Unplug the controller from your computer and press the **PS** button. The
+controller connects to the ESP32 or Pico W within 10 seconds.

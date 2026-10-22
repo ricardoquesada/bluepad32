@@ -1,30 +1,29 @@
-# Getting help
+# Get help
 
 !!! Note
 
-    If you've been asked to read this page, your question/bug is missing information.
-    Read the entire page.
+    If someone directed you to this page, your question or bug report lacks
+    required information. Read this entire page before you post.
 
+To get help or report a bug, use these channels:
 
-Something not working as expected?
+* Post questions on the [Discord server][discord_server] :simple-discord:
+* Report bugs or feature requests on the [GitHub Issue Tracker][github_issue_tracker] :simple-github:
 
-* Post questions on [Discord server][discord_server] :simple-discord:
-* File bugs / feature requests in [Github Issue Tracker][github_issue_tracker] :simple-github:
+Include the following information in your report:
 
-Add the following info:
-
-* Bluepad32 platform you are using, and version.
-* Devkit/board you are using. Add a link if possible
-* Controller you are using, including the controller firmware version. Add a link if possible.
-* Sketch you are using.
-* Host Operating System you are using
-* Debug log
+* Bluepad32 platform and version
+* DevKit board model and product link
+* Controller model, firmware version, and product link
+* Minimal sketch that reproduces the issue
+* Host operating system and version
+* Serial debug log
 
 [github_issue_tracker]: https://github.com/ricardoquesada/bluepad32/issues
 
 ## Platforms
 
-Bluepad32 supports different platforms, like:
+Bluepad32 supports several platforms:
 
 * Arduino IDE for ESP32 modules
 * Arduino + ESP-IDF
@@ -32,44 +31,40 @@ Bluepad32 supports different platforms, like:
 * Pico SDK
 * Unijoysticle
 
-So, provide the platform you are using, and the version. And also which Bluepad32 version!
+Specify your platform, platform version, and Bluepad32 version.
 
-E.g: I'm using Arduino IDE v2.0.9 with Bluepad32 v3.7.3
+Example: `Arduino IDE v2.0.9 with Bluepad32 v3.7.3`.
 
-## DevKit Module
+## DevKit module
 
-Not all devkits are created equal.
+Specify the exact DevKit board and provide a link to the hardware page.
 
-Which devkkit are you using? Provide a link to the device.
-
-E.g: I'm using Sparkfun Thing Plus - ESP32 WROOM: <https://www.sparkfun.com/products/17381>
+Example: `SparkFun Thing Plus - ESP32 WROOM:` <https://www.sparkfun.com/products/17381>.
 
 ## Controllers
 
-Not all controllers behave the same way... some are reliable... some not.
-
-The officially supported controllers are enumerated here:
+Check the official compatibility lists first:
 
 * [Supported gamepads][supported_gamepads] :material-gamepad-variant:
 * [Supported mice][supported_mice] :material-mouse:
 * [Supported keyboards][supported_keyboards] :material-keyboard:
 
-Please provide: brand, model, firmware and link to the device (if applicable).
-Also mention whether it is genuine or a knock-off.
+Provide the controller brand, model, firmware version, and product link. State
+whether the controller is genuine or a third-party clone.
 
-E.g.: I'm using a genuine Nintendo Switch JoyCon using FW 3.72.
+Example: `Genuine Nintendo Switch Joy-Con with firmware v3.72`.
 
-If you are using a controller not listed there, YOU ARE ON YOUR OWN!
+Bluepad32 does not guarantee support for unlisted controllers.
 
-### Supporting unsupported controllers
+### Request support for unsupported controllers
 
-If you really want us to support a controller that is not supported, contact us (Send us a Private Message in
-[Discord][discord_server] :simple-discord:, or [file a feature request][github_bug] :simple-github: ). The way it works is:
+To request support for a new controller, contact us on
+[Discord][discord_server] :simple-discord: or [file a feature request][github_bug] :simple-github::
 
-* You send us a link to the controller that is not supported, like the Amazon or AliExpress link.
-* You send us [via PayPal][paypal] :simple-paypal: the cost of the gamepad + shipping to the US.
-* We purchase it, and we will do our best to support it. But we don't guarantee anything. So many things can go
-  wrong, especially with low-cost clones where many features are not implemented.
+* Send a link to the controller product page (such as Amazon or AliExpress).
+* Send the cost of the gamepad plus US shipping [via PayPal][paypal] :simple-paypal:.
+* We will purchase the controller and attempt to add support. We cannot
+    guarantee compatibility, especially for low-cost clones.
 
 [supported_gamepads]: ../supported_gamepads/
 [supported_mice]: ../supported_mice/
@@ -79,55 +74,44 @@ If you really want us to support a controller that is not supported, contact us 
 
 ## Sketch
 
-Share your sketch.
+Share the smallest sketch that reproduces the bug. Remove all code that does
+not relate to Bluepad32.
 
-But share with us the smallest sketch that reproduces the bug. Remove all the things that are not related to Bluepad32.
+Upload your sketch to <http://gist.github.com> and share the link. Do not paste
+long code blocks directly into Discord.
 
-Copy & paste your sketch in services like: <http://gist.github.com>
+## Operating system
 
-DO NOT COPY your sketch on Discord. It is difficult to read it there.
+Specify your host operating system (Windows, macOS, or Linux) and its version.
 
-E.g.: The sketch that I'm using is in this URL (add a link).
-
-## Operating System
-
-Are you using Windows, macOS, Linux? Which version?
-
-E.g.: I'm using macOS 12.6.7
+Example: `macOS 12.6.7`.
 
 ## Debug log
 
-Copy & paste the output from the serial console, and share it with us.
+Copy the serial console output and upload it to <http://gist.github.com>.
 
-Use services like: <http://gist.github.com>
-
-Attaching a screenshot might be useful, but the screenshot is not a replacement of the Debug Log.
-
-E.g.: The console output can be found on this link (add link).
+You can attach a screenshot for context, but you must also provide the text
+debug log.
 
 [discord_server]: https://discord.gg/r5aMn6Cw5q
 
-## Example
+## Example report
 
-Example of question with the needed info:
-
+Use this template when you ask a question:
 
 !!! Example
 
-    I'm using Bluepad32 v3.9.0 with a SparkFun Thing ESP32.
-    I'm using it with Arduino IDE v2.1.0.
+    I use Bluepad32 v3.9.0 on a SparkFun Thing ESP32 with Arduino IDE v2.1.0.
 
-    I'm trying to enable rumble with:
+    I call `ctl->setRumble(0xc0, 0xc0);` to enable rumble.
 
-    `ctl->setRumble(0xc0, 0xc0);`.
+    Rumble works on a Nintendo Switch controller, but fails on a DualShock 4
+    controller.
 
-    It works with a Nintendo Switch controller, but it doesn't work with a DualShock 4 controller.
+    - Console output: [paste gist.github.com link]
+    - Minimal sketch: [paste gist.github.com link]
 
-    - This is the output [attach console output or post it in gist.github.com]
-    - The complete sketch is here: [attach sketch or post it in gist.github.com]
+    How can I fix this issue?
 
-    What could be the issue ?
-
-
-*(link to this page: <http://bit.ly/bluepad32-help>)*
+*(Short link to this page: <http://bit.ly/bluepad32-help>)*
 

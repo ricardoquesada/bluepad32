@@ -2,30 +2,28 @@
 
 ## Install dependencies
 
-You need to install Pico SDK. The instructions are different for Linux/macOS and Windows.
+Install Pico SDK 2.2 or newer. The installation steps differ for Linux, macOS,
+and Windows.
 
-Recommended: Use Pico SDK 2.2 or newer.
+### Pico SDK for Linux and macOS
 
-### Pico SDK for Linux / macOS
+1.  Install the Pico SDK from <https://github.com/raspberrypi/pico-sdk>.
+2.  Set `PICO_SDK_PATH` to the Pico SDK directory:
 
-Install Pico SDK: https://github.com/raspberrypi/pico-sdk
-
-And set `PICO_SDK_PATH` to the correct path:
-
-```
-# set PICO_SDK_PATH to the correct path
-export PICO_SDK_PATH=$HOME/pico-sdk/
-```
+    ```shell
+    # Set PICO_SDK_PATH to the correct path
+    export PICO_SDK_PATH=$HOME/pico-sdk/
+    ```
 
 ### Pico SDK for Windows
 
-Follow these instructions
+Follow the official Windows installer instructions:
 
 * <https://www.raspberrypi.com/news/raspberry-pi-pico-windows-installer/>
 
 ## Build
 
-And then build
+Run these commands to build the example:
 
 ```shell
 mkdir build
@@ -34,34 +32,33 @@ cmake ..
 make -j
 ```
 
-If `PICO_BOARD` is not specified, it will use `pico_w`. To compile it for Pico 2 W, do:
+By default, CMake targets `pico_w`. To compile for Pico 2 W, run:
 
 ```shell
-# From the recently crated "build" folder
+# Run from the "build" folder
 cmake -DPICO_BOARD=pico2_w ..
 make -j
 ```
 
-Copy `build/bluepad32_picow_example_app.uf2` to Pico W.
-
-Use this guide if you are not sure how to do it:
+Copy `build/bluepad32_picow_example_app.uf2` to your Pico W. For flashing
+instructions, see:
 
 * <https://projects.raspberrypi.org/en/projects/get-started-pico-w/>
 
-## Debugging
+## Debug with GDB
 
-In case you need to debug it using `gdb`, the recommended way is to get a [Pico Debug Probe module][pico_probe], and
-follow the [Pico Debug Probe instructions][pico_probe_doc].
+To debug with `gdb`, use a [Pico Debug Probe module][pico_probe] and follow the
+[Pico Debug Probe instructions][pico_probe_doc].
 
-TL;DR: Open 3 terminals, and do:
+Open 3 terminals and run the following commands:
 
 ### Terminal 1
 
 ```shell
-# Edit CMakeList.txt file and enable UART console, and disable USB console
-vim CMakeList.txt
+# Edit CMakeLists.txt to enable the UART console and disable the USB console
+vim CMakeLists.txt
 
-# Make sure you have these lines:
+# Verify these lines exist:
 > pico_enable_stdio_usb(bluepad32_picow_example_app 0)
 > pico_enable_stdio_uart(bluepad32_picow_example_app 1)
 ```
@@ -75,12 +72,12 @@ make -j
 ```
 
 ```shell
-# Flash it using OpenOCD
+# Flash the binary with OpenOCD
 sudo openocd -f interface/cmsis-dap.cfg -f target/rp2040.cfg -c "adapter speed 5000" -c "program bluepad32_picow_example_app.elf verify reset exit"
 ```
 
 ```shell
-# Open OpenOCD
+# Start the OpenOCD server
 sudo openocd -f interface/cmsis-dap.cfg -f target/rp2040.cfg -c "adapter speed 5000"
 ```
 
@@ -108,8 +105,9 @@ tio /dev/ttyACM0
 
 ## License
 
-- Example code: licensed under Public Domain.
-- Bluepad32: licensed under Apache 2.
+- Example code: Public Domain.
+- Bluepad32: Apache 2.0 License.
 - BTstack:
-  - Commercial license is already paid by the Raspberry Pi foundation, but only when used in a Pico W or Pico 2 W.
-  - <https://github.com/raspberrypi/pico-sdk/blob/master/src/rp2_common/pico_btstack/LICENSE.RP>
+    - The Raspberry Pi Foundation provides a commercial license for Pico W and
+        Pico 2 W hardware.
+    - <https://github.com/raspberrypi/pico-sdk/blob/master/src/rp2_common/pico_btstack/LICENSE.RP>

@@ -4,39 +4,36 @@
   ![logo][bp32_logo]{ width="300" }
 </figure>
 
-Bluepad32 is a library that acts as a "host" Bluetooth controller for HID devices.
-
-In other words, it allows you to control a robot using a DualSense controller.
-
+Bluepad32 is a Bluetooth host library for HID controllers. For example, you can
+use a DualSense controller to control a robot.
 
 [bp32_logo]: images/bluepad32_logo_ok_280.png
 
 ## Features
 
-* Supports most, if not all, modern Bluetooth gamepads, mice and keyboards
-* Supports ESP32 and Pico W family of microcontrollers
-* Supported APIs: ESP-IDF, Pico-SDK and Arduino
-* Fast (very low latency)
-* Small footprint
-* Uses only one core (CPU0)
-* C11 based
-* Open Source
-* Easy to integrate into 3rd party projects
+* Supports modern Bluetooth gamepads, mice, and keyboards
+* Supports ESP32 and Pico W microcontroller families
+* Supports ESP-IDF, Pico SDK, and Arduino APIs
+* Delivers low latency and a small memory footprint
+* Runs on a single core (`CPU0`)
+* Uses standard C11
+* Provides an open-source license
+* Integrates into third-party projects
 
 ## Supported controllers
 
-Non-exhaustive list:
+Bluepad32 supports the following controllers:
 
-* Sony DualSense, DualShock 4, DualShock 3 :material-sony-playstation:
-* Nintendo Switch, Wii U, Wii and Wii extensions :material-nintendo-switch:
+* Sony DualSense, DualShock 4, and DualShock 3 :material-sony-playstation:
+* Nintendo Switch, Wii U, Wii, and Wii extensions :material-nintendo-switch:
 * Xbox Wireless :material-microsoft-xbox-controller:
 * Android :material-android:
-* Keyboard
-* Mouse
-* and more
+* Keyboards
+* Mice
 
-For detailed list see: [Supported gamepads][supported_gamepads] :material-gamepad-variant:,
-[supported mice][supported_mice] :material-mouse: and [supported keyboards][supported_keyboards] :material-keyboard:.
+For the complete list, see [Supported gamepads][supported_gamepads] :material-gamepad-variant:,
+[supported mice][supported_mice] :material-mouse:, and
+[supported keyboards][supported_keyboards] :material-keyboard:.
 
 [supported_gamepads]: supported_gamepads
 [supported_mice]: supported_mice

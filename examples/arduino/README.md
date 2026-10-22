@@ -1,6 +1,6 @@
 # Arduino example
 
-The Arduino examples are located here:
+Select an Arduino example from the table below:
 
 | Platform                        | Start here                                                        | Further info        | Community projects                                                                                        |
 |---------------------------------|-------------------------------------------------------------------|---------------------|-----------------------------------------------------------------------------------------------------------|

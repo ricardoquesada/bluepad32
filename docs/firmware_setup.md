@@ -1,171 +1,159 @@
-# Flashing precompiled firmware
+# Flash precompiled firmware
 
 !!! Note
 
-    Only valid for Unijoysticle boards.
+    This section applies only to Unijoysticle boards.
 
-If you only want to flash the latest firmware version without downloading the toolchain + sources you should do:
+To flash the latest firmware without a local toolchain, follow these steps:
 
-Download the latest precompiled firmware from here:
+1.  Download the latest precompiled firmware from the releases page:
 
-- <https://github.com/ricardoquesada/bluepad32/releases>
+    - <https://github.com/ricardoquesada/bluepad32/releases>
 
-And then you can flash it either using:
-
-- Command Line
-- or GUI
+2.  Flash the binary with either the command line or the GUI tool.
 
 ## Command Line (esptool)
 
 ![esptool](https://lh3.googleusercontent.com/UfYRw0D2m6DUy337fskfNYP6FA3oj_AgATe6QU3y5OvGe14DaI5amCb-rhmGliSepoFYmhvX-u5uzq5N0wChP0lr0eSOrY4YMLB__UBZ8tY8ASbw5DgI6dUX-oEt2ZpWHPLpnBdxryA=-no)
 
-Supported platforms: Linux, macOS and Windows
+Supported platforms: Linux, macOS, and Windows.
 
-Flashing your device from the command line
-requires [`esptool.py`](https://docs.espressif.com/projects/esptool/en/latest/esp32/) ([source code](https://github.com/espressif/esptool)):
+Install [`esptool.py`](https://docs.espressif.com/projects/esptool/en/latest/esp32/) ([source code](https://github.com/espressif/esptool)) for your operating system:
 
-- Ubuntu / Debian: `sudo apt install esptool`
-- Fedora / Red Hat: `sudo dnf install esptool`
-- macOS with [Homebrew](https://brew.sh/) installed: `brew install esptool`
-- Windows, macOS without Homebrew, and other OSes: after installing Python, run `pip install esptool`. Python
-  is [available for download here](https://www.python.org/downloads/). On Windows 10 and newer, you can
-  also [install Python from the Microsoft Store](https://www.microsoft.com/store/productId/9PJPW5LDXLZ5) to get
-  automatic updates.
+- Ubuntu or Debian: `sudo apt install esptool`
+- Fedora or Red Hat: `sudo dnf install esptool`
+- macOS with [Homebrew](https://brew.sh/): `brew install esptool`
+- Windows, macOS without Homebrew, and other operating systems: Install
+    [Python](https://www.python.org/downloads/) or get [Python from the Microsoft Store](https://www.microsoft.com/store/productId/9PJPW5LDXLZ5). Then run `pip install esptool`.
 
-To flash your device:
+Run these commands to flash your device:
 
-``` sh
-# Linux
-export ESPPORT=/dev/ttyUSB0 # This may be different if you have multiple USB serial devices connected.
+```sh
+# Linux (port name can vary if multiple USB serial devices are connected)
+export ESPPORT=/dev/ttyUSB0
 # macOS
 export ESPPORT=/dev/cu.SLAB_USBtoUART
-# Windows
-set ESPPORT=COM??  # You can find a list of COM devices in Device Manager.
-                   # Identify the correct COM port by watching to see which one appears when connecting
-                   # the device you intend to update.
+# Windows (check Device Manager to identify the COM port for your device)
+set ESPPORT=COM??
 
 python -m esptool --chip esp32 --port ${ESPPORT} --baud 115200 --before default_reset --after hard_reset write_flash 0x0000 bluepad32-unijoysticle-full.bin
 ```
 
-On Linux, the flash operation may fail with a permissions error if you're not running as root. If you'd like to be able
-to flash as a standard user, you can instead change the permissions for the appropriate ttyUSB device to allow writes by
-unprivileged users.
+On Linux, standard users need write permission for the `ttyUSB` device. Grant
+permission to your user account or run the command as root.
 
 ## GUI (ESP32 Flash Download Tool)
 
 ![flash_tool](https://lh3.googleusercontent.com/pw/ACtC-3c6KvmSei83mYKogxIadcq7tWamg41jsNk7pqJOpjnPhNoeN3uYjehB94wAja72mIDRNrhrWIqG0Sle1gxZHr0gANCSJyDFUcSfXMdoetUTynure2UrjRv7WkZEYnj0nqpiYJ54mwj85jDLkFrnD4jd-g=-no)
 
-Supported platforms: Windows only
+Supported platform: Windows.
 
-If you are not familiar with command-line tools, you can try with the ESP32 Flash Download Tool:
+Download the ESP32 Flash Download Tool:
 
-- Download: <https://www.espressif.com/en/support/download/other-tools>
+- <https://www.espressif.com/en/support/download/other-tools>
 
-Parameters:
+Configure the tool with these parameters:
 
-- If asked about "chipType", select "ESP32"
-- Select "SPIDownload" tab
-- Click on "..." and select the `bluepad32-unijoysticle-full.bin` file
-- Set `0x0000` as address
-- Select the correct "COM" port
-- And then click "START"
+- Set `chipType` to `ESP32`.
+- Select the `SPIDownload` tab.
+- Click `...` and select the `bluepad32-unijoysticle-full.bin` file.
+- Set the flash address to `0x0000`.
+- Select the target `COM` port.
+- Click `START`.
 
-# Compiling + flashing firmware
+# Compile and flash firmware
 
-## For Windows
+## Windows
 
-1. Install [ESP-IDF v5.5][esp-idf-windows-installer]. For further info,
-   read: [ESP-IDF Getting Started for Windows][esp-idf-windows-setup]
+1.  Install [ESP-IDF v5.5][esp-idf-windows-installer]. See
+    [ESP-IDF Getting Started for Windows][esp-idf-windows-setup] for details:
 
-    * Either the Online or Offline version should work
-    * When asked which components to install, don't change anything. Default options are Ok.
-    * When asked whether ESP can modify the system, answer "Yes"
+    * Use either the Online or Offline installer.
+    * Keep the default component selections.
+    * Click `Yes` when the installer asks for permission to modify the system.
 
-2. Launch the "ESP-IDF v5.5 CMD" (type that in the Windows search box)
+2.  Start `ESP-IDF v5.5 CMD` from the Windows search menu.
 
-3. From the ESP-IDF cmd, clone Bluepad32 repo
+3.  Clone the Bluepad32 repository:
 
-      ```sh
-      git clone --recursive https://github.com/ricardoquesada/bluepad32.git
-      ```
+    ```sh
+    git clone --recursive https://github.com/ricardoquesada/bluepad32.git
+    ```
 
-4. Setup
+4.  Configure the target platform:
 
-      ```cmd
-      # Setup Bluepad32 Platform
-      cd bluepad32\src
-      idf.py menuconfig
-      ```
+    ```cmd
+    # Configure Bluepad32 platform
+    cd bluepad32\src
+    idf.py menuconfig
+    ```
 
-      And select `Component config` -> `Bluepad32` -> `Target platform` (choose the right one for you).
+    Select `Component config` -> `Bluepad32` -> `Target platform` and choose
+    your target platform.
 
-5. Compile it
+5.  Compile and flash the firmware:
 
-      ```cmd
-      # Compile it
-      cd bluepad32\src
-      idf.py build
+    ```cmd
+    # Compile the firmware
+    cd bluepad32\src
+    idf.py build
 
-      # Flash + open debug terminal
-      idf.py flash monitor
-      ```
+    # Flash and open the serial monitor
+    idf.py flash monitor
+    ```
 
 [esp-idf-windows-setup]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/windows-setup.html
 
 [esp-idf-windows-installer]: https://dl.espressif.com/dl/esp-idf/?idf=5.5
 
-## For Linux / macOS
+## Linux and macOS
 
-1. Requirements and permissions
+1.  Install the [ESP-IDF dependencies][toolchain-deps]:
 
-      Install ESP-IDF dependencies (taken from [here][toolchain-deps]):
+    ```sh
+    # For Ubuntu / Debian
+    sudo apt-get install git wget flex bison gperf python3 python3-pip python3-setuptools cmake ninja-build ccache libffi-dev libssl-dev dfu-util libusb-1.0-0
+    ```
 
-      ```sh
-      # For Ubuntu / Debian
-      sudo apt-get install git wget flex bison gperf python3 python3-pip python3-setuptools cmake ninja-build ccache libffi-dev libssl-dev dfu-util libusb-1.0-0
-      ```
+    If you cannot open `/dev/ttyUSB0`, add your user to the `dialout` group
+    ([see ESP-IDF serial documentation][ttyusb0]):
 
-      And in case you don't have permissions to open `/dev/ttyUSB0`, do:
-      (taken from [here][ttyusb0])
+    ```sh
+    # Log out and log back in after you run this command
+    sudo usermod -a -G dialout $USER
+    ```
 
-      ```sh
-      # You MUST logout/login (or in some cases reboot Linux) after running this command
-      sudo usermod -a -G dialout $USER
-      ```
+2.  Clone and install ESP-IDF v5.5:
 
-2. Install and setup ESP-IDF
+    ```sh
+    # Clone the ESP-IDF repository
+    mkdir ~/esp && cd ~/esp
+    git clone -b release/v5.5 --recursive https://github.com/espressif/esp-idf.git
 
-      ```sh
-      # Needs to be done just once
-      # Clone the ESP-IDF git repo
-      mkdir ~/esp && cd ~/esp
-      git clone -b release/v5.5 --recursive https://github.com/espressif/esp-idf.git
+    # Install the toolchain
+    cd ~/esp/esp-idf
+    ./install.sh
+    ```
 
-      # Then install the toolchain
-      cd ~/esp/esp-idf
-      ./install.sh
-      ```
+3.  Clone the Bluepad32 repository:
 
-3. Clone Bluepad32 repo
+    ```sh
+    git clone --recursive https://github.com/ricardoquesada/bluepad32.git
+    ```
 
-      ```sh
-      git clone --recursive https://github.com/ricardoquesada/bluepad32.git
-      ```
- 
-4. Patch BTstack
+4.  Apply the BTstack patches:
 
-      ```sh
-      cd ${BLUEPAD32_SRC}/external/btstack
-      git apply ../patches/*.patch 
-      ```
+    ```sh
+    cd ${BLUEPAD32_SRC}/external/btstack
+    git apply ../patches/*.patch
+    ```
 
-5. Compile it
+5.  Compile the firmware:
 
-      ```sh
-      # Compile it
-      cd ${BLUEPAD32}/tools/fw
-      ./build.py all
-      ```
+    ```sh
+    cd ${BLUEPAD32}/tools/fw
+    ./build.py all
+    ```
 
 [toolchain-deps]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/linux-setup.html
 

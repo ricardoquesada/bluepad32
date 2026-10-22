@@ -1,11 +1,11 @@
 # Supported mice
 
-Remember:
+Note:
 
-* Mouse support is a **BETA feature**. Expect bugs.
-* Most importantly, [file a bug when you find a bug][file_bug].
+* Mouse support is a **beta feature**.
+* [Report a bug][file_bug] if you encounter an issue.
 
-The list of **tested** mice is this one:
+Bluepad32 supports the following tested mice:
 
 [file_bug]: https://github.com/ricardoquesada/bluepad32/issues
 
@@ -13,7 +13,7 @@ The list of **tested** mice is this one:
 
 [![Apple Magic Mouse A1296][magic_mouse_a1296_photo]][magic_mouse_a1296_link]
 
-* Supports: movement; left & right click
+* Supports: movement, left click, and right click
 * Purchase link: [eBay][magic_mouse_a1296_link]
 * Protocol: BR/EDR
 
@@ -25,7 +25,7 @@ The list of **tested** mice is this one:
 
 [![Apple Magic Mouse A1657][magic_mouse_a1657_photo]][magic_mouse_a1657_link]
 
-* Supports: movement; left & right click
+* Supports: movement, left click, and right click
 * Purchase link: [eBay][magic_mouse_a1657_link]
 * Protocol: BR/EDR
 
@@ -37,9 +37,9 @@ The list of **tested** mice is this one:
 
 [![Apple Magic Trackpad A1339][magic_trackpad_a1339_photo]][magic_trackpad_a1339_link]
 
-* Supports: movement; left click
+* Supports: movement and left click
 * Purchase link: [eBay][magic_trackpad_a1339_link]
-* Bugs: Right/middle click not working [issue #17][gitlab_issue_17]
+* Known issue: Right and middle clicks do not work ([issue #17][gitlab_issue_17])
 * Protocol: BR/EDR
 
 [magic_trackpad_a1339_photo]: https://lh3.googleusercontent.com/pw/AM-JKLV-N1Imj77WsdXc-wPtlwxYubS6BAb_X5ipI-gpk2XagClmdcbGyvPddp5F9zy6bsH9Q0ICrEvrd6PdF7EzmsfejmbI7WAaeMBQqI69UIYId5Ehvw4vDAC8CAHsaFpz4veUsgs2_jnjyix2wTdA7PjgAA=-no
@@ -52,7 +52,7 @@ The list of **tested** mice is this one:
 
 [![Tank Mouse][tankmouse_photo]][tankmouse_homepage]
 
-* Supports: movement; left & right click
+* Supports: movement, left click, and right click
 * Purchase link: [TankMouse homepage][tankmouse_homepage]
 * Protocol: BLE
 
@@ -60,14 +60,12 @@ The list of **tested** mice is this one:
 
 [tankmouse_homepage]: https://tank-mouse.com/
 
-
 ## Logitech M336 / M337 / M535
 
 [![Logitech M535][logitech_m535_photo]][logitech_m535_link]
 
-* Supports: movement; left, middle & right click
-* Purchase link (It seems that M336/M337/M535 are the same mice, just with
-  different model name):
+* Supports: movement, left click, middle click, and right click
+* Purchase links (M336, M337, and M535 share the same hardware):
     * M535: [Amazon][logitech_m535_link]
     * M337: [Amazon][logitech_m337_link]
     * M336: [NewEgg][logitech_m336_link]
@@ -85,8 +83,8 @@ The list of **tested** mice is this one:
 
 [![Logitech M-RCL124][logitech_mrcl124_photo]][logitech_mrcl124_link]
 
-* Supports: movement; left, middle, right click
-* Purchase link [eBay][logitech_mrcl124_link]
+* Supports: movement, left click, middle click, and right click
+* Purchase link: [eBay][logitech_mrcl124_link]
 * Protocol: BR/EDR
 
 [logitech_mrcl124_photo]: https://lh3.googleusercontent.com/pw/AM-JKLXCVeFyW_RgL3_Q4nQNqQ-h8i4RDJZSO5B5DZVKTOOoWZC6apzqE3W5FUEHzIaT1BvzsAaqrPXF2j1OukhlyCz8tmJsWcdnDiyFxI2B8rWd-YV0dml6YvT1z2LOBDPyR9GEsys49SevOWyuC4b6x5uxsA=-no
@@ -97,8 +95,8 @@ The list of **tested** mice is this one:
 
 [![HP Z500][hp_z5000_photo]][hp_z5000_link]
 
-* Supports: movement; left, middle, right click
-* Purchase link [eBay][hp_z5000_link]
+* Supports: movement, left click, middle click, and right click
+* Purchase link: [eBay][hp_z5000_link]
 * Protocol: BR/EDR
 
 [hp_z5000_link]: https://www.ebay.com/sch/i.html?_nkw=hp+z5000+mouse
@@ -109,8 +107,8 @@ The list of **tested** mice is this one:
 
 [![LogiLink][logilink_photo]][logilink_link]
 
-* Supports: movement; left, middle, right click
-* Purchase link [Grooves.land][logilink_link]
+* Supports: movement, left click, middle click, and right click
+* Purchase link: [Grooves.land][logilink_link]
 * Protocol: BR/EDR
 
 [logilink_link]: https://www.grooves.land/blogilink-accessories-optische-bluetooth-maus-1000-1600-dpi-pZZa1-2098391786.html
@@ -121,7 +119,7 @@ The list of **tested** mice is this one:
 
 [![Bornd C170B][bornd_c170b_photo]][bornd_c170b_link]
 
-* Supports: movement; left, middle & right click
+* Supports: movement, left click, middle click, and right click
 * Purchase link: [Amazon][bornd_c170b_link]
 * Protocol: BR/EDR
 
@@ -129,9 +127,9 @@ The list of **tested** mice is this one:
 
 [bornd_c170b_photo]: https://lh3.googleusercontent.com/pw/AM-JKLWhgr0VyJ2LoErHi3U8dzedoILDyguhDJfYb86K3izqETUGyxtSfheRpxw-yD_dbbdYzoeHUT5oU_45XBjBBWFFWh-CENKZ0Xf29PIfiPMCFiz3lSaCFQET1-c6SqL2T8hECmvEmlweFmbXbEo5HmTYNw=-no
 
-## Steelseries Rival 3 Wireless
+## SteelSeries Rival 3 Wireless
 
-* Protocol: BLE and BR/EDR 
+* Protocol: BLE and BR/EDR
 * Purchase link: [SteelSeries][Steelseries_rival_3_link]
 
 [Steelseries_rival_3_link]: https://steelseries.com/gaming-mice/rival-3
@@ -140,7 +138,7 @@ The list of **tested** mice is this one:
 
 [![TECKNET 2600DPI][tecknet_2600dpi_photo]][tecknet_2600dpi_link]
 
-* Supports: movement; left, middle & right click
+* Supports: movement, left click, middle click, and right click
 * Purchase link: [Amazon][tecknet_2600dpi_link]
 * Protocol: BR/EDR
 
@@ -148,13 +146,13 @@ The list of **tested** mice is this one:
 
 [tecknet_2600dpi_photo]: https://lh3.googleusercontent.com/pw/AM-JKLVFAtADCvTltimDJQWO0iXGf-RpVUQBx5LD1gJnVplYuCyjW3n-I-RTKGc-nWiYJGvGfFW2u_Uy4CCzdaxKjMhm2qebloiiniMXzn0IAUY_yPcPixwDwNoy-rwbd1tsArJqk1kyXM3GbP7gHFVBdzCXRg=-no
 
-## TECKNET Three modes
+## TECKNET Three Modes
 
 [![TECKNET Three modes][tecknet_3_modes_photo]][tecknet_3_modes_link]
 
-* Supports: movement; left, middle & right click
+* Supports: movement, left click, middle click, and right click
 * Purchase link: [Amazon][tecknet_3_modes_link]
-* Bugs: Shows asserts in console, see [issue #18][gitlab_issue_18]
+* Known issue: Triggers assertions in the console ([issue #18][gitlab_issue_18])
 * Protocol: BR/EDR
 
 [tecknet_3_modes_link]: https://www.amazon.com/Bluetooth-Wireless-TeckNet-Portable-Receiver/dp/B082V7PWD1
@@ -165,10 +163,10 @@ The list of **tested** mice is this one:
 
 [![Adesso iMouse M300][adesso_imouse_m300_photo]][adesso_imouse_m300_link]
 
-* Supports: movement; left, middle & right click
+* Supports: movement, left click, middle click, and right click
 * Purchase link: [Amazon][adesso_imouse_m300_link]
-* Bugs: Lag from "resting" mode to "moving" move. Seems to be a mouse-specific
-  problem, not related to Bluepad32.
+* Known issue: Hardware wake delay when the mouse transitions from idle to
+    active movement.
 * Protocol: BR/EDR
 
 [adesso_imouse_m300_photo]: https://lh3.googleusercontent.com/pw/AM-JKLX_jhwfDQIeBdwFqGBt8h9AlP6MpiInG2Yreox0ADkvUmYIFC8x3ftoIVr7_JFk4OolkA7x50WyUyhteh_4sImUiwX18dmiB1hoO7FSJzAgJtC1V9uNlOzKKvask6lzEMIuVzdnfTgUe-OoyhZRyXcfaA=-no
@@ -179,46 +177,45 @@ The list of **tested** mice is this one:
 
 [![Kensington SureTrack][kensington_suretrack_photo]][kensington_suretrack_link]
 
-* Supports: movement; left, middle & right click
+* Supports: movement, left click, middle click, and right click
 * Purchase link: [Amazon][kensington_suretrack_link]
-* Bugs: Shows asserts in console, see [issue #18][gitlab_issue_18]
+* Known issue: Triggers assertions in the console ([issue #18][gitlab_issue_18])
 * Protocol: BR/EDR
 
 [kensington_suretrack_link]: https://www.amazon.com/dp/B088R3QL5W?psc=1&ref=ppx_yo2ov_dt_b_product_details
 
 [kensington_suretrack_photo]: https://lh3.googleusercontent.com/pw/AM-JKLVQKPqA1sIIWtsEfz7THN9GJrmk4ja_jz0kVwPrtWQT0A-grBLBhPcU266aStoeezmxfa5sDr4kqqPSRanwipiDn-NFpQGHnIdHDx_GdpAvI88LCOzYV0tBHRPxh0DfU3vH_cPF1J4FEZaSRwlUalhUng=-no
 
-## HXSJ	Bluetooth 3.0 Wireless Mouse
+## HXSJ Bluetooth 3.0 Wireless Mouse
 
 [![HXSJ][hxsj_photo]][hxsj_link]
 
-* Supports: movement; left, middle & right click
+* Supports: movement, left click, middle click, and right click
 * Purchase link: [AliExpress][hxsj_link]
-* Bugs: Shows asserts in console, see [issue #18][gitlab_issue_18]
+* Known issue: Triggers assertions in the console ([issue #18][gitlab_issue_18])
 * Protocol: BR/EDR
 
 [hxsj_link]: https://www.aliexpress.com/item/2251832655917599.html?spm=a2g0o.order_list.0.0.51181802sRakLf&gatewayAdapt=4itemAdapt
 
 [hxsj_photo]: https://lh3.googleusercontent.com/pw/AM-JKLWFE3NScoHsri7JIS2u6YkE1PK3r6QGXyzPrZQnTDemXwKHrzHlblqdxpG5ooUx-v3KUWeBj08TGNyYGPc_pMim87eJsBN1FcO-oQGSYdEKeac3WSrk-UKAnw_yygMVVfFE5aXiKC6HiB5TcJ58940YQQ=-no
 
-## Other supported
+## Other mice
 
-In theory any Bluetooth mouse should work, both BLE and BR/EDR.
+Standard Bluetooth HID mice (both BLE and BR/EDR) work with Bluepad32.
 
-In practice some BR/EDR, some might work, some might not. See:
+Some dual-mode `BR/EDR` mice trigger an ESP32 controller bug:
 
-* https://github.com/espressif/arduino-esp32/issues/6193 (Please, go and say "please fix it")
+* <https://github.com/espressif/arduino-esp32/issues/6193>
 
-Summary:
+Protocol summary:
 
 | Protocol  | Status        | Description                               | Search for                       | Date   |
 |-----------|---------------|-------------------------------------------|----------------------------------|--------|
-| BLE       | Should work   | BLE **only**, AKA "Low Energy",  "BT 5.0" | "BLE mouse"                      | > 2010 |
-| BR/EDR    | Should work   | BR/EDR **only**, AKA "Classic", "BT 3.0"  | "Mouse Bluetooth Windows XP"     | < 2010 |
-| Dual Mode | Might work[*] | Supports both BLE and BR/EDR              | "Tri-Mode BT 3.0, BT 5.0, 2.4Gz" | > 2010 |
+| BLE       | Supported     | BLE **only** ("Low Energy", "BT 5.0")     | "BLE mouse"                      | > 2010 |
+| BR/EDR    | Supported     | BR/EDR **only** ("Classic", "BT 3.0")     | "Mouse Bluetooth Windows XP"     | < 2010 |
+| Dual Mode | Partial[*]    | Supports both BLE and BR/EDR              | "Tri-Mode BT 3.0, BT 5.0, 2.4Gz" | > 2010 |
 
-*: See [Issue#18][gitlab_issue_18], [Issue BK3632][bk3632_bug]
-
+*: See [Issue #18][gitlab_issue_18] and [Issue BK3632][bk3632_bug].
 
 [bk3632_bug]: https://github.com/espressif/arduino-esp32/issues/6193
 
