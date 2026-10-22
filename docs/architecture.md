@@ -69,14 +69,14 @@ flowchart TB
     end
 
     subgraph Tier2["Tier 2: HID Core, Report Parsing & Controller Normalization"]
-        CTL["controller/ (uni_controller_t)<br/>Normalized Gamepad, Mouse, Keyboard, Balance Board & Remapping"]
-        PAR["parser/ (uni_report_parser_t)<br/>Generic HID Usage Parser & Vendor-Specific Raw Parsers (DS3/DS4/DS5/Switch/Wii/Xbox)"]
+        CTL["controller/ (uni_controller_t)<br/>Normalized Gamepad (SI IMU), Mouse, Keyboard, Balance Board & 28-Byte Remapping Matrix"]
+        PAR["parser/ (uni_report_parser_t & uni_rumble_t)<br/>Generic HID Usage Parser, Shared Rumble Engine & 20+ Vendor Raw Parsers"]
         DEV["uni_hid_device.c (uni_hid_device_t)<br/>Device Pool [CONFIG_BLUEPAD32_MAX_DEVICES], Outgoing Ring Buffer & Virtual Devices"]
     end
 
     subgraph Tier1["Tier 1: Bluetooth Transport & OS/Hardware Abstraction"]
-        BT["bt/ (uni_bt.c, uni_bt_bredr.c, uni_bt_le.c, uni_bt_allowlist.c)<br/>GAP Inquiry/Scan, SDP Queries, L2CAP Control/Interrupt Channels, HOGP GATT Client"]
-        ARCH["arch/ & uni_property.c<br/>ESP32 NVS, Pico W Flash TLV, POSIX File TLV, Logging & System Helpers"]
+        BT["bt/ (uni_bt.c, uni_bt_bredr.c, uni_bt_le.c, uni_bt_allowlist.c, uni_bt_service.c)<br/>GAP Inquiry/Scan, SDP, L2CAP Channels, HOGP & Custom BLE GATT Client, BLE Config GATT Server"]
+        ARCH["arch/ & uni_property.c<br/>ESP32 NVS, BTstack TLV (Pico W & POSIX), Console, Logging & System Helpers"]
     end
 
     BT --> DEV
@@ -90,23 +90,27 @@ flowchart TB
 
 | Tier | Subsystem Directory / Module | Core Responsibilities |
 | :--- | :--- | :--- |
-| **Tier 1: Transport & Arch** | `arch/` & `uni_property.c` | Implements OS and MCU primitives (`uni_system`, `uni_log`) and non-volatile key-value storage (`uni_property_esp32.c`, `uni_property_pico.c`, `uni_property_posix.c`). |
-| **Tier 1: Transport & Arch** | `bt/` (`uni_bt*.c`) | Wraps BTstack HCI, GAP, SDP, L2CAP, and BLE GATT client state machines. Isolates Bluetooth protocol logic from the rest of Bluepad32. |
-| **Tier 2: Core & Parsing** | `uni_hid_device.c` | Manages the static `uni_hid_device_t` pool (`CONFIG_BLUEPAD32_MAX_DEVICES`), connection timeouts, outgoing circular buffers (`uni_circular_buffer_t`), and composite `parent`/`child` virtual devices. |
-| **Tier 2: Core & Parsing** | `parser/` (`uni_hid_parser*.c`) | Translates Bluetooth HID reports into normalized structs via `uni_report_parser_t` (`setup`, `init_report`, `parse_usage`, `parse_input_report`, `parse_feature_report`) and sends output reports. |
-| **Tier 2: Core & Parsing** | `controller/` (`uni_controller*.c`) | Defines hardware-agnostic structs (`uni_gamepad_t`, `uni_mouse_t`, `uni_keyboard_t`, `uni_balance_board_t`), button and axis remapping (`uni_gamepad_remap`), and joystick converters (`uni_joystick.c`). |
-| **Tier 3: Platform** | `platform/` (`uni_platform*.c`) | Delivers normalized controller events to the host application through the `struct uni_platform` callback interface (`on_init_complete`, `on_device_connected`, `on_device_ready`, `on_controller_data`, `on_device_disconnected`, `on_oob_event`). |
+| **Tier 1: Transport & Arch** | `arch/` & `uni_property.c` | Implements OS and MCU primitives (`uni_system`, `uni_log`, `uni_console`) and non-volatile storage backends (`uni_property_esp32.c`, `uni_property_btstack_tlv.c`). |
+| **Tier 1: Transport & Arch** | `bt/` (`uni_bt*.c`) | Wraps BTstack HCI, GAP, SDP, L2CAP, BLE GATT client state machines, and the companion BLE GATT configuration server (`uni_bt_service.c`). |
+| **Tier 2: Core & Parsing** | `uni_hid_device.c` | Manages the static `uni_hid_device_t` pool (`CONFIG_BLUEPAD32_MAX_DEVICES`), connection timers, shared rumble state (`uni_rumble_t`), outgoing ring buffers, and `parent`/`child` virtual devices. |
+| **Tier 2: Core & Parsing** | `parser/` (`uni_hid_parser*.c`) | Translates HID reports into normalized structs via `uni_report_parser_t` (`setup`, `deinit`, `init_report`, `parse_usage`, `parse_input_report`, `parse_feature_report`, `device_extra_info`) and sends output reports. |
+| **Tier 2: Core & Parsing** | `controller/` (`uni_controller*.c`) | Defines normalized structs (`uni_gamepad_t`, `uni_mouse_t`, `uni_keyboard_t`, `uni_balance_board_t`), the 28-byte remapping matrix (`uni_gamepad_mappings_t`), and retro converters (`uni_joystick.c`, `uni_mouse_quadrature.c`). |
+| **Tier 3: Platform** | `platform/` (`uni_platform*.c`) | Delivers normalized controller events to the host application through the `struct uni_platform` callback interface. |
 
 ---
 
 ## 2. Bluetooth Connection State Machine (`uni_bt_conn_state_t`)
 
-Bluepad32 supports two Bluetooth transport protocols:
+Bluepad32 supports three Bluetooth transport and GATT profiles:
 
 * **Bluetooth Classic (`BR/EDR`)**: Supports DualShock 3, DualShock 4,
     DualSense, Nintendo Switch Pro, Wii Remote, and Xbox Wireless 1708.
-* **Bluetooth Low Energy (`BLE` / HOGP)**: Supports Xbox Series X|S, Stadia,
-    Steam Controller, Switch 2, and BLE mice and keyboards.
+* **Standard Bluetooth Low Energy (`BLE` / HOGP `0x1812`)**: Supports Xbox
+    Series X|S, Stadia, Steam Controller, SInput BLE, and BLE mice and
+    keyboards.
+* **Custom 128-Bit BLE GATT (Non-HOGP)**: Supports Nintendo Switch 2
+    (`uni_hid_parser_switch2.c`) and Steam Controller 2026 "Triton"
+    (`uni_hid_parser_steam_triton.c`).
 
 Each `uni_hid_device_t` embeds a `uni_bt_conn_t conn` struct. This struct
 tracks the device state in `uni_bt_conn_state_t` from discovery to
@@ -138,16 +142,17 @@ stateDiagram-v2
         L2CAP_INTERRUPT_CONNECTED --> DEVICE_PENDING_READY : If SDP Already Fetched
     }
 
-    state "BLE (HOGP GATT) Handshake" as BLE {
-        DEVICE_DISCOVERED --> DEVICE_PENDING_READY : LE Connect -> GATT DIS (VID/PID) -> HIDS Descriptor Read
+    state "BLE (HOGP & Custom GATT) Handshake" as BLE {
+        DEVICE_DISCOVERED --> DEVICE_PENDING_READY : Standard HOGP (SMP -> DIS 0x180A -> HIDS 0x1812)
+        DEVICE_DISCOVERED --> DEVICE_PENDING_READY : Custom GATT (Switch 2 / Steam Triton -> Parser 128-Bit GATT)
     }
 
-    DEVICE_PENDING_READY --> DEVICE_READY : Parser Setup & platform->on_device_ready() == UNI_ERROR_SUCCESS
+    DEVICE_PENDING_READY --> DEVICE_READY : report_parser.setup() -> uni_hid_device_set_ready_complete()
     DEVICE_PENDING_READY --> DEVICE_NONE : Platform Rejects or Connection Timeout (20s)
     DEVICE_READY --> DEVICE_NONE : HCI Disconnection Complete -> uni_hid_device_delete()
 ```
 
-### Handshake Modes (`uni_sdp_query_type_t`)
+### Handshake Modes (`uni_sdp_query_type_t`) and Two-Phase Ready Transition
 
 * **`SDP_QUERY_AFTER_CONNECT` (Default)**: Opens L2CAP Control (`PSM 0x0011`)
     and Interrupt (`PSM 0x0013`) channels *before* it queries SDP for
@@ -156,39 +161,73 @@ stateDiagram-v2
     L2CAP channels. First-generation Sony DualShock 4 controllers require this
     sequence.
 * **`SDP_QUERY_NOT_NEEDED`**: Skips Classic SDP queries. BLE controllers use
-    GATT Device Information (`0x180A`) and HID (`0x1812`) services instead.
+    GATT Device Information (`0x180A`, optional when
+    `UNI_HID_DEVICE_ALLOW_NO_DIS` is `1`) and HID (`0x1812`) or custom 128-bit
+    GATT services instead.
+* **Two-Phase Ready Transition (`DEVICE_PENDING_READY` $\rightarrow$
+    `DEVICE_READY`)**:
+    * `uni_hid_device_set_ready(d)` sets `UNI_BT_CONN_STATE_DEVICE_PENDING_READY`
+        and invokes `d->report_parser.setup(d)` for multi-step controller
+        handshakes.
+    * When setup finishes, the parser calls
+        `uni_hid_device_set_ready_complete(d)` to stop `connection_timer` and
+        call `platform->on_device_ready(d)`.
+    * If the platform returns `UNI_ERROR_SUCCESS`, Bluepad32 sets
+        `UNI_BT_CONN_STATE_DEVICE_READY` and notifies
+        `uni_bt_service_on_device_ready(d)`.
 
 ---
 
-## 3. Dual-Mode HID Report Parsing and Virtual Devices
+## 3. Dual-Mode HID Report Parsing, Haptics, and Virtual Devices
 
-### 3.1 Dual-Mode Parser Dispatch (`uni_hid_parse_input_report`)
+### 3.1 Dual-Mode Parser Dispatch and Normalization
 
-When a device reaches `DEVICE_PENDING_READY`, `uni_hid_device_set_ready()`
-selects a `uni_report_parser_t` based on `(vendor_id, product_id)` and
-controller type. When an input report arrives, `uni_hid_parse_input_report()`
-runs four stages:
+When a device connects, `uni_hid_device_guess_controller_type_from_pid_vid()`
+binds a `uni_report_parser_t` entry from `k_parser_entries[]`. Each incoming
+packet runs through `uni_hid_parse_input_report(d, report, report_len)` followed
+by `uni_hid_device_process_controller(d)`:
 
-1.  **`report_parser.init_report(d)`**: Resets per-frame state before the
-    parser decodes the packet.
+1.  **`report_parser.init_report(d)`**: Resets per-frame controller state before
+    the parser decodes the packet.
 2.  **Mode A — Raw Struct Parser
     (`report_parser.parse_input_report(d, report, report_len)`)**:
-    * Parses proprietary binary reports for Sony DualShock 3/4, DualSense,
-        Nintendo Switch Pro/Joy-Con, Wii Remote/Balance Board, and Xbox One.
-    * Validates report lengths, casts payloads to packed C structs, applies
-        IMU calibration (`parse_feature_report`), and updates `d->controller`.
+    * Parses proprietary binary reports for Sony, Nintendo Switch 1/2, Wii, Xbox
+        One, Steam, SInput, and Atari controllers.
+    * Validates report lengths, decodes payloads, applies factory IMU
+        calibration (`parse_feature_report`), and updates `d->controller`.
+    * Normalizes accelerometer data to `m/s²` (`UNI_STANDARD_GRAVITY`) and
+        gyroscope data to `rad/s` (`UNI_DEG_TO_RAD`) in a right-handed Y-up
+        coordinate frame.
 3.  **Mode B — Descriptor-Driven Usage Parser
     (`report_parser.parse_usage(d, &globals, usage_page, usage, value)`)**:
-    * Parses standard HID gamepads, keyboards, mice, Android, 8BitDo, and
-        Stadia controllers.
+    * Parses standard HID gamepads, keyboards, mice, Android, 8BitDo, Nimbus,
+        OUYA, and Stadia controllers.
     * Iterates through the HID Report Descriptor with
         `btstack_hid_parser_init()`.
-    * Normalizes axes to `[-511, 512]` via `uni_hid_parser_process_axis()` and
-        pedals to `[0, 1020]` via `uni_hid_parser_process_pedal()`.
-4.  **Platform Delivery**: Passes the normalized `uni_controller_t` to
-    `uni_get_platform()->on_controller_data(d, &d->controller)`.
+    * Normalizes stick axes to `[-512, 511]` via
+        `uni_hid_parser_process_axis()` and pedals to `[0, 1023]` via
+        `uni_hid_parser_process_pedal()`.
+4.  **Remapping and Platform Delivery (`uni_hid_device_process_controller(d)`)**:
+    * Applies the 28-byte button and axis remapping matrix
+        (`uni_gamepad_remap()`) for gamepad devices.
+    * Passes the normalized `uni_controller_t` to
+        `uni_get_platform()->on_controller_data(d, &d->controller)` and
+        processes `MISC_BUTTON_SYSTEM` and `MISC_BUTTON_START` events.
 
-### 3.2 Composite Controllers and Virtual Devices (`parent` / `child`)
+### 3.2 Shared Haptic Rumble Engine (`uni_rumble_t`) and Memory Alignment
+
+* **Dedicated Rumble State (`uni_hid_device_t.rumble`)**: `uni_hid_device_t`
+    stores `uni_rumble_t` outside `parser_data[]` so `memset()` calls in parser
+    `setup()` functions cannot overwrite active BTstack timer nodes.
+* **4-Actuator and BLE Retry State Machine (`uni_hid_parser_rumble.c`)**:
+    Centralizes delayed start (`timer_delayed_start`), duration expiration
+    (`timer_duration`), 4-actuator magnitudes, and 50 ms BLE GATT busy retries
+    (`UNI_RUMBLE_RETRY_BLE`).
+* **8-Byte Scratch Buffer Alignment**: `parser_data[]` and `platform_data[]` use
+    `__attribute__((aligned(8)))` so 64-bit POSIX hosts can alias embedded
+    pointers and timers without UBSan traps.
+
+### 3.3 Composite Controllers and Virtual Devices (`parent` / `child`)
 
 Some Bluetooth controllers expose multiple logical input devices on one wireless
 link. For example, **Sony DualShock 4** and **DualSense** controllers combine a
@@ -224,12 +263,18 @@ flowchart LR
     * When Bluepad32 deletes a virtual child device, it sets
         `d->parent->child = NULL` to prevent dangling pointers.
     * Before `uni_hid_device_init()` zeroes a device slot,
-        `uni_hid_device_delete()` unregisters `connection_timer`,
-        `inquiry_remote_name_timer`, and `misc_button_delay_timer` from BTstack.
+        `uni_hid_device_delete()` removes `connection_timer`,
+        `inquiry_remote_name_timer`, `misc_button_delay_timer`, and `d->rumble`
+        timers from BTstack.
+    * `uni_hid_device_delete()` then invokes `d->report_parser.deinit(d)` to
+        remove parser-owned timers or GATT listeners and calls
+        `uni_bt_sdp_query_abort(d)` on BR/EDR.
 
 ---
 
-## 4. BTstack Single-Threaded Run Loop and `CMD_CALLBACK_MAX`
+## 4. BTstack Single-Threaded Run Loop and BLE GATT Service
+
+### 4.1 Asynchronous Run-Loop Dispatch (`CMD_CALLBACK_MAX = 8`)
 
 Neither BTstack nor Bluepad32 is thread-safe. All Bluetooth packet handlers,
 timers, HID parsers, and platform callbacks execute sequentially on a single
@@ -240,7 +285,8 @@ asynchronous dispatch to invoke Bluetooth operations safely:
 
 1.  **`*_safe` Asynchronous Dispatch**: Functions with the `_safe` suffix (such
     as `uni_bt_start_scanning_and_autoconnect_safe()`, `uni_bt_del_keys_safe()`,
-    and `uni_bt_disconnect_device_safe()`) do not mutate BTstack state directly.
+    `uni_bt_disconnect_device_safe()`, and `uni_bt_enable_service_safe()`) do
+    not mutate BTstack state directly.
 2.  **Pre-Allocated Registration Ring Buffer (`CMD_CALLBACK_MAX = 8`)**:
     * `uni_bt.c` maintains an 8-slot circular array of
         `btstack_context_callback_registration_t` structs
@@ -253,28 +299,45 @@ asynchronous dispatch to invoke Bluetooth operations safely:
         `CMD_CALLBACK_MAX` (`8`) concurrent `_safe()` calls per BTstack
         run-loop tick.
 
+### 4.2 Companion BLE GATT Configuration Server (`uni_bt_service.c`)
+
+* **Service UUID**: `uni_bt_service.c` exposes custom GATT service
+    `4627C4A4-AC00-46B9-B688-AFC5C1BF7F63` to companion BLE clients.
+* **Live Controller Telemetry (`AC05`)**: Serializes each device slot into a
+    16-byte little-endian `compact_device_t` struct and streams updates via ATT
+    notifications.
+* **Controller Remapping (`AC06` and `AC0F`)**: Reads and writes the active
+    layout preset (`UNI_GAMEPAD_MAPPINGS_TYPE_*`) and validates the 28-byte
+    `uni_gamepad_mappings_t` matrix with `uni_gamepad_mappings_is_valid()`.
+* **Password Authentication Gate (`AC0E`)**: When a password (`bp.ble.pass`) is
+    configured, the server blocks protected reads and writes until the client
+    authenticates on `AC0E`.
+
 ---
 
 ## 5. Non-Volatile Property System (`uni_property`) and Allowlist Persistence
 
 Bluepad32 provides a unified property API (`uni_property.h` and
 `uni_property.c`) to store persistent configuration keys (`bp.bt.allow_en`,
-`bp.bt.allowlist`, `bp.ble.enabled`, `bp.gap.*`, `bp.mouse.scale`,
-`bp.virt_dev_en`) across reboots:
+`bp.bt.allowlist`, `bp.ble.enabled`, `bp.ble.svc_en`, `bp.ble.name`,
+`bp.ble.pass`, `bp.gap.*`, `bp.mouse.scale`, `bp.uni.bb_*`, `bp.virt_dev_en`)
+across reboots:
 
 * **Architecture Backends (`arch/`)**:
     * **ESP32 (`uni_property_esp32.c`)**: Stores properties in an ESP-IDF
         Non-Volatile Storage (`nvs_flash`) namespace (`"bp32"`).
-    * **Pico W and POSIX (`uni_property_btstack_tlv.c`)**: Uses BTstack TLV
-        storage (`btstack_tlv_flash_bank` on Pico W and RP2350, or
-        `btstack_tlv_posix` at `/tmp/bp32_property.tlv` on POSIX). It supports
-        all property types, including `UNI_PROPERTY_TYPE_STRING` and
-        `UNI_PROPERTY_TYPE_FLOAT`.
+    * **Pico W and POSIX (`uni_property_btstack_tlv.c`)**: Uses
+        `btstack_tlv_flash_bank` on Pico W and `btstack_tlv_posix` on POSIX
+        (`BLUEPAD32_TLV_PATH` or `/tmp/bp32_property.tlv`). `get_tlv()` queries
+        `btstack_tlv_get_instance()` dynamically so early boot calls before
+        `HCI_STATE_WORKING` return default values safely.
 * **Allowlist Boot and Runtime Persistence (`uni_bt_allowlist.c`)**:
     * On boot (`uni_bt_allowlist_init()`), `update_allowlist_from_property()`
-        clears `addr_allow_list[]` and loads saved MAC addresses via
-        `add_addr_internal(addr, /*persist=*/false)`. Skipping NVS/TLV writes
-        during boot prevents flash wear and protects the `strtok_r` buffer.
+        parses saved MAC addresses with `sscanf_bd_addr()` at 18-byte offsets
+        and calls `add_addr_internal(addr, false)`.
+    * Passing `persist = false` prevents boot hydration from writing a
+        1-element list back to storage and overwriting the static `str_ret[]`
+        buffer.
     * Runtime updates (`uni_bt_allowlist_add_addr()`,
         `uni_bt_allowlist_remove_addr()`, `uni_bt_allowlist_remove_all()`)
         reject the zero MAC address (`00:00:00:00:00:00`) and write the updated
