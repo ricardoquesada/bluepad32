@@ -26,6 +26,7 @@
 #include "uni_property.h"
 #include "uni_virtual_device.h"
 
+#ifdef CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
 static const char* TAG = "console";
 #define PROMPT_STR "bp32"
 
@@ -103,7 +104,6 @@ static struct {
     struct arg_end* end;
 } getprop_args;
 
-#ifdef CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
 // Balance Board CLI commands are hosted in the ESP32 console module so that
 // controller/uni_balance_board.c does not depend on ESP-IDF <esp_console.h> / <argtable3/argtable3.h>.
 static struct {
@@ -148,40 +148,6 @@ static int cmd_bb_fire_threshold(int argc, char** argv) {
     logi("Done\n");
     logi("New Balance Board Fire threshold: %d\n", threshold);
     return 0;
-}
-#endif  // CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
-
-void uni_balance_board_register_cmds(void) {
-#ifdef CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
-    bb_move_threshold_args.value = arg_int1(NULL, NULL, "<threshold>", "balance board 'move weight' threshold");
-    bb_move_threshold_args.end = arg_end(2);
-
-    bb_fire_threshold_args.value = arg_int1(NULL, NULL, "<threshold>", "balance board 'fire weight' threshold");
-    bb_fire_threshold_args.end = arg_end(2);
-
-    const esp_console_cmd_t bb_move_threshold = {
-        .command = "bb_move_threshold",
-        .help =
-            "Get/Set the Balance Board 'Move Weight' threshold\n"
-            "Default: 1500",  // BB_MOVE_THRESHOLD_DEFAULT
-        .hint = NULL,
-        .func = &cmd_bb_move_threshold,
-        .argtable = &bb_move_threshold_args,
-    };
-
-    const esp_console_cmd_t bb_fire_threshold = {
-        .command = "bb_fire_threshold",
-        .help =
-            "Get/Set the Balance Board 'Fire Weight' threshold\n"
-            "Default: 5000",  // BB_FIRE_THRESHOLD_DEFAULT
-        .hint = NULL,
-        .func = &cmd_bb_fire_threshold,
-        .argtable = &bb_fire_threshold_args,
-    };
-
-    ESP_ERROR_CHECK(esp_console_cmd_register(&bb_move_threshold));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&bb_fire_threshold));
-#endif  // CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
 }
 
 static int list_devices(int argc, char** argv) {
@@ -507,8 +473,6 @@ static int getprop(int argc, char** argv) {
     return 0;
 }
 
-#ifdef CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
-
 static void register_bluepad32(void) {
     mouse_scale_args.value = arg_dbl1(NULL, NULL, "<value>", "Global mouse scale factor. Higher means faster");
     mouse_scale_args.end = arg_end(2);
@@ -736,6 +700,39 @@ static void register_bluepad32(void) {
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_getprop));
 }
 #endif  // CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
+
+void uni_balance_board_register_cmds(void) {
+#ifdef CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
+    bb_move_threshold_args.value = arg_int1(NULL, NULL, "<threshold>", "balance board 'move weight' threshold");
+    bb_move_threshold_args.end = arg_end(2);
+
+    bb_fire_threshold_args.value = arg_int1(NULL, NULL, "<threshold>", "balance board 'fire weight' threshold");
+    bb_fire_threshold_args.end = arg_end(2);
+
+    const esp_console_cmd_t bb_move_threshold = {
+        .command = "bb_move_threshold",
+        .help =
+            "Get/Set the Balance Board 'Move Weight' threshold\n"
+            "Default: 1500",  // BB_MOVE_THRESHOLD_DEFAULT
+        .hint = NULL,
+        .func = &cmd_bb_move_threshold,
+        .argtable = &bb_move_threshold_args,
+    };
+
+    const esp_console_cmd_t bb_fire_threshold = {
+        .command = "bb_fire_threshold",
+        .help =
+            "Get/Set the Balance Board 'Fire Weight' threshold\n"
+            "Default: 5000",  // BB_FIRE_THRESHOLD_DEFAULT
+        .hint = NULL,
+        .func = &cmd_bb_fire_threshold,
+        .argtable = &bb_fire_threshold_args,
+    };
+
+    ESP_ERROR_CHECK(esp_console_cmd_register(&bb_move_threshold));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&bb_fire_threshold));
+#endif  // CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
+}
 
 void uni_console_init(void) {
 #ifdef CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE
