@@ -263,11 +263,11 @@ flowchart LR
     * When Bluepad32 deletes a virtual child device, it sets
         `d->parent->child = NULL` to prevent dangling pointers.
     * Before `uni_hid_device_init()` zeroes a device slot,
-        `uni_hid_device_delete()` removes `connection_timer`,
+        `uni_hid_device_delete()` deletes `connection_timer`,
         `inquiry_remote_name_timer`, `misc_button_delay_timer`, and `d->rumble`
         timers from BTstack.
     * `uni_hid_device_delete()` then invokes `d->report_parser.deinit(d)` to
-        remove parser-owned timers or GATT listeners and calls
+        delete parser-owned timers or GATT listeners and calls
         `uni_bt_sdp_query_abort(d)` on BR/EDR.
 
 ---
@@ -302,16 +302,18 @@ asynchronous dispatch to invoke Bluetooth operations safely:
 ### 4.2 Companion BLE GATT Configuration Server (`uni_bt_service.c`)
 
 * **Service UUID**: `uni_bt_service.c` exposes custom GATT service
-    `4627C4A4-AC00-46B9-B688-AFC5C1BF7F63` to companion BLE clients.
+    `4627C4A4-AC00-46B9-B688-AFC5C1BF7F63` to companion BLE clients such as the
+    [Bluepad32 BLE Companion App](ble_client.md)
+    ([`bluepad32-ble-client`](https://github.com/ricardoquesada/bluepad32-ble-client)).
 * **Live Controller Telemetry (`AC05`)**: Serializes each device slot into a
     16-byte little-endian `compact_device_t` struct and streams updates via ATT
     notifications.
 * **Controller Remapping (`AC06` and `AC0F`)**: Reads and writes the active
     layout preset (`UNI_GAMEPAD_MAPPINGS_TYPE_*`) and validates the 28-byte
     `uni_gamepad_mappings_t` matrix with `uni_gamepad_mappings_is_valid()`.
-* **Password Authentication Gate (`AC0E`)**: When a password (`bp.ble.pass`) is
-    configured, the server blocks protected reads and writes until the client
-    authenticates on `AC0E`.
+* **Password Authentication Gate (`AC0E`)**: When you set a password
+    (`bp.ble.pass`), the server blocks protected reads and writes until the
+    client authenticates on `AC0E`.
 
 ---
 

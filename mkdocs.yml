@@ -34,6 +34,7 @@ nav:
       - "ESP32 + ESP-IDF (raw API)": plat_esp32.md
       - "Pico W + Pico SDK (raw API)": plat_picow.md
       - "Unijoysticle board": plat_unijoysticle.md
+  - "BLE Companion App": ble_client.md
   - "Programmer's Guide":
       - "Raw API": programmers_guide_raw.md
       - "Arduino API": programmers_guide_arduino.md

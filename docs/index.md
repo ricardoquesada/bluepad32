@@ -19,6 +19,8 @@ use a DualSense controller to control a robot.
 * Uses standard C11
 * Provides an open-source license
 * Integrates into third-party projects
+* Includes a cross-platform [BLE Companion App][ble_client] for wireless
+    controller monitoring, button remapping, and MAC allowlist configuration
 
 ## Supported controllers
 
@@ -35,6 +37,7 @@ For the complete list, see [Supported gamepads][supported_gamepads] :material-ga
 [supported mice][supported_mice] :material-mouse:, and
 [supported keyboards][supported_keyboards] :material-keyboard:.
 
+[ble_client]: ble_client
 [supported_gamepads]: supported_gamepads
 [supported_mice]: supported_mice
 [supported_keyboards]: supported_keyboards

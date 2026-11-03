@@ -66,6 +66,10 @@ Select your target platform:
 * Uses standard C11
 * Provides an open-source license
 * Integrates into third-party projects
+* Includes a cross-platform [BLE Companion App][ble-client-doc] ([source repository][ble-client-repo]) for wireless configuration and controller remapping
+
+[ble-client-doc]: https://bluepad32.readthedocs.io/en/latest/ble_client/
+[ble-client-repo]: https://github.com/ricardoquesada/bluepad32-ble-client
 
 ## Supported controllers
 
