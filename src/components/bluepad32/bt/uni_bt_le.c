@@ -780,6 +780,8 @@ static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
             break;
         case SM_EVENT_REENCRYPTION_COMPLETE:
             con_handle = sm_event_reencryption_complete_get_handle(packet);
+            if (gap_get_role(con_handle) == HCI_ROLE_SLAVE)
+                break;
             device = uni_hid_device_get_instance_for_connection_handle(con_handle);
             switch (sm_event_reencryption_complete_get_status(packet)) {
                 case ERROR_CODE_SUCCESS:
@@ -815,9 +817,11 @@ static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t
             }
             break;
         case SM_EVENT_PAIRING_COMPLETE:
+            con_handle = sm_event_pairing_complete_get_handle(packet);
+            if (gap_get_role(con_handle) == HCI_ROLE_SLAVE)
+                break;
             sm_event_pairing_complete_get_address(packet, addr);
             device = uni_hid_device_get_instance_for_address(addr);
-            con_handle = sm_event_pairing_complete_get_handle(packet);
             if (!device) {
                 loge("SM_EVENT_PAIRING_COMPLETE: Invalid device for addr %s\n", bd_addr_to_str(addr));
                 hog_disconnect(con_handle);
@@ -904,6 +908,11 @@ void uni_bt_le_on_hci_event_le_meta(const uint8_t* packet, uint16_t size) {
 
     switch (subevent) {
         case HCI_SUBEVENT_LE_CONNECTION_COMPLETE:
+            // Ignore incoming LE peripheral/slave connections (e.g., BLE GATT configuration clients
+            // connecting to uni_bt_service), which are managed by att_server rather than the BLE
+            // central HID host.
+            if (hci_subevent_le_connection_complete_get_role(packet) != HCI_ROLE_MASTER)
+                break;
             status = hci_subevent_le_connection_complete_get_status(packet);
             hci_subevent_le_connection_complete_get_peer_address(packet, event_addr);
             device = uni_hid_device_get_instance_for_address(event_addr);
@@ -987,6 +996,8 @@ void uni_bt_le_on_hci_event_encryption_change(const uint8_t* packet, uint16_t si
     // Only handle BLE in this function.
     con_handle = hci_event_encryption_change_get_connection_handle(packet);
     if (gap_get_connection_type(con_handle) != GAP_CONNECTION_LE)
+        return;
+    if (gap_get_role(con_handle) == HCI_ROLE_SLAVE)
         return;
 
     device = uni_hid_device_get_instance_for_connection_handle(con_handle);

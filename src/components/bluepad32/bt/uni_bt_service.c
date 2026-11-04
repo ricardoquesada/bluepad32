@@ -398,7 +398,11 @@ static int uni_att_write_callback(hci_con_handle_t con_handle,
                                   uint16_t offset,
                                   uint8_t* buffer,
                                   uint16_t buffer_size) {
-    ARG_UNUSED(transaction_mode);
+    // Ignore ATT prepared-write transaction lifecycle notifications (VALIDATE / EXECUTE / CANCEL),
+    // such as the ATT_TRANSACTION_MODE_CANCEL (att_handle = 0x0000) emitted by att_server on disconnect.
+    if (transaction_mode != ATT_TRANSACTION_MODE_NONE && transaction_mode != ATT_TRANSACTION_MODE_ACTIVE)
+        return 0;
+
     ensure_config_loaded();
 
     logd("uni_att_write_callback: con handle=%#x, att_handle=%#x, offset=%d\n", con_handle, att_handle, offset);

@@ -2001,6 +2001,29 @@ TEST(bt_le_connection_and_hids_failure_resumes_scanning) {
     uint8_t disc_pkt[6] = {HCI_EVENT_DISCONNECTION_COMPLETE, 4, 0x00, 0x41, 0x00, 0x13};
     uni_bt_packet_handler(HCI_EVENT_PACKET, 0, disc_pkt, sizeof(disc_pkt));
     EXPECT_EQ(NULL, uni_hid_device_get_instance_for_address(peer_addr2));
+
+    // Sub-test 4: Incoming LE peripheral connection (HCI_ROLE_SLAVE = 0x01, e.g. bluepad32-ble-client)
+    // must be ignored by uni_bt_le_on_hci_event_le_meta and uni_bt_le_on_hci_event_encryption_change
+    // without issuing HCI_Disconnect (0x0406).
+    bd_addr_t central_client_addr = {0x84, 0x2F, 0x57, 0xA1, 0x07, 0x63};
+    le_conn_evt[3] = ERROR_CODE_SUCCESS;
+    little_endian_store_16(le_conn_evt, 4, 0x0014);
+    le_conn_evt[6] = HCI_ROLE_SLAVE;
+    le_conn_evt[7] = BD_ADDR_TYPE_LE_PUBLIC;
+    put_bd_addr_reversed(&le_conn_evt[8], central_client_addr);
+    g_transport_packet_handler(HCI_EVENT_PACKET, le_conn_evt, sizeof(le_conn_evt));
+    EXPECT_EQ(HCI_ROLE_SLAVE, gap_get_role(0x0014));
+
+    g_last_hci_cmd_opcode = 0;
+    uni_bt_le_on_hci_event_le_meta(le_conn_evt, sizeof(le_conn_evt));
+    EXPECT_NE(0x0406, g_last_hci_cmd_opcode);
+
+    uint8_t enc_evt[6] = {HCI_EVENT_ENCRYPTION_CHANGE, 4, ERROR_CODE_SUCCESS, 0x14, 0x00, 0x01};
+    uni_bt_le_on_hci_event_encryption_change(enc_evt, sizeof(enc_evt));
+    EXPECT_NE(0x0406, g_last_hci_cmd_opcode);
+
+    uint8_t disc_slave_pkt[6] = {HCI_EVENT_DISCONNECTION_COMPLETE, 4, 0x00, 0x14, 0x00, 0x13};
+    g_transport_packet_handler(HCI_EVENT_PACKET, disc_slave_pkt, sizeof(disc_slave_pkt));
     uni_bt_stop_scanning_unsafe();
 }
 
