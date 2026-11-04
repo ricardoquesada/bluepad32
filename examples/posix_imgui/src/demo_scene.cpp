@@ -471,9 +471,9 @@ void DemoScene::ControllerSlotUiState::ResetForSlot(int slot) noexcept {
 
 DemoScene::DemoScene()
     : mVirtualDevicesEnabled(posix_imgui_is_virtual_devices_enabled()),
-      mAutoAcceptGamepads((posix_imgui_get_allowed_device_types() & POSIX_IMGUI_DEVICE_TYPE_GAMEPAD) != 0),
-      mAutoAcceptMice((posix_imgui_get_allowed_device_types() & POSIX_IMGUI_DEVICE_TYPE_MOUSE) != 0),
-      mAutoAcceptKeyboards((posix_imgui_get_allowed_device_types() & POSIX_IMGUI_DEVICE_TYPE_KEYBOARD) != 0),
+      mAutoAcceptGamepads((posix_imgui_get_allowed_device_types() & UNI_HID_DEVICE_TYPE_GAMEPAD) != 0),
+      mAutoAcceptMice((posix_imgui_get_allowed_device_types() & UNI_HID_DEVICE_TYPE_MOUSE) != 0),
+      mAutoAcceptKeyboards((posix_imgui_get_allowed_device_types() & UNI_HID_DEVICE_TYPE_KEYBOARD) != 0),
       mBleServiceEnabled(posix_imgui_is_ble_service_enabled()) {
     posix_imgui_get_ble_service_name(mBleServiceName.data(), mBleServiceName.size());
     posix_imgui_get_ble_service_password(mBleServicePassword.data(), mBleServicePassword.size());
@@ -493,9 +493,9 @@ void DemoScene::SetPreferencesActiveForTest(bool active) noexcept {
     if (active) {
         mVirtualDevicesEnabled = posix_imgui_is_virtual_devices_enabled();
         const uint32_t allowedMask = posix_imgui_get_allowed_device_types();
-        mAutoAcceptGamepads = (allowedMask & POSIX_IMGUI_DEVICE_TYPE_GAMEPAD) != 0;
-        mAutoAcceptMice = (allowedMask & POSIX_IMGUI_DEVICE_TYPE_MOUSE) != 0;
-        mAutoAcceptKeyboards = (allowedMask & POSIX_IMGUI_DEVICE_TYPE_KEYBOARD) != 0;
+        mAutoAcceptGamepads = (allowedMask & UNI_HID_DEVICE_TYPE_GAMEPAD) != 0;
+        mAutoAcceptMice = (allowedMask & UNI_HID_DEVICE_TYPE_MOUSE) != 0;
+        mAutoAcceptKeyboards = (allowedMask & UNI_HID_DEVICE_TYPE_KEYBOARD) != 0;
         mBleServiceEnabled = posix_imgui_is_ble_service_enabled();
         posix_imgui_get_ble_service_name(mBleServiceName.data(), mBleServiceName.size());
         posix_imgui_get_ble_service_password(mBleServicePassword.data(), mBleServicePassword.size());
@@ -814,9 +814,9 @@ bool DemoScene::RenderPreferences() {
             // Synchronize UI checkboxes and BLE service fields with the authoritative platform state.
             mVirtualDevicesEnabled = posix_imgui_is_virtual_devices_enabled();
             const uint32_t allowedMask = posix_imgui_get_allowed_device_types();
-            mAutoAcceptGamepads = (allowedMask & POSIX_IMGUI_DEVICE_TYPE_GAMEPAD) != 0;
-            mAutoAcceptMice = (allowedMask & POSIX_IMGUI_DEVICE_TYPE_MOUSE) != 0;
-            mAutoAcceptKeyboards = (allowedMask & POSIX_IMGUI_DEVICE_TYPE_KEYBOARD) != 0;
+            mAutoAcceptGamepads = (allowedMask & UNI_HID_DEVICE_TYPE_GAMEPAD) != 0;
+            mAutoAcceptMice = (allowedMask & UNI_HID_DEVICE_TYPE_MOUSE) != 0;
+            mAutoAcceptKeyboards = (allowedMask & UNI_HID_DEVICE_TYPE_KEYBOARD) != 0;
             mBleServiceEnabled = posix_imgui_is_ble_service_enabled();
             posix_imgui_get_ble_service_name(mBleServiceName.data(), mBleServiceName.size());
             posix_imgui_get_ble_service_password(mBleServicePassword.data(), mBleServicePassword.size());
@@ -871,15 +871,15 @@ bool DemoScene::RenderPreferences() {
     filterChanged |= ImGui::Checkbox("Mice (Default: OFF)", &mAutoAcceptMice);
     filterChanged |= ImGui::Checkbox("Keyboards (Default: OFF)", &mAutoAcceptKeyboards);
     if (filterChanged) {
-        uint32_t allowedMask = POSIX_IMGUI_DEVICE_TYPE_NONE;
+        uint32_t allowedMask = UNI_HID_DEVICE_TYPE_NONE;
         if (mAutoAcceptGamepads) {
-            allowedMask |= POSIX_IMGUI_DEVICE_TYPE_GAMEPAD;
+            allowedMask |= UNI_HID_DEVICE_TYPE_GAMEPAD;
         }
         if (mAutoAcceptMice) {
-            allowedMask |= POSIX_IMGUI_DEVICE_TYPE_MOUSE;
+            allowedMask |= UNI_HID_DEVICE_TYPE_MOUSE;
         }
         if (mAutoAcceptKeyboards) {
-            allowedMask |= POSIX_IMGUI_DEVICE_TYPE_KEYBOARD;
+            allowedMask |= UNI_HID_DEVICE_TYPE_KEYBOARD;
         }
         posix_imgui_request_set_allowed_device_types(allowedMask);
     }

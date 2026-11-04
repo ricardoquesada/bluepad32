@@ -13,6 +13,7 @@
 #include "platform/uni_platform.h"
 #include "sdkconfig.h"
 #include "uni_config.h"
+#include "uni_hid_device.h"
 #include "uni_log.h"
 #include "uni_version.h"
 
@@ -62,6 +63,8 @@ static const uni_property_t properties[] = {
      .default_value.str = CONFIG_BLUEPAD32_BLE_SERVICE_NAME},
     {UNI_PROPERTY_IDX_BLE_SERVICE_PASSWORD, UNI_PROPERTY_NAME_BLE_SERVICE_PASSWORD, UNI_PROPERTY_TYPE_STRING,
      .default_value.str = CONFIG_BLUEPAD32_BLE_SERVICE_PASSWORD},
+    {UNI_PROPERTY_IDX_HID_ALLOW_TYPES, UNI_PROPERTY_NAME_HID_ALLOW_TYPES, UNI_PROPERTY_TYPE_U8,
+     .default_value.u8 = UNI_HID_DEVICE_TYPE_ALL},
 
     // TODO: Platform specific. Should be defined in its own file.
 };

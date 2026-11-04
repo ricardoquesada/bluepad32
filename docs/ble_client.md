@@ -171,13 +171,16 @@ authenticate:
         `VID:PID`, state (**Ready**), and direction (**Incoming** or
         **Outgoing**).
     * Tap **Disconnect** on any slot to disconnect that controller immediately.
-* **Connections & Security Card (`AC03`, `AC04`, `AC07`)**:
+* **Connections & Security Card (`AC03`, `AC04`, `AC07`, `AC10`)**:
     * **BLE Connections Enabled (`AC03`)**: Enables or disables Bluetooth Low
         Energy controller connections on the Bluepad32 host.
     * **Scan / Pair New Controllers (`AC04`)**: Starts or stops Bluetooth
         inquiry and scanning for controllers in pairing mode.
     * **Enforce Allowlist (`AC07`)**: Restricts controller connections to MAC
         addresses stored in the allowlist.
+    * **Allowed HID Device Types (`AC10`)**: Filters which Bluetooth HID device
+        categories (**Gamepads**, **Mice**, **Keyboards**) are accepted during
+        discovery.
 
 ### Step 4: Manage the Bluetooth Allowlist, Mappings, and System Maintenance
 
@@ -258,3 +261,4 @@ characteristics:
 | `AC0D` | BLE Service Name | `READ \| WRITE` | UTF-8 string (`1..29` bytes, updates `ADV_IND` + `SCAN_RSP` + `0x2A00`) | Public read / Protected write |
 | `AC0E` | Session Password Auth | `READ \| WRITE` | Read: `uint8` (`0` = open, `1` = required, `2` = authenticated). Write: UTF-8 password (`1..31` bytes) | Public |
 | `AC0F` | Custom Remapping Matrix | `READ \| WRITE` | 28-byte packed `uni_gamepad_mappings_t` struct | Protected |
+| `AC10` | Allowed HID Device Types | `READ \| WRITE` | `uint8` bitmask (`0x01` = Gamepad, `0x02` = Mouse, `0x04` = Keyboard, `0x07` = All) | Protected |

@@ -111,20 +111,13 @@ struct ControllerSnapshot {
 static_assert(std::is_trivially_copyable_v<ControllerSnapshot>, "ControllerSnapshot must remain trivially copyable.");
 
 /**
- * @brief Bitmask flags selecting which physical Bluetooth input device categories are
- *        auto-accepted during discovery (`on_device_discovered`) and readiness (`on_device_ready`).
+ * @brief Default bitmask of physical Bluetooth HID device types (`uni_hid_device_type_t`)
+ *        accepted during discovery and readiness.
+ *
+ * Defaults to `UNI_HID_DEVICE_TYPE_GAMEPAD` (`0x01`) so the desktop application does not
+ * capture the host computer's Bluetooth mouse or keyboard on startup.
  */
-enum PosixImguiDeviceTypeFlags : uint32_t {
-    POSIX_IMGUI_DEVICE_TYPE_NONE = 0u,
-    /// Gamepads, joysticks, and gaming controllers (`UNI_BT_COD_MINOR_GAMEPAD | UNI_BT_COD_MINOR_JOYSTICK`).
-    POSIX_IMGUI_DEVICE_TYPE_GAMEPAD = (1u << 0),
-    /// Physical Bluetooth mice (`UNI_BT_COD_MINOR_MICE`).
-    POSIX_IMGUI_DEVICE_TYPE_MOUSE = (1u << 1),
-    /// Physical Bluetooth keyboards (`UNI_BT_COD_MINOR_KEYBOARD`).
-    POSIX_IMGUI_DEVICE_TYPE_KEYBOARD = (1u << 2),
-    /// Default auto-accept filter: only Gamepads & Joysticks enabled.
-    POSIX_IMGUI_DEVICE_TYPE_DEFAULT = POSIX_IMGUI_DEVICE_TYPE_GAMEPAD,
-};
+constexpr uint32_t kDefaultAllowedDeviceTypes = UNI_HID_DEVICE_TYPE_GAMEPAD;
 
 /**
  * @brief Returns the singleton custom `uni_platform` descriptor to register via
@@ -257,15 +250,16 @@ void posix_imgui_request_set_virtual_devices_enabled(bool enabled);
 [[nodiscard]] bool posix_imgui_is_virtual_devices_enabled(void);
 
 /**
- * @brief Updates the bitmask of physical Bluetooth input device categories (`PosixImguiDeviceTypeFlags`)
+ * @brief Updates the bitmask of physical Bluetooth input device categories (`uni_hid_device_type_t`)
  *        allowed to auto-connect.
  *
- * Thread-safe and non-blocking. Updates the atomic filter bitmask used by
- * `on_device_discovered()` and `on_device_ready()`, and enqueues a
- * `SetAllowedDeviceTypesCmd` command on the BTstack thread that immediately
+ * Thread-safe and non-blocking. Masks `allowed_types_mask` with `UNI_HID_DEVICE_TYPE_ALL` (`0x07`),
+ * updates the atomic filter bitmask used by `on_device_discovered()` and `on_device_ready()`,
+ * synchronizes Bluepad32 core's discovery pre-filter via `uni_hid_device_set_allowed_types()`,
+ * and enqueues a `SetAllowedDeviceTypesCmd` command on the BTstack thread that immediately
  * disconnects any currently connected physical devices belonging to a disabled category.
  *
- * @param allowed_types_mask Bitwise OR of `PosixImguiDeviceTypeFlags` (default: `POSIX_IMGUI_DEVICE_TYPE_DEFAULT`).
+ * @param allowed_types_mask Bitwise OR of `uni_hid_device_type_t` (default: `kDefaultAllowedDeviceTypes`).
  */
 void posix_imgui_request_set_allowed_device_types(uint32_t allowed_types_mask);
 
@@ -274,7 +268,7 @@ void posix_imgui_request_set_allowed_device_types(uint32_t allowed_types_mask);
  *
  * Thread-safe (reads an `std::atomic<uint32_t>` with `std::memory_order_acquire`).
  *
- * @return Bitwise OR of currently enabled `PosixImguiDeviceTypeFlags`.
+ * @return Bitwise OR of currently enabled `uni_hid_device_type_t` flags.
  */
 [[nodiscard]] uint32_t posix_imgui_get_allowed_device_types(void);
 

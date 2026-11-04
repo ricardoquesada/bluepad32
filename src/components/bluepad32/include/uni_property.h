@@ -34,6 +34,7 @@ extern "C" {
 #define UNI_PROPERTY_NAME_GAP_LEVEL "bp.gap.level"
 #define UNI_PROPERTY_NAME_GAP_MAX_PERIODIC_LEN "bp.gap.max_len"
 #define UNI_PROPERTY_NAME_GAP_MIN_PERIODIC_LEN "bp.gap.min_len"
+#define UNI_PROPERTY_NAME_HID_ALLOW_TYPES "bp.bt.hid_allow"
 #define UNI_PROPERTY_NAME_MOUSE_SCALE "bp.mouse.scale"
 #define UNI_PROPERTY_NAME_UNI_BB_FIRE_THRESHOLD "bp.uni.bb_fire"
 #define UNI_PROPERTY_NAME_UNI_BB_MOVE_THRESHOLD "bp.uni.bb_move"
@@ -51,15 +52,12 @@ typedef enum {
     UNI_PROPERTY_IDX_MOUSE_SCALE,
     UNI_PROPERTY_IDX_VERSION,
     UNI_PROPERTY_IDX_VIRTUAL_DEVICE_ENABLED,
-    // Placed immediately before UNI_PROPERTY_IDX_LAST so that Balance Board thresholds are
-    // registered in the global property table on all platforms (called from uni_balance_board_init()
-    // during uni_init()) without shifting the numeric indices (0..9) of existing global properties
-    // stored as BTstack TLV tags ('BP3' | idx).
     UNI_PROPERTY_IDX_UNI_BB_FIRE_THRESHOLD,
     UNI_PROPERTY_IDX_UNI_BB_MOVE_THRESHOLD,
     UNI_PROPERTY_IDX_BLE_SERVICE_ENABLED,
     UNI_PROPERTY_IDX_BLE_SERVICE_NAME,
     UNI_PROPERTY_IDX_BLE_SERVICE_PASSWORD,
+    UNI_PROPERTY_IDX_HID_ALLOW_TYPES,
     UNI_PROPERTY_IDX_LAST,
 
     // Unijoysticle only properties

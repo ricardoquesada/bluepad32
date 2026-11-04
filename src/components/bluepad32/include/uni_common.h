@@ -36,7 +36,7 @@ extern "C" {
 #endif  // ARRAY_SIZE
 
 #ifndef ARG_UNUSED
-#define ARG_UNUSED(x) (void)(sizeof(x))
+#define ARG_UNUSED(x) (void)(x)
 #endif  // ARG_UNUSED
 
 /* From here to end of file: Copied from Zephyr project */

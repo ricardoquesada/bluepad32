@@ -983,7 +983,7 @@ void test_ds5_player_leds_end_to_end_via_posix_imgui_platform() {
 // Suite E: Device Auto-Accept Filtering & Virtual Device Toggle
 // ============================================================================
 
-/// Test 14: Verifies default allowed physical device types (`POSIX_IMGUI_DEVICE_TYPE_GAMEPAD` only),
+/// Test 14: Verifies default allowed physical device types (`UNI_HID_DEVICE_TYPE_GAMEPAD` only),
 /// `on_device_discovered` CoD filtering, and `on_device_ready` physical device filtering.
 void test_device_discovery_and_ready_filtering_by_device_type() {
     btstack_run_loop_deinit();
@@ -991,7 +991,8 @@ void test_device_discovery_and_ready_filtering_by_device_type() {
     posix_imgui_reset_for_test();
 
     struct uni_platform* plat = get_posix_imgui_platform();
-    TEST_ASSERT(posix_imgui_get_allowed_device_types() == POSIX_IMGUI_DEVICE_TYPE_GAMEPAD);
+    TEST_ASSERT(posix_imgui_get_allowed_device_types() == UNI_HID_DEVICE_TYPE_GAMEPAD);
+    TEST_ASSERT(uni_hid_device_get_allowed_types() == UNI_HID_DEVICE_TYPE_GAMEPAD);
 
     bd_addr_t addr = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
     const uint16_t kCodGamepad = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_GAMEPAD;
@@ -1004,6 +1005,10 @@ void test_device_discovery_and_ready_filtering_by_device_type() {
     TEST_ASSERT(plat->on_device_discovered(addr, "Joystick", kCodJoystick, 200) == UNI_ERROR_SUCCESS);
     TEST_ASSERT(plat->on_device_discovered(addr, "Mouse", kCodMouse, 200) == UNI_ERROR_IGNORE_DEVICE);
     TEST_ASSERT(plat->on_device_discovered(addr, "Keyboard", kCodKeyboard, 200) == UNI_ERROR_IGNORE_DEVICE);
+    TEST_ASSERT(uni_hid_device_on_device_discovered(addr, "Gamepad", kCodGamepad, 200) == UNI_ERROR_SUCCESS);
+    TEST_ASSERT(uni_hid_device_on_device_discovered(addr, "Joystick", kCodJoystick, 200) == UNI_ERROR_SUCCESS);
+    TEST_ASSERT(uni_hid_device_on_device_discovered(addr, "Mouse", kCodMouse, 200) == UNI_ERROR_IGNORE_DEVICE);
+    TEST_ASSERT(uni_hid_device_on_device_discovered(addr, "Keyboard", kCodKeyboard, 200) == UNI_ERROR_IGNORE_DEVICE);
 
     // Physical mouse and keyboard must also be rejected in on_device_ready() under default filter.
     uni_hid_device_t mouse_dev;
@@ -1021,10 +1026,13 @@ void test_device_discovery_and_ready_filtering_by_device_type() {
     TEST_ASSERT(get_posix_imgui_instance(&kb_dev)->slot == -1);
 
     // Enable Mice and Keyboards, disable Gamepads.
-    posix_imgui_request_set_allowed_device_types(POSIX_IMGUI_DEVICE_TYPE_MOUSE | POSIX_IMGUI_DEVICE_TYPE_KEYBOARD);
+    posix_imgui_request_set_allowed_device_types(UNI_HID_DEVICE_TYPE_MOUSE | UNI_HID_DEVICE_TYPE_KEYBOARD);
     btstack_run_loop_base_execute_callbacks();
-    TEST_ASSERT(posix_imgui_get_allowed_device_types() ==
-                (POSIX_IMGUI_DEVICE_TYPE_MOUSE | POSIX_IMGUI_DEVICE_TYPE_KEYBOARD));
+    TEST_ASSERT(posix_imgui_get_allowed_device_types() == (UNI_HID_DEVICE_TYPE_MOUSE | UNI_HID_DEVICE_TYPE_KEYBOARD));
+    TEST_ASSERT(uni_hid_device_get_allowed_types() == (UNI_HID_DEVICE_TYPE_MOUSE | UNI_HID_DEVICE_TYPE_KEYBOARD));
+    TEST_ASSERT(uni_hid_device_on_device_discovered(addr, "Gamepad", kCodGamepad, 200) == UNI_ERROR_IGNORE_DEVICE);
+    TEST_ASSERT(uni_hid_device_on_device_discovered(addr, "Mouse", kCodMouse, 200) == UNI_ERROR_SUCCESS);
+    TEST_ASSERT(uni_hid_device_on_device_discovered(addr, "Keyboard", kCodKeyboard, 200) == UNI_ERROR_SUCCESS);
 
     TEST_ASSERT(plat->on_device_discovered(addr, "Gamepad", kCodGamepad, 200) == UNI_ERROR_IGNORE_DEVICE);
     TEST_ASSERT(plat->on_device_discovered(addr, "Mouse", kCodMouse, 200) == UNI_ERROR_SUCCESS);
@@ -1048,8 +1056,7 @@ void test_runtime_disconnection_when_device_category_disabled() {
     posix_imgui_reset_for_test();
 
     struct uni_platform* plat = get_posix_imgui_platform();
-    posix_imgui_request_set_allowed_device_types(POSIX_IMGUI_DEVICE_TYPE_GAMEPAD | POSIX_IMGUI_DEVICE_TYPE_MOUSE |
-                                                 POSIX_IMGUI_DEVICE_TYPE_KEYBOARD);
+    posix_imgui_request_set_allowed_device_types(UNI_HID_DEVICE_TYPE_ALL);
     btstack_run_loop_base_execute_callbacks();
 
     uni_hid_device_t pad;
@@ -1075,7 +1082,7 @@ void test_runtime_disconnection_when_device_category_disabled() {
     TEST_ASSERT(snapshots[0].connected && snapshots[1].connected && snapshots[2].connected);
 
     // Disable Mouse and Keyboard -> Slot 1 and Slot 2 must disconnect immediately; Slot 0 stays connected.
-    posix_imgui_request_set_allowed_device_types(POSIX_IMGUI_DEVICE_TYPE_GAMEPAD);
+    posix_imgui_request_set_allowed_device_types(UNI_HID_DEVICE_TYPE_GAMEPAD);
     btstack_run_loop_base_execute_callbacks();
 
     posix_imgui_get_snapshots(std::span{snapshots});
@@ -1095,7 +1102,7 @@ void test_virtual_device_disabled_by_default_and_runtime_toggle() {
     struct uni_platform* plat = get_posix_imgui_platform();
     TEST_ASSERT(!posix_imgui_is_virtual_devices_enabled());
     TEST_ASSERT(!uni_virtual_device_is_enabled());
-    TEST_ASSERT(posix_imgui_get_allowed_device_types() == POSIX_IMGUI_DEVICE_TYPE_GAMEPAD);
+    TEST_ASSERT(posix_imgui_get_allowed_device_types() == UNI_HID_DEVICE_TYPE_GAMEPAD);
 
     // Connect parent DualSense in Slot 0.
     uni_hid_device_t parent_ds5;
@@ -1236,7 +1243,7 @@ void test_variant_command_queue_ordering_batch_draining_and_bounds_rejection() {
     // Clear initial set_player_leds calls triggered during on_device_ready().
     reset_mock_calls();
     TEST_ASSERT(!posix_imgui_is_virtual_devices_enabled());
-    TEST_ASSERT(posix_imgui_get_allowed_device_types() == POSIX_IMGUI_DEVICE_TYPE_GAMEPAD);
+    TEST_ASSERT(posix_imgui_get_allowed_device_types() == UNI_HID_DEVICE_TYPE_GAMEPAD);
     TEST_ASSERT(!posix_imgui_is_shutdown_requested());
 
     // 1. Enqueue out-of-bounds slot commands (-1, kMaxControllers = 4, 99) across all per-slot command types.
@@ -1253,7 +1260,7 @@ void test_variant_command_queue_ordering_batch_draining_and_bounds_rejection() {
     posix_imgui_request_led_brightness(1, 204);
     posix_imgui_request_lightbar_color(0, 12, 34, 56);
     posix_imgui_request_set_virtual_devices_enabled(true);
-    posix_imgui_request_set_allowed_device_types(POSIX_IMGUI_DEVICE_TYPE_GAMEPAD | POSIX_IMGUI_DEVICE_TYPE_MOUSE);
+    posix_imgui_request_set_allowed_device_types(UNI_HID_DEVICE_TYPE_GAMEPAD | UNI_HID_DEVICE_TYPE_MOUSE);
     posix_imgui_request_shutdown();
 
     // 3. Drain the entire command batch in one run-loop callback execution.
@@ -1273,9 +1280,15 @@ void test_variant_command_queue_ordering_batch_draining_and_bounds_rejection() {
     // Verify global state commands and headless ShutdownCmd completed cleanly.
     TEST_ASSERT(posix_imgui_is_virtual_devices_enabled());
     TEST_ASSERT(uni_virtual_device_is_enabled());
-    TEST_ASSERT(posix_imgui_get_allowed_device_types() ==
-                (POSIX_IMGUI_DEVICE_TYPE_GAMEPAD | POSIX_IMGUI_DEVICE_TYPE_MOUSE));
+    TEST_ASSERT(posix_imgui_get_allowed_device_types() == (UNI_HID_DEVICE_TYPE_GAMEPAD | UNI_HID_DEVICE_TYPE_MOUSE));
+    TEST_ASSERT(uni_hid_device_get_allowed_types() == (UNI_HID_DEVICE_TYPE_GAMEPAD | UNI_HID_DEVICE_TYPE_MOUSE));
     TEST_ASSERT(posix_imgui_is_shutdown_requested());
+
+    // Verify dirty upper bits are masked to UNI_HID_DEVICE_TYPE_ALL (0x07):
+    posix_imgui_request_set_allowed_device_types(0xFFu);
+    btstack_run_loop_base_execute_callbacks();
+    TEST_ASSERT(posix_imgui_get_allowed_device_types() == UNI_HID_DEVICE_TYPE_ALL);
+    TEST_ASSERT(uni_hid_device_get_allowed_types() == UNI_HID_DEVICE_TYPE_ALL);
 }
 
 // ============================================================================
@@ -1292,8 +1305,7 @@ void test_demo_scene_headless_all_tabs_and_font_scales() {
     posix_imgui_reset_for_test();
 
     // Enable all physical device types so Gamepad, Balance Board, Mouse, and Keyboard can connect simultaneously.
-    posix_imgui_request_set_allowed_device_types(POSIX_IMGUI_DEVICE_TYPE_GAMEPAD | POSIX_IMGUI_DEVICE_TYPE_MOUSE |
-                                                 POSIX_IMGUI_DEVICE_TYPE_KEYBOARD);
+    posix_imgui_request_set_allowed_device_types(UNI_HID_DEVICE_TYPE_ALL);
     btstack_run_loop_base_execute_callbacks();
 
     struct uni_platform* plat = get_posix_imgui_platform();

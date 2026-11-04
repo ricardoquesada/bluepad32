@@ -32,6 +32,7 @@
 #include "parser/uni_hid_parser.h"
 #include "parser/uni_hid_parser_rumble.h"
 #include "uni_circular_buffer.h"
+#include "uni_common.h"
 #include "uni_error.h"
 
 #ifdef __cplusplus
@@ -42,6 +43,21 @@ extern "C" {
 #define HID_MAX_DESCRIPTOR_LEN 512        ///< Max HID descriptor length.
 #define HID_DEVICE_MAX_PARSER_DATA 256    ///< Max size for parser-specific data.
 #define HID_DEVICE_MAX_PLATFORM_DATA 256  ///< Max size for platform-specific data.
+
+/**
+ * @brief Bitmask flags that select which Bluetooth HID device types Bluepad32 accepts during discovery.
+ *
+ * Bluepad32 accepts all supported HID types by default (`UNI_HID_DEVICE_TYPE_ALL = 0x07`).
+ * Call `uni_hid_device_set_allowed_types()` to change this mask at runtime.
+ * You can also change it from the ESP32 console (`hid_allow_types <0..7>`) or BLE characteristic `AC10`.
+ */
+typedef enum {
+    UNI_HID_DEVICE_TYPE_NONE = 0,
+    UNI_HID_DEVICE_TYPE_GAMEPAD = BIT(0),   // 0x01: Gamepads, joysticks, and remotes (0x400408)
+    UNI_HID_DEVICE_TYPE_MOUSE = BIT(1),     // 0x02: Mice
+    UNI_HID_DEVICE_TYPE_KEYBOARD = BIT(2),  // 0x04: Keyboards
+    UNI_HID_DEVICE_TYPE_ALL = (UNI_HID_DEVICE_TYPE_GAMEPAD | UNI_HID_DEVICE_TYPE_MOUSE | UNI_HID_DEVICE_TYPE_KEYBOARD),
+} uni_hid_device_type_t;
 
 /**
  * @brief Allow HID devices that don't expose the Device Information Service (DIS, 0x180A).
@@ -327,19 +343,35 @@ void uni_hid_device_delete(uni_hid_device_t* d);
 void uni_hid_device_set_cod(uni_hid_device_t* d, uint32_t cod);
 
 /**
- * @brief Returns whether the given Class of Device (CoD) is supported.
- * @param cod The Class of Device.
- * @return true if supported, false otherwise.
+ * @brief Returns whether the Class of Device (CoD) is supported and enabled in `uni_hid_device_get_allowed_types()`.
+ * @param cod 24-bit Bluetooth Class of Device bitfield.
+ * @return true if `cod` matches an enabled HID device type, or false otherwise.
  */
 bool uni_hid_device_is_cod_supported(uint32_t cod);
 
 /**
- * @brief A new device has been discovered while scanning.
- * @param addr the Bluetooth address
- * @param name could be NULL, could be zero-length, or might contain the name.
- * @param cod Class of Device. See "uni_bt_defines.h" for possible values.
- * @param rssi Received Signal Strength Indicator (RSSI) measured in dBms. The higher (255) the better.
- * @returns UNI_ERROR_SUCCESS if a connection to the device should be established.
+ * @brief Sets the bitmask of Bluetooth HID device types accepted during discovery.
+ *
+ * Saves the mask (clamped to `UNI_HID_DEVICE_TYPE_ALL`, `0x07`) to the `"bp.bt.hid_allow"` property.
+ * This filter applies only to newly discovered devices. Connected devices stay connected.
+ *
+ * @param types Bitwise OR of `uni_hid_device_type_t` flags (`0x00..0x07`).
+ */
+void uni_hid_device_set_allowed_types(uint8_t types);
+
+/**
+ * @brief Returns the active bitmask of allowed Bluetooth HID device types (`0x00..0x07`).
+ * @return Active `uni_hid_device_type_t` bitmask.
+ */
+uint8_t uni_hid_device_get_allowed_types(void);
+
+/**
+ * @brief Checks a newly discovered Bluetooth device against core filters and the platform callback.
+ * @param addr 6-byte Bluetooth MAC address of the device.
+ * @param name Discovered device name (can be NULL or empty).
+ * @param cod  Class of Device. See `uni_bt_defines.h` for possible values.
+ * @param rssi Received Signal Strength Indicator (RSSI) in `0..255`. Higher values mean stronger signal.
+ * @returns `UNI_ERROR_SUCCESS` to connect to the device, or an error code to ignore it.
  */
 uni_error_t uni_hid_device_on_device_discovered(bd_addr_t addr, const char* name, uint16_t cod, uint8_t rssi);
 

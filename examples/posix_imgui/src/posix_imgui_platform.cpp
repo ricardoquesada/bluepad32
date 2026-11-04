@@ -84,7 +84,7 @@ struct SetVirtualDevicesCmd {
 
 /// Command payload updating the bitmask of auto-accepted physical Bluetooth device categories.
 struct SetAllowedDeviceTypesCmd {
-    uint32_t allowed_types_mask;  ///< Bitwise OR of `PosixImguiDeviceTypeFlags`.
+    uint32_t allowed_types_mask;  ///< Bitwise OR of `uni_hid_device_type_t`.
 };
 
 /// Command payload enabling or disabling the Bluepad32 BLE configuration service.
@@ -153,7 +153,7 @@ btstack_context_callback_registration_t g_cmd_callback = {};
 
 std::atomic<bool> g_shutdown_requested{false};
 std::atomic<bool> g_virtual_devices_enabled{false};
-std::atomic<uint32_t> g_allowed_device_types_mask{POSIX_IMGUI_DEVICE_TYPE_DEFAULT};
+std::atomic<uint32_t> g_allowed_device_types_mask{kDefaultAllowedDeviceTypes};
 
 std::atomic<bool> g_ble_service_enabled{true};
 std::mutex g_ble_service_mutex;
@@ -185,56 +185,57 @@ std::array<char, UNI_BT_SERVICE_PASSWORD_MAX_LEN + 1> g_ble_service_password{""}
 void posix_imgui_on_device_disconnected(uni_hid_device_t* d);
 
 /**
- * @brief Maps a Bluetooth Class of Device (CoD) value to `PosixImguiDeviceTypeFlags`.
+ * @brief Maps a Bluetooth Class of Device (CoD) value to `uni_hid_device_type_t` flags.
  *
  * @param cod 24-bit Bluetooth Class of Device bitfield.
- * @return Bitwise OR of matching `PosixImguiDeviceTypeFlags` (defaults to `GAMEPAD` for non-peripheral CoDs).
+ * @return Bitwise OR of matching `uni_hid_device_type_t` flags (defaults to `UNI_HID_DEVICE_TYPE_GAMEPAD` for
+ *         non-peripheral CoDs).
  */
 [[nodiscard]] uint32_t classify_cod_device_types(uint32_t cod) {
     if ((cod & UNI_BT_COD_MAJOR_MASK) == UNI_BT_COD_MAJOR_PERIPHERAL) {
         const uint32_t minor_cod = cod & UNI_BT_COD_MINOR_MASK;
-        uint32_t flags = POSIX_IMGUI_DEVICE_TYPE_NONE;
+        uint32_t flags = UNI_HID_DEVICE_TYPE_NONE;
         if ((minor_cod & (UNI_BT_COD_MINOR_GAMEPAD | UNI_BT_COD_MINOR_JOYSTICK)) != 0) {
-            flags |= POSIX_IMGUI_DEVICE_TYPE_GAMEPAD;
+            flags |= UNI_HID_DEVICE_TYPE_GAMEPAD;
         }
         if ((minor_cod & UNI_BT_COD_MINOR_MICE) != 0) {
-            flags |= POSIX_IMGUI_DEVICE_TYPE_MOUSE;
+            flags |= UNI_HID_DEVICE_TYPE_MOUSE;
         }
         if ((minor_cod & UNI_BT_COD_MINOR_KEYBOARD) != 0) {
-            flags |= POSIX_IMGUI_DEVICE_TYPE_KEYBOARD;
+            flags |= UNI_HID_DEVICE_TYPE_KEYBOARD;
         }
-        if (flags != POSIX_IMGUI_DEVICE_TYPE_NONE) {
+        if (flags != UNI_HID_DEVICE_TYPE_NONE) {
             return flags;
         }
     }
     // Non-peripheral or zero CoD (e.g., Audio/Video remote or synthetic test gamepad):
-    return POSIX_IMGUI_DEVICE_TYPE_GAMEPAD;
+    return UNI_HID_DEVICE_TYPE_GAMEPAD;
 }
 
 /**
- * @brief Classifies a physical `uni_hid_device_t` into one or more `PosixImguiDeviceTypeFlags`.
+ * @brief Classifies a physical `uni_hid_device_t` into one or more `uni_hid_device_type_t` flags.
  *
  * @param d Pointer to the Bluepad32 HID device (may be null).
- * @return Bitwise OR of `PosixImguiDeviceTypeFlags` represented by `d`.
+ * @return Bitwise OR of `uni_hid_device_type_t` flags represented by `d`.
  */
 [[nodiscard]] uint32_t classify_physical_device_types(const uni_hid_device_t* d) {
     if (d == nullptr) {
-        return POSIX_IMGUI_DEVICE_TYPE_NONE;
+        return UNI_HID_DEVICE_TYPE_NONE;
     }
 
-    uint32_t flags = POSIX_IMGUI_DEVICE_TYPE_NONE;
+    uint32_t flags = UNI_HID_DEVICE_TYPE_NONE;
     if (uni_hid_device_is_mouse(d) || d->controller_type == CONTROLLER_TYPE_GenericMouse ||
         d->controller.klass == UNI_CONTROLLER_CLASS_MOUSE) {
-        flags |= POSIX_IMGUI_DEVICE_TYPE_MOUSE;
+        flags |= UNI_HID_DEVICE_TYPE_MOUSE;
     }
     if (uni_hid_device_is_keyboard(d) || d->controller_type == CONTROLLER_TYPE_GenericKeyboard ||
         d->controller.klass == UNI_CONTROLLER_CLASS_KEYBOARD) {
-        flags |= POSIX_IMGUI_DEVICE_TYPE_KEYBOARD;
+        flags |= UNI_HID_DEVICE_TYPE_KEYBOARD;
     }
     if (uni_hid_device_is_gamepad(d)) {
-        flags |= POSIX_IMGUI_DEVICE_TYPE_GAMEPAD;
+        flags |= UNI_HID_DEVICE_TYPE_GAMEPAD;
     }
-    if (flags != POSIX_IMGUI_DEVICE_TYPE_NONE) {
+    if (flags != UNI_HID_DEVICE_TYPE_NONE) {
         return flags;
     }
     return classify_cod_device_types(d->cod);
@@ -455,7 +456,9 @@ void process_pending_commands(void* context) {
                            }
                        },
                        [](const SetAllowedDeviceTypesCmd& c) {
-                           g_allowed_device_types_mask.store(c.allowed_types_mask, std::memory_order_release);
+                           const uint32_t masked = c.allowed_types_mask & UNI_HID_DEVICE_TYPE_ALL;
+                           g_allowed_device_types_mask.store(masked, std::memory_order_release);
+                           uni_hid_device_set_allowed_types(static_cast<uint8_t>(masked));
 
                            std::vector<uni_hid_device_t*> disallowed_to_disconnect;
                            {
@@ -463,7 +466,7 @@ void process_pending_commands(void* context) {
                                for (uni_hid_device_t* dev : g_devices) {
                                    if (dev != nullptr && !uni_hid_device_is_virtual_device(dev)) {
                                        const uint32_t dev_types = classify_physical_device_types(dev);
-                                       if ((dev_types & c.allowed_types_mask) == 0) {
+                                       if ((dev_types & masked) == 0) {
                                            disallowed_to_disconnect.push_back(dev);
                                        }
                                    }
@@ -613,9 +616,10 @@ void posix_imgui_on_init_complete(void) {
         uni_bt_list_keys_unsafe();
     }
 
-    // Enforce the platform's virtual-device state (disabled by default) regardless of
+    // Enforce the platform's virtual-device and allowed-device-types states regardless of
     // any stale property persisted in `/tmp/bp32_property.tlv`.
     uni_virtual_device_set_enabled(g_virtual_devices_enabled.load(std::memory_order_acquire));
+    uni_hid_device_set_allowed_types(static_cast<uint8_t>(g_allowed_device_types_mask.load(std::memory_order_acquire)));
 
     uni_property_dump_all();
 
@@ -934,9 +938,15 @@ bool posix_imgui_is_virtual_devices_enabled(void) {
 }
 
 void posix_imgui_request_set_allowed_device_types(uint32_t allowed_types_mask) {
-    g_allowed_device_types_mask.store(allowed_types_mask, std::memory_order_release);
+    const uint32_t masked = allowed_types_mask & UNI_HID_DEVICE_TYPE_ALL;
+    g_allowed_device_types_mask.store(masked, std::memory_order_release);
+    // In single-threaded unit tests (`g_hci_initialized == false`), update Bluepad32 core immediately.
+    // When the BTstack thread is active, `SetAllowedDeviceTypesCmd` updates core on Thread 2.
+    if (!g_hci_initialized.load(std::memory_order_acquire)) {
+        uni_hid_device_set_allowed_types(static_cast<uint8_t>(masked));
+    }
     enqueue_command(SetAllowedDeviceTypesCmd{
-        .allowed_types_mask = allowed_types_mask,
+        .allowed_types_mask = masked,
     });
 }
 
@@ -1068,8 +1078,10 @@ void posix_imgui_reset_for_test(void) {
     g_delete_keys = 0;
     g_shutdown_requested.store(false, std::memory_order_release);
     g_virtual_devices_enabled.store(false, std::memory_order_release);
-    g_allowed_device_types_mask.store(POSIX_IMGUI_DEVICE_TYPE_DEFAULT, std::memory_order_release);
+    g_allowed_device_types_mask.store(kDefaultAllowedDeviceTypes, std::memory_order_release);
     uni_virtual_device_set_enabled(false);
+    uni_hid_device_set_allowed_types(static_cast<uint8_t>(kDefaultAllowedDeviceTypes));
+    uni_platform_set_custom(get_posix_imgui_platform());
 
     // Reset BLE configuration service state (Landmine #6)
     g_ble_service_enabled.store(true, std::memory_order_release);

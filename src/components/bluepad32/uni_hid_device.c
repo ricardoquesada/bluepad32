@@ -15,6 +15,7 @@
 #include "bt/uni_bt_le.h"
 #include "bt/uni_bt_sdp.h"
 #include "bt/uni_bt_service.h"
+#include "btstack_tlv.h"
 #include "controller/uni_controller_type.h"
 #include "parser/uni_hid_parser_8bitdo.h"
 #include "parser/uni_hid_parser_android.h"
@@ -42,6 +43,7 @@
 #include "uni_common.h"
 #include "uni_config.h"
 #include "uni_log.h"
+#include "uni_property.h"
 #include "uni_virtual_device.h"
 
 enum {
@@ -60,6 +62,16 @@ enum {
 static uni_hid_device_t g_devices[CONFIG_BLUEPAD32_MAX_DEVICES];
 static const bd_addr_t zero_addr = {0, 0, 0, 0, 0, 0};
 
+// Default to UNI_HID_DEVICE_TYPE_ALL (0x07) so callers that run before
+// uni_hid_device_setup() see the default mask.
+// On Pico W, BTstack Flash TLV initializes after uni_hid_device_setup().
+// While allowed_device_types_explicitly_set is false, uni_hid_device_get_allowed_types()
+// reads the property store on demand. Setting the mask explicitly latches
+// allowed_device_types_explicitly_set to true and prevents property reads from
+// overwriting the in-memory value.
+static uint8_t allowed_device_types = UNI_HID_DEVICE_TYPE_ALL;
+static bool allowed_device_types_explicitly_set = false;
+
 static void process_misc_button_system(uni_hid_device_t* d);
 static void process_misc_button_home(uni_hid_device_t* d);
 static void misc_button_enable_callback(btstack_timer_source_t* ts);
@@ -72,6 +84,11 @@ static int32_t get_free_device_idx(void);
 #define UNI_BT_RSSI_THRESHOLD (255 - 100)
 
 void uni_hid_device_setup(void) {
+    // Reset the override flag and load the saved mask from the property store.
+    allowed_device_types_explicitly_set = false;
+    uni_property_value_t val = uni_property_get(UNI_PROPERTY_IDX_HID_ALLOW_TYPES);
+    allowed_device_types = val.u8 & UNI_HID_DEVICE_TYPE_ALL;
+
     for (int32_t i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
         // Unlink any active rumble or parser-owned timers before zeroing the device slot
         // so repeated calls to uni_hid_device_setup() cannot corrupt BTstack's timer list.
@@ -329,23 +346,52 @@ void uni_hid_device_set_cod(uni_hid_device_t* d, uint32_t cod) {
         d->flags |= FLAGS_HAS_COD;
 }
 
-bool uni_hid_device_is_cod_supported(uint32_t cod) {
-    const uint32_t minor_cod = cod & UNI_BT_COD_MINOR_MASK;
+void uni_hid_device_set_allowed_types(uint8_t types) {
+    uni_property_value_t val;
 
-    // Peripherals: joysticks, mice, gamepads and keyboard are accepted.
-    if ((cod & UNI_BT_COD_MAJOR_MASK) == UNI_BT_COD_MAJOR_PERIPHERAL) {
-        // Device is a peripheral: keyboard, mouse, joystick, gamepad, etc.
-        return (minor_cod & (UNI_BT_COD_MINOR_MICE | UNI_BT_COD_MINOR_KEYBOARD | UNI_BT_COD_MINOR_GAMEPAD |
-                             UNI_BT_COD_MINOR_JOYSTICK)) != 0;
+    // Clear reserved upper bits (bits 3..7) and mark the mask as explicitly set.
+    allowed_device_types = types & UNI_HID_DEVICE_TYPE_ALL;
+    allowed_device_types_explicitly_set = true;
+
+    val.u8 = allowed_device_types;
+    uni_property_set(UNI_PROPERTY_IDX_HID_ALLOW_TYPES, val);
+}
+
+uint8_t uni_hid_device_get_allowed_types(void) {
+    // Read the property store on demand until an explicit setter call overrides the mask.
+    // This lets Pico W load its saved mask after BTstack Flash TLV initializes.
+    if (!allowed_device_types_explicitly_set) {
+        uni_property_value_t val = uni_property_get(UNI_PROPERTY_IDX_HID_ALLOW_TYPES);
+        allowed_device_types = val.u8 & UNI_HID_DEVICE_TYPE_ALL;
+    }
+    return allowed_device_types;
+}
+
+bool uni_hid_device_is_cod_supported(uint32_t cod) {
+    const uint32_t major_cod = cod & UNI_BT_COD_MAJOR_MASK;
+    const uint32_t minor_cod = cod & UNI_BT_COD_MINOR_MASK;
+    const uint8_t types = uni_hid_device_get_allowed_types();
+
+    // Build the allowed minor CoD mask from the active device types.
+    // Composite devices (such as Keyboard+Mouse 0x00C0) pass if any of their types is enabled.
+    if (major_cod == UNI_BT_COD_MAJOR_PERIPHERAL) {
+        uint32_t allowed_minor_mask = 0;
+        if (types & UNI_HID_DEVICE_TYPE_GAMEPAD)
+            allowed_minor_mask |= (UNI_BT_COD_MINOR_GAMEPAD | UNI_BT_COD_MINOR_JOYSTICK);
+        if (types & UNI_HID_DEVICE_TYPE_MOUSE)
+            allowed_minor_mask |= UNI_BT_COD_MINOR_MICE;
+        if (types & UNI_HID_DEVICE_TYPE_KEYBOARD)
+            allowed_minor_mask |= UNI_BT_COD_MINOR_KEYBOARD;
+
+        return (minor_cod & allowed_minor_mask) != 0;
     }
 
-    // Hack for Amazon Fire TV remote control: CoD: 0x00400408 (Audio + Telephony Hands free)
-    // FIXME: This is no longer true, since a "set-event-filter" is being called accepting only
-    // MAJOR_PERIPHERAL devices.
-    // Acceptable trade-off: The Amazon Stick is no longer working. On the other hand we have
-    // muuuuuch cleaner logs, and easier to analyze hci dumps.
-    if ((cod & UNI_BT_COD_MAJOR_MASK) == UNI_BT_COD_MAJOR_AUDIO_VIDEO) {
-        return (cod == 0x400408);
+    // Amazon Fire TV remote control uses CoD 0x00400408 (Audio/Video).
+    // Treat it as a gamepad.
+    if (major_cod == UNI_BT_COD_MAJOR_AUDIO_VIDEO) {
+        if (!(types & UNI_HID_DEVICE_TYPE_GAMEPAD))
+            return false;
+        return cod == 0x400408;
     }
     return false;
 }
@@ -362,6 +408,7 @@ uni_error_t uni_hid_device_on_device_discovered(bd_addr_t addr, const char* name
         return UNI_ERROR_IGNORE_DEVICE;
     }
 
+    // Reject unsupported or disabled HID device types before calling the platform callback.
     if (!uni_hid_device_is_cod_supported(cod)) {
         logd("Unsupported Class of Device: %#x\n", cod);
         return UNI_ERROR_IGNORE_DEVICE;

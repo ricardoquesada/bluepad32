@@ -145,6 +145,9 @@ TEST(property_btstack_tlv_null_instance_fallback_b1) {
     ASSERT_TRUE(svc_pass_val.str != NULL);
     EXPECT_EQ(strcmp(svc_pass_val.str, CONFIG_BLUEPAD32_BLE_SERVICE_PASSWORD), 0);
 
+    uni_property_value_t hid_allow_val = uni_property_get(UNI_PROPERTY_IDX_HID_ALLOW_TYPES);
+    EXPECT_EQ(hid_allow_val.u8, UNI_HID_DEVICE_TYPE_ALL);
+
     // Synthetic FLOAT property descriptor tested via uni_property_get_with_property().
     const uni_property_t float_prop = {
         .idx = UNI_PROPERTY_IDX_MOUSE_SCALE,
@@ -164,6 +167,7 @@ TEST(property_btstack_tlv_null_instance_fallback_b1) {
     uni_property_set(UNI_PROPERTY_IDX_BLE_SERVICE_ENABLED, (uni_property_value_t){.u8 = 0});
     uni_property_set(UNI_PROPERTY_IDX_BLE_SERVICE_NAME, (uni_property_value_t){.str = "Bluepad32 rc car"});
     uni_property_set(UNI_PROPERTY_IDX_BLE_SERVICE_PASSWORD, (uni_property_value_t){.str = "secret"});
+    uni_property_set(UNI_PROPERTY_IDX_HID_ALLOW_TYPES, (uni_property_value_t){.u8 = UNI_HID_DEVICE_TYPE_GAMEPAD});
     uni_property_set_with_property(&float_prop, (uni_property_value_t){.f32 = 4.25f});
 
     // Verify NULL property descriptor guards.
@@ -617,20 +621,28 @@ TEST(ble_service_properties_defaults_roundtrip_and_shared_buffer_safety) {
     EXPECT_EQ(UNI_PROPERTY_IDX_BLE_SERVICE_ENABLED, 12);
     EXPECT_EQ(UNI_PROPERTY_IDX_BLE_SERVICE_NAME, 13);
     EXPECT_EQ(UNI_PROPERTY_IDX_BLE_SERVICE_PASSWORD, 14);
-    EXPECT_EQ(UNI_PROPERTY_IDX_LAST, 15);
+    EXPECT_EQ(UNI_PROPERTY_IDX_HID_ALLOW_TYPES, 15);
+    EXPECT_EQ(UNI_PROPERTY_IDX_LAST, 16);
 
     const uni_property_t* p_en = uni_property_get_property_by_name(UNI_PROPERTY_NAME_BLE_SERVICE_ENABLED);
     const uni_property_t* p_name = uni_property_get_property_by_name(UNI_PROPERTY_NAME_BLE_SERVICE_NAME);
     const uni_property_t* p_pass = uni_property_get_property_by_name(UNI_PROPERTY_NAME_BLE_SERVICE_PASSWORD);
+    const uni_property_t* p_hid = uni_property_get_property_by_name(UNI_PROPERTY_NAME_HID_ALLOW_TYPES);
     ASSERT_TRUE(p_en != NULL);
     ASSERT_TRUE(p_name != NULL);
     ASSERT_TRUE(p_pass != NULL);
+    ASSERT_TRUE(p_hid != NULL);
     EXPECT_EQ(strcmp(p_en->name, "bp.ble.svc_en"), 0);
     EXPECT_EQ(strcmp(p_name->name, "bp.ble.name"), 0);
     EXPECT_EQ(strcmp(p_pass->name, "bp.ble.pass"), 0);
+    EXPECT_EQ(strcmp(p_hid->name, "bp.bt.hid_allow"), 0);
+    EXPECT_EQ(strlen(p_hid->name), 15);
     EXPECT_EQ(p_en->idx, UNI_PROPERTY_IDX_BLE_SERVICE_ENABLED);
     EXPECT_EQ(p_name->idx, UNI_PROPERTY_IDX_BLE_SERVICE_NAME);
     EXPECT_EQ(p_pass->idx, UNI_PROPERTY_IDX_BLE_SERVICE_PASSWORD);
+    EXPECT_EQ(p_hid->idx, UNI_PROPERTY_IDX_HID_ALLOW_TYPES);
+    EXPECT_EQ(p_hid->type, UNI_PROPERTY_TYPE_U8);
+    EXPECT_EQ(p_hid->default_value.u8, UNI_HID_DEVICE_TYPE_ALL);
 
     // 2. Default Fallback When TLV Tags Are Absent:
     const uint32_t tag_en =
@@ -639,9 +651,12 @@ TEST(ble_service_properties_defaults_roundtrip_and_shared_buffer_safety) {
         ((uint32_t)'B' << 24) | ((uint32_t)'P' << 16) | ((uint32_t)'3' << 8) | UNI_PROPERTY_IDX_BLE_SERVICE_NAME;
     const uint32_t tag_pass =
         ((uint32_t)'B' << 24) | ((uint32_t)'P' << 16) | ((uint32_t)'3' << 8) | UNI_PROPERTY_IDX_BLE_SERVICE_PASSWORD;
+    const uint32_t tag_hid =
+        ((uint32_t)'B' << 24) | ((uint32_t)'P' << 16) | ((uint32_t)'3' << 8) | UNI_PROPERTY_IDX_HID_ALLOW_TYPES;
     tlv_impl->delete_tag(tlv_ctx, tag_en);
     tlv_impl->delete_tag(tlv_ctx, tag_name);
     tlv_impl->delete_tag(tlv_ctx, tag_pass);
+    tlv_impl->delete_tag(tlv_ctx, tag_hid);
 
     EXPECT_EQ(uni_property_get(UNI_PROPERTY_IDX_BLE_SERVICE_ENABLED).u8, 1);
     uni_property_value_t def_name = uni_property_get(UNI_PROPERTY_IDX_BLE_SERVICE_NAME);
@@ -650,8 +665,11 @@ TEST(ble_service_properties_defaults_roundtrip_and_shared_buffer_safety) {
     uni_property_value_t def_pass = uni_property_get(UNI_PROPERTY_IDX_BLE_SERVICE_PASSWORD);
     ASSERT_TRUE(def_pass.str != NULL);
     EXPECT_EQ(strcmp(def_pass.str, ""), 0);
+    EXPECT_EQ(uni_property_get(UNI_PROPERTY_IDX_HID_ALLOW_TYPES).u8, UNI_HID_DEVICE_TYPE_ALL);
+    uni_hid_device_setup();
+    EXPECT_EQ(uni_hid_device_get_allowed_types(), UNI_HID_DEVICE_TYPE_ALL);
 
-    // 3. Round-Trip Persistence Across All Three Properties:
+    // 3. Round-Trip Persistence Across All Four Properties:
     uni_property_set(UNI_PROPERTY_IDX_BLE_SERVICE_ENABLED, (uni_property_value_t){.u8 = 0});
     EXPECT_EQ(uni_property_get(UNI_PROPERTY_IDX_BLE_SERVICE_ENABLED).u8, 0);
     uni_property_set(UNI_PROPERTY_IDX_BLE_SERVICE_ENABLED, (uni_property_value_t){.u8 = 1});
@@ -666,6 +684,14 @@ TEST(ble_service_properties_defaults_roundtrip_and_shared_buffer_safety) {
     uni_property_value_t rt_pass = uni_property_get(UNI_PROPERTY_IDX_BLE_SERVICE_PASSWORD);
     ASSERT_TRUE(rt_pass.str != NULL);
     EXPECT_EQ(strcmp(rt_pass.str, "my_secret_pass"), 0);
+
+    // Round-trip persistence via uni_hid_device_set_allowed_types() and reload via uni_hid_device_setup():
+    uni_hid_device_set_allowed_types(UNI_HID_DEVICE_TYPE_GAMEPAD | UNI_HID_DEVICE_TYPE_MOUSE);
+    EXPECT_EQ(uni_hid_device_get_allowed_types(), (UNI_HID_DEVICE_TYPE_GAMEPAD | UNI_HID_DEVICE_TYPE_MOUSE));
+    EXPECT_EQ(uni_property_get(UNI_PROPERTY_IDX_HID_ALLOW_TYPES).u8,
+              (UNI_HID_DEVICE_TYPE_GAMEPAD | UNI_HID_DEVICE_TYPE_MOUSE));
+    uni_hid_device_setup();
+    EXPECT_EQ(uni_hid_device_get_allowed_types(), (UNI_HID_DEVICE_TYPE_GAMEPAD | UNI_HID_DEVICE_TYPE_MOUSE));
 
     // 4. Shared Static str_ret[128] Buffer Regression Test (Landmine #2):
     uni_property_set(UNI_PROPERTY_IDX_BLE_SERVICE_NAME, (uni_property_value_t){.str = "Bluepad32 on esp32"});
@@ -688,6 +714,9 @@ TEST(ble_service_properties_defaults_roundtrip_and_shared_buffer_safety) {
     tlv_impl->delete_tag(tlv_ctx, tag_en);
     tlv_impl->delete_tag(tlv_ctx, tag_name);
     tlv_impl->delete_tag(tlv_ctx, tag_pass);
+    tlv_impl->delete_tag(tlv_ctx, tag_hid);
+    uni_hid_device_setup();
+    EXPECT_EQ(uni_hid_device_get_allowed_types(), UNI_HID_DEVICE_TYPE_ALL);
 }
 
 int main(void) {

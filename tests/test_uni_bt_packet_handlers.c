@@ -274,6 +274,7 @@ static void put_bd_addr_reversed(uint8_t* dst, const bd_addr_t addr) {
  */
 static void reset_test_fixture(void) {
     btstack_run_loop_base_timers = NULL;
+    uni_hid_device_set_allowed_types(UNI_HID_DEVICE_TYPE_ALL);
     uni_hid_device_setup();
     uni_bt_allowlist_remove_all();
     uni_bt_allowlist_set_enabled(false);
@@ -3251,7 +3252,7 @@ TEST(bt_service_password_auth_gate_ac0e_and_session_lifecycle) {
     EXPECT_EQ(ATT_READ_RESPONSE, rsp_buf[0]);
     EXPECT_EQ(UNI_BT_SERVICE_AUTH_STATE_REQUIRED, rsp_buf[1]);
 
-    // Every protected read handle (AC02..AC09, AC0F) must return ATT_ERROR_INSUFFICIENT_AUTHENTICATION (0x05):
+    // Every protected read handle (AC02..AC09, AC0F, AC10) must return ATT_ERROR_INSUFFICIENT_AUTHENTICATION (0x05):
     static const uint16_t k_protected_read_handles[] = {
         ATT_CHARACTERISTIC_4627C4A4_AC02_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x000b
         ATT_CHARACTERISTIC_4627C4A4_AC03_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x000d
@@ -3262,6 +3263,7 @@ TEST(bt_service_password_auth_gate_ac0e_and_session_lifecycle) {
         ATT_CHARACTERISTIC_4627C4A4_AC08_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x0018
         ATT_CHARACTERISTIC_4627C4A4_AC09_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x001a
         ATT_CHARACTERISTIC_4627C4A4_AC0F_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x0026 (FW-GATT-01)
+        ATT_CHARACTERISTIC_4627C4A4_AC10_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x0028
     };
     for (size_t i = 0; i < ARRAY_SIZE(k_protected_read_handles); i++) {
         rsp_len = send_att_read_req(&att_conn, k_protected_read_handles[i], rsp_buf);
@@ -3272,8 +3274,8 @@ TEST(bt_service_password_auth_gate_ac0e_and_session_lifecycle) {
         EXPECT_EQ(ATT_ERROR_INSUFFICIENT_AUTHENTICATION, rsp_buf[4]);
     }
 
-    // Every protected write handle (AC03..AC0D, AC0F + AC05 CCCD) must return ATT_ERROR_INSUFFICIENT_AUTHENTICATION
-    // (0x05) and produce zero side effects:
+    // Every protected write handle (AC03..AC0D, AC0F, AC10 + AC05 CCCD) must return
+    // ATT_ERROR_INSUFFICIENT_AUTHENTICATION (0x05) and produce zero side effects:
     uni_bt_stop_scanning_unsafe();
     EXPECT_FALSE(uni_bt_is_scanning());
     const uint8_t one_byte = 0x01;
@@ -3288,6 +3290,7 @@ TEST(bt_service_password_auth_gate_ac0e_and_session_lifecycle) {
         ATT_CHARACTERISTIC_4627C4A4_AC0A_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x001c
         ATT_CHARACTERISTIC_4627C4A4_AC0B_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x001e
         ATT_CHARACTERISTIC_4627C4A4_AC0C_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x0020
+        ATT_CHARACTERISTIC_4627C4A4_AC10_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,  // 0x0028
     };
     for (size_t i = 0; i < ARRAY_SIZE(k_protected_1b_write_handles); i++) {
         rsp_len = send_att_write_req(&att_conn, k_protected_1b_write_handles[i], &one_byte, 1, rsp_buf);
@@ -3338,7 +3341,7 @@ TEST(bt_service_password_auth_gate_ac0e_and_session_lifecycle) {
               little_endian_read_16(rsp_buf, 2));
     EXPECT_EQ(ATT_ERROR_INSUFFICIENT_AUTHENTICATION, rsp_buf[4]);
 
-    // Verify zero side effects occurred on scanning, allowlist, service name, or gamepad mappings.
+    // Verify zero side effects occurred on scanning, allowlist, service name, gamepad mappings, or allowed HID types.
     EXPECT_FALSE(uni_bt_is_scanning());
     EXPECT_FALSE(uni_bt_allowlist_is_enabled());
     EXPECT_EQ(0, strcmp(uni_bt_service_get_name(), "Bluepad32"));
@@ -3346,6 +3349,7 @@ TEST(bt_service_password_auth_gate_ac0e_and_session_lifecycle) {
     uni_gamepad_mappings_t check_map = {0};
     uni_gamepad_get_mappings(&check_map);
     EXPECT_EQ(0, memcmp(&check_map, &GAMEPAD_DEFAULT_MAPPINGS, sizeof(check_map)));
+    EXPECT_EQ(UNI_HID_DEVICE_TYPE_ALL, uni_hid_device_get_allowed_types());
 
     // 3. Wrong Password & Length/Offset Validation on AC0E:
     // - Wrong password of identical length (10 bytes: "wrongpass!") -> ATT_ERROR_INSUFFICIENT_AUTHENTICATION (0x05)
@@ -3835,6 +3839,209 @@ TEST(bt_service_custom_mappings_ac0f_and_ac06_roundtrip) {
 }
 
 // ============================================================================
+// 24. TEST(bt_service_allowed_hid_types_ac10_and_discovery_prefilter)
+// ============================================================================
+
+/**
+ * @brief End-to-end ATT read/write/error contract test for `AC10` (`0x0028`) allowed HID device types
+ * and multi-transport discovery pre-filtering (BR/EDR Inquiry, BLE Advertising, Switch 2 BLE Advertising).
+ */
+TEST(bt_service_allowed_hid_types_ac10_and_discovery_prefilter) {
+    reset_test_fixture();
+
+    uni_bt_service_set_enabled(false);
+    uni_bt_service_set_enabled(true);
+    EXPECT_EQ(0x0028, ATT_CHARACTERISTIC_4627C4A4_AC10_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE);
+
+    att_connection_t att_conn;
+    memset(&att_conn, 0, sizeof(att_conn));
+    att_conn.con_handle = 0x0040;
+    att_conn.mtu_exchanged = true;
+    att_conn.mtu = 185;
+    att_conn.max_mtu = 185;
+    uint8_t rsp_buf[256];
+
+    // 1. Default AC10 (0x0028) 1-byte read returns UNI_HID_DEVICE_TYPE_ALL (0x07):
+    uint16_t rsp_len =
+        send_att_read_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC10_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE, rsp_buf);
+    ASSERT_EQ(2, rsp_len);
+    EXPECT_EQ(ATT_READ_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(UNI_HID_DEVICE_TYPE_ALL, rsp_buf[1]);
+
+    // Blob read at offset = 1 returns 0 payload bytes:
+    uint8_t req_blob_ac10[5] = {ATT_READ_BLOB_REQUEST, 0x28, 0x00, 1, 0x00};
+    memset(rsp_buf, 0, sizeof(rsp_buf));
+    rsp_len = att_handle_request(&att_conn, req_blob_ac10, sizeof(req_blob_ac10), rsp_buf);
+    ASSERT_EQ(1, rsp_len);
+    EXPECT_EQ(ATT_READ_BLOB_RESPONSE, rsp_buf[0]);
+
+    // 2. Invalid payload lengths (0 bytes, 2 bytes) and non-zero offset -> ATT_ERROR_REQUEST_NOT_SUPPORTED (0x06):
+    uint8_t two_bytes[2] = {UNI_HID_DEVICE_TYPE_GAMEPAD, 0x00};
+    rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC10_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                 NULL, 0, rsp_buf);
+    ASSERT_EQ(5, rsp_len);
+    EXPECT_EQ(ATT_ERROR_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(ATT_ERROR_REQUEST_NOT_SUPPORTED, rsp_buf[4]);
+
+    rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC10_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                 two_bytes, sizeof(two_bytes), rsp_buf);
+    ASSERT_EQ(5, rsp_len);
+    EXPECT_EQ(ATT_ERROR_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(ATT_ERROR_REQUEST_NOT_SUPPORTED, rsp_buf[4]);
+
+    uint8_t req_prep_ac10[6] = {ATT_PREPARE_WRITE_REQUEST, 0x28, 0x00, 0x01, 0x00, UNI_HID_DEVICE_TYPE_GAMEPAD};
+    memset(rsp_buf, 0, sizeof(rsp_buf));
+    rsp_len = att_handle_request(&att_conn, req_prep_ac10, sizeof(req_prep_ac10), rsp_buf);
+    ASSERT_EQ(5, rsp_len);
+    EXPECT_EQ(ATT_ERROR_RESPONSE, rsp_buf[0]);
+    EXPECT_EQ(ATT_ERROR_REQUEST_NOT_SUPPORTED, rsp_buf[4]);
+    EXPECT_EQ(UNI_HID_DEVICE_TYPE_ALL, uni_hid_device_get_allowed_types());
+
+    // 3. Reserved upper bits (buffer[0] > 0x07) -> ATT_ERROR_VALUE_NOT_ALLOWED (0x13) with zero side effects:
+    static const uint8_t k_invalid_masks[] = {0x08, 0x09, 0x10, 0x80, 0xFF};
+    for (size_t i = 0; i < ARRAY_SIZE(k_invalid_masks); i++) {
+        rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC10_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                     &k_invalid_masks[i], 1, rsp_buf);
+        ASSERT_EQ(5, rsp_len);
+        EXPECT_EQ(ATT_ERROR_RESPONSE, rsp_buf[0]);
+        EXPECT_EQ(ATT_CHARACTERISTIC_4627C4A4_AC10_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                  little_endian_read_16(rsp_buf, 2));
+        EXPECT_EQ(ATT_ERROR_VALUE_NOT_ALLOWED, rsp_buf[4]);
+        EXPECT_EQ(UNI_HID_DEVICE_TYPE_ALL, uni_hid_device_get_allowed_types());
+    }
+
+    // 4. Valid 1-byte bitmasks write -> readback -> property store verification:
+    static const uint8_t k_valid_masks[] = {
+        UNI_HID_DEVICE_TYPE_GAMEPAD,  UNI_HID_DEVICE_TYPE_MOUSE,
+        UNI_HID_DEVICE_TYPE_KEYBOARD, UNI_HID_DEVICE_TYPE_GAMEPAD | UNI_HID_DEVICE_TYPE_KEYBOARD,
+        UNI_HID_DEVICE_TYPE_NONE,     UNI_HID_DEVICE_TYPE_ALL,
+    };
+    for (size_t i = 0; i < ARRAY_SIZE(k_valid_masks); i++) {
+        rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC10_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                     &k_valid_masks[i], 1, rsp_buf);
+        ASSERT_EQ(1, rsp_len);
+        EXPECT_EQ(ATT_WRITE_RESPONSE, rsp_buf[0]);
+        EXPECT_EQ(k_valid_masks[i], uni_hid_device_get_allowed_types());
+        EXPECT_EQ(k_valid_masks[i], uni_property_get(UNI_PROPERTY_IDX_HID_ALLOW_TYPES).u8);
+
+        rsp_len = send_att_read_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC10_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                    rsp_buf);
+        ASSERT_EQ(2, rsp_len);
+        EXPECT_EQ(ATT_READ_RESPONSE, rsp_buf[0]);
+        EXPECT_EQ(k_valid_masks[i], rsp_buf[1]);
+    }
+
+    // 5. End-to-End Discovery Pre-Filter & Non-Disconnection of Active Connections:
+    bd_addr_t addr_active_mouse = {0x77, 0x88, 0x99, 0x00, 0x01, 0x01};
+    uni_hid_device_t* d_active_mouse = uni_hid_device_create(addr_active_mouse);
+    ASSERT_NE(NULL, d_active_mouse);
+    uni_hid_device_set_cod(d_active_mouse, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE);
+    uni_hid_device_connect(d_active_mouse);
+    EXPECT_TRUE(d_active_mouse->conn.connected);
+
+    // Restrict AC10 to Gamepad-only (0x01):
+    const uint8_t mask_gamepad_only = UNI_HID_DEVICE_TYPE_GAMEPAD;
+    rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC10_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                 &mask_gamepad_only, 1, rsp_buf);
+    ASSERT_EQ(1, rsp_len);
+    EXPECT_EQ(ATT_WRITE_RESPONSE, rsp_buf[0]);
+
+    // Already-connected Mouse must remain connected:
+    EXPECT_EQ(d_active_mouse, uni_hid_device_get_instance_for_address(addr_active_mouse));
+    EXPECT_TRUE(d_active_mouse->conn.connected);
+
+    // 5a. BR/EDR GAP Inquiry Result: Mouse (0x0580) and Keyboard (0x0540) blocked before platform callback:
+    uint8_t inq_pkt[128];
+    bd_addr_t addr_bredr_mouse = {0x77, 0x88, 0x99, 0x00, 0x02, 0x01};
+    bd_addr_t addr_bredr_kb = {0x77, 0x88, 0x99, 0x00, 0x02, 0x02};
+    bd_addr_t addr_bredr_gp = {0x77, 0x88, 0x99, 0x00, 0x02, 0x03};
+
+    uint16_t inq_len = build_gap_inquiry_result_pkt(inq_pkt, addr_bredr_mouse, 0x01,
+                                                    UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE, 0x1234, 1, 210,
+                                                    0, 0, 0, "BR/EDR Mouse");
+    uni_bt_packet_handler(HCI_EVENT_PACKET, 0, inq_pkt, inq_len);
+    EXPECT_EQ(NULL, uni_hid_device_get_instance_for_address(addr_bredr_mouse));
+    EXPECT_EQ(0, g_discovered_count);
+
+    inq_len = build_gap_inquiry_result_pkt(inq_pkt, addr_bredr_kb, 0x01,
+                                           UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_KEYBOARD, 0x1234, 1, 210, 0,
+                                           0, 0, "BR/EDR Keyboard");
+    uni_bt_packet_handler(HCI_EVENT_PACKET, 0, inq_pkt, inq_len);
+    EXPECT_EQ(NULL, uni_hid_device_get_instance_for_address(addr_bredr_kb));
+    EXPECT_EQ(0, g_discovered_count);
+
+    inq_len = build_gap_inquiry_result_pkt(inq_pkt, addr_bredr_gp, 0x01,
+                                           UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_GAMEPAD, 0x1234, 1, 210, 1,
+                                           0x054c, 0x0268, "PLAYSTATION(R)3 Controller");
+    uni_bt_packet_handler(HCI_EVENT_PACKET, 0, inq_pkt, inq_len);
+    uni_hid_device_t* d_bredr_gp = uni_hid_device_get_instance_for_address(addr_bredr_gp);
+    ASSERT_NE(NULL, d_bredr_gp);
+    EXPECT_EQ(1, g_discovered_count);
+    uni_hid_device_delete(d_bredr_gp);
+
+    // 5b. Standard BLE Advertising Report: block Mouse (0x03C2) and Keyboard (0x03C1), accept Gamepad (0x03C4):
+    uint8_t adv_pkt[128];
+    bd_addr_t addr_ble_mouse = {0x77, 0x88, 0x99, 0x00, 0x03, 0x01};
+    bd_addr_t addr_ble_kb = {0x77, 0x88, 0x99, 0x00, 0x03, 0x02};
+    bd_addr_t addr_ble_gp = {0x77, 0x88, 0x99, 0x00, 0x03, 0x03};
+
+    uint16_t adv_len =
+        build_le_adv_report_pkt(adv_pkt, addr_ble_mouse, 210, UNI_BT_HID_APPEARANCE_MOUSE, "BLE Mouse", 9);
+    uni_bt_packet_handler(HCI_EVENT_PACKET, 0, adv_pkt, adv_len);
+    EXPECT_EQ(NULL, uni_hid_device_get_instance_for_address(addr_ble_mouse));
+    EXPECT_EQ(1, g_discovered_count);
+
+    adv_len = build_le_adv_report_pkt(adv_pkt, addr_ble_kb, 210, UNI_BT_HID_APPEARANCE_KEYBOARD, "BLE KB", 6);
+    uni_bt_packet_handler(HCI_EVENT_PACKET, 0, adv_pkt, adv_len);
+    EXPECT_EQ(NULL, uni_hid_device_get_instance_for_address(addr_ble_kb));
+    EXPECT_EQ(1, g_discovered_count);
+
+    adv_len = build_le_adv_report_pkt(adv_pkt, addr_ble_gp, 210, UNI_BT_HID_APPEARANCE_GAMEPAD, "BLE Pad", 7);
+    uni_bt_packet_handler(HCI_EVENT_PACKET, 0, adv_pkt, adv_len);
+    uni_hid_device_t* d_ble_gp = uni_hid_device_get_instance_for_address(addr_ble_gp);
+    ASSERT_NE(NULL, d_ble_gp);
+    EXPECT_EQ(2, g_discovered_count);
+    uni_hid_device_delete(d_ble_gp);
+
+    // 5c. Switch 2 BLE Advertisement blocked when AC10 is Mouse-only (0x02):
+    const uint8_t mask_mouse_only = UNI_HID_DEVICE_TYPE_MOUSE;
+    rsp_len = send_att_write_req(&att_conn, ATT_CHARACTERISTIC_4627C4A4_AC10_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE,
+                                 &mask_mouse_only, 1, rsp_buf);
+    ASSERT_EQ(1, rsp_len);
+
+    uint8_t sw2_ad_18[] = {
+        19,   BLUETOOTH_DATA_TYPE_MANUFACTURER_SPECIFIC_DATA,
+        0x53, 0x05,
+        0x00, 0x00,
+        0x00, 0x7e,
+        0x05, 0x69,
+        0x20, 0x00,
+        0x00, 0x00,
+        0x00, 0x00,
+        0x00, 0x00,
+        0x00, 0x00,
+    };
+    bd_addr_t addr_sw2 = {0x77, 0x88, 0x99, 0x00, 0x04, 0x01};
+    adv_len = build_raw_le_adv_report_pkt(adv_pkt, addr_sw2, 215, sw2_ad_18, sizeof(sw2_ad_18));
+    uni_bt_packet_handler(HCI_EVENT_PACKET, 0, adv_pkt, adv_len);
+    EXPECT_EQ(NULL, uni_hid_device_get_instance_for_address(addr_sw2));
+    EXPECT_EQ(2, g_discovered_count);
+
+    // Meanwhile BLE Mouse is now accepted under Mouse-only (0x02):
+    adv_len = build_le_adv_report_pkt(adv_pkt, addr_ble_mouse, 210, UNI_BT_HID_APPEARANCE_MOUSE, "BLE Mouse", 9);
+    uni_bt_packet_handler(HCI_EVENT_PACKET, 0, adv_pkt, adv_len);
+    uni_hid_device_t* d_ble_mouse = uni_hid_device_get_instance_for_address(addr_ble_mouse);
+    ASSERT_NE(NULL, d_ble_mouse);
+    EXPECT_EQ(3, g_discovered_count);
+
+    // Cleanup:
+    uni_hid_device_delete(d_ble_mouse);
+    uni_hid_device_delete(d_active_mouse);
+    uni_hid_device_set_allowed_types(UNI_HID_DEVICE_TYPE_ALL);
+    uni_bt_service_set_enabled(false);
+}
+
+// ============================================================================
 // Main Test Runner
 // ============================================================================
 
@@ -3871,6 +4078,7 @@ int main(void) {
     RUN_TEST(bt_service_custom_name_adv_scan_rsp_and_ac0d_gatt);
     RUN_TEST(bt_service_password_auth_gate_ac0e_and_session_lifecycle);
     RUN_TEST(bt_service_custom_mappings_ac0f_and_ac06_roundtrip);
+    RUN_TEST(bt_service_allowed_hid_types_ac10_and_discovery_prefilter);
 
     return test_summary();
 }

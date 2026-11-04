@@ -1140,6 +1140,131 @@ TEST(cod_filtering) {
     printf("PASS\n");
 }
 
+static int g_test_platform_discovered_calls = 0;
+static uni_error_t g_test_platform_discovered_ret = UNI_ERROR_SUCCESS;
+
+static uni_error_t counting_on_device_discovered(bd_addr_t addr, const char* name, uint16_t cod, uint8_t rssi) {
+    (void)addr;
+    (void)name;
+    (void)cod;
+    (void)rssi;
+    g_test_platform_discovered_calls++;
+    return g_test_platform_discovered_ret;
+}
+
+/**
+ * @brief Verifies the `uni_hid_device_type_t` (`0x00..0x07`) CoD filter truth table,
+ *        reserved upper-bit masking (`0xF8`), Pico W deferred-TLV two-variable state machine,
+ *        and core `AND` discovery pre-filtering in `uni_hid_device_on_device_discovered()`.
+ */
+TEST(hid_device_allowed_types_filtering_and_discovery_prefilter) {
+    printf("Testing uni_hid_device allowed types filtering, lazy TLV init, and discovery pre-filter...\n");
+
+    const uint32_t kCodGamepad = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_GAMEPAD;
+    const uint32_t kCodJoystick = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_JOYSTICK;
+    const uint32_t kCodMouse = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE;
+    const uint32_t kCodKeyboard = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_KEYBOARD;
+    const uint32_t kCodComboKbMouse = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_KEYBOARD_AND_MICE;
+    const uint32_t kCodComboGamepadKb =
+        UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_GAMEPAD | UNI_BT_COD_MINOR_KEYBOARD;
+    const uint32_t kCodFireTvRemote = 0x00400408;
+
+    // 1. Exhaustive truth table across all 8 bitmasks (0x00..0x07):
+    for (uint8_t mask = 0; mask <= UNI_HID_DEVICE_TYPE_ALL; mask++) {
+        uni_hid_device_set_allowed_types(mask);
+        EXPECT_EQ(uni_hid_device_get_allowed_types(), mask);
+
+        const bool exp_gp = (mask & UNI_HID_DEVICE_TYPE_GAMEPAD) != 0;
+        const bool exp_mouse = (mask & UNI_HID_DEVICE_TYPE_MOUSE) != 0;
+        const bool exp_kb = (mask & UNI_HID_DEVICE_TYPE_KEYBOARD) != 0;
+
+        EXPECT_EQ(uni_hid_device_is_cod_supported(kCodGamepad), exp_gp);
+        EXPECT_EQ(uni_hid_device_is_cod_supported(kCodJoystick), exp_gp);
+        EXPECT_EQ(uni_hid_device_is_cod_supported(kCodFireTvRemote), exp_gp);
+        EXPECT_EQ(uni_hid_device_is_cod_supported(kCodMouse), exp_mouse);
+        EXPECT_EQ(uni_hid_device_is_cod_supported(kCodKeyboard), exp_kb);
+        EXPECT_EQ(uni_hid_device_is_cod_supported(kCodComboKbMouse), (exp_mouse || exp_kb));
+        EXPECT_EQ(uni_hid_device_is_cod_supported(kCodComboGamepadKb), (exp_gp || exp_kb));
+
+        // Reject unsupported CoDs for every mask:
+        EXPECT_FALSE(uni_hid_device_is_cod_supported(0x000000));
+        EXPECT_FALSE(uni_hid_device_is_cod_supported(0x000200));
+        EXPECT_FALSE(uni_hid_device_is_cod_supported(0x000408));
+        EXPECT_FALSE(uni_hid_device_is_cod_supported(UNI_BT_COD_MAJOR_PERIPHERAL));
+    }
+
+    // 2. Clear reserved upper bits (bits 3..7):
+    uni_hid_device_set_allowed_types(0xFF);
+    EXPECT_EQ(uni_hid_device_get_allowed_types(), UNI_HID_DEVICE_TYPE_ALL);
+    EXPECT_EQ(uni_property_get(UNI_PROPERTY_IDX_HID_ALLOW_TYPES).u8, UNI_HID_DEVICE_TYPE_ALL);
+
+    uni_hid_device_set_allowed_types(0xF8);
+    EXPECT_EQ(uni_hid_device_get_allowed_types(), UNI_HID_DEVICE_TYPE_NONE);
+    EXPECT_EQ(uni_property_get(UNI_PROPERTY_IDX_HID_ALLOW_TYPES).u8, UNI_HID_DEVICE_TYPE_NONE);
+
+    // 3. Pico W deferred TLV initialization vs. explicit pre-TLV override:
+    uni_hid_device_set_allowed_types(UNI_HID_DEVICE_TYPE_KEYBOARD);
+    EXPECT_EQ(uni_property_get(UNI_PROPERTY_IDX_HID_ALLOW_TYPES).u8, UNI_HID_DEVICE_TYPE_KEYBOARD);
+
+    const btstack_tlv_t* saved_impl = NULL;
+    void* saved_ctx = NULL;
+    btstack_tlv_get_instance(&saved_impl, &saved_ctx);
+    ASSERT_TRUE(saved_impl != NULL);
+    ASSERT_TRUE(saved_ctx != NULL);
+
+    // Simulate uni_hid_device_setup() before BTstack registers TLV:
+    btstack_tlv_set_instance(NULL, NULL);
+    uni_hid_device_setup();
+    EXPECT_EQ(uni_hid_device_get_allowed_types(), UNI_HID_DEVICE_TYPE_ALL);
+
+    // When TLV initializes, get_allowed_types() loads 0x04 from the property store:
+    btstack_tlv_set_instance(saved_impl, saved_ctx);
+    EXPECT_EQ(uni_hid_device_get_allowed_types(), UNI_HID_DEVICE_TYPE_KEYBOARD);
+
+    // An explicit set_allowed_types() call while TLV is NULL keeps the explicit value:
+    btstack_tlv_set_instance(NULL, NULL);
+    uni_hid_device_setup();
+    uni_hid_device_set_allowed_types(UNI_HID_DEVICE_TYPE_MOUSE);
+    EXPECT_EQ(uni_hid_device_get_allowed_types(), UNI_HID_DEVICE_TYPE_MOUSE);
+    btstack_tlv_set_instance(saved_impl, saved_ctx);
+
+    // 4. Core discovery filter (uni_hid_device_on_device_discovered) and platform callback:
+    my_platform.on_device_discovered = counting_on_device_discovered;
+    g_test_platform_discovered_calls = 0;
+    g_test_platform_discovered_ret = UNI_ERROR_SUCCESS;
+    bd_addr_t test_addr = {0x10, 0x20, 0x30, 0x40, 0x50, 0x60};
+
+    uni_hid_device_set_allowed_types(UNI_HID_DEVICE_TYPE_GAMEPAD);
+    // Core rejects disabled types before it calls platform->on_device_discovered:
+    EXPECT_EQ(uni_hid_device_on_device_discovered(test_addr, "Mouse", (uint16_t)kCodMouse, 210),
+              UNI_ERROR_IGNORE_DEVICE);
+    EXPECT_EQ(g_test_platform_discovered_calls, 0);
+    EXPECT_EQ(uni_hid_device_on_device_discovered(test_addr, "Keyboard", (uint16_t)kCodKeyboard, 210),
+              UNI_ERROR_IGNORE_DEVICE);
+    EXPECT_EQ(g_test_platform_discovered_calls, 0);
+
+    // Core accepts enabled types and calls platform->on_device_discovered:
+    EXPECT_EQ(uni_hid_device_on_device_discovered(test_addr, "Gamepad", (uint16_t)kCodGamepad, 210), UNI_ERROR_SUCCESS);
+    EXPECT_EQ(g_test_platform_discovered_calls, 1);
+
+    // Platform callback can still reject an enabled type:
+    g_test_platform_discovered_ret = UNI_ERROR_IGNORE_DEVICE;
+    EXPECT_EQ(uni_hid_device_on_device_discovered(test_addr, "Gamepad", (uint16_t)kCodGamepad, 210),
+              UNI_ERROR_IGNORE_DEVICE);
+    EXPECT_EQ(g_test_platform_discovered_calls, 2);
+
+    my_platform.on_device_discovered = my_on_device_discovered;
+
+    // 5. Teardown and TLV cleanup:
+    const uint32_t tag_hid =
+        ((uint32_t)'B' << 24) | ((uint32_t)'P' << 16) | ((uint32_t)'3' << 8) | UNI_PROPERTY_IDX_HID_ALLOW_TYPES;
+    uni_hid_device_set_allowed_types(UNI_HID_DEVICE_TYPE_ALL);
+    saved_impl->delete_tag(saved_ctx, tag_hid);
+    uni_hid_device_setup();
+    EXPECT_EQ(uni_hid_device_get_allowed_types(), UNI_HID_DEVICE_TYPE_ALL);
+    printf("PASS\n");
+}
+
 int main(int argc, char** argv) {
     (void)argc;
     (void)argv;
@@ -1180,6 +1305,7 @@ int main(int argc, char** argv) {
     RUN_TEST(hid_device_parser_and_platform_data_alignment_b6);
     RUN_TEST(device_pool_exhaustion_and_null_guards);
     RUN_TEST(cod_filtering);
+    RUN_TEST(hid_device_allowed_types_filtering_and_discovery_prefilter);
 
     return test_summary();
 }

@@ -74,11 +74,12 @@ static uni_error_t my_platform_on_device_discovered(bd_addr_t addr, const char* 
     // @param cod: Class of Device. See "uni_bt_defines.h" for possible values.
     // @param rssi: Received Signal Strength Indicator (RSSI) measured in dBms. The higher (255) the better.
 
-    // As an example, if you want to filter out keyboards, do:
-    if (((cod & UNI_BT_COD_MINOR_MASK) & UNI_BT_COD_MINOR_KEYBOARD) == UNI_BT_COD_MINOR_KEYBOARD) {
-        logi("Ignoring keyboard\n");
-        return UNI_ERROR_IGNORE_DEVICE;
-    }
+    // Bluepad32 already filters discovered devices by the allowed HID device types
+    // (`uni_hid_device_set_allowed_types()`) before it calls this callback.
+    ARG_UNUSED(addr);
+    ARG_UNUSED(name);
+    ARG_UNUSED(cod);
+    ARG_UNUSED(rssi);
 
     return UNI_ERROR_SUCCESS;
 }

@@ -30,9 +30,9 @@
 // 5. Per-Connection Password Authentication Gate (`AC0E`, handle `0x0024`):
 //    Public discovery characteristics (`0x2A00`, `AC01`, `AC0D` read, `AC0E` read/write)
 //    are always accessible. When a non-empty password (`1..31` bytes) is configured,
-//    protected reads (`AC02`–`AC09`, `AC0F`) return `ATT_READ_ERROR_CODE_OFFSET |
+//    protected reads (`AC02`–`AC09`, `AC0F`, `AC10`) return `ATT_READ_ERROR_CODE_OFFSET |
 //    ATT_ERROR_INSUFFICIENT_AUTHENTICATION`
-//    (`0xfe05`), and protected writes (`AC03`–`AC0D`, `AC0F`, and `AC05` CCCD `0x0012`) return
+//    (`0xfe05`), and protected writes (`AC03`–`AC0D`, `AC0F`, `AC10`, and `AC05` CCCD `0x0012`) return
 //    `ATT_ERROR_INSUFFICIENT_AUTHENTICATION` (`0x05`) until the client writes the
 //    matching password to `AC0E` on that connection handle.
 // 6. Controller Remapping Matrix (`AC06`, handle `0x0014` & `AC0F`, handle `0x0026`):
@@ -43,6 +43,10 @@
 //    23-byte MTU `ATT_READ_BLOB_REQUEST` offset reads work seamlessly). Both paths validate all
 //    28 fields with `uni_gamepad_mappings_is_valid()` before calling `uni_gamepad_set_mappings()`,
 //    rejecting out-of-range field values with `ATT_ERROR_VALUE_NOT_ALLOWED` (`0x13`).
+// 7. Allowed HID Device Types Filter (`AC10`, handle `0x0028`, READ | WRITE | DYNAMIC):
+//    Reads and writes the 1-byte `uni_hid_device_type_t` discovery filter bitmask (`0x00..0x07`).
+//    Requires `AC0E` password authentication. Writes require `buffer_size == 1 && offset == 0`
+//    and reject reserved upper bits with `ATT_ERROR_VALUE_NOT_ALLOWED` (`0x13`).
 
 #include "bt/uni_bt_service.h"
 
@@ -58,6 +62,7 @@
 #include "controller/uni_gamepad.h"
 #include "uni_common.h"
 #include "uni_config.h"
+#include "uni_hid_device.h"
 #include "uni_log.h"
 #include "uni_property.h"
 #include "uni_system.h"
@@ -627,6 +632,17 @@ static int uni_att_write_callback(hci_con_handle_t con_handle,
             uni_gamepad_set_mappings(&custom_mappings);
             break;
         }
+        case ATT_CHARACTERISTIC_4627C4A4_AC10_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
+            // AC10: Set allowed HID device types bitmask (1-byte: BIT(0)=Gamepad, BIT(1)=Mouse, BIT(2)=Keyboard).
+            if (!is_conn_authenticated(con_handle))
+                return ATT_ERROR_INSUFFICIENT_AUTHENTICATION;
+            if (buffer_size != 1 || offset != 0)
+                return ATT_ERROR_REQUEST_NOT_SUPPORTED;
+            if ((buffer[0] & ~UNI_HID_DEVICE_TYPE_ALL) != 0)
+                return ATT_ERROR_VALUE_NOT_ALLOWED;
+            uni_hid_device_set_allowed_types(buffer[0]);
+            break;
+        }
         default:
             logi("BLE Service: Unsupported write to 0x%04x, len %u\n", att_handle, buffer_size);
             return ATT_ERROR_ATTRIBUTE_NOT_FOUND;
@@ -735,6 +751,13 @@ static uint16_t uni_att_read_callback(hci_con_handle_t conn_handle,
             uni_gamepad_get_mappings(&current_mappings);
             return att_read_callback_handle_blob((const uint8_t*)&current_mappings, (uint16_t)sizeof(current_mappings),
                                                  offset, buffer, buffer_size);
+        }
+        case ATT_CHARACTERISTIC_4627C4A4_AC10_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
+            // AC10: Allowed HID device types bitmask (1-byte: BIT(0)=Gamepad, BIT(1)=Mouse, BIT(2)=Keyboard. Default:
+            // 0x07).
+            if (!is_conn_authenticated(conn_handle))
+                return (uint16_t)(ATT_READ_ERROR_CODE_OFFSET | ATT_ERROR_INSUFFICIENT_AUTHENTICATION);
+            return att_read_callback_handle_byte(uni_hid_device_get_allowed_types(), offset, buffer, buffer_size);
         }
         case ATT_CHARACTERISTIC_4627C4A4_AC0A_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
             // AC0A: Write-only characteristic (Disconnect a device).

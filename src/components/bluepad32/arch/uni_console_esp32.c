@@ -21,6 +21,7 @@
 #include "platform/uni_platform.h"
 #include "uni_common.h"
 #include "uni_gpio.h"
+#include "uni_hid_device.h"
 #include "uni_log.h"
 #include "uni_mouse_quadrature.h"
 #include "uni_property.h"
@@ -83,6 +84,11 @@ static struct {
     struct arg_int* enabled;
     struct arg_end* end;
 } virtual_device_enable_args;
+
+static struct {
+    struct arg_int* types;
+    struct arg_end* end;
+} hid_allow_types_args;
 
 static struct {
     struct arg_int* enabled;
@@ -394,6 +400,36 @@ static int virtual_device_enable(int argc, char** argv) {
     return 0;
 }
 
+/**
+ * @brief ESP32 console handler for `hid_allow_types [<0..7>]`.
+ *
+ * When invoked without arguments, logs the current `uni_hid_device_get_allowed_types()`
+ * bitmask and per-category breakdown (e.g., `Allowed HID device types: 0x07 (gamepad=1, mouse=1, keyboard=1)`)
+ * and returns `0`. When invoked with an integer `<0..7>`, validates that no reserved upper bits
+ * are set and persists the new filter via `uni_hid_device_set_allowed_types()`.
+ */
+static int set_hid_allow_types(int argc, char** argv) {
+    int nerrors = arg_parse(argc, argv, (void**)&hid_allow_types_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, hid_allow_types_args.end, argv[0]);
+
+        // Don't treat it as error, just report the current value
+        uint8_t types = uni_hid_device_get_allowed_types();
+        logi("Allowed HID device types: 0x%02x (gamepad=%d, mouse=%d, keyboard=%d)\n", types,
+             !!(types & UNI_HID_DEVICE_TYPE_GAMEPAD), !!(types & UNI_HID_DEVICE_TYPE_MOUSE),
+             !!(types & UNI_HID_DEVICE_TYPE_KEYBOARD));
+        return 0;
+    }
+
+    int types = hid_allow_types_args.types->ival[0];
+    if (types < 0 || (types & ~UNI_HID_DEVICE_TYPE_ALL) != 0) {
+        loge("Invalid HID device types bitmask: %d (valid range: 0..7)\n", types);
+        return 1;
+    }
+    uni_hid_device_set_allowed_types((uint8_t)types);
+    return 0;
+}
+
 static int ble_service_enable(int argc, char** argv) {
     int enabled;
 
@@ -507,6 +543,9 @@ static void register_bluepad32(void) {
 
     virtual_device_enable_args.enabled = arg_int1(NULL, NULL, "<0 | 1>", "Whether virtual devices are allowed");
     virtual_device_enable_args.end = arg_end(2);
+
+    hid_allow_types_args.types = arg_int1(NULL, NULL, "<0..7>", "bitmask: 1=Gamepad, 2=Mouse, 4=Keyboard (7=All)");
+    hid_allow_types_args.end = arg_end(2);
 
     ble_service_enable_args.enabled =
         arg_int1(NULL, NULL, "<0 | 1>", "Whether the BLE configuration service is enabled");
@@ -647,6 +686,14 @@ static void register_bluepad32(void) {
         .argtable = &virtual_device_enable_args,
     };
 
+    const esp_console_cmd_t cmd_hid_allow_types = {
+        .command = "hid_allow_types",
+        .help = "Get/Set allowed HID device types bitmask (1=Gamepad, 2=Mouse, 4=Keyboard, 7=All)",
+        .hint = NULL,
+        .func = &set_hid_allow_types,
+        .argtable = &hid_allow_types_args,
+    };
+
     const esp_console_cmd_t cmd_ble_service_enable = {
         .command = "ble_service_enable",
         .help = "Enables/Disables BLE configuration service",
@@ -694,6 +741,7 @@ static void register_bluepad32(void) {
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_allowlist_enable));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_mouse_scale));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_virtual_device_enable));
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_hid_allow_types));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_ble_service_enable));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_ble_service_name));
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_ble_service_password));
