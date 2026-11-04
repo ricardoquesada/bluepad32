@@ -86,6 +86,7 @@ extern "C" {
 #include "parser/uni_hid_parser_xboxone.h"
 }
 
+#include "app_icon.h"
 #include "demo_scene.h"
 #include "imgui.h"
 #include "posix_imgui_platform.h"
@@ -2500,6 +2501,52 @@ void test_switch_set_led_brightness_parser_and_vtable() {
     posix_imgui_reset_for_test();
 }
 
+// =============================================================================
+// Suite K: Bluepad32 Application Icon SDF Rasterizer & Headless Null Safety
+// =============================================================================
+
+void test_app_icon_rgba_rasterization_and_landmarks() {
+    std::vector<uint8_t> rgba(kAppIconByteCount, 0xaa);
+    BuildAppIconRgba(std::span<uint8_t, kAppIconByteCount>{rgba.data(), kAppIconByteCount});
+
+    auto pixel = [&](int x, int y) -> const uint8_t* {
+        return &rgba[(static_cast<size_t>(y) * static_cast<size_t>(kAppIconSize) + static_cast<size_t>(x)) *
+                     kAppIconChannels];
+    };
+    auto is_navy = [](const uint8_t* p) { return p[0] == 27 && p[1] == 70 && p[2] == 123 && p[3] == 255; };
+    auto is_card_white = [](const uint8_t* p) { return p[0] == 250 && p[1] == 252 && p[2] == 255 && p[3] == 255; };
+
+    // 1. Exterior canvas corners outside the rounded squircle badge must be transparent.
+    TEST_ASSERT(pixel(0, 0)[3] == 0);
+    TEST_ASSERT(pixel(kAppIconSize - 1, 0)[3] == 0);
+    TEST_ASSERT(pixel(0, kAppIconSize - 1)[3] == 0);
+    TEST_ASSERT(pixel(kAppIconSize - 1, kAppIconSize - 1)[3] == 0);
+
+    // 2. Interior squircle card background margin outside the gamepad silhouette is porcelain white.
+    TEST_ASSERT(is_card_white(pixel(50, 50)));
+
+    // 3. Central gamepad bridge is solid Bluepad32 brand navy (#1B467B).
+    TEST_ASSERT(is_navy(pixel(128, 146)));
+
+    // 4. Left D-pad has a solid navy inner cross surrounded by a white cross cutout.
+    TEST_ASSERT(is_navy(pixel(83, 167)));
+    TEST_ASSERT(is_card_white(pixel(83, 147)));
+
+    // 5. Right action button plate has a white circular center and 4 surrounding navy action buttons.
+    TEST_ASSERT(is_card_white(pixel(173, 167)));
+    TEST_ASSERT(is_navy(pixel(173, 154)));  // North button
+    TEST_ASSERT(is_navy(pixel(173, 179)));  // South button
+    TEST_ASSERT(is_navy(pixel(161, 167)));  // West button
+    TEST_ASSERT(is_navy(pixel(186, 167)));  // East button
+
+    // 6. Circuit trace terminal pad has a hollow white center and a solid navy trace stem below it.
+    TEST_ASSERT(is_card_white(pixel(163, 57)));
+    TEST_ASSERT(is_navy(pixel(163, 75)));
+
+    // 7. Null window guard clause must return cleanly without touching WindowServer / X11.
+    ApplyApplicationIcon(nullptr);
+}
+
 }  // namespace
 
 int main() {
@@ -2553,6 +2600,9 @@ int main() {
 
     // Suite J
     RUN_TEST(test_switch_set_led_brightness_parser_and_vtable);
+
+    // Suite K
+    RUN_TEST(test_app_icon_rgba_rasterization_and_landmarks);
 
     std::printf("\nSummary: %d/%d tests passed.\n", g_tests_run - g_tests_failed, g_tests_run);
     return g_tests_failed == 0 ? EXIT_SUCCESS : EXIT_FAILURE;

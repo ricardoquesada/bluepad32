@@ -117,6 +117,7 @@ target_link_libraries(imgui PUBLIC
 enable_testing()
 add_executable(test_posix_imgui
     src/test_posix_imgui.cpp
+    src/app_icon.cpp
     src/demo_scene.cpp
     src/posix_imgui_platform.cpp
 )
@@ -133,11 +134,15 @@ target_link_libraries(test_posix_imgui PRIVATE
     Threads::Threads
     m
 )
+if(APPLE)
+    target_link_libraries(test_posix_imgui PRIVATE "-framework Cocoa" "-framework CoreGraphics")
+endif()
 add_test(NAME test_posix_imgui COMMAND test_posix_imgui)
 
 # Main POSIX Dear ImGui Controller Tester GUI executable target
 add_executable(${PROJECT_NAME}
     src/main.cpp
+    src/app_icon.cpp
     src/demo_scene.cpp
     src/posix_imgui_platform.cpp
 )
@@ -155,3 +160,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     Threads::Threads
     m
 )
+if(APPLE)
+    target_link_libraries(${PROJECT_NAME} PRIVATE "-framework Cocoa" "-framework CoreGraphics")
+endif()

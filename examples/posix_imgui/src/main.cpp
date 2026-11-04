@@ -86,6 +86,7 @@ extern "C" {
 #define GL_SILENCE_DEPRECATION
 #include <GLFW/glfw3.h>
 
+#include "app_icon.h"
 #include "demo_scene.h"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -531,6 +532,7 @@ int main(int argc, const char* argv[]) {
         return EXIT_FAILURE;
     }
     gui_guard.window = window;
+    ApplyApplicationIcon(window);
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
 
