@@ -25,17 +25,17 @@
 //    `ADV_IND` (`0x09` Complete Local Name if `<= 8` bytes, or `0x08` Shortened
 //    Local Name if `> 8` bytes) and places the full `0x09` Complete Local Name
 //    (up to 29 UTF-8 bytes) in `SCAN_RSP` via `gap_scan_response_set_data()`.
-//    Both `GAP_DEVICE_NAME` (`0x2A00`, handle `0x0003`) and `AC0D` (handle `0x0022`)
+//    Both `GAP_DEVICE_NAME` (`0x2A00`, handle `0x0003`) and `AC0D` (handle `0x0025`)
 //    are `DYNAMIC` so GATT reads and writes reflect runtime renames immediately.
-// 5. Per-Connection Password Authentication Gate (`AC0E`, handle `0x0024`):
-//    Public discovery characteristics (`0x2A00`, `AC01`, `AC0D` read, `AC0E` read/write)
+// 5. Per-Connection Password Authentication Gate (`AC0E`, handle `0x0027`):
+//    Public discovery characteristics (`0x2A00`, `0x2A05` CCCD `0x0007`, `AC01`, `AC0D` read, `AC0E` read/write)
 //    are always accessible. When a non-empty password (`1..31` bytes) is configured,
 //    protected reads (`AC02`–`AC09`, `AC0F`, `AC10`) return `ATT_READ_ERROR_CODE_OFFSET |
 //    ATT_ERROR_INSUFFICIENT_AUTHENTICATION`
-//    (`0xfe05`), and protected writes (`AC03`–`AC0D`, `AC0F`, `AC10`, and `AC05` CCCD `0x0012`) return
+//    (`0xfe05`), and protected writes (`AC03`–`AC0D`, `AC0F`, `AC10`, and `AC05` CCCD `0x0015`) return
 //    `ATT_ERROR_INSUFFICIENT_AUTHENTICATION` (`0x05`) until the client writes the
 //    matching password to `AC0E` on that connection handle.
-// 6. Controller Remapping Matrix (`AC06`, handle `0x0014` & `AC0F`, handle `0x0026`):
+// 6. Controller Remapping Matrix (`AC06`, handle `0x0017` & `AC0F`, handle `0x0029`):
 //    `AC06` reads the 1-byte active `uni_gamepad_mappings_type_t` (`0..2`) and accepts either
 //    a 1-byte preset selection or a 29-byte atomic custom-mappings payload (`[2, ...28B...]`).
 //    `AC0F` reads and writes the 28-byte `uni_gamepad_mappings_t` table directly (`offset == 0`
@@ -43,10 +43,16 @@
 //    23-byte MTU `ATT_READ_BLOB_REQUEST` offset reads work seamlessly). Both paths validate all
 //    28 fields with `uni_gamepad_mappings_is_valid()` before calling `uni_gamepad_set_mappings()`,
 //    rejecting out-of-range field values with `ATT_ERROR_VALUE_NOT_ALLOWED` (`0x13`).
-// 7. Allowed HID Device Types Filter (`AC10`, handle `0x0028`, READ | WRITE | DYNAMIC):
+// 7. Allowed HID Device Types Filter (`AC10`, handle `0x002b`, READ | WRITE | DYNAMIC):
 //    Reads and writes the 1-byte `uni_hid_device_type_t` discovery filter bitmask (`0x00..0x07`).
 //    Requires `AC0E` password authentication. Writes require `buffer_size == 1 && offset == 0`
 //    and reject reserved upper bits with `ATT_ERROR_VALUE_NOT_ALLOWED` (`0x13`).
+// 8. GATT Service Changed (`0x2A05`, handle `0x0006`, CCCD handle `0x0007`):
+//    Exposed as the first characteristic in `GATT_SERVICE` (`0x1801`). If a connected central
+//    does not subscribe to `0x0007` shortly after connection setup (for example, when macOS/iOS
+//    CoreBluetooth holds a stale cached GATT table), `service_changed_timer_handler()` sends a
+//    4-byte `[0x0001, 0xFFFF]` Service Changed indication on handle `0x0006` to invalidate the
+//    central's cache.
 
 #include "bt/uni_bt_service.h"
 
@@ -80,6 +86,12 @@
 // + AD header (2B) inside the 31-byte Legacy Primary Advertising PDU (ADV_IND).
 #define ADV_PRIMARY_NAME_MAX_LEN 8
 
+// Timer delays and retry count for sending a GATT Service Changed (0x2A05) indication
+// when a central connects with a stale GATT cache and has not subscribed to CCCD 0x0007.
+#define SERVICE_CHANGED_INITIAL_DELAY_MS 120
+#define SERVICE_CHANGED_RETRY_DELAY_MS 250
+#define SERVICE_CHANGED_MAX_ATTEMPTS 3
+
 // Wire representation of a single controller slot transmitted over characteristic AC05.
 //
 // Binary layout (16 bytes, packed, little-endian):
@@ -111,9 +123,13 @@ _Static_assert(sizeof(compact_device_t) == 16, "compact_device_t must be 16 byte
 // Per-client GATT connection state, notification subscription, and session authentication metadata.
 typedef struct {
     bool notification_enabled;
+    bool service_changed_cccd_enabled;
     bool authenticated;
+    uint8_t service_changed_attempts;
     uint16_t value_handle;
     hci_con_handle_t connection_handle;
+    btstack_timer_source_t service_changed_timer;
+    btstack_context_callback_registration_t service_changed_indication_cb;
 } client_connection_t;
 static client_connection_t client_connections[MAX_NR_CLIENT_CONNECTIONS];
 
@@ -166,6 +182,8 @@ static void populate_compact_device(int idx, const uni_hid_device_t* d);
 static bool next_notify_device(void);
 static void notify_client(void);
 static void maybe_notify_client(void);
+static void schedule_service_changed_check(client_connection_t* ctx, uint32_t delay_ms);
+static void cancel_all_service_changed_timers(void);
 
 // Guards GAP advertising calls in fuzzing/unit-test builds (`FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION`)
 // where setters may be invoked before `hci_init()` allocates `hci_stack`.
@@ -443,6 +461,24 @@ static int uni_att_write_callback(hci_con_handle_t con_handle,
     }
 
     switch (att_handle) {
+        case ATT_CHARACTERISTIC_GATT_SERVICE_CHANGED_01_CLIENT_CONFIGURATION_HANDLE: {
+            // GATT Service Changed (0x2A05) CCCD: OS BLE stacks subscribe during link setup before AC0E auth.
+            if (buffer_size < 2)
+                return ATT_ERROR_INVALID_ATTRIBUTE_VALUE_LENGTH;
+            if (offset != 0)
+                return ATT_ERROR_REQUEST_NOT_SUPPORTED;
+            ctx = connection_or_alloc_for_conn_handle(con_handle);
+            if (!ctx)
+                return ATT_ERROR_REQUEST_NOT_SUPPORTED;
+            uint16_t cccd = little_endian_read_16(buffer, 0);
+            ctx->service_changed_cccd_enabled = (cccd & (GATT_CLIENT_CHARACTERISTICS_CONFIGURATION_INDICATION |
+                                                         GATT_CLIENT_CHARACTERISTICS_CONFIGURATION_NOTIFICATION)) != 0;
+            if (ctx->service_changed_cccd_enabled && is_hci_stack_ready()) {
+                btstack_run_loop_remove_timer(&ctx->service_changed_timer);
+            }
+            logi("BLE Service: Service Changed CCCD = %#x for handle %#x\n", cccd, ctx->connection_handle);
+            break;
+        }
         case ATT_CHARACTERISTIC_4627C4A4_AC03_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE: {
             // AC03: Whether to enable BLE connections (1-byte boolean).
             if (!is_conn_authenticated(con_handle))
@@ -658,6 +694,14 @@ static uint16_t uni_att_read_callback(hci_con_handle_t conn_handle,
     ensure_config_loaded();
 
     switch (att_handle) {
+        case ATT_CHARACTERISTIC_GATT_SERVICE_CHANGED_01_CLIENT_CONFIGURATION_HANDLE: {
+            // GATT Service Changed (0x2A05) CCCD: publicly readable.
+            client_connection_t* ctx = connection_for_conn_handle(conn_handle);
+            uint16_t cccd = (ctx && ctx->service_changed_cccd_enabled)
+                                ? GATT_CLIENT_CHARACTERISTICS_CONFIGURATION_INDICATION
+                                : GATT_CLIENT_CHARACTERISTICS_CONFIGURATION_NONE;
+            return att_read_callback_handle_little_endian_16(cccd, offset, buffer, buffer_size);
+        }
         case ATT_CHARACTERISTIC_GAP_DEVICE_NAME_01_VALUE_HANDLE:
         case ATT_CHARACTERISTIC_4627C4A4_AC0D_46B9_B688_AFC5C1BF7F63_01_VALUE_HANDLE:
             // GAP Device Name (0x2A00) and AC0D (Service Name): publicly readable without authentication.
@@ -792,7 +836,7 @@ static client_connection_t* connection_for_conn_handle(hci_con_handle_t conn_han
 // Why lazy allocation is needed in addition to `ATT_EVENT_CONNECTED`:
 // Unit tests that exercise ATT PDUs directly via `att_handle_request()` without first
 // injecting an `ATT_EVENT_CONNECTED` HCI event still need a per-connection slot to record
-// `AC05` CCCD subscriptions (`0x0012`) or `AC0E` password authentication state (`0x0024`).
+// `AC05` CCCD subscriptions (`0x0015`) or `AC0E` password authentication state (`0x0027`).
 static client_connection_t* connection_or_alloc_for_conn_handle(hci_con_handle_t conn_handle) {
     if (conn_handle == HCI_CON_HANDLE_INVALID)
         return NULL;
@@ -806,6 +850,66 @@ static client_connection_t* connection_or_alloc_for_conn_handle(hci_con_handle_t
     ctx->connection_handle = conn_handle;
     ctx->authenticated = !uni_bt_service_is_password_required();
     return ctx;
+}
+
+// Sends a 4-byte GATT Service Changed (0x2A05) indication covering [0x0001, 0xFFFF]
+// when invoked by BTstack during ATT_SERVER_RUN_PHASE_2_INDICATIONS.
+static void send_service_changed_indication(void* context) {
+    client_connection_t* ctx = (client_connection_t*)context;
+    if (!ctx || ctx->connection_handle == HCI_CON_HANDLE_INVALID || ctx->service_changed_cccd_enabled)
+        return;
+
+    static const uint8_t k_full_handle_range[4] = {0x01, 0x00, 0xff, 0xff};
+    uint8_t status =
+        att_server_indicate(ctx->connection_handle, ATT_CHARACTERISTIC_GATT_SERVICE_CHANGED_01_VALUE_HANDLE,
+                            k_full_handle_range, sizeof(k_full_handle_range));
+    logi("BLE Service: Sent Service Changed indication [0x0001..0xffff] to handle %#x (status=%#x)\n",
+         ctx->connection_handle, status);
+}
+
+// Timer callback that checks whether the connected central subscribed to the GATT Service
+// Changed CCCD (0x0007). If the central holds a stale pre-0x2A05 GATT cache (where service
+// 0x1801 ended at handle 0x0006), it discovers 0x2A05 at handle 0x0006 without subscribing
+// to 0x0007. Queuing a Service Changed indication on handle 0x0006 forces the central to
+// invalidate its cached GATT database and re-discover all services.
+static void service_changed_timer_handler(btstack_timer_source_t* ts) {
+    client_connection_t* ctx = (client_connection_t*)btstack_run_loop_get_timer_context(ts);
+    if (!ctx || ctx->connection_handle == HCI_CON_HANDLE_INVALID || ctx->service_changed_cccd_enabled)
+        return;
+
+    if (!is_hci_stack_ready() || hci_connection_for_handle(ctx->connection_handle) == NULL)
+        return;
+
+    ctx->service_changed_indication_cb.callback = &send_service_changed_indication;
+    ctx->service_changed_indication_cb.context = ctx;
+    att_server_request_to_send_indication(&ctx->service_changed_indication_cb, ctx->connection_handle);
+
+    ctx->service_changed_attempts++;
+    if (ctx->service_changed_attempts < SERVICE_CHANGED_MAX_ATTEMPTS) {
+        btstack_run_loop_set_timer(&ctx->service_changed_timer, SERVICE_CHANGED_RETRY_DELAY_MS);
+        btstack_run_loop_add_timer(&ctx->service_changed_timer);
+    }
+}
+
+static void schedule_service_changed_check(client_connection_t* ctx, uint32_t delay_ms) {
+    if (!ctx || ctx->connection_handle == HCI_CON_HANDLE_INVALID || ctx->service_changed_cccd_enabled)
+        return;
+    if (!is_hci_stack_ready() || hci_connection_for_handle(ctx->connection_handle) == NULL)
+        return;
+
+    btstack_run_loop_remove_timer(&ctx->service_changed_timer);
+    btstack_run_loop_set_timer_handler(&ctx->service_changed_timer, service_changed_timer_handler);
+    btstack_run_loop_set_timer_context(&ctx->service_changed_timer, ctx);
+    btstack_run_loop_set_timer(&ctx->service_changed_timer, delay_ms);
+    btstack_run_loop_add_timer(&ctx->service_changed_timer);
+}
+
+static void cancel_all_service_changed_timers(void) {
+    if (!is_hci_stack_ready())
+        return;
+    for (int i = 0; i < MAX_NR_CLIENT_CONNECTIONS; i++) {
+        btstack_run_loop_remove_timer(&client_connections[i].service_changed_timer);
+    }
 }
 
 static void uni_att_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
@@ -825,10 +929,16 @@ static void uni_att_packet_handler(uint8_t packet_type, uint16_t channel, uint8_
             ctx = connection_or_alloc_for_conn_handle(handle);
             if (!ctx)
                 break;
+            if (is_hci_stack_ready()) {
+                btstack_run_loop_remove_timer(&ctx->service_changed_timer);
+            }
             ctx->notification_enabled = false;
+            ctx->service_changed_cccd_enabled = false;
+            ctx->service_changed_attempts = 0;
             ctx->authenticated = !uni_bt_service_is_password_required();
             mtu = att_server_get_mtu(ctx->connection_handle);
             logi("BLE Service: New client connected handle = %#x, mtu = %d\n", ctx->connection_handle, mtu);
+            schedule_service_changed_check(ctx, SERVICE_CHANGED_INITIAL_DELAY_MS);
             break;
         }
         case ATT_EVENT_MTU_EXCHANGE_COMPLETE:
@@ -837,15 +947,21 @@ static void uni_att_packet_handler(uint8_t packet_type, uint16_t channel, uint8_
             if (!ctx)
                 break;
             logi("BLE Service: MTU exchange complete for handle = %#x, mtu = %d\n", ctx->connection_handle, mtu);
+            schedule_service_changed_check(ctx, SERVICE_CHANGED_INITIAL_DELAY_MS);
             break;
         case ATT_EVENT_CAN_SEND_NOW:
             notify_client();
+            break;
+        case ATT_EVENT_HANDLE_VALUE_INDICATION_COMPLETE:
             break;
         case ATT_EVENT_DISCONNECTED:
             ctx = connection_for_conn_handle(att_event_disconnected_get_handle(packet));
             if (!ctx)
                 break;
             logi("BLE Service: client disconnected, handle = %#x\n", ctx->connection_handle);
+            if (is_hci_stack_ready()) {
+                btstack_run_loop_remove_timer(&ctx->service_changed_timer);
+            }
             memset(ctx, 0, sizeof(*ctx));
             ctx->connection_handle = HCI_CON_HANDLE_INVALID;
             notification_device_idx = 0;
@@ -871,6 +987,7 @@ static void uni_att_packet_handler(uint8_t packet_type, uint16_t channel, uint8_
 
 void uni_bt_service_deinit(void) {
     service_initialized = false;
+    cancel_all_service_changed_timers();
     memset(&client_connections, 0, sizeof(client_connections));
     for (int i = 0; i < MAX_NR_CLIENT_CONNECTIONS; i++) {
         client_connections[i].connection_handle = HCI_CON_HANDLE_INVALID;
@@ -903,6 +1020,7 @@ void uni_bt_service_init(void) {
     uint8_t adv_type = 0;
     bd_addr_t null_addr = {0};
 
+    cancel_all_service_changed_timers();
     memset(&client_connections, 0, sizeof(client_connections));
     for (int i = 0; i < MAX_NR_CLIENT_CONNECTIONS; i++)
         client_connections[i].connection_handle = HCI_CON_HANDLE_INVALID;
