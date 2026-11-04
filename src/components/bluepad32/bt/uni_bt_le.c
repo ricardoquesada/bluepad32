@@ -67,7 +67,11 @@
  *       128-bit GATT discovery and notification registration.
  */
 
+// Bonded BLE reconnect additions: Copyright (c) 2026 ultrausbt.
 #include "bt/uni_bt_le.h"
+#include <ble/le_device_db.h>
+#include "bt/uni_bt_hid_appearance.h"
+#include "controller/uni_controller_type.h"
 
 #include <bluetooth_data_types.h>
 #include <btstack.h>
@@ -94,6 +98,77 @@ static bool is_scanning;
 static bool ble_enabled;
 static hci_con_handle_t just_works_fallback_con_handle = UNI_BT_CONN_HANDLE_INVALID;
 static bool just_works_fallback_tried;
+
+static bool is_bonded_directed_advertisement(const uint8_t* packet) {
+    // Only the observed ADV_DIRECT_IND case. Do not bypass discovery for an
+    // unknown advertiser or attempt to match random addresses by name/prefix.
+    if (gap_event_advertising_report_get_advertising_event_type(packet) != 1)
+        return false;
+    bd_addr_t addr;
+    gap_event_advertising_report_get_address(packet, addr);
+    int type = gap_event_advertising_report_get_address_type(packet);
+    for (int i = 0; i < le_device_db_max_count(); i++) {
+        int stored_type;
+        bd_addr_t stored_addr;
+        le_device_db_info(i, &stored_type, stored_addr, NULL);
+        if (stored_type == type && memcmp(addr, stored_addr, sizeof(addr)) == 0)
+            return true;
+    }
+    return false;
+}
+
+static bool classify_bonded_hid(uni_hid_device_t* device, uint16_t hids_cid, uint8_t services) {
+    uni_controller_type_t type = uni_guess_controller_type(device->vendor_id, device->product_id);
+    if (type != CONTROLLER_TYPE_Unknown && type != CONTROLLER_TYPE_UnknownNonSteamController &&
+        type != CONTROLLER_TYPE_UnknownSteamController) {
+        uint32_t minor = UNI_BT_COD_MINOR_GAMEPAD;
+        if (type == CONTROLLER_TYPE_GenericMouse)
+            minor = UNI_BT_COD_MINOR_MICE;
+        if (type == CONTROLLER_TYPE_GenericKeyboard)
+            minor = UNI_BT_COD_MINOR_KEYBOARD;
+        uni_hid_device_set_cod(device, UNI_BT_COD_MAJOR_PERIPHERAL | minor);
+        return true;
+    }
+    uint16_t appearance = 0;
+    for (uint8_t i = 0; i < services; i++) {
+        const uint8_t* data = hids_host_descriptor_storage_get_descriptor_data(hids_cid, i);
+        uint16_t len = hids_host_descriptor_storage_get_descriptor_len(hids_cid, i);
+        if (!data || !len)
+            return false;
+        uint16_t found = uni_bt_hid_appearance(data, len);
+        if (!found || (appearance && found != appearance))
+            return false;
+        appearance = found;
+    }
+    uint32_t cod;
+    const char* name;
+    switch (appearance) {
+        case 0x03c1:
+            cod = UNI_BT_COD_MINOR_KEYBOARD;
+            name = "BLE keyboard";
+            break;
+        case 0x03c2:
+            cod = UNI_BT_COD_MINOR_MICE;
+            name = "BLE mouse";
+            break;
+        case 0x03c3:
+            cod = UNI_BT_COD_MINOR_JOYSTICK;
+            name = "BLE joystick";
+            break;
+        case 0x03c4:
+            cod = UNI_BT_COD_MINOR_GAMEPAD;
+            name = "BLE gamepad";
+            break;
+        default:
+            return false;
+    }
+    uni_hid_device_set_cod(device, UNI_BT_COD_MAJOR_PERIPHERAL | cod);
+    if (!device->name[0])
+        uni_hid_device_set_name(device, name);
+    logi("[BLE-RECONNECT] HID descriptor classified %s as %s (appearance=0x%04x)\n",
+         bd_addr_to_str(device->conn.btaddr), name, appearance);
+    return true;
+}
 
 // Temporal space for SDP in BLE
 static uint8_t hid_descriptor_storage[HID_MAX_DESCRIPTOR_LEN * CONFIG_BLUEPAD32_MAX_DEVICES];
@@ -394,6 +469,14 @@ static void uni_hids_client_packet_handler(uint8_t packet_type, uint16_t channel
                         logi("Client notifications enabled for for hids_cid=%d\n", hids_cid);
 #endif
 
+                    if (device->cod == 0 &&
+                        !classify_bonded_hid(device, hids_cid,
+                                             gattservice_subevent_hid_service_connected_get_num_instances(packet))) {
+                        loge("Bonded BLE device has no unambiguous HID class; disconnecting\n");
+                        uni_hid_device_disconnect(device);
+                        resume_scanning_hint();
+                        break;
+                    }
                     uni_hid_device_guess_controller_type_from_pid_vid(device);
                     uni_hid_device_connect(device);
                     uni_hid_device_set_ready(device);
@@ -1044,9 +1127,11 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
     }
 
     adv_event_get_data(packet, size, &appearance, name, &adv_vid, &adv_pid);
+    bool bonded_directed = is_bonded_directed_advertisement(packet);
 
-    if (appearance != UNI_BT_HID_APPEARANCE_GAMEPAD && appearance != UNI_BT_HID_APPEARANCE_JOYSTICK &&
-        appearance != UNI_BT_HID_APPEARANCE_MOUSE && appearance != UNI_BT_HID_APPEARANCE_KEYBOARD) {
+    if (!bonded_directed && appearance != UNI_BT_HID_APPEARANCE_GAMEPAD &&
+        appearance != UNI_BT_HID_APPEARANCE_JOYSTICK && appearance != UNI_BT_HID_APPEARANCE_MOUSE &&
+        appearance != UNI_BT_HID_APPEARANCE_KEYBOARD) {
         // Don't log it. There too many devices advertising themselves.
         if (appearance != 0 || strlen(name) != 0)
             logd("Not a HID controller, appearance: %#x, name =%s\n", appearance, name);
@@ -1079,7 +1164,9 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
     logi(", rssi %u dBm", rssi);
     logi(", name '%s'\n", name);
 
-    if (uni_hid_device_on_device_discovered(addr, name, cod, rssi) != UNI_ERROR_SUCCESS)
+    uni_error_t admission = (bonded_directed && cod == 0) ? uni_hid_device_on_bonded_device_discovered(addr, rssi)
+                                                          : uni_hid_device_on_device_discovered(addr, name, cod, rssi);
+    if (admission != UNI_ERROR_SUCCESS)
         return;
 
     uni_hid_device_t* d = uni_hid_device_create(addr);
