@@ -84,7 +84,7 @@ class Distro:
         partitionData = open(
             os.path.join(path, "partition_table/partition-table.bin"), "rb"
         ).read()
-        appData = open(os.path.join(path, f"bluepad32-app.bin"), "rb").read()
+        appData = open(os.path.join(path, "bluepad32-app.bin"), "rb").read()
 
         # calculate the output binary size, app offset
         outputSize = 0x10000 + len(appData)

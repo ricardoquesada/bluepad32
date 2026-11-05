@@ -9,21 +9,12 @@ jobs:
   formatting-check:
     name: Formatting Check
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        path:
-          - check: 'src'
-            exclude: 'src/components/(cmd_nvs|cmd_system)'
-          - check: 'examples'
-            exclude: 'btstack_config.h'
-          - check: 'tests'
-            exclude: '^$'
     steps:
-    - uses: actions/checkout@v4
-    - name: Run clang-format style check for C/C++/Protobuf programs.
-      uses: jidicula/clang-format-action@v4.18.0
-      with:
-        clang-format-version: '22'
-        check-path: ${{ matrix.path['check'] }}
-        exclude-regex: ${{ matrix.path['exclude'] }}
-
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Run clang-format via pre-commit
+        uses: pre-commit/action@v3.0.1
+        with:
+          extra_args: clang-format --all-files --show-diff-on-failure

@@ -14,7 +14,7 @@ Here is a detailed list of how you can contribute to the project:
 | Word of mouth                         | Spread the word in social media, forums, chat, etc                                                                                                                                                                                                                | The more more, the merrier.                                                                                                                                                                  |
 | Filing bug reports / feature requests | [Issue tracker][issue_tracker] :simple-github:                                                                                                                                                                                                                    | Something not working? Let us know!                                                                                                                                                          |
 | Updating documentation                | [Docs][docs] :simple-readthedocs:                                                                                                                                                                                                                                 | Documentation is not clear? Outdated?<br>Help us improve it                                                                                                                                  |
-| Implementing features / fixing bugs   | [Send a Pull Request][merge_request] :simple-github:                                                                                                                                                                                                              | Did you find a bug? want to fix it? Great!                                                                                                                                                   | 
+| Implementing features / fixing bugs   | [Send a Pull Request][merge_request] :simple-github:                                                                                                                                                                                                              | Did you find a bug? want to fix it? Great!                                                                                                                                                   |
 | Coffee                                | [PayPal][paypal] :simple-paypal:, [Ko-fi][kofi] :simple-kofi:, or [Venmo][venmo] :simple-venmo:                                                                                                                                                                   | I don't drink much coffee,<br>but I enjoy a morning Hot Chocolate                                                                                                                            |
 | Donating hardware                     | [Wanted hardware][wanted_hardware]                                                                                                                                                                                                                                | We need gamepads, consoles and dev kits.<br>It could be used hardware, and/or not fully working.<br>Check [link for details][wanted_hardware].<br>If in doubt, email unijoysticle@gmail.com. |
 | Purchasing Unijoysticle boards        | <a href="https://www.tindie.com/stores/riq/?ref=offsite_badges&utm_source=sellers_riq&utm_medium=badges&utm_campaign=badge_medium"><img src="https://d2ss6ovg47m0r5.cloudfront.net/badges/tindie-mediums.png" alt="I sell on Tindie" width="150" height="78"></a> | Helps funding the project                                                                                                                                                                    |
@@ -53,12 +53,24 @@ ctest --test-dir examples/posix_imgui/build --output-on-failure -V
 
 ## Code Formatting
 
-Bluepad32 enforces `clang-format` on all C and C++ source code. Please format
-your code before creating a pull request:
+Bluepad32 uses [`pre-commit`](https://pre-commit.com/) to enforce `clang-format`
+on C/C++ source code, `ruff` on Python scripts, and standard repository hygiene
+checks. Install the Git hook once so checks run automatically on every commit:
 
 ```sh
-find src/components/bluepad32 examples tests \
+pre-commit install
+
+# Or run clang-format manually across all tracked C/C++ files:
+pre-commit run clang-format --all-files
+```
+
+If you don't use `pre-commit`, you can format C and C++ files directly with
+`clang-format`:
+
+```sh
+find src/components/bluepad32 src/main examples tests tools \
     \( -name '*.c' -o -name '*.h' -o -name '*.cpp' \) \
     ! -name 'btstack_config.h' \
+    ! -name '*.gatt.h' \
     -exec clang-format -i {} +
 ```
