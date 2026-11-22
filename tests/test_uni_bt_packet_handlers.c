@@ -934,6 +934,30 @@ TEST(bt_le_bonded_directed_reconnect) {
     le_device_db_remove(bond);
 }
 
+TEST(bt_le_bonded_reconnect_respects_type_filter) {
+    const uint8_t masks[] = {UNI_HID_DEVICE_TYPE_KEYBOARD, 0, UNI_HID_DEVICE_TYPE_ALL};
+    for (size_t i = 0; i < ARRAY_SIZE(masks); i++) {
+        reset_test_fixture();
+        uni_hid_device_set_allowed_types(masks[i]);
+        bd_addr_t addr = {0xde, 0x84, 0x37, 0xc5, 0x16, 0xf2};
+        uni_hid_device_t* d = uni_hid_device_create(addr);
+        ASSERT_NE(NULL, d);
+        d->hids_cid = 0x22;
+        d->conn.protocol = UNI_BT_CONN_PROTOCOL_BLE;
+        d->conn.handle = HCI_CON_HANDLE_INVALID;
+        // Known Stadia VID/PID recovers the gamepad class without an advertisement CoD.
+        uni_hid_device_set_vendor_id(d, 0x18d1);
+        uni_hid_device_set_product_id(d, 0x9400);
+        uint8_t event[] = {HCI_EVENT_GATTSERVICE_META, 6, GATTSERVICE_SUBEVENT_HID_SERVICE_CONNECTED,
+                           0x22, 0, ERROR_CODE_SUCCESS, HID_PROTOCOL_MODE_REPORT, 1};
+        uni_bt_le_on_hci_event_gattservice_meta(event, sizeof(event));
+        EXPECT_EQ(UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_GAMEPAD, d->cod);
+        EXPECT_EQ(masks[i] == UNI_HID_DEVICE_TYPE_ALL ? 1 : 0, g_connected_count);
+        EXPECT_EQ(masks[i] == UNI_HID_DEVICE_TYPE_ALL ? 1 : 0, g_ready_count);
+    }
+    reset_test_fixture();
+}
+
 TEST(bt_le_adv_report_64byte_name_overflow_regression) {
     reset_test_fixture();
     uint8_t pkt[256];
@@ -4226,6 +4250,7 @@ int main(void) {
     RUN_TEST(bt_sdp_pid_and_hid_query_result_chunks_and_truncation);
     RUN_TEST(bt_le_adv_report_64byte_name_overflow_regression);
     RUN_TEST(bt_le_bonded_directed_reconnect);
+    RUN_TEST(bt_le_bonded_reconnect_respects_type_filter);
     RUN_TEST(bt_bredr_l2cap_data_packet_strips_header_and_routes);
     RUN_TEST(bt_disconnect_cleans_up_device);
     RUN_TEST(bt_sdp_query_abort_on_disconnect_and_failure_b5);

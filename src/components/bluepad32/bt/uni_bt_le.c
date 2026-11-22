@@ -470,9 +470,10 @@ static void uni_hids_client_packet_handler(uint8_t packet_type, uint16_t channel
 #endif
 
                     if (device->cod == 0 &&
-                        !classify_bonded_hid(device, hids_cid,
-                                             gattservice_subevent_hid_service_connected_get_num_instances(packet))) {
-                        loge("Bonded BLE device has no unambiguous HID class; disconnecting\n");
+                        (!classify_bonded_hid(device, hids_cid,
+                                              gattservice_subevent_hid_service_connected_get_num_instances(packet)) ||
+                         !uni_hid_device_is_cod_supported(device->cod))) {
+                        loge("Bonded BLE device has an unknown or disabled HID class; disconnecting\n");
                         uni_hid_device_disconnect(device);
                         resume_scanning_hint();
                         break;
