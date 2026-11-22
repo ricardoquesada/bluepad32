@@ -40,15 +40,15 @@ Select your target platform:
 
 [pico_switch]: https://github.com/juan518munoz/PicoSwitch-WirelessGamepadAdapter
 
-[plat_arduino]: https://bluepad32.readthedocs.io/en/latest/plat_arduino
+[plat_arduino]: https://retro.moe/bluepad32/plat_arduino/
 
-[plat_custom]: https://bluepad32.readthedocs.io/en/latest/adding_new_platform
+[plat_custom]: https://retro.moe/bluepad32/adding_new_platform/
 
-[plat_esp32_espidf]: https://bluepad32.readthedocs.io/en/latest/plat_esp32
+[plat_esp32_espidf]: https://retro.moe/bluepad32/plat_esp32/
 
-[plat_unijoysticle]: https://bluepad32.readthedocs.io/en/latest/plat_unijoysticle
+[plat_unijoysticle]: https://retro.moe/bluepad32/plat_unijoysticle/
 
-[plat_picow_picosdk]: https://bluepad32.readthedocs.io/en/latest/plat_picow
+[plat_picow_picosdk]: https://retro.moe/bluepad32/plat_picow/
 
 [tello]: https://github.com/jsolderitsch/ESP32Controller
 
@@ -68,7 +68,7 @@ Select your target platform:
 * Integrates into third-party projects
 * Includes a cross-platform [BLE Companion App][ble-client-doc] ([source repository][ble-client-repo]) for wireless configuration and controller remapping
 
-[ble-client-doc]: https://bluepad32.readthedocs.io/en/latest/ble_client/
+[ble-client-doc]: https://retro.moe/bluepad32/ble_client/
 [ble-client-repo]: https://github.com/ricardoquesada/bluepad32-ble-client
 
 ## Supported controllers
@@ -100,11 +100,11 @@ controllers. **ESP32-S3**, **ESP32-C3**, **ESP32-C5**, **ESP32-C6**, and
 See [Supported gamepads][gamepads], [supported mice][mice], and
 [supported keyboards][keyboards].
 
-[gamepads]: https://bluepad32.readthedocs.io/en/latest/supported_gamepads/
+[gamepads]: https://retro.moe/bluepad32/supported_gamepads/
 
-[mice]: https://bluepad32.readthedocs.io/en/latest/supported_mice/
+[mice]: https://retro.moe/bluepad32/supported_mice/
 
-[keyboards]: https://bluepad32.readthedocs.io/en/latest/supported_keyboards/
+[keyboards]: https://retro.moe/bluepad32/supported_keyboards/
 
 ## Pre-compiled binaries
 
@@ -140,11 +140,11 @@ Find the Arduino examples at these links:
 
 ## Support
 
-* [Documentation][docs] [![Documentation Status](https://readthedocs.org/projects/bluepad32/badge/?version=latest)](https://bluepad32.readthedocs.io/?badge=latest)
+* [Documentation][docs] [![Docs](https://github.com/ricardoquesada/bluepad32/actions/workflows/docs.yaml/badge.svg)](https://retro.moe/bluepad32/)
     * [Linux / macOS (POSIX)](docs/plat_posix.md)
 * [Discord][discord] [![discord](https://img.shields.io/discord/775177861665521725.svg)](https://discord.gg/r5aMn6Cw5q)
 
-[docs]: https://bluepad32.readthedocs.io/
+[docs]: https://retro.moe/bluepad32/
 
 [discord]: https://discord.gg/r5aMn6Cw5q
 

@@ -173,11 +173,11 @@ Watch the demonstration video:
 Bluepad32 saves allowlist addresses and the enabled state in Non-Volatile
 Storage (NVS). These settings persist when you reset the ESP32.
 
-[arduino_esp_idf_template]: https://bluepad32.readthedocs.io/en/latest/plat_arduino/#option-b-use-esp-idf-template-project
+[arduino_esp_idf_template]: https://retro.moe/bluepad32/plat_arduino/#option-b-use-esp-idf-template-project
 
 [esp_idf_raw]: https://github.com/ricardoquesada/bluepad32/tree/main/examples/esp32
 
-[unijoysticle_doc]: https://bluepad32.readthedocs.io/en/latest/plat_unijoysticle/
+[unijoysticle_doc]: https://retro.moe/bluepad32/plat_unijoysticle/
 
 [uni_bt_allowlist.h]: https://github.com/ricardoquesada/bluepad32/blob/main/src/components/bluepad32/include/bt/uni_bt_allowlist.h
 
