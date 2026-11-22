@@ -149,7 +149,8 @@ static void init_from_cpu_task(void* pvParameters) {
     };
 
     gptimer_alarm_config_t alarm_config = {
-        .alarm_count = ONE_SECOND * 60,
+        .alarm_count = 0,
+        .reload_count = ONE_SECOND * 60,
         .flags.auto_reload_on_alarm = true,
     };
 
@@ -230,6 +231,12 @@ static void process_update(struct quadrature_state* q, int32_t delta) {
     int port_idx = (q - &s_quadratures[0][0]) / UNI_MOUSE_QUADRATURE_ENCODER_MAX;
     int encoder_idx = (q - &s_quadratures[0][0]) % UNI_MOUSE_QUADRATURE_ENCODER_MAX;
 
+    gptimer_alarm_config_t alarm_config = {
+        .alarm_count = 0,
+        .reload_count = count_value,
+        .flags.auto_reload_on_alarm = true,
+    };
+    gptimer_set_alarm_action(s_gptimers[port_idx][encoder_idx], &alarm_config);
     gptimer_set_raw_count(s_gptimers[port_idx][encoder_idx], count_value);
 }
 
