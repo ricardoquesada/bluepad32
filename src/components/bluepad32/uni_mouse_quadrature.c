@@ -149,7 +149,8 @@ static void init_from_cpu_task(void* pvParameters) {
     };
 
     gptimer_alarm_config_t alarm_config = {
-        .alarm_count = ONE_SECOND * 60,
+        .alarm_count = 0,
+        .reload_count = ONE_SECOND * 60,
         .flags.auto_reload_on_alarm = true,
     };
 
@@ -183,8 +184,10 @@ static void process_update(struct quadrature_state* q, int32_t delta) {
         // at least two phases (out of 4) of the quadrature will be run.
         // if (abs_delta < 2)
         //     abs_delta = 2;
-        /* Don't update the phase, it should start from the previous phase */
-        q->value = abs_delta;
+        // Don't update the phase, it should start from the previous phase.
+        // Don't assume BT mouse reports come regularly in 125Hz, we may need to continue
+        // to pulse at the current speed at for longer, hence * 10.
+        q->value = abs_delta * 10;
         q->dir = (delta < 0) ? PHASE_DIRECTION_NEG : PHASE_DIRECTION_POS;
 
         // SmallyMouse2 mentions that 100-120 reports are received per second.
@@ -230,6 +233,12 @@ static void process_update(struct quadrature_state* q, int32_t delta) {
     int port_idx = (q - &s_quadratures[0][0]) / UNI_MOUSE_QUADRATURE_ENCODER_MAX;
     int encoder_idx = (q - &s_quadratures[0][0]) % UNI_MOUSE_QUADRATURE_ENCODER_MAX;
 
+    gptimer_alarm_config_t alarm_config = {
+        .alarm_count = 0,
+        .reload_count = count_value,
+        .flags.auto_reload_on_alarm = true,
+    };
+    gptimer_set_alarm_action(s_gptimers[port_idx][encoder_idx], &alarm_config);
     gptimer_set_raw_count(s_gptimers[port_idx][encoder_idx], count_value);
 }
 
