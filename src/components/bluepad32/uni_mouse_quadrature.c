@@ -184,8 +184,10 @@ static void process_update(struct quadrature_state* q, int32_t delta) {
         // at least two phases (out of 4) of the quadrature will be run.
         // if (abs_delta < 2)
         //     abs_delta = 2;
-        /* Don't update the phase, it should start from the previous phase */
-        q->value = abs_delta;
+        // Don't update the phase, it should start from the previous phase.
+        // Don't assume BT mouse reports come regularly in 125Hz, we may need to continue
+        // to pulse at the current speed at for longer, hence * 10.
+        q->value = abs_delta * 10;
         q->dir = (delta < 0) ? PHASE_DIRECTION_NEG : PHASE_DIRECTION_POS;
 
         // SmallyMouse2 mentions that 100-120 reports are received per second.
