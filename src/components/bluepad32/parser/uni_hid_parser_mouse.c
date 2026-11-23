@@ -29,6 +29,7 @@ typedef struct __attribute((packed)) tank_mouse_input_report {
 typedef struct {
     float scale;
 } mouse_instance_t;
+
 _Static_assert(sizeof(mouse_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "Mouse intance too big");
 
 struct mouse_resolution {

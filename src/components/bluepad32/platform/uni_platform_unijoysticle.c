@@ -96,9 +96,9 @@
 
 // Data coming from gamepad axis is different from mouse deltas.
 // They need to be scaled down, otherwise the pointer moves too fast.
-#define GAMEPAD_AXIS_TO_MOUSE_DELTA_RATIO_SLOW   (100)
+#define GAMEPAD_AXIS_TO_MOUSE_DELTA_RATIO_SLOW (100)
 #define GAMEPAD_AXIS_TO_MOUSE_DELTA_RATIO_NORMAL (50)
-#define GAMEPAD_AXIS_TO_MOUSE_DELTA_RATIO_FAST   (25)
+#define GAMEPAD_AXIS_TO_MOUSE_DELTA_RATIO_FAST (25)
 
 enum {
     // Push buttons
@@ -1081,15 +1081,11 @@ static void process_gamepad(uni_hid_device_t* d, uni_gamepad_t* gp) {
             // - Left axis: easier to drag a window (move + button pressed)
             // ... but only if the axis have the same sign
             // Do: (x/ratio) + (rx/ratio), instead of "(x+rx)/ratio". We want to lose precision.
-            int32_t delta_ratio =
-                (gp->buttons & BUTTON_SHOULDER_R) != 0 ? GAMEPAD_AXIS_TO_MOUSE_DELTA_RATIO_SLOW :
-                (gp->buttons & BUTTON_SHOULDER_L) != 0 ? GAMEPAD_AXIS_TO_MOUSE_DELTA_RATIO_FAST :
-                GAMEPAD_AXIS_TO_MOUSE_DELTA_RATIO_NORMAL;
-            process_mouse(
-                d, ins->seat,
-                (gp->axis_x + gp->axis_rx) / delta_ratio,
-                (gp->axis_y + gp->axis_ry) / delta_ratio,
-                gp->buttons);
+            int32_t delta_ratio = (gp->buttons & BUTTON_SHOULDER_R) != 0   ? GAMEPAD_AXIS_TO_MOUSE_DELTA_RATIO_SLOW
+                                  : (gp->buttons & BUTTON_SHOULDER_L) != 0 ? GAMEPAD_AXIS_TO_MOUSE_DELTA_RATIO_FAST
+                                                                           : GAMEPAD_AXIS_TO_MOUSE_DELTA_RATIO_NORMAL;
+            process_mouse(d, ins->seat, (gp->axis_x + gp->axis_rx) / delta_ratio,
+                          (gp->axis_y + gp->axis_ry) / delta_ratio, gp->buttons);
             break;
         default:
             loge("unijoysticle: Unsupported emulation mode: %d\n", ins->gamepad_mode);

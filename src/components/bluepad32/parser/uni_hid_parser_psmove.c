@@ -48,6 +48,7 @@ typedef struct psmove_instance_s {
     uint8_t led_rgb[3];
     uint8_t rumble_magnitude;
 } psmove_instance_t;
+
 _Static_assert(sizeof(psmove_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "PSMove intance too big");
 
 // Decode a 16-bit raw IMU sensor word according to hardware revision:

@@ -70,6 +70,7 @@ typedef struct {
     uint8_t prev_rumble_weak_magnitude;
     uint8_t prev_rumble_strong_magnitude;
 } ds4_instance_t;
+
 _Static_assert(sizeof(ds4_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "DS4 instance too big");
 
 typedef struct __attribute((packed)) {
@@ -90,6 +91,7 @@ typedef struct __attribute((packed)) {
     uint8_t unk2[61];
     uint32_t crc32;
 } ds4_output_report_t;
+
 _Static_assert(sizeof(ds4_output_report_t) == 79, "Invalid DS4 output report size");
 
 // Used by gamepads that don't support 0x11 report, like 8BitDo Zero 2 in "macOS" mode.
@@ -160,6 +162,7 @@ typedef struct __attribute((packed)) {
     uint16_t unk_4;
     uint32_t crc32;
 } ds4_feature_report_firmware_version_t;
+
 _Static_assert(sizeof(ds4_feature_report_firmware_version_t) == DS4_FEATURE_REPORT_FIRMWARE_VERSION_SIZE,
                "Invalid size");
 
@@ -188,6 +191,7 @@ typedef struct __attribute((packed)) {
     int16_t acc_z_minus;
     char unk[2];
 } ds4_feature_report_calibration_t;
+
 _Static_assert(sizeof(ds4_feature_report_calibration_t) == DS4_FEATURE_REPORT_CALIBRATION_SIZE, "Invalid size");
 
 static ds4_instance_t* get_ds4_instance(uni_hid_device_t* d);

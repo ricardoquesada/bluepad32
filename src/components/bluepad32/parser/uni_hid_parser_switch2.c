@@ -206,6 +206,7 @@ typedef struct {
     sw2_cal_stick_t cal_left;
     sw2_cal_stick_t cal_right;
 } sw2_instance_t;
+
 _Static_assert(sizeof(sw2_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "sw2_instance_t too large");
 
 // GATT 128-bit Characteristic UUIDs (Little-Endian wire byte order; sw2_uuid128_matches checks both endiannesses)

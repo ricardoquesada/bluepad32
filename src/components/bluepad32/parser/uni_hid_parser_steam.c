@@ -184,6 +184,7 @@ typedef struct {
     bool pending_right_valid;
     bool write_in_flight;
 } steam_instance_t;
+
 _Static_assert(sizeof(steam_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "Steam instance too big");
 
 static void parse_buttons(struct uni_hid_device_s* d, const uint8_t* data);

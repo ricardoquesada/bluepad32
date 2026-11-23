@@ -118,6 +118,7 @@ typedef struct __attribute((packed)) {
     uint16_t controller_type;
     uint8_t controller_subtype;
 } compact_device_t;
+
 _Static_assert(sizeof(compact_device_t) == 16, "compact_device_t must be 16 bytes");
 
 // Per-client GATT connection state, notification subscription, and session authentication metadata.
@@ -131,6 +132,7 @@ typedef struct {
     btstack_timer_source_t service_changed_timer;
     btstack_context_callback_registration_t service_changed_indication_cb;
 } client_connection_t;
+
 static client_connection_t client_connections[MAX_NR_CLIENT_CONNECTIONS];
 
 // Active client connection slot index. Currently only a single concurrent BLE client

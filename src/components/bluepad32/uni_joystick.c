@@ -247,6 +247,7 @@ static void to_joy_from_keyboard(const uni_keyboard_t* kb, uni_joystick_t* out_j
         out_joy1->button3 |= (kb->modifiers & UNI_KEYBOARD_MODIFIER_RIGHT_SHIFT) ? 1 : 0;
     }
 }
+
 void uni_joy_to_single_joy_from_keyboard(const uni_keyboard_t* kb, uni_joystick_t* out_joy) {
     to_joy_from_keyboard(kb, out_joy, NULL);
 }

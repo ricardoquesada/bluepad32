@@ -58,6 +58,7 @@ typedef struct ds3_instance_s {
     uint8_t player_leds;  // bitmap of LEDs
     bool clone_controller;
 } ds3_instance_t;
+
 _Static_assert(sizeof(ds3_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "DS3 instance too big");
 
 // As defined here:
@@ -126,6 +127,7 @@ typedef struct __attribute((packed)) {
     uint16_t accel_z;
     uint16_t gyro_x;
 } ds3_input_report_t;
+
 _Static_assert(sizeof(ds3_input_report_t) == 49, "Invalid DS3 input report size");
 
 static ds3_instance_t* get_ds3_instance(uni_hid_device_t* d);

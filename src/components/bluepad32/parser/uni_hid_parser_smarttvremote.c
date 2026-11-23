@@ -20,6 +20,7 @@ void uni_hid_parser_smarttvremote_init_report(uni_hid_device_t* d) {
 
     ctl->klass = UNI_CONTROLLER_CLASS_GAMEPAD;
 }
+
 void uni_hid_parser_smarttvremote_parse_usage(uni_hid_device_t* d,
                                               const hid_globals_t* globals,
                                               uint16_t usage_page,

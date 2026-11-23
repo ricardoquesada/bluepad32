@@ -76,12 +76,14 @@ enum {
  */
 typedef struct {
     uni_controller_class_t klass;
+
     union {
         uni_gamepad_t gamepad;
         uni_mouse_t mouse;
         uni_balance_board_t balance_board;
         uni_keyboard_t keyboard;
     };
+
     uint8_t battery;  ///< 0: battery report not available, 1: empty, 255: full
 } uni_controller_t;
 

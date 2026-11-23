@@ -125,6 +125,7 @@ uni_property_value_t uni_property_get(uni_property_idx_t idx);
  * @brief Dumps all properties and their current values to the log.
  */
 void uni_property_dump_all(void);
+
 __attribute__((deprecated("Use `uni_property_dump_all` instead"))) static inline void uni_property_list_all(void) {
     uni_property_dump_all();
 }

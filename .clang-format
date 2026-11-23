@@ -1,5 +1,14 @@
-# Defines the Chromium style for automatic reformatting.
-# http://clang.llvm.org/docs/ClangFormatStyleOptions.html
+# Defines the Bluepad32 C/C++ formatting style (Zephyr RTOS C baseline with
+# Bluepad32's formatting exceptions: 4-space indent, 120-col limit, left-aligned
+# pointers, attached braces, indented case labels, left-aligned escaped
+# newlines, and single-line control-statement braces left unspecified (both
+# braced and unbraced accepted)).
+# https://clang.llvm.org/docs/ClangFormatStyleOptions.html
 BasedOnStyle: Chromium
 ColumnLimit: 120
 IndentWidth: 4
+PointerAlignment: Left
+AllowShortFunctionsOnASingleLine: Empty
+RemoveSemicolon: true
+InsertNewlineAtEOF: true
+SeparateDefinitionBlocks: Always

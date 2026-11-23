@@ -67,6 +67,7 @@ typedef enum {
 typedef struct icade_instance_s {
     icade_model_t model;  // ICADE_CABINET or ICADE_8BITTY
 } icade_instance_t;
+
 _Static_assert(sizeof(icade_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "iCade intance too big");
 
 static icade_instance_t* get_icade_instance(uni_hid_device_t* d);

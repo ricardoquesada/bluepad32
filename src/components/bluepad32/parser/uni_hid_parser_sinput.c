@@ -126,6 +126,7 @@ typedef struct sinput_instance_s {
     float accel_scale;
     float gyro_scale;
 } sinput_instance_t;
+
 _Static_assert(sizeof(sinput_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "SInput instance too big");
 
 static sinput_instance_t* get_sinput_instance(uni_hid_device_t* d) {

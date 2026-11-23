@@ -224,6 +224,7 @@ static void cmd_callback(void* context) {
             break;
     }
 }
+
 static btstack_context_callback_registration_t* get_next_callback_registration(void) {
     cmd_callback_idx = (cmd_callback_idx + 1) % CMD_CALLBACK_MAX;
     return &cmd_callback_registration[cmd_callback_idx];

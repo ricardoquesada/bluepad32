@@ -117,6 +117,7 @@ typedef struct {
     btstack_timer_source_t conn_timer;
     btstack_timer_source_t rumble_timer;
 } steam_triton_instance_t;
+
 _Static_assert(sizeof(steam_triton_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "steam_triton_instance_t too large");
 
 static steam_triton_instance_t* get_triton_instance(struct uni_hid_device_s* d) {

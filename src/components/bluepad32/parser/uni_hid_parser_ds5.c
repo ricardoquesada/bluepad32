@@ -105,6 +105,7 @@ typedef struct {
     bool prev_touch_active;
 
 } ds5_instance_t;
+
 _Static_assert(sizeof(ds5_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "DS5 instance too big");
 
 typedef struct __attribute((packed)) {
@@ -189,6 +190,7 @@ typedef struct __attribute((packed)) {
     char unk_2[14];
     uint32_t crc32;
 } ds5_feature_report_firmware_version_t;
+
 _Static_assert(sizeof(ds5_feature_report_firmware_version_t) == DS5_FEATURE_REPORT_FIRMWARE_VERSION_SIZE,
                "Invalid size");
 
@@ -213,6 +215,7 @@ typedef struct __attribute((packed)) {
     int16_t acc_z_minus;
     char unk[6];
 } ds5_feature_report_calibration_t;
+
 _Static_assert(sizeof(ds5_feature_report_calibration_t) == DS5_FEATURE_REPORT_CALIBRATION_SIZE, "Invalid size");
 
 static ds5_instance_t* get_ds5_instance(uni_hid_device_t* d);
