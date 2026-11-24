@@ -105,7 +105,7 @@ void uni_hid_parser_8bitdo_parse_usage(uni_hid_device_t* d,
                     if (value)
                         ctl->gamepad.buttons |= BUTTON_X;
                     break;
-                case 0x06:  // No used
+                case 0x06:  // Unused
                     if (value)
                         logi("8BitDo: Unexpected PAGE_BUTTON usage=0x06\n");
                     break;
@@ -227,6 +227,7 @@ void uni_hid_parser_8bitdo_parse_usage(uni_hid_device_t* d,
                 default:
                     if (value)
                         logi("8BitDo: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
+                    break;
             }
             break;
         // unknown usage page

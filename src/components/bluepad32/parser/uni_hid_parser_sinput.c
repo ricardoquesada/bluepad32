@@ -133,6 +133,7 @@ static sinput_instance_t* get_sinput_instance(uni_hid_device_t* d) {
     return (sinput_instance_t*)&d->parser_data[0];
 }
 
+// Forward-declared because on_pump() reschedules schedule_pump().
 static void schedule_pump(uni_hid_device_t* d, uint32_t delay_ms);
 
 static void on_pump(btstack_timer_source_t* ts) {

@@ -161,14 +161,14 @@ bool uni_bt_allowlist_is_enabled(void) {
 }
 
 void uni_bt_allowlist_set_enabled(bool enabled) {
+    if (enabled == enforced)
+        return;
+
+    enforced = enabled;
+
     uni_property_value_t val;
-
-    if (enabled != enforced) {
-        enforced = enabled;
-
-        val.u8 = enforced;
-        uni_property_set(UNI_PROPERTY_IDX_ALLOWLIST_ENABLED, val);
-    }
+    val.u8 = enforced;
+    uni_property_set(UNI_PROPERTY_IDX_ALLOWLIST_ENABLED, val);
 }
 
 void uni_bt_allowlist_init(void) {

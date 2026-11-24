@@ -32,7 +32,7 @@
 static uni_gamepad_mappings_t map = UNI_GAMEPAD_DEFAULT_MAPPINGS_INIT;
 static uni_gamepad_mappings_type_t mappings_type;
 
-static struct {
+static const struct {
     uni_controller_type_t type;
     const char* name;
 } controller_names[] = {

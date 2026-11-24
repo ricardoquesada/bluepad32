@@ -473,6 +473,184 @@ static void uni_device_information_packet_handler(uint8_t packet_type,
     uni_bt_le_on_hci_event_gattservice_meta(packet, size);
 }
 
+/* HCI packet handler
+ *
+ * text The SM packet handler receives Security Manager Events required for
+ * pairing. It also receives events generated during Identity Resolving see
+ * Listing SMPacketHandler.
+ */
+static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
+    bd_addr_t addr;
+    uni_hid_device_t* device;
+    uint8_t status;
+    uint8_t type;
+    hci_con_handle_t con_handle = UNI_BT_CONN_HANDLE_INVALID;
+    bool request_device_information_query = false;
+
+    ARG_UNUSED(channel);
+    ARG_UNUSED(size);
+
+    if (packet_type != HCI_EVENT_PACKET) {
+        loge("uni_sm_packet_handler: unsupported packet type: %#x\n", packet_type);
+        return;
+    }
+
+    type = hci_event_packet_get_type(packet);
+    switch (type) {
+        case SM_EVENT_JUST_WORKS_REQUEST:
+            logi("Just works requested\n");
+            sm_just_works_confirm(sm_event_just_works_request_get_handle(packet));
+            break;
+        case SM_EVENT_NUMERIC_COMPARISON_REQUEST:
+            logi("Confirming numeric comparison: %" PRIu32 "\n",
+                 sm_event_numeric_comparison_request_get_passkey(packet));
+            sm_numeric_comparison_confirm(sm_event_passkey_display_number_get_handle(packet));
+            break;
+        case SM_EVENT_PASSKEY_DISPLAY_NUMBER:
+            logi("Display Passkey: %" PRIu32 "\n", sm_event_passkey_display_number_get_passkey(packet));
+            break;
+        case SM_EVENT_IDENTITY_RESOLVING_STARTED:
+            logi("SM_EVENT_IDENTITY_RESOLVING_STARTED\n");
+            break;
+        case SM_EVENT_IDENTITY_RESOLVING_FAILED:
+            sm_event_identity_created_get_address(packet, addr);
+            logi("Identity resolving failed for %s\n\n", bd_addr_to_str(addr));
+            break;
+        case SM_EVENT_IDENTITY_RESOLVING_SUCCEEDED:
+            sm_event_identity_resolving_succeeded_get_identity_address(packet, addr);
+            logi("Identity resolved: type %u address %s\n",
+                 sm_event_identity_resolving_succeeded_get_identity_addr_type(packet), bd_addr_to_str(addr));
+            break;
+        case SM_EVENT_PAIRING_STARTED:
+            logi("SM_EVENT_PAIRING_STARTED\n");
+            break;
+        case SM_EVENT_IDENTITY_CREATED:
+            sm_event_identity_created_get_identity_address(packet, addr);
+            logi("Identity created: type %u address %s\n", sm_event_identity_created_get_identity_addr_type(packet),
+                 bd_addr_to_str(addr));
+            break;
+        case SM_EVENT_REENCRYPTION_STARTED:
+            sm_event_reencryption_started_get_address(packet, addr);
+            logi("Bonding information exists for addr type %u, identity addr %s -> start re-encryption\n",
+                 sm_event_reencryption_started_get_addr_type(packet), bd_addr_to_str(addr));
+            break;
+        case SM_EVENT_REENCRYPTION_COMPLETE:
+            con_handle = sm_event_reencryption_complete_get_handle(packet);
+            if (gap_get_role(con_handle) == HCI_ROLE_SLAVE)
+                break;
+            device = uni_hid_device_get_instance_for_connection_handle(con_handle);
+            switch (sm_event_reencryption_complete_get_status(packet)) {
+                case ERROR_CODE_SUCCESS:
+                    logi("Re-encryption complete, success\n");
+                    if (device && uni_hid_parser_switch2_is_device(device)) {
+                        logi("Switch2: re-encryption complete; skipping DIS query\n");
+                    } else {
+                        request_device_information_query = true;
+                    }
+                    break;
+                case ERROR_CODE_CONNECTION_TIMEOUT:
+                    logi("Re-encryption failed, timeout\n");
+                    hog_disconnect(con_handle);
+                    break;
+                case ERROR_CODE_REMOTE_USER_TERMINATED_CONNECTION:
+                    logi("Re-encryption failed, disconnected\n");
+                    hog_disconnect(con_handle);
+                    break;
+                case ERROR_CODE_PIN_OR_KEY_MISSING:
+                    logi("Re-encryption failed, bonding information missing\n\n");
+                    logi("Assuming remote lost bonding information\n");
+                    logi("Deleting local bonding information and start new pairing...\n");
+                    sm_event_reencryption_complete_get_address(packet, addr);
+                    type = sm_event_reencryption_complete_get_addr_type(packet);
+                    gap_delete_bonding(type, addr);
+                    if (device && uni_hid_parser_switch2_is_device(device)) {
+                        sm_set_authentication_requirements(0);
+                    }
+                    sm_request_pairing(sm_event_reencryption_complete_get_handle(packet));
+                    break;
+                default:
+                    break;
+            }
+            break;
+        case SM_EVENT_PAIRING_COMPLETE:
+            con_handle = sm_event_pairing_complete_get_handle(packet);
+            if (gap_get_role(con_handle) == HCI_ROLE_SLAVE)
+                break;
+            sm_event_pairing_complete_get_address(packet, addr);
+            device = uni_hid_device_get_instance_for_address(addr);
+            if (!device) {
+                loge("SM_EVENT_PAIRING_COMPLETE: Invalid device for addr %s\n", bd_addr_to_str(addr));
+                hog_disconnect(con_handle);
+                break;
+            }
+
+            status = sm_event_pairing_complete_get_status(packet);
+            switch (status) {
+                case ERROR_CODE_SUCCESS:
+                    logi("Pairing complete, success\n");
+                    if (just_works_fallback_con_handle == con_handle) {
+                        just_works_fallback_con_handle = UNI_BT_CONN_HANDLE_INVALID;
+                        just_works_fallback_tried = false;
+                    }
+                    if (uni_hid_parser_switch2_is_device(device)) {
+                        logi("Switch2: SMP pairing complete; skipping DIS query\n");
+                    } else {
+                        request_device_information_query = true;
+                    }
+                    break;
+                case ERROR_CODE_CONNECTION_TIMEOUT:
+                    logi("Pairing failed, timeout\n");
+                    break;
+                case ERROR_CODE_REMOTE_USER_TERMINATED_CONNECTION:
+                    logi("Pairing failed, disconnected\n");
+                    break;
+                case ERROR_CODE_AUTHENTICATION_FAILURE: {
+                    uint8_t reason = sm_event_pairing_complete_get_reason(packet);
+                    logi("Pairing failed, reason = %u\n", reason);
+                    if (uni_hid_parser_switch2_is_device(device)) {
+                        logi("Switch2: SMP pairing failed, disconnecting\n");
+                        hog_disconnect(device->conn.handle);
+                        break;
+                    }
+                    if (reason == SM_REASON_AUTHENTHICATION_REQUIREMENTS) {
+                        if (just_works_fallback_con_handle != con_handle || !just_works_fallback_tried) {
+                            just_works_fallback_con_handle = con_handle;
+                            just_works_fallback_tried = true;
+                            logi("Retrying pairing with Just Works (no bonding)\n");
+                            sm_set_authentication_requirements(0);
+                            sm_request_pairing(con_handle);
+                            break;
+                        }
+                        logi("Just Works retry also failed, disconnecting\n");
+                        hog_disconnect(device->conn.handle);
+                    }
+                    break;
+                }
+                default:
+                    loge("Unknown paring status: %#x\n", status);
+                    break;
+            }
+            break;
+
+        default:
+            loge("Unknown SM packet type: %#x\n", type);
+            break;
+    }
+
+    if (request_device_information_query) {
+        if (con_handle == UNI_BT_CONN_HANDLE_INVALID) {
+            // Should not happen.
+            loge("Error: Invalid conn_handle: %d\n", con_handle);
+            return;
+        }
+        logi("Requesting device information\n");
+        status = device_information_service_client_query(con_handle, uni_device_information_packet_handler);
+        if (status != ERROR_CODE_SUCCESS) {
+            loge("Failed to set device information client: %#x\n", status);
+        }
+    }
+}
+
 void uni_bt_le_on_hci_event_gattservice_meta(const uint8_t* packet, uint16_t size) {
     uint8_t code;
     uint8_t status;
@@ -717,184 +895,6 @@ void uni_bt_le_on_hci_event_gattservice_meta(const uint8_t* packet, uint16_t siz
     }
 }
 
-/* HCI packet handler
- *
- * text The SM packet handler receives Security Manager Events required for
- * pairing. It also receives events generated during Identity Resolving see
- * Listing SMPacketHandler.
- */
-static void uni_sm_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
-    bd_addr_t addr;
-    uni_hid_device_t* device;
-    uint8_t status;
-    uint8_t type;
-    hci_con_handle_t con_handle = UNI_BT_CONN_HANDLE_INVALID;
-    bool request_device_information_query = false;
-
-    ARG_UNUSED(channel);
-    ARG_UNUSED(size);
-
-    if (packet_type != HCI_EVENT_PACKET) {
-        loge("uni_sm_packet_handler: unsupported packet type: %#x\n", packet_type);
-        return;
-    }
-
-    type = hci_event_packet_get_type(packet);
-    switch (type) {
-        case SM_EVENT_JUST_WORKS_REQUEST:
-            logi("Just works requested\n");
-            sm_just_works_confirm(sm_event_just_works_request_get_handle(packet));
-            break;
-        case SM_EVENT_NUMERIC_COMPARISON_REQUEST:
-            logi("Confirming numeric comparison: %" PRIu32 "\n",
-                 sm_event_numeric_comparison_request_get_passkey(packet));
-            sm_numeric_comparison_confirm(sm_event_passkey_display_number_get_handle(packet));
-            break;
-        case SM_EVENT_PASSKEY_DISPLAY_NUMBER:
-            logi("Display Passkey: %" PRIu32 "\n", sm_event_passkey_display_number_get_passkey(packet));
-            break;
-        case SM_EVENT_IDENTITY_RESOLVING_STARTED:
-            logi("SM_EVENT_IDENTITY_RESOLVING_STARTED\n");
-            break;
-        case SM_EVENT_IDENTITY_RESOLVING_FAILED:
-            sm_event_identity_created_get_address(packet, addr);
-            logi("Identity resolving failed for %s\n\n", bd_addr_to_str(addr));
-            break;
-        case SM_EVENT_IDENTITY_RESOLVING_SUCCEEDED:
-            sm_event_identity_resolving_succeeded_get_identity_address(packet, addr);
-            logi("Identity resolved: type %u address %s\n",
-                 sm_event_identity_resolving_succeeded_get_identity_addr_type(packet), bd_addr_to_str(addr));
-            break;
-        case SM_EVENT_PAIRING_STARTED:
-            logi("SM_EVENT_PAIRING_STARTED\n");
-            break;
-        case SM_EVENT_IDENTITY_CREATED:
-            sm_event_identity_created_get_identity_address(packet, addr);
-            logi("Identity created: type %u address %s\n", sm_event_identity_created_get_identity_addr_type(packet),
-                 bd_addr_to_str(addr));
-            break;
-        case SM_EVENT_REENCRYPTION_STARTED:
-            sm_event_reencryption_started_get_address(packet, addr);
-            logi("Bonding information exists for addr type %u, identity addr %s -> start re-encryption\n",
-                 sm_event_reencryption_started_get_addr_type(packet), bd_addr_to_str(addr));
-            break;
-        case SM_EVENT_REENCRYPTION_COMPLETE:
-            con_handle = sm_event_reencryption_complete_get_handle(packet);
-            if (gap_get_role(con_handle) == HCI_ROLE_SLAVE)
-                break;
-            device = uni_hid_device_get_instance_for_connection_handle(con_handle);
-            switch (sm_event_reencryption_complete_get_status(packet)) {
-                case ERROR_CODE_SUCCESS:
-                    logi("Re-encryption complete, success\n");
-                    if (device && uni_hid_parser_switch2_is_device(device)) {
-                        logi("Switch2: re-encryption complete; skipping DIS query\n");
-                    } else {
-                        request_device_information_query = true;
-                    }
-                    break;
-                case ERROR_CODE_CONNECTION_TIMEOUT:
-                    logi("Re-encryption failed, timeout\n");
-                    hog_disconnect(con_handle);
-                    break;
-                case ERROR_CODE_REMOTE_USER_TERMINATED_CONNECTION:
-                    logi("Re-encryption failed, disconnected\n");
-                    hog_disconnect(con_handle);
-                    break;
-                case ERROR_CODE_PIN_OR_KEY_MISSING:
-                    logi("Re-encryption failed, bonding information missing\n\n");
-                    logi("Assuming remote lost bonding information\n");
-                    logi("Deleting local bonding information and start new pairing...\n");
-                    sm_event_reencryption_complete_get_address(packet, addr);
-                    type = sm_event_reencryption_complete_get_addr_type(packet);
-                    gap_delete_bonding(type, addr);
-                    if (device && uni_hid_parser_switch2_is_device(device)) {
-                        sm_set_authentication_requirements(0);
-                    }
-                    sm_request_pairing(sm_event_reencryption_complete_get_handle(packet));
-                    break;
-                default:
-                    break;
-            }
-            break;
-        case SM_EVENT_PAIRING_COMPLETE:
-            con_handle = sm_event_pairing_complete_get_handle(packet);
-            if (gap_get_role(con_handle) == HCI_ROLE_SLAVE)
-                break;
-            sm_event_pairing_complete_get_address(packet, addr);
-            device = uni_hid_device_get_instance_for_address(addr);
-            if (!device) {
-                loge("SM_EVENT_PAIRING_COMPLETE: Invalid device for addr %s\n", bd_addr_to_str(addr));
-                hog_disconnect(con_handle);
-                break;
-            }
-
-            status = sm_event_pairing_complete_get_status(packet);
-            switch (status) {
-                case ERROR_CODE_SUCCESS:
-                    logi("Pairing complete, success\n");
-                    if (just_works_fallback_con_handle == con_handle) {
-                        just_works_fallback_con_handle = UNI_BT_CONN_HANDLE_INVALID;
-                        just_works_fallback_tried = false;
-                    }
-                    if (uni_hid_parser_switch2_is_device(device)) {
-                        logi("Switch2: SMP pairing complete; skipping DIS query\n");
-                    } else {
-                        request_device_information_query = true;
-                    }
-                    break;
-                case ERROR_CODE_CONNECTION_TIMEOUT:
-                    logi("Pairing failed, timeout\n");
-                    break;
-                case ERROR_CODE_REMOTE_USER_TERMINATED_CONNECTION:
-                    logi("Pairing failed, disconnected\n");
-                    break;
-                case ERROR_CODE_AUTHENTICATION_FAILURE: {
-                    uint8_t reason = sm_event_pairing_complete_get_reason(packet);
-                    logi("Pairing failed, reason = %u\n", reason);
-                    if (uni_hid_parser_switch2_is_device(device)) {
-                        logi("Switch2: SMP pairing failed, disconnecting\n");
-                        hog_disconnect(device->conn.handle);
-                        break;
-                    }
-                    if (reason == SM_REASON_AUTHENTHICATION_REQUIREMENTS) {
-                        if (just_works_fallback_con_handle != con_handle || !just_works_fallback_tried) {
-                            just_works_fallback_con_handle = con_handle;
-                            just_works_fallback_tried = true;
-                            logi("Retrying pairing with Just Works (no bonding)\n");
-                            sm_set_authentication_requirements(0);
-                            sm_request_pairing(con_handle);
-                            break;
-                        }
-                        logi("Just Works retry also failed, disconnecting\n");
-                        hog_disconnect(device->conn.handle);
-                    }
-                    break;
-                }
-                default:
-                    loge("Unknown paring status: %#x\n", status);
-                    break;
-            }
-            break;
-
-        default:
-            loge("Unknown SM packet type: %#x\n", type);
-            break;
-    }
-
-    if (request_device_information_query) {
-        if (con_handle == UNI_BT_CONN_HANDLE_INVALID) {
-            // Should not happen.
-            loge("Error: Invalid conn_handle: %d\n", con_handle);
-            return;
-        }
-        logi("Requesting device information\n");
-        status = device_information_service_client_query(con_handle, uni_device_information_packet_handler);
-        if (status != ERROR_CODE_SUCCESS) {
-            loge("Failed to set device information client: %#x\n", status);
-        }
-    }
-}
-
 void uni_bt_le_on_hci_event_le_meta(const uint8_t* packet, uint16_t size) {
     uni_hid_device_t* device;
     hci_con_handle_t con_handle;
@@ -1008,7 +1008,7 @@ void uni_bt_le_on_hci_event_encryption_change(const uint8_t* packet, uint16_t si
     // This event is also triggered by Classic, and might crash the stack.
     // Real case: Connect a Wii, disconnect it, and try re-connection
     if (device->conn.protocol != UNI_BT_CONN_PROTOCOL_BLE)
-        // Abort on non BLE connections
+        // Abort on non-BLE connections.
         return;
 
     logi("Connection encrypted: %u\n", hci_event_encryption_change_get_encryption_enabled(packet));

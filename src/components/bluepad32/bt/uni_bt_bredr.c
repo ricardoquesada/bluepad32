@@ -60,6 +60,97 @@ static void inquiry_remote_name_timeout_callback(btstack_timer_source_t* ts) {
     uni_bt_bredr_process_fsm(d);
 }
 
+static void process_fsm_device_discovered(uni_hid_device_t* d) {
+    if (d->conn.clock_offset & UNI_BT_CLOCK_OFFSET_VALID)
+        gap_remote_name_request(d->conn.btaddr, d->conn.page_scan_repetition_mode, d->conn.clock_offset);
+    else
+        gap_remote_name_request(d->conn.btaddr, 0x02, 0x0000);
+
+    uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_REMOTE_NAME_INQUIRED);
+
+    // Some devices might not respond to the name request
+    btstack_run_loop_set_timer(&d->inquiry_remote_name_timer, INQUIRY_REMOTE_NAME_TIMEOUT_MS);
+    btstack_run_loop_set_timer_context(&d->inquiry_remote_name_timer, d);
+    btstack_run_loop_set_timer_handler(&d->inquiry_remote_name_timer, &inquiry_remote_name_timeout_callback);
+    btstack_run_loop_add_timer(&d->inquiry_remote_name_timer);
+}
+
+static void process_fsm_remote_name_fetched(uni_hid_device_t* d) {
+    // TODO: Move comparison to DS4 code
+    if (strcmp("Wireless Controller", d->name) == 0) {
+        logi("uni_bt_process_fsm: gamepad is 'Wireless Controller', starting SDP query\n");
+        d->sdp_query_type = SDP_QUERY_BEFORE_CONNECT;
+        uni_bt_sdp_query_start(d);
+        /* 'd' might be invalid */
+        return;
+    }
+
+    if (uni_hid_device_guess_controller_type_from_name(d, d->name)) {
+        logi("uni_bt_process_fsm: Guess controller from name\n");
+        d->sdp_query_type = SDP_QUERY_NOT_NEEDED;
+        uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_FETCHED);
+    }
+
+    if (uni_hid_device_is_incoming(d)) {
+        if (d->sdp_query_type == SDP_QUERY_NOT_NEEDED) {
+            logi("uni_bt_process_fsm: Device is ready\n");
+            uni_hid_device_set_ready(d);
+        } else {
+            logi("uni_bt_process_fsm: starting SDP query\n");
+            uni_bt_sdp_query_start(d);
+            /* 'd' might be invalid */
+        }
+        return;
+    }
+    // else, not an incoming connection
+    logi("uni_bt_process_fsm: Starting L2CAP connection\n");
+    l2cap_create_control_connection(d);
+}
+
+static void process_fsm_sdp_hid_descriptor_fetched(uni_hid_device_t* d) {
+    if (uni_hid_device_is_incoming(d)) {
+        uni_hid_device_set_ready(d);
+        return;
+    }
+
+    // Not incoming
+    if (d->sdp_query_type == SDP_QUERY_BEFORE_CONNECT) {
+        logi("uni_bt_process_fsm: Starting L2CAP connection\n");
+        l2cap_create_control_connection(d);
+    } else {
+        logi("uni_bt_process_fsm: Device is ready\n");
+        uni_hid_device_set_ready(d);
+    }
+}
+
+static void process_fsm_l2cap_connected(uni_hid_device_t* d, uni_bt_conn_state_t state) {
+    if (uni_hid_device_is_incoming(d))
+        return;
+
+    if (state == UNI_BT_CONN_STATE_L2CAP_CONTROL_CONNECTED) {
+        logi("uni_bt_process_fsm: Create L2CAP interrupt connection\n");
+        l2cap_create_interrupt_connection(d);
+        return;
+    }
+
+    if (state == UNI_BT_CONN_STATE_L2CAP_INTERRUPT_CONNECTED) {
+        switch (d->sdp_query_type) {
+            case SDP_QUERY_BEFORE_CONNECT:
+            case SDP_QUERY_NOT_NEEDED:
+                logi("uni_bt_process_fsm: Device is ready\n");
+                uni_hid_device_set_ready(d);
+                break;
+            case SDP_QUERY_AFTER_CONNECT:
+                logi("uni_bt_process_fsm: starting SDP query\n");
+                uni_bt_sdp_query_start(d);
+                /* 'd' might be invalid */
+                break;
+            default:
+                break;
+        }
+    }
+}
+
 void uni_bt_bredr_scan_start(void) {
     uint8_t status;
 
@@ -86,7 +177,7 @@ void uni_bt_bredr_disconnect(uni_hid_device_t* d) {
         gap_disconnect(d->conn.handle);
         d->conn.handle = UNI_BT_CONN_HANDLE_INVALID;
     } else {
-        // After calling gap_disconnect() we should not call l2cap_disonnect(),
+        // After calling gap_disconnect() we should not call l2cap_disconnect(),
         // since gap_disconnect() will take care of it.
         // But if the handle is not present, then call it manually.
         if (d->conn.control_cid) {
@@ -196,100 +287,7 @@ bool uni_bt_bredr_is_enabled(void) {
     return bt_bredr_enabled;
 }
 
-static void process_fsm_device_discovered(uni_hid_device_t* d) {
-    if (d->conn.clock_offset & UNI_BT_CLOCK_OFFSET_VALID)
-        gap_remote_name_request(d->conn.btaddr, d->conn.page_scan_repetition_mode, d->conn.clock_offset);
-    else
-        gap_remote_name_request(d->conn.btaddr, 0x02, 0x0000);
-
-    uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_REMOTE_NAME_INQUIRED);
-
-    // Some devices might not respond to the name request
-    btstack_run_loop_set_timer(&d->inquiry_remote_name_timer, INQUIRY_REMOTE_NAME_TIMEOUT_MS);
-    btstack_run_loop_set_timer_context(&d->inquiry_remote_name_timer, d);
-    btstack_run_loop_set_timer_handler(&d->inquiry_remote_name_timer, &inquiry_remote_name_timeout_callback);
-    btstack_run_loop_add_timer(&d->inquiry_remote_name_timer);
-}
-
-static void process_fsm_remote_name_fetched(uni_hid_device_t* d) {
-    // TODO: Move comparison to DS4 code
-    if (strcmp("Wireless Controller", d->name) == 0) {
-        logi("uni_bt_process_fsm: gamepad is 'Wireless Controller', starting SDP query\n");
-        d->sdp_query_type = SDP_QUERY_BEFORE_CONNECT;
-        uni_bt_sdp_query_start(d);
-        /* 'd' might be invalid */
-        return;
-    }
-
-    if (uni_hid_device_guess_controller_type_from_name(d, d->name)) {
-        logi("uni_bt_process_fsm: Guess controller from name\n");
-        d->sdp_query_type = SDP_QUERY_NOT_NEEDED;
-        uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_SDP_HID_DESCRIPTOR_FETCHED);
-    }
-
-    if (uni_hid_device_is_incoming(d)) {
-        if (d->sdp_query_type == SDP_QUERY_NOT_NEEDED) {
-            logi("uni_bt_process_fsm: Device is ready\n");
-            uni_hid_device_set_ready(d);
-        } else {
-            logi("uni_bt_process_fsm: starting SDP query\n");
-            uni_bt_sdp_query_start(d);
-            /* 'd' might be invalid */
-        }
-        return;
-    }
-    // else, not an incoming connection
-    logi("uni_bt_process_fsm: Starting L2CAP connection\n");
-    l2cap_create_control_connection(d);
-}
-
-static void process_fsm_sdp_hid_descriptor_fetched(uni_hid_device_t* d) {
-    if (uni_hid_device_is_incoming(d)) {
-        uni_hid_device_set_ready(d);
-        return;
-    }
-
-    // Not incoming
-    if (d->sdp_query_type == SDP_QUERY_BEFORE_CONNECT) {
-        logi("uni_bt_process_fsm: Starting L2CAP connection\n");
-        l2cap_create_control_connection(d);
-    } else {
-        logi("uni_bt_process_fsm: Device is ready\n");
-        uni_hid_device_set_ready(d);
-    }
-}
-
-static void process_fsm_l2cap_connected(uni_hid_device_t* d, uni_bt_conn_state_t state) {
-    if (uni_hid_device_is_incoming(d))
-        return;
-
-    if (state == UNI_BT_CONN_STATE_L2CAP_CONTROL_CONNECTED) {
-        logi("uni_bt_process_fsm: Create L2CAP interrupt connection\n");
-        l2cap_create_interrupt_connection(d);
-        return;
-    }
-
-    if (state == UNI_BT_CONN_STATE_L2CAP_INTERRUPT_CONNECTED) {
-        switch (d->sdp_query_type) {
-            case SDP_QUERY_BEFORE_CONNECT:
-            case SDP_QUERY_NOT_NEEDED:
-                logi("uni_bt_process_fsm: Device is ready\n");
-                uni_hid_device_set_ready(d);
-                break;
-            case SDP_QUERY_AFTER_CONNECT:
-                logi("uni_bt_process_fsm: starting SDP query\n");
-                uni_bt_sdp_query_start(d);
-                /* 'd' might be invalid */
-                break;
-            default:
-                break;
-        }
-    }
-}
-
 void uni_bt_bredr_process_fsm(uni_hid_device_t* d) {
-    // TODO: Move to uni_bt_bredr.c
-
     // A device can be in the following states:
     // - discovered (which might or might not have a name)
     // - received incoming connection
@@ -412,6 +410,7 @@ void uni_bt_bredr_on_l2cap_incoming_connection(uint16_t channel, const uint8_t* 
             break;
         default:
             logi("Unknown PSM = 0x%02x\n", psm);
+            break;
     }
 }
 
@@ -516,7 +515,7 @@ void uni_bt_bredr_on_l2cap_data_packet(uint16_t channel, const uint8_t* packet, 
     if (channel == d->conn.control_cid) {
         // Feature report
         if (d->report_parser.parse_feature_report)
-            // Skip the first byte which must be 0xa3
+            // Skip the first byte which must be 0xa3.
             d->report_parser.parse_feature_report(d, &packet[1], size - 1);
         return;
     }
@@ -574,35 +573,36 @@ void uni_bt_bredr_on_gap_inquiry_result(uint16_t channel, const uint8_t* packet,
     logi("\n");
 
     supported = uni_hid_device_on_device_discovered(addr, name_buffer, cod, rssi) == UNI_ERROR_SUCCESS;
-    if (supported) {
-        d = uni_hid_device_get_instance_for_address(addr);
-        if (d) {
-            if (d->conn.state == UNI_BT_CONN_STATE_DEVICE_READY) {
-                // Could happen that the device is already connected (E.g: 8BitDo Arcade Stick in Switch mode).
-                // If so, just ignore the inquiry result.
-                return;
-            }
-            logi("Device already added, waiting (current state=0x%02x)...\n", d->conn.state);
-        } else {
-            // Device not found, create one.
-            d = uni_hid_device_create(addr);
-            if (d == NULL) {
-                loge("\nError: cannot create device, no more available slots\n");
-                return;
-            }
-            uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_DISCOVERED);
-            uni_hid_device_set_cod(d, cod);
-            d->conn.page_scan_repetition_mode = page_scan_repetition_mode;
-            d->conn.clock_offset = clock_offset | UNI_BT_CLOCK_OFFSET_VALID;
-            d->conn.rssi = rssi;
+    if (!supported)
+        return;
 
-            if (name_len > 0 && !uni_hid_device_has_name(d)) {
-                uni_hid_device_set_name(d, name_buffer);
-                uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED);
-            }
+    d = uni_hid_device_get_instance_for_address(addr);
+    if (d) {
+        if (d->conn.state == UNI_BT_CONN_STATE_DEVICE_READY) {
+            // Could happen that the device is already connected (e.g. 8BitDo Arcade Stick in Switch mode).
+            // If so, just ignore the inquiry result.
+            return;
         }
-        uni_bt_bredr_process_fsm(d);
+        logi("Device already added, waiting (current state=0x%02x)...\n", d->conn.state);
+    } else {
+        // Device not found, create one.
+        d = uni_hid_device_create(addr);
+        if (d == NULL) {
+            loge("\nError: cannot create device, no more available slots\n");
+            return;
+        }
+        uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_DISCOVERED);
+        uni_hid_device_set_cod(d, cod);
+        d->conn.page_scan_repetition_mode = page_scan_repetition_mode;
+        d->conn.clock_offset = clock_offset | UNI_BT_CLOCK_OFFSET_VALID;
+        d->conn.rssi = rssi;
+
+        if (name_len > 0 && !uni_hid_device_has_name(d)) {
+            uni_hid_device_set_name(d, name_buffer);
+            uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED);
+        }
     }
+    uni_bt_bredr_process_fsm(d);
 }
 
 void uni_bt_bredr_on_hci_connection_request(uint16_t channel, const uint8_t* packet, uint16_t size) {
@@ -688,7 +688,6 @@ void uni_bt_bredr_on_hci_pin_code_request(uint16_t channel, const uint8_t* packe
     ARG_UNUSED(channel);
     ARG_UNUSED(size);
 
-    // TODO: Move to uni_bt_bredr.c
     bool is_mouse_or_keyboard = false;
 
     logi("--> HCI_EVENT_PIN_CODE_REQUEST\n");
@@ -735,28 +734,29 @@ void uni_bt_bredr_on_hci_remote_name_request_complete(uint16_t channel, const ui
     logi("--> HCI_EVENT_REMOTE_NAME_REQUEST_COMPLETE\n");
     hci_event_remote_name_request_complete_get_bd_addr(packet, event_addr);
     d = uni_hid_device_get_instance_for_address(event_addr);
-    if (d != NULL) {
-        const char* name = NULL;
-        status = hci_event_remote_name_request_complete_get_status(packet);
-        if (status) {
-            // Failed to get the name, just fake one
-            logi("Failed to fetch name for %s, error = 0x%02x\n", bd_addr_to_str(event_addr), status);
-            name = "Controller without name";
-        } else {
-            name = hci_event_remote_name_request_complete_get_remote_name(packet);
-        }
-        logi("Name: '%s'\n", name);
-        uni_hid_device_set_name(d, name);
-        // It could happen that the device is already connected, but the NAME_REQUEST
-        // has just finished. So, do not update the state:
-        // See: https://gitlab.com/ricardoquesada/bluepad32/-/issues/21
-        if (uni_bt_conn_get_state(&d->conn) < UNI_BT_CONN_STATE_DEVICE_PENDING_READY) {
-            // Only update state if the device is not already ready.
-            uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED);
-            uni_bt_bredr_process_fsm(d);
-        }
+    if (d == NULL)
+        return;
 
-        // Remove timer
-        btstack_run_loop_remove_timer(&d->inquiry_remote_name_timer);
+    const char* name = NULL;
+    status = hci_event_remote_name_request_complete_get_status(packet);
+    if (status) {
+        // Failed to get the name, just fake one.
+        logi("Failed to fetch name for %s, error = 0x%02x\n", bd_addr_to_str(event_addr), status);
+        name = "Controller without name";
+    } else {
+        name = hci_event_remote_name_request_complete_get_remote_name(packet);
     }
+    logi("Name: '%s'\n", name);
+    uni_hid_device_set_name(d, name);
+    // It could happen that the device is already connected, but the NAME_REQUEST
+    // has just finished. So, do not update the state:
+    // See: https://gitlab.com/ricardoquesada/bluepad32/-/issues/21
+    if (uni_bt_conn_get_state(&d->conn) < UNI_BT_CONN_STATE_DEVICE_PENDING_READY) {
+        // Only update state if the device is not already ready.
+        uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_REMOTE_NAME_FETCHED);
+        uni_bt_bredr_process_fsm(d);
+    }
+
+    // Remove timer.
+    btstack_run_loop_remove_timer(&d->inquiry_remote_name_timer);
 }

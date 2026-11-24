@@ -90,83 +90,100 @@ typedef struct xboxone_instance_s {
 
 _Static_assert(sizeof(xboxone_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "Xbox one instance too big");
 
-static xboxone_instance_t* get_xboxone_instance(uni_hid_device_t* d);
+static xboxone_instance_t* get_xboxone_instance(uni_hid_device_t* d) {
+    return (xboxone_instance_t*)&d->parser_data[0];
+}
+
+static uni_rumble_result_t xboxone_stop_rumble_now(struct uni_hid_device_s* d) {
+    uint8_t status;
+    xboxone_instance_t* ins = get_xboxone_instance(d);
+
+    struct xboxone_ff_report ff = {
+        .transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT,
+        .report_id = XBOX_RUMBLE_REPORT_ID,
+        .enable_actuators = XBOXONE_FF_TRIGGER_LEFT | XBOXONE_FF_TRIGGER_RIGHT | XBOXONE_FF_WEAK | XBOXONE_FF_STRONG,
+        .magnitude_left_trigger = 0,
+        .magnitude_right_trigger = 0,
+        .magnitude_strong = 0,
+        .magnitude_weak = 0,
+        .duration_10ms = 0,
+        .start_delay_10ms = 0,
+        .loop_count = 0,
+    };
+
+    if (ins->version == XBOXONE_FIRMWARE_V5) {
+        status = hids_host_send_write_report(d->hids_cid, XBOX_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
+                                             &ff.enable_actuators,  // skip the first type bytes,
+                                             sizeof(ff) - 2         // subtract the 2 bytes from total
+        );
+        if (status == ERROR_CODE_COMMAND_DISALLOWED) {
+            logd("Xbox: Failed to turn off rumble, error=%#x, retrying...\n", status);
+            return UNI_RUMBLE_RETRY_BLE;
+        }
+        if (status != ERROR_CODE_SUCCESS) {
+            // Do nothing, log the error.
+            logi("Xbox: Failed to turn off rumble, error=%#x\n", status);
+            return UNI_RUMBLE_ERR;
+        }
+    } else {
+        uni_hid_device_send_intr_report(d, (uint8_t*)&ff, sizeof(ff));
+    }
+    return UNI_RUMBLE_OK;
+}
+
 static uni_rumble_result_t xboxone_start_rumble_now(struct uni_hid_device_s* d,
                                                     uint8_t weak_magnitude,
                                                     uint8_t strong_magnitude,
                                                     uint8_t trigger_left,
-                                                    uint8_t trigger_right);
-static uni_rumble_result_t xboxone_stop_rumble_now(struct uni_hid_device_s* d);
-static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
-                                      const hid_globals_t* globals,
-                                      uint16_t usage_page,
-                                      uint16_t usage,
-                                      int32_t value);
-static void parse_usage_firmware_v4_v5(uni_hid_device_t* d,
-                                       const hid_globals_t* globals,
-                                       uint16_t usage_page,
-                                       uint16_t usage,
-                                       int32_t value);
+                                                    uint8_t trigger_right) {
+    uint8_t status;
+    uint8_t mask = 0;
 
-// Needed for the GameSir T3s controller when put in iOS mode, which is basically impersonating an
-// Xbox Wireless controller with FW 4.8.
-bool uni_hid_parser_xboxone_does_name_match(struct uni_hid_device_s* d, const char* name) {
-    if (!name)
-        return false;
-
-    if (strncmp("Xbox Wireless Controller", name, 25) != 0)
-        return false;
-
-    // Fake PID/VID
-    uni_hid_device_set_vendor_id(d, XBOX_WIRELESS_VID);
-    uni_hid_device_set_product_id(d, XBOX_WIRELESS_PID);
-    // Fake HID
-    uni_hid_device_set_hid_descriptor(d, xbox_hid_descriptor_4_8_fw, sizeof(xbox_hid_descriptor_4_8_fw));
-    return true;
-}
-
-void uni_hid_parser_xboxone_setup(uni_hid_device_t* d) {
     xboxone_instance_t* ins = get_xboxone_instance(d);
-    memset(ins, 0, sizeof(*ins));
-    uni_hid_parser_rumble_init(d, xboxone_start_rumble_now, xboxone_stop_rumble_now);
 
-    // FIXME: Parse HID descriptor and see if it supports 0xf buttons. Checking
-    // for the len is a horrible hack.
-    if (gap_get_connection_type(d->conn.handle) == GAP_CONNECTION_LE) {
-        logi("Xbox: Assuming it is firmware v5.x\n");
-        ins->version = XBOXONE_FIRMWARE_V5;
-    } else if (d->hid_descriptor_len > 330) {
-        logi("Xbox: Assuming it is firmware v4.8\n");
-        ins->version = XBOXONE_FIRMWARE_V4_8;
+    mask |= (trigger_left != 0) ? XBOXONE_FF_TRIGGER_LEFT : 0;
+    mask |= (trigger_right != 0) ? XBOXONE_FF_TRIGGER_RIGHT : 0;
+    mask |= (weak_magnitude != 0) ? XBOXONE_FF_WEAK : 0;
+    mask |= (strong_magnitude != 0) ? XBOXONE_FF_STRONG : 0;
+
+    logd("xbox rumble: duration=%d, left=%d, right=%d, weak=%d, strong=%d, mask=%#x\n", d->rumble.duration_ms,
+         trigger_left, trigger_right, weak_magnitude, strong_magnitude, mask);
+
+    // Magnitude is 0..100 so scale the 8-bit input here.
+
+    struct xboxone_ff_report ff = {
+        .transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT,
+        .report_id = XBOX_RUMBLE_REPORT_ID,
+        .enable_actuators = mask,
+        .magnitude_left_trigger = ((uint16_t)(trigger_left * 100)) / UINT8_MAX,
+        .magnitude_right_trigger = ((uint16_t)(trigger_right * 100)) / UINT8_MAX,
+        .magnitude_strong = ((uint16_t)(strong_magnitude * 100)) / UINT8_MAX,
+        .magnitude_weak = ((uint16_t)(weak_magnitude * 100)) / UINT8_MAX,
+        .duration_10ms = 0xff,  // forever, timer will turn it off
+        .start_delay_10ms = 0,
+        .loop_count = 25,  // timer will turn it off, but in case it fails, limit it to no more than
+                           // the max 65535 ms accepted for duration: 255 * 10ms * 26 = 66300ms
+    };
+
+    if (ins->version == XBOXONE_FIRMWARE_V5) {
+        status = hids_host_send_write_report(d->hids_cid, XBOX_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
+                                             &ff.enable_actuators,  // skip the first two bytes,
+                                             sizeof(ff) - 2         // subtract the two bytes from total
+        );
+        if (status == ERROR_CODE_COMMAND_DISALLOWED) {
+            logd("Xbox: Failed to send rumble report, error=%#x, retrying...\n", status);
+            return UNI_RUMBLE_RETRY_BLE;
+        }
+        if (status != ERROR_CODE_SUCCESS) {
+            // Don't retry, log the error and return.
+            logi("Xbox: Failed to send rumble report, error=%#x\n", status);
+            return UNI_RUMBLE_ERR;
+        }
     } else {
-        // If it is really firmware 4.8, it will be set later.
-        logi("Xbox: Assuming it is firmware v3.1\n");
-        ins->version = XBOXONE_FIRMWARE_V3_1;
+        uni_hid_device_send_intr_report(d, (uint8_t*)&ff, sizeof(ff));
     }
 
-    uni_hid_device_set_ready_complete(d);
-}
-
-void uni_hid_parser_xboxone_init_report(uni_hid_device_t* d) {
-    // Reset old state. Each report contains a full-state.
-    uni_controller_t* ctl = &d->controller;
-    memset(ctl, 0, sizeof(*ctl));
-
-    ctl->klass = UNI_CONTROLLER_CLASS_GAMEPAD;
-}
-
-void uni_hid_parser_xboxone_parse_usage(uni_hid_device_t* d,
-                                        const hid_globals_t* globals,
-                                        uint16_t usage_page,
-                                        uint16_t usage,
-                                        int32_t value) {
-    xboxone_instance_t* ins = get_xboxone_instance(d);
-    if (ins->version == XBOXONE_FIRMWARE_V3_1) {
-        parse_usage_firmware_v3_1(d, globals, usage_page, usage, value);
-    } else {
-        // Valid for v4 and v5
-        parse_usage_firmware_v4_v5(d, globals, usage_page, usage, value);
-    }
+    return UNI_RUMBLE_OK;
 }
 
 static void parse_usage_firmware_v3_1(uni_hid_device_t* d,
@@ -476,6 +493,67 @@ static void parse_usage_firmware_v4_v5(uni_hid_device_t* d,
     }
 }
 
+// Needed for the GameSir T3s controller when put in iOS mode, which is basically impersonating an
+// Xbox Wireless controller with FW 4.8.
+bool uni_hid_parser_xboxone_does_name_match(struct uni_hid_device_s* d, const char* name) {
+    if (!name)
+        return false;
+
+    if (strncmp("Xbox Wireless Controller", name, 25) != 0)
+        return false;
+
+    // Fake PID/VID
+    uni_hid_device_set_vendor_id(d, XBOX_WIRELESS_VID);
+    uni_hid_device_set_product_id(d, XBOX_WIRELESS_PID);
+    // Fake HID
+    uni_hid_device_set_hid_descriptor(d, xbox_hid_descriptor_4_8_fw, sizeof(xbox_hid_descriptor_4_8_fw));
+    return true;
+}
+
+void uni_hid_parser_xboxone_setup(uni_hid_device_t* d) {
+    xboxone_instance_t* ins = get_xboxone_instance(d);
+    memset(ins, 0, sizeof(*ins));
+    uni_hid_parser_rumble_init(d, xboxone_start_rumble_now, xboxone_stop_rumble_now);
+
+    // FIXME: Parse HID descriptor and see if it supports 0xf buttons. Checking
+    // for the len is a horrible hack.
+    if (gap_get_connection_type(d->conn.handle) == GAP_CONNECTION_LE) {
+        logi("Xbox: Assuming it is firmware v5.x\n");
+        ins->version = XBOXONE_FIRMWARE_V5;
+    } else if (d->hid_descriptor_len > 330) {
+        logi("Xbox: Assuming it is firmware v4.8\n");
+        ins->version = XBOXONE_FIRMWARE_V4_8;
+    } else {
+        // If it is really firmware 4.8, it will be set later.
+        logi("Xbox: Assuming it is firmware v3.1\n");
+        ins->version = XBOXONE_FIRMWARE_V3_1;
+    }
+
+    uni_hid_device_set_ready_complete(d);
+}
+
+void uni_hid_parser_xboxone_init_report(uni_hid_device_t* d) {
+    // Reset old state. Each report contains a full-state.
+    uni_controller_t* ctl = &d->controller;
+    memset(ctl, 0, sizeof(*ctl));
+
+    ctl->klass = UNI_CONTROLLER_CLASS_GAMEPAD;
+}
+
+void uni_hid_parser_xboxone_parse_usage(uni_hid_device_t* d,
+                                        const hid_globals_t* globals,
+                                        uint16_t usage_page,
+                                        uint16_t usage,
+                                        int32_t value) {
+    xboxone_instance_t* ins = get_xboxone_instance(d);
+    if (ins->version == XBOXONE_FIRMWARE_V3_1) {
+        parse_usage_firmware_v3_1(d, globals, usage_page, usage, value);
+    } else {
+        // Valid for v4 and v5
+        parse_usage_firmware_v4_v5(d, globals, usage_page, usage, value);
+    }
+}
+
 void uni_hid_parser_xboxone_play_dual_rumble(struct uni_hid_device_s* d,
                                              uint16_t start_delay_ms,
                                              uint16_t duration_ms,
@@ -519,102 +597,4 @@ int uni_hid_parser_xboxone_device_extra_info(const struct uni_hid_device_s* d, c
     }
     buf[0] = '\0';
     return 0;
-}
-
-//
-// Helpers
-//
-static xboxone_instance_t* get_xboxone_instance(uni_hid_device_t* d) {
-    return (xboxone_instance_t*)&d->parser_data[0];
-}
-
-static uni_rumble_result_t xboxone_stop_rumble_now(struct uni_hid_device_s* d) {
-    uint8_t status;
-    xboxone_instance_t* ins = get_xboxone_instance(d);
-
-    struct xboxone_ff_report ff = {
-        .transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT,
-        .report_id = XBOX_RUMBLE_REPORT_ID,
-        .enable_actuators = XBOXONE_FF_TRIGGER_LEFT | XBOXONE_FF_TRIGGER_RIGHT | XBOXONE_FF_WEAK | XBOXONE_FF_STRONG,
-        .magnitude_left_trigger = 0,
-        .magnitude_right_trigger = 0,
-        .magnitude_strong = 0,
-        .magnitude_weak = 0,
-        .duration_10ms = 0,
-        .start_delay_10ms = 0,
-        .loop_count = 0,
-    };
-
-    if (ins->version == XBOXONE_FIRMWARE_V5) {
-        status = hids_host_send_write_report(d->hids_cid, XBOX_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
-                                             &ff.enable_actuators,  // skip the first type bytes,
-                                             sizeof(ff) - 2         // subtract the 2 bytes from total
-        );
-        if (status == ERROR_CODE_COMMAND_DISALLOWED) {
-            logd("Xbox: Failed to turn off rumble, error=%#x, retrying...\n", status);
-            return UNI_RUMBLE_RETRY_BLE;
-        } else if (status != ERROR_CODE_SUCCESS) {
-            // Do nothing, log the error
-            logi("Xbox: Failed to turn off rumble, error=%#x\n", status);
-            return UNI_RUMBLE_ERR;
-        }
-        // else, SUCCESS
-    } else {
-        uni_hid_device_send_intr_report(d, (uint8_t*)&ff, sizeof(ff));
-    }
-    return UNI_RUMBLE_OK;
-}
-
-static uni_rumble_result_t xboxone_start_rumble_now(struct uni_hid_device_s* d,
-                                                    uint8_t weak_magnitude,
-                                                    uint8_t strong_magnitude,
-                                                    uint8_t trigger_left,
-                                                    uint8_t trigger_right) {
-    uint8_t status;
-    uint8_t mask = 0;
-
-    xboxone_instance_t* ins = get_xboxone_instance(d);
-
-    mask |= (trigger_left != 0) ? XBOXONE_FF_TRIGGER_LEFT : 0;
-    mask |= (trigger_right != 0) ? XBOXONE_FF_TRIGGER_RIGHT : 0;
-    mask |= (weak_magnitude != 0) ? XBOXONE_FF_WEAK : 0;
-    mask |= (strong_magnitude != 0) ? XBOXONE_FF_STRONG : 0;
-
-    logd("xbox rumble: duration=%d, left=%d, right=%d, weak=%d, strong=%d, mask=%#x\n", d->rumble.duration_ms,
-         trigger_left, trigger_right, weak_magnitude, strong_magnitude, mask);
-
-    // Magnitude is 0..100 so scale the 8-bit input here
-
-    struct xboxone_ff_report ff = {
-        .transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT,
-        .report_id = XBOX_RUMBLE_REPORT_ID,
-        .enable_actuators = mask,
-        .magnitude_left_trigger = ((uint16_t)(trigger_left * 100)) / UINT8_MAX,
-        .magnitude_right_trigger = ((uint16_t)(trigger_right * 100)) / UINT8_MAX,
-        .magnitude_strong = ((uint16_t)(strong_magnitude * 100)) / UINT8_MAX,
-        .magnitude_weak = ((uint16_t)(weak_magnitude * 100)) / UINT8_MAX,
-        .duration_10ms = 0xff,  // forever, timer will turn it off
-        .start_delay_10ms = 0,
-        .loop_count = 25,  // timer will turn it off, but in case it fails, limit it to no more than
-                           // the max 65535 ms accepted for duration: 255 * 10ms * 26 = 66300ms
-    };
-
-    if (ins->version == XBOXONE_FIRMWARE_V5) {
-        status = hids_host_send_write_report(d->hids_cid, XBOX_RUMBLE_REPORT_ID, HID_REPORT_TYPE_OUTPUT,
-                                             &ff.enable_actuators,  // skip the first two bytes,
-                                             sizeof(ff) - 2         // subtract the two bytes from total
-        );
-        if (status == ERROR_CODE_COMMAND_DISALLOWED) {
-            logd("Xbox: Failed to send rumble report, error=%#x, retrying...\n", status);
-            return UNI_RUMBLE_RETRY_BLE;
-        } else if (status != ERROR_CODE_SUCCESS) {
-            // Don't retry, log the error and return
-            logi("Xbox: Failed to send rumble report, error=%#x\n", status);
-            return UNI_RUMBLE_ERR;
-        }
-    } else {
-        uni_hid_device_send_intr_report(d, (uint8_t*)&ff, sizeof(ff));
-    }
-
-    return UNI_RUMBLE_OK;
 }

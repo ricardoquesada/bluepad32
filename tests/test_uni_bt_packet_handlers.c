@@ -3818,6 +3818,7 @@ TEST(bt_service_custom_mappings_ac0f_and_ac06_roundtrip) {
         {offsetof(uni_gamepad_mappings_t, axis_y_inverted), 2},                                          // inverted > 1
         {offsetof(uni_gamepad_mappings_t, throttle), UNI_GAMEPAD_MAPPINGS_PEDAL_COUNT},                  // pedal >= 2
     };
+
     for (size_t i = 0; i < ARRAY_SIZE(k_bad_domain_cases); i++) {
         uni_gamepad_mappings_t bad_map = GAMEPAD_DEFAULT_MAPPINGS;
         ((uint8_t*)&bad_map)[k_bad_domain_cases[i].offset] = k_bad_domain_cases[i].bad_val;

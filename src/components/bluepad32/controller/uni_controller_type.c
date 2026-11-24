@@ -24,7 +24,7 @@
 #include "controller/uni_controller_type.h"
 
 #include <stdbool.h>
-#include <stdio.h>
+#include <stddef.h>
 
 #include "controller/uni_controller_list.h"
 #include "sdkconfig.h"
@@ -34,14 +34,13 @@
 
 uni_controller_type_t uni_guess_controller_type(uint16_t vid, uint16_t pid) {
 #ifdef CONFIG_TARGET_POSIX
-    //  Verify that there are no duplicates in the controller list
-    //  If the list were sorted, we could do this much more efficiently, as well as improve lookup speed.
+    // Verify that there are no duplicates in the controller list.
+    // If the list were sorted, we could do this much more efficiently, as well as improve lookup speed.
     static bool checked_for_duplicates;
     if (!checked_for_duplicates) {
         checked_for_duplicates = true;
-        int i, j;
-        for (i = 0; i < ARRAY_SIZE(arrControllers); ++i) {
-            for (j = i + 1; j < ARRAY_SIZE(arrControllers); ++j) {
+        for (int i = 0; i < ARRAY_SIZE(arrControllers); ++i) {
+            for (int j = i + 1; j < ARRAY_SIZE(arrControllers); ++j) {
                 if (arrControllers[i].device_id == arrControllers[j].device_id) {
                     loge("Duplicate controller entry found for VID 0x%.4x PID 0x%.4x (%d,%d)\n",
                          (arrControllers[i].device_id >> 16), arrControllers[i].device_id & 0xffff, i, j);
@@ -51,10 +50,9 @@ uni_controller_type_t uni_guess_controller_type(uint16_t vid, uint16_t pid) {
     }
 #endif  // CONFIG_TARGET_POSIX
 
-    uint32_t device_id = MAKE_CONTROLLER_ID(vid, pid);
-    int i;
+    const uint32_t device_id = MAKE_CONTROLLER_ID(vid, pid);
 
-    for (i = 0; i < ARRAY_SIZE(arrControllers); ++i) {
+    for (int i = 0; i < ARRAY_SIZE(arrControllers); ++i) {
         if (device_id == arrControllers[i].device_id) {
             return arrControllers[i].controller_type;
         }

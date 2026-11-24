@@ -345,210 +345,6 @@ static bool is_switch2_vid_pid(uint16_t vid, uint16_t pid) {
     return (pid == UNI_SW2_PRO_PID || pid == UNI_SW2_JOYCON_L_PID || pid == UNI_SW2_JOYCON_R_PID);
 }
 
-bool uni_hid_parser_switch2_is_device(const struct uni_hid_device_s* d) {
-    if (!d)
-        return false;
-    return is_switch2_vid_pid(d->vendor_id, d->product_id);
-}
-
-bool uni_hid_parser_switch2_needs_pair(const struct uni_hid_device_s* d) {
-    if (!d)
-        return false;
-    return get_sw2_instance_const(d)->needs_pair;
-}
-
-void uni_hid_parser_switch2_set_needs_pair(struct uni_hid_device_s* d, bool needs_pair) {
-    if (!d)
-        return;
-    get_sw2_instance(d)->needs_pair = needs_pair;
-}
-
-bool uni_hid_parser_switch2_parse_mfg_data(const uint8_t* mfg,
-                                           uint8_t mfg_len,
-                                           uint16_t* out_pid,
-                                           uint8_t out_reconnect_mac[6],
-                                           bool* out_needs_pair) {
-    if (!mfg || mfg_len < 4)
-        return false;
-
-    uint16_t pid = 0;
-    bool needs_pair = true;
-    uint8_t reconnect_mac[6] = {0};
-
-    // Format A: Full 18-byte Nintendo Switch 2 manufacturer data (company ID 0x0553 at [0..1],
-    // Nintendo VID 0x057e at [5..6], PID at [7..8], reconnect MAC at [12..17]).
-    if (mfg_len >= 18 && little_endian_read_16(mfg, 0) == UNI_SW2_MFG_COMPANY_ID &&
-        little_endian_read_16(mfg, 5) == UNI_SW2_NINTENDO_VID) {
-        pid = little_endian_read_16(mfg, 7);
-        memcpy(reconnect_mac, &mfg[12], 6);
-        bool all_zero = true;
-        for (int i = 0; i < 6; i++) {
-            if (reconnect_mac[i] != 0) {
-                all_zero = false;
-                break;
-            }
-        }
-        needs_pair = all_zero;
-    } else if (little_endian_read_16(mfg, 0) == UNI_SW2_NINTENDO_VID) {
-        // Format B: Direct Nintendo VID 0x057e at [0..1] with Switch 2 PID at [2..3] or [5..6].
-        uint16_t pid_at_2 = little_endian_read_16(mfg, 2);
-        if (is_switch2_vid_pid(UNI_SW2_NINTENDO_VID, pid_at_2)) {
-            pid = pid_at_2;
-        } else if (mfg_len >= 7) {
-            pid = little_endian_read_16(mfg, 5);
-        }
-        needs_pair = true;
-    } else {
-        return false;
-    }
-
-    if (!is_switch2_vid_pid(UNI_SW2_NINTENDO_VID, pid))
-        return false;
-
-    if (out_pid)
-        *out_pid = pid;
-    if (out_reconnect_mac)
-        memcpy(out_reconnect_mac, reconnect_mac, 6);
-    if (out_needs_pair)
-        *out_needs_pair = needs_pair;
-    return true;
-}
-
-bool uni_hid_parser_switch2_does_packet_match(const uint8_t* packet, uint16_t size) {
-    if (!packet || size < 12)
-        return false;
-
-    uint8_t raw_ad_len = gap_event_advertising_report_get_data_length(packet);
-    uint16_t max_ad_len = (uint16_t)(size - 12);
-    uint8_t ad_len = (raw_ad_len <= max_ad_len) ? raw_ad_len : (uint8_t)max_ad_len;
-    const uint8_t* ad_data = gap_event_advertising_report_get_data(packet);
-
-    uint16_t offset = 0;
-    while (offset < ad_len) {
-        uint8_t item_len = ad_data[offset];
-        if (item_len == 0)
-            break;
-        if ((uint16_t)(offset + 1 + item_len) > ad_len)
-            break;
-        uint8_t item_type = ad_data[offset + 1];
-        const uint8_t* item_data = &ad_data[offset + 2];
-        uint8_t item_data_len = (uint8_t)(item_len - 1);
-
-        if (item_type == BLUETOOTH_DATA_TYPE_MANUFACTURER_SPECIFIC_DATA) {
-            if (uni_hid_parser_switch2_parse_mfg_data(item_data, item_data_len, NULL, NULL, NULL)) {
-                return true;
-            }
-        }
-        offset = (uint16_t)(offset + 1 + item_len);
-    }
-    return false;
-}
-
-bool uni_bt_le_switch2_handle_advertisement(const uint8_t* packet, uint16_t size) {
-    // GAP_EVENT_ADVERTISING_REPORT header is 12 bytes before AD payload.
-    if (!packet || size < 12)
-        return false;
-
-    uint8_t raw_ad_len = gap_event_advertising_report_get_data_length(packet);
-    uint16_t max_ad_len = (uint16_t)(size - 12);
-    uint8_t ad_len = (raw_ad_len <= max_ad_len) ? raw_ad_len : (uint8_t)max_ad_len;
-    const uint8_t* ad_data = gap_event_advertising_report_get_data(packet);
-
-    uint16_t pid = 0;
-    uint8_t reconnect_mac[6] = {0};
-    bool needs_pair = false;
-    bool matched = false;
-
-    // Safely iterate AD structures with strict bounds checks against truncated AD items.
-    uint16_t offset = 0;
-    while (offset < ad_len) {
-        uint8_t item_len = ad_data[offset];
-        if (item_len == 0)
-            break;
-        if ((uint16_t)(offset + 1 + item_len) > ad_len)
-            break;
-        uint8_t item_type = ad_data[offset + 1];
-        const uint8_t* item_data = &ad_data[offset + 2];
-        uint8_t item_data_len = (uint8_t)(item_len - 1);
-
-        if (item_type == BLUETOOTH_DATA_TYPE_MANUFACTURER_SPECIFIC_DATA) {
-            if (uni_hid_parser_switch2_parse_mfg_data(item_data, item_data_len, &pid, reconnect_mac, &needs_pair)) {
-                matched = true;
-                break;
-            }
-        }
-        offset = (uint16_t)(offset + 1 + item_len);
-    }
-
-    if (!matched)
-        return false;
-
-    bd_addr_t addr;
-    gap_event_advertising_report_get_address(packet, addr);
-    uint8_t addr_type = gap_event_advertising_report_get_address_type(packet);
-    uint8_t rssi = gap_event_advertising_report_get_rssi(packet);
-
-    // When waking up or starting a SYNC button press, a Switch 2 controller initially
-    // broadcasts reconnect advertisements targeting its previously paired console MAC
-    // (`needs_pair == false`) before switching to `00:00:00:00:00:00` (`needs_pair == true`).
-    // Ignore reconnect advertisements directed at a different host MAC so we do not open an
-    // unencrypted connection while the user is still holding the SYNC button.
-    // (When `gap_local_bd_addr` is all-zero in unit tests, allow synthetic reconnect packets.)
-    if (!needs_pair) {
-        bd_addr_t local_addr = {0};
-        bd_addr_t zero_addr = {0};
-        gap_local_bd_addr(local_addr);
-        if (memcmp(local_addr, zero_addr, 6) != 0 && memcmp(reconnect_mac, local_addr, 6) != 0) {
-            return false;
-        }
-    }
-
-    uni_hid_device_t* existing = uni_hid_device_get_instance_for_address(addr);
-    if (existing) {
-        if (existing->conn.connected || uni_bt_conn_get_state(&existing->conn) == UNI_BT_CONN_STATE_DEVICE_READY) {
-            return true;
-        }
-        // If the existing slot is still awaiting a pending LE connection and the advertisement
-        // mode (needs_pair) has not changed, keep waiting for that connection attempt.
-        if (existing->conn.handle == UNI_BT_CONN_HANDLE_INVALID &&
-            uni_hid_parser_switch2_needs_pair(existing) == needs_pair) {
-            return true;
-        }
-        logi("Switch2: cleaning up stale non-ready device slot for %s\n", bd_addr_to_str(addr));
-        uni_hid_device_disconnect(existing);
-        uni_hid_device_delete(existing);
-    }
-
-    const char* model_name = (pid == UNI_SW2_PRO_PID)        ? "Nintendo Switch 2 Pro Controller"
-                             : (pid == UNI_SW2_JOYCON_L_PID) ? "Nintendo Switch 2 Joy-Con (L)"
-                                                             : "Nintendo Switch 2 Joy-Con (R)";
-    uint16_t cod = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_GAMEPAD;
-    if (uni_hid_device_on_device_discovered(addr, model_name, cod, rssi) != UNI_ERROR_SUCCESS)
-        return true;
-
-    uni_hid_device_t* d = uni_hid_device_create(addr);
-    if (!d)
-        return true;
-
-    uni_bt_conn_set_protocol(&d->conn, UNI_BT_CONN_PROTOCOL_BLE);
-    uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_DISCOVERED);
-    d->conn.rssi = rssi;
-    uni_hid_device_set_cod(d, cod);
-    uni_hid_device_set_name(d, model_name);
-    uni_hid_device_set_vendor_id(d, UNI_SW2_NINTENDO_VID);
-    uni_hid_device_set_product_id(d, pid);
-    uni_hid_device_guess_controller_type_from_pid_vid(d);
-    uni_hid_parser_switch2_set_needs_pair(d, needs_pair);
-
-    if (needs_pair) {
-        gap_delete_bonding((bd_addr_type_t)addr_type, addr);
-    }
-
-    gap_stop_scan();
-    gap_connect(addr, (bd_addr_type_t)addr_type);
-    return true;
-}
-
 static void sw2_kick_connection_timeout(uni_hid_device_t* d) {
     if (!d || d->conn.handle == UNI_BT_CONN_HANDLE_INVALID)
         return;
@@ -678,7 +474,48 @@ static uint8_t sw2_send_command(uni_hid_device_t* d,
                                 uint8_t cmd,
                                 uint8_t subcmd,
                                 const uint8_t* payload,
-                                uint8_t payload_len);
+                                uint8_t payload_len) {
+    if (!d || d->conn.handle == UNI_BT_CONN_HANDLE_INVALID)
+        return ERROR_CODE_UNKNOWN_CONNECTION_IDENTIFIER;
+    if (payload_len > 32)
+        payload_len = 32;
+
+    sw2_kick_connection_timeout(d);
+    sw2_instance_t* ins = get_sw2_instance(d);
+    uint16_t handle = ins->cmd_write_handle ? ins->cmd_write_handle : SW2_DEFAULT_CMD_WRITE_HANDLE;
+
+    // 8-byte Switch 2 BLE command header followed by up to 32 bytes of command payload:
+    //   [0]: command opcode (e.g., 0x02 SPI, 0x09 LEDs, 0x15 Pairing)
+    //   [1]: 0x91 (host-to-controller BLE transport framing tag)
+    //   [2]: 0x01
+    //   [3]: subcommand opcode
+    //   [4]: 0x00
+    //   [5]: payload length in bytes
+    //   [6..7]: 0x00, 0x00
+    uint8_t buffer[8 + 32];
+    memset(buffer, 0, sizeof(buffer));
+    buffer[0] = cmd;
+    buffer[1] = 0x91;
+    buffer[2] = 0x01;
+    buffer[3] = subcmd;
+    buffer[4] = 0x00;
+    buffer[5] = payload_len;
+    buffer[6] = 0x00;
+    buffer[7] = 0x00;
+    if (payload && payload_len > 0) {
+        memcpy(&buffer[8], payload, payload_len);
+    }
+
+    // Log rather than disconnecting on non-zero return status so synthetic GATT unit tests
+    // (where no lower-level BTstack hci_connection_t exists) can drive the state machine;
+    // real hardware stalls are caught by sw2_arm_cmd_timer / sw2_arm_setup_timer.
+    uint8_t status = gatt_client_write_value_of_characteristic_without_response(d->conn.handle, handle,
+                                                                                (uint16_t)(8u + payload_len), buffer);
+    if (status != ERROR_CODE_SUCCESS) {
+        logd("Switch2: cmd 0x%02x/0x%02x write returned status=0x%02x\n", cmd, subcmd, status);
+    }
+    return status;
+}
 
 static uint8_t sw2_send_player_leds_cmd(uni_hid_device_t* d, uint8_t leds) {
     uint8_t val[8] = {(uint8_t)(leds & 0x0fu), 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -749,6 +586,7 @@ static void sw2_start_keepalive_timer(uni_hid_device_t* d) {
     ins->keepalive_active = true;
 }
 
+// Forward-declared because the command timer/step helpers and state machine form a cycle.
 static void sw2_advance_command_state(uni_hid_device_t* d, const uint8_t* value, uint16_t value_len);
 
 static void sw2_cmd_timeout_cb(btstack_timer_source_t* ts) {
@@ -776,53 +614,6 @@ static void sw2_arm_cmd_timer(uni_hid_device_t* d, uint32_t timeout_ms) {
     btstack_run_loop_set_timer(&ins->setup_timer, timeout_ms);
     btstack_run_loop_add_timer(&ins->setup_timer);
     ins->setup_timer_active = true;
-}
-
-static uint8_t sw2_send_command(uni_hid_device_t* d,
-                                uint8_t cmd,
-                                uint8_t subcmd,
-                                const uint8_t* payload,
-                                uint8_t payload_len) {
-    if (!d || d->conn.handle == UNI_BT_CONN_HANDLE_INVALID)
-        return ERROR_CODE_UNKNOWN_CONNECTION_IDENTIFIER;
-    if (payload_len > 32)
-        payload_len = 32;
-
-    sw2_kick_connection_timeout(d);
-    sw2_instance_t* ins = get_sw2_instance(d);
-    uint16_t handle = ins->cmd_write_handle ? ins->cmd_write_handle : SW2_DEFAULT_CMD_WRITE_HANDLE;
-
-    // 8-byte Switch 2 BLE command header followed by up to 32 bytes of command payload:
-    //   [0]: command opcode (e.g., 0x02 SPI, 0x09 LEDs, 0x15 Pairing)
-    //   [1]: 0x91 (host-to-controller BLE transport framing tag)
-    //   [2]: 0x01
-    //   [3]: subcommand opcode
-    //   [4]: 0x00
-    //   [5]: payload length in bytes
-    //   [6..7]: 0x00, 0x00
-    uint8_t buffer[8 + 32];
-    memset(buffer, 0, sizeof(buffer));
-    buffer[0] = cmd;
-    buffer[1] = 0x91;
-    buffer[2] = 0x01;
-    buffer[3] = subcmd;
-    buffer[4] = 0x00;
-    buffer[5] = payload_len;
-    buffer[6] = 0x00;
-    buffer[7] = 0x00;
-    if (payload && payload_len > 0) {
-        memcpy(&buffer[8], payload, payload_len);
-    }
-
-    // Log rather than disconnecting on non-zero return status so synthetic GATT unit tests
-    // (where no lower-level BTstack hci_connection_t exists) can drive the state machine;
-    // real hardware stalls are caught by sw2_arm_cmd_timer / sw2_arm_setup_timer.
-    uint8_t status = gatt_client_write_value_of_characteristic_without_response(d->conn.handle, handle,
-                                                                                (uint16_t)(8u + payload_len), buffer);
-    if (status != ERROR_CODE_SUCCESS) {
-        logd("Switch2: cmd 0x%02x/0x%02x write returned status=0x%02x\n", cmd, subcmd, status);
-    }
-    return status;
 }
 
 static void sw2_send_spi_read_calibration(uni_hid_device_t* d) {
@@ -1064,6 +855,229 @@ static void sw2_advance_command_state(uni_hid_device_t* d, const uint8_t* value,
         default:
             break;
     }
+}
+
+static int32_t sw2_scale_raw_axis(int16_t raw, const sw2_cal_axis_t* cal) {
+    if (!cal)
+        return 0;
+    int32_t delta = (int32_t)raw - (int32_t)cal->center;
+    int32_t span =
+        (delta >= 0) ? ((int32_t)cal->max - (int32_t)cal->center) : ((int32_t)cal->center - (int32_t)cal->min);
+    if (span <= 0)
+        return 0;
+    return (delta * 512) / span;
+}
+
+static int32_t sw2_clamp_axis(int32_t val) {
+    if (val > 511)
+        return 511;
+    if (val < -512)
+        return -512;
+    return val;
+}
+
+bool uni_hid_parser_switch2_is_device(const struct uni_hid_device_s* d) {
+    if (!d)
+        return false;
+    return is_switch2_vid_pid(d->vendor_id, d->product_id);
+}
+
+bool uni_hid_parser_switch2_needs_pair(const struct uni_hid_device_s* d) {
+    if (!d)
+        return false;
+    return get_sw2_instance_const(d)->needs_pair;
+}
+
+void uni_hid_parser_switch2_set_needs_pair(struct uni_hid_device_s* d, bool needs_pair) {
+    if (!d)
+        return;
+    get_sw2_instance(d)->needs_pair = needs_pair;
+}
+
+bool uni_hid_parser_switch2_parse_mfg_data(const uint8_t* mfg,
+                                           uint8_t mfg_len,
+                                           uint16_t* out_pid,
+                                           uint8_t out_reconnect_mac[6],
+                                           bool* out_needs_pair) {
+    if (!mfg || mfg_len < 4)
+        return false;
+
+    uint16_t pid = 0;
+    bool needs_pair = true;
+    uint8_t reconnect_mac[6] = {0};
+
+    // Format A: Full 18-byte Nintendo Switch 2 manufacturer data (company ID 0x0553 at [0..1],
+    // Nintendo VID 0x057e at [5..6], PID at [7..8], reconnect MAC at [12..17]).
+    if (mfg_len >= 18 && little_endian_read_16(mfg, 0) == UNI_SW2_MFG_COMPANY_ID &&
+        little_endian_read_16(mfg, 5) == UNI_SW2_NINTENDO_VID) {
+        pid = little_endian_read_16(mfg, 7);
+        memcpy(reconnect_mac, &mfg[12], 6);
+        bool all_zero = true;
+        for (int i = 0; i < 6; i++) {
+            if (reconnect_mac[i] != 0) {
+                all_zero = false;
+                break;
+            }
+        }
+        needs_pair = all_zero;
+    } else if (little_endian_read_16(mfg, 0) == UNI_SW2_NINTENDO_VID) {
+        // Format B: Direct Nintendo VID 0x057e at [0..1] with Switch 2 PID at [2..3] or [5..6].
+        uint16_t pid_at_2 = little_endian_read_16(mfg, 2);
+        if (is_switch2_vid_pid(UNI_SW2_NINTENDO_VID, pid_at_2)) {
+            pid = pid_at_2;
+        } else if (mfg_len >= 7) {
+            pid = little_endian_read_16(mfg, 5);
+        }
+        needs_pair = true;
+    } else {
+        return false;
+    }
+
+    if (!is_switch2_vid_pid(UNI_SW2_NINTENDO_VID, pid))
+        return false;
+
+    if (out_pid)
+        *out_pid = pid;
+    if (out_reconnect_mac)
+        memcpy(out_reconnect_mac, reconnect_mac, 6);
+    if (out_needs_pair)
+        *out_needs_pair = needs_pair;
+    return true;
+}
+
+bool uni_hid_parser_switch2_does_packet_match(const uint8_t* packet, uint16_t size) {
+    if (!packet || size < 12)
+        return false;
+
+    uint8_t raw_ad_len = gap_event_advertising_report_get_data_length(packet);
+    uint16_t max_ad_len = (uint16_t)(size - 12);
+    uint8_t ad_len = (raw_ad_len <= max_ad_len) ? raw_ad_len : (uint8_t)max_ad_len;
+    const uint8_t* ad_data = gap_event_advertising_report_get_data(packet);
+
+    uint16_t offset = 0;
+    while (offset < ad_len) {
+        uint8_t item_len = ad_data[offset];
+        if (item_len == 0)
+            break;
+        if ((uint16_t)(offset + 1 + item_len) > ad_len)
+            break;
+        uint8_t item_type = ad_data[offset + 1];
+        const uint8_t* item_data = &ad_data[offset + 2];
+        uint8_t item_data_len = (uint8_t)(item_len - 1);
+
+        if (item_type == BLUETOOTH_DATA_TYPE_MANUFACTURER_SPECIFIC_DATA) {
+            if (uni_hid_parser_switch2_parse_mfg_data(item_data, item_data_len, NULL, NULL, NULL)) {
+                return true;
+            }
+        }
+        offset = (uint16_t)(offset + 1 + item_len);
+    }
+    return false;
+}
+
+bool uni_bt_le_switch2_handle_advertisement(const uint8_t* packet, uint16_t size) {
+    // GAP_EVENT_ADVERTISING_REPORT header is 12 bytes before AD payload.
+    if (!packet || size < 12)
+        return false;
+
+    uint8_t raw_ad_len = gap_event_advertising_report_get_data_length(packet);
+    uint16_t max_ad_len = (uint16_t)(size - 12);
+    uint8_t ad_len = (raw_ad_len <= max_ad_len) ? raw_ad_len : (uint8_t)max_ad_len;
+    const uint8_t* ad_data = gap_event_advertising_report_get_data(packet);
+
+    uint16_t pid = 0;
+    uint8_t reconnect_mac[6] = {0};
+    bool needs_pair = false;
+    bool matched = false;
+
+    // Safely iterate AD structures with strict bounds checks against truncated AD items.
+    uint16_t offset = 0;
+    while (offset < ad_len) {
+        uint8_t item_len = ad_data[offset];
+        if (item_len == 0)
+            break;
+        if ((uint16_t)(offset + 1 + item_len) > ad_len)
+            break;
+        uint8_t item_type = ad_data[offset + 1];
+        const uint8_t* item_data = &ad_data[offset + 2];
+        uint8_t item_data_len = (uint8_t)(item_len - 1);
+
+        if (item_type == BLUETOOTH_DATA_TYPE_MANUFACTURER_SPECIFIC_DATA) {
+            if (uni_hid_parser_switch2_parse_mfg_data(item_data, item_data_len, &pid, reconnect_mac, &needs_pair)) {
+                matched = true;
+                break;
+            }
+        }
+        offset = (uint16_t)(offset + 1 + item_len);
+    }
+
+    if (!matched)
+        return false;
+
+    bd_addr_t addr;
+    gap_event_advertising_report_get_address(packet, addr);
+    uint8_t addr_type = gap_event_advertising_report_get_address_type(packet);
+    uint8_t rssi = gap_event_advertising_report_get_rssi(packet);
+
+    // When waking up or starting a SYNC button press, a Switch 2 controller initially
+    // broadcasts reconnect advertisements targeting its previously paired console MAC
+    // (`needs_pair == false`) before switching to `00:00:00:00:00:00` (`needs_pair == true`).
+    // Ignore reconnect advertisements directed at a different host MAC so we do not open an
+    // unencrypted connection while the user is still holding the SYNC button.
+    // (When `gap_local_bd_addr` is all-zero in unit tests, allow synthetic reconnect packets.)
+    if (!needs_pair) {
+        bd_addr_t local_addr = {0};
+        bd_addr_t zero_addr = {0};
+        gap_local_bd_addr(local_addr);
+        if (memcmp(local_addr, zero_addr, 6) != 0 && memcmp(reconnect_mac, local_addr, 6) != 0) {
+            return false;
+        }
+    }
+
+    uni_hid_device_t* existing = uni_hid_device_get_instance_for_address(addr);
+    if (existing) {
+        if (existing->conn.connected || uni_bt_conn_get_state(&existing->conn) == UNI_BT_CONN_STATE_DEVICE_READY) {
+            return true;
+        }
+        // If the existing slot is still awaiting a pending LE connection and the advertisement
+        // mode (needs_pair) has not changed, keep waiting for that connection attempt.
+        if (existing->conn.handle == UNI_BT_CONN_HANDLE_INVALID &&
+            uni_hid_parser_switch2_needs_pair(existing) == needs_pair) {
+            return true;
+        }
+        logi("Switch2: cleaning up stale non-ready device slot for %s\n", bd_addr_to_str(addr));
+        uni_hid_device_disconnect(existing);
+        uni_hid_device_delete(existing);
+    }
+
+    const char* model_name = (pid == UNI_SW2_PRO_PID)        ? "Nintendo Switch 2 Pro Controller"
+                             : (pid == UNI_SW2_JOYCON_L_PID) ? "Nintendo Switch 2 Joy-Con (L)"
+                                                             : "Nintendo Switch 2 Joy-Con (R)";
+    uint16_t cod = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_GAMEPAD;
+    if (uni_hid_device_on_device_discovered(addr, model_name, cod, rssi) != UNI_ERROR_SUCCESS)
+        return true;
+
+    uni_hid_device_t* d = uni_hid_device_create(addr);
+    if (!d)
+        return true;
+
+    uni_bt_conn_set_protocol(&d->conn, UNI_BT_CONN_PROTOCOL_BLE);
+    uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_DISCOVERED);
+    d->conn.rssi = rssi;
+    uni_hid_device_set_cod(d, cod);
+    uni_hid_device_set_name(d, model_name);
+    uni_hid_device_set_vendor_id(d, UNI_SW2_NINTENDO_VID);
+    uni_hid_device_set_product_id(d, pid);
+    uni_hid_device_guess_controller_type_from_pid_vid(d);
+    uni_hid_parser_switch2_set_needs_pair(d, needs_pair);
+
+    if (needs_pair) {
+        gap_delete_bonding((bd_addr_type_t)addr_type, addr);
+    }
+
+    gap_stop_scan();
+    gap_connect(addr, (bd_addr_type_t)addr_type);
+    return true;
 }
 
 void uni_hid_parser_switch2_handle_gatt_event(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
@@ -1378,25 +1392,6 @@ void uni_hid_parser_switch2_deinit(struct uni_hid_device_s* d) {
 
 void uni_hid_parser_switch2_init_report(struct uni_hid_device_s* d) {
     ARG_UNUSED(d);
-}
-
-static int32_t sw2_scale_raw_axis(int16_t raw, const sw2_cal_axis_t* cal) {
-    if (!cal)
-        return 0;
-    int32_t delta = (int32_t)raw - (int32_t)cal->center;
-    int32_t span =
-        (delta >= 0) ? ((int32_t)cal->max - (int32_t)cal->center) : ((int32_t)cal->center - (int32_t)cal->min);
-    if (span <= 0)
-        return 0;
-    return (delta * 512) / span;
-}
-
-static int32_t sw2_clamp_axis(int32_t val) {
-    if (val > 511)
-        return 511;
-    if (val < -512)
-        return -512;
-    return val;
 }
 
 void uni_hid_parser_switch2_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len) {

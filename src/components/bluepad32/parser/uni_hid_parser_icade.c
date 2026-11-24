@@ -70,7 +70,9 @@ typedef struct icade_instance_s {
 
 _Static_assert(sizeof(icade_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "iCade intance too big");
 
-static icade_instance_t* get_icade_instance(uni_hid_device_t* d);
+static icade_instance_t* get_icade_instance(uni_hid_device_t* d) {
+    return (icade_instance_t*)&d->parser_data[0];
+}
 
 void uni_hid_parser_icade_setup(uni_hid_device_t* d) {
     icade_instance_t* ins = get_icade_instance(d);
@@ -296,11 +298,4 @@ void uni_hid_parser_icade_parse_usage(uni_hid_device_t* d,
                 usage_page, usage, value);
             break;
     }
-}
-
-//
-// Helpers
-//
-static icade_instance_t* get_icade_instance(uni_hid_device_t* d) {
-    return (icade_instance_t*)&d->parser_data[0];
 }

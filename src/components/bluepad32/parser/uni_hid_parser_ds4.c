@@ -11,7 +11,6 @@
 
 #include "parser/uni_hid_parser_ds4.h"
 
-#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -194,18 +193,284 @@ typedef struct __attribute((packed)) {
 
 _Static_assert(sizeof(ds4_feature_report_calibration_t) == DS4_FEATURE_REPORT_CALIBRATION_SIZE, "Invalid size");
 
-static ds4_instance_t* get_ds4_instance(uni_hid_device_t* d);
-static void ds4_send_output_report(uni_hid_device_t* d, ds4_output_report_t* out);
-static void ds4_request_calibration_report(uni_hid_device_t* d);
-static void ds4_request_firmware_version_report(uni_hid_device_t* d);
-static void ds4_send_enable_lightbar_report(uni_hid_device_t* d);
-static uni_rumble_result_t ds4_stop_rumble_now(struct uni_hid_device_s* d);
+static ds4_instance_t* get_ds4_instance(uni_hid_device_t* d) {
+    return (ds4_instance_t*)&d->parser_data[0];
+}
+
+static void ds4_send_output_report(uni_hid_device_t* d, ds4_output_report_t* out) {
+    out->transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT;
+    out->report_id = 0x11;  // taken from HID descriptor
+    out->unk0[0] = 0xc4;    // HID alone + poll interval
+    out->crc32 = ~uni_crc32_le(0xffffffff, (uint8_t*)out, sizeof(*out) - 4);
+
+    uni_hid_device_send_intr_report(d, (uint8_t*)out, sizeof(*out));
+}
+
+static uni_rumble_result_t ds4_stop_rumble_now(struct uni_hid_device_s* d) {
+    ds4_instance_t* ins = get_ds4_instance(d);
+
+    // Cache the previous rumble value.
+    ins->prev_rumble_weak_magnitude = 0;
+    ins->prev_rumble_strong_magnitude = 0;
+
+    ds4_output_report_t out = {
+        .flags = DS4_FF_FLAG_BLINK_COLOR_RUMBLE,  // blink + LED + motor
+        // Prev LED color values to keep the LED color from turning off
+        .led_red = ins->prev_color_red,
+        .led_green = ins->prev_color_green,
+        .led_blue = ins->prev_color_blue,
+    };
+    ds4_send_output_report(d, &out);
+    return UNI_RUMBLE_OK;
+}
+
 static uni_rumble_result_t ds4_start_rumble_now(struct uni_hid_device_s* d,
                                                 uint8_t weak_magnitude,
                                                 uint8_t strong_magnitude,
                                                 uint8_t trigger_left,
-                                                uint8_t trigger_right);
-static void ds4_parse_mouse(uni_hid_device_t* d, const ds4_input_report_11_t* r);
+                                                uint8_t trigger_right) {
+    ARG_UNUSED(trigger_left);
+    ARG_UNUSED(trigger_right);
+
+    ds4_instance_t* ins = get_ds4_instance(d);
+
+    // Cache the previous rumble value.
+    ins->prev_rumble_weak_magnitude = weak_magnitude;
+    ins->prev_rumble_strong_magnitude = strong_magnitude;
+
+    ds4_output_report_t out = {
+        .flags = DS4_FF_FLAG_BLINK_COLOR_RUMBLE,  // blink + LED + motor
+        // Right motor: small force; left motor: big force
+        .motor_right = weak_magnitude,
+        .motor_left = strong_magnitude,
+        // Prev LED color values to keep the LED color from turning off
+        .led_red = ins->prev_color_red,
+        .led_green = ins->prev_color_green,
+        .led_blue = ins->prev_color_blue,
+    };
+    ds4_send_output_report(d, &out);
+    return UNI_RUMBLE_OK;
+}
+
+static void ds4_request_calibration_report(uni_hid_device_t* d) {
+    // From Linux drivers/hid/hid-sony.c:
+    // The default behavior of the DUALSHOCK 4 is to send reports using
+    // report type 1 when running over Bluetooth. However, when feature
+    // report 2 (CALIBRATION_REQUEST) is requested during the controller initialization, it starts
+    // sending input reports in report 17.
+
+    // Enable stream mode. Some models, like the CUH-ZCT2G require to explicitly request stream mode.
+    static const uint8_t report[] = {
+        ((HID_MESSAGE_TYPE_GET_REPORT << 4) | HID_REPORT_TYPE_FEATURE),
+        DS4_FEATURE_REPORT_CALIBRATION,
+    };
+    uni_hid_device_send_ctrl_report(d, report, sizeof(report));
+}
+
+static void ds4_request_firmware_version_report(uni_hid_device_t* d) {
+    logi("DS4: ds4_request_firmware_version_report()\n");
+
+    static const uint8_t report[] = {
+        ((HID_MESSAGE_TYPE_GET_REPORT << 4) | HID_REPORT_TYPE_FEATURE),
+        DS4_FEATURE_REPORT_FIRMWARE_VERSION,
+    };
+    uni_hid_device_send_ctrl_report(d, report, sizeof(report));
+}
+
+static void ds4_send_enable_lightbar_report(uni_hid_device_t* d) {
+    logi("DS4: ds4_send_enable_lightbar_report()\n");
+
+    ds4_instance_t* ins = get_ds4_instance(d);
+
+    // Cache the previous LED color and rumble values
+    ins->prev_color_red = 0x00;
+    ins->prev_color_green = 0x00;
+    ins->prev_color_blue = 0x40;
+    ins->prev_rumble_weak_magnitude = 0x00;
+    ins->prev_rumble_strong_magnitude = 0x00;
+
+    // Also turns off blinking, LED and rumble.
+    ds4_output_report_t out = {
+        // blink + LED + motor
+        .flags = DS4_FF_FLAG_BLINK_COLOR_RUMBLE,
+        // Default LED color: Blue
+        .led_red = ins->prev_color_red,
+        .led_green = ins->prev_color_green,
+        .led_blue = ins->prev_color_blue,
+    };
+    ds4_send_output_report(d, &out);
+}
+
+static void ds4_parse_mouse(uni_hid_device_t* d, const ds4_input_report_11_t* r) {
+    ds4_instance_t* ins = get_ds4_instance(d);
+
+    // We can safely assume that device is connected and report is valid; otherwise
+    // this function should have not been called.
+
+    if (r->num_touch_reports < 1) {
+        ins->prev_touch_active = false;
+        return;
+    }
+
+    uni_controller_t* ctl = &d->controller;
+    const ds4_touch_point_t* point = &r->touches[0].points[0];
+
+    int x = (point->x_hi << 8) + point->x_lo;
+    int y = (point->y_hi << 4) + point->y_lo;
+
+    if (ins->prev_touch_active) {
+        ctl->mouse.delta_x = x - ins->x_prev;
+        ctl->mouse.delta_y = y - ins->y_prev;
+    } else {
+        ctl->mouse.delta_x = 0;
+        ctl->mouse.delta_y = 0;
+    }
+
+    // "Click" on Touchpad
+    if (r->buttons[2] & 0x02) {
+        // Touchpad is divided in 0.75 (left) + 0.25 (right)
+        // Touchpad range: 1920 x 942
+        if (x < 1440)
+            ctl->mouse.buttons |= UNI_MOUSE_BUTTON_LEFT;
+        else
+            ctl->mouse.buttons |= UNI_MOUSE_BUTTON_RIGHT;
+        // TODO: Support middle button.
+    }
+
+    // Previous delta only if we are touching the touchpad.
+    ins->prev_touch_active = !(point->contact & BIT(7));
+
+    // Update prev regardless of whether it is valid.
+    ins->x_prev = x;
+    ins->y_prev = y;
+
+    uni_hid_device_process_controller(d);
+}
+
+static void ds4_parse_input_report_01(uni_hid_device_t* d, const ds4_input_report_01_t* r) {
+    uni_controller_t* ctl = &d->controller;
+
+    // Axis
+    ctl->gamepad.axis_x = (r->x - 127) * 4;
+    ctl->gamepad.axis_y = (r->y - 127) * 4;
+    ctl->gamepad.axis_rx = (r->rx - 127) * 4;
+    ctl->gamepad.axis_ry = (r->ry - 127) * 4;
+
+    // Hat
+    uint8_t value = r->buttons[0] & 0xf;
+    if (value > 7)
+        value = 0xff; /* Center 0, 0 */
+    ctl->gamepad.dpad = uni_hid_parser_hat_to_dpad(value);
+
+    // Buttons
+    // TODO: ds4, ds5 have these buttons in common. Refactor.
+    if (r->buttons[0] & 0x10)
+        ctl->gamepad.buttons |= BUTTON_X;  // West
+    if (r->buttons[0] & 0x20)
+        ctl->gamepad.buttons |= BUTTON_A;  // South
+    if (r->buttons[0] & 0x40)
+        ctl->gamepad.buttons |= BUTTON_B;  // East
+    if (r->buttons[0] & 0x80)
+        ctl->gamepad.buttons |= BUTTON_Y;  // North
+    if (r->buttons[1] & 0x01)
+        ctl->gamepad.buttons |= BUTTON_SHOULDER_L;  // L1
+    if (r->buttons[1] & 0x02)
+        ctl->gamepad.buttons |= BUTTON_SHOULDER_R;  // R1
+    if (r->buttons[1] & 0x04)
+        ctl->gamepad.buttons |= BUTTON_TRIGGER_L;  // L2
+    if (r->buttons[1] & 0x08)
+        ctl->gamepad.buttons |= BUTTON_TRIGGER_R;  // R2
+    if (r->buttons[1] & 0x10)
+        ctl->gamepad.misc_buttons |= MISC_BUTTON_SELECT;  // Share
+    if (r->buttons[1] & 0x20)
+        ctl->gamepad.misc_buttons |= MISC_BUTTON_START;  // Options
+    if (r->buttons[1] & 0x40)
+        ctl->gamepad.buttons |= BUTTON_THUMB_L;  // Thumb L
+    if (r->buttons[1] & 0x80)
+        ctl->gamepad.buttons |= BUTTON_THUMB_R;  // Thumb R
+    if (r->buttons[2] & 0x01)
+        ctl->gamepad.misc_buttons |= MISC_BUTTON_SYSTEM;  // PS
+
+    // Brake & throttle
+    ctl->gamepad.brake = r->brake * 4;
+    ctl->gamepad.throttle = r->throttle * 4;
+}
+
+static void ds4_parse_input_report_11(uni_hid_device_t* d, const ds4_input_report_11_t* r) {
+    ds4_instance_t* ins = get_ds4_instance(d);
+    uni_controller_t* ctl = &d->controller;
+
+    // Axis
+    ctl->gamepad.axis_x = (r->x - 127) * 4;
+    ctl->gamepad.axis_y = (r->y - 127) * 4;
+    ctl->gamepad.axis_rx = (r->rx - 127) * 4;
+    ctl->gamepad.axis_ry = (r->ry - 127) * 4;
+
+    // Hat
+    uint8_t value = r->buttons[0] & 0xf;
+    if (value > 7)
+        value = 0xff; /* Center 0, 0 */
+    ctl->gamepad.dpad = uni_hid_parser_hat_to_dpad(value);
+
+    // Buttons
+    // TODO: ds4, ds5 have these buttons in common. Refactor.
+    if (r->buttons[0] & 0x10)
+        ctl->gamepad.buttons |= BUTTON_X;  // West
+    if (r->buttons[0] & 0x20)
+        ctl->gamepad.buttons |= BUTTON_A;  // South
+    if (r->buttons[0] & 0x40)
+        ctl->gamepad.buttons |= BUTTON_B;  // East
+    if (r->buttons[0] & 0x80)
+        ctl->gamepad.buttons |= BUTTON_Y;  // North
+    if (r->buttons[1] & 0x01)
+        ctl->gamepad.buttons |= BUTTON_SHOULDER_L;  // L1
+    if (r->buttons[1] & 0x02)
+        ctl->gamepad.buttons |= BUTTON_SHOULDER_R;  // R1
+    if (r->buttons[1] & 0x04)
+        ctl->gamepad.buttons |= BUTTON_TRIGGER_L;  // L2
+    if (r->buttons[1] & 0x08)
+        ctl->gamepad.buttons |= BUTTON_TRIGGER_R;  // R2
+    if (r->buttons[1] & 0x10)
+        ctl->gamepad.misc_buttons |= MISC_BUTTON_SELECT;  // Share
+    if (r->buttons[1] & 0x20)
+        ctl->gamepad.misc_buttons |= MISC_BUTTON_START;  // Options
+    if (r->buttons[1] & 0x40)
+        ctl->gamepad.buttons |= BUTTON_THUMB_L;  // Thumb L
+    if (r->buttons[1] & 0x80)
+        ctl->gamepad.buttons |= BUTTON_THUMB_R;  // Thumb R
+    if (r->buttons[2] & 0x01)
+        ctl->gamepad.misc_buttons |= MISC_BUTTON_SYSTEM;  // PS
+
+    // Brake & throttle
+    ctl->gamepad.brake = r->brake * 4;
+    ctl->gamepad.throttle = r->throttle * 4;
+
+    // Gyro: DS4 native axes already match the canonical right-handed Y-up frame (X=pitch, Y=yaw, Z=roll).
+    // Factory calibration normalizes raw counts to (1 / DS4_GYRO_RES_PER_DEG_S) deg/s, which we scale to rad/s.
+    for (size_t i = 0; i < ARRAY_SIZE(r->gyro); i++) {
+        int32_t raw_data = (int16_t)r->gyro[i];
+        int32_t calib_data =
+            mult_frac(ins->gyro_calib_data[i].sens_numer, raw_data, ins->gyro_calib_data[i].sens_denom);
+        ctl->gamepad.gyro[i] = (float)calib_data * (UNI_DEG_TO_RAD / (float)DS4_GYRO_RES_PER_DEG_S);
+    }
+
+    // Accel: Subtract per-axis zero-g factory bias before scaling to (1 / DS4_ACC_RES_PER_G) g,
+    // then convert to canonical Y-up linear acceleration in m/s^2 (X=right, Y=up, Z=back).
+    for (size_t i = 0; i < ARRAY_SIZE(r->accel); i++) {
+        int32_t raw_data = (int16_t)r->accel[i];
+        int32_t calib_data = mult_frac(ins->accel_calib_data[i].sens_numer, raw_data - ins->accel_calib_data[i].bias,
+                                       ins->accel_calib_data[i].sens_denom);
+        ctl->gamepad.accel[i] = (float)calib_data * (UNI_STANDARD_GRAVITY / (float)DS4_ACC_RES_PER_G);
+    }
+
+    // Value goes from 0 to 10. Make it from 0 to 250.
+    // The +1 is to avoid having a value of 0, which means "battery unavailable".
+    ctl->battery = (r->status[0] & DS4_STATUS_BATTERY_CAPACITY) * 25 + 1;
+
+    if (d->child) {
+        ds4_parse_mouse(d->child, r);
+    }
+}
 
 void uni_hid_parser_ds4_setup(struct uni_hid_device_s* d) {
     ds4_instance_t* ins = get_ds4_instance(d);
@@ -379,131 +644,6 @@ void uni_hid_parser_ds4_parse_feature_report(uni_hid_device_t* d, const uint8_t*
     }
 }
 
-static void ds4_parse_input_report_01(uni_hid_device_t* d, const ds4_input_report_01_t* r) {
-    uni_controller_t* ctl = &d->controller;
-
-    // Axis
-    ctl->gamepad.axis_x = (r->x - 127) * 4;
-    ctl->gamepad.axis_y = (r->y - 127) * 4;
-    ctl->gamepad.axis_rx = (r->rx - 127) * 4;
-    ctl->gamepad.axis_ry = (r->ry - 127) * 4;
-
-    // Hat
-    uint8_t value = r->buttons[0] & 0xf;
-    if (value > 7)
-        value = 0xff; /* Center 0, 0 */
-    ctl->gamepad.dpad = uni_hid_parser_hat_to_dpad(value);
-
-    // Buttons
-    // TODO: ds4, ds5 have these buttons in common. Refactor.
-    if (r->buttons[0] & 0x10)
-        ctl->gamepad.buttons |= BUTTON_X;  // West
-    if (r->buttons[0] & 0x20)
-        ctl->gamepad.buttons |= BUTTON_A;  // South
-    if (r->buttons[0] & 0x40)
-        ctl->gamepad.buttons |= BUTTON_B;  // East
-    if (r->buttons[0] & 0x80)
-        ctl->gamepad.buttons |= BUTTON_Y;  // North
-    if (r->buttons[1] & 0x01)
-        ctl->gamepad.buttons |= BUTTON_SHOULDER_L;  // L1
-    if (r->buttons[1] & 0x02)
-        ctl->gamepad.buttons |= BUTTON_SHOULDER_R;  // R1
-    if (r->buttons[1] & 0x04)
-        ctl->gamepad.buttons |= BUTTON_TRIGGER_L;  // L2
-    if (r->buttons[1] & 0x08)
-        ctl->gamepad.buttons |= BUTTON_TRIGGER_R;  // R2
-    if (r->buttons[1] & 0x10)
-        ctl->gamepad.misc_buttons |= MISC_BUTTON_SELECT;  // Share
-    if (r->buttons[1] & 0x20)
-        ctl->gamepad.misc_buttons |= MISC_BUTTON_START;  // Options
-    if (r->buttons[1] & 0x40)
-        ctl->gamepad.buttons |= BUTTON_THUMB_L;  // Thumb L
-    if (r->buttons[1] & 0x80)
-        ctl->gamepad.buttons |= BUTTON_THUMB_R;  // Thumb R
-    if (r->buttons[2] & 0x01)
-        ctl->gamepad.misc_buttons |= MISC_BUTTON_SYSTEM;  // PS
-
-    // Brake & throttle
-    ctl->gamepad.brake = r->brake * 4;
-    ctl->gamepad.throttle = r->throttle * 4;
-}
-
-static void ds4_parse_input_report_11(uni_hid_device_t* d, const ds4_input_report_11_t* r) {
-    ds4_instance_t* ins = get_ds4_instance(d);
-    uni_controller_t* ctl = &d->controller;
-
-    // Axis
-    ctl->gamepad.axis_x = (r->x - 127) * 4;
-    ctl->gamepad.axis_y = (r->y - 127) * 4;
-    ctl->gamepad.axis_rx = (r->rx - 127) * 4;
-    ctl->gamepad.axis_ry = (r->ry - 127) * 4;
-
-    // Hat
-    uint8_t value = r->buttons[0] & 0xf;
-    if (value > 7)
-        value = 0xff; /* Center 0, 0 */
-    ctl->gamepad.dpad = uni_hid_parser_hat_to_dpad(value);
-
-    // Buttons
-    // TODO: ds4, ds5 have these buttons in common. Refactor.
-    if (r->buttons[0] & 0x10)
-        ctl->gamepad.buttons |= BUTTON_X;  // West
-    if (r->buttons[0] & 0x20)
-        ctl->gamepad.buttons |= BUTTON_A;  // South
-    if (r->buttons[0] & 0x40)
-        ctl->gamepad.buttons |= BUTTON_B;  // East
-    if (r->buttons[0] & 0x80)
-        ctl->gamepad.buttons |= BUTTON_Y;  // North
-    if (r->buttons[1] & 0x01)
-        ctl->gamepad.buttons |= BUTTON_SHOULDER_L;  // L1
-    if (r->buttons[1] & 0x02)
-        ctl->gamepad.buttons |= BUTTON_SHOULDER_R;  // R1
-    if (r->buttons[1] & 0x04)
-        ctl->gamepad.buttons |= BUTTON_TRIGGER_L;  // L2
-    if (r->buttons[1] & 0x08)
-        ctl->gamepad.buttons |= BUTTON_TRIGGER_R;  // R2
-    if (r->buttons[1] & 0x10)
-        ctl->gamepad.misc_buttons |= MISC_BUTTON_SELECT;  // Share
-    if (r->buttons[1] & 0x20)
-        ctl->gamepad.misc_buttons |= MISC_BUTTON_START;  // Options
-    if (r->buttons[1] & 0x40)
-        ctl->gamepad.buttons |= BUTTON_THUMB_L;  // Thumb L
-    if (r->buttons[1] & 0x80)
-        ctl->gamepad.buttons |= BUTTON_THUMB_R;  // Thumb R
-    if (r->buttons[2] & 0x01)
-        ctl->gamepad.misc_buttons |= MISC_BUTTON_SYSTEM;  // PS
-
-    // Brake & throttle
-    ctl->gamepad.brake = r->brake * 4;
-    ctl->gamepad.throttle = r->throttle * 4;
-
-    // Gyro: DS4 native axes already match the canonical right-handed Y-up frame (X=pitch, Y=yaw, Z=roll).
-    // Factory calibration normalizes raw counts to (1 / DS4_GYRO_RES_PER_DEG_S) deg/s, which we scale to rad/s.
-    for (size_t i = 0; i < ARRAY_SIZE(r->gyro); i++) {
-        int32_t raw_data = (int16_t)r->gyro[i];
-        int32_t calib_data =
-            mult_frac(ins->gyro_calib_data[i].sens_numer, raw_data, ins->gyro_calib_data[i].sens_denom);
-        ctl->gamepad.gyro[i] = (float)calib_data * (UNI_DEG_TO_RAD / (float)DS4_GYRO_RES_PER_DEG_S);
-    }
-
-    // Accel: Subtract per-axis zero-g factory bias before scaling to (1 / DS4_ACC_RES_PER_G) g,
-    // then convert to canonical Y-up linear acceleration in m/s^2 (X=right, Y=up, Z=back).
-    for (size_t i = 0; i < ARRAY_SIZE(r->accel); i++) {
-        int32_t raw_data = (int16_t)r->accel[i];
-        int32_t calib_data = mult_frac(ins->accel_calib_data[i].sens_numer, raw_data - ins->accel_calib_data[i].bias,
-                                       ins->accel_calib_data[i].sens_denom);
-        ctl->gamepad.accel[i] = (float)calib_data * (UNI_STANDARD_GRAVITY / (float)DS4_ACC_RES_PER_G);
-    }
-
-    // Value goes from 0 to 10. Make it from 0 to 250.
-    // The +1 is to avoid having a value of 0, which means "battery unavailable".
-    ctl->battery = (r->status[0] & DS4_STATUS_BATTERY_CAPACITY) * 25 + 1;
-
-    if (d->child) {
-        ds4_parse_mouse(d->child, r);
-    }
-}
-
 void uni_hid_parser_ds4_parse_input_report(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
     if (!report || len < 1)
         return;
@@ -526,7 +666,7 @@ void uni_hid_parser_ds4_parse_input_report(uni_hid_device_t* d, const uint8_t* r
 void uni_hid_parser_ds4_set_lightbar_color(uni_hid_device_t* d, uint8_t r, uint8_t g, uint8_t b) {
     ds4_instance_t* ins = get_ds4_instance(d);
 
-    // Сache the previous LED color values
+    // Cache the previous LED color values.
     ins->prev_color_red = r;
     ins->prev_color_green = g;
     ins->prev_color_blue = b;
@@ -567,161 +707,4 @@ int uni_hid_parser_ds4_device_extra_info(const struct uni_hid_device_s* d, char*
         return -1;
     const ds4_instance_t* ins = (const ds4_instance_t*)&d->parser_data[0];
     return snprintf(buf, len, "FW version %#x, HW version %#x", ins->fw_version, ins->hw_version);
-}
-
-//
-// Helpers
-//
-static ds4_instance_t* get_ds4_instance(uni_hid_device_t* d) {
-    return (ds4_instance_t*)&d->parser_data[0];
-}
-
-static void ds4_send_output_report(uni_hid_device_t* d, ds4_output_report_t* out) {
-    out->transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT;
-    out->report_id = 0x11;  // taken from HID descriptor
-    out->unk0[0] = 0xc4;    // HID alone + poll interval
-    out->crc32 = ~uni_crc32_le(0xffffffff, (uint8_t*)out, sizeof(*out) - 4);
-
-    uni_hid_device_send_intr_report(d, (uint8_t*)out, sizeof(*out));
-}
-
-static uni_rumble_result_t ds4_stop_rumble_now(struct uni_hid_device_s* d) {
-    ds4_instance_t* ins = get_ds4_instance(d);
-
-    // Сache the previous rumble value
-    ins->prev_rumble_weak_magnitude = 0;
-    ins->prev_rumble_strong_magnitude = 0;
-
-    ds4_output_report_t out = {
-        .flags = DS4_FF_FLAG_BLINK_COLOR_RUMBLE,  // blink + LED + motor
-        // Prev LED color values to keep the LED color from turning off
-        .led_red = ins->prev_color_red,
-        .led_green = ins->prev_color_green,
-        .led_blue = ins->prev_color_blue,
-    };
-    ds4_send_output_report(d, &out);
-    return UNI_RUMBLE_OK;
-}
-
-static uni_rumble_result_t ds4_start_rumble_now(struct uni_hid_device_s* d,
-                                                uint8_t weak_magnitude,
-                                                uint8_t strong_magnitude,
-                                                uint8_t trigger_left,
-                                                uint8_t trigger_right) {
-    ARG_UNUSED(trigger_left);
-    ARG_UNUSED(trigger_right);
-
-    ds4_instance_t* ins = get_ds4_instance(d);
-
-    // Сache the previous rumble value
-    ins->prev_rumble_weak_magnitude = weak_magnitude;
-    ins->prev_rumble_strong_magnitude = strong_magnitude;
-
-    ds4_output_report_t out = {
-        .flags = DS4_FF_FLAG_BLINK_COLOR_RUMBLE,  // blink + LED + motor
-        // Right motor: small force; left motor: big force
-        .motor_right = weak_magnitude,
-        .motor_left = strong_magnitude,
-        // Prev LED color values to keep the LED color from turning off
-        .led_red = ins->prev_color_red,
-        .led_green = ins->prev_color_green,
-        .led_blue = ins->prev_color_blue,
-    };
-    ds4_send_output_report(d, &out);
-    return UNI_RUMBLE_OK;
-}
-
-static void ds4_request_calibration_report(uni_hid_device_t* d) {
-    // From Linux drivers/hid/hid-sony.c:
-    // The default behavior of the DUALSHOCK 4 is to send reports using
-    // report type 1 when running over Bluetooth. However, when feature
-    // report 2 (CALIBRATION_REQUEST) is requested during the controller initialization, it starts
-    // sending input reports in report 17.
-
-    // Enable stream mode. Some models, like the CUH-ZCT2G require to explicitly request stream mode.
-    static uint8_t report[] = {
-        ((HID_MESSAGE_TYPE_GET_REPORT << 4) | HID_REPORT_TYPE_FEATURE),
-        DS4_FEATURE_REPORT_CALIBRATION,
-    };
-    uni_hid_device_send_ctrl_report(d, (uint8_t*)report, sizeof(report));
-}
-
-static void ds4_request_firmware_version_report(uni_hid_device_t* d) {
-    logi("DS4: ds4_request_firmware_version_report()\n");
-
-    static uint8_t report[] = {
-        ((HID_MESSAGE_TYPE_GET_REPORT << 4) | HID_REPORT_TYPE_FEATURE),
-        DS4_FEATURE_REPORT_FIRMWARE_VERSION,
-    };
-    uni_hid_device_send_ctrl_report(d, (uint8_t*)report, sizeof(report));
-}
-
-static void ds4_send_enable_lightbar_report(uni_hid_device_t* d) {
-    logi("DS4: ds4_send_enable_lightbar_report()\n");
-
-    ds4_instance_t* ins = get_ds4_instance(d);
-
-    // Cache the previous LED color and rumble values
-    ins->prev_color_red = 0x00;
-    ins->prev_color_green = 0x00;
-    ins->prev_color_blue = 0x40;
-    ins->prev_rumble_weak_magnitude = 0x00;
-    ins->prev_rumble_strong_magnitude = 0x00;
-
-    // Also turns off blinking, LED and rumble.
-    ds4_output_report_t out = {
-        // blink + LED + motor
-        .flags = DS4_FF_FLAG_BLINK_COLOR_RUMBLE,
-        // Default LED color: Blue
-        .led_red = ins->prev_color_red,
-        .led_green = ins->prev_color_green,
-        .led_blue = ins->prev_color_blue,
-    };
-    ds4_send_output_report(d, &out);
-}
-
-static void ds4_parse_mouse(uni_hid_device_t* d, const ds4_input_report_11_t* r) {
-    ds4_instance_t* ins = get_ds4_instance(d);
-
-    // We can safely assume that device is connected and report is valid; otherwise
-    // this function should have not been called.
-
-    if (r->num_touch_reports < 1) {
-        ins->prev_touch_active = false;
-        return;
-    }
-
-    uni_controller_t* ctl = &d->controller;
-    const ds4_touch_point_t* point = &r->touches[0].points[0];
-
-    int x = (point->x_hi << 8) + point->x_lo;
-    int y = (point->y_hi << 4) + point->y_lo;
-
-    if (ins->prev_touch_active) {
-        ctl->mouse.delta_x = x - ins->x_prev;
-        ctl->mouse.delta_y = y - ins->y_prev;
-    } else {
-        ctl->mouse.delta_x = 0;
-        ctl->mouse.delta_y = 0;
-    }
-
-    // "Click" on Touchpad
-    if (r->buttons[2] & 0x02) {
-        // Touchpad is divided in 0.75 (left) + 0.25 (right)
-        // Touchpad range: 1920 x 942
-        if (x < 1440)
-            ctl->mouse.buttons |= UNI_MOUSE_BUTTON_LEFT;
-        else
-            ctl->mouse.buttons |= UNI_MOUSE_BUTTON_RIGHT;
-        // TODO: Support middle button.
-    }
-
-    // Previous delta only if we are touching the touchpad.
-    ins->prev_touch_active = !(point->contact & BIT(7));
-
-    // Update prev regardless of whether it is valid.
-    ins->x_prev = x;
-    ins->y_prev = y;
-
-    uni_hid_device_process_controller(d);
 }

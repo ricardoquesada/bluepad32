@@ -33,7 +33,6 @@ static const struct uni_platform_unijoysticle_gpio_config gpio_config_800xl = {
 // Variant overrides
 //
 
-//
 const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_800xl_create_variant(void) {
     static const struct uni_platform_unijoysticle_variant variant = {
         .name = "2 800XL",

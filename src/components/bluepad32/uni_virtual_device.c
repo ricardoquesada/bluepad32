@@ -11,14 +11,15 @@
 static bool virtual_device_enabled;
 
 void uni_virtual_device_set_enabled(bool enabled) {
-    uni_property_value_t val;
-
-    if (enabled != virtual_device_enabled) {
-        virtual_device_enabled = enabled;
-
-        val.boolean = enabled;
-        uni_property_set(UNI_PROPERTY_IDX_VIRTUAL_DEVICE_ENABLED, val);
+    if (enabled == virtual_device_enabled) {
+        return;
     }
+
+    virtual_device_enabled = enabled;
+
+    uni_property_value_t val;
+    val.boolean = enabled;
+    uni_property_set(UNI_PROPERTY_IDX_VIRTUAL_DEVICE_ENABLED, val);
 }
 
 bool uni_virtual_device_is_enabled(void) {
@@ -26,8 +27,6 @@ bool uni_virtual_device_is_enabled(void) {
 }
 
 void uni_virtual_device_init(void) {
-    uni_property_value_t val;
-
-    val = uni_property_get(UNI_PROPERTY_IDX_VIRTUAL_DEVICE_ENABLED);
+    uni_property_value_t val = uni_property_get(UNI_PROPERTY_IDX_VIRTUAL_DEVICE_ENABLED);
     virtual_device_enabled = val.boolean;
 }

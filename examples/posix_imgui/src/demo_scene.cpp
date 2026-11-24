@@ -75,6 +75,7 @@ constexpr float kFontScaleStep = 0.25f;
  * `__attribute__((format(printf, ...)))` on declarations rather than function definitions.
  */
 void DrawRightAlignedText(const ImVec4& color, const char* fmt, ...) IM_FMTARGS(2);
+
 void DrawRightAlignedText(const ImVec4& color, const char* fmt, ...) {
     char buf[128];
     va_list args;
@@ -162,6 +163,7 @@ constexpr float kGravityMps2 = UNI_STANDARD_GRAVITY;
 
 /// Renders `printf`-formatted colored text horizontally centered within `[colStartX, colStartX + colWidth]`.
 void DrawTextCenteredInColumn(float colStartX, float colWidth, const ImVec4& color, const char* fmt, ...) IM_FMTARGS(4);
+
 void DrawTextCenteredInColumn(float colStartX, float colWidth, const ImVec4& color, const char* fmt, ...) {
     char buf[128];
     va_list args;
@@ -1991,6 +1993,7 @@ void DemoScene::RenderPanel_LightsTab(int slot, const ControllerSnapshot& snap) 
             float g;
             float b;
         };
+
         constexpr std::array<ColorSwatch, 6> kSwatches = {{
             {"PS Blue", 0.00f, 0.25f, 1.00f},
             {"Red", 1.00f, 0.00f, 0.00f},
@@ -2048,6 +2051,7 @@ void DemoScene::RenderPanel_LightsTab(int slot, const ControllerSnapshot& snap) 
             const char* name;
             int percent;
         };
+
         constexpr std::array<BrightnessPreset, 5> kPresets = {{
             {"Off (0%)", 0},
             {"25%", 25},

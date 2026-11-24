@@ -28,9 +28,8 @@ static struct {
     struct arg_end* end;
 } gpio_set_args;
 
+// Console command handler for `gpio_get`: prints one GPIO level or all GPIOs.
 static int cmd_gpio_get(int argc, char** argv) {
-    int gpio_num, value;
-
     if (argc == 1) {
         for (int i = 0; i < GPIO_NUM_MAX; i++) {
             int value = gpio_get_level(i);
@@ -45,26 +44,25 @@ static int cmd_gpio_get(int argc, char** argv) {
         return 1;
     }
 
-    gpio_num = gpio_get_args.gpio_num->ival[0];
+    int gpio_num = gpio_get_args.gpio_num->ival[0];
     if (gpio_num < 0 || gpio_num >= GPIO_NUM_MAX)
         return 1;
 
-    value = gpio_get_level(gpio_num);
+    int value = gpio_get_level(gpio_num);
     logi("GPIO %d = %d\n", gpio_num, value);
     return 0;
 }
 
+// Console command handler for `gpio_set`: sets a single GPIO output level.
 static int cmd_gpio_set(int argc, char** argv) {
-    int gpio_num, value;
-
     int nerrors = arg_parse(argc, argv, (void**)&gpio_set_args);
     if (nerrors != 0) {
         arg_print_errors(stderr, gpio_set_args.end, argv[0]);
         return 1;
     }
 
-    gpio_num = gpio_set_args.gpio_num->ival[0];
-    value = gpio_set_args.value->ival[0];
+    int gpio_num = gpio_set_args.gpio_num->ival[0];
+    int value = gpio_set_args.value->ival[0];
 
     if (gpio_num < 0 || gpio_num >= GPIO_NUM_MAX)
         return 1;

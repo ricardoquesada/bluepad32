@@ -85,9 +85,6 @@ static int cmd_callback_idx = 0;
 static bool bt_scanning_enabled;
 static bool bt_allow_incoming_connections = true;
 
-static void start_scan(void);
-static void stop_scan(void);
-
 enum {
     CMD_BT_DEL_KEYS,
     CMD_BT_LIST_KEYS,

@@ -151,20 +151,6 @@ static bool uuid_is_valve_family(const uint8_t u[16]) {
     return u[0] == 0x10 && u[1] == 0x0f && u[2] == 0x6c && memcmp(&u[4], &k_valve_service_uuid[4], 12) == 0;
 }
 
-bool uni_hid_parser_steam_triton_is_device(const struct uni_hid_device_s* d) {
-    if (!d || d->vendor_id != UNI_TRITON_VALVE_VID)
-        return false;
-    switch (d->product_id) {
-        case UNI_TRITON_PID_USB:
-        case UNI_TRITON_PID_BLE:
-        case UNI_TRITON_PID_PUCK:
-        case UNI_TRITON_PID_NEREID:
-            return true;
-        default:
-            return false;
-    }
-}
-
 static void stop_conn_timer(steam_triton_instance_t* ins) {
     if (ins->conn_timer_active) {
         btstack_run_loop_remove_timer(&ins->conn_timer);
@@ -260,6 +246,137 @@ static void rumble_timer_cb(btstack_timer_source_t* ts) {
     btstack_run_loop_remove_timer(ts);
     ins->rumble_timer_active = false;
     send_rumble_now(d, 0, 0);
+}
+
+static int32_t triton_scale_stick(int16_t raw, bool invert) {
+    // Widen to int32_t before negating so raw == INT16_MIN (-32768) does not overflow
+    // signed 16-bit arithmetic, and clamp to Bluepad32's [-512, 511] range.
+    int32_t val = (int32_t)raw >> 6;
+    if (invert)
+        val = -val;
+    if (val > 511)
+        val = 511;
+    if (val < -512)
+        val = -512;
+    return val;
+}
+
+static void parse_state_payload(struct uni_hid_device_s* d, uint8_t report_id, const uint8_t* p, uint16_t payload_len) {
+    // Minimum state report is 30 bytes (1B report ID + 29B payload: seq + buttons + triggers + sticks + pads).
+    if (payload_len < TRITON_MIN_STATE_PAYLOAD_LEN)
+        return;
+
+    uni_controller_t* ctl = &d->controller;
+    ctl->klass = UNI_CONTROLLER_CLASS_GAMEPAD;
+    ctl->gamepad.dpad = 0;
+    ctl->gamepad.buttons = 0;
+    ctl->gamepad.misc_buttons = 0;
+
+    uint32_t buttons = little_endian_read_32(p, 1);
+
+    // D-Pad mapping
+    if (buttons & TRITON_BTN_DPAD_UP)
+        ctl->gamepad.dpad |= DPAD_UP;
+    if (buttons & TRITON_BTN_DPAD_DOWN)
+        ctl->gamepad.dpad |= DPAD_DOWN;
+    if (buttons & TRITON_BTN_DPAD_LEFT)
+        ctl->gamepad.dpad |= DPAD_LEFT;
+    if (buttons & TRITON_BTN_DPAD_RIGHT)
+        ctl->gamepad.dpad |= DPAD_RIGHT;
+
+    // Face, shoulder, trigger, and thumb buttons
+    if (buttons & TRITON_BTN_A)
+        ctl->gamepad.buttons |= BUTTON_A;
+    if (buttons & TRITON_BTN_B)
+        ctl->gamepad.buttons |= BUTTON_B;
+    if (buttons & TRITON_BTN_X)
+        ctl->gamepad.buttons |= BUTTON_X;
+    if (buttons & TRITON_BTN_Y)
+        ctl->gamepad.buttons |= BUTTON_Y;
+    if (buttons & TRITON_BTN_LB)
+        ctl->gamepad.buttons |= BUTTON_SHOULDER_L;
+    if (buttons & TRITON_BTN_RB)
+        ctl->gamepad.buttons |= BUTTON_SHOULDER_R;
+    if (buttons & TRITON_BTN_LT_FULL)
+        ctl->gamepad.buttons |= BUTTON_TRIGGER_L;
+    if (buttons & TRITON_BTN_RT_FULL)
+        ctl->gamepad.buttons |= BUTTON_TRIGGER_R;
+    if (buttons & (TRITON_BTN_L3 | TRITON_BTN_LPAD_CLICK))
+        ctl->gamepad.buttons |= BUTTON_THUMB_L;
+    if (buttons & (TRITON_BTN_R3 | TRITON_BTN_RPAD_CLICK))
+        ctl->gamepad.buttons |= BUTTON_THUMB_R;
+
+    // Misc buttons: VIEW -> SELECT, MENU -> START, STEAM -> SYSTEM, QAM -> CAPTURE
+    if (buttons & TRITON_BTN_VIEW)
+        ctl->gamepad.misc_buttons |= MISC_BUTTON_SELECT;
+    if (buttons & TRITON_BTN_MENU)
+        ctl->gamepad.misc_buttons |= MISC_BUTTON_START;
+    if (buttons & TRITON_BTN_STEAM)
+        ctl->gamepad.misc_buttons |= MISC_BUTTON_SYSTEM;
+    if (buttons & TRITON_BTN_QAM)
+        ctl->gamepad.misc_buttons |= MISC_BUTTON_CAPTURE;
+
+    // 16-bit triggers (0..32767 -> 0..1023)
+    int16_t lt = (int16_t)little_endian_read_16(p, 5);
+    int16_t rt = (int16_t)little_endian_read_16(p, 7);
+    if (lt < 0)
+        lt = 0;
+    if (rt < 0)
+        rt = 0;
+    ctl->gamepad.brake = (int32_t)(lt >> 5);
+    ctl->gamepad.throttle = (int32_t)(rt >> 5);
+    if (ctl->gamepad.brake > 0)
+        ctl->gamepad.buttons |= BUTTON_TRIGGER_L;
+    if (ctl->gamepad.throttle > 0)
+        ctl->gamepad.buttons |= BUTTON_TRIGGER_R;
+
+    // 16-bit signed thumbsticks (-32768..32767 -> -512..511, Y inverted)
+    int16_t lx = (int16_t)little_endian_read_16(p, 9);
+    int16_t ly = (int16_t)little_endian_read_16(p, 11);
+    int16_t rx = (int16_t)little_endian_read_16(p, 13);
+    int16_t ry = (int16_t)little_endian_read_16(p, 15);
+    ctl->gamepad.axis_x = triton_scale_stick(lx, false);
+    ctl->gamepad.axis_y = triton_scale_stick(ly, true);
+    ctl->gamepad.axis_rx = triton_scale_stick(rx, false);
+    ctl->gamepad.axis_ry = triton_scale_stick(ry, true);
+
+    // 6-axis IMU block at p + 33..44 (requires payload_len >= 45, i.e., len >= 46):
+    // - Reports 0x42 / 0x45: imu_off = 29, imu_ts_size = 4 -> imu at p + 33
+    // - Report 0x47: imu_off = 31, imu_ts_size = 2 -> imu at p + 33
+    uint16_t imu_off = (report_id == ID_TRITON_CONTROLLER_STATE_TIMESTAMP) ? 31u : 29u;
+    uint16_t imu_ts_size = (report_id == ID_TRITON_CONTROLLER_STATE_TIMESTAMP) ? 2u : 4u;
+    if (payload_len >= (uint16_t)(imu_off + imu_ts_size + 12u)) {
+        const uint8_t* imu = &p[imu_off + imu_ts_size];
+        int16_t ax = (int16_t)little_endian_read_16(imu, 0);
+        int16_t ay = (int16_t)little_endian_read_16(imu, 2);
+        int16_t az = (int16_t)little_endian_read_16(imu, 4);
+        int16_t gx = (int16_t)little_endian_read_16(imu, 6);
+        int16_t gy = (int16_t)little_endian_read_16(imu, 8);
+        int16_t gz = (int16_t)little_endian_read_16(imu, 10);
+
+        // Native SDL Triton sensor frame (+X right, +Y forward, +Z up) ->
+        // Bluepad32 canonical right-handed Y-up frame ([0]=+X right, [1]=+Y up, [2]=+Z back).
+        ctl->gamepad.accel[0] = (float)ax * TRITON_ACCEL_SCALE;
+        ctl->gamepad.accel[1] = (float)az * TRITON_ACCEL_SCALE;
+        ctl->gamepad.accel[2] = -(float)ay * TRITON_ACCEL_SCALE;
+        ctl->gamepad.gyro[0] = (float)gx * TRITON_GYRO_SCALE;
+        ctl->gamepad.gyro[1] = (float)gz * TRITON_GYRO_SCALE;
+        ctl->gamepad.gyro[2] = -(float)gy * TRITON_GYRO_SCALE;
+    }
+}
+
+bool uni_hid_parser_steam_triton_is_device(const struct uni_hid_device_s* d) {
+    if (!d || d->vendor_id != UNI_TRITON_VALVE_VID)
+        return false;
+    switch (d->product_id) {
+        case UNI_TRITON_PID_USB:
+        case UNI_TRITON_PID_BLE:
+        case UNI_TRITON_PID_PUCK:
+        case UNI_TRITON_PID_NEREID:
+            return true;
+        default:
+            return false;
+    }
 }
 
 void uni_hid_parser_steam_triton_handle_gatt_event(uint8_t packet_type,
@@ -471,123 +588,6 @@ void uni_hid_parser_steam_triton_setup(struct uni_hid_device_s* d) {
 
 void uni_hid_parser_steam_triton_init_report(struct uni_hid_device_s* d) {
     ARG_UNUSED(d);
-}
-
-static int32_t triton_scale_stick(int16_t raw, bool invert) {
-    // Widen to int32_t before negating so raw == INT16_MIN (-32768) does not overflow
-    // signed 16-bit arithmetic, and clamp to Bluepad32's [-512, 511] range.
-    int32_t val = (int32_t)raw >> 6;
-    if (invert)
-        val = -val;
-    if (val > 511)
-        val = 511;
-    if (val < -512)
-        val = -512;
-    return val;
-}
-
-static void parse_state_payload(struct uni_hid_device_s* d, uint8_t report_id, const uint8_t* p, uint16_t payload_len) {
-    // Minimum state report is 30 bytes (1B report ID + 29B payload: seq + buttons + triggers + sticks + pads).
-    if (payload_len < TRITON_MIN_STATE_PAYLOAD_LEN)
-        return;
-
-    uni_controller_t* ctl = &d->controller;
-    ctl->klass = UNI_CONTROLLER_CLASS_GAMEPAD;
-    ctl->gamepad.dpad = 0;
-    ctl->gamepad.buttons = 0;
-    ctl->gamepad.misc_buttons = 0;
-
-    uint32_t buttons = little_endian_read_32(p, 1);
-
-    // D-Pad mapping
-    if (buttons & TRITON_BTN_DPAD_UP)
-        ctl->gamepad.dpad |= DPAD_UP;
-    if (buttons & TRITON_BTN_DPAD_DOWN)
-        ctl->gamepad.dpad |= DPAD_DOWN;
-    if (buttons & TRITON_BTN_DPAD_LEFT)
-        ctl->gamepad.dpad |= DPAD_LEFT;
-    if (buttons & TRITON_BTN_DPAD_RIGHT)
-        ctl->gamepad.dpad |= DPAD_RIGHT;
-
-    // Face, shoulder, trigger, and thumb buttons
-    if (buttons & TRITON_BTN_A)
-        ctl->gamepad.buttons |= BUTTON_A;
-    if (buttons & TRITON_BTN_B)
-        ctl->gamepad.buttons |= BUTTON_B;
-    if (buttons & TRITON_BTN_X)
-        ctl->gamepad.buttons |= BUTTON_X;
-    if (buttons & TRITON_BTN_Y)
-        ctl->gamepad.buttons |= BUTTON_Y;
-    if (buttons & TRITON_BTN_LB)
-        ctl->gamepad.buttons |= BUTTON_SHOULDER_L;
-    if (buttons & TRITON_BTN_RB)
-        ctl->gamepad.buttons |= BUTTON_SHOULDER_R;
-    if (buttons & TRITON_BTN_LT_FULL)
-        ctl->gamepad.buttons |= BUTTON_TRIGGER_L;
-    if (buttons & TRITON_BTN_RT_FULL)
-        ctl->gamepad.buttons |= BUTTON_TRIGGER_R;
-    if (buttons & (TRITON_BTN_L3 | TRITON_BTN_LPAD_CLICK))
-        ctl->gamepad.buttons |= BUTTON_THUMB_L;
-    if (buttons & (TRITON_BTN_R3 | TRITON_BTN_RPAD_CLICK))
-        ctl->gamepad.buttons |= BUTTON_THUMB_R;
-
-    // Misc buttons: VIEW -> SELECT, MENU -> START, STEAM -> SYSTEM, QAM -> CAPTURE
-    if (buttons & TRITON_BTN_VIEW)
-        ctl->gamepad.misc_buttons |= MISC_BUTTON_SELECT;
-    if (buttons & TRITON_BTN_MENU)
-        ctl->gamepad.misc_buttons |= MISC_BUTTON_START;
-    if (buttons & TRITON_BTN_STEAM)
-        ctl->gamepad.misc_buttons |= MISC_BUTTON_SYSTEM;
-    if (buttons & TRITON_BTN_QAM)
-        ctl->gamepad.misc_buttons |= MISC_BUTTON_CAPTURE;
-
-    // 16-bit triggers (0..32767 -> 0..1023)
-    int16_t lt = (int16_t)little_endian_read_16(p, 5);
-    int16_t rt = (int16_t)little_endian_read_16(p, 7);
-    if (lt < 0)
-        lt = 0;
-    if (rt < 0)
-        rt = 0;
-    ctl->gamepad.brake = (int32_t)(lt >> 5);
-    ctl->gamepad.throttle = (int32_t)(rt >> 5);
-    if (ctl->gamepad.brake > 0)
-        ctl->gamepad.buttons |= BUTTON_TRIGGER_L;
-    if (ctl->gamepad.throttle > 0)
-        ctl->gamepad.buttons |= BUTTON_TRIGGER_R;
-
-    // 16-bit signed thumbsticks (-32768..32767 -> -512..511, Y inverted)
-    int16_t lx = (int16_t)little_endian_read_16(p, 9);
-    int16_t ly = (int16_t)little_endian_read_16(p, 11);
-    int16_t rx = (int16_t)little_endian_read_16(p, 13);
-    int16_t ry = (int16_t)little_endian_read_16(p, 15);
-    ctl->gamepad.axis_x = triton_scale_stick(lx, false);
-    ctl->gamepad.axis_y = triton_scale_stick(ly, true);
-    ctl->gamepad.axis_rx = triton_scale_stick(rx, false);
-    ctl->gamepad.axis_ry = triton_scale_stick(ry, true);
-
-    // 6-axis IMU block at p + 33..44 (requires payload_len >= 45, i.e., len >= 46):
-    // - Reports 0x42 / 0x45: imu_off = 29, imu_ts_size = 4 -> imu at p + 33
-    // - Report 0x47: imu_off = 31, imu_ts_size = 2 -> imu at p + 33
-    uint16_t imu_off = (report_id == ID_TRITON_CONTROLLER_STATE_TIMESTAMP) ? 31u : 29u;
-    uint16_t imu_ts_size = (report_id == ID_TRITON_CONTROLLER_STATE_TIMESTAMP) ? 2u : 4u;
-    if (payload_len >= (uint16_t)(imu_off + imu_ts_size + 12u)) {
-        const uint8_t* imu = &p[imu_off + imu_ts_size];
-        int16_t ax = (int16_t)little_endian_read_16(imu, 0);
-        int16_t ay = (int16_t)little_endian_read_16(imu, 2);
-        int16_t az = (int16_t)little_endian_read_16(imu, 4);
-        int16_t gx = (int16_t)little_endian_read_16(imu, 6);
-        int16_t gy = (int16_t)little_endian_read_16(imu, 8);
-        int16_t gz = (int16_t)little_endian_read_16(imu, 10);
-
-        // Native SDL Triton sensor frame (+X right, +Y forward, +Z up) ->
-        // Bluepad32 canonical right-handed Y-up frame ([0]=+X right, [1]=+Y up, [2]=+Z back).
-        ctl->gamepad.accel[0] = (float)ax * TRITON_ACCEL_SCALE;
-        ctl->gamepad.accel[1] = (float)az * TRITON_ACCEL_SCALE;
-        ctl->gamepad.accel[2] = -(float)ay * TRITON_ACCEL_SCALE;
-        ctl->gamepad.gyro[0] = (float)gx * TRITON_GYRO_SCALE;
-        ctl->gamepad.gyro[1] = (float)gz * TRITON_GYRO_SCALE;
-        ctl->gamepad.gyro[2] = -(float)gy * TRITON_GYRO_SCALE;
-    }
 }
 
 void uni_hid_parser_steam_triton_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len) {

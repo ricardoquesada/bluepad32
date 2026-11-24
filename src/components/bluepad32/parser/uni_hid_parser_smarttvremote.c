@@ -41,8 +41,8 @@ void uni_hid_parser_smarttvremote_parse_usage(uni_hid_device_t* d,
             }
             break;
         case HID_USAGE_PAGE_KEYBOARD_KEYPAD:
-            // FIXME: It is unlikely a device has both a dpap a keyboard, so we report
-            // certain keys as dpad, just to avoid having a entry entry in the
+            // FIXME: It is unlikely a device has both a dpad and a keyboard, so we report
+            // certain keys as dpad, just to avoid having an extra entry in the
             // uni_gamepad_t type.
             switch (usage) {
                 case 0x00:  // Reserved, empty on purpose

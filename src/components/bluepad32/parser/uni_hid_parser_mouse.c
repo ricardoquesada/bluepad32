@@ -7,7 +7,6 @@
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <time.h>
 
 #include "controller/uni_controller.h"
 #include "hid_usage.h"

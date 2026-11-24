@@ -305,184 +305,183 @@ static const struct switch_rumble_amp_data rumble_amps[] = {
     {0xc8, 0x0072, 1003}};
 #define TOTAL_RUMBLE_AMPS (sizeof(rumble_amps) / sizeof(rumble_amps[0]))
 
-static void parse_report_30(struct uni_hid_device_s* d, const uint8_t* report, int len);
-static void parse_report_30_joycon_left(uni_hid_device_t* d, const struct switch_report_30_s* r);
-static void parse_report_30_joycon_right(uni_hid_device_t* d, const struct switch_report_30_s* r);
-static void parse_report_30_pro_controller(uni_hid_device_t* d, const struct switch_report_30_s* r);
-static void parse_report_3f(struct uni_hid_device_s* d, const uint8_t* report, int len);
-static void process_input_subcmd_reply(struct uni_hid_device_s* d, const uint8_t* report, int len);
-static switch_instance_t* get_switch_instance(uni_hid_device_t* d);
-static void send_subcmd(uni_hid_device_t* d, struct switch_subcmd_request* r, int len);
+// Forward-declared because the FSM steps, subcmd reply handler, setup timer, and FSM dispatcher form a cycle.
 static void process_fsm(struct uni_hid_device_s* d);
-static void fsm_dump_rom(struct uni_hid_device_s* d);
-static void fsm_request_device_info(struct uni_hid_device_s* d);
-static void fsm_read_factory_stick_calibration(struct uni_hid_device_s* d);
-static void fsm_read_user_stick_calibration(struct uni_hid_device_s* d);
-static void fsm_read_factory_imu_calibration(struct uni_hid_device_s* d);
-static void fsm_set_full_report(struct uni_hid_device_s* d);
-static void fsm_enable_imu(struct uni_hid_device_s* d);
-static void fsm_enable_vibration(struct uni_hid_device_s* d);
-static void fsm_update_led(struct uni_hid_device_s* d);
-static void fsm_ready(struct uni_hid_device_s* d);
-static void process_reply_read_spi_dump(struct uni_hid_device_s* d, const uint8_t* data, int len);
-static void process_reply_read_spi_factory_stick_calibration(struct uni_hid_device_s* d, const uint8_t* data, int len);
-static void process_reply_read_spi_user_stick_calibration(struct uni_hid_device_s* d, const uint8_t* data, int len);
-static void process_reply_read_spi_factory_imu_calibration(struct uni_hid_device_s* d, const uint8_t* data, int len);
-static void process_reply_req_dev_info(struct uni_hid_device_s* d, const struct switch_report_21_s* r, int len);
-static void process_reply_set_report_mode(struct uni_hid_device_s* d, const struct switch_report_21_s* r, int len);
-static void process_reply_spi_flash_read(struct uni_hid_device_s* d, const struct switch_report_21_s* r, int len);
-static void process_reply_set_player_leds(struct uni_hid_device_s* d, const struct switch_report_21_s* r, int len);
-static void process_reply_enable_imu(struct uni_hid_device_s* d, const struct switch_report_21_s* r, int len);
-static int32_t calibrate_axis(int32_t v, switch_cal_stick_t cal);
-static void set_led(uni_hid_device_t* d, uint8_t leds);
+
+//
+// Helpers
+//
+static switch_instance_t* get_switch_instance(uni_hid_device_t* d) {
+    return (switch_instance_t*)&d->parser_data[0];
+}
+
+static void send_subcmd(uni_hid_device_t* d, struct switch_subcmd_request* r, int len) {
+    static uint8_t packet_num = 0;
+    r->packet_num = packet_num++;
+    if (packet_num > 0x0f)
+        packet_num = 0;
+    r->transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT;
+    uni_hid_device_send_intr_report(d, (const uint8_t*)r, len);
+}
+
+static void set_led(uni_hid_device_t* d, uint8_t leds) {
+    switch_instance_t* ins = get_switch_instance(d);
+    ins->gamepad_seat = leds;
+
+    // 1 == SET_LEDS subcmd len
+    uint8_t report[sizeof(struct switch_subcmd_request) + 1] = {0};
+
+    struct switch_subcmd_request* req = (struct switch_subcmd_request*)&report[0];
+    req->report_id = OUTPUT_RUMBLE_AND_SUBCMD;  // 0x01 for sub commands
+    req->subcmd_id = SUBCMD_SET_PLAYER_LEDS;
+    // LSB: turn on LEDs, MSB: flash LEDs
+    // Official Switch doesn't honor the flash bit.
+    // 8BitDo in Switch mode: LEDs are not working
+    // White-label Switch clone: works Ok with flash LEDs
+    req->data[0] = leds & 0x0f;
+    send_subcmd(d, req, sizeof(report));
+}
+
+static int32_t calibrate_axis(int32_t v, switch_cal_stick_t cal) {
+    int32_t ret;
+    if (v > cal.center) {
+        if (cal.max <= cal.center)
+            return 0;
+        ret = (v - cal.center) * AXIS_NORMALIZE_RANGE / 2;
+        ret /= (cal.max - cal.center);
+    } else {
+        if (cal.center <= cal.min)
+            return 0;
+        ret = (cal.center - v) * -AXIS_NORMALIZE_RANGE / 2;
+        ret /= (cal.center - cal.min);
+    }
+    // Clamp it
+    ret = ret > (AXIS_NORMALIZE_RANGE / 2) ? (AXIS_NORMALIZE_RANGE / 2) : ret;
+    ret = ret < -AXIS_NORMALIZE_RANGE / 2 ? -AXIS_NORMALIZE_RANGE / 2 : ret;
+    return ret;
+}
+
+static struct switch_rumble_freq_data find_rumble_freq(uint16_t freq) {
+    unsigned int i = 0;
+    if (freq > rumble_freqs[0].freq) {
+        for (i = 1; i < TOTAL_RUMBLE_FREQS - 1; i++) {
+            if (freq > rumble_freqs[i - 1].freq && freq <= rumble_freqs[i].freq)
+                break;
+        }
+    }
+
+    return rumble_freqs[i];
+}
+
+static struct switch_rumble_amp_data find_rumble_amp(uint16_t amp) {
+    unsigned int i = 0;
+    if (amp > rumble_amps[0].amp) {
+        for (i = 1; i < TOTAL_RUMBLE_AMPS - 1; i++) {
+            if (amp > rumble_amps[i - 1].amp && amp <= rumble_amps[i].amp)
+                break;
+        }
+    }
+
+    return rumble_amps[i];
+}
+
+// Both actuators get the same rumble data, as SDL sends it (SDL_hidapi_switch.c,
+// HIDAPI_DriverSwitch_ActuallyRumbleJoystick): the weak magnitude sets the high-band amplitude and the
+// strong one the low-band amplitude, both bands at ~150 Hz. A single Joy-Con only has one actuator, so
+// each side must carry both magnitudes. The 0..255 magnitude maps onto the full amplitude table (0..1003).
+#define SWITCH_RUMBLE_FREQ_HZ 150
+#define SWITCH_RUMBLE_AMP_MAX 1003
+
+static uint16_t switch_rumble_magnitude_to_amp(uint8_t magnitude) {
+    return (uint16_t)((magnitude * SWITCH_RUMBLE_AMP_MAX) / 255);
+}
+
+static void switch_encode_rumble(uint8_t* data, uint8_t weak_magnitude, uint8_t strong_magnitude) {
+    const struct switch_rumble_freq_data freq = find_rumble_freq(SWITCH_RUMBLE_FREQ_HZ);
+    const struct switch_rumble_amp_data high_amp = find_rumble_amp(switch_rumble_magnitude_to_amp(weak_magnitude));
+    const struct switch_rumble_amp_data low_amp = find_rumble_amp(switch_rumble_magnitude_to_amp(strong_magnitude));
+
+    data[0] = (freq.high >> 8) & 0xFF;
+    data[1] = (freq.high & 0xFF) + high_amp.high;
+    data[2] = freq.low + ((low_amp.low >> 8) & 0xFF);
+    data[3] = low_amp.low & 0xFF;
+}
+
+static uni_rumble_result_t switch_rumble_stop(struct uni_hid_device_s* d) {
+    struct switch_subcmd_request req = {0};
+
+    req.report_id = OUTPUT_RUMBLE_ONLY;
+    static const uint8_t rumble_default[4] = {0x00, 0x01, 0x40, 0x40};
+    memcpy(req.rumble_left, rumble_default, sizeof(req.rumble_left));
+    memcpy(req.rumble_right, rumble_default, sizeof(req.rumble_left));
+
+    // Rumble request don't include the last byte of "switch_subcmd_request": subcmd_id
+    send_subcmd(d, (struct switch_subcmd_request*)&req, sizeof(req) - 1);
+    return UNI_RUMBLE_OK;
+}
+
 static uni_rumble_result_t switch_rumble_start(struct uni_hid_device_s* d,
                                                uint8_t weak_magnitude,
                                                uint8_t strong_magnitude,
                                                uint8_t trigger_left,
-                                               uint8_t trigger_right);
-static uni_rumble_result_t switch_rumble_stop(struct uni_hid_device_s* d);
-static void switch_setup_timeout_callback(btstack_timer_source_t* ts);
-static void parse_stick_calibration(switch_cal_stick_t* x, switch_cal_stick_t* y, const uint8_t* data, bool is_left);
+                                               uint8_t trigger_right) {
+    ARG_UNUSED(trigger_left);
+    ARG_UNUSED(trigger_right);
 
-void uni_hid_parser_switch_setup(struct uni_hid_device_s* d) {
+    struct switch_subcmd_request req = {
+        .report_id = OUTPUT_RUMBLE_ONLY,
+    };
+    switch_encode_rumble(req.rumble_left, weak_magnitude, strong_magnitude);
+    memcpy(req.rumble_right, req.rumble_left, sizeof(req.rumble_right));
+
+    // Rumble request don't include the last byte of "switch_subcmd_request": subcmd_id
+    send_subcmd(d, &req, sizeof(req) - 1);
+    return UNI_RUMBLE_OK;
+}
+
+static void switch_setup_timeout_callback(btstack_timer_source_t* ts) {
+    uni_hid_device_t* d = btstack_run_loop_get_timer_context(ts);
     switch_instance_t* ins = get_switch_instance(d);
-
-    // Ensure setup_timer is disarmed before zeroing the instance struct.
-    btstack_run_loop_remove_timer(&ins->setup_timer);
-    memset(ins, 0, sizeof(*ins));
-    uni_hid_parser_rumble_init(d, switch_rumble_start, switch_rumble_stop);
-
-    ins->state = STATE_SETUP;
-    ins->mode = SWITCH_MODE_NONE;
-    // In case the controller doesn't answer to SUBCMD_REQ_DEV_INFO command, set a default one.
-    ins->controller_type = SWITCH_CONTROLLER_TYPE_PRO;
-
-    // Setup default min,center,max calibration values for sticks.
-    ins->cal_x.min = ins->cal_y.min = ins->cal_rx.min = ins->cal_ry.min = 512;
-    ins->cal_x.center = ins->cal_y.center = ins->cal_rx.center = ins->cal_ry.center = 2048;
-    ins->cal_x.max = ins->cal_y.max = ins->cal_rx.max = ins->cal_ry.max = 3583;
-
-    // Default values for IMU in case factory values are not present
-    for (int i = 0; i < 3; i++) {
-        ins->cal_accel.offset[i] = DEFAULT_ACCEL_OFFSET;
-        ins->cal_accel.scale[i] = DEFAULT_ACCEL_SCALE;
-        ins->cal_gyro.offset[i] = DEFAULT_GYRO_OFFSET;
-        ins->cal_gyro.scale[i] = DEFAULT_GYRO_SCALE;
-
-        // Divisors that must be updated after calibration data is updated.
-        ins->imu_cal_accel_divisor[i] = ins->cal_accel.scale[i] - ins->cal_accel.offset[i];
-        ins->imu_cal_gyro_divisor[i] = ins->cal_gyro.scale[i] - ins->cal_gyro.offset[i];
-    }
-
-    // Dump SPI flash
-#if ENABLE_SPI_FLASH_DUMP
-    ins->debug_addr = SWITCH_DUMP_ROM_DATA_ADDR_START;
-    ins->debug_fd = open("/tmp/spi_flash.bin", O_CREAT | O_RDWR);
-    if (ins->debug_fd < 0) {
-        loge("Switch: failed to create dump file");
-    }
-#endif  // ENABLE_SPI_FLASH_DUMP
-
-    uni_controller_t* ctl = &d->controller;
-    memset(ctl, 0, sizeof(*ctl));
-    ctl->klass = UNI_CONTROLLER_CLASS_GAMEPAD;
-
+    logi("Switch: setup timer timeout, failed state: 0x%02x\n", ins->state);
     process_fsm(d);
 }
 
-void uni_hid_parser_switch_deinit(struct uni_hid_device_s* d) {
-    if (!d)
-        return;
-    // Remove setup_timer from BTstack's run-loop timer list before uni_hid_device_delete()
-    // or uni_hid_device_setup() zeroes d->parser_data with memset.
-    switch_instance_t* ins = get_switch_instance(d);
-    btstack_run_loop_remove_timer(&ins->setup_timer);
-}
+static void parse_stick_calibration(switch_cal_stick_t* x, switch_cal_stick_t* y, const uint8_t* data, bool is_left) {
+    int32_t cal_x_max;
+    int32_t cal_y_max;
+    int32_t cal_x_min;
+    int32_t cal_y_min;
 
-void uni_hid_parser_switch_init_report(uni_hid_device_t* d) {
-    ARG_UNUSED(d);
-    // Nothing
-}
+    // Guaranteed that data has at lest 9 elements
+    // left and right sticks have different parsing order
 
-void uni_hid_parser_switch_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len) {
-    if (len < 12) {
-        loge("Nintendo Switch: Invalid packet len; got %d, want >= 12\n", len);
-        return;
+    if (is_left) {
+        // max
+        cal_x_max = data[0] | ((data[1] & 0x0f) << 8);  // bits: 0-11
+        cal_y_max = (data[1] >> 4) | (data[2] << 4);    // bits: 12-23
+        // center
+        x->center = data[3] | ((data[4] & 0x0f) << 8);  // bits: 24-35
+        y->center = (data[4] >> 4) | (data[5] << 4);    // bits: 36-47
+        // min
+        cal_x_min = data[6] | ((data[7] & 0x0f) << 8);  // bits: 48-59
+        cal_y_min = (data[7] >> 4) | (data[8] << 4);    // bits: 60-71
+    } else {
+        // Right stick
+        // center
+        x->center = data[0] | ((data[1] & 0x0f) << 8);  // bits: 0-11
+        y->center = (data[1] >> 4) | (data[2] << 4);    // bits: 12-23
+        // min
+        cal_x_min = data[3] | ((data[4] & 0x0f) << 8);  // bits: 24-35
+        cal_y_min = (data[4] >> 4) | (data[5] << 4);    // bits: 36-47
+        // max
+        cal_x_max = data[6] | ((data[7] & 0x0f) << 8);  // bits: 48-59
+        cal_y_max = (data[7] >> 4) | (data[8] << 4);    // bits: 60-71
     }
-    switch (report[0]) {
-        case SWITCH_INPUT_SUBCMD_REPLY:
-            // Don't memset gamepad report
-            process_input_subcmd_reply(d, report, len);
-            break;
-        case SWITCH_INPUT_IMU_DATA:
-            parse_report_30(d, report, len);
-            break;
-        case SWITCH_INPUT_BUTTON_EVENT:
-            parse_report_3f(d, report, len);
-            break;
-        default:
-            loge("Nintendo Switch: unsupported report id: 0x%02x\n", report[0]);
-            printf_hexdump(report, len);
-    }
-}
 
-static void process_fsm(struct uni_hid_device_s* d) {
-    switch_instance_t* ins = get_switch_instance(d);
-    logd("Switch: fsm next state = %d\n", ins->state + 1);
-
-    switch (ins->state) {
-        case STATE_SETUP:
-            logd("STATE_SETUP\n");
-            btstack_run_loop_set_timer_context(&ins->setup_timer, d);
-            btstack_run_loop_set_timer_handler(&ins->setup_timer, &switch_setup_timeout_callback);
-            btstack_run_loop_set_timer(&ins->setup_timer, SWITCH_SETUP_TIMEOUT_MS);
-            btstack_run_loop_add_timer(&ins->setup_timer);
-
-            fsm_request_device_info(d);
-            break;
-        case STATE_REQ_DEV_INFO:
-            logd("STATE_REQ_DEV_INFO\n");
-            fsm_read_factory_stick_calibration(d);
-            break;
-        case STATE_READ_FACTORY_STICK_CALIBRATION:
-            logd("STATE_READ_FACTORY_STICK_CALIBRATION\n");
-            fsm_read_user_stick_calibration(d);
-            break;
-        case STATE_READ_USER_STICK_CALIBRATION:
-            logd("STATE_READ_USER_STICK_CALIBRATION\n");
-            fsm_read_factory_imu_calibration(d);
-            break;
-        case STATE_READ_FACTORY_IMU_CALIBRATION:
-            logd("STATE_READ_FACTORY_IMU_CALIBRATION\n");
-            fsm_set_full_report(d);
-            break;
-        case STATE_SET_FULL_REPORT:
-            logd("STATE_SET_FULL_REPORT\n");
-            fsm_enable_imu(d);
-            break;
-        case STATE_ENABLE_IMU:
-            logd("STATE_ENABLE_IMU\n");
-            fsm_enable_vibration(d);
-            break;
-        case STATE_ENABLE_VIBRATION:
-            logd("STATE_ENABLE_VIBRATION\n");
-            fsm_dump_rom(d);
-            break;
-        case STATE_DUMP_FLASH:
-            logd("STATE_DUMP_FLASH\n");
-            fsm_update_led(d);
-            break;
-        case STATE_UPDATE_LED:
-            logd("STATE_UPDATE_LED\n");
-            fsm_ready(d);
-            break;
-        case STATE_READY:
-            logd("STATE_READY\n");
-            btstack_run_loop_remove_timer(&ins->setup_timer);
-            break;
-        default:
-            loge("Switch: unexpected state: 0x%02x\n", ins->mode);
-    }
+    x->min = x->center - cal_x_min;
+    x->max = x->center + cal_x_max;
+    y->min = y->center - cal_y_min;
+    y->max = y->center + cal_y_max;
 }
 
 static void process_reply_read_spi_dump(struct uni_hid_device_s* d, const uint8_t* data, int len) {
@@ -741,6 +740,7 @@ static void process_reply_spi_flash_read(struct uni_hid_device_s* d, const struc
         default:
             loge("Switch: unexpected state: %d, spi_read size reply %d at 0x%04x\n", ins->state, mem_len, addr);
             printf_hexdump((const uint8_t*)r, len);
+            break;
     }
 }
 
@@ -823,50 +823,13 @@ static void process_input_subcmd_reply(struct uni_hid_device_s* d, const uint8_t
             break;
         default:
             loge("Switch: invalid battery value: %d\n", battery);
+            break;
     }
     // `SUBCMD_SET_HOME_LIGHT` (0x38) is an on-demand runtime command rather than a setup step;
     // do not advance the setup FSM when its `0x21` acknowledgment arrives.
     if (r->subcmd_id != SUBCMD_SET_HOME_LIGHT) {
         process_fsm(d);
     }
-}
-
-static void parse_stick_calibration(switch_cal_stick_t* x, switch_cal_stick_t* y, const uint8_t* data, bool is_left) {
-    int32_t cal_x_max;
-    int32_t cal_y_max;
-    int32_t cal_x_min;
-    int32_t cal_y_min;
-
-    // Guaranteed that data has at lest 9 elements
-    // left and right sticks have different parsing order
-
-    if (is_left) {
-        // max
-        cal_x_max = data[0] | ((data[1] & 0x0f) << 8);  // bits: 0-11
-        cal_y_max = (data[1] >> 4) | (data[2] << 4);    // bits: 12-23
-        // center
-        x->center = data[3] | ((data[4] & 0x0f) << 8);  // bits: 24-35
-        y->center = (data[4] >> 4) | (data[5] << 4);    // bits: 36-47
-        // min
-        cal_x_min = data[6] | ((data[7] & 0x0f) << 8);  // bits: 48-59
-        cal_y_min = (data[7] >> 4) | (data[8] << 4);    // bits: 60-71
-    } else {
-        // Right stick
-        // center
-        x->center = data[0] | ((data[1] & 0x0f) << 8);  // bits: 0-11
-        y->center = (data[1] >> 4) | (data[2] << 4);    // bits: 12-23
-        // min
-        cal_x_min = data[3] | ((data[4] & 0x0f) << 8);  // bits: 24-35
-        cal_y_min = (data[4] >> 4) | (data[5] << 4);    // bits: 36-47
-        // max
-        cal_x_max = data[6] | ((data[7] & 0x0f) << 8);  // bits: 48-59
-        cal_y_max = (data[7] >> 4) | (data[8] << 4);    // bits: 60-71
-    }
-
-    x->min = x->center - cal_x_min;
-    x->max = x->center + cal_x_max;
-    y->min = y->center - cal_y_min;
-    y->max = y->center + cal_y_max;
 }
 
 static void parse_imu(uni_hid_device_t* d, const struct switch_imu_data_s* r) {
@@ -914,47 +877,6 @@ static void parse_imu(uni_hid_device_t* d, const struct switch_imu_data_s* r) {
     ctl->gamepad.gyro[0] = -gyro_rads[1];
     ctl->gamepad.gyro[1] = gyro_rads[2];
     ctl->gamepad.gyro[2] = -gyro_rads[0];
-}
-
-// Process 0x30 input report: SWITCH_INPUT_IMU_DATA
-static void parse_report_30(struct uni_hid_device_s* d, const uint8_t* report, int len) {
-    // Expecting something like:
-    // (a1) 30 44 60 00 00 00 FD 87 7B 0E B8 70 00 6C FD FC FF 78 10 35 00 C1 FF
-    // 9D FF 72 FD 01 00 72 10 35 00 C1 FF 9B FF 75 FD FF FF 6C 10 34 00 C2 FF
-    // 9A FF
-
-    switch_instance_t* ins = get_switch_instance(d);
-    uni_controller_t* ctl = &d->controller;
-    memset(&ctl->gamepad, 0, sizeof(ctl->gamepad));
-
-    const struct switch_report_30_s* r = (const struct switch_report_30_s*)&report[3];
-
-    switch (ins->controller_type) {
-        case SWITCH_CONTROLLER_TYPE_JCL:
-            parse_report_30_joycon_left(d, r);
-            break;
-        case SWITCH_CONTROLLER_TYPE_JCR:
-            parse_report_30_joycon_right(d, r);
-            break;
-        case SWITCH_CONTROLLER_TYPE_PRO:
-        case SWITCH_CONTROLLER_TYPE_NES_L:
-        case SWITCH_CONTROLLER_TYPE_NES_R:
-        case SWITCH_CONTROLLER_TYPE_SNES:
-            parse_report_30_pro_controller(d, r);
-            break;
-        default:
-            loge("Switch: Invalid controller_type: 0x%04x\n", ins->controller_type);
-            break;
-    }
-
-    // IMU is valid for all 3 types of controllers.
-    // 3 gyro/accel frames are reported; we take the latest sample (`r->imu[2]`).
-    // Because `uni_hid_parser_switch_parse_input_report()` admits packets with `len >= 12`
-    // (enough for the 3-byte header + 9-byte `switch_buttons_s`), verify that the report
-    // contains the full 48-byte `3 + sizeof(struct switch_report_30_s)` payload before
-    // dereferencing `r->imu[2]` (bytes 36..47) to prevent out-of-bounds reads on short/clone packets.
-    if (ins->mode == SWITCH_MODE_IMU && len >= (int)(3 + sizeof(struct switch_report_30_s)))
-        parse_imu(d, &r->imu[2]);
 }
 
 // Shared both by Switch Pro Controller and Switch SNES.
@@ -1058,6 +980,47 @@ static void parse_report_30_joycon_right(uni_hid_device_t* d, const struct switc
     // Since the JoyCon is in horizontal mode, map "Home" / "+" as if they where "-" and "+"
     ctl->gamepad.misc_buttons |= (r->buttons.buttons_misc & 0b00010000) ? MISC_BUTTON_SELECT : 0;  // Home
     ctl->gamepad.misc_buttons |= (r->buttons.buttons_misc & 0b00000010) ? MISC_BUTTON_START : 0;   // +
+}
+
+// Process 0x30 input report: SWITCH_INPUT_IMU_DATA
+static void parse_report_30(struct uni_hid_device_s* d, const uint8_t* report, int len) {
+    // Expecting something like:
+    // (a1) 30 44 60 00 00 00 FD 87 7B 0E B8 70 00 6C FD FC FF 78 10 35 00 C1 FF
+    // 9D FF 72 FD 01 00 72 10 35 00 C1 FF 9B FF 75 FD FF FF 6C 10 34 00 C2 FF
+    // 9A FF
+
+    switch_instance_t* ins = get_switch_instance(d);
+    uni_controller_t* ctl = &d->controller;
+    memset(&ctl->gamepad, 0, sizeof(ctl->gamepad));
+
+    const struct switch_report_30_s* r = (const struct switch_report_30_s*)&report[3];
+
+    switch (ins->controller_type) {
+        case SWITCH_CONTROLLER_TYPE_JCL:
+            parse_report_30_joycon_left(d, r);
+            break;
+        case SWITCH_CONTROLLER_TYPE_JCR:
+            parse_report_30_joycon_right(d, r);
+            break;
+        case SWITCH_CONTROLLER_TYPE_PRO:
+        case SWITCH_CONTROLLER_TYPE_NES_L:
+        case SWITCH_CONTROLLER_TYPE_NES_R:
+        case SWITCH_CONTROLLER_TYPE_SNES:
+            parse_report_30_pro_controller(d, r);
+            break;
+        default:
+            loge("Switch: Invalid controller_type: 0x%04x\n", ins->controller_type);
+            break;
+    }
+
+    // IMU is valid for all 3 types of controllers.
+    // 3 gyro/accel frames are reported; we take the latest sample (`r->imu[2]`).
+    // Because `uni_hid_parser_switch_parse_input_report()` admits packets with `len >= 12`
+    // (enough for the 3-byte header + 9-byte `switch_buttons_s`), verify that the report
+    // contains the full 48-byte `3 + sizeof(struct switch_report_30_s)` payload before
+    // dereferencing `r->imu[2]` (bytes 36..47) to prevent out-of-bounds reads on short/clone packets.
+    if (ins->mode == SWITCH_MODE_IMU && len >= (int)(3 + sizeof(struct switch_report_30_s)))
+        parse_imu(d, &r->imu[2]);
 }
 
 // Process 0x3f input report: SWITCH_INPUT_BUTTON_EVENT
@@ -1271,50 +1234,147 @@ static void fsm_ready(struct uni_hid_device_s* d) {
     process_fsm(d);
 }
 
-static struct switch_rumble_freq_data find_rumble_freq(uint16_t freq) {
-    unsigned int i = 0;
-    if (freq > rumble_freqs[0].freq) {
-        for (i = 1; i < TOTAL_RUMBLE_FREQS - 1; i++) {
-            if (freq > rumble_freqs[i - 1].freq && freq <= rumble_freqs[i].freq)
-                break;
-        }
+static void process_fsm(struct uni_hid_device_s* d) {
+    switch_instance_t* ins = get_switch_instance(d);
+    logd("Switch: fsm next state = %d\n", ins->state + 1);
+
+    switch (ins->state) {
+        case STATE_SETUP:
+            logd("STATE_SETUP\n");
+            btstack_run_loop_set_timer_context(&ins->setup_timer, d);
+            btstack_run_loop_set_timer_handler(&ins->setup_timer, &switch_setup_timeout_callback);
+            btstack_run_loop_set_timer(&ins->setup_timer, SWITCH_SETUP_TIMEOUT_MS);
+            btstack_run_loop_add_timer(&ins->setup_timer);
+
+            fsm_request_device_info(d);
+            break;
+        case STATE_REQ_DEV_INFO:
+            logd("STATE_REQ_DEV_INFO\n");
+            fsm_read_factory_stick_calibration(d);
+            break;
+        case STATE_READ_FACTORY_STICK_CALIBRATION:
+            logd("STATE_READ_FACTORY_STICK_CALIBRATION\n");
+            fsm_read_user_stick_calibration(d);
+            break;
+        case STATE_READ_USER_STICK_CALIBRATION:
+            logd("STATE_READ_USER_STICK_CALIBRATION\n");
+            fsm_read_factory_imu_calibration(d);
+            break;
+        case STATE_READ_FACTORY_IMU_CALIBRATION:
+            logd("STATE_READ_FACTORY_IMU_CALIBRATION\n");
+            fsm_set_full_report(d);
+            break;
+        case STATE_SET_FULL_REPORT:
+            logd("STATE_SET_FULL_REPORT\n");
+            fsm_enable_imu(d);
+            break;
+        case STATE_ENABLE_IMU:
+            logd("STATE_ENABLE_IMU\n");
+            fsm_enable_vibration(d);
+            break;
+        case STATE_ENABLE_VIBRATION:
+            logd("STATE_ENABLE_VIBRATION\n");
+            fsm_dump_rom(d);
+            break;
+        case STATE_DUMP_FLASH:
+            logd("STATE_DUMP_FLASH\n");
+            fsm_update_led(d);
+            break;
+        case STATE_UPDATE_LED:
+            logd("STATE_UPDATE_LED\n");
+            fsm_ready(d);
+            break;
+        case STATE_READY:
+            logd("STATE_READY\n");
+            btstack_run_loop_remove_timer(&ins->setup_timer);
+            break;
+        default:
+            loge("Switch: unexpected state: 0x%02x\n", ins->mode);
+            break;
+    }
+}
+
+void uni_hid_parser_switch_setup(struct uni_hid_device_s* d) {
+    switch_instance_t* ins = get_switch_instance(d);
+
+    // Ensure setup_timer is disarmed before zeroing the instance struct.
+    btstack_run_loop_remove_timer(&ins->setup_timer);
+    memset(ins, 0, sizeof(*ins));
+    uni_hid_parser_rumble_init(d, switch_rumble_start, switch_rumble_stop);
+
+    ins->state = STATE_SETUP;
+    ins->mode = SWITCH_MODE_NONE;
+    // In case the controller doesn't answer to SUBCMD_REQ_DEV_INFO command, set a default one.
+    ins->controller_type = SWITCH_CONTROLLER_TYPE_PRO;
+
+    // Setup default min,center,max calibration values for sticks.
+    ins->cal_x.min = ins->cal_y.min = ins->cal_rx.min = ins->cal_ry.min = 512;
+    ins->cal_x.center = ins->cal_y.center = ins->cal_rx.center = ins->cal_ry.center = 2048;
+    ins->cal_x.max = ins->cal_y.max = ins->cal_rx.max = ins->cal_ry.max = 3583;
+
+    // Default values for IMU in case factory values are not present
+    for (int i = 0; i < 3; i++) {
+        ins->cal_accel.offset[i] = DEFAULT_ACCEL_OFFSET;
+        ins->cal_accel.scale[i] = DEFAULT_ACCEL_SCALE;
+        ins->cal_gyro.offset[i] = DEFAULT_GYRO_OFFSET;
+        ins->cal_gyro.scale[i] = DEFAULT_GYRO_SCALE;
+
+        // Divisors that must be updated after calibration data is updated.
+        ins->imu_cal_accel_divisor[i] = ins->cal_accel.scale[i] - ins->cal_accel.offset[i];
+        ins->imu_cal_gyro_divisor[i] = ins->cal_gyro.scale[i] - ins->cal_gyro.offset[i];
     }
 
-    return rumble_freqs[i];
-}
-
-static struct switch_rumble_amp_data find_rumble_amp(uint16_t amp) {
-    unsigned int i = 0;
-    if (amp > rumble_amps[0].amp) {
-        for (i = 1; i < TOTAL_RUMBLE_AMPS - 1; i++) {
-            if (amp > rumble_amps[i - 1].amp && amp <= rumble_amps[i].amp)
-                break;
-        }
+    // Dump SPI flash
+#if ENABLE_SPI_FLASH_DUMP
+    ins->debug_addr = SWITCH_DUMP_ROM_DATA_ADDR_START;
+    ins->debug_fd = open("/tmp/spi_flash.bin", O_CREAT | O_RDWR);
+    if (ins->debug_fd < 0) {
+        loge("Switch: failed to create dump file");
     }
+#endif  // ENABLE_SPI_FLASH_DUMP
 
-    return rumble_amps[i];
+    uni_controller_t* ctl = &d->controller;
+    memset(ctl, 0, sizeof(*ctl));
+    ctl->klass = UNI_CONTROLLER_CLASS_GAMEPAD;
+
+    process_fsm(d);
 }
 
-// Both actuators get the same rumble data, as SDL sends it (SDL_hidapi_switch.c,
-// HIDAPI_DriverSwitch_ActuallyRumbleJoystick): the weak magnitude sets the high-band amplitude and the
-// strong one the low-band amplitude, both bands at ~150 Hz. A single Joy-Con only has one actuator, so
-// each side must carry both magnitudes. The 0..255 magnitude maps onto the full amplitude table (0..1003).
-#define SWITCH_RUMBLE_FREQ_HZ 150
-#define SWITCH_RUMBLE_AMP_MAX 1003
-
-static uint16_t switch_rumble_magnitude_to_amp(uint8_t magnitude) {
-    return (uint16_t)((magnitude * SWITCH_RUMBLE_AMP_MAX) / 255);
+void uni_hid_parser_switch_deinit(struct uni_hid_device_s* d) {
+    if (!d)
+        return;
+    // Remove setup_timer from BTstack's run-loop timer list before uni_hid_device_delete()
+    // or uni_hid_device_setup() zeroes d->parser_data with memset.
+    switch_instance_t* ins = get_switch_instance(d);
+    btstack_run_loop_remove_timer(&ins->setup_timer);
 }
 
-static void switch_encode_rumble(uint8_t* data, uint8_t weak_magnitude, uint8_t strong_magnitude) {
-    const struct switch_rumble_freq_data freq = find_rumble_freq(SWITCH_RUMBLE_FREQ_HZ);
-    const struct switch_rumble_amp_data high_amp = find_rumble_amp(switch_rumble_magnitude_to_amp(weak_magnitude));
-    const struct switch_rumble_amp_data low_amp = find_rumble_amp(switch_rumble_magnitude_to_amp(strong_magnitude));
+void uni_hid_parser_switch_init_report(uni_hid_device_t* d) {
+    ARG_UNUSED(d);
+    // Nothing
+}
 
-    data[0] = (freq.high >> 8) & 0xFF;
-    data[1] = (freq.high & 0xFF) + high_amp.high;
-    data[2] = freq.low + ((low_amp.low >> 8) & 0xFF);
-    data[3] = low_amp.low & 0xFF;
+void uni_hid_parser_switch_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len) {
+    if (len < 12) {
+        loge("Nintendo Switch: Invalid packet len; got %d, want >= 12\n", len);
+        return;
+    }
+    switch (report[0]) {
+        case SWITCH_INPUT_SUBCMD_REPLY:
+            // Don't memset gamepad report
+            process_input_subcmd_reply(d, report, len);
+            break;
+        case SWITCH_INPUT_IMU_DATA:
+            parse_report_30(d, report, len);
+            break;
+        case SWITCH_INPUT_BUTTON_EVENT:
+            parse_report_3f(d, report, len);
+            break;
+        default:
+            loge("Nintendo Switch: unsupported report id: 0x%02x\n", report[0]);
+            printf_hexdump(report, len);
+            break;
+    }
 }
 
 void uni_hid_parser_switch_set_player_leds(uni_hid_device_t* d, uint8_t leds) {
@@ -1399,7 +1459,7 @@ bool uni_hid_parser_switch_does_name_match(struct uni_hid_device_s* d, const cha
         int pid;
     };
 
-    struct device_s devices[] = {
+    static const struct device_s devices[] = {
         // Clones might not respond to SDP queries. Support them by name.
         {"Pro Controller", NINTENDO_VID, SWITCH_PRO_CONTROLLER_PID},
         {"Joy-Con (L)", NINTENDO_VID, SWITCH_JOYCON_L_PID},
@@ -1421,98 +1481,6 @@ bool uni_hid_parser_switch_does_name_match(struct uni_hid_device_s* d, const cha
         }
     }
     return false;
-}
-
-//
-// Helpers
-//
-static switch_instance_t* get_switch_instance(uni_hid_device_t* d) {
-    return (switch_instance_t*)&d->parser_data[0];
-}
-
-static void set_led(uni_hid_device_t* d, uint8_t leds) {
-    switch_instance_t* ins = get_switch_instance(d);
-    ins->gamepad_seat = leds;
-
-    // 1 == SET_LEDS subcmd len
-    uint8_t report[sizeof(struct switch_subcmd_request) + 1] = {0};
-
-    struct switch_subcmd_request* req = (struct switch_subcmd_request*)&report[0];
-    req->report_id = OUTPUT_RUMBLE_AND_SUBCMD;  // 0x01 for sub commands
-    req->subcmd_id = SUBCMD_SET_PLAYER_LEDS;
-    // LSB: turn on LEDs, MSB: flash LEDs
-    // Official Switch doesn't honor the flash bit.
-    // 8BitDo in Switch mode: LEDs are not working
-    // White-label Switch clone: works Ok with flash LEDs
-    req->data[0] = leds & 0x0f;
-    send_subcmd(d, req, sizeof(report));
-}
-
-static void send_subcmd(uni_hid_device_t* d, struct switch_subcmd_request* r, int len) {
-    static uint8_t packet_num = 0;
-    r->packet_num = packet_num++;
-    if (packet_num > 0x0f)
-        packet_num = 0;
-    r->transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT;
-    uni_hid_device_send_intr_report(d, (const uint8_t*)r, len);
-}
-
-static int32_t calibrate_axis(int32_t v, switch_cal_stick_t cal) {
-    int32_t ret;
-    if (v > cal.center) {
-        if (cal.max <= cal.center)
-            return 0;
-        ret = (v - cal.center) * AXIS_NORMALIZE_RANGE / 2;
-        ret /= (cal.max - cal.center);
-    } else {
-        if (cal.center <= cal.min)
-            return 0;
-        ret = (cal.center - v) * -AXIS_NORMALIZE_RANGE / 2;
-        ret /= (cal.center - cal.min);
-    }
-    // Clamp it
-    ret = ret > (AXIS_NORMALIZE_RANGE / 2) ? (AXIS_NORMALIZE_RANGE / 2) : ret;
-    ret = ret < -AXIS_NORMALIZE_RANGE / 2 ? -AXIS_NORMALIZE_RANGE / 2 : ret;
-    return ret;
-}
-
-static uni_rumble_result_t switch_rumble_stop(struct uni_hid_device_s* d) {
-    struct switch_subcmd_request req = {0};
-
-    req.report_id = OUTPUT_RUMBLE_ONLY;
-    uint8_t rumble_default[4] = {0x00, 0x01, 0x40, 0x40};
-    memcpy(req.rumble_left, rumble_default, sizeof(req.rumble_left));
-    memcpy(req.rumble_right, rumble_default, sizeof(req.rumble_left));
-
-    // Rumble request don't include the last byte of "switch_subcmd_request": subcmd_id
-    send_subcmd(d, (struct switch_subcmd_request*)&req, sizeof(req) - 1);
-    return UNI_RUMBLE_OK;
-}
-
-static uni_rumble_result_t switch_rumble_start(struct uni_hid_device_s* d,
-                                               uint8_t weak_magnitude,
-                                               uint8_t strong_magnitude,
-                                               uint8_t trigger_left,
-                                               uint8_t trigger_right) {
-    ARG_UNUSED(trigger_left);
-    ARG_UNUSED(trigger_right);
-
-    struct switch_subcmd_request req = {
-        .report_id = OUTPUT_RUMBLE_ONLY,
-    };
-    switch_encode_rumble(req.rumble_left, weak_magnitude, strong_magnitude);
-    memcpy(req.rumble_right, req.rumble_left, sizeof(req.rumble_right));
-
-    // Rumble request don't include the last byte of "switch_subcmd_request": subcmd_id
-    send_subcmd(d, &req, sizeof(req) - 1);
-    return UNI_RUMBLE_OK;
-}
-
-static void switch_setup_timeout_callback(btstack_timer_source_t* ts) {
-    uni_hid_device_t* d = btstack_run_loop_get_timer_context(ts);
-    switch_instance_t* ins = get_switch_instance(d);
-    logi("Switch: setup timer timeout, failed state: 0x%02x\n", ins->state);
-    process_fsm(d);
 }
 
 // Formats the Switch controller firmware version (`major.minor`) reported by

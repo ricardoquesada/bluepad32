@@ -89,8 +89,6 @@ static const unsigned int sdp_attribute_value_buffer_size = MAX_ATTRIBUTE_VALUE_
 static uni_hid_device_t* sdp_device = NULL;
 static btstack_timer_source_t sdp_query_timer;
 
-static void sdp_query_timeout(btstack_timer_source_t* ts);
-
 // SDP Server
 static uint8_t device_id_sdp_service_buffer[100];
 
@@ -278,6 +276,25 @@ static void parse_sdp_pnp_attribute(uint16_t attr_id, uint16_t attr_len) {
     }
 }
 
+static void sdp_query_timeout(btstack_timer_source_t* ts) {
+    loge("<------- sdp_query_timeout()\n");
+    uni_hid_device_t* d = btstack_run_loop_get_timer_context(ts);
+    if (!sdp_device) {
+        loge("sdp_query_timeout: unexpeced, sdp_device should not be NULL\n");
+        return;
+    }
+    if (d != sdp_device) {
+        loge("sdp_query_timeout: unexpected device values, they should be equal, got: %s != %s",
+             bd_addr_to_str(d->conn.btaddr), bd_addr_to_str(sdp_device->conn.btaddr));
+        return;
+    }
+
+    logi("Failed to query SDP for %s, timeout\n", bd_addr_to_str(d->conn.btaddr));
+    sdp_device = NULL;
+}
+
+// Public functions
+
 // HID results: HID descriptor, PSM interrupt, PSM control, etc.
 // Exposed with non-static linkage so Layer 2 packet-handler unit tests can feed
 // synthetic SDP_EVENT_QUERY_ATTRIBUTE_VALUE / SDP_EVENT_QUERY_COMPLETE byte streams directly.
@@ -345,25 +362,6 @@ void uni_handle_sdp_pid_query_result(uint8_t packet_type, uint16_t channel, uint
     }
 }
 
-static void sdp_query_timeout(btstack_timer_source_t* ts) {
-    loge("<------- sdp_query_timeout()\n");
-    uni_hid_device_t* d = btstack_run_loop_get_timer_context(ts);
-    if (!sdp_device) {
-        loge("sdp_query_timeout: unexpeced, sdp_device should not be NULL\n");
-        return;
-    }
-    if (d != sdp_device) {
-        loge("sdp_query_timeout: unexpected device values, they should be equal, got: %s != %s",
-             bd_addr_to_str(d->conn.btaddr), bd_addr_to_str(sdp_device->conn.btaddr));
-        return;
-    }
-
-    logi("Failed to query SDP for %s, timeout\n", bd_addr_to_str(d->conn.btaddr));
-    sdp_device = NULL;
-}
-
-// Public functions
-
 // Test seam: binds the module-scoped `sdp_device` pointer directly so unit tests can invoke
 // `uni_handle_sdp_pid_query_result` and `uni_handle_sdp_hid_query_result` without opening
 // a live L2CAP SDP connection.
@@ -378,7 +376,7 @@ void uni_bt_sdp_query_start(uni_hid_device_t* d) {
         logi("Another SDP query is in progress (%s), disconnecting...\n", bd_addr_to_str(sdp_device->conn.btaddr));
         uni_hid_device_disconnect(d);
         uni_hid_device_delete(d);
-        /* 'd'' is destroyed after this call, don't use it */
+        /* 'd' is destroyed after this call, don't use it */
         return;
     }
 
@@ -449,7 +447,7 @@ void uni_bt_sdp_query_start_hid_descriptor(uni_hid_device_t* d) {
         uni_bt_sdp_query_abort(d);
         uni_hid_device_disconnect(d);
         uni_hid_device_delete(d);
-        /* 'd'' is destroyed after this call, don't use it */
+        /* 'd' is destroyed after this call, don't use it */
     }
 }
 

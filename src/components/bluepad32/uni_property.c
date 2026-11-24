@@ -70,9 +70,8 @@ static const uni_property_t properties[] = {
 };
 _Static_assert(ARRAY_SIZE(properties) == UNI_PROPERTY_IDX_LAST, "Invalid properties size");
 
-static const uni_property_t* get_property(uni_property_idx_t idx);
-
 // Helpers
+
 static const uni_property_t* get_property(uni_property_idx_t idx) {
     if (idx >= UNI_PROPERTY_IDX_LAST) {
         // Delegate platform-specific property indices (>= UNI_PROPERTY_IDX_LAST)
@@ -147,7 +146,7 @@ void uni_property_dump_all(void) {
     for (int i = 0; i < UNI_PROPERTY_IDX_COUNT; i++) {
         const uni_property_t* p = get_property(i);
         if (!p)
-            // Means the property is not implemented, safe to break here.
+            // Property is not implemented; safe to stop iterating.
             break;
         uni_property_dump_property(p);
     }

@@ -33,7 +33,9 @@ typedef struct {
     keyboard_jx_05_t jx_05;
 } keyboard_instance_t;
 
-static keyboard_instance_t* get_keyboard_instance(uni_hid_device_t* d);
+static keyboard_instance_t* get_keyboard_instance(uni_hid_device_t* d) {
+    return (keyboard_instance_t*)&d->parser_data[0];
+}
 
 static void jx_05_parse_usage(uni_hid_device_t* d,
                               const hid_globals_t* globals,
@@ -109,7 +111,7 @@ static void jx_05_parse_usage(uni_hid_device_t* d,
                         if (x == -260 && y == -222 && idx < UNI_KEYBOARD_PRESSED_KEYS_MAX)
                             d->controller.keyboard.pressed_keys[idx++] = HID_USAGE_KB_UP_ARROW;
                         else if (x == -260 && y == 145)
-                            // Could either be "down" or "press". The next packet decides
+                            // Could either be "down" or "press". The next packet decides.
                             ins->jx_05.is_down_or_button = true;
                         else if (x == -387 && y == 251 && idx < UNI_KEYBOARD_PRESSED_KEYS_MAX)
                             d->controller.keyboard.pressed_keys[idx++] = HID_USAGE_KB_LEFT_ARROW;
@@ -168,7 +170,7 @@ void uni_hid_parser_keyboard_parse_usage(uni_hid_device_t* d,
     keyboard_instance_t* ins = get_keyboard_instance(d);
     if (ins->using_jx_05) {
         jx_05_parse_usage(d, globals, usage_page, usage, value);
-        // fall-though, don't return
+        // Fall through; don't return.
     }
 
     logd("usage page=%#x, usage=%#x, value=%d\n", usage_page, usage, value);
@@ -215,7 +217,7 @@ void uni_hid_parser_keyboard_parse_usage(uni_hid_device_t* d,
                 case 0:
                     // Undefined, used by 8BitDo Retro Keyboard
                     break;
-                // Used by "TikTog Ring Controller"
+                // Used by "TikTok Ring Controller"
                 case HID_USAGE_POWER:
                     d->controller.keyboard.pressed_keys[idx++] = HID_USAGE_KB_POWER;
                     ins->pressed_key_index = idx;
@@ -295,9 +297,4 @@ void uni_hid_parser_keyboard_set_leds(struct uni_hid_device_s* d, uint8_t led_bi
     } else {
         logi("Keyboard: Set LED report not implemented for BR/EDR yet\n");
     }
-}
-
-// Helpers
-static keyboard_instance_t* get_keyboard_instance(uni_hid_device_t* d) {
-    return (keyboard_instance_t*)&d->parser_data[0];
 }

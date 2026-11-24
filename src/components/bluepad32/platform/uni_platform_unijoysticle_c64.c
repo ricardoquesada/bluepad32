@@ -38,12 +38,6 @@ enum {
     EVENT_SYNC_IRQ_1,
 };
 
-// --- Function declaration
-static int get_c64_pot_mode_from_nvs(void);
-
-// GPIO Interrupt handlers
-_Noreturn static void sync_irq_event_task(void* arg);
-
 static volatile bool pot_x_leads = true;  // if false, y leads
 static volatile uint16_t pot_x_delay_us = uS_MAX;
 static volatile uint16_t pot_y_delay_us = uS_MAX;
@@ -75,7 +69,7 @@ static const struct uni_platform_unijoysticle_gpio_config gpio_config_univ2c64 =
 };
 
 // Keep them in the order of the defines
-static const char* c64_pot_modes[] = {
+static const char* const c64_pot_modes[] = {
     "invalid",   // UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_INVALID
     "3buttons",  // UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_3BUTTONS
     "5buttons",  // UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_5BUTTONS
@@ -348,20 +342,6 @@ exit:
     vTaskDelete(NULL);
 }
 
-void uni_platform_unijoysticle_c64_set_pot_mode(uni_platform_unijoysticle_c64_pot_mode_t mode) {
-    xTaskCreatePinnedToCore(set_pot_mode_from_cpu, "bp.uni.init_pot", 4096, (void*)(uintptr_t)mode, TASK_SYNC_IRQ_PRIO,
-                            NULL, POT_TASK_CPU);
-}
-
-void uni_platform_unijoysticle_c64_version(void) {
-    int mode = get_c64_pot_mode_from_nvs();
-    if (mode < 0 || mode >= UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_COUNT) {
-        logi("\tPot mode: invalid (%d)\n", mode);
-        return;
-    }
-    logi("\tPot mode: %s\n", c64_pot_modes[mode]);
-}
-
 static void process_5button(uni_hid_device_t* d, uni_gamepad_seat_t seat, uint8_t misc_buttons) {
     if (misc_buttons & MISC_BUTTON_SELECT) {
         if (seat & GAMEPAD_SEAT_A) {
@@ -443,7 +423,7 @@ static void on_init_complete_c64(void) {
     uni_platform_unijoysticle_c64_set_pot_mode(mode);
 
     // set_pot_mode runs from a different Core, so, wait until _pot_mode is defined
-    // before calling set_pot_level, which requires in pot_mod
+    // before calling set_gpio_level_for_pot_c64, which reads _pot_mode.
     while (_pot_mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_INVALID)
         vTaskDelay(pdMS_TO_TICKS(50));
 
@@ -452,6 +432,40 @@ static void on_init_complete_c64(void) {
 
     set_gpio_level_for_pot_c64(gpio_config_univ2c64.port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON2], 0);
     set_gpio_level_for_pot_c64(gpio_config_univ2c64.port_b[UNI_PLATFORM_UNIJOYSTICLE_JOY_BUTTON3], 0);
+}
+
+static bool process_gamepad_misc_buttons_c64(uni_hid_device_t* d, uni_gamepad_seat_t seat, uint8_t misc_buttons) {
+    int mode = get_c64_pot_mode_from_nvs();
+
+    // Return true only if "select" and/or "start" were processed.
+    if (mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_5BUTTONS) {
+        process_5button(d, seat, misc_buttons);
+        return true;
+    }
+
+    if (mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_PADDLE) {
+        process_paddle(d, seat, misc_buttons);
+    }
+
+    return false;
+}
+
+//
+// Public
+//
+
+void uni_platform_unijoysticle_c64_set_pot_mode(uni_platform_unijoysticle_c64_pot_mode_t mode) {
+    xTaskCreatePinnedToCore(set_pot_mode_from_cpu, "bp.uni.init_pot", 4096, (void*)(uintptr_t)mode, TASK_SYNC_IRQ_PRIO,
+                            NULL, POT_TASK_CPU);
+}
+
+void uni_platform_unijoysticle_c64_version(void) {
+    int mode = get_c64_pot_mode_from_nvs();
+    if (mode < 0 || mode >= UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_COUNT) {
+        logi("\tPot mode: invalid (%d)\n", mode);
+        return;
+    }
+    logi("\tPot mode: %s\n", c64_pot_modes[mode]);
 }
 
 void register_console_cmds_c64(void) {
@@ -472,27 +486,11 @@ void register_console_cmds_c64(void) {
     ESP_ERROR_CHECK(esp_console_cmd_register(&c64_pot_mode));
 }
 
-static bool process_gamepad_misc_buttons_c64(uni_hid_device_t* d, uni_gamepad_seat_t seat, uint8_t misc_buttons) {
-    int mode = get_c64_pot_mode_from_nvs();
-
-    // Return true only if "select" and/or "start" where processed.
-    if (mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_5BUTTONS) {
-        process_5button(d, seat, misc_buttons);
-        return true;
-    }
-
-    if (mode == UNI_PLATFORM_UNIJOYSTICLE_C64_POT_MODE_PADDLE) {
-        process_paddle(d, seat, misc_buttons);
-    }
-
-    return false;
-}
-
 const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_c64_create_variant(void) {
     static const struct uni_platform_unijoysticle_variant variant = {
         .name = "2 C64",
         .gpio_config = &gpio_config_univ2c64,
-        .flags = 0, /* Quadrant mouse not supported*/
+        .flags = 0, /* Quadrature mouse not supported */
         .supported_modes =
             UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_NORMAL | UNI_PLATFORM_UNIJOYSTICLE_GAMEPAD_MODE_TWINSTICK,
         .on_init_complete = on_init_complete_c64,

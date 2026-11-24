@@ -128,14 +128,65 @@ typedef struct __attribute((packed)) {
     uint8_t time_low; /* low byte of timestamp */
 } psmove_input_zcm2_report_t;
 
-static psmove_instance_t* get_psmove_instance(uni_hid_device_t* d);
-static void psmove_send_output_report(uni_hid_device_t* d, psmove_output_report_t* out);
-static uni_rumble_result_t psmove_stop_rumble_now(struct uni_hid_device_s* d);
+static psmove_instance_t* get_psmove_instance(uni_hid_device_t* d) {
+    return (psmove_instance_t*)&d->parser_data[0];
+}
+
+static void psmove_send_output_report(uni_hid_device_t* d, psmove_output_report_t* out) {
+    /* Should be 0xa2 */
+    out->transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT;
+
+    // uni_hid_device_send_ctrl_report(d, (uint8_t*)out, sizeof(*out));
+    uni_hid_device_send_intr_report(d, (uint8_t*)out, sizeof(*out));
+}
+
+static uni_rumble_result_t psmove_stop_rumble_now(struct uni_hid_device_s* d) {
+    psmove_instance_t* ins = get_psmove_instance(d);
+    ins->rumble_magnitude = 0;
+
+    psmove_output_report_t out = {
+        .report_id = 0x06,
+        // Don't overwrite LED RGB
+        .led_rgb[0] = ins->led_rgb[0],
+        .led_rgb[1] = ins->led_rgb[1],
+        .led_rgb[2] = ins->led_rgb[2],
+        .rumble = 0,
+    };
+
+    psmove_send_output_report(d, &out);
+    return UNI_RUMBLE_OK;
+}
+
 static uni_rumble_result_t psmove_start_rumble_now(struct uni_hid_device_s* d,
                                                    uint8_t weak_magnitude,
                                                    uint8_t strong_magnitude,
                                                    uint8_t trigger_left,
-                                                   uint8_t trigger_right);
+                                                   uint8_t trigger_right) {
+    ARG_UNUSED(trigger_left);
+    ARG_UNUSED(trigger_right);
+
+    uint8_t magnitude = btstack_max(weak_magnitude, strong_magnitude);
+    if (magnitude == 0) {
+        return psmove_stop_rumble_now(d);
+    }
+
+    psmove_instance_t* ins = get_psmove_instance(d);
+
+    psmove_output_report_t out = {
+        .report_id = 0x06,
+        // Don't overwrite LED RGB
+        .led_rgb[0] = ins->led_rgb[0],
+        .led_rgb[1] = ins->led_rgb[1],
+        .led_rgb[2] = ins->led_rgb[2],
+        .rumble = magnitude,
+    };
+
+    // Cache it until rumble is off. Might be used by LEDs
+    ins->rumble_magnitude = magnitude;
+
+    psmove_send_output_report(d, &out);
+    return UNI_RUMBLE_OK;
+}
 
 void uni_hid_parser_psmove_init_report(uni_hid_device_t* d) {
     uni_controller_t* ctl = &d->controller;
@@ -274,67 +325,4 @@ void uni_hid_parser_psmove_setup(struct uni_hid_device_s* d) {
     }
 
     uni_hid_device_set_ready_complete(d);
-}
-
-//
-// Helpers
-//
-static psmove_instance_t* get_psmove_instance(uni_hid_device_t* d) {
-    return (psmove_instance_t*)&d->parser_data[0];
-}
-
-static uni_rumble_result_t psmove_stop_rumble_now(struct uni_hid_device_s* d) {
-    psmove_instance_t* ins = get_psmove_instance(d);
-    ins->rumble_magnitude = 0;
-
-    psmove_output_report_t out = {
-        .report_id = 0x06,
-        // Don't overwrite LED RGB
-        .led_rgb[0] = ins->led_rgb[0],
-        .led_rgb[1] = ins->led_rgb[1],
-        .led_rgb[2] = ins->led_rgb[2],
-        .rumble = 0,
-    };
-
-    psmove_send_output_report(d, &out);
-    return UNI_RUMBLE_OK;
-}
-
-static uni_rumble_result_t psmove_start_rumble_now(struct uni_hid_device_s* d,
-                                                   uint8_t weak_magnitude,
-                                                   uint8_t strong_magnitude,
-                                                   uint8_t trigger_left,
-                                                   uint8_t trigger_right) {
-    ARG_UNUSED(trigger_left);
-    ARG_UNUSED(trigger_right);
-
-    uint8_t magnitude = btstack_max(weak_magnitude, strong_magnitude);
-    if (magnitude == 0) {
-        return psmove_stop_rumble_now(d);
-    }
-
-    psmove_instance_t* ins = get_psmove_instance(d);
-
-    psmove_output_report_t out = {
-        .report_id = 0x06,
-        // Don't overwrite LED RGB
-        .led_rgb[0] = ins->led_rgb[0],
-        .led_rgb[1] = ins->led_rgb[1],
-        .led_rgb[2] = ins->led_rgb[2],
-        .rumble = magnitude,
-    };
-
-    // Cache it until rumble is off. Might be used by LEDs
-    ins->rumble_magnitude = magnitude;
-
-    psmove_send_output_report(d, &out);
-    return UNI_RUMBLE_OK;
-}
-
-static void psmove_send_output_report(uni_hid_device_t* d, psmove_output_report_t* out) {
-    /* Should be 0xa2 */
-    out->transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT;
-
-    // uni_hid_device_send_ctrl_report(d, (uint8_t*)out, sizeof(*out));
-    uni_hid_device_send_intr_report(d, (uint8_t*)out, sizeof(*out));
 }

@@ -176,8 +176,6 @@ static void print_mouse_scale(void) {
 }
 
 static int mouse_scale(int argc, char** argv) {
-    float scale;
-
     int nerrors = arg_parse(argc, argv, (void**)&mouse_scale_args);
     if (nerrors != 0) {
         arg_print_errors(stderr, mouse_scale_args.end, argv[0]);
@@ -187,15 +185,13 @@ static int mouse_scale(int argc, char** argv) {
         return 0;
     }
 
-    scale = mouse_scale_args.value->dval[0];
+    float scale = mouse_scale_args.value->dval[0];
     uni_mouse_quadrature_set_scale_factor(scale);
     logi("Done\n");
     return 0;
 }
 
 static int set_gap_security_level(int argc, char** argv) {
-    int gap;
-
     int nerrors = arg_parse(argc, argv, (void**)&gap_security_level_args);
     if (nerrors != 0) {
         arg_print_errors(stderr, gap_security_level_args.end, argv[0]);
@@ -206,7 +202,7 @@ static int set_gap_security_level(int argc, char** argv) {
         return 0;
     }
 
-    gap = gap_security_level_args.value->ival[0];
+    int gap = gap_security_level_args.value->ival[0];
     uni_bt_set_gap_security_level(gap);
     logi("Done. Restart required. Type 'restart' + Enter\n");
     return 0;
@@ -220,8 +216,6 @@ static void print_gap_periodic_inquiry(void) {
 }
 
 static int gap_periodic_inquiry(int argc, char** argv) {
-    int min, max, len;
-
     int nerrors = arg_parse(argc, argv, (void**)&gap_periodic_inquiry_args);
     if (nerrors != 0) {
         arg_print_errors(stderr, gap_periodic_inquiry_args.end, argv[0]);
@@ -231,9 +225,9 @@ static int gap_periodic_inquiry(int argc, char** argv) {
         return 0;
     }
 
-    max = gap_periodic_inquiry_args.max->ival[0];
-    min = gap_periodic_inquiry_args.min->ival[0];
-    len = gap_periodic_inquiry_args.len->ival[0];
+    int max = gap_periodic_inquiry_args.max->ival[0];
+    int min = gap_periodic_inquiry_args.min->ival[0];
+    int len = gap_periodic_inquiry_args.len->ival[0];
     uni_bt_set_gap_max_periodic_length(max);
     uni_bt_set_gap_min_periodic_length(min);
     uni_bt_set_gap_inquiry_length(len);
@@ -275,8 +269,6 @@ static int scan_and_autoconnect(int argc, char** argv) {
 }
 
 static int ble_enable(int argc, char** argv) {
-    int enabled;
-
     int nerrors = arg_parse(argc, argv, (void**)&ble_enable_args);
     if (nerrors != 0) {
         arg_print_errors(stderr, ble_enable_args.end, argv[0]);
@@ -286,7 +278,7 @@ static int ble_enable(int argc, char** argv) {
         return 0;
     }
 
-    enabled = ble_enable_args.enabled->ival[0];
+    int enabled = ble_enable_args.enabled->ival[0];
     uni_bt_le_set_enabled(!!enabled);
     logi("Done. Restart required. Type 'restart' + Enter\n");
     return 0;
@@ -497,15 +489,9 @@ static int getprop(int argc, char** argv) {
     if (!getprop_args.prop->sval[0])
         return -1;
 
-    for (int i = 0; i < UNI_PROPERTY_IDX_COUNT; i++) {
-        const uni_property_t* p = uni_property_get_property_by_name(getprop_args.prop->sval[0]);
-        if (!p)
-            continue;
-        if (strcmp(p->name, getprop_args.prop->sval[0]) == 0) {
-            uni_property_dump_property(p);
-            break;
-        }
-    }
+    const uni_property_t* p = uni_property_get_property_by_name(getprop_args.prop->sval[0]);
+    if (p)
+        uni_property_dump_property(p);
     return 0;
 }
 

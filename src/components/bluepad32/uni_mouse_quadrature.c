@@ -84,6 +84,7 @@ static bool initialized;
 static const int phase_to_a[] = {0, 1, 1, 0};
 static const int phase_to_b[] = {0, 0, 1, 1};
 
+// Advances one quadrature encoder step and updates its A/B GPIO levels.
 static void process_quadrature(struct quadrature_state* q) {
     if (q->value <= 0) {
         return;
@@ -136,7 +137,6 @@ static void init_from_cpu_task(void* pvParameters) {
     // "Register Timer interrupt handler, the handler is an ISR.
     // The handler will be attached to the same CPU core that this function is running on."
 
-    // Create timers
     /* Select and initialize basic parameters of the timer */
     gptimer_config_t timer_config = {
         .clk_src = GPTIMER_CLK_SRC_DEFAULT,
@@ -175,11 +175,14 @@ static void init_from_cpu_task(void* pvParameters) {
     vTaskDelete(NULL);
 }
 
+// Schedules quadrature timer ticks for an encoder based on the incoming mouse delta.
 static void process_update(struct quadrature_state* q, int32_t delta) {
-    uint64_t count_value;
-    int32_t abs_delta = (delta < 0) ? -delta : delta;
+    // If there is no update, set timer to update less frequently.
+    uint64_t count_value = ONE_SECOND * 60;
 
     if (delta != 0) {
+        int32_t abs_delta = (delta < 0) ? -delta : delta;
+
         // Hack to make the movement smoother with "small deltas". It guarantees that
         // at least two phases (out of 4) of the quadrature will be run.
         // if (abs_delta < 2)
@@ -225,11 +228,9 @@ static void process_update(struct quadrature_state* q, int32_t delta) {
         if (units_f < TICKS_PER_80US)
             units_f = TICKS_PER_80US;
         count_value = roundf(units_f);
-    } else {
-        // If there is no update, set timer to update less frequently
-        count_value = ONE_SECOND * 60;
     }
-    // Find which timer corresponds to this quadrature state
+
+    // Find which timer corresponds to this quadrature state.
     int port_idx = (q - &s_quadratures[0][0]) / UNI_MOUSE_QUADRATURE_ENCODER_MAX;
     int encoder_idx = (q - &s_quadratures[0][0]) % UNI_MOUSE_QUADRATURE_ENCODER_MAX;
 

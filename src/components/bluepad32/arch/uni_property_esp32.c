@@ -12,7 +12,7 @@
 
 #define PROPERTY_STRING_MAX_LEN 128
 
-static const char* STORAGE_NAMESPACE = "bp32";
+static const char STORAGE_NAMESPACE[] = "bp32";
 
 // Uses NVS for storage. Used in all ESP32 Bluepad32 platforms.
 
@@ -119,10 +119,9 @@ uni_property_value_t uni_property_get_with_property(const uni_property_t* p) {
     }
 
     if (err != ESP_OK) {
-        // Might be valid if the key was not previously stored
+        // Might be valid if the key was not previously stored.
         logd("could not read property '%s' from NVS, err=%#x\n", p->name, err);
         ret = p->default_value;
-        /* falltrhough */
     }
 
     nvs_close(nvs_handle);

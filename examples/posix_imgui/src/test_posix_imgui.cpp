@@ -393,6 +393,7 @@ void test_controller_layout_classification() {
         uni_controller_type_t type;
         const char* expected_name;
     };
+
     constexpr std::array<ModelNameCase, 4> kNewModelCases = {{
         {CONTROLLER_TYPE_Switch2ProController, "Switch 2 Pro"},
         {CONTROLLER_TYPE_Switch2JoyConLeft, "Switch 2 JoyCon Left"},
@@ -511,6 +512,7 @@ void test_controller_capability_flags() {
         uint16_t pid;
         bool expected_brightness;
     };
+
     constexpr std::array<Switch1CapCase, 3> kSwitch1Cases = {{
         {0x2009, true},
         {0x2007, true},
@@ -2364,6 +2366,7 @@ void test_demo_scene_headless_preferences_ble_service_controls_and_status_bar() 
         const char* name;
         const char* password;
     };
+
     constexpr std::array<BleUiStateCase, 3> kCases = {{
         {true, "Bluepad32 rc car", ""},
         {true, "Bluepad32 on esp32", "secret"},

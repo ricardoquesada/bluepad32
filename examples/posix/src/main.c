@@ -293,6 +293,7 @@ static void usage(const char* name) {
 }
 
 #define USB_MAX_PATH_LEN 7
+
 int main(int argc, const char* argv[]) {
     uint8_t usb_path[USB_MAX_PATH_LEN];
     int usb_path_len = 0;

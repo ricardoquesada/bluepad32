@@ -27,22 +27,6 @@ typedef enum {
 
 typedef uint8_t (*fn_t)(void);
 
-static void setup_call_next_fn(void);
-static uint8_t setup_set_event_filter(void);
-static uint8_t setup_write_simple_pairing_mode(void);
-
-static int setup_fn_idx = 0;
-static fn_t setup_fns[] = {
-    &setup_write_simple_pairing_mode,
-    &setup_set_event_filter,
-};
-static setup_state_t setup_state = SETUP_STATE_BTSTACK_IN_PROGRESS;
-static btstack_packet_callback_registration_t uni_hci_event_callback_registration;
-
-// SDP
-// #define MAX_ATTRIBUTE_VALUE_SIZE 300
-// static uint8_t hid_descriptor_storage[MAX_ATTRIBUTE_VALUE_SIZE];
-
 static uint8_t setup_set_event_filter(void) {
     // Filter out inquiry results before we start the inquiry
     return hci_send_cmd(&hci_set_event_filter_inquiry_cod, 0x01, 0x01, UNI_BT_COD_MAJOR_PERIPHERAL,
@@ -52,6 +36,18 @@ static uint8_t setup_set_event_filter(void) {
 static uint8_t setup_write_simple_pairing_mode(void) {
     return hci_send_cmd(&hci_write_simple_pairing_mode, true);
 }
+
+static int setup_fn_idx = 0;
+static const fn_t setup_fns[] = {
+    &setup_write_simple_pairing_mode,
+    &setup_set_event_filter,
+};
+static setup_state_t setup_state = SETUP_STATE_BTSTACK_IN_PROGRESS;
+static btstack_packet_callback_registration_t uni_hci_event_callback_registration;
+
+// SDP
+// #define MAX_ATTRIBUTE_VALUE_SIZE 300
+// static uint8_t hid_descriptor_storage[MAX_ATTRIBUTE_VALUE_SIZE];
 
 static void setup_call_next_fn(void) {
     uint8_t status;

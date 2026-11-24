@@ -10,7 +10,6 @@
 #include "uni_btstack_version_compat.h"
 #include "uni_hid_device.h"
 #include "uni_log.h"
-#include "uni_version.h"
 
 // HID Usage Tables:
 // https://www.usb.org/sites/default/files/documents/hut1_12v2.pdf
@@ -39,7 +38,7 @@ void uni_hid_parse_input_report(struct uni_hid_device_s* d, const uint8_t* repor
         rp->parse_input_report(d, report, report_len);
     }
 
-    // Devices that suport regular HID reports.
+    // Devices that support regular HID reports.
     if (rp->parse_usage) {
         btstack_hid_parser_init(&parser, d->hid_descriptor, d->hid_descriptor_len, HID_REPORT_TYPE_INPUT, report,
                                 report_len);

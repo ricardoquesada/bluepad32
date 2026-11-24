@@ -10,7 +10,6 @@
 
 #include "parser/uni_hid_parser_ds5.h"
 
-#include <assert.h>
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -218,19 +217,186 @@ typedef struct __attribute((packed)) {
 
 _Static_assert(sizeof(ds5_feature_report_calibration_t) == DS5_FEATURE_REPORT_CALIBRATION_SIZE, "Invalid size");
 
-static ds5_instance_t* get_ds5_instance(uni_hid_device_t* d);
-static void ds5_send_output_report(uni_hid_device_t* d, ds5_output_report_t* out);
-static void ds5_send_enable_lightbar_report(uni_hid_device_t* d);
-static void ds5_request_pairing_info_report(uni_hid_device_t* d);
-static void ds5_request_firmware_version_report(uni_hid_device_t* d);
-static void ds5_request_calibration_report(uni_hid_device_t* d);
-static uni_rumble_result_t ds5_stop_rumble_now(struct uni_hid_device_s* d);
+static ds5_instance_t* get_ds5_instance(uni_hid_device_t* d) {
+    return (ds5_instance_t*)&d->parser_data[0];
+}
+
+static void ds5_send_output_report(uni_hid_device_t* d, ds5_output_report_t* out) {
+    ds5_instance_t* ins = get_ds5_instance(d);
+
+    out->transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT;
+    out->report_id = 0x31;  // taken from HID descriptor
+    out->tag = 0x10;        // Magic number must be set to 0x10
+
+    // Highest 4-bit is a sequence number, which needs to be increased every
+    // report. Lowest 4-bit is tag and can be zero for now.
+    out->seq_tag = (ins->output_seq << 4) | 0x0;
+    if (++ins->output_seq == 15)
+        ins->output_seq = 0;
+
+    out->crc32 = ~uni_crc32_le(0xffffffff, (uint8_t*)out, sizeof(*out) - 4);
+
+    uni_hid_device_send_intr_report(d, (uint8_t*)out, sizeof(*out));
+}
+
+static uni_rumble_result_t ds5_stop_rumble_now(struct uni_hid_device_s* d) {
+    ds5_instance_t* ins = get_ds5_instance(d);
+
+    ds5_output_report_t out = {
+        .valid_flag0 = DS5_FLAG0_HAPTICS_SELECT,
+    };
+
+    if (ins->use_vibration2)
+        out.valid_flag2 |= DS5_FLAG2_COMPATIBLE_VIBRATION2;
+    else
+        out.valid_flag0 |= DS5_FLAG0_COMPATIBLE_VIBRATION;
+
+    ds5_send_output_report(d, &out);
+    return UNI_RUMBLE_OK;
+}
+
 static uni_rumble_result_t ds5_start_rumble_now(struct uni_hid_device_s* d,
                                                 uint8_t weak_magnitude,
                                                 uint8_t strong_magnitude,
                                                 uint8_t trigger_left,
-                                                uint8_t trigger_right);
-static void ds5_parse_mouse(uni_hid_device_t* d, const uint8_t* report, uint16_t len);
+                                                uint8_t trigger_right) {
+    ARG_UNUSED(trigger_left);
+    ARG_UNUSED(trigger_right);
+
+    ds5_instance_t* ins = get_ds5_instance(d);
+
+    ds5_output_report_t out = {
+        .valid_flag0 = DS5_FLAG0_HAPTICS_SELECT,
+
+        // Right motor: small force; left motor: big force
+        .motor_right = weak_magnitude,
+        .motor_left = strong_magnitude,
+    };
+
+    if (ins->use_vibration2)
+        out.valid_flag2 |= DS5_FLAG2_COMPATIBLE_VIBRATION2;
+    else
+        out.valid_flag0 |= DS5_FLAG0_COMPATIBLE_VIBRATION;
+
+    ds5_send_output_report(d, &out);
+    return UNI_RUMBLE_OK;
+}
+
+static void ds5_request_calibration_report(uni_hid_device_t* d) {
+    ds5_instance_t* ins = get_ds5_instance(d);
+    ins->state = DS5_STATE_CALIBRATION_REQUEST;
+
+    // Mimic kernel behavior: request calibration report
+    // Hopefully fixes: https://gitlab.com/ricardoquesada/bluepad32/-/issues/2
+    static const uint8_t report[] = {
+        ((HID_MESSAGE_TYPE_GET_REPORT << 4) | HID_REPORT_TYPE_FEATURE),
+        DS5_FEATURE_REPORT_CALIBRATION,
+    };
+    uni_hid_device_send_ctrl_report(d, report, sizeof(report));
+}
+
+static void ds5_request_pairing_info_report(uni_hid_device_t* d) {
+    ds5_instance_t* ins = get_ds5_instance(d);
+    ins->state = DS5_STATE_PAIRING_INFO_REQUEST;
+
+    static const uint8_t report[] = {
+        ((HID_MESSAGE_TYPE_GET_REPORT << 4) | HID_REPORT_TYPE_FEATURE),
+        DS5_FEATURE_REPORT_PAIRING_INFO,
+    };
+    uni_hid_device_send_ctrl_report(d, report, sizeof(report));
+}
+
+static void ds5_request_firmware_version_report(uni_hid_device_t* d) {
+    ds5_instance_t* ins = get_ds5_instance(d);
+    ins->state = DS5_STATE_FIRMWARE_VERSION_REQUEST;
+
+    static const uint8_t report[] = {
+        ((HID_MESSAGE_TYPE_GET_REPORT << 4) | HID_REPORT_TYPE_FEATURE),
+        DS5_FEATURE_REPORT_FIRMWARE_VERSION,
+    };
+    uni_hid_device_send_ctrl_report(d, report, sizeof(report));
+}
+
+static void ds5_send_enable_lightbar_report(uni_hid_device_t* d) {
+    // Enable lightbar, and set it to blue.
+    // Also, sending an output report enables input report 0x31.
+    ds5_output_report_t out = {
+        .lightbar_blue = 255,
+        .valid_flag1 = DS5_FLAG1_LIGHTBAR_CONTROL_ENABLE,
+
+        .valid_flag2 = DS5_FLAG2_LIGHTBAR_SETUP_CONTROL_ENABLE,
+        .lightbar_setup = DS5_LIGHTBAR_SETUP_LIGHT_OUT,
+    };
+    ds5_send_output_report(d, &out);
+
+    // Set as ready
+    ds5_instance_t* ins = get_ds5_instance(d);
+    ins->state = DS5_STATE_READY;
+    if (!uni_hid_device_set_ready_complete(d)) {
+        return;
+    }
+
+    // Only after the connection was accepted, we should create the virtual device.
+    uni_hid_device_t* child = uni_hid_device_create_virtual(d);
+    if (!child) {
+        loge("DS5: Failed to create virtual device\n");
+        return;
+    }
+
+    // You are a mouse
+    uni_hid_device_set_cod(child, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE);
+
+    // And set it as connected + ready.
+    uni_hid_device_connect(child);
+    if (!uni_hid_device_set_ready_complete(child)) {
+        // Could happen that the platform rejects the virtual device.
+        // E.g: Mouse not supported. If that's the case, break the link
+        d->child = NULL;
+    }
+}
+
+static void ds5_parse_mouse(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
+    ARG_UNUSED(len);
+
+    ds5_instance_t* ins = get_ds5_instance(d);
+
+    // We can safely assume that device is connected and report is valid; otherwise
+    // this function should have not been called.
+
+    uni_controller_t* ctl = &d->controller;
+    const ds5_input_report_t* r = (const ds5_input_report_t*)&report[2];
+
+    int x = (r->points[0].x_hi << 8) + r->points[0].x_lo;
+    int y = (r->points[0].y_hi << 4) + r->points[0].y_lo;
+
+    if (ins->prev_touch_active) {
+        ctl->mouse.delta_x = x - ins->x_prev;
+        ctl->mouse.delta_y = y - ins->y_prev;
+    } else {
+        ctl->mouse.delta_x = 0;
+        ctl->mouse.delta_y = 0;
+    }
+
+    // "Click" on Touchpad
+    if (r->buttons[2] & 0x02) {
+        // Touchpad is divided in 0.75 (left) + 0.25 (right)
+        // Touchpad range: 1920 x 1080
+        if (x < 1440)
+            ctl->mouse.buttons |= UNI_MOUSE_BUTTON_LEFT;
+        else
+            ctl->mouse.buttons |= UNI_MOUSE_BUTTON_RIGHT;
+        // TODO: Support middle button.
+    }
+
+    // Previous delta only if we are touching the touchpad.
+    ins->prev_touch_active = !(r->points[0].contact & BIT(7));
+
+    // Update prev regardless of whether it is valid.
+    ins->x_prev = x;
+    ins->y_prev = y;
+
+    uni_hid_device_process_controller(d);
+}
 
 ds5_adaptive_trigger_effect_t ds5_new_adaptive_trigger_effect_off(void) {
     ds5_adaptive_trigger_effect_t out;
@@ -760,188 +926,4 @@ int uni_hid_parser_ds5_device_extra_info(const struct uni_hid_device_s* d, char*
     return snprintf(buf, len,
                     "FW version: %#" PRIx32 ", HW version: %#" PRIx32 ", update version: %#x, use vibration2: %d",
                     ins->fw_version, ins->hw_version, ins->update_version, ins->use_vibration2);
-}
-
-//
-// Helpers
-//
-static ds5_instance_t* get_ds5_instance(uni_hid_device_t* d) {
-    return (ds5_instance_t*)&d->parser_data[0];
-}
-
-static void ds5_send_output_report(uni_hid_device_t* d, ds5_output_report_t* out) {
-    ds5_instance_t* ins = get_ds5_instance(d);
-
-    out->transaction_type = (HID_MESSAGE_TYPE_DATA << 4) | HID_REPORT_TYPE_OUTPUT;
-    out->report_id = 0x31;  // taken from HID descriptor
-    out->tag = 0x10;        // Magic number must be set to 0x10
-
-    // Highest 4-bit is a sequence number, which needs to be increased every
-    // report. Lowest 4-bit is tag and can be zero for now.
-    out->seq_tag = (ins->output_seq << 4) | 0x0;
-    if (++ins->output_seq == 15)
-        ins->output_seq = 0;
-
-    out->crc32 = ~uni_crc32_le(0xffffffff, (uint8_t*)out, sizeof(*out) - 4);
-
-    uni_hid_device_send_intr_report(d, (uint8_t*)out, sizeof(*out));
-}
-
-static uni_rumble_result_t ds5_stop_rumble_now(struct uni_hid_device_s* d) {
-    ds5_instance_t* ins = get_ds5_instance(d);
-
-    ds5_output_report_t out = {
-        .valid_flag0 = DS5_FLAG0_HAPTICS_SELECT,
-    };
-
-    if (ins->use_vibration2)
-        out.valid_flag2 |= DS5_FLAG2_COMPATIBLE_VIBRATION2;
-    else
-        out.valid_flag0 |= DS5_FLAG0_COMPATIBLE_VIBRATION;
-
-    ds5_send_output_report(d, &out);
-    return UNI_RUMBLE_OK;
-}
-
-static uni_rumble_result_t ds5_start_rumble_now(struct uni_hid_device_s* d,
-                                                uint8_t weak_magnitude,
-                                                uint8_t strong_magnitude,
-                                                uint8_t trigger_left,
-                                                uint8_t trigger_right) {
-    ARG_UNUSED(trigger_left);
-    ARG_UNUSED(trigger_right);
-
-    ds5_instance_t* ins = get_ds5_instance(d);
-
-    ds5_output_report_t out = {
-        .valid_flag0 = DS5_FLAG0_HAPTICS_SELECT,
-
-        // Right motor: small force; left motor: big force
-        .motor_right = weak_magnitude,
-        .motor_left = strong_magnitude,
-    };
-
-    if (ins->use_vibration2)
-        out.valid_flag2 |= DS5_FLAG2_COMPATIBLE_VIBRATION2;
-    else
-        out.valid_flag0 |= DS5_FLAG0_COMPATIBLE_VIBRATION;
-
-    ds5_send_output_report(d, &out);
-    return UNI_RUMBLE_OK;
-}
-
-static void ds5_request_calibration_report(uni_hid_device_t* d) {
-    ds5_instance_t* ins = get_ds5_instance(d);
-    ins->state = DS5_STATE_CALIBRATION_REQUEST;
-
-    // Mimic kernel behavior: request calibration report
-    // Hopefully fixes: https://gitlab.com/ricardoquesada/bluepad32/-/issues/2
-    static uint8_t report[] = {
-        ((HID_MESSAGE_TYPE_GET_REPORT << 4) | HID_REPORT_TYPE_FEATURE),
-        DS5_FEATURE_REPORT_CALIBRATION,
-    };
-    uni_hid_device_send_ctrl_report(d, (uint8_t*)report, sizeof(report));
-}
-
-static void ds5_request_pairing_info_report(uni_hid_device_t* d) {
-    ds5_instance_t* ins = get_ds5_instance(d);
-    ins->state = DS5_STATE_PAIRING_INFO_REQUEST;
-
-    static uint8_t report[] = {
-        ((HID_MESSAGE_TYPE_GET_REPORT << 4) | HID_REPORT_TYPE_FEATURE),
-        DS5_FEATURE_REPORT_PAIRING_INFO,
-    };
-    uni_hid_device_send_ctrl_report(d, (uint8_t*)report, sizeof(report));
-}
-
-static void ds5_request_firmware_version_report(uni_hid_device_t* d) {
-    ds5_instance_t* ins = get_ds5_instance(d);
-    ins->state = DS5_STATE_FIRMWARE_VERSION_REQUEST;
-
-    static uint8_t report[] = {
-        ((HID_MESSAGE_TYPE_GET_REPORT << 4) | HID_REPORT_TYPE_FEATURE),
-        DS5_FEATURE_REPORT_FIRMWARE_VERSION,
-    };
-    uni_hid_device_send_ctrl_report(d, (uint8_t*)report, sizeof(report));
-}
-
-static void ds5_send_enable_lightbar_report(uni_hid_device_t* d) {
-    // Enable lightbar, and set it to blue
-    // Also, sending an output report enables input report 0x31.
-    ds5_output_report_t out = {
-        .lightbar_blue = 255,
-        .valid_flag1 = DS5_FLAG1_LIGHTBAR_CONTROL_ENABLE,
-
-        .valid_flag2 = DS5_FLAG2_LIGHTBAR_SETUP_CONTROL_ENABLE,
-        .lightbar_setup = DS5_LIGHTBAR_SETUP_LIGHT_OUT,
-    };
-    ds5_send_output_report(d, &out);
-
-    // Set as ready
-    ds5_instance_t* ins = get_ds5_instance(d);
-    ins->state = DS5_STATE_READY;
-    if (!uni_hid_device_set_ready_complete(d)) {
-        return;
-    }
-
-    // Only after the connection was accepted, we should create the virtual device.
-    uni_hid_device_t* child = uni_hid_device_create_virtual(d);
-    if (!child) {
-        loge("DS5: Failed to create virtual device\n");
-        return;
-    }
-
-    // You are a mouse
-    uni_hid_device_set_cod(child, UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE);
-
-    // And set it as connected + ready.
-    uni_hid_device_connect(child);
-    if (!uni_hid_device_set_ready_complete(child)) {
-        // Could happen that the platform rejects the virtual device.
-        // E.g: Mouse not supported. If that's the case, break the link
-        d->child = NULL;
-    }
-}
-
-static void ds5_parse_mouse(uni_hid_device_t* d, const uint8_t* report, uint16_t len) {
-    ARG_UNUSED(len);
-
-    ds5_instance_t* ins = get_ds5_instance(d);
-
-    // We can safely assume that device is connected and report is valid; otherwise
-    // this function should have not been called.
-
-    uni_controller_t* ctl = &d->controller;
-    const ds5_input_report_t* r = (ds5_input_report_t*)&report[2];
-
-    int x = (r->points[0].x_hi << 8) + r->points[0].x_lo;
-    int y = (r->points[0].y_hi << 4) + r->points[0].y_lo;
-
-    if (ins->prev_touch_active) {
-        ctl->mouse.delta_x = x - ins->x_prev;
-        ctl->mouse.delta_y = y - ins->y_prev;
-    } else {
-        ctl->mouse.delta_x = 0;
-        ctl->mouse.delta_y = 0;
-    }
-
-    // "Click" on Touchpad
-    if (r->buttons[2] & 0x02) {
-        // Touchpad is divided in 0.75 (left) + 0.25 (right)
-        // Touchpad range: 1920 x 1080
-        if (x < 1440)
-            ctl->mouse.buttons |= UNI_MOUSE_BUTTON_LEFT;
-        else
-            ctl->mouse.buttons |= UNI_MOUSE_BUTTON_RIGHT;
-        // TODO: Support middle button.
-    }
-
-    // Previous delta only if we are touching the touchpad.
-    ins->prev_touch_active = !(r->points[0].contact & BIT(7));
-
-    // Update prev regardless of whether it is valid.
-    ins->x_prev = x;
-    ins->y_prev = y;
-
-    uni_hid_device_process_controller(d);
 }

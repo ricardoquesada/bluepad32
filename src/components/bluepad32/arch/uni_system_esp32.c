@@ -2,6 +2,8 @@
 // Copyright 2024 Ricardo Quesada
 // http://retro.moe/unijoysticle2
 
+#include "uni_system.h"
+
 #include <esp_system.h>
 
 void uni_system_reboot(void) {

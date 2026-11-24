@@ -187,300 +187,8 @@ typedef struct {
 
 _Static_assert(sizeof(steam_instance_t) < HID_DEVICE_MAX_PARSER_DATA, "Steam instance too big");
 
-static void parse_buttons(struct uni_hid_device_s* d, const uint8_t* data);
-static void parse_triggers(struct uni_hid_device_s* d, const uint8_t* data);
-static void parse_thumbstick(struct uni_hid_device_s* d, const uint8_t* data);
-static void parse_right_pad(struct uni_hid_device_s* d, const uint8_t* data);
-static void parse_imu_accel(struct uni_hid_device_s* d, const uint8_t* data);
-static void parse_imu_gyro(struct uni_hid_device_s* d, const uint8_t* data);
-static uni_rumble_result_t steam_stop_rumble_now(struct uni_hid_device_s* d);
-static uni_rumble_result_t steam_start_rumble_now(struct uni_hid_device_s* d,
-                                                  uint8_t weak_magnitude,
-                                                  uint8_t strong_magnitude,
-                                                  uint8_t trigger_left,
-                                                  uint8_t trigger_right);
-
 static steam_instance_t* get_steam_instance(uni_hid_device_t* d) {
     return (steam_instance_t*)&d->parser_data[0];
-}
-
-// TODO: Make it easier for "parsers" to write/read/get notified from characteristics
-static void uni_steam_handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
-    uint8_t att_status;
-    uni_hid_device_t* device;
-    steam_instance_t* ins;
-    hci_con_handle_t con_handle;
-
-    ARG_UNUSED(channel);
-    ARG_UNUSED(size);
-
-    if (packet_type != HCI_EVENT_PACKET)
-        return;
-
-    uint8_t event = hci_event_packet_get_type(packet);
-    switch (event) {
-        case GATT_EVENT_SERVICE_QUERY_RESULT:
-            con_handle = gatt_event_service_query_result_get_handle(packet);
-            break;
-        case GATT_EVENT_CHARACTERISTIC_QUERY_RESULT:
-            con_handle = gatt_event_characteristic_query_result_get_handle(packet);
-            break;
-        case GATT_EVENT_QUERY_COMPLETE:
-            con_handle = gatt_event_query_complete_get_handle(packet);
-            break;
-        default:
-            loge("Steam: Unknown GATT event: %#x\n", event);
-            return;
-    }
-
-    device = uni_hid_device_get_instance_for_connection_handle(con_handle);
-    if (!device) {
-        loge("Steam: Invalid device for connection handle: %#x\n", con_handle);
-        return;
-    }
-    ins = get_steam_instance(device);
-
-    switch (ins->query_state) {
-        case STATE_QUERY_SERVICE:
-            switch (event) {
-                case GATT_EVENT_SERVICE_QUERY_RESULT:
-                    // store service (we expect only one)
-                    gatt_event_service_query_result_get_service(packet, &ins->service);
-                    break;
-                case GATT_EVENT_QUERY_COMPLETE:
-                    att_status = gatt_event_query_complete_get_att_status(packet);
-                    if (att_status != ATT_ERROR_SUCCESS) {
-                        loge("Steam: SERVICE_QUERY_RESULT - Error status %x.\n", att_status);
-                        // Should disconnect (?)
-                        // gap_disconnect(connection_handle);
-                        break;
-                    }
-                    // service query complete, look for characteristic report
-                    ins->query_state = STATE_QUERY_CHARACTERISTIC_REPORT;
-                    gatt_client_discover_characteristics_for_service_by_uuid128(uni_steam_handle_gatt_client_event,
-                                                                                con_handle, &ins->service,
-                                                                                le_steam_characteristic_report_uuid);
-                    break;
-                default:
-                    loge("Steam: Unknown event: %#x\n", event);
-            }
-            break;
-        case STATE_QUERY_CHARACTERISTIC_REPORT:
-            switch (event) {
-                case GATT_EVENT_QUERY_COMPLETE:
-                    att_status = gatt_event_query_complete_get_att_status(packet);
-                    if (att_status != ATT_ERROR_SUCCESS) {
-                        loge("Steam: SERVICE_QUERY_RESULT - Error status %x.\n", att_status);
-                        // Should disconnect (?)
-                        // gap_disconnect(connection_handle);
-                        break;
-                    }
-                    gatt_client_write_value_of_characteristic(uni_steam_handle_gatt_client_event, con_handle,
-                                                              ins->characteristic_report.value_handle,
-                                                              sizeof(cmd_clear_mappings), cmd_clear_mappings);
-                    ins->query_state = STATE_QUERY_CLEAR_MAPPINGS;
-                    break;
-                case GATT_EVENT_CHARACTERISTIC_QUERY_RESULT:
-                    gatt_event_characteristic_query_result_get_characteristic(packet, &ins->characteristic_report);
-                    break;
-                default:
-                    loge("Steam: Unknown event: %#x\n", event);
-            }
-            break;
-        case STATE_QUERY_CLEAR_MAPPINGS:
-            switch (event) {
-                case GATT_EVENT_QUERY_COMPLETE:
-                    att_status = gatt_event_query_complete_get_att_status(packet);
-                    if (att_status != ATT_ERROR_SUCCESS) {
-                        loge("Steam: SERVICE_QUERY_RESULT - Error status %x.\n", att_status);
-                        // Should disconnect (?)
-                        // gap_disconnect(connection_handle);
-                        break;
-                    }
-                    gatt_client_write_value_of_characteristic(uni_steam_handle_gatt_client_event, con_handle,
-                                                              ins->characteristic_report.value_handle,
-                                                              sizeof(cmd_disable_lizard), cmd_disable_lizard);
-                    ins->query_state = STATE_QUERY_DISABLE_LIZARD;
-                    break;
-                default:
-                    loge("Steam: Unknown event: %#x\n", event);
-            }
-            break;
-        case STATE_QUERY_DISABLE_LIZARD:
-            switch (event) {
-                case GATT_EVENT_QUERY_COMPLETE:
-                    att_status = gatt_event_query_complete_get_att_status(packet);
-                    if (att_status != ATT_ERROR_SUCCESS) {
-                        loge("Steam: SERVICE_QUERY_RESULT - Error status %x.\n", att_status);
-                        // Should disconnect (?)
-                        // gap_disconnect(connection_handle);
-                        break;
-                    }
-                    uni_hid_device_set_ready_complete(device);
-                    ins->query_state = STATE_QUERY_END;
-                    break;
-                default:
-                    loge("Steam: Unknown event: %#x\n", event);
-            }
-            break;
-        case STATE_QUERY_END:
-            if (event == GATT_EVENT_QUERY_COMPLETE) {
-                ins->write_in_flight = false;
-                att_status = gatt_event_query_complete_get_att_status(packet);
-                if (att_status != ATT_ERROR_SUCCESS) {
-                    logd("Steam: Rumble write complete with ATT status %#x\n", att_status);
-                    ins->pending_right_valid = false;
-                    break;
-                }
-                if (ins->pending_right_valid) {
-                    memcpy(ins->rumble_cmd, ins->pending_right_cmd, sizeof(ins->rumble_cmd));
-                    ins->pending_right_valid = false;
-                    uint8_t status = gatt_client_write_value_of_characteristic(
-                        uni_steam_handle_gatt_client_event, con_handle, ins->characteristic_report.value_handle,
-                        sizeof(ins->rumble_cmd), ins->rumble_cmd);
-                    if (status == ERROR_CODE_SUCCESS) {
-                        ins->write_in_flight = true;
-                    }
-                }
-            }
-            break;
-        default:
-            loge("Steam: Unknown query state: %#x\n", ins->query_state);
-            break;
-    }
-}
-
-void uni_hid_parser_steam_setup(struct uni_hid_device_s* d) {
-    if (d == NULL) {
-        loge("Steam: Invalid device\n");
-        return;
-    }
-
-    steam_instance_t* ins = get_steam_instance(d);
-    memset(ins, 0, sizeof(*ins));
-
-    uni_hid_parser_rumble_init(d, steam_start_rumble_now, steam_stop_rumble_now);
-
-    ins->query_state = STATE_QUERY_SERVICE;
-    gatt_client_discover_primary_services_by_uuid128(uni_steam_handle_gatt_client_event, d->conn.handle,
-                                                     le_steam_service_uuid);
-
-    // Set the type of controller class once.
-    uni_controller_t* ctl = &d->controller;
-    ctl->klass = UNI_CONTROLLER_CLASS_GAMEPAD;
-}
-
-void uni_hid_parser_steam_init_report(uni_hid_device_t* d) {
-    ARG_UNUSED(d);
-    // Don't reset old state. Each report contains a full-state.
-    // memset(ctl, 0, sizeof(*ctl));
-}
-
-void uni_hid_parser_steam_play_dual_rumble(struct uni_hid_device_s* d,
-                                           uint16_t start_delay_ms,
-                                           uint16_t duration_ms,
-                                           uint8_t weak_magnitude,
-                                           uint8_t strong_magnitude) {
-    if (d == NULL) {
-        loge("Steam: Invalid device\n");
-        return;
-    }
-
-    uni_hid_parser_rumble_play_dual(d, start_delay_ms, duration_ms, weak_magnitude, strong_magnitude,
-                                    steam_start_rumble_now, steam_stop_rumble_now);
-}
-
-void uni_hid_parser_steam_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len) {
-    int idx;
-
-    // Sanity checks: require at least the 4-byte BLE report header.
-    // Reports with IMU sections enabled grow beyond 20 bytes.
-    if (len < 4) {
-        logi("Steam: Input report with unsupported length: %d\n", len);
-        return;
-    }
-
-    // Report Id
-    if (report[0] != 0x03)
-        // Unsupported Report Id.
-        return;
-
-    if (report[1] != 0xc0)
-        // Not sure what 0xc0 is
-        return;
-
-    // Only care about input reports.
-    // Misc info comes in 0x05
-    if ((report[2] & 0x0f) != 0x04) {
-        // TODO: parse misc info
-        return;
-    }
-
-    // printf_hexdump(report, len);
-
-    uint16_t report_flags = (uint16_t)((report[2] & 0xf0) | (report[3] << 8));
-
-    // Each flagged section is packed sequentially starting at byte offset 4.
-    // Guard every section read with `idx + N <= len` and always advance `idx` by the
-    // section's wire size so subsequent sections read from the correct offset without
-    // reading past `report + len`.
-    idx = 4;
-    if (report_flags & STEAM_CONTROLLER_FLAG_BUTTONS) {
-        if (idx + 3 <= len) {
-            parse_buttons(d, &report[idx]);
-        }
-        idx += 3;
-    }
-
-    if (report_flags & STEAM_CONTROLLER_FLAG_TRIGGERS) {
-        if (idx + 2 <= len) {
-            parse_triggers(d, &report[idx]);
-        }
-        idx += 2;
-    }
-
-    if (report_flags & STEAM_CONTROLLER_FLAG_BUTTONS_EXT) {
-        // Extra 3-byte buttons chunk (unmapped, but advances stream offset).
-        idx += 3;
-    }
-
-    if (report_flags & STEAM_CONTROLLER_FLAG_THUMBSTICK) {
-        if (idx + 4 <= len) {
-            parse_thumbstick(d, &report[idx]);
-        }
-        idx += 4;
-    }
-
-    if (report_flags & STEAM_CONTROLLER_FLAG_LEFT_PAD) {
-        // Not mapped for the moment, but still occupies 4 bytes in the report stream.
-        idx += 4;
-    }
-
-    if (report_flags & STEAM_CONTROLLER_FLAG_RIGHT_PAD) {
-        if (idx + 4 <= len) {
-            parse_right_pad(d, &report[idx]);
-        }
-        idx += 4;
-    }
-
-    if (report_flags & STEAM_CONTROLLER_FLAG_IMU_ACCEL) {
-        if (idx + 6 <= len) {
-            parse_imu_accel(d, &report[idx]);
-        }
-        idx += 6;
-    }
-
-    if (report_flags & STEAM_CONTROLLER_FLAG_IMU_GYRO) {
-        if (idx + 6 <= len) {
-            parse_imu_gyro(d, &report[idx]);
-        }
-        idx += 6;
-    }
-
-    if (report_flags & STEAM_CONTROLLER_FLAG_IMU_QUAT) {
-        // Quaternion occupies 8 bytes in the report stream.
-        idx += 8;
-    }
 }
 
 static void parse_buttons(struct uni_hid_device_s* d, const uint8_t* data) {
@@ -629,6 +337,156 @@ static void steam_build_haptic_pulse_cmd(uint8_t out_cmd[STEAM_HAPTIC_CMD_LEN],
     out_cmd[10] = 0x00;  // 0 dB gain
 }
 
+// TODO: Make it easier for "parsers" to write/read/get notified from characteristics
+static void uni_steam_handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size) {
+    uint8_t att_status;
+    uni_hid_device_t* device;
+    steam_instance_t* ins;
+    hci_con_handle_t con_handle;
+
+    ARG_UNUSED(channel);
+    ARG_UNUSED(size);
+
+    if (packet_type != HCI_EVENT_PACKET)
+        return;
+
+    uint8_t event = hci_event_packet_get_type(packet);
+    switch (event) {
+        case GATT_EVENT_SERVICE_QUERY_RESULT:
+            con_handle = gatt_event_service_query_result_get_handle(packet);
+            break;
+        case GATT_EVENT_CHARACTERISTIC_QUERY_RESULT:
+            con_handle = gatt_event_characteristic_query_result_get_handle(packet);
+            break;
+        case GATT_EVENT_QUERY_COMPLETE:
+            con_handle = gatt_event_query_complete_get_handle(packet);
+            break;
+        default:
+            loge("Steam: Unknown GATT event: %#x\n", event);
+            return;
+    }
+
+    device = uni_hid_device_get_instance_for_connection_handle(con_handle);
+    if (!device) {
+        loge("Steam: Invalid device for connection handle: %#x\n", con_handle);
+        return;
+    }
+    ins = get_steam_instance(device);
+
+    switch (ins->query_state) {
+        case STATE_QUERY_SERVICE:
+            switch (event) {
+                case GATT_EVENT_SERVICE_QUERY_RESULT:
+                    // store service (we expect only one)
+                    gatt_event_service_query_result_get_service(packet, &ins->service);
+                    break;
+                case GATT_EVENT_QUERY_COMPLETE:
+                    att_status = gatt_event_query_complete_get_att_status(packet);
+                    if (att_status != ATT_ERROR_SUCCESS) {
+                        loge("Steam: SERVICE_QUERY_RESULT - Error status %x.\n", att_status);
+                        // Should disconnect (?)
+                        // gap_disconnect(connection_handle);
+                        break;
+                    }
+                    // service query complete, look for characteristic report
+                    ins->query_state = STATE_QUERY_CHARACTERISTIC_REPORT;
+                    gatt_client_discover_characteristics_for_service_by_uuid128(uni_steam_handle_gatt_client_event,
+                                                                                con_handle, &ins->service,
+                                                                                le_steam_characteristic_report_uuid);
+                    break;
+                default:
+                    loge("Steam: Unknown event: %#x\n", event);
+                    break;
+            }
+            break;
+        case STATE_QUERY_CHARACTERISTIC_REPORT:
+            switch (event) {
+                case GATT_EVENT_QUERY_COMPLETE:
+                    att_status = gatt_event_query_complete_get_att_status(packet);
+                    if (att_status != ATT_ERROR_SUCCESS) {
+                        loge("Steam: SERVICE_QUERY_RESULT - Error status %x.\n", att_status);
+                        // Should disconnect (?)
+                        // gap_disconnect(connection_handle);
+                        break;
+                    }
+                    gatt_client_write_value_of_characteristic(uni_steam_handle_gatt_client_event, con_handle,
+                                                              ins->characteristic_report.value_handle,
+                                                              sizeof(cmd_clear_mappings), cmd_clear_mappings);
+                    ins->query_state = STATE_QUERY_CLEAR_MAPPINGS;
+                    break;
+                case GATT_EVENT_CHARACTERISTIC_QUERY_RESULT:
+                    gatt_event_characteristic_query_result_get_characteristic(packet, &ins->characteristic_report);
+                    break;
+                default:
+                    loge("Steam: Unknown event: %#x\n", event);
+                    break;
+            }
+            break;
+        case STATE_QUERY_CLEAR_MAPPINGS:
+            switch (event) {
+                case GATT_EVENT_QUERY_COMPLETE:
+                    att_status = gatt_event_query_complete_get_att_status(packet);
+                    if (att_status != ATT_ERROR_SUCCESS) {
+                        loge("Steam: SERVICE_QUERY_RESULT - Error status %x.\n", att_status);
+                        // Should disconnect (?)
+                        // gap_disconnect(connection_handle);
+                        break;
+                    }
+                    gatt_client_write_value_of_characteristic(uni_steam_handle_gatt_client_event, con_handle,
+                                                              ins->characteristic_report.value_handle,
+                                                              sizeof(cmd_disable_lizard), cmd_disable_lizard);
+                    ins->query_state = STATE_QUERY_DISABLE_LIZARD;
+                    break;
+                default:
+                    loge("Steam: Unknown event: %#x\n", event);
+                    break;
+            }
+            break;
+        case STATE_QUERY_DISABLE_LIZARD:
+            switch (event) {
+                case GATT_EVENT_QUERY_COMPLETE:
+                    att_status = gatt_event_query_complete_get_att_status(packet);
+                    if (att_status != ATT_ERROR_SUCCESS) {
+                        loge("Steam: SERVICE_QUERY_RESULT - Error status %x.\n", att_status);
+                        // Should disconnect (?)
+                        // gap_disconnect(connection_handle);
+                        break;
+                    }
+                    uni_hid_device_set_ready_complete(device);
+                    ins->query_state = STATE_QUERY_END;
+                    break;
+                default:
+                    loge("Steam: Unknown event: %#x\n", event);
+                    break;
+            }
+            break;
+        case STATE_QUERY_END:
+            if (event == GATT_EVENT_QUERY_COMPLETE) {
+                ins->write_in_flight = false;
+                att_status = gatt_event_query_complete_get_att_status(packet);
+                if (att_status != ATT_ERROR_SUCCESS) {
+                    logd("Steam: Rumble write complete with ATT status %#x\n", att_status);
+                    ins->pending_right_valid = false;
+                    break;
+                }
+                if (ins->pending_right_valid) {
+                    memcpy(ins->rumble_cmd, ins->pending_right_cmd, sizeof(ins->rumble_cmd));
+                    ins->pending_right_valid = false;
+                    uint8_t status = gatt_client_write_value_of_characteristic(
+                        uni_steam_handle_gatt_client_event, con_handle, ins->characteristic_report.value_handle,
+                        sizeof(ins->rumble_cmd), ins->rumble_cmd);
+                    if (status == ERROR_CODE_SUCCESS) {
+                        ins->write_in_flight = true;
+                    }
+                }
+            }
+            break;
+        default:
+            loge("Steam: Unknown query state: %#x\n", ins->query_state);
+            break;
+    }
+}
+
 static uni_rumble_result_t steam_send_rumble_dual(struct uni_hid_device_s* d,
                                                   uint16_t duration_ms,
                                                   uint8_t weak_magnitude,
@@ -702,4 +560,137 @@ static uni_rumble_result_t steam_start_rumble_now(struct uni_hid_device_s* d,
     ARG_UNUSED(trigger_left);
     ARG_UNUSED(trigger_right);
     return steam_send_rumble_dual(d, d->rumble.duration_ms, weak_magnitude, strong_magnitude);
+}
+
+void uni_hid_parser_steam_setup(struct uni_hid_device_s* d) {
+    if (d == NULL) {
+        loge("Steam: Invalid device\n");
+        return;
+    }
+
+    steam_instance_t* ins = get_steam_instance(d);
+    memset(ins, 0, sizeof(*ins));
+
+    uni_hid_parser_rumble_init(d, steam_start_rumble_now, steam_stop_rumble_now);
+
+    ins->query_state = STATE_QUERY_SERVICE;
+    gatt_client_discover_primary_services_by_uuid128(uni_steam_handle_gatt_client_event, d->conn.handle,
+                                                     le_steam_service_uuid);
+
+    // Set the type of controller class once.
+    uni_controller_t* ctl = &d->controller;
+    ctl->klass = UNI_CONTROLLER_CLASS_GAMEPAD;
+}
+
+void uni_hid_parser_steam_init_report(uni_hid_device_t* d) {
+    ARG_UNUSED(d);
+    // Don't reset old state. Each report contains a full-state.
+    // memset(ctl, 0, sizeof(*ctl));
+}
+
+void uni_hid_parser_steam_play_dual_rumble(struct uni_hid_device_s* d,
+                                           uint16_t start_delay_ms,
+                                           uint16_t duration_ms,
+                                           uint8_t weak_magnitude,
+                                           uint8_t strong_magnitude) {
+    if (d == NULL) {
+        loge("Steam: Invalid device\n");
+        return;
+    }
+
+    uni_hid_parser_rumble_play_dual(d, start_delay_ms, duration_ms, weak_magnitude, strong_magnitude,
+                                    steam_start_rumble_now, steam_stop_rumble_now);
+}
+
+void uni_hid_parser_steam_parse_input_report(struct uni_hid_device_s* d, const uint8_t* report, uint16_t len) {
+    int idx;
+
+    // Sanity checks: require at least the 4-byte BLE report header.
+    // Reports with IMU sections enabled grow beyond 20 bytes.
+    if (len < 4) {
+        logi("Steam: Input report with unsupported length: %d\n", len);
+        return;
+    }
+
+    // Report Id
+    if (report[0] != 0x03)
+        // Unsupported Report Id.
+        return;
+
+    if (report[1] != 0xc0)
+        // Not sure what 0xc0 is.
+        return;
+
+    // Only care about input reports.
+    // Misc info comes in 0x05
+    if ((report[2] & 0x0f) != 0x04) {
+        // TODO: parse misc info
+        return;
+    }
+
+    // printf_hexdump(report, len);
+
+    uint16_t report_flags = (uint16_t)((report[2] & 0xf0) | (report[3] << 8));
+
+    // Each flagged section is packed sequentially starting at byte offset 4.
+    // Guard every section read with `idx + N <= len` and always advance `idx` by the
+    // section's wire size so subsequent sections read from the correct offset without
+    // reading past `report + len`.
+    idx = 4;
+    if (report_flags & STEAM_CONTROLLER_FLAG_BUTTONS) {
+        if (idx + 3 <= len) {
+            parse_buttons(d, &report[idx]);
+        }
+        idx += 3;
+    }
+
+    if (report_flags & STEAM_CONTROLLER_FLAG_TRIGGERS) {
+        if (idx + 2 <= len) {
+            parse_triggers(d, &report[idx]);
+        }
+        idx += 2;
+    }
+
+    if (report_flags & STEAM_CONTROLLER_FLAG_BUTTONS_EXT) {
+        // Extra 3-byte buttons chunk (unmapped, but advances stream offset).
+        idx += 3;
+    }
+
+    if (report_flags & STEAM_CONTROLLER_FLAG_THUMBSTICK) {
+        if (idx + 4 <= len) {
+            parse_thumbstick(d, &report[idx]);
+        }
+        idx += 4;
+    }
+
+    if (report_flags & STEAM_CONTROLLER_FLAG_LEFT_PAD) {
+        // Not mapped for the moment, but still occupies 4 bytes in the report stream.
+        idx += 4;
+    }
+
+    if (report_flags & STEAM_CONTROLLER_FLAG_RIGHT_PAD) {
+        if (idx + 4 <= len) {
+            parse_right_pad(d, &report[idx]);
+        }
+        idx += 4;
+    }
+
+    if (report_flags & STEAM_CONTROLLER_FLAG_IMU_ACCEL) {
+        if (idx + 6 <= len) {
+            parse_imu_accel(d, &report[idx]);
+        }
+        idx += 6;
+    }
+
+    if (report_flags & STEAM_CONTROLLER_FLAG_IMU_GYRO) {
+        if (idx + 6 <= len) {
+            parse_imu_gyro(d, &report[idx]);
+        }
+        idx += 6;
+    }
+
+    if (report_flags & STEAM_CONTROLLER_FLAG_IMU_QUAT) {
+        // Quaternion occupies 8 bytes in the report stream.
+        idx += 8;
+    }
 }

@@ -130,15 +130,82 @@ typedef struct __attribute((packed)) {
 
 _Static_assert(sizeof(ds3_input_report_t) == 49, "Invalid DS3 input report size");
 
-static ds3_instance_t* get_ds3_instance(uni_hid_device_t* d);
-static void ds3_update_led(uni_hid_device_t* d, uint8_t player_leds);
-static void ds3_send_output_report(uni_hid_device_t* d, ds3_output_report_t* out);
-static uni_rumble_result_t ds3_stop_rumble_now(struct uni_hid_device_s* d);
+static ds3_instance_t* get_ds3_instance(uni_hid_device_t* d) {
+    return (ds3_instance_t*)&d->parser_data[0];
+}
+
+static void ds3_send_output_report(uni_hid_device_t* d, ds3_output_report_t* out) {
+    out->transation_type = 0x52;  // SET_REPORT output
+    out->report_id = 0x01;
+
+    // Default LEDs configuration.
+    static const uint8_t leds[] = {
+        0xff, 0x27, 0x10, 0x00, 0x32,  // Led4
+        0xff, 0x27, 0x10, 0x00, 0x32,  // Led3
+        0xff, 0x27, 0x10, 0x00, 0x32,  // Led2
+        0xff, 0x27, 0x10, 0x00, 0x32,  // Led1
+    };
+    memcpy(&out->led4, leds, sizeof(leds));
+
+    ds3_instance_t* ins = get_ds3_instance(d);
+    // Sony PS3 controllers expect the report on the control channel
+    uni_hid_device_send_ctrl_report(d, (uint8_t*)out, sizeof(*out));
+    if (ins->clone_controller) {
+        // Clone controllers expect the report on the interrupt channel
+        uni_hid_device_send_intr_report(d, (uint8_t*)out, sizeof(*out));
+    }
+}
+
+static void ds3_update_led(uni_hid_device_t* d, uint8_t player_leds) {
+    ds3_instance_t* ins = get_ds3_instance(d);
+    ins->state = DS3_FSM_LED_UPDATED;
+
+    ds3_output_report_t out = {0};
+
+    // LED cmd. LED1==2, LED2==4, etc...
+    out.player_leds = player_leds << 1;
+
+    ds3_send_output_report(d, &out);
+}
+
+static uni_rumble_result_t ds3_stop_rumble_now(struct uni_hid_device_s* d) {
+    ds3_instance_t* ins = get_ds3_instance(d);
+
+    ds3_output_report_t out = {0};
+
+    // Don't overwrite Player LEDs.
+    // LED cmd. LED1==2, LED2==4, etc.
+    out.player_leds = ins->player_leds << 1;
+
+    ds3_send_output_report(d, &out);
+    return UNI_RUMBLE_OK;
+}
+
 static uni_rumble_result_t ds3_start_rumble_now(struct uni_hid_device_s* d,
                                                 uint8_t weak_magnitude,
                                                 uint8_t strong_magnitude,
                                                 uint8_t trigger_left,
-                                                uint8_t trigger_right);
+                                                uint8_t trigger_right) {
+    ARG_UNUSED(trigger_left);
+    ARG_UNUSED(trigger_right);
+
+    ds3_instance_t* ins = get_ds3_instance(d);
+    ds3_output_report_t out = {0};
+
+    // Spec says that 0xff is "forever", but depends on the devices.
+    // Clones might work differently.
+    out.motor_right_duration = 0xff;
+    out.motor_right_enabled = (weak_magnitude != 0);  // 0 or 1 only
+    out.motor_left_duration = 0xff;
+    out.motor_left_force = strong_magnitude;
+
+    // Don't overwrite Player LEDs.
+    // LED cmd. LED1==2, LED2==4, etc.
+    out.player_leds = ins->player_leds << 1;
+
+    ds3_send_output_report(d, &out);
+    return UNI_RUMBLE_OK;
+}
 
 void uni_hid_parser_ds3_init_report(uni_hid_device_t* d) {
     uni_controller_t* ctl = &d->controller;
@@ -207,6 +274,7 @@ void uni_hid_parser_ds3_parse_input_report(uni_hid_device_t* d, const uint8_t* r
             break;
         default:
             logi("DS3: Battery status not supported: %d\n", r->battery_status);
+            break;
     }
 
     // Buttons
@@ -304,13 +372,13 @@ void uni_hid_parser_ds3_setup(struct uni_hid_device_s* d) {
 
     // Dual Shock 3 Sixasis requires a magic packet to be sent in order to enable reports. Taken from:
     // https://github.com/torvalds/linux/blob/1d1df41c5a33359a00e919d54eaebfb789711fdc/drivers/hid/hid-sony.c#L1684
-    static uint8_t sixaxisEnableReports[] = {(HID_MESSAGE_TYPE_SET_REPORT << 4) | HID_REPORT_TYPE_FEATURE,
-                                             0xf4,  // Report ID
-                                             0x42,
-                                             0x03,
-                                             0x00,
-                                             0x00};
-    uni_hid_device_send_ctrl_report(d, (uint8_t*)&sixaxisEnableReports, sizeof(sixaxisEnableReports));
+    static const uint8_t sixaxis_enable_reports[] = {(HID_MESSAGE_TYPE_SET_REPORT << 4) | HID_REPORT_TYPE_FEATURE,
+                                                     0xf4,  // Report ID
+                                                     0x42,
+                                                     0x03,
+                                                     0x00,
+                                                     0x00};
+    uni_hid_device_send_ctrl_report(d, sixaxis_enable_reports, sizeof(sixaxis_enable_reports));
 
     // TODO: should set "ready_complete" once we receive an ack from DS3 regarding report id 0xf4 (???)
     uni_hid_device_set_ready_complete(d);
@@ -342,84 +410,4 @@ bool uni_hid_parser_ds3_does_name_match(struct uni_hid_device_s* d, const char* 
     uni_hid_device_set_vendor_id(d, DUALSHOCK3_VID);
     uni_hid_device_set_product_id(d, product_id);
     return true;
-}
-
-//
-// Helpers
-//
-static ds3_instance_t* get_ds3_instance(uni_hid_device_t* d) {
-    return (ds3_instance_t*)&d->parser_data[0];
-}
-
-static void ds3_update_led(uni_hid_device_t* d, uint8_t player_leds) {
-    ds3_instance_t* ins = get_ds3_instance(d);
-    ins->state = DS3_FSM_LED_UPDATED;
-
-    ds3_output_report_t out = {0};
-
-    // LED cmd. LED1==2, LED2==4, etc...
-    out.player_leds = player_leds << 1;
-
-    ds3_send_output_report(d, &out);
-}
-
-static uni_rumble_result_t ds3_stop_rumble_now(struct uni_hid_device_s* d) {
-    ds3_instance_t* ins = get_ds3_instance(d);
-
-    ds3_output_report_t out = {0};
-
-    // Don't overwrite Player LEDs
-    // LED cmd. LED1==2, LED2==4, etc...
-    out.player_leds = ins->player_leds << 1;
-
-    ds3_send_output_report(d, &out);
-    return UNI_RUMBLE_OK;
-}
-
-static uni_rumble_result_t ds3_start_rumble_now(struct uni_hid_device_s* d,
-                                                uint8_t weak_magnitude,
-                                                uint8_t strong_magnitude,
-                                                uint8_t trigger_left,
-                                                uint8_t trigger_right) {
-    ARG_UNUSED(trigger_left);
-    ARG_UNUSED(trigger_right);
-
-    ds3_instance_t* ins = get_ds3_instance(d);
-    ds3_output_report_t out = {0};
-
-    // Spec says that 0xff is "forever", but depends on the devices.
-    // Clones might work different.
-    out.motor_right_duration = 0xff;
-    out.motor_right_enabled = (weak_magnitude != 0);  // 0 or 1 only
-    out.motor_left_duration = 0xff;
-    out.motor_left_force = strong_magnitude;
-
-    // Don't overwrite Player LEDs
-    // LED cmd. LED1==2, LED2==4, etc...
-    out.player_leds = ins->player_leds << 1;
-
-    ds3_send_output_report(d, &out);
-    return UNI_RUMBLE_OK;
-}
-
-static void ds3_send_output_report(uni_hid_device_t* d, ds3_output_report_t* out) {
-    out->transation_type = 0x52;  // SET_REPORT output
-    out->report_id = 0x01;
-
-    // Default LEDs configuration.
-    static const uint8_t leds[] = {
-        0xff, 0x27, 0x10, 0x00, 0x32,  // Led4
-        0xff, 0x27, 0x10, 0x00, 0x32,  // Led3
-        0xff, 0x27, 0x10, 0x00, 0x32,  // Led2
-        0xff, 0x27, 0x10, 0x00, 0x32,  // Led1
-    };
-    memcpy(&out->led4, leds, sizeof(leds));
-
-    ds3_instance_t* ins = get_ds3_instance(d);
-    // Sony PS3 controllers expect the report on the control channel
-    uni_hid_device_send_ctrl_report(d, (uint8_t*)out, sizeof(*out));
-    if (ins->clone_controller) {
-        // Clone controllers expect the report on the interrupt channel
-        uni_hid_device_send_intr_report(d, (uint8_t*)out, sizeof(*out));
-    }
 }

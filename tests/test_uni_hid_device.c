@@ -280,9 +280,11 @@ TEST(circular_buffer_zero_length_packet) {
 TEST(circular_buffer_exact_capacity_boundary) {
     printf("Testing uni_circular_buffer exact capacity boundary...\n");
     uni_circular_buffer_t buf = {0};
+
     enum {
         MAX_PAYLOAD_SIZE = UNI_CIRCULAR_BUFFER_SIZE - 1 - UNI_CIRCULAR_BUFFER_HEADER_SIZE,
     };
+
     uint8_t pkt_max[MAX_PAYLOAD_SIZE];
     uint8_t pkt_too_big[MAX_PAYLOAD_SIZE + 1];
     uint8_t out_buf[MAX_PAYLOAD_SIZE];
@@ -392,6 +394,7 @@ TEST(circular_buffer_variable_length_and_wrap_around) {
         TEST_PKT_128_LEN = 128,
         MAX_PAYLOAD_SIZE = UNI_CIRCULAR_BUFFER_SIZE - 1 - UNI_CIRCULAR_BUFFER_HEADER_SIZE,
     };
+
     const int max_128b_packets = (UNI_CIRCULAR_BUFFER_SIZE - 1) / (UNI_CIRCULAR_BUFFER_HEADER_SIZE + TEST_PKT_128_LEN);
     EXPECT_EQ(max_128b_packets, 31);
 

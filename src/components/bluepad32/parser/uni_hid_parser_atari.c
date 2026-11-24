@@ -40,7 +40,7 @@ static void atari_parse_report_id_01(struct uni_hid_device_s* d, const uint8_t* 
     ctl->gamepad.misc_buttons |= (r->buttons[1] & 0x02) ? MISC_BUTTON_SELECT : 0;
     ctl->gamepad.misc_buttons |= (r->buttons[1] & 0x04) ? MISC_BUTTON_START : 0;
 
-    const uint8_t dpad_map[] = {
+    static const uint8_t dpad_map[] = {
         0,                       // idle
         DPAD_UP,                 // 1
         DPAD_UP | DPAD_RIGHT,    // 2
@@ -109,5 +109,6 @@ void uni_hid_parser_atari_parse_input_report(struct uni_hid_device_s* d, const u
 
         default:
             logi("Atari: Unknown report id = %#x\n", report[0]);
+            break;
     }
 }

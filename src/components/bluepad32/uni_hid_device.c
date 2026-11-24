@@ -5,7 +5,6 @@
 #include "uni_hid_device.h"
 
 #include <stdbool.h>
-#include <sys/time.h>
 
 #include "sdkconfig.h"
 
@@ -72,16 +71,456 @@ static const bd_addr_t zero_addr = {0, 0, 0, 0, 0, 0};
 static uint8_t allowed_device_types = UNI_HID_DEVICE_TYPE_ALL;
 static bool allowed_device_types_explicitly_set = false;
 
-static void process_misc_button_system(uni_hid_device_t* d);
-static void process_misc_button_home(uni_hid_device_t* d);
-static void misc_button_enable_callback(btstack_timer_source_t* ts);
-static void device_connection_timeout(btstack_timer_source_t* ts);
-static void start_connection_timeout(uni_hid_device_t* d);
-static int32_t get_free_device_idx(void);
-
 // RSSI threshold for accepting connections.
 // The higher the RSSI number, the better, being 255 the closest possible.
 #define UNI_BT_RSSI_THRESHOLD (255 - 100)
+
+typedef bool (*uni_name_matcher_fn_t)(struct uni_hid_device_s* d, const char* name);
+
+typedef struct {
+    uni_controller_type_t type;
+    const char* name;
+    uni_report_parser_t parser;
+} uni_parser_entry_t;
+
+// Pre-SDP name matchers. Do not include Xbox here, since BR/EDR Xbox Wireless Controllers
+// have 3 different HID descriptor revisions and must attempt SDP first before falling back
+// to uni_hid_parser_xboxone_does_name_match() in uni_hid_device_guess_controller_type_from_pid_vid().
+static const uni_name_matcher_fn_t k_pre_sdp_name_matchers[] = {
+    uni_hid_parser_ds3_does_name_match,
+    uni_hid_parser_switch_does_name_match,
+};
+
+static const uni_parser_entry_t k_parser_entries[] = {
+    {
+        .type = CONTROLLER_TYPE_iCadeController,
+        .name = "iCade",
+        .parser =
+            {
+                .setup = uni_hid_parser_icade_setup,
+                .parse_usage = uni_hid_parser_icade_parse_usage,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_OUYAController,
+        .name = "OUYA",
+        .parser =
+            {
+                .init_report = uni_hid_parser_ouya_init_report,
+                .parse_usage = uni_hid_parser_ouya_parse_usage,
+                .set_player_leds = uni_hid_parser_ouya_set_player_leds,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_XBoxOneController,
+        .name = "Xbox Wireless",
+        .parser =
+            {
+                .setup = uni_hid_parser_xboxone_setup,
+                .init_report = uni_hid_parser_xboxone_init_report,
+                .parse_usage = uni_hid_parser_xboxone_parse_usage,
+                .play_dual_rumble = uni_hid_parser_xboxone_play_dual_rumble,
+                .device_extra_info = uni_hid_parser_xboxone_device_extra_info,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_AndroidController,
+        .name = "Android",
+        .parser =
+            {
+                .init_report = uni_hid_parser_android_init_report,
+                .parse_usage = uni_hid_parser_android_parse_usage,
+                .set_player_leds = uni_hid_parser_android_set_player_leds,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_NimbusController,
+        .name = "Nimbus",
+        .parser =
+            {
+                .init_report = uni_hid_parser_nimbus_init_report,
+                .parse_usage = uni_hid_parser_nimbus_parse_usage,
+                .set_player_leds = uni_hid_parser_nimbus_set_player_leds,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_SmartTVRemoteController,
+        .name = "Smart TV remote",
+        .parser =
+            {
+                .init_report = uni_hid_parser_smarttvremote_init_report,
+                .parse_usage = uni_hid_parser_smarttvremote_parse_usage,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_PSMoveController,
+        .name = "PS Move",
+        .parser =
+            {
+                .setup = uni_hid_parser_psmove_setup,
+                .init_report = uni_hid_parser_psmove_init_report,
+                .parse_input_report = uni_hid_parser_psmove_parse_input_report,
+                .set_lightbar_color = uni_hid_parser_psmove_set_lightbar_color,
+                .play_dual_rumble = uni_hid_parser_psmove_play_dual_rumble,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_PS3Controller,
+        .name = "DualShock 3",
+        .parser =
+            {
+                .setup = uni_hid_parser_ds3_setup,
+                .init_report = uni_hid_parser_ds3_init_report,
+                .parse_input_report = uni_hid_parser_ds3_parse_input_report,
+                .set_player_leds = uni_hid_parser_ds3_set_player_leds,
+                .play_dual_rumble = uni_hid_parser_ds3_play_dual_rumble,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_PS4Controller,
+        .name = "DualShock 4",
+        .parser =
+            {
+                .setup = uni_hid_parser_ds4_setup,
+                .init_report = uni_hid_parser_ds4_init_report,
+                .parse_input_report = uni_hid_parser_ds4_parse_input_report,
+                .parse_feature_report = uni_hid_parser_ds4_parse_feature_report,
+                .set_lightbar_color = uni_hid_parser_ds4_set_lightbar_color,
+                .play_dual_rumble = uni_hid_parser_ds4_play_dual_rumble,
+                .device_extra_info = uni_hid_parser_ds4_device_extra_info,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_PS5Controller,
+        .name = "DualSense",
+        .parser =
+            {
+                .init_report = uni_hid_parser_ds5_init_report,
+                .setup = uni_hid_parser_ds5_setup,
+                .parse_input_report = uni_hid_parser_ds5_parse_input_report,
+                .parse_feature_report = uni_hid_parser_ds5_parse_feature_report,
+                .set_player_leds = uni_hid_parser_ds5_set_player_leds,
+                .set_lightbar_color = uni_hid_parser_ds5_set_lightbar_color,
+                .play_dual_rumble = uni_hid_parser_ds5_play_dual_rumble,
+                .device_extra_info = uni_hid_parser_ds5_device_extra_info,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_8BitdoController,
+        .name = "8BitDo",
+        .parser =
+            {
+                .init_report = uni_hid_parser_8bitdo_init_report,
+                .parse_usage = uni_hid_parser_8bitdo_parse_usage,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_GenericController,
+        .name = "generic",
+        .parser =
+            {
+                .init_report = uni_hid_parser_generic_init_report,
+                .parse_usage = uni_hid_parser_generic_parse_usage,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_WiiController,
+        .name = "Wii controller",
+        .parser =
+            {
+                .setup = uni_hid_parser_wii_setup,
+                .init_report = uni_hid_parser_wii_init_report,
+                .parse_input_report = uni_hid_parser_wii_parse_input_report,
+                .set_player_leds = uni_hid_parser_wii_set_player_leds,
+                .play_dual_rumble = uni_hid_parser_wii_play_dual_rumble,
+                .device_extra_info = uni_hid_parser_wii_device_extra_info,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_SwitchProController,
+        .name = "Nintendo Switch Pro controller",
+        .parser =
+            {
+                .setup = uni_hid_parser_switch_setup,
+                .deinit = uni_hid_parser_switch_deinit,
+                .init_report = uni_hid_parser_switch_init_report,
+                .parse_input_report = uni_hid_parser_switch_parse_input_report,
+                .set_player_leds = uni_hid_parser_switch_set_player_leds,
+                .set_led_brightness = uni_hid_parser_switch_set_led_brightness,
+                .play_dual_rumble = uni_hid_parser_switch_play_dual_rumble,
+                .device_extra_info = uni_hid_parser_switch_device_extra_info,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_SwitchJoyConRight,
+        .name = "Nintendo Switch Joy-Con (R)",
+        .parser =
+            {
+                .setup = uni_hid_parser_switch_setup,
+                .deinit = uni_hid_parser_switch_deinit,
+                .init_report = uni_hid_parser_switch_init_report,
+                .parse_input_report = uni_hid_parser_switch_parse_input_report,
+                .set_player_leds = uni_hid_parser_switch_set_player_leds,
+                .set_led_brightness = uni_hid_parser_switch_set_led_brightness,
+                .play_dual_rumble = uni_hid_parser_switch_play_dual_rumble,
+                .device_extra_info = uni_hid_parser_switch_device_extra_info,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_SwitchJoyConLeft,
+        .name = "Nintendo Switch Joy-Con (L)",
+        .parser =
+            {
+                .setup = uni_hid_parser_switch_setup,
+                .deinit = uni_hid_parser_switch_deinit,
+                .init_report = uni_hid_parser_switch_init_report,
+                .parse_input_report = uni_hid_parser_switch_parse_input_report,
+                .set_player_leds = uni_hid_parser_switch_set_player_leds,
+                // Joy-Con Left has a Capture button and lacks a physical Home button LED ring.
+                .play_dual_rumble = uni_hid_parser_switch_play_dual_rumble,
+                .device_extra_info = uni_hid_parser_switch_device_extra_info,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_Switch2ProController,
+        .name = "Nintendo Switch 2 Pro controller",
+        .parser =
+            {
+                .setup = uni_hid_parser_switch2_setup,
+                .deinit = uni_hid_parser_switch2_deinit,
+                .init_report = uni_hid_parser_switch2_init_report,
+                .parse_input_report = uni_hid_parser_switch2_parse_input_report,
+                .set_player_leds = uni_hid_parser_switch2_set_player_leds,
+                .play_dual_rumble = uni_hid_parser_switch2_play_dual_rumble,
+                .device_extra_info = uni_hid_parser_switch2_device_extra_info,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_Switch2JoyConRight,
+        .name = "Nintendo Switch 2 Joy-Con (R)",
+        .parser =
+            {
+                .setup = uni_hid_parser_switch2_setup,
+                .deinit = uni_hid_parser_switch2_deinit,
+                .init_report = uni_hid_parser_switch2_init_report,
+                .parse_input_report = uni_hid_parser_switch2_parse_input_report,
+                .set_player_leds = uni_hid_parser_switch2_set_player_leds,
+                .play_dual_rumble = uni_hid_parser_switch2_play_dual_rumble,
+                .device_extra_info = uni_hid_parser_switch2_device_extra_info,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_Switch2JoyConLeft,
+        .name = "Nintendo Switch 2 Joy-Con (L)",
+        .parser =
+            {
+                .setup = uni_hid_parser_switch2_setup,
+                .deinit = uni_hid_parser_switch2_deinit,
+                .init_report = uni_hid_parser_switch2_init_report,
+                .parse_input_report = uni_hid_parser_switch2_parse_input_report,
+                .set_player_leds = uni_hid_parser_switch2_set_player_leds,
+                .play_dual_rumble = uni_hid_parser_switch2_play_dual_rumble,
+                .device_extra_info = uni_hid_parser_switch2_device_extra_info,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_SteamController,
+        .name = "Steam",
+        .parser =
+            {
+                .setup = uni_hid_parser_steam_setup,
+                .init_report = uni_hid_parser_steam_init_report,
+                .parse_input_report = uni_hid_parser_steam_parse_input_report,
+                .play_dual_rumble = uni_hid_parser_steam_play_dual_rumble,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_SteamControllerTriton,
+        .name = "Steam Controller 2026 (Triton)",
+        .parser =
+            {
+                .setup = uni_hid_parser_steam_triton_setup,
+                .deinit = uni_hid_parser_steam_triton_deinit,
+                .init_report = uni_hid_parser_steam_triton_init_report,
+                .parse_input_report = uni_hid_parser_steam_triton_parse_input_report,
+                .play_dual_rumble = uni_hid_parser_steam_triton_play_dual_rumble,
+                .device_extra_info = uni_hid_parser_steam_triton_device_extra_info,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_AtariJoystick,
+        .name = "Atari Joystick/Controller",
+        .parser =
+            {
+                .setup = uni_hid_parser_atari_setup,
+                .init_report = uni_hid_parser_atari_init_report,
+                .parse_input_report = uni_hid_parser_atari_parse_input_report,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_SInputController,
+        .name = "SInput",
+        .parser =
+            {
+                .setup = uni_hid_parser_sinput_setup,
+                .deinit = uni_hid_parser_sinput_deinit,
+                .init_report = uni_hid_parser_sinput_init_report,
+                .parse_input_report = uni_hid_parser_sinput_parse_input_report,
+                .set_player_leds = uni_hid_parser_sinput_set_player_leds,
+                .set_lightbar_color = uni_hid_parser_sinput_set_lightbar_color,
+                .play_dual_rumble = uni_hid_parser_sinput_play_dual_rumble,
+                .device_extra_info = uni_hid_parser_sinput_device_extra_info,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_GenericMouse,
+        .name = "Mouse",
+        .parser =
+            {
+                .setup = uni_hid_parser_mouse_setup,
+                .parse_input_report = uni_hid_parser_mouse_parse_input_report,
+                .init_report = uni_hid_parser_mouse_init_report,
+                .parse_usage = uni_hid_parser_mouse_parse_usage,
+                .device_extra_info = uni_hid_parser_mouse_device_extra_info,
+            },
+    },
+    {
+        .type = CONTROLLER_TYPE_GenericKeyboard,
+        .name = "Keyboard",
+        .parser =
+            {
+                .setup = uni_hid_parser_keyboard_setup,
+                .parse_input_report = uni_hid_parser_keyboard_parse_input_report,
+                .init_report = uni_hid_parser_keyboard_init_report,
+                .parse_usage = uni_hid_parser_keyboard_parse_usage,
+                .device_extra_info = uni_hid_parser_keyboard_device_extra_info,
+            },
+    },
+};
+
+//
+// Internal helpers
+//
+
+// Deletes a device slot if its connection handshake does not complete before the timeout.
+static void device_connection_timeout(btstack_timer_source_t* ts) {
+    uni_hid_device_t* d = btstack_run_loop_get_timer_context(ts);
+
+    if (d->conn.state == UNI_BT_CONN_STATE_DEVICE_READY) {
+        // Nothing to do; device is ready.
+        return;
+    }
+    logi("Device cannot connect in time, deleting:\n");
+    uni_hid_device_dump_device(d);
+
+    uni_hid_device_disconnect(d);
+    uni_hid_device_delete(d);
+    /* 'd' is destroyed after this call, don't use it */
+}
+
+static void start_connection_timeout(uni_hid_device_t* d) {
+    btstack_run_loop_set_timer_context(&d->connection_timer, d);
+    btstack_run_loop_set_timer_handler(&d->connection_timer, &device_connection_timeout);
+    btstack_run_loop_set_timer(&d->connection_timer, HID_DEVICE_CONNECTION_TIMEOUT_MS);
+    btstack_run_loop_add_timer(&d->connection_timer);
+}
+
+static int32_t get_free_device_idx(void) {
+    for (int32_t i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++)
+        if (bd_addr_cmp(g_devices[i].conn.btaddr, zero_addr) == 0)
+            return i;
+    return -1;
+}
+
+static void setup_report_parser(uni_hid_device_t* d) {
+    uni_hid_parser_rumble_init(d, NULL, NULL);
+    uni_controller_type_t type = d->controller_type;
+
+    for (size_t i = 0; i < ARRAY_SIZE(k_parser_entries); i++) {
+        if (k_parser_entries[i].type != type) {
+            continue;
+        }
+        d->report_parser = k_parser_entries[i].parser;
+        if (type == CONTROLLER_TYPE_AndroidController && d->vendor_id == UNI_HID_PARSER_STADIA_VID &&
+            d->product_id == UNI_HID_PARSER_STADIA_PID) {
+            d->report_parser.setup = uni_hid_parser_stadia_setup;
+            d->report_parser.play_dual_rumble = uni_hid_parser_stadia_play_dual_rumble;
+            logi("Device detected as Stadia: 0x%02x\n", type);
+        } else {
+            logi("Device detected as %s: 0x%02x\n", k_parser_entries[i].name, type);
+        }
+        return;
+    }
+
+    d->report_parser = (uni_report_parser_t){
+        .init_report = uni_hid_parser_generic_init_report,
+        .parse_usage = uni_hid_parser_generic_parse_usage,
+    };
+    logi("Device not detected (0x%02x). Using generic driver.\n", type);
+}
+
+static void misc_button_enable_callback(btstack_timer_source_t* ts) {
+    uni_hid_device_t* d = btstack_run_loop_get_timer_context(ts);
+    d->misc_button_wait_delay &= ~MISC_BUTTON_SYSTEM;
+}
+
+// Debounces and dispatches the system (Home/Capture) misc button OOB event.
+static void process_misc_button_system(uni_hid_device_t* d) {
+    if ((d->controller.gamepad.misc_buttons & MISC_BUTTON_SYSTEM) == 0) {
+        // System button released?
+        d->misc_button_wait_release &= ~MISC_BUTTON_SYSTEM;
+        return;
+    }
+
+    if (d->misc_button_wait_release & MISC_BUTTON_SYSTEM)
+        return;
+
+    // Needed for both Nintendo Switch 1 and Switch 2 families of controllers.
+    // Pressing the Home/Capture ("system") button on Switch controllers can emit
+    // rapid back-to-back press/release transitions; apply a debounce window via
+    // misc_button_delay_timer so the platform receives a single clean event.
+    bool requires_delay = (d->controller_type == CONTROLLER_TYPE_SwitchProController ||
+                           d->controller_type == CONTROLLER_TYPE_SwitchJoyConLeft ||
+                           d->controller_type == CONTROLLER_TYPE_SwitchJoyConRight ||
+                           d->controller_type == CONTROLLER_TYPE_Switch2ProController ||
+                           d->controller_type == CONTROLLER_TYPE_Switch2JoyConLeft ||
+                           d->controller_type == CONTROLLER_TYPE_Switch2JoyConRight);
+
+    if (requires_delay && (d->misc_button_wait_delay & MISC_BUTTON_SYSTEM))
+        return;
+
+    d->misc_button_wait_release |= MISC_BUTTON_SYSTEM;
+
+    uni_get_platform()->on_oob_event(UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON, d);
+
+    if (requires_delay) {
+        d->misc_button_wait_delay |= MISC_BUTTON_SYSTEM;
+        btstack_run_loop_set_timer_context(&d->misc_button_delay_timer, d);
+        btstack_run_loop_set_timer_handler(&d->misc_button_delay_timer, &misc_button_enable_callback);
+        btstack_run_loop_set_timer(&d->misc_button_delay_timer, MISC_BUTTON_DELAY_MS);
+        btstack_run_loop_add_timer(&d->misc_button_delay_timer);
+    }
+}
+
+// Tracks press/release state for the Start misc button.
+static void process_misc_button_home(uni_hid_device_t* d) {
+    if ((d->controller.gamepad.misc_buttons & MISC_BUTTON_START) == 0) {
+        // Home button released? Clear "wait" flag.
+        d->misc_button_wait_release &= ~MISC_BUTTON_START;
+        return;
+    }
+
+    // "Wait" flag present? Return.
+    if (d->misc_button_wait_release & MISC_BUTTON_START)
+        return;
+
+    // Update "wait" flag.
+    d->misc_button_wait_release |= MISC_BUTTON_START;
+}
+
+//
+// Public API
+//
 
 void uni_hid_device_setup(void) {
     // Reset the override flag and load the saved mask from the property store.
@@ -97,14 +536,6 @@ void uni_hid_device_setup(void) {
             g_devices[i].report_parser.deinit(&g_devices[i]);
         uni_hid_device_init(&g_devices[i]);
     }
-}
-
-static int32_t get_free_device_idx(void) {
-    for (int32_t i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
-        if (bd_addr_cmp(g_devices[i].conn.btaddr, zero_addr) == 0)
-            return i;
-    }
-    return -1;
 }
 
 uni_hid_device_t* uni_hid_device_create(bd_addr_t address) {
@@ -267,7 +698,7 @@ void uni_hid_device_set_ready(uni_hid_device_t* d) {
     if (d->report_parser.setup)
         d->report_parser.setup(d);
     else {
-        // If parser.setup() is not present, it is safe to assume that the setup is complete
+        // If parser.setup() is not present, it is safe to assume that the setup is complete.
         uni_hid_device_set_ready_complete(d);
     }
 }
@@ -684,329 +1115,6 @@ void uni_hid_device_dump_all(void) {
     }
 }
 
-typedef bool (*uni_name_matcher_fn_t)(struct uni_hid_device_s* d, const char* name);
-
-typedef struct {
-    uni_controller_type_t type;
-    const char* name;
-    uni_report_parser_t parser;
-} uni_parser_entry_t;
-
-// Pre-SDP name matchers. Do not include Xbox here, since BR/EDR Xbox Wireless Controllers
-// have 3 different HID descriptor revisions and must attempt SDP first before falling back
-// to uni_hid_parser_xboxone_does_name_match() in uni_hid_device_guess_controller_type_from_pid_vid().
-static const uni_name_matcher_fn_t k_pre_sdp_name_matchers[] = {
-    uni_hid_parser_ds3_does_name_match,
-    uni_hid_parser_switch_does_name_match,
-};
-
-static const uni_parser_entry_t k_parser_entries[] = {
-    {
-        .type = CONTROLLER_TYPE_iCadeController,
-        .name = "iCade",
-        .parser =
-            {
-                .setup = uni_hid_parser_icade_setup,
-                .parse_usage = uni_hid_parser_icade_parse_usage,
-            },
-    },
-    {
-        .type = CONTROLLER_TYPE_OUYAController,
-        .name = "OUYA",
-        .parser =
-            {
-                .init_report = uni_hid_parser_ouya_init_report,
-                .parse_usage = uni_hid_parser_ouya_parse_usage,
-                .set_player_leds = uni_hid_parser_ouya_set_player_leds,
-            },
-    },
-    {
-        .type = CONTROLLER_TYPE_XBoxOneController,
-        .name = "Xbox Wireless",
-        .parser =
-            {
-                .setup = uni_hid_parser_xboxone_setup,
-                .init_report = uni_hid_parser_xboxone_init_report,
-                .parse_usage = uni_hid_parser_xboxone_parse_usage,
-                .play_dual_rumble = uni_hid_parser_xboxone_play_dual_rumble,
-                .device_extra_info = uni_hid_parser_xboxone_device_extra_info,
-            },
-    },
-    {
-        .type = CONTROLLER_TYPE_AndroidController,
-        .name = "Android",
-        .parser =
-            {
-                .init_report = uni_hid_parser_android_init_report,
-                .parse_usage = uni_hid_parser_android_parse_usage,
-                .set_player_leds = uni_hid_parser_android_set_player_leds,
-            },
-    },
-    {
-        .type = CONTROLLER_TYPE_NimbusController,
-        .name = "Nimbus",
-        .parser =
-            {
-                .init_report = uni_hid_parser_nimbus_init_report,
-                .parse_usage = uni_hid_parser_nimbus_parse_usage,
-                .set_player_leds = uni_hid_parser_nimbus_set_player_leds,
-            },
-    },
-    {
-        .type = CONTROLLER_TYPE_SmartTVRemoteController,
-        .name = "Smart TV remote",
-        .parser =
-            {
-                .init_report = uni_hid_parser_smarttvremote_init_report,
-                .parse_usage = uni_hid_parser_smarttvremote_parse_usage,
-            },
-    },
-    {
-        .type = CONTROLLER_TYPE_PSMoveController,
-        .name = "PS Move",
-        .parser =
-            {
-                .setup = uni_hid_parser_psmove_setup,
-                .init_report = uni_hid_parser_psmove_init_report,
-                .parse_input_report = uni_hid_parser_psmove_parse_input_report,
-                .set_lightbar_color = uni_hid_parser_psmove_set_lightbar_color,
-                .play_dual_rumble = uni_hid_parser_psmove_play_dual_rumble,
-            },
-    },
-    {
-        .type = CONTROLLER_TYPE_PS3Controller,
-        .name = "DualShock 3",
-        .parser =
-            {
-                .setup = uni_hid_parser_ds3_setup,
-                .init_report = uni_hid_parser_ds3_init_report,
-                .parse_input_report = uni_hid_parser_ds3_parse_input_report,
-                .set_player_leds = uni_hid_parser_ds3_set_player_leds,
-                .play_dual_rumble = uni_hid_parser_ds3_play_dual_rumble,
-            },
-    },
-    {
-        .type = CONTROLLER_TYPE_PS4Controller,
-        .name = "DualShock 4",
-        .parser =
-            {
-                .setup = uni_hid_parser_ds4_setup,
-                .init_report = uni_hid_parser_ds4_init_report,
-                .parse_input_report = uni_hid_parser_ds4_parse_input_report,
-                .parse_feature_report = uni_hid_parser_ds4_parse_feature_report,
-                .set_lightbar_color = uni_hid_parser_ds4_set_lightbar_color,
-                .play_dual_rumble = uni_hid_parser_ds4_play_dual_rumble,
-                .device_extra_info = uni_hid_parser_ds4_device_extra_info,
-            },
-    },
-    {
-        .type = CONTROLLER_TYPE_PS5Controller,
-        .name = "DualSense",
-        .parser =
-            {
-                .init_report = uni_hid_parser_ds5_init_report,
-                .setup = uni_hid_parser_ds5_setup,
-                .parse_input_report = uni_hid_parser_ds5_parse_input_report,
-                .parse_feature_report = uni_hid_parser_ds5_parse_feature_report,
-                .set_player_leds = uni_hid_parser_ds5_set_player_leds,
-                .set_lightbar_color = uni_hid_parser_ds5_set_lightbar_color,
-                .play_dual_rumble = uni_hid_parser_ds5_play_dual_rumble,
-                .device_extra_info = uni_hid_parser_ds5_device_extra_info,
-            },
-    },
-    {
-        .type = CONTROLLER_TYPE_8BitdoController,
-        .name = "8BitDo",
-        .parser =
-            {
-                .init_report = uni_hid_parser_8bitdo_init_report,
-                .parse_usage = uni_hid_parser_8bitdo_parse_usage,
-            },
-    },
-    {
-        .type = CONTROLLER_TYPE_GenericController,
-        .name = "generic",
-        .parser =
-            {
-                .init_report = uni_hid_parser_generic_init_report,
-                .parse_usage = uni_hid_parser_generic_parse_usage,
-            },
-    },
-    {
-        .type = CONTROLLER_TYPE_WiiController,
-        .name = "Wii controller",
-        .parser =
-            {
-                .setup = uni_hid_parser_wii_setup,
-                .init_report = uni_hid_parser_wii_init_report,
-                .parse_input_report = uni_hid_parser_wii_parse_input_report,
-                .set_player_leds = uni_hid_parser_wii_set_player_leds,
-                .play_dual_rumble = uni_hid_parser_wii_play_dual_rumble,
-                .device_extra_info = uni_hid_parser_wii_device_extra_info,
-            },
-    },
-    {
-        .type = CONTROLLER_TYPE_SwitchProController,
-        .name = "Nintendo Switch Pro controller",
-        .parser =
-            {
-                .setup = uni_hid_parser_switch_setup,
-                .deinit = uni_hid_parser_switch_deinit,
-                .init_report = uni_hid_parser_switch_init_report,
-                .parse_input_report = uni_hid_parser_switch_parse_input_report,
-                .set_player_leds = uni_hid_parser_switch_set_player_leds,
-                .set_led_brightness = uni_hid_parser_switch_set_led_brightness,
-                .play_dual_rumble = uni_hid_parser_switch_play_dual_rumble,
-                .device_extra_info = uni_hid_parser_switch_device_extra_info,
-            },
-    },
-    {
-        .type = CONTROLLER_TYPE_SwitchJoyConRight,
-        .name = "Nintendo Switch Joy-Con (R)",
-        .parser =
-            {
-                .setup = uni_hid_parser_switch_setup,
-                .deinit = uni_hid_parser_switch_deinit,
-                .init_report = uni_hid_parser_switch_init_report,
-                .parse_input_report = uni_hid_parser_switch_parse_input_report,
-                .set_player_leds = uni_hid_parser_switch_set_player_leds,
-                .set_led_brightness = uni_hid_parser_switch_set_led_brightness,
-                .play_dual_rumble = uni_hid_parser_switch_play_dual_rumble,
-                .device_extra_info = uni_hid_parser_switch_device_extra_info,
-            },
-    },
-    {
-        .type = CONTROLLER_TYPE_SwitchJoyConLeft,
-        .name = "Nintendo Switch Joy-Con (L)",
-        .parser =
-            {
-                .setup = uni_hid_parser_switch_setup,
-                .deinit = uni_hid_parser_switch_deinit,
-                .init_report = uni_hid_parser_switch_init_report,
-                .parse_input_report = uni_hid_parser_switch_parse_input_report,
-                .set_player_leds = uni_hid_parser_switch_set_player_leds,
-                // Joy-Con Left has a Capture button and lacks a physical Home button LED ring.
-                .play_dual_rumble = uni_hid_parser_switch_play_dual_rumble,
-                .device_extra_info = uni_hid_parser_switch_device_extra_info,
-            },
-    },
-    {
-        .type = CONTROLLER_TYPE_Switch2ProController,
-        .name = "Nintendo Switch 2 Pro controller",
-        .parser =
-            {
-                .setup = uni_hid_parser_switch2_setup,
-                .deinit = uni_hid_parser_switch2_deinit,
-                .init_report = uni_hid_parser_switch2_init_report,
-                .parse_input_report = uni_hid_parser_switch2_parse_input_report,
-                .set_player_leds = uni_hid_parser_switch2_set_player_leds,
-                .play_dual_rumble = uni_hid_parser_switch2_play_dual_rumble,
-                .device_extra_info = uni_hid_parser_switch2_device_extra_info,
-            },
-    },
-    {
-        .type = CONTROLLER_TYPE_Switch2JoyConRight,
-        .name = "Nintendo Switch 2 Joy-Con (R)",
-        .parser =
-            {
-                .setup = uni_hid_parser_switch2_setup,
-                .deinit = uni_hid_parser_switch2_deinit,
-                .init_report = uni_hid_parser_switch2_init_report,
-                .parse_input_report = uni_hid_parser_switch2_parse_input_report,
-                .set_player_leds = uni_hid_parser_switch2_set_player_leds,
-                .play_dual_rumble = uni_hid_parser_switch2_play_dual_rumble,
-                .device_extra_info = uni_hid_parser_switch2_device_extra_info,
-            },
-    },
-    {
-        .type = CONTROLLER_TYPE_Switch2JoyConLeft,
-        .name = "Nintendo Switch 2 Joy-Con (L)",
-        .parser =
-            {
-                .setup = uni_hid_parser_switch2_setup,
-                .deinit = uni_hid_parser_switch2_deinit,
-                .init_report = uni_hid_parser_switch2_init_report,
-                .parse_input_report = uni_hid_parser_switch2_parse_input_report,
-                .set_player_leds = uni_hid_parser_switch2_set_player_leds,
-                .play_dual_rumble = uni_hid_parser_switch2_play_dual_rumble,
-                .device_extra_info = uni_hid_parser_switch2_device_extra_info,
-            },
-    },
-    {
-        .type = CONTROLLER_TYPE_SteamController,
-        .name = "Steam",
-        .parser =
-            {
-                .setup = uni_hid_parser_steam_setup,
-                .init_report = uni_hid_parser_steam_init_report,
-                .parse_input_report = uni_hid_parser_steam_parse_input_report,
-                .play_dual_rumble = uni_hid_parser_steam_play_dual_rumble,
-            },
-    },
-    {
-        .type = CONTROLLER_TYPE_SteamControllerTriton,
-        .name = "Steam Controller 2026 (Triton)",
-        .parser =
-            {
-                .setup = uni_hid_parser_steam_triton_setup,
-                .deinit = uni_hid_parser_steam_triton_deinit,
-                .init_report = uni_hid_parser_steam_triton_init_report,
-                .parse_input_report = uni_hid_parser_steam_triton_parse_input_report,
-                .play_dual_rumble = uni_hid_parser_steam_triton_play_dual_rumble,
-                .device_extra_info = uni_hid_parser_steam_triton_device_extra_info,
-            },
-    },
-    {
-        .type = CONTROLLER_TYPE_AtariJoystick,
-        .name = "Atari Joystick/Controller",
-        .parser =
-            {
-                .setup = uni_hid_parser_atari_setup,
-                .init_report = uni_hid_parser_atari_init_report,
-                .parse_input_report = uni_hid_parser_atari_parse_input_report,
-            },
-    },
-    {
-        .type = CONTROLLER_TYPE_SInputController,
-        .name = "SInput",
-        .parser =
-            {
-                .setup = uni_hid_parser_sinput_setup,
-                .deinit = uni_hid_parser_sinput_deinit,
-                .init_report = uni_hid_parser_sinput_init_report,
-                .parse_input_report = uni_hid_parser_sinput_parse_input_report,
-                .set_player_leds = uni_hid_parser_sinput_set_player_leds,
-                .set_lightbar_color = uni_hid_parser_sinput_set_lightbar_color,
-                .play_dual_rumble = uni_hid_parser_sinput_play_dual_rumble,
-                .device_extra_info = uni_hid_parser_sinput_device_extra_info,
-            },
-    },
-    {
-        .type = CONTROLLER_TYPE_GenericMouse,
-        .name = "Mouse",
-        .parser =
-            {
-                .setup = uni_hid_parser_mouse_setup,
-                .parse_input_report = uni_hid_parser_mouse_parse_input_report,
-                .init_report = uni_hid_parser_mouse_init_report,
-                .parse_usage = uni_hid_parser_mouse_parse_usage,
-                .device_extra_info = uni_hid_parser_mouse_device_extra_info,
-            },
-    },
-    {
-        .type = CONTROLLER_TYPE_GenericKeyboard,
-        .name = "Keyboard",
-        .parser =
-            {
-                .setup = uni_hid_parser_keyboard_setup,
-                .parse_input_report = uni_hid_parser_keyboard_parse_input_report,
-                .init_report = uni_hid_parser_keyboard_init_report,
-                .parse_usage = uni_hid_parser_keyboard_parse_usage,
-                .device_extra_info = uni_hid_parser_keyboard_device_extra_info,
-            },
-    },
-};
-
 bool uni_hid_device_guess_controller_type_from_name(uni_hid_device_t* d, const char* name) {
     if (!name)
         return false;
@@ -1021,33 +1129,6 @@ bool uni_hid_device_guess_controller_type_from_name(uni_hid_device_t* d, const c
         }
     }
     return false;
-}
-
-static void setup_report_parser(uni_hid_device_t* d) {
-    uni_hid_parser_rumble_init(d, NULL, NULL);
-    uni_controller_type_t type = d->controller_type;
-
-    for (size_t i = 0; i < ARRAY_SIZE(k_parser_entries); i++) {
-        if (k_parser_entries[i].type != type) {
-            continue;
-        }
-        d->report_parser = k_parser_entries[i].parser;
-        if (type == CONTROLLER_TYPE_AndroidController && d->vendor_id == UNI_HID_PARSER_STADIA_VID &&
-            d->product_id == UNI_HID_PARSER_STADIA_PID) {
-            d->report_parser.setup = uni_hid_parser_stadia_setup;
-            d->report_parser.play_dual_rumble = uni_hid_parser_stadia_play_dual_rumble;
-            logi("Device detected as Stadia: 0x%02x\n", type);
-        } else {
-            logi("Device detected as %s: 0x%02x\n", k_parser_entries[i].name, type);
-        }
-        return;
-    }
-
-    d->report_parser = (uni_report_parser_t){
-        .init_report = uni_hid_parser_generic_init_report,
-        .parse_usage = uni_hid_parser_generic_parse_usage,
-    };
-    logi("Device not detected (0x%02x). Using generic driver.\n", type);
 }
 
 void uni_hid_device_guess_controller_type_from_pid_vid(uni_hid_device_t* d) {
@@ -1112,7 +1193,7 @@ void uni_hid_device_process_controller(uni_hid_device_t* d) {
     if (uni_get_platform()->on_controller_data != NULL)
         uni_get_platform()->on_controller_data(d, &d->controller);
     else if (uni_get_platform()->on_gamepad_data != NULL)
-        // Deprecated: should implement only on_controller_data
+        // Deprecated: should implement only on_controller_data.
         uni_get_platform()->on_gamepad_data(d, &d->controller.gamepad);
 
     // FIXME: each backend should decide what to do with misc buttons
@@ -1237,87 +1318,4 @@ bool uni_hid_device_is_gamepad(const uni_hid_device_t* d) {
 bool uni_hid_device_is_virtual_device(const uni_hid_device_t* d) {
     // Safe to assume that when parent is not NULL, it means it is a virtual device.
     return d->parent != NULL;
-}
-
-// Helpers
-
-static void misc_button_enable_callback(btstack_timer_source_t* ts) {
-    uni_hid_device_t* d = btstack_run_loop_get_timer_context(ts);
-    d->misc_button_wait_delay &= ~MISC_BUTTON_SYSTEM;
-}
-
-// process_mic_button_system
-static void process_misc_button_system(uni_hid_device_t* d) {
-    if ((d->controller.gamepad.misc_buttons & MISC_BUTTON_SYSTEM) == 0) {
-        // System button released?
-        d->misc_button_wait_release &= ~MISC_BUTTON_SYSTEM;
-        return;
-    }
-
-    if (d->misc_button_wait_release & MISC_BUTTON_SYSTEM)
-        return;
-
-    // Needed for both Nintendo Switch 1 and Switch 2 families of controllers.
-    // Pressing the Home/Capture ("system") button on Switch controllers can emit
-    // rapid back-to-back press/release transitions; apply a debounce window via
-    // misc_button_delay_timer so the platform receives a single clean event.
-    bool requires_delay = (d->controller_type == CONTROLLER_TYPE_SwitchProController ||
-                           d->controller_type == CONTROLLER_TYPE_SwitchJoyConLeft ||
-                           d->controller_type == CONTROLLER_TYPE_SwitchJoyConRight ||
-                           d->controller_type == CONTROLLER_TYPE_Switch2ProController ||
-                           d->controller_type == CONTROLLER_TYPE_Switch2JoyConLeft ||
-                           d->controller_type == CONTROLLER_TYPE_Switch2JoyConRight);
-
-    if (requires_delay && (d->misc_button_wait_delay & MISC_BUTTON_SYSTEM))
-        return;
-
-    d->misc_button_wait_release |= MISC_BUTTON_SYSTEM;
-
-    uni_get_platform()->on_oob_event(UNI_PLATFORM_OOB_GAMEPAD_SYSTEM_BUTTON, d);
-
-    if (requires_delay) {
-        d->misc_button_wait_delay |= MISC_BUTTON_SYSTEM;
-        btstack_run_loop_set_timer_context(&d->misc_button_delay_timer, d);
-        btstack_run_loop_set_timer_handler(&d->misc_button_delay_timer, &misc_button_enable_callback);
-        btstack_run_loop_set_timer(&d->misc_button_delay_timer, MISC_BUTTON_DELAY_MS);
-        btstack_run_loop_add_timer(&d->misc_button_delay_timer);
-    }
-}
-
-// process_misc_button_home dumps uni_hid_device debug info in the console.
-static void process_misc_button_home(uni_hid_device_t* d) {
-    if ((d->controller.gamepad.misc_buttons & MISC_BUTTON_START) == 0) {
-        // Home button released? Clear "wait" flag.
-        d->misc_button_wait_release &= ~MISC_BUTTON_START;
-        return;
-    }
-
-    // "Wait" flag present? Return.
-    if (d->misc_button_wait_release & MISC_BUTTON_START)
-        return;
-
-    // Update "wait" flag.
-    d->misc_button_wait_release |= MISC_BUTTON_START;
-}
-
-static void device_connection_timeout(btstack_timer_source_t* ts) {
-    uni_hid_device_t* d = btstack_run_loop_get_timer_context(ts);
-
-    if (d->conn.state == UNI_BT_CONN_STATE_DEVICE_READY) {
-        // Nothing. Device is ready. Good.
-        return;
-    }
-    logi("Device cannot connect in time, deleting:\n");
-    uni_hid_device_dump_device(d);
-
-    uni_hid_device_disconnect(d);
-    uni_hid_device_delete(d);
-    /* 'd'' is destroyed after this call, don't use it */
-}
-
-static void start_connection_timeout(uni_hid_device_t* d) {
-    btstack_run_loop_set_timer_context(&d->connection_timer, d);
-    btstack_run_loop_set_timer_handler(&d->connection_timer, &device_connection_timeout);
-    btstack_run_loop_set_timer(&d->connection_timer, HID_DEVICE_CONNECTION_TIMEOUT_MS);
-    btstack_run_loop_add_timer(&d->connection_timer);
 }

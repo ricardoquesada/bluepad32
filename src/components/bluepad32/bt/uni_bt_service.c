@@ -162,31 +162,6 @@ static const uint8_t k_service_uuid128_le[16] = {
     0x63, 0x7F, 0xBF, 0xC1, 0xC5, 0xAF, 0x88, 0xB6, 0xB9, 0x46, 0x00, 0xAC, 0xA4, 0xC4, 0x27, 0x46,
 };
 
-static void ensure_config_loaded(void);
-static void update_adv_and_scan_rsp(void);
-static void uni_att_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
-static int uni_att_write_callback(hci_con_handle_t con_handle,
-                                  uint16_t att_handle,
-                                  uint16_t transaction_mode,
-                                  uint16_t offset,
-                                  uint8_t* buffer,
-                                  uint16_t buffer_size);
-static uint16_t uni_att_read_callback(hci_con_handle_t conn_handle,
-                                      uint16_t att_handle,
-                                      uint16_t offset,
-                                      uint8_t* buffer,
-                                      uint16_t buffer_size);
-static client_connection_t* connection_for_conn_handle(hci_con_handle_t conn_handle);
-static client_connection_t* connection_or_alloc_for_conn_handle(hci_con_handle_t conn_handle);
-static bool is_conn_authenticated(hci_con_handle_t conn_handle);
-static bool constant_time_password_matches(const uint8_t* candidate, uint16_t candidate_len, const char* expected);
-static void populate_compact_device(int idx, const uni_hid_device_t* d);
-static bool next_notify_device(void);
-static void notify_client(void);
-static void maybe_notify_client(void);
-static void schedule_service_changed_check(client_connection_t* ctx, uint32_t delay_ms);
-static void cancel_all_service_changed_timers(void);
-
 // Guards GAP advertising calls in fuzzing/unit-test builds (`FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION`)
 // where setters may be invoked before `hci_init()` allocates `hci_stack`.
 static bool is_hci_stack_ready(void) {
@@ -312,6 +287,45 @@ static void populate_compact_device(int idx, const uni_hid_device_t* d) {
     compact_devices[idx].controller_subtype = (uint8_t)d->controller_subtype;
 }
 
+// Looks up an existing `client_connection_t` slot matching `conn_handle`.
+static client_connection_t* connection_for_conn_handle(hci_con_handle_t conn_handle) {
+    for (int i = 0; i < MAX_NR_CLIENT_CONNECTIONS; i++)
+        if (client_connections[i].connection_handle == conn_handle)
+            return &client_connections[i];
+    return NULL;
+}
+
+// Returns the existing `client_connection_t` slot for `conn_handle`, or claims a free
+// (`HCI_CON_HANDLE_INVALID`) slot if not yet registered.
+//
+// Why lazy allocation is needed in addition to `ATT_EVENT_CONNECTED`:
+// Unit tests that exercise ATT PDUs directly via `att_handle_request()` without first
+// injecting an `ATT_EVENT_CONNECTED` HCI event still need a per-connection slot to record
+// `AC05` CCCD subscriptions (`0x0015`) or `AC0E` password authentication state (`0x0027`).
+static client_connection_t* connection_or_alloc_for_conn_handle(hci_con_handle_t conn_handle) {
+    if (conn_handle == HCI_CON_HANDLE_INVALID)
+        return NULL;
+    client_connection_t* ctx = connection_for_conn_handle(conn_handle);
+    if (ctx)
+        return ctx;
+    ctx = connection_for_conn_handle(HCI_CON_HANDLE_INVALID);
+    if (!ctx)
+        return NULL;
+    memset(ctx, 0, sizeof(*ctx));
+    ctx->connection_handle = conn_handle;
+    ctx->authenticated = !uni_bt_service_is_password_required();
+    return ctx;
+}
+
+// Returns `true` if the BLE service is open (`service_password == ""`) or if the
+// client connection identified by `conn_handle` has unlocked its session via `AC0E`.
+static bool is_conn_authenticated(hci_con_handle_t conn_handle) {
+    if (!uni_bt_service_is_password_required())
+        return true;
+    client_connection_t* ctx = connection_for_conn_handle(conn_handle);
+    return ctx != NULL && ctx->authenticated;
+}
+
 // Returns `true` only if a BLE client is connected, has subscribed to `AC05` notifications,
 // and has satisfied the `AC0E` password authentication gate.
 static bool is_notify_client_valid(void) {
@@ -406,15 +420,6 @@ static bool constant_time_password_matches(const uint8_t* candidate, uint16_t ca
         diff |= (uint8_t)(candidate[i] ^ exp_byte);
     }
     return diff == 0;
-}
-
-// Returns `true` if the BLE service is open (`service_password == ""`) or if the
-// client connection identified by `conn_handle` has unlocked its session via `AC0E`.
-static bool is_conn_authenticated(hci_con_handle_t conn_handle) {
-    if (!uni_bt_service_is_password_required())
-        return true;
-    client_connection_t* ctx = connection_for_conn_handle(conn_handle);
-    return ctx != NULL && ctx->authenticated;
 }
 
 static int uni_att_write_callback(hci_con_handle_t con_handle,
@@ -821,37 +826,6 @@ static uint16_t uni_att_read_callback(hci_con_handle_t conn_handle,
             break;
     }
     return 0;
-}
-
-// Looks up an existing `client_connection_t` slot matching `conn_handle`.
-static client_connection_t* connection_for_conn_handle(hci_con_handle_t conn_handle) {
-    for (int i = 0; i < MAX_NR_CLIENT_CONNECTIONS; i++) {
-        if (client_connections[i].connection_handle == conn_handle)
-            return &client_connections[i];
-    }
-    return NULL;
-}
-
-// Returns the existing `client_connection_t` slot for `conn_handle`, or claims a free
-// (`HCI_CON_HANDLE_INVALID`) slot if not yet registered.
-//
-// Why lazy allocation is needed in addition to `ATT_EVENT_CONNECTED`:
-// Unit tests that exercise ATT PDUs directly via `att_handle_request()` without first
-// injecting an `ATT_EVENT_CONNECTED` HCI event still need a per-connection slot to record
-// `AC05` CCCD subscriptions (`0x0015`) or `AC0E` password authentication state (`0x0027`).
-static client_connection_t* connection_or_alloc_for_conn_handle(hci_con_handle_t conn_handle) {
-    if (conn_handle == HCI_CON_HANDLE_INVALID)
-        return NULL;
-    client_connection_t* ctx = connection_for_conn_handle(conn_handle);
-    if (ctx)
-        return ctx;
-    ctx = connection_for_conn_handle(HCI_CON_HANDLE_INVALID);
-    if (!ctx)
-        return NULL;
-    memset(ctx, 0, sizeof(*ctx));
-    ctx->connection_handle = conn_handle;
-    ctx->authenticated = !uni_bt_service_is_password_required();
-    return ctx;
 }
 
 // Sends a 4-byte GATT Service Changed (0x2A05) indication covering [0x0001, 0xFFFF]

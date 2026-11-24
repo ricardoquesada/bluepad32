@@ -23,8 +23,6 @@
 #include "uni_mouse_quadrature.h"
 #include "uni_property.h"
 
-// --- Function declaration
-
 // Unijoysticle v2 A500
 static const struct uni_platform_unijoysticle_gpio_config gpio_config_univ2a500 = {
     .port_a = {GPIO_NUM_26, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_14, GPIO_NUM_33, GPIO_NUM_16},
@@ -45,7 +43,6 @@ static const struct uni_platform_unijoysticle_gpio_config gpio_config_univ2a500 
 // Variant overrides
 //
 
-//
 const struct uni_platform_unijoysticle_variant* uni_platform_unijoysticle_a500_create_variant(void) {
     static const struct uni_platform_unijoysticle_variant variant = {
         .name = "2 A500",
