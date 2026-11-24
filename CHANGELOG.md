@@ -5,15 +5,73 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [5.0.0-beta1] - 2026-??-??
+## [5.0.0-beta1] - 2026-11-23
+
+### New
+
+- Switch 2: Support Nintendo Switch 2 Pro Controller and Joy-Con 2 (Left and
+  Right) over BLE with sticks, triggers, IMU, player LEDs, and rumble.
+- Steam Controller: Support Valve Steam Controller 2026 (Triton) over BLE, and
+  add rumble support for the 2015 Steam Controller.
+- BLE Service: Add a custom service name, per-connection password
+  authentication, and GATT Service Changed (`0x2A05`) notifications to
+  invalidate stale OS caches.
+- BLE Service: Add custom 28-byte gamepad mappings (`AC0F`) and runtime HID
+  device type filters (`AC10`) with ESP32 console commands.
+- Switch: Add Home LED brightness control for Switch Pro and Joy-Con Right
+  controllers, and add controller sleep support ([PR #229][github_pr_229]).
+- Unijoysticle: Add left and right shoulder button speed controls for gamepad
+  mouse emulation ([PR #240][github_pr_240]).
+- Examples: Add BLE service controls, Switch Home LED brightness controls,
+  device extra info display, and a macOS and Linux app icon to
+  `examples/posix_imgui`.
+- Documentation: Add a BLE Companion App guide with screenshots
+  (`docs/ble_client.md`).
 
 ### Changed
 
-- Parser / Device Dump: Replaced `uni_report_parser_t::device_dump`
-  (`report_device_dump_t`) with a caller-buffered `device_extra_info`
-  (`report_device_extra_info_fn_t`) callback across all HID parsers, added
-  SInput extra info dump support, and displayed live hardware/firmware extra
-  info in the `examples/posix_imgui` Info tab.
+- Parser API: Replace `uni_report_parser_t::device_dump` with caller-buffered
+  `device_extra_info` across HID parsers, and add `set_led_brightness` for
+  single-channel LED control.
+- Public API: Remove unused duplicate symbols and legacy aliases across public
+  headers, and unify Switch 2 and Steam Triton device checks.
+- HID Filtering: Filter Bluetooth gamepads, mice, and keyboards with a
+  persistent runtime property (`bp.bt.hid_allow`) instead of hardcoded example
+  checks.
+- BLE Service: Combine connected-device read and notify endpoints into
+  characteristic `AC05` and support low-MTU notifications.
+- DualSense: Set bit `7` to control all five player LEDs individually with
+  bits `0..4`.
+- BTstack: Update the `external/btstack` submodule to latest upstream
+  `master`.
+- Documentation: Move hosted documentation to `retro.moe` and update guides
+  for v5.0.0.
+
+### Fixed
+
+- ESP32 Mouse Quadrature: Fix timer alarm reload settings and pulse gaps that
+  caused watchdog resets and slow mouse movement ([PR #240][github_pr_240]).
+- DualShock 3: Match PS3 clone controllers that advertise the
+  `"Sony PLAYSTATION(R)3 Controller"` prefix ([Issue #201][github_issue_201],
+  [PR #212][github_pr_212]).
+- ESP32 Build: Move ESP32-only Kconfig defaults to `sdkconfig.defaults.esp32`
+  to remove unknown-symbol warnings on ESP32-S3, S2, C3, C6, and H2
+  ([PR #213][github_pr_213]).
+- ESP32 Console: Fix unused-symbol compiler warnings with
+  `CONFIG_BLUEPAD32_USB_CONSOLE_ENABLE` disabled
+  ([Issue #237][github_issue_237]).
+- ESP32-H2: Patch BTstack compatibility for ESP32-H2 on ESP-IDF v6.1.
+- BLE Service: Ignore peripheral-role LE events in the central gamepad handler
+  and ignore canceled ATT transactions on disconnect.
+- Gamepad Remapping: Initialize default custom mappings at compile time and
+  validate all mapping fields before updates.
+
+[github_issue_201]: https://github.com/ricardoquesada/bluepad32/issues/201
+[github_pr_212]: https://github.com/ricardoquesada/bluepad32/pull/212
+[github_pr_213]: https://github.com/ricardoquesada/bluepad32/pull/213
+[github_pr_229]: https://github.com/ricardoquesada/bluepad32/pull/229
+[github_issue_237]: https://github.com/ricardoquesada/bluepad32/issues/237
+[github_pr_240]: https://github.com/ricardoquesada/bluepad32/pull/240
 
 ## [5.0.0-beta0] - 2026-10-05
 

@@ -58,11 +58,20 @@
     - Allow BLE HID devices without Device Information Service (DIS)
 - Lauri Gates:
     - Added `USB_SERIAL_JTAG` primary console support for ESP32 REPL
+    - Matched DualShock 3 clones with "Sony PLAYSTATION(R)3 Controller" prefix
+    - Moved ESP32-only Kconfig defaults to sdkconfig.defaults.esp32
 - Matt Hills:
     - Added Nintendo Switch Online NES Controller support for Switch parser
 - Felipe Araujo Matos:
     - Added rumble support for Nintendo JoyCon
     - Improved rumble in Nintendo Switch
+    - Added sleep support for Nintendo Switch controllers
+- Adam Strzelecki:
+    - Fixed ESP32 mouse quadrature timer implementation and pulse gaps
+    - Added shoulder button speed controls for gamepad mouse emulation
+- MegaCadeDev:
+    - Added initial Nintendo Switch 2 controller support over BLE
+    - Added initial Valve Steam Controller 2026 ("Triton") support over BLE
 
 ## People who contributed with ideas and/or testing
 
@@ -105,4 +114,3 @@
 [gamesir_t3s_controller]: https://www.gamesir.hk/products/gamesir-t3s-multi-platform-game-controller
 
 [wii_udraw_tablet]: https://en.wikipedia.org/wiki/UDraw_GameTablet
-
