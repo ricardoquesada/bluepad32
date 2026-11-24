@@ -1,0 +1,295 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+      - "[0-9]*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Optional version label for manual test builds (defaults to short commit SHA)
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-unijoysticle:
+    name: Build Unijoysticle Firmware (ESP-IDF v5.5)
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:release-v5.5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: "recursive"
+
+      - name: Configure Git safe directories
+        shell: bash
+        run: |
+          git config --global --add safe.directory "${{ github.workspace }}"
+          git config --global --add safe.directory "${{ github.workspace }}/external/btstack"
+
+      - name: Patch BTstack
+        shell: bash
+        run: cd external/btstack && git apply ../patches/*.patch
+
+      - name: Resolve release version
+        id: ver
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            RAW="${GITHUB_REF_NAME}"
+            VERSION="v${RAW#v}"
+          elif [ -n "${{ inputs.version }}" ]; then
+            RAW="${{ inputs.version }}"
+            VERSION="v${RAW#v}"
+          else
+            VERSION="$(git rev-parse --short HEAD)"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Build Unijoysticle firmware
+        shell: bash
+        working-directory: ${{ github.workspace }}/tools/fw
+        run: |
+          . "$IDF_PATH/export.sh"
+          python3 build.py --set-version "${{ steps.ver.outputs.version }}" unijoysticle
+
+      - name: Upload Unijoysticle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: unijoysticle-${{ steps.ver.outputs.version }}
+          path: tools/fw/bluepad32-unijoysticle-${{ steps.ver.outputs.version }}.tar.gz
+          if-no-files-found: error
+
+  build-posix-imgui:
+    name: Build Posix ImGui (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux-amd64
+          - os: ubuntu-24.04-arm
+            platform: linux-arm64
+          - os: macos-latest
+            platform: macos-arm64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: "recursive"
+
+      - name: Patch BTstack
+        shell: bash
+        run: cd external/btstack && git apply ../patches/*.patch
+
+      - name: Checkout Dear ImGui
+        shell: bash
+        run: |
+          if [ ! -d "${{ github.workspace }}/external/imgui" ]; then
+            git clone --depth 1 https://github.com/ocornut/imgui.git "${{ github.workspace }}/external/imgui"
+          fi
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tzdata make pkg-config libusb-1.0-0-dev libgl1-mesa-dev libglfw3-dev cmake g++
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install pkg-config libusb cmake
+
+      - name: Resolve release version
+        id: ver
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            RAW="${GITHUB_REF_NAME}"
+            VERSION="v${RAW#v}"
+          elif [ -n "${{ inputs.version }}" ]; then
+            RAW="${{ inputs.version }}"
+            VERSION="v${RAW#v}"
+          else
+            VERSION="$(git rev-parse --short HEAD)"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure, build, and test posix_imgui
+        shell: bash
+        run: |
+          cmake -S "${{ github.workspace }}/examples/posix_imgui" \
+            -B "${{ github.workspace }}/examples/posix_imgui/build" \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build "${{ github.workspace }}/examples/posix_imgui/build" --config Release --parallel
+          ctest --test-dir "${{ github.workspace }}/examples/posix_imgui/build" --output-on-failure -V
+
+      - name: Stage release bundle
+        shell: bash
+        run: |
+          BUNDLE_DIR="bluepad32-posix-imgui-${{ steps.ver.outputs.version }}-${{ matrix.platform }}"
+          rm -rf dist "${BUNDLE_DIR}.tar.gz"
+          mkdir -p "dist/${BUNDLE_DIR}"
+          cp examples/posix_imgui/build/bluepad32_posix_imgui_example_app "dist/${BUNDLE_DIR}/"
+          cp examples/posix_imgui/README.md "dist/${BUNDLE_DIR}/"
+
+      - name: Bundle dylibs and sign/notarize (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          KEYCHAIN_PWD: ${{ secrets.KEYCHAIN_PWD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          BUNDLE_DIR="dist/bluepad32-posix-imgui-${{ steps.ver.outputs.version }}-${{ matrix.platform }}"
+          BIN="${BUNDLE_DIR}/bluepad32_posix_imgui_example_app"
+
+          # Bundle non-system dynamic libraries (e.g., Homebrew libusb) alongside the binary.
+          for dep in $(otool -L "${BIN}" | awk 'NR>1 {print $1}'); do
+            case "${dep}" in
+              /System/*|/usr/lib/*|@*) continue ;;
+            esac
+            name="$(basename "${dep}")"
+            cp -L "${dep}" "${BUNDLE_DIR}/${name}"
+            chmod u+w "${BUNDLE_DIR}/${name}"
+            install_name_tool -id "@executable_path/${name}" "${BUNDLE_DIR}/${name}"
+            install_name_tool -change "${dep}" "@executable_path/${name}" "${BIN}"
+          done
+
+          if [ -n "${MACOS_CERTIFICATE}" ] && [ -n "${KEYCHAIN_PWD}" ]; then
+            security create-keychain -p "${KEYCHAIN_PWD}" build.keychain
+            security default-keychain -s build.keychain
+            security unlock-keychain -p "${KEYCHAIN_PWD}" build.keychain
+
+            echo "${MACOS_CERTIFICATE}" | base64 --decode > certificate.p12
+            security import certificate.p12 -k build.keychain -P "${MACOS_CERTIFICATE_PWD}" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${KEYCHAIN_PWD}" build.keychain
+
+            IDENTITY=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | awk -F '"' '{print $2}')
+            if [ -z "${IDENTITY}" ]; then
+              echo "No Developer ID Application identity found. Listing all identities:"
+              security find-identity -v -p codesigning
+              exit 1
+            fi
+
+            echo "Signing with identity: ${IDENTITY}"
+            for dylib in "${BUNDLE_DIR}"/*.dylib; do
+              [ -e "${dylib}" ] && /usr/bin/codesign --force --options runtime --timestamp --sign "${IDENTITY}" "${dylib}"
+            done
+            /usr/bin/codesign --force --options runtime --timestamp --sign "${IDENTITY}" "${BIN}" -v
+
+            if [ -n "${APPLE_ID}" ] && [ -n "${APPLE_PASSWORD}" ] && [ -n "${APPLE_TEAM_ID}" ]; then
+              zip -r notarize.zip "${BUNDLE_DIR}"
+              xcrun notarytool submit notarize.zip \
+                --apple-id "${APPLE_ID}" \
+                --password "${APPLE_PASSWORD}" \
+                --team-id "${APPLE_TEAM_ID}" \
+                --wait
+              rm -f notarize.zip
+            fi
+
+            rm -f certificate.p12
+            security delete-keychain build.keychain || true
+          else
+            echo "MACOS_CERTIFICATE not configured; applying ad-hoc signature."
+            for dylib in "${BUNDLE_DIR}"/*.dylib; do
+              [ -e "${dylib}" ] && /usr/bin/codesign --force --sign - "${dylib}"
+            done
+            /usr/bin/codesign --force --sign - "${BIN}"
+          fi
+
+      - name: Package posix_imgui tarball
+        shell: bash
+        run: |
+          BUNDLE_DIR="bluepad32-posix-imgui-${{ steps.ver.outputs.version }}-${{ matrix.platform }}"
+          tar -czf "${BUNDLE_DIR}.tar.gz" -C dist "${BUNDLE_DIR}"
+
+      - name: Upload posix_imgui artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: posix-imgui-${{ matrix.platform }}-${{ steps.ver.outputs.version }}
+          path: bluepad32-posix-imgui-${{ steps.ver.outputs.version }}-${{ matrix.platform }}.tar.gz
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build-unijoysticle, build-posix-imgui]
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Generate SHA256SUMS.txt
+        shell: bash
+        working-directory: release-assets
+        run: sha256sum *.tar.gz > SHA256SUMS.txt
+
+      - name: Extract release metadata and CHANGELOG notes
+        id: meta
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          SEMVER="${TAG#v}"
+          echo "display_version=v${SEMVER}" >> "$GITHUB_OUTPUT"
+
+          if [[ "${TAG}" == *-* ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          python3 - "${SEMVER}" >> "$GITHUB_OUTPUT" <<'EOF'
+          import pathlib
+          import re
+          import sys
+
+          ver = sys.argv[1]
+          text = pathlib.Path("CHANGELOG.md").read_text(encoding="utf-8")
+          pattern = re.compile(
+              r"^## \[" + re.escape(ver) + r"\][^\n]*\n(.*?)(?=^## \[|\Z)",
+              re.M | re.S,
+          )
+          m = pattern.search(text)
+          if m and m.group(1).strip():
+              pathlib.Path("release-notes.md").write_text(m.group(1).strip() + "\n", encoding="utf-8")
+              print("has_notes=true")
+          else:
+              print("has_notes=false")
+          EOF
+
+      - name: Publish GitHub Release (from CHANGELOG.md)
+        if: steps.meta.outputs.has_notes == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Bluepad32 ${{ steps.meta.outputs.display_version }}
+          prerelease: ${{ steps.meta.outputs.is_prerelease == 'true' }}
+          body_path: release-notes.md
+          files: release-assets/*
+
+      - name: Publish GitHub Release (auto-generated notes fallback)
+        if: steps.meta.outputs.has_notes != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Bluepad32 ${{ steps.meta.outputs.display_version }}
+          prerelease: ${{ steps.meta.outputs.is_prerelease == 'true' }}
+          generate_release_notes: true
+          files: release-assets/*
