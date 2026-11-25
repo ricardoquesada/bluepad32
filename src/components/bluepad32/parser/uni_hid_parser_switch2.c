@@ -199,13 +199,6 @@ typedef struct {
     uint8_t rumble_seq;
     uint8_t rumble_weak;
     uint8_t rumble_strong;
-    bool ltk_valid;      ///< `ltk` holds this controller's key (from pairing or the TLV store).
-    bool ltk_new;        ///< `ltk` was derived in this connection's pairing and still needs saving.
-    bool enc_pending;    ///< LE Start Encryption still to be sent.
-    bool enc_started;    ///< LE Start Encryption accepted; waiting for HCI_EVENT_ENCRYPTION_CHANGE.
-    uint16_t enc_tries;  ///< Keep-alive ticks spent waiting to send LE Start Encryption.
-    uint32_t enc_start_ms;
-    uint8_t ltk[16];  ///< Pairing LTK = A1 xor B1 (subcommand 0x04 request and reply).
     int8_t temperature_c;
     uint16_t last_imu_ts;
     uint32_t rumble_start_ms;
@@ -275,6 +268,20 @@ typedef struct {
 // Connection handle whose LE encryption is in flight: one controller at a time, so a second
 // controller's setup cannot starve the first link.
 static hci_con_handle_t sw2_enc_owner = HCI_CON_HANDLE_INVALID;
+
+// Pairing key and link-encryption state per device slot, kept out of sw2_instance_t so that it
+// stays within HID_DEVICE_MAX_PARSER_DATA on 64-bit hosts.
+typedef struct {
+    bool ltk_valid;     ///< `ltk` holds this controller's key (from pairing or the TLV store).
+    bool ltk_new;       ///< `ltk` was derived in this connection's pairing and needs saving.
+    bool pending;       ///< LE Start Encryption still to be sent.
+    bool started;       ///< LE Start Encryption accepted; waiting for the encryption change.
+    uint16_t tries;     ///< Keep-alive ticks spent waiting to send LE Start Encryption.
+    uint32_t start_ms;  ///< When LE Start Encryption was accepted.
+    uint8_t ltk[16];    ///< Pairing LTK = A1 xor B1 (subcommand 0x04 request and reply).
+} sw2_enc_state_t;
+
+static sw2_enc_state_t sw2_enc_states[CONFIG_BLUEPAD32_MAX_DEVICES];
 
 static const uint8_t sw2_init_p03_0d[] = {0x01, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 static const uint8_t sw2_init_p15_03[] = {0x00};
@@ -546,6 +553,13 @@ static uint8_t sw2_send_player_leds_cmd(uni_hid_device_t* d, uint8_t leds) {
     return sw2_send_command(d, SW2_CMD_LEDS, SW2_SUBCMD_LEDS_SET_PLAYER, val, sizeof(val));
 }
 
+static sw2_enc_state_t* get_sw2_enc_state(const uni_hid_device_t* d) {
+    int32_t idx = uni_hid_device_get_idx_for_instance(d);
+    if (idx < 0 || idx >= CONFIG_BLUEPAD32_MAX_DEVICES)
+        return NULL;
+    return &sw2_enc_states[idx];
+}
+
 // Finds the saved pairing key for `addr` in the BTstack TLV store. Returns its slot, or -1.
 static int sw2_key_find(const bd_addr_t addr, uint8_t ltk_out[16]) {
     const btstack_tlv_t* tlv_impl = NULL;
@@ -610,30 +624,33 @@ static bool sw2_other_controller_busy(const uni_hid_device_t* d) {
 // other controllers allow it, and drops the link if encryption is never confirmed.
 static void sw2_try_link_encryption(uni_hid_device_t* d) {
     sw2_instance_t* ins = get_sw2_instance(d);
-    if (ins->enc_started && btstack_run_loop_get_time_ms() - ins->enc_start_ms > SW2_ENCRYPTION_TIMEOUT_MS) {
+    sw2_enc_state_t* enc = get_sw2_enc_state(d);
+    if (!enc)
+        return;
+    if (enc->started && btstack_run_loop_get_time_ms() - enc->start_ms > SW2_ENCRYPTION_TIMEOUT_MS) {
         logi("Switch2: link encryption not confirmed after %d ms, disconnecting\n", SW2_ENCRYPTION_TIMEOUT_MS);
-        ins->enc_started = false;
+        enc->started = false;
         if (sw2_enc_owner == d->conn.handle)
             sw2_enc_owner = HCI_CON_HANDLE_INVALID;
         uni_hid_device_disconnect(d);
         return;
     }
-    if (!ins->enc_pending)
+    if (!enc->pending)
         return;
-    if (++ins->enc_tries >= SW2_ENCRYPTION_MAX_TRIES) {
-        ins->enc_pending = false;
+    if (++enc->tries >= SW2_ENCRYPTION_MAX_TRIES) {
+        enc->pending = false;
         logi("Switch2: could not start link encryption\n");
         return;
     }
     if (sw2_other_controller_busy(d))
         return;
     // rand = 0, ediv = 0, LTK as derived (A1 xor B1, byte for byte).
-    uint8_t status = hci_send_cmd(&hci_le_start_encryption, d->conn.handle, 0, 0, 0, ins->ltk);
+    uint8_t status = hci_send_cmd(&hci_le_start_encryption, d->conn.handle, 0, 0, 0, enc->ltk);
     if (status != ERROR_CODE_SUCCESS)
         return;  // usually 0x0C while LED/vibration packets are queued: retry next tick
-    ins->enc_pending = false;
-    ins->enc_started = true;
-    ins->enc_start_ms = btstack_run_loop_get_time_ms();
+    enc->pending = false;
+    enc->started = true;
+    enc->start_ms = btstack_run_loop_get_time_ms();
     sw2_enc_owner = d->conn.handle;
 }
 
@@ -642,18 +659,21 @@ static void sw2_try_link_encryption(uni_hid_device_t* d) {
 // first; a reconnect uses the saved one.
 static void sw2_start_link_encryption(uni_hid_device_t* d) {
     sw2_instance_t* ins = get_sw2_instance(d);
-    if (ins->ltk_new) {
-        sw2_key_save(d->conn.btaddr, ins->ltk);
-        ins->ltk_new = false;
-    } else if (!ins->ltk_valid) {
-        ins->ltk_valid = sw2_key_find(d->conn.btaddr, ins->ltk) >= 0;
+    sw2_enc_state_t* enc = get_sw2_enc_state(d);
+    if (!enc)
+        return;
+    if (enc->ltk_new) {
+        sw2_key_save(d->conn.btaddr, enc->ltk);
+        enc->ltk_new = false;
+    } else if (!enc->ltk_valid) {
+        enc->ltk_valid = sw2_key_find(d->conn.btaddr, enc->ltk) >= 0;
     }
-    if (!ins->ltk_valid) {
+    if (!enc->ltk_valid) {
         logi("Switch2: no pairing key for %s; press SYNC to pair\n", bd_addr_to_str(d->conn.btaddr));
         return;
     }
-    ins->enc_pending = true;
-    ins->enc_tries = 0;
+    enc->pending = true;
+    enc->tries = 0;
 }
 
 static void sw2_keepalive_timer_cb(btstack_timer_source_t* ts) {
@@ -760,6 +780,9 @@ static void sw2_send_spi_read_calibration(uni_hid_device_t* d) {
 
 static void sw2_send_pairing_step(uni_hid_device_t* d) {
     sw2_instance_t* ins = get_sw2_instance(d);
+    sw2_enc_state_t* enc = get_sw2_enc_state(d);
+    if (!enc)
+        return;
     sw2_arm_cmd_timer(d, SW2_CMD_TIMEOUT_MS);
     switch (ins->pairing_step) {
         case 0: {
@@ -799,7 +822,7 @@ static void sw2_send_pairing_step(uni_hid_device_t* d) {
                 buf[i] = local_addr[5 - i];
             buf[0] = (uint8_t)(buf[0] - 1);
             for (int i = 0; i < 16; i++)
-                buf[6 + i] = ins->ltk[15 - i];
+                buf[6 + i] = enc->ltk[15 - i];
             sw2_send_command(d, SW2_CMD_HOST, SW2_SUBCMD_HOST_STORE, buf, sizeof(buf));
             break;
         }
@@ -973,6 +996,9 @@ static bool sw2_parse_spi_calibration(uni_hid_device_t* d, const uint8_t* report
 
 static void sw2_advance_command_state(uni_hid_device_t* d, const uint8_t* value, uint16_t value_len) {
     sw2_instance_t* ins = get_sw2_instance(d);
+    sw2_enc_state_t* enc = get_sw2_enc_state(d);
+    if (!enc)
+        return;
     sw2_kick_connection_timeout(d);
 
     switch (ins->state) {
@@ -1004,9 +1030,9 @@ static void sw2_advance_command_state(uni_hid_device_t* d, const uint8_t* value,
             if (ins->pairing_step == 1 && value && value_len >= 9 + 16 && value[0] == SW2_CMD_PAIRING &&
                 value[3] == SW2_SUBCMD_PAIR_LTK1) {
                 for (int i = 0; i < 16; i++)
-                    ins->ltk[i] = (uint8_t)(sw2_ltk1[1 + i] ^ value[9 + i]);
-                ins->ltk_valid = true;
-                ins->ltk_new = true;
+                    enc->ltk[i] = (uint8_t)(sw2_ltk1[1 + i] ^ value[9 + i]);
+                enc->ltk_valid = true;
+                enc->ltk_new = true;
             }
             ins->pairing_step++;
             if (ins->pairing_step < SW2_PAIRING_STEPS) {
@@ -1502,9 +1528,11 @@ void uni_hid_parser_switch2_on_encrypted(struct uni_hid_device_s* d) {
         return;
     sw2_kick_connection_timeout(d);
     sw2_instance_t* ins = get_sw2_instance(d);
+    sw2_enc_state_t* enc = get_sw2_enc_state(d);
     ins->paired_from_bond = !ins->needs_pair;
     ins->waiting_encryption = false;
-    ins->enc_started = false;
+    if (enc)
+        enc->started = false;
     if (sw2_enc_owner == d->conn.handle)
         sw2_enc_owner = HCI_CON_HANDLE_INVALID;
     if (ins->state == SW2_STATE_IDLE) {
@@ -1521,6 +1549,9 @@ void uni_hid_parser_switch2_on_encrypted(struct uni_hid_device_s* d) {
 void uni_hid_parser_switch2_setup(struct uni_hid_device_s* d) {
     if (!d)
         return;
+    sw2_enc_state_t* enc = get_sw2_enc_state(d);
+    if (enc)
+        memset(enc, 0, sizeof(*enc));
 
     sw2_instance_t* ins = get_sw2_instance(d);
     bool saved_needs_pair = ins->needs_pair;
@@ -1562,6 +1593,7 @@ void uni_hid_parser_switch2_deinit(struct uni_hid_device_s* d) {
     if (!d)
         return;
     sw2_instance_t* ins = get_sw2_instance(d);
+    sw2_enc_state_t* enc = get_sw2_enc_state(d);
     sw2_stop_setup_timer(ins);
     sw2_stop_keepalive_timer(ins);
     if (ins->notify_registered) {
@@ -1571,8 +1603,8 @@ void uni_hid_parser_switch2_deinit(struct uni_hid_device_s* d) {
     ins->rumble_active = false;
     if (sw2_enc_owner == d->conn.handle)
         sw2_enc_owner = HCI_CON_HANDLE_INVALID;
-    ins->enc_pending = false;
-    ins->enc_started = false;
+    if (enc)
+        memset(enc, 0, sizeof(*enc));
     ins->state = SW2_STATE_DISCONNECTED;
 }
 
