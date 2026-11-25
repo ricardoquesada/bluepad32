@@ -154,6 +154,15 @@ void uni_hid_parser_8bitdo_parse_usage(uni_hid_device_t* d,
                     if (value)
                         logi("8BitDo: Unexpected PAGE_BUTTON usage=0x10\n");
                     break;
+                case 0x11:
+                case 0x12:
+                case 0x13:
+                case 0x14:
+                case 0x15:
+                case 0x16:
+                case 0x17:
+                case 0x18:
+                    break;
                 default:
                     logi("8BitDo: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
                     break;
@@ -229,6 +238,12 @@ void uni_hid_parser_8bitdo_parse_usage(uni_hid_device_t* d,
                         logi("8BitDo: Unsupported page: 0x%04x, usage: 0x%04x, value=0x%x\n", usage_page, usage, value);
                     break;
             }
+            break;
+        case 0x0f:
+            break;
+        case 0xff00:
+            break;
+        case 0x0835:
             break;
         // unknown usage page
         default:
