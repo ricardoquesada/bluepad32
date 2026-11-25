@@ -85,6 +85,16 @@ static void process_fsm_remote_name_fetched(uni_hid_device_t* d) {
         return;
     }
 
+    // I know that the above is set as TODO but idk how to do this better.
+    // 8BitDo Pro 3 in D/Android mode stalls SDP once HID channels are open
+    if (strcmp("8BitDo Pro 3", d->name) == 0) {
+        logi("uni_bt_process_fsm: gamepad is '8BitDo Pro 3', starting SDP query\n");
+        d->sdp_query_type = SDP_QUERY_BEFORE_CONNECT;
+        uni_bt_sdp_query_start(d);
+        /* 'd' might be invalid */
+        return;
+    }
+
     if (uni_hid_device_guess_controller_type_from_name(d, d->name)) {
         logi("uni_bt_process_fsm: Guess controller from name\n");
         d->sdp_query_type = SDP_QUERY_NOT_NEEDED;
