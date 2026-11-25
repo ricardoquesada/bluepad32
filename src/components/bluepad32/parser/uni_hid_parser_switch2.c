@@ -623,7 +623,6 @@ static bool sw2_other_controller_busy(const uni_hid_device_t* d) {
 // Called from every keep-alive tick: sends LE Start Encryption once the controller queue and the
 // other controllers allow it, and drops the link if encryption is never confirmed.
 static void sw2_try_link_encryption(uni_hid_device_t* d) {
-    sw2_instance_t* ins = get_sw2_instance(d);
     sw2_enc_state_t* enc = get_sw2_enc_state(d);
     if (!enc)
         return;
@@ -658,7 +657,6 @@ static void sw2_try_link_encryption(uni_hid_device_t* d) {
 // not wake for a host they have not seen encrypt. Encrypt with the pairing key, saving a new key
 // first; a reconnect uses the saved one.
 static void sw2_start_link_encryption(uni_hid_device_t* d) {
-    sw2_instance_t* ins = get_sw2_instance(d);
     sw2_enc_state_t* enc = get_sw2_enc_state(d);
     if (!enc)
         return;
