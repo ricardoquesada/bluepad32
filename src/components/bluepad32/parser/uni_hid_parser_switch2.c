@@ -19,7 +19,7 @@
  *   GATT Write Without Response.
  * - **Vibration / Keepalive (`sw2_vibration_*_uuid128`, default handle `0x0016`):** Accepts
  *   33-byte (Pro Controller 2) or 17-byte (Joy-Con 2 L/R) HD Rumble 2 packets (`0x50 + seq`)
- *   via GATT Write Without Response. Must be written every ~5 ms (`SW2_KEEPALIVE_MS`) once
+ *   via GATT Write Without Response. Must be written every ~12 ms (`SW2_KEEPALIVE_MS`) once
  *   ready or the controller drops the BLE link with an HCI connection timeout (`0x08`).
  * - **Command Response (`sw2_cmd_response_uuid128`, default handle `0x001a`):** Emits command
  *   acknowledgments and SPI flash read responses via GATT notifications.
@@ -37,7 +37,7 @@
  *                                       ├─> [needs_pair] SW2_STATE_PAIRING
  *                                       │     (4-step 0x15 handshake: SET_MAC 0x01, LTK1 0x04, LTK2 0x02, FINISH 0x03)
  *                                       │     └─> SW2_STATE_ENABLE_INPUT_NOTIFY (write {0x01, 0x00} to input CCCD
- * 0x000b) └─> [reconnect] SW2_STATE_ENABLE_INPUT_NOTIFY └─> SW2_STATE_READY (conn params, LEDs, 5 ms keepalive,
+ * 0x000b) └─> [reconnect] SW2_STATE_ENABLE_INPUT_NOTIFY └─> SW2_STATE_READY (conn params, LEDs, 12 ms keepalive,
  * ready_complete)
  * ```
  *
@@ -70,6 +70,7 @@
 #include <string.h>
 
 #include <btstack.h>
+#include <btstack_tlv.h>
 
 #include "bt/uni_bt_defines.h"
 #include "controller/uni_controller.h"
@@ -84,7 +85,14 @@
 #define SW2_SETUP_TIMEOUT_MS 15000
 #define SW2_CMD_TIMEOUT_MS 2000
 #define SW2_SETUP_STABILIZE_MS 500
-#define SW2_KEEPALIVE_MS 5
+#define SW2_KEEPALIVE_MS 12
+// LE link encryption (see sw2_try_link_encryption): wait this long for HCI_EVENT_ENCRYPTION_CHANGE.
+#define SW2_ENCRYPTION_TIMEOUT_MS 3000
+// Keep-alive ticks to keep retrying LE Start Encryption while the controller queue is busy (~30 s).
+#define SW2_ENCRYPTION_MAX_TRIES 2500
+// Saved pairing keys (address + LTK) in BTstack TLV, tags 'SW2K' + slot.
+#define SW2_KEY_SLOTS 8
+#define SW2_KEY_TAG(slot) ((uint32_t)(('S' << 24) | ('W' << 16) | ('2' << 8) | ('K' + (slot))))
 
 #define SW2_DEFAULT_STICK_CENTER 2048
 #define SW2_DEFAULT_STICK_SPAN 1600
@@ -105,6 +113,11 @@
 #define SW2_SUBCMD_PAIR_LTK2 0x02
 #define SW2_SUBCMD_PAIR_FINISH 0x03
 #define SW2_SUBCMD_PAIR_LTK1 0x04
+// Stores the paired host on the controller (what a Switch 2 sends after the 0x15 handshake).
+#define SW2_CMD_HOST 0x03
+#define SW2_SUBCMD_HOST_STORE 0x07
+#define SW2_SUBCMD_HOST_COMMIT 0x09
+#define SW2_PAIRING_STEPS 6
 
 // Default attribute handles on Switch 2 GATT table (used as fallback if UUID discovery omits handles).
 // Note: Handle 0x0012 is Output Report (Vibration only), whereas Handle 0x0016 is Output Report
@@ -135,7 +148,7 @@ typedef enum {
     SW2_STATE_PAIRING,               ///< Running 4-step `0x15` pairing handshake (when `needs_pair` is true).
     SW2_STATE_INIT_SEQUENCE,         ///< Running 13-step `sw2_init_sequence[]`.
     SW2_STATE_ENABLE_INPUT_NOTIFY,   ///< Writing `{0x01, 0x00}` to input-report CCCD (`0x000b`).
-    SW2_STATE_READY,                 ///< Streaming 63-byte input notifications + 5 ms keepalive active.
+    SW2_STATE_READY,                 ///< Streaming 63-byte input notifications + 12 ms keepalive active.
     SW2_STATE_DISCONNECTED,          ///< Disconnected / torn down via `uni_hid_parser_switch2_deinit()`.
 } sw2_state_t;
 
@@ -186,6 +199,13 @@ typedef struct {
     uint8_t rumble_seq;
     uint8_t rumble_weak;
     uint8_t rumble_strong;
+    bool ltk_valid;      ///< `ltk` holds this controller's key (from pairing or the TLV store).
+    bool ltk_new;        ///< `ltk` was derived in this connection's pairing and still needs saving.
+    bool enc_pending;    ///< LE Start Encryption still to be sent.
+    bool enc_started;    ///< LE Start Encryption accepted; waiting for HCI_EVENT_ENCRYPTION_CHANGE.
+    uint16_t enc_tries;  ///< Keep-alive ticks spent waiting to send LE Start Encryption.
+    uint32_t enc_start_ms;
+    uint8_t ltk[16];  ///< Pairing LTK = A1 xor B1 (subcommand 0x04 request and reply).
     int8_t temperature_c;
     uint16_t last_imu_ts;
     uint32_t rumble_start_ms;
@@ -251,6 +271,10 @@ typedef struct {
     uint8_t len;
     const uint8_t* payload;
 } sw2_init_cmd_t;
+
+// Connection handle whose LE encryption is in flight: one controller at a time, so a second
+// controller's setup cannot starve the first link.
+static hci_con_handle_t sw2_enc_owner = HCI_CON_HANDLE_INVALID;
 
 static const uint8_t sw2_init_p03_0d[] = {0x01, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 static const uint8_t sw2_init_p15_03[] = {0x00};
@@ -522,6 +546,116 @@ static uint8_t sw2_send_player_leds_cmd(uni_hid_device_t* d, uint8_t leds) {
     return sw2_send_command(d, SW2_CMD_LEDS, SW2_SUBCMD_LEDS_SET_PLAYER, val, sizeof(val));
 }
 
+// Finds the saved pairing key for `addr` in the BTstack TLV store. Returns its slot, or -1.
+static int sw2_key_find(const bd_addr_t addr, uint8_t ltk_out[16]) {
+    const btstack_tlv_t* tlv_impl = NULL;
+    void* tlv_context = NULL;
+    btstack_tlv_get_instance(&tlv_impl, &tlv_context);
+    if (!tlv_impl)
+        return -1;
+    for (int slot = 0; slot < SW2_KEY_SLOTS; slot++) {
+        uint8_t rec[6 + 16];
+        if (tlv_impl->get_tag(tlv_context, SW2_KEY_TAG(slot), rec, sizeof(rec)) != (int)sizeof(rec))
+            continue;
+        if (memcmp(rec, addr, 6) != 0)
+            continue;
+        if (ltk_out)
+            memcpy(ltk_out, &rec[6], 16);
+        return slot;
+    }
+    return -1;
+}
+
+// Saves (or replaces) the pairing key for `addr` in the BTstack TLV store.
+static void sw2_key_save(const bd_addr_t addr, const uint8_t ltk[16]) {
+    const btstack_tlv_t* tlv_impl = NULL;
+    void* tlv_context = NULL;
+    btstack_tlv_get_instance(&tlv_impl, &tlv_context);
+    if (!tlv_impl)
+        return;
+    int slot = sw2_key_find(addr, NULL);
+    for (int i = 0; i < SW2_KEY_SLOTS && slot < 0; i++) {
+        uint8_t rec[6 + 16];
+        if (tlv_impl->get_tag(tlv_context, SW2_KEY_TAG(i), rec, sizeof(rec)) != (int)sizeof(rec))
+            slot = i;
+    }
+    if (slot < 0)
+        slot = 0;
+    uint8_t rec[6 + 16];
+    memcpy(rec, addr, 6);
+    memcpy(&rec[6], ltk, 16);
+    int err = tlv_impl->store_tag(tlv_context, SW2_KEY_TAG(slot), rec, sizeof(rec));
+    if (err != 0)
+        loge("Switch2: could not save pairing key (err=%d)\n", err);
+}
+
+// True while another Switch 2 controller is encrypting or still being set up. Starting encryption
+// then makes the first link miss its supervision timeout on CYW43 (two Joy-Con 2, Pico 2 W).
+static bool sw2_other_controller_busy(const uni_hid_device_t* d) {
+    if (sw2_enc_owner != HCI_CON_HANDLE_INVALID && sw2_enc_owner != d->conn.handle)
+        return true;
+    for (int i = 0; i < CONFIG_BLUEPAD32_MAX_DEVICES; i++) {
+        uni_hid_device_t* other = uni_hid_device_get_instance_for_idx(i);
+        if (!other || other == d || !uni_hid_parser_switch2_is_device(other))
+            continue;
+        if (other->conn.handle == UNI_BT_CONN_HANDLE_INVALID)
+            continue;
+        if (get_sw2_instance(other)->state != SW2_STATE_READY)
+            return true;
+    }
+    return false;
+}
+
+// Called from every keep-alive tick: sends LE Start Encryption once the controller queue and the
+// other controllers allow it, and drops the link if encryption is never confirmed.
+static void sw2_try_link_encryption(uni_hid_device_t* d) {
+    sw2_instance_t* ins = get_sw2_instance(d);
+    if (ins->enc_started && btstack_run_loop_get_time_ms() - ins->enc_start_ms > SW2_ENCRYPTION_TIMEOUT_MS) {
+        logi("Switch2: link encryption not confirmed after %d ms, disconnecting\n", SW2_ENCRYPTION_TIMEOUT_MS);
+        ins->enc_started = false;
+        if (sw2_enc_owner == d->conn.handle)
+            sw2_enc_owner = HCI_CON_HANDLE_INVALID;
+        uni_hid_device_disconnect(d);
+        return;
+    }
+    if (!ins->enc_pending)
+        return;
+    if (++ins->enc_tries >= SW2_ENCRYPTION_MAX_TRIES) {
+        ins->enc_pending = false;
+        logi("Switch2: could not start link encryption\n");
+        return;
+    }
+    if (sw2_other_controller_busy(d))
+        return;
+    // rand = 0, ediv = 0, LTK as derived (A1 xor B1, byte for byte).
+    uint8_t status = hci_send_cmd(&hci_le_start_encryption, d->conn.handle, 0, 0, 0, ins->ltk);
+    if (status != ERROR_CODE_SUCCESS)
+        return;  // usually 0x0C while LED/vibration packets are queued: retry next tick
+    ins->enc_pending = false;
+    ins->enc_started = true;
+    ins->enc_start_ms = btstack_run_loop_get_time_ms();
+    sw2_enc_owner = d->conn.handle;
+}
+
+// Switch 2 controllers drop an unencrypted link after a while (reason 0x08, 15 s to 4 min idle) and do
+// not wake for a host they have not seen encrypt. Encrypt with the pairing key, saving a new key
+// first; a reconnect uses the saved one.
+static void sw2_start_link_encryption(uni_hid_device_t* d) {
+    sw2_instance_t* ins = get_sw2_instance(d);
+    if (ins->ltk_new) {
+        sw2_key_save(d->conn.btaddr, ins->ltk);
+        ins->ltk_new = false;
+    } else if (!ins->ltk_valid) {
+        ins->ltk_valid = sw2_key_find(d->conn.btaddr, ins->ltk) >= 0;
+    }
+    if (!ins->ltk_valid) {
+        logi("Switch2: no pairing key for %s; press SYNC to pair\n", bd_addr_to_str(d->conn.btaddr));
+        return;
+    }
+    ins->enc_pending = true;
+    ins->enc_tries = 0;
+}
+
 static void sw2_keepalive_timer_cb(btstack_timer_source_t* ts) {
     uni_hid_device_t* d = (uni_hid_device_t*)btstack_run_loop_get_timer_context(ts);
     if (!d)
@@ -547,9 +681,9 @@ static void sw2_keepalive_timer_cb(btstack_timer_source_t* ts) {
         }
     }
 
-    // Switch 2 controllers require a periodic ~5 ms packet on vibration_handle (0x0012) to
+    // Switch 2 controllers expect a periodic packet on vibration_handle (0x0012), as SDL sends every 12 ms, to
     // prevent an HCI connection timeout (0x08). By evaluating the active rumble window
-    // [rumble_start_ms, rumble_end_ms) inside each 5 ms keepalive tick, keepalive packets
+    // [rumble_start_ms, rumble_end_ms) inside each keepalive tick, keepalive packets
     // sustain active vibration instead of overwriting it with silence.
     uint8_t weak = 0;
     uint8_t strong = 0;
@@ -565,6 +699,7 @@ static void sw2_keepalive_timer_cb(btstack_timer_source_t* ts) {
         }
     }
 
+    sw2_try_link_encryption(d);
     sw2_send_vibration_packet(d, weak, strong);
 
     btstack_run_loop_set_timer_context(&ins->keepalive_timer, d);
@@ -634,8 +769,13 @@ static void sw2_send_pairing_step(uni_hid_device_t* d) {
             memset(buf, 0, sizeof(buf));
             buf[0] = 0x00;
             buf[1] = 0x02;
-            memcpy(&buf[2], local_addr, 6);
-            memcpy(&buf[8], local_addr, 6);
+            // As a Switch 2 sends it: the host address little-endian, then the same address with its
+            // lowest byte minus one.
+            for (int i = 0; i < 6; i++) {
+                buf[2 + i] = local_addr[5 - i];
+                buf[8 + i] = local_addr[5 - i];
+            }
+            buf[8] = (uint8_t)(buf[8] - 1);
             sw2_send_command(d, SW2_CMD_PAIRING, SW2_SUBCMD_PAIR_SET_MAC, buf, sizeof(buf));
             break;
         }
@@ -650,6 +790,22 @@ static void sw2_send_pairing_step(uni_hid_device_t* d) {
             sw2_send_command(d, SW2_CMD_PAIRING, SW2_SUBCMD_PAIR_FINISH, fin, sizeof(fin));
             break;
         }
+        case 4: {
+            // Store the host: the second address (little-endian) + the byte-reversed LTK.
+            bd_addr_t local_addr = {0};
+            gap_local_bd_addr(local_addr);
+            uint8_t buf[6 + 16];
+            for (int i = 0; i < 6; i++)
+                buf[i] = local_addr[5 - i];
+            buf[0] = (uint8_t)(buf[0] - 1);
+            for (int i = 0; i < 16; i++)
+                buf[6 + i] = ins->ltk[15 - i];
+            sw2_send_command(d, SW2_CMD_HOST, SW2_SUBCMD_HOST_STORE, buf, sizeof(buf));
+            break;
+        }
+        case 5:
+            sw2_send_command(d, SW2_CMD_HOST, SW2_SUBCMD_HOST_COMMIT, NULL, 0);
+            break;
         default:
             break;
     }
@@ -844,8 +1000,16 @@ static void sw2_advance_command_state(uni_hid_device_t* d, const uint8_t* value,
             break;
 
         case SW2_STATE_PAIRING:
+            // The 0x04 reply carries B1 after the 8-byte header and a status byte: LTK = A1 xor B1.
+            if (ins->pairing_step == 1 && value && value_len >= 9 + 16 && value[0] == SW2_CMD_PAIRING &&
+                value[3] == SW2_SUBCMD_PAIR_LTK1) {
+                for (int i = 0; i < 16; i++)
+                    ins->ltk[i] = (uint8_t)(sw2_ltk1[1 + i] ^ value[9 + i]);
+                ins->ltk_valid = true;
+                ins->ltk_new = true;
+            }
             ins->pairing_step++;
-            if (ins->pairing_step < 4) {
+            if (ins->pairing_step < SW2_PAIRING_STEPS) {
                 sw2_send_pairing_step(d);
             } else {
                 sw2_start_enable_input_notify(d);
@@ -1029,8 +1193,17 @@ bool uni_bt_le_switch2_handle_advertisement(const uint8_t* packet, uint16_t size
         bd_addr_t local_addr = {0};
         bd_addr_t zero_addr = {0};
         gap_local_bd_addr(local_addr);
-        if (memcmp(local_addr, zero_addr, 6) != 0 && memcmp(reconnect_mac, local_addr, 6) != 0) {
-            return false;
+        if (memcmp(local_addr, zero_addr, 6) != 0) {
+            // The controller advertises the host address it stored in the pairing step:
+            // little-endian, possibly the second address (lowest byte minus one).
+            uint8_t host_le[6];
+            for (int i = 0; i < 6; i++)
+                host_le[i] = local_addr[5 - i];
+            bool ours = memcmp(reconnect_mac, host_le, 6) == 0 || memcmp(reconnect_mac, local_addr, 6) == 0;
+            host_le[0] = (uint8_t)(host_le[0] - 1);
+            ours = ours || memcmp(reconnect_mac, host_le, 6) == 0;
+            if (!ours)
+                return false;
         }
     }
 
@@ -1076,6 +1249,10 @@ bool uni_bt_le_switch2_handle_advertisement(const uint8_t* packet, uint16_t size
     }
 
     gap_stop_scan();
+    // Start on the 15 ms interval the link keeps once ready, with a short initiator window, so
+    // connecting a second controller does not starve the first. uni_bt_le restores BTstack's
+    // defaults once the connection completes.
+    gap_set_connection_parameters(0x0060, 0x0018, 12, 12, 0, 400, 0, 0);
     gap_connect(addr, (bd_addr_type_t)addr_type);
     return true;
 }
@@ -1286,7 +1463,7 @@ void uni_hid_parser_switch2_handle_gatt_event(uint8_t packet_type, uint16_t chan
                 ins->waiting_encryption = false;
                 sw2_stop_setup_timer(ins);
                 ins->state = SW2_STATE_READY;
-                gap_update_connection_parameters(d->conn.handle, 6, 6, 0, 400);
+                gap_update_connection_parameters(d->conn.handle, 12, 12, 0, 400);
                 if (uni_bt_conn_get_state(&d->conn) != UNI_BT_CONN_STATE_DEVICE_READY) {
                     uni_bt_conn_set_state(&d->conn, UNI_BT_CONN_STATE_DEVICE_PENDING_READY);
                     if (!uni_hid_device_set_ready_complete(d)) {
@@ -1300,6 +1477,7 @@ void uni_hid_parser_switch2_handle_gatt_event(uint8_t packet_type, uint16_t chan
                 }
                 sw2_send_vibration_packet(d, 0, 0);
                 sw2_start_keepalive_timer(d);
+                sw2_start_link_encryption(d);
             }
             break;
 
@@ -1326,6 +1504,9 @@ void uni_hid_parser_switch2_on_encrypted(struct uni_hid_device_s* d) {
     sw2_instance_t* ins = get_sw2_instance(d);
     ins->paired_from_bond = !ins->needs_pair;
     ins->waiting_encryption = false;
+    ins->enc_started = false;
+    if (sw2_enc_owner == d->conn.handle)
+        sw2_enc_owner = HCI_CON_HANDLE_INVALID;
     if (ins->state == SW2_STATE_IDLE) {
         uni_hid_parser_switch2_on_le_connected(d);
     } else if (ins->state == SW2_STATE_ENABLE_CMD_NOTIFY) {
@@ -1363,13 +1544,14 @@ void uni_hid_parser_switch2_setup(struct uni_hid_device_s* d) {
         return;
 
     // Update this connection's BLE parameters via HCI_LE_Connection_Update (per-connection,
-    // without mutating BTstack's global defaults for other BLE devices) to the minimum 7.5 ms
-    // interval with 0 peripheral latency instead of BTstack's default (30 ms interval, latency 4):
-    //   - conn_interval_min:   6 * 1.25 ms = 7.5 ms
-    //   - conn_interval_max:   6 * 1.25 ms = 7.5 ms
+    // without mutating BTstack's global defaults for other BLE devices) to a 15 ms interval, which
+    // leaves room for a second controller, with 0 peripheral latency instead of BTstack's default (30 ms interval,
+    // latency 4):
+    //   - conn_interval_min:   12 * 1.25 ms = 15 ms
+    //   - conn_interval_max:   12 * 1.25 ms = 15 ms
     //   - conn_latency:        0 (no skipped connection events)
     //   - supervision_timeout: 400 * 10 ms = 4000 ms (4 s)
-    gap_update_connection_parameters(d->conn.handle, 6, 6, 0, 400);
+    gap_update_connection_parameters(d->conn.handle, 12, 12, 0, 400);
 
     ins->state = SW2_STATE_DISCOVER_SERVICES;
     sw2_arm_setup_timer(d, SW2_SETUP_TIMEOUT_MS);
@@ -1387,6 +1569,10 @@ void uni_hid_parser_switch2_deinit(struct uni_hid_device_s* d) {
         ins->notify_registered = false;
     }
     ins->rumble_active = false;
+    if (sw2_enc_owner == d->conn.handle)
+        sw2_enc_owner = HCI_CON_HANDLE_INVALID;
+    ins->enc_pending = false;
+    ins->enc_started = false;
     ins->state = SW2_STATE_DISCONNECTED;
 }
 
