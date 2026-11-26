@@ -939,6 +939,9 @@ void uni_bt_le_on_hci_event_le_meta(const uint8_t* packet, uint16_t size) {
             uni_hid_device_set_connection_handle(device, con_handle);
 
             if (uni_hid_parser_switch2_is_device(device)) {
+                // uni_bt_le_switch2_handle_advertisement() set Switch 2 connection parameters for
+                // this connection; put BTstack's defaults back for other BLE devices.
+                gap_set_connection_parameters(0x0060, 0x0030, 0x0008, 0x0018, 4, 0x0048, 0, 0);
                 // If the controller advertised in active sync-button pairing mode, purge any
                 // stale host-side LTK bond so the controller executes a fresh 0x15 pairing
                 // handshake before SMP runs.
