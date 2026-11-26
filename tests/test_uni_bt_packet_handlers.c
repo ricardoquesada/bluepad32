@@ -2698,10 +2698,12 @@ TEST(bt_le_switch2_gatt_state_machine_and_teardown) {
     d->report_parser.device_extra_info(d, extra, sizeof(extra));
     EXPECT_NE(NULL, strstr(extra, "state=pairing"));
 
-    // 6. SW2_STATE_PAIRING (4 steps: subcmds 0x01, 0x04, 0x02, 0x03) -> SW2_STATE_ENABLE_INPUT_NOTIFY
-    const uint8_t pair_subcmds[4] = {0x01, 0x04, 0x02, 0x03};
-    for (int step = 0; step < 4; step++) {
-        uint8_t pair_rsp[8] = {0x15, 0x91, 0x01, pair_subcmds[step], 0x00, 0x00, 0x00, 0x00};
+    // 6. SW2_STATE_PAIRING (6 steps: 0x15 subcmds 0x01, 0x04, 0x02, 0x03, then the host store 0x03/0x07 and
+    //    0x03/0x09) -> SW2_STATE_ENABLE_INPUT_NOTIFY
+    const uint8_t pair_cmds[6][2] = {{0x15, 0x01}, {0x15, 0x04}, {0x15, 0x02},
+                                     {0x15, 0x03}, {0x03, 0x07}, {0x03, 0x09}};
+    for (int step = 0; step < 6; step++) {
+        uint8_t pair_rsp[8] = {pair_cmds[step][0], 0x91, 0x01, pair_cmds[step][1], 0x00, 0x00, 0x00, 0x00};
         notify_len = build_gatt_notification_pkt(notify_pkt, con_handle, 0x002a, pair_rsp, sizeof(pair_rsp));
         uni_hid_parser_switch2_handle_gatt_event(HCI_EVENT_PACKET, 0, notify_pkt, notify_len);
     }
